@@ -1,7 +1,62 @@
 <div align="center" style="text-align: center;">
+<h1>openpilot-pc</h1>
+<b>在pc设备上运行sunnypilot </b>
+</div>
 
-<h1>openpilot</h1>
+* CPU比较强大
+* 有NVIDIA的GPU
+* 有AMD的GPU
 
+<h3>
+1. 环境安装
+</h3>
+
+参考 [webcam安装步骤](tools/webcam/README.md)
+
+<h3>
+2. GPU支持
+</h3>
+<h4>
+NVIDIA
+</h4>
+
+安装驱动
+参考[官方教程](https://developer.nvidia.com/cudnn-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=24.04&target_type=deb_local)
+
+以下为官方教程精简:
+
+```bash
+# 确保安装的nvidia驱动是cuda12
+sudo apt update
+sudo apt install nvidia-cuda-toolkit
+wget https://developer.download.nvidia.com/compute/cudnn/9.7.1/local_installers/cudnn-local-repo-ubuntu2404-9.7.1_1.0-1_amd64.deb
+sudo dpkg -i cudnn-local-repo-ubuntu2404-9.7.1_1.0-1_amd64.deb
+sudo cp /var/cudnn-local-repo-ubuntu2404-9.7.1/cudnn-*-keyring.gpg /usr/share/keyrings/
+sudo apt-get update
+sudo apt-get -y install cudnn
+sudo apt-get -y install cudnn-cuda-12
+```
+![bug修复](docs/assets/ops_cuda.png)
+
+按上图修改相应的文件和内容,之后`tools/op.sh build`编译,之后运行就行
+
+默热配置的是`CPU`,按理说安装好相关`GPU`驱动会自动调用相应的`GPU`加速
+
+<h3>
+3. 摄像机参数设置
+</h3>
+
+首先使用一些常规软件获取摄像头的内参参数,主要是内参matrix矩阵
+然后分别修改[camera.py](common/transformations/camera.py)和[ui.h](selfdrive/ui/ui.h)中相应摄像头的内参参数
+
+<h3>
+4. 数据分析
+</h3>
+
+参考 [juggler数据分析](tools/plotjuggler/README.md)
+
+------
+<div align="center" style="text-align: center;">
 <p>
   <b>openpilot is an operating system for robotics.</b>
   <br>
