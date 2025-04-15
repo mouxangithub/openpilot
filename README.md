@@ -42,12 +42,19 @@ sudo apt-get -y install cudnn-cuda-12
 
 默热配置的是`CPU`,按理说安装好相关`GPU`驱动会自动调用相应的`GPU`加速
 
+<h4>
+AMD
+</h4>
+
+参考官方教程
+
+
 <h3>
 3. 摄像机参数设置
 </h3>
 
-首先使用一些常规软件获取摄像头的内参参数,主要是内参matrix矩阵
-然后分别修改[camera.py](common/transformations/camera.py)和[ui.h](selfdrive/ui/ui.h)中相应摄像头的内参参数
+首先使用一些常规软件获取摄像头的内参参数(例如GMLCCalibration),主要是内参matrix矩阵
+然后分别修改[camera.py](common/transformations/camera.py)和[ui.h](selfdrive/ui/ui.h)中相应摄像头的内参参数；另外根据自己的需求更改[camera.py](tools/webcam/camera.py)中的相机参数（像素和帧率，帧率最好是20的倍数，例如20,60）
 
 <h3>
 4. 数据分析
