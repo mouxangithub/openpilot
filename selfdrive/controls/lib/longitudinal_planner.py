@@ -63,7 +63,7 @@ def get_accel_from_plan(speeds, accels, action_t=DT_MDL, vEgoStopping=0.05):
     v_target_1sec = 0.0
     a_target = 0.0
   should_stop = (v_target < vEgoStopping and
-                 v_target_1sec < vEgoStopping)
+                 v_target_1sec < vEgoStopping * 2.0)
   return a_target, should_stop
 
 
