@@ -290,6 +290,7 @@ def main(demo=False):
     prepare_only = vipc_dropped_frames > 0
     if prepare_only:
       cloudlog.error(f"skipping model eval. Dropped {vipc_dropped_frames} frames")
+    prepare_only = prepare_only or run_count % 2 == 0
 
     inputs:dict[str, np.ndarray] = {
       'desire': vec_desire,
