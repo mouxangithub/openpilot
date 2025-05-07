@@ -15,6 +15,6 @@
 #include "system/hardware/hw.h"
 
 const QString ASSET_PATH = ":/";
-const QSize DEVICE_SCREEN_SIZE = {800, 400};
+const QSize DEVICE_SCREEN_SIZE = {800, 420};
 
 void setMainWindow(QWidget *w);
