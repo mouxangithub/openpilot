@@ -25,7 +25,7 @@ _services: dict[str, tuple] = {
   "touch": (True, 20., 1),
   "can": (True, 100., 2053),  # decimation gives ~3 msgs in a full segment
   "controlsState": (True, 100., 10),
-  "selfdriveState": (True, 100., 10),
+  "selfdriveState": (True, 50., 10),
   "pandaStates": (True, 10., 1),
   "peripheralState": (True, 2., 1),
   "radarState": (True, 10., 5),
@@ -77,7 +77,7 @@ _services: dict[str, tuple] = {
   # sunnypilot
   "modelManagerSP": (False, 1., 1),
   "backupManagerSP": (False, 1., 1),
-  "selfdriveStateSP": (True, 100., 10),
+  "selfdriveStateSP": (True, 50., 10),
   "longitudinalPlanSP": (True, 20., 10),
   "onroadEventsSP": (True, 1., 1),
   "carParamsSP": (True, 0.02, 1),
