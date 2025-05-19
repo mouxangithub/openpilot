@@ -10,11 +10,14 @@ from openpilot.tools.webcam.camera import Camera, CameraMJPG
 from openpilot.common.realtime import Ratekeeper
 
 WIDE_CAM = os.getenv("WIDE_CAM")
+NO_DM = os.getenv("NO_DM") is not None
 CameraType = namedtuple("CameraType", ["msg_name", "stream_type", "cam_id"])
 CAMERAS = [
   CameraType("roadCameraState", VisionStreamType.VISION_STREAM_ROAD, os.getenv("ROAD_CAM", "0")),
   # CameraType("driverCameraState", VisionStreamType.VISION_STREAM_DRIVER, os.getenv("DRIVER_CAM", "2")),
 ]
+if not NO_DM:
+  CAMERAS.append(CameraType("driverCameraState", VisionStreamType.VISION_STREAM_DRIVER, os.getenv("DRIVER_CAM", "2")))
 if WIDE_CAM:
   CAMERAS.append(CameraType("wideRoadCameraState", VisionStreamType.VISION_STREAM_WIDE_ROAD, WIDE_CAM))
 
