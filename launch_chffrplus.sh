@@ -77,6 +77,28 @@ function launch {
   # write tmux scrollback to a file
   tmux capture-pane -pq -S-1000 > /tmp/launch_log
 
+  ####### TSK
+  set -v
+
+  # Prepare /cache/params
+  sudo mkdir -p /cache/params || true
+  sudo chown -R comma:comma /cache/params
+
+  # Run TSKM
+  cd /data/openpilot
+  python3 tsk/prefetch.py
+  python3 tsk/main.py
+  #bash  # Debug
+
+  # Success - rm -rf /data/openpilot && mv /data/tsk-recommended /data/openpilot
+  # Retry - exit without doing anything
+  # Bail - rm -rf /data/tsk-nightly-dev && rm /data/continue.sh
+
+  sudo reboot
+  exit
+  ####### TSK
+
+  # This never runs
   # start manager
   cd system/manager
   if [ ! -f $DIR/prebuilt ]; then
