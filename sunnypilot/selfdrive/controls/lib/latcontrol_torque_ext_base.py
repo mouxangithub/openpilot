@@ -11,7 +11,7 @@ from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N
 from openpilot.selfdrive.modeld.constants import ModelConstants
 
 LAT_PLAN_MIN_IDX = 5
-
+LATERAL_LAG_MOD = 0.3 # seconds, modifies how far in the future we look ahead for the lateral plan
 
 def get_predicted_lateral_jerk(lat_accels, t_diffs):
   # compute finite difference between subsequent model_v2.acceleration.y values
@@ -85,11 +85,14 @@ class LatControlTorqueExtBase:
 
     # precompute time differences between ModelConstants.T_IDXS
     self.t_diffs = np.diff(ModelConstants.T_IDXS)
-    self.desired_lat_jerk_time = CP.steerActuatorDelay + 0.3
+    self.desired_lat_jerk_time = CP.steerActuatorDelay + LATERAL_LAG_MOD
 
   def update_model_v2(self, model_v2):
     self.model_v2 = model_v2
     self.model_valid = self.model_v2 is not None and len(self.model_v2.orientation.x) >= CONTROL_N
+
+  def update_lateral_lag(self, lag):
+    self.desired_lat_jerk_time = max(0.01, lag) + LATERAL_LAG_MOD
 
   def update_friction_input(self, val_1, val_2):
     _error = val_1 - val_2
@@ -113,7 +116,7 @@ class LatControlTorqueExtBase:
       friction_upper_idx = next((i for i, val in enumerate(ModelConstants.T_IDXS) if val > lookahead), 16)
       predicted_lateral_jerk = get_predicted_lateral_jerk(self.model_v2.acceleration.y, self.t_diffs)
       desired_lateral_jerk = (np.interp(self.desired_lat_jerk_time, ModelConstants.T_IDXS,
-                              self.model_v2.acceleration.y) - desired_lateral_accel) / self.desired_lat_jerk_time
+                                        self.model_v2.acceleration.y) - desired_lateral_accel) / self.desired_lat_jerk_time
       self.lookahead_lateral_jerk = get_lookahead_value(predicted_lateral_jerk[LAT_PLAN_MIN_IDX:friction_upper_idx], desired_lateral_jerk)
       if not self.use_steering_angle or self.lookahead_lateral_jerk == 0.0:
         self.lookahead_lateral_jerk = 0.0
