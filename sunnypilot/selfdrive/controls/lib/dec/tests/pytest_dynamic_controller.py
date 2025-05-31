@@ -2,8 +2,8 @@ import pytest
 import numpy as np
 from openpilot.common.params import Params
 
-from openpilot.sunnypilot.selfdrive.controls.lib.dec.constants import WMACConstants, SNG_State
-from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController, TRAJECTORY_SIZE, STOP_AND_GO_FRAME
+from openpilot.sunnypilot.selfdrive.controls.lib.dec.constants import WMACConstants
+from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController, TRAJECTORY_SIZE
 
 class MockInterp:
   def __call__(self, x, xp, fp):
@@ -47,34 +47,13 @@ def test_initial_state(controller):
   assert controller._mode == 'acc'
   assert not controller._has_lead
   assert not controller._has_standstill
-  assert controller._sng_state == SNG_State.off
   assert not controller._has_lead_filtered
   assert not controller._has_slow_down
   assert not controller._has_dangerous_ttc
   assert not controller._has_mpc_fcw
 
 @pytest.mark.parametrize("has_radar", [True, False], ids=["with_radar", "without_radar"])
-def test_standstill_detection(controller, has_radar):
-  """Test standstill detection and state transitions"""
-  car_state = MockCarState(standstill=True)
-  lead_one = MockLeadOne()
-  md = MockModelData(x_vals=[0] * TRAJECTORY_SIZE, positions=[150] * TRAJECTORY_SIZE)
-  controls_state = MockControlState()
 
-  # Test transition to standstill
-  controller.update(not has_radar, car_state, lead_one, md, controls_state)
-  assert controller._sng_state == SNG_State.stopped
-  assert controller.get_mpc_mode() == 'blended'
-
-  # Test transition from standstill to moving
-  car_state.standstill = False
-  controller.update(not has_radar, car_state, lead_one, md, controls_state)
-  assert controller._sng_state == SNG_State.going
-
-  # Test complete transition to normal driving
-  for _ in range(STOP_AND_GO_FRAME + 1):
-    controller.update(not has_radar, car_state, lead_one, md, controls_state)
-  assert controller._sng_state == SNG_State.off
 
 @pytest.mark.parametrize("has_radar", [True, False], ids=["with_radar", "without_radar"])
 def test_lead_detection(controller, has_radar):
