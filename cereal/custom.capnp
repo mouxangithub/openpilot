@@ -198,10 +198,10 @@ struct CarParamsSP @0x80ae746ee2596b11 {
 
 struct CarControlSP @0xa5cd762cd951a455 {
   mads @0 :ModularAssistiveDrivingSystem;
-  params @1 :List(Param);
-  leadDistance @2 :Float32;
-  leadRelSpeed @3 :Float32;
-  leadVisible @4 :Bool;
+  leadDistance @1 :Float32;
+  leadRelSpeed @2 :Float32;
+  leadVisible @3 :Bool;
+  params @4 :List(Param);
 
   struct Param {
     key @0 :Text;
