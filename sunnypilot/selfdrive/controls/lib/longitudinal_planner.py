@@ -7,8 +7,8 @@ See the LICENSE.md file in the root directory for more details.
 
 from cereal import messaging, custom
 from opendbc.car import structs
-from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
 from openpilot.common.params import Params
+from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
 from openpilot.sunnypilot.selfdrive.controls.lib.accel_personality.accel_controller import AccelController
 DecState = custom.LongitudinalPlanSP.DynamicExperimentalControl.DynamicExperimentalControlState
 
@@ -16,6 +16,7 @@ DecState = custom.LongitudinalPlanSP.DynamicExperimentalControl.DynamicExperimen
 class LongitudinalPlannerSP:
   def __init__(self, CP: structs.CarParams, mpc):
     self.dec = DynamicExperimentalController(CP, mpc)
+    self._params = Params()
     self.accel_controller = AccelController()
     self.params = Params()
     self.param_read_counter = 0
@@ -33,6 +34,11 @@ class LongitudinalPlannerSP:
       return None
 
     return self.dec.mode()
+
+  def gas_gating(self) -> bool:
+    if self._params.get_bool("GasGating"):
+      return True
+    return False
 
   def update(self, sm: messaging.SubMaster) -> None:
     self.param_read_counter += 1
