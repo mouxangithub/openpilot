@@ -60,16 +60,17 @@ void HudRenderer::updateState(const UIState &s) {
   const auto lp_sp = sm["longitudinalPlanSP"].getLongitudinalPlanSP();
   //const auto slc = lp_sp.getSlc();
 
-  // Speed limit from navigation
+  // Speed limit from navigation (force for testing)
   if (nav_alive) {
     nav_speed_limit = nav_instruction.getSpeedLimit() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
     auto speed_limit_sign = nav_instruction.getSpeedLimitSign();
     has_us_speed_limit = (speed_limit_sign == cereal::NavInstruction::SpeedLimitSign::MUTCD);
     has_eu_speed_limit = (speed_limit_sign == cereal::NavInstruction::SpeedLimitSign::VIENNA);
   } else {
-    nav_speed_limit = 0.0;
-    has_us_speed_limit = false;
-    has_eu_speed_limit = false;
+    // Force test values when no navigation data
+    nav_speed_limit = is_metric ? 80.0 : 55.0;  // 80 km/h or 55 mph
+    has_us_speed_limit = !is_metric;
+    has_eu_speed_limit = is_metric;
   }
 
   // Longitudinal plan data (if available)
@@ -93,8 +94,16 @@ void HudRenderer::updateState(const UIState &s) {
     //turn_state = lp_sp.getTurnSpeedControlState();
     //turn_sign = lp_sp.getTurnSign();
 
-    // Determine what to show
-    show_slc = slc_speed_limit > 0.0;
+    // Determine what to show (force SLC for testing)
+    show_slc = slc_speed_limit > 0.0 || true;  // Force show SLC
+
+    // Force some SLC values for testing if not available
+    if (slc_speed_limit <= 0.0) {
+      slc_speed_limit = is_metric ? 70.0 : 45.0;  // 70 km/h or 45 mph
+      slc_state = static_cast<int>(cereal::LongitudinalPlanSP::SpeedLimitControlState::ACTIVE);
+      slc_speed_offset = is_metric ? 5.0 : 3.0;   // +5 km/h or +3 mph offset
+      slc_distance = is_metric ? 500 : 1640;      // 500m or 1640ft (500m)
+    }
     //show_vtc = vtc_state > cereal::LongitudinalPlanSP::VisionTurnControllerState::DISABLED;
     //show_turn_speed = turn_speed > 0.0 && std::round(turn_speed) < 224 &&
     //                 (turn_speed < speed || s.scene.show_debug_ui);
@@ -137,8 +146,8 @@ void HudRenderer::draw(QPainter &p, const QRect &surface_rect) {
     drawSetSpeed(p, surface_rect);
   }
 
-  // Draw speed limit signs
-  if (show_slc || nav_speed_limit > 0) {
+  // Draw speed limit signs (force always show for testing)
+  if (show_slc || nav_speed_limit > 0 || true) {  // Force always draw
     drawSpeedLimitSigns(p, surface_rect);
   }
 
@@ -413,18 +422,4 @@ void HudRenderer::drawCenteredText(QPainter &p, int x, int y, const QString &tex
 
   p.setPen(color);
   p.drawText(real_rect, Qt::AlignCenter, text);
-}
-
-static void drawRoundedRect(QPainter &p, const QRect &rect, int xRadiusTop, int yRadiusTop, int xRadiusBottom, int yRadiusBottom) {
-  QPainterPath path;
-  path.moveTo(rect.topRight() - QPoint(xRadiusTop, 0));
-  path.arcTo(QRect(rect.topRight() - QPoint(2 * xRadiusTop, 0), QSize(2 * xRadiusTop, 2 * yRadiusTop)), 90, -90);
-  path.lineTo(rect.bottomRight() - QPoint(0, yRadiusBottom));
-  path.arcTo(QRect(rect.bottomRight() - QPoint(2 * xRadiusBottom, 2 * yRadiusBottom), QSize(2 * xRadiusBottom, 2 * yRadiusBottom)), 0, -90);
-  path.lineTo(rect.bottomLeft() + QPoint(xRadiusBottom, 0));
-  path.arcTo(QRect(rect.bottomLeft() + QPoint(0, -2 * yRadiusBottom), QSize(2 * xRadiusBottom, 2 * yRadiusBottom)), 270, -90);
-  path.lineTo(rect.topLeft() + QPoint(0, yRadiusTop));
-  path.arcTo(QRect(rect.topLeft(), QSize(2 * xRadiusTop, 2 * yRadiusTop)), 180, -90);
-  path.closeSubpath();
-  p.drawPath(path);
 }
