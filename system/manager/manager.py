@@ -18,6 +18,8 @@ from openpilot.common.swaglog import cloudlog, add_file_handler
 from openpilot.system.version import get_build_metadata, terms_version, training_version
 from openpilot.system.hardware.hw import Paths
 
+from openpilot.sunnypilot.mapd.mapd_installer import VERSION
+
 
 def manager_init() -> None:
   save_bootlog()
@@ -54,6 +56,7 @@ def manager_init() -> None:
     ("MadsMainCruiseAllowed", "1"),
     ("MadsSteeringMode", "0"),
     ("MadsUnifiedEngagementMode", "1"),
+    ("MapdVersion", f"{VERSION}"),
     ("MaxTimeOffroad", "1800"),
     ("ModelManager_LastSyncTime", "0"),
     ("ModelManager_ModelsCache", ""),
@@ -62,6 +65,15 @@ def manager_init() -> None:
     ("CustomAccIncrementsEnabled", "0"),
     ("CustomAccLongPressIncrement", "5"),
     ("CustomAccShortPressIncrement", "1"),
+
+    ("SpeedLimitControl", "0"),
+    ("SpeedLimitControlPolicy", "3"),
+    ("SpeedLimitEngageType", "0"),
+    ("SpeedLimitOffsetType", "0"),
+    ("SpeedLimitValueOffset", "0"),
+    ("SpeedLimitWarningType", "0"),
+    ("SpeedLimitWarningOffsetType", "0"),
+    ("SpeedLimitWarningValueOffset", "0"),
   ]
 
   if params.get_bool("RecordFrontLock"):

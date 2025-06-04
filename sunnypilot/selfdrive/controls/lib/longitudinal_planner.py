@@ -8,15 +8,22 @@ See the LICENSE.md file in the root directory for more details.
 from cereal import messaging, custom
 from opendbc.car import structs
 from openpilot.common.params import Params
+from openpilot.selfdrive.car.cruise import V_CRUISE_UNSET
 from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
 from openpilot.sunnypilot.selfdrive.controls.lib.accel_personality.accel_controller import AccelController
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit_controller.speed_limit_controller import SpeedLimitController
+from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
+
 DecState = custom.LongitudinalPlanSP.DynamicExperimentalControl.DynamicExperimentalControlState
 
 
 class LongitudinalPlannerSP:
   def __init__(self, CP: structs.CarParams, mpc):
+    self.events_sp = EventsSP()
+
     self.dec = DynamicExperimentalController(CP, mpc)
     self._params = Params()
+    self.slc = SpeedLimitController(CP)
     self.accel_controller = AccelController()
     self.params = Params()
     self.param_read_counter = 0
@@ -29,11 +36,23 @@ class LongitudinalPlannerSP:
     except AttributeError:
       pass
 
+
   def get_mpc_mode(self) -> str | None:
     if not self.dec.active():
       return None
 
     return self.dec.mode()
+
+  def update_v_cruise(self, sm: messaging.SubMaster, long_enabled: bool, v_ego: float, a_ego: float, v_cruise: float) -> float:
+    self.events_sp.clear()
+
+    self.slc.update(long_enabled, v_ego, a_ego, sm, v_cruise, self.events_sp)
+
+    v_cruise_slc = self.slc.speed_limit_offseted if self.slc.is_active else V_CRUISE_UNSET
+
+    v_cruise_final = min(v_cruise, v_cruise_slc)
+
+    return v_cruise_final
 
   def gas_gating(self) -> bool:
     if self._params.get_bool("GasGating"):
@@ -53,11 +72,21 @@ class LongitudinalPlannerSP:
     plan_sp_send.valid = sm.all_checks(service_list=['carState', 'controlsState'])
 
     longitudinalPlanSP = plan_sp_send.longitudinalPlanSP
+    longitudinalPlanSP.events = self.events_sp.to_msg()
 
     # Dynamic Experimental Control
     dec = longitudinalPlanSP.dec
     dec.state = DecState.blended if self.dec.mode() == 'blended' else DecState.acc
     dec.enabled = self.dec.enabled()
     dec.active = self.dec.active()
+
+    # Speed Limit Control
+    slc = longitudinalPlanSP.slc
+    slc.state = self.slc.state
+    slc.enabled = self.slc.is_enabled
+    slc.active = self.slc.is_active
+    slc.speedLimit = float(self.slc.speed_limit)
+    slc.speedLimitOffset = float(self.slc.speed_limit_offset)
+    slc.distToSpeedLimit = float(self.slc.distance)
 
     pm.send('longitudinalPlanSP', plan_sp_send)
