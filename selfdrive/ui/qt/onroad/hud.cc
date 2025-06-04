@@ -1,10 +1,28 @@
 #include "selfdrive/ui/qt/onroad/hud.h"
 
 #include <cmath>
+#include <QPainterPath>
 
 #include "selfdrive/ui/qt/util.h"
 
 constexpr int SET_SPEED_NA = 255;
+static QColor interpColor(float x, const std::vector<float> &x_vals, const std::vector<QColor> &colors) {
+  assert(x_vals.size() == colors.size() && x_vals.size() >= 2);
+  for (size_t i = 1; i < x_vals.size(); ++i) {
+    if (x < x_vals[i]) {
+      float t = (x - x_vals[i - 1]) / (x_vals[i] - x_vals[i - 1]);
+      QColor c1 = colors[i - 1];
+      QColor c2 = colors[i];
+      return QColor::fromRgbF(
+        c1.redF() + (c2.redF() - c1.redF()) * t,
+        c1.greenF() + (c2.greenF() - c1.greenF()) * t,
+        c1.blueF() + (c2.blueF() - c1.blueF()) * t,
+        c1.alphaF() + (c2.alphaF() - c1.alphaF()) * t
+      );
+    }
+  }
+  return colors.back();  // Default to last color if out of range
+}
 
 HudRenderer::HudRenderer() {
   // Load images for turn signs
@@ -13,12 +31,12 @@ HudRenderer::HudRenderer() {
   map_img = loadPixmap("../assets/img_map", {32, 32});
 
   // VTC colors for different states
-  tcs_colors = {
-    QColor(0, 0, 0, 50),           // DISABLED
-    QColor(255, 255, 255, 200),    // ENABLED
-    QColor(255, 255, 0, 255),      // ACTIVE
-    QColor(255, 0, 0, 255)         // BRAKING
-  };
+  //tcs_colors = {
+  //  QColor(0, 0, 0, 50),           // DISABLED
+  //  QColor(255, 255, 255, 200),    // ENABLED
+   // QColor(255, 255, 0, 255),      // ACTIVE
+  //  QColor(255, 0, 0, 255)         // BRAKING
+  //};
 }
 
 void HudRenderer::updateState(const UIState &s) {
@@ -39,6 +57,8 @@ void HudRenderer::updateState(const UIState &s) {
   // Navigation and longitudinal plan data
   const bool nav_alive = sm.alive("navInstruction") && sm["navInstruction"].getValid();
   const auto nav_instruction = nav_alive ? sm["navInstruction"].getNavInstruction() : cereal::NavInstruction::Reader();
+  const auto lp_sp = sm["longitudinalPlanSP"].getLongitudinalPlanSP();
+  //const auto slc = lp_sp.getSlc();
 
   // Speed limit from navigation
   if (nav_alive) {
@@ -54,34 +74,34 @@ void HudRenderer::updateState(const UIState &s) {
 
   // Longitudinal plan data (if available)
   if (sm.alive("longitudinalPlanSP")) {
-    const auto &lp_sp = sm["longitudinalPlanSP"].getLongitudinalPlanSP();
-
+	const auto slc = lp_sp.getSlc();
     // Speed Limit Control
-    slc_speed_limit = lp_sp.getSpeedLimit() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
-    slc_speed_offset = lp_sp.getSpeedLimitOffset() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
-    slc_state = lp_sp.getSpeedLimitControlState();
-    slc_distance = int(lp_sp.getDistToSpeedLimit() * (is_metric ? MS_TO_KPH : MS_TO_MPH) / 10.0) * 10;
-    is_map_speed_limit = lp_sp.getIsMapSpeedLimit();
+    slc_state = static_cast<int>(slc.getState());
+    slc_speed_limit = slc.getSpeedLimit() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
+    slc_speed_offset = slc.getSpeedLimitOffset() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
+    slc_distance = int(slc.getDistToSpeedLimit() * (is_metric ? MS_TO_KPH : MS_TO_MPH) / 10.0) * 10;
+
+    //is_map_speed_limit = slc.getIsMapSpeedLimit();
 
     // Vision Turn Controller
-    vtc_speed = lp_sp.getVisionTurnSpeed() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
-    vtc_state = lp_sp.getVisionTurnControllerState();
+    //vtc_speed = lp_sp.getVisionTurnSpeed() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
+    //vtc_state = lp_sp.getVisionTurnControllerState();
 
     // Turn Speed Controller
-    turn_speed = lp_sp.getTurnSpeed() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
-    turn_distance = int(lp_sp.getDistToTurn() * (is_metric ? MS_TO_KPH : MS_TO_MPH) / 10.0) * 10;
-    turn_state = lp_sp.getTurnSpeedControlState();
-    turn_sign = lp_sp.getTurnSign();
+    //turn_speed = lp_sp.getTurnSpeed() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
+    //turn_distance = int(lp_sp.getDistToTurn() * (is_metric ? MS_TO_KPH : MS_TO_MPH) / 10.0) * 10;
+    //turn_state = lp_sp.getTurnSpeedControlState();
+    //turn_sign = lp_sp.getTurnSign();
 
     // Determine what to show
     show_slc = slc_speed_limit > 0.0;
-    show_vtc = vtc_state > cereal::LongitudinalPlanSP::VisionTurnControllerState::DISABLED;
-    show_turn_speed = turn_speed > 0.0 && std::round(turn_speed) < 224 &&
-                     (turn_speed < speed || s.scene.show_debug_ui);
+    //show_vtc = vtc_state > cereal::LongitudinalPlanSP::VisionTurnControllerState::DISABLED;
+    //show_turn_speed = turn_speed > 0.0 && std::round(turn_speed) < 224 &&
+    //                 (turn_speed < speed || s.scene.show_debug_ui);
   } else {
     show_slc = false;
-    show_vtc = false;
-    show_turn_speed = false;
+    //show_vtc = false;
+    //show_turn_speed = false;
   }
 
   // Handle older routes where vCruiseCluster is not set
@@ -125,13 +145,13 @@ void HudRenderer::draw(QPainter &p, const QRect &surface_rect) {
   drawCurrentSpeed(p, surface_rect);
 
   // Draw additional controls on the right side
-  if (show_vtc) {
-    drawVisionTurnController(p, surface_rect);
-  }
+  //if (show_vtc) {
+  //  drawVisionTurnController(p, surface_rect);
+  //}
 
-  if (show_turn_speed) {
-    drawTurnSpeedController(p, surface_rect);
-  }
+  //if (show_turn_speed) {
+  //  drawTurnSpeedController(p, surface_rect);
+  //}
 
   p.restore();
 }
@@ -163,7 +183,8 @@ void HudRenderer::drawSetSpeed(QPainter &p, const QRect &surface_rect) {
   int bottom_radius = ((is_metric && (has_slc_sign || has_eu_speed_limit)) || has_eu_speed_limit) ? 100 : 32;
   p.setPen(QPen(QColor(255, 255, 255, 75), 6));
   p.setBrush(QColor(0, 0, 0, 166));
-  drawRoundedRect(p, set_speed_rect, 32, 32, bottom_radius, bottom_radius);
+  p.drawRoundedRect(set_speed_rect, bottom_radius, bottom_radius);
+
 
   // Colors based on status and speed limit comparison
   QColor max_color = QColor(0xa6, 0xa6, 0xa6, 0xff);
@@ -212,7 +233,8 @@ void HudRenderer::drawSpeedLimitSigns(QPainter &p, const QRect &surface_rect) {
 
   // Determine which speed limit to show and its properties
   float display_speed = show_slc ? slc_speed_limit : nav_speed_limit;
-  bool is_active = show_slc ? (slc_state != cereal::LongitudinalPlanSP::SpeedLimitControlState::INACTIVE) : true;
+  bool is_active = show_slc ? (slc_state != static_cast<int>(cereal::LongitudinalPlanSP::SpeedLimitControlState::INACTIVE)) : true;
+
   bool show_us_style = (!is_metric && show_slc && is_map_speed_limit) || has_us_speed_limit;
   bool show_eu_style = (is_metric && show_slc && is_map_speed_limit) || has_eu_speed_limit;
 
@@ -221,7 +243,7 @@ void HudRenderer::drawSpeedLimitSigns(QPainter &p, const QRect &surface_rect) {
   // Generate sub-text
   QString sub_text = "";
   if (show_slc) {
-    if (slc_state == cereal::LongitudinalPlanSP::SpeedLimitControlState::TEMP_INACTIVE) {
+    if (slc_state == static_cast<int>(cereal::LongitudinalPlanSP::SpeedLimitControlState::TEMP_INACTIVE)) {
       sub_text = "TEMP";
     } else if (slc_distance > 0) {
       sub_text = QString::number(slc_distance) + (is_metric ? "m" : "f");
@@ -280,7 +302,7 @@ void HudRenderer::drawSpeedLimitSigns(QPainter &p, const QRect &surface_rect) {
     p.setOpacity(1.0);
   }
 }
-
+/*
 void HudRenderer::drawVisionTurnController(QPainter &p, const QRect &surface_rect) {
   int x = surface_rect.right() - 184 - 24;
   int y = 24;
@@ -366,7 +388,7 @@ void HudRenderer::drawTurnSpeedController(QPainter &p, const QRect &surface_rect
     drawCenteredText(p, x, y + 65, distance_str, text_color);
   }
 }
-
+*/
 void HudRenderer::drawCurrentSpeed(QPainter &p, const QRect &surface_rect) {
   QString speedStr = QString::number(std::nearbyint(speed));
 
@@ -393,18 +415,16 @@ void HudRenderer::drawCenteredText(QPainter &p, int x, int y, const QString &tex
   p.drawText(real_rect, Qt::AlignCenter, text);
 }
 
-void HudRenderer::drawRoundedRect(QPainter &p, const QRect &rect, int tl, int tr, int bl, int br) {
+static void drawRoundedRect(QPainter &p, const QRect &rect, int xRadiusTop, int yRadiusTop, int xRadiusBottom, int yRadiusBottom) {
   QPainterPath path;
-  path.moveTo(rect.left() + tl, rect.top());
-  path.lineTo(rect.right() - tr, rect.top());
-  path.arcTo(rect.right() - tr * 2, rect.top(), tr * 2, tr * 2, 90, -90);
-  path.lineTo(rect.right(), rect.bottom() - br);
-  path.arcTo(rect.right() - br * 2, rect.bottom() - br * 2, br * 2, br * 2, 0, -90);
-  path.lineTo(rect.left() + bl, rect.bottom());
-  path.arcTo(rect.left(), rect.bottom() - bl * 2, bl * 2, bl * 2, 270, -90);
-  path.lineTo(rect.left(), rect.top() + tl);
-  path.arcTo(rect.left(), rect.top(), tl * 2, tl * 2, 180, -90);
+  path.moveTo(rect.topRight() - QPoint(xRadiusTop, 0));
+  path.arcTo(QRect(rect.topRight() - QPoint(2 * xRadiusTop, 0), QSize(2 * xRadiusTop, 2 * yRadiusTop)), 90, -90);
+  path.lineTo(rect.bottomRight() - QPoint(0, yRadiusBottom));
+  path.arcTo(QRect(rect.bottomRight() - QPoint(2 * xRadiusBottom, 2 * yRadiusBottom), QSize(2 * xRadiusBottom, 2 * yRadiusBottom)), 0, -90);
+  path.lineTo(rect.bottomLeft() + QPoint(xRadiusBottom, 0));
+  path.arcTo(QRect(rect.bottomLeft() + QPoint(0, -2 * yRadiusBottom), QSize(2 * xRadiusBottom, 2 * yRadiusBottom)), 270, -90);
+  path.lineTo(rect.topLeft() + QPoint(0, yRadiusTop));
+  path.arcTo(QRect(rect.topLeft(), QSize(2 * xRadiusTop, 2 * yRadiusTop)), 180, -90);
   path.closeSubpath();
-
   p.drawPath(path);
 }
