@@ -7,11 +7,9 @@
 
 #pragma once
 
-#include <QWidget>
-
 #include "selfdrive/ui/sunnypilot/ui.h"
 #include "selfdrive/ui/sunnypilot/qt/offroad/settings/settings.h"
-#include "selfdrive/ui/sunnypilot/qt/offroad/settings/slc/speed_limit_control.h"
+#include "selfdrive/ui/sunnypilot/qt/offroad/settings/longitudinal/slc/speed_limit_control.h"
 #include "selfdrive/ui/sunnypilot/qt/widgets/controls.h"
 
 class SpeedLimitControlPolicy : public QWidget {

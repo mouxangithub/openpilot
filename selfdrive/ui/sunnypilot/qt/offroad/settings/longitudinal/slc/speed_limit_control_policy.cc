@@ -5,7 +5,7 @@
  * See the LICENSE.md file in the root directory for more details.
  */
 
-#include "selfdrive/ui/sunnypilot/qt/offroad/settings/slc/speed_limit_control_policy.h"
+#include "selfdrive/ui/sunnypilot/qt/offroad/settings/longitudinal/slc/speed_limit_control_policy.h"
 
 SpeedLimitControlPolicy::SpeedLimitControlPolicy(QWidget *parent) : QWidget(parent) {
   QVBoxLayout* main_layout = new QVBoxLayout(this);
@@ -42,21 +42,10 @@ SpeedLimitControlPolicy::SpeedLimitControlPolicy(QWidget *parent) : QWidget(pare
 };
 
 void SpeedLimitControlPolicy::refresh() {
-  // Safe parameter parsing with default value
-  auto safeStoi = [](const std::string& str, int defaultValue = 0) -> int {
-    if (str.empty()) return defaultValue;
-    try {
-      return std::stoi(str);
-    } catch (const std::exception&) {
-      return defaultValue;
-    }
-  };
-
-  int policyValue = safeStoi(params.get("SpeedLimitControlPolicy"), 0);
-  slc_policy->setDescription(sourceDescription(static_cast<SLCSourcePolicy>(policyValue)));
-  slc_policy->showDescription();
+  slc_policy->setDescription(sourceDescription(static_cast<SLCSourcePolicy>(std::atoi(params.get("SpeedLimitControlPolicy").c_str()))));
 }
 
 void SpeedLimitControlPolicy::showEvent(QShowEvent *event) {
   refresh();
+  slc_policy->showDescription();
 }

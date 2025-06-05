@@ -5,7 +5,7 @@
  * See the LICENSE.md file in the root directory for more details.
  */
 
-#include "selfdrive/ui/sunnypilot/qt/offroad/settings/slc/speed_limit_control_subpanel.h"
+#include "selfdrive/ui/sunnypilot/qt/offroad/settings/longitudinal/slc/speed_limit_control_subpanel.h"
 
 SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStackedWidget(parent) {
   subPanelFrame = new QFrame();
@@ -25,6 +25,7 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
   auto *slcBtnFrame = new QFrame(this);
   auto *slcBtnFrameLayout = new QGridLayout();
   slcBtnFrame->setLayout(slcBtnFrameLayout);
+  slcBtnFrameLayout->setContentsMargins(0, 10, 0, 10);
   slcBtnFrameLayout->setSpacing(0);
 
   slcWarningScreen = new SpeedLimitControlWarning(this);
@@ -37,7 +38,7 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
   });
   connect(slcWarningScreen, &SpeedLimitControlWarning::backPress, [&]() {
     setCurrentWidget(subPanelFrame);
-    refresh();
+    showEvent(new QShowEvent());
   });
 
   slcSourceControl = new PushButtonSP(tr("Customize Source"));
@@ -47,7 +48,7 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
   });
   connect(slcPolicyScreen, &SpeedLimitControlPolicy::backPress, [&]() {
     setCurrentWidget(subPanelFrame);
-    refresh();
+    showEvent(new QShowEvent());
   });
 
   slcWarningControl->setFixedWidth(650);
@@ -112,39 +113,25 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
 };
 
 void SpeedLimitControlSubpanel::refresh() {
-  // Safe parameter parsing with default values
-  auto safeStoi = [](const std::string& str, int defaultValue = 0) -> int {
-    if (str.empty()) return defaultValue;
-    try {
-      return std::stoi(str);
-    } catch (const std::exception&) {
-      return defaultValue;
-    }
-  };
-
-  int engageType = safeStoi(params.get("SpeedLimitEngageType"), 0);
-  int offsetType = safeStoi(params.get("SpeedLimitOffsetType"), 0);
-
-  slc_engage_setting->setDescription(engageModeDescription(static_cast<SLCEngageType>(engageType)));
-  slc_offset->setDescription(offsetDescription(static_cast<SLCOffsetType>(offsetType)));
+  slc_engage_setting->setDescription(engageModeDescription(static_cast<SLCEngageType>(std::atoi(params.get("SpeedLimitEngageType").c_str()))));
+  slc_offset->setDescription(offsetDescription(static_cast<SLCOffsetType>(std::atoi(params.get("SpeedLimitOffsetType").c_str()))));
 
   QString offsetLabel = QString::fromStdString(params.get("SpeedLimitValueOffset"));
-  if (static_cast<SLCOffsetType>(offsetType) == SLCOffsetType::PERCENT) {
+  if (static_cast<SLCOffsetType>(std::atoi(params.get("SpeedLimitOffsetType").c_str())) == SLCOffsetType::PERCENT) {
     offsetLabel += "%";
   }
 
-  if (static_cast<SLCOffsetType>(offsetType) == SLCOffsetType::NONE) {
+  if (static_cast<SLCOffsetType>(std::atoi(params.get("SpeedLimitOffsetType").c_str())) == SLCOffsetType::NONE) {
     slc_offset->setDisabled(true);
     slc_offset->setLabel(tr("N/A"));
   } else {
     slc_offset->setDisabled(false);
     slc_offset->setLabel(offsetLabel);
   }
-
-  slc_engage_setting->showDescription();
-  slc_offset->showDescription();
 }
 
 void SpeedLimitControlSubpanel::showEvent(QShowEvent *event) {
   refresh();
+  slc_engage_setting->showDescription();
+  slc_offset->showDescription();
 }
