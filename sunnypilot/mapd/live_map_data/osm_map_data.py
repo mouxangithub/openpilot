@@ -1,39 +1,40 @@
+"""
+Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
+
+This file is part of sunnypilot and is licensed under the MIT License.
+See the LICENSE.md file in the root directory for more details.
+"""
 import json
 import platform
 
 from openpilot.common.params import Params
-from openpilot.sunnypilot.navd.helpers import Coordinate
-from openpilot.sunnypilot.mapd.live_map_data import DataType
 from openpilot.sunnypilot.mapd.live_map_data.base_map_data import BaseMapData
+from openpilot.sunnypilot.navd.helpers import Coordinate
 
 
 class OsmMapData(BaseMapData):
   def __init__(self):
     super().__init__()
-    self.last_gps = Coordinate(0.0, 0.0)
     self.params = Params()
     self.mem_params = Params("/dev/shm/params") if platform.system() != "Darwin" else self.params
-    self.data_type = DataType.offline
 
-  def update_location(self, current_location):
-    self.last_gps = current_location
-    if not self.last_gps:
+  def update_location(self) -> None:
+    if self.last_position is None or self.last_altitude is None:
       return
 
-    last_gps_position_for_osm = {
-      "latitude": self.last_gps.latitude,
-      "longitude": self.last_gps.longitude,
-      "bearing": self.last_gps.annotations.get("bearingDeg", 0)
+    params = {
+      "latitude": self.last_position.latitude,
+      "longitude": self.last_position.longitude,
+      "altitude": self.last_altitude,
     }
-    self.mem_params.put("LastGPSPosition", json.dumps(last_gps_position_for_osm))
 
-  def get_current_speed_limit(self):
-    speed_limit = self.mem_params.get("MapSpeedLimit", encoding='utf8')
-    return float(speed_limit) if speed_limit else 0.0
+    self.mem_params.put("LastGPSPosition", json.dumps(params))
 
-  def get_current_road_name(self):
-    current_road_name = self.mem_params.get("RoadName", encoding='utf8')
-    return current_road_name if current_road_name else ""
+  def get_current_speed_limit(self) -> float:
+    return float(self.mem_params.get("MapSpeedLimit", encoding='utf8') or 0.0)
+
+  def get_current_road_name(self) -> str:
+    return self.mem_params.get("RoadName", encoding='utf8') or ""
 
   def get_next_speed_limit_and_distance(self) -> tuple[float, float]:
     next_speed_limit_section_str = self.mem_params.get("NextMapSpeedLimit", encoding='utf8')
@@ -45,6 +46,6 @@ class OsmMapData(BaseMapData):
 
     if next_speed_limit_latitude and next_speed_limit_longitude:
       next_speed_limit_coordinates = Coordinate(next_speed_limit_latitude, next_speed_limit_longitude)
-      next_speed_limit_distance = (self.last_gps or Coordinate(0, 0)).distance_to(next_speed_limit_coordinates)
+      next_speed_limit_distance = (self.last_position or Coordinate(0, 0)).distance_to(next_speed_limit_coordinates)
 
     return next_speed_limit, next_speed_limit_distance

@@ -301,6 +301,7 @@ struct LiveMapDataSP @0xf416ec09499d9d19 {
   lastGpsAccuracy @18 :Float32;
   lastGpsBearingAccuracyDeg @19 :Float32;
   dataType @20 :DataType;
+  roadName @21 :Text;
 
   enum DataType {
     default @0;

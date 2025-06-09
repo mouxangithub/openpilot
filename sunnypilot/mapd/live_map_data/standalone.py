@@ -1,3 +1,9 @@
+"""
+Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
+
+This file is part of sunnypilot and is licensed under the MIT License.
+See the LICENSE.md file in the root directory for more details.
+"""
 # DISCLAIMER: This code is intended principally for development and debugging purposes.
 # Although it provides a standalone entry point to the program, users should refer
 # to the actual implementations for consumption. Usage outside of development scenarios
@@ -6,10 +12,9 @@
 import threading
 import traceback
 
-from openpilot.common.realtime import Ratekeeper, set_core_affinity
+from openpilot.common.realtime import Ratekeeper, config_realtime_process
 from openpilot.sunnypilot.mapd.live_map_data import get_debug
 from openpilot.sunnypilot.mapd.live_map_data.osm_map_data import OsmMapData
-from openpilot.common.swaglog import cloudlog
 
 
 def excepthook(args):
@@ -18,10 +23,7 @@ def excepthook(args):
 
 
 def live_map_data_sp_thread():
-  try:
-    set_core_affinity([0, 1, 2, 3])
-  except Exception:
-    cloudlog.exception("mapd: failed to set core affinity")
+  config_realtime_process([0, 1, 2, 3], 5)
 
   live_map_sp = OsmMapData()
   rk = Ratekeeper(1, print_delay_threshold=None)

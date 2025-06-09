@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
+
+This file is part of sunnypilot and is licensed under the MIT License.
+See the LICENSE.md file in the root directory for more details.
+"""
 import logging
 import os
 import stat
@@ -7,12 +13,14 @@ import traceback
 import requests
 from pathlib import Path
 from urllib.request import urlopen
-import openpilot.system.sentry as sentry
+
 from cereal import messaging
 from openpilot.common.params import Params
+from openpilot.sunnypilot.mapd.mapd_manager import MAPD_PATH, MAPD_BIN_DIR
+from openpilot.system.hardware.hw import Paths
 from openpilot.system.ui.spinner import Spinner
-from openpilot.sunnypilot.mapd.mapd_manager import COMMON_DIR, MAPD_PATH, MAPD_BIN_DIR
 from openpilot.system.version import is_prebuilt
+import openpilot.system.sentry as sentry
 
 VERSION = 'v1.9.0'
 URL = f"https://github.com/pfeiferj/openpilot-mapd/releases/download/{VERSION}/mapd"
@@ -22,28 +30,28 @@ class MapdInstallManager:
   def __init__(self, spinner_ref: Spinner):
     self._spinner = spinner_ref
 
-  def download(self):
+  def download(self) -> None:
     self.ensure_directories_exist()
     self._download_file()
     self.update_installed_version(VERSION)
 
-  def check_and_download(self):
+  def check_and_download(self) -> None:
     if self.download_needed():
       self.download()
 
   @staticmethod
-  def download_needed():
+  def download_needed() -> bool:
     return not os.path.exists(MAPD_PATH) or MapdInstallManager.get_installed_version() != VERSION
 
   @staticmethod
-  def ensure_directories_exist():
-    if not os.path.exists(COMMON_DIR):
-      os.makedirs(COMMON_DIR)
+  def ensure_directories_exist() -> None:
+    if not os.path.exists(Paths.mapd_root()):
+      os.makedirs(Paths.mapd_root())
     if not os.path.exists(MAPD_BIN_DIR):
       os.makedirs(MAPD_BIN_DIR)
 
   @staticmethod
-  def _safe_write_and_set_executable(file_path, content):
+  def _safe_write_and_set_executable(file_path: Path, content: bytes) -> None:
     with open(file_path, 'wb') as output:
       output.write(content)
       output.flush()
@@ -51,7 +59,7 @@ class MapdInstallManager:
     current_permissions = stat.S_IMODE(os.lstat(file_path).st_mode)
     os.chmod(file_path, current_permissions | stat.S_IEXEC)
 
-  def _download_file(self, num_retries=5):
+  def _download_file(self, num_retries=5) -> None:
     temp_file = Path(MAPD_PATH + ".tmp")
     download_timeout = 60
     for cnt in range(num_retries):
@@ -75,14 +83,14 @@ class MapdInstallManager:
     logging.error("Failed to download file after all retries")
 
   @staticmethod
-  def update_installed_version(version):
+  def update_installed_version(version: str) -> None:
     Params().put("MapdVersion", version)
 
   @staticmethod
-  def get_installed_version():
-    return Params().get("MapdVersion", encoding="utf-8")
+  def get_installed_version() -> str:
+    return Params().get("MapdVersion", encoding="utf-8") or ""
 
-  def wait_for_internet_connection(self, return_on_failure=False):
+  def wait_for_internet_connection(self, return_on_failure: bool = False) -> bool:
     max_retries = 10
     for retries in range(max_retries + 1):
       self._spinner.update(f"Waiting for internet connection... [{retries}/{max_retries}]")
@@ -95,21 +103,23 @@ class MapdInstallManager:
         if return_on_failure and retries == max_retries:
           return False
 
-  def non_prebuilt_install(self):
+    return False
+
+  def non_prebuilt_install(self) -> None:
     sm = messaging.SubMaster(['deviceState'])
     metered = sm['deviceState'].networkMetered
 
     if metered:
       self._spinner.update("Can't proceed with mapd install since network is metered!")
       time.sleep(5)
-      return False
+      return
 
     try:
       self.ensure_directories_exist()
       if not self.download_needed():
         self._spinner.update("Mapd is good!")
         time.sleep(0.1)
-        return True
+        return
 
       if self.wait_for_internet_connection(return_on_failure=True):
         self._spinner.update(f"Downloading pfeiferj's mapd [{install_manager.get_installed_version()}] => [{VERSION}].")

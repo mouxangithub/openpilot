@@ -132,11 +132,12 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"CarParamsSPPersistent", PERSISTENT},
     {"CarPlatformBundle", PERSISTENT},
     {"DynamicPersonality", PERSISTENT | BACKUP},
+    {"DeviceBootMode", PERSISTENT | BACKUP},
     {"EnableGithubRunner", PERSISTENT | BACKUP},
     {"MaxTimeOffroad", PERSISTENT | BACKUP},
+    {"Brightness", PERSISTENT | BACKUP},
     {"ModelRunnerTypeCache", CLEAR_ON_ONROAD_TRANSITION},
     {"OffroadMode", CLEAR_ON_MANAGER_START},
-    {"OffroadMode_Status", CLEAR_ON_MANAGER_START},
     {"QuietMode", PERSISTENT | BACKUP},
         // TODO - Sort these. Moving down temporarily to resolve CI merge conflict
     {"CustomAccIncrementsEnabled", PERSISTENT | BACKUP},
@@ -175,39 +176,29 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"HyundaiLongitudinalTuning", PERSISTENT},
 
     {"DynamicExperimentalControl", PERSISTENT},
+    {"BlindSpot", PERSISTENT | BACKUP},
+
+    // model panel params
+    {"LagdToggle", PERSISTENT | BACKUP},
+    {"GasGating", PERSISTENT | BACKUP},
 
     // mapd
-    {"MapdVersion", PERSISTENT},
-    {"RoadName", CLEAR_ON_ONROAD_TRANSITION},
-    {"MapSpeedLimit", CLEAR_ON_ONROAD_TRANSITION},
     {"MapAdvisorySpeedLimit", CLEAR_ON_ONROAD_TRANSITION},
+    {"MapdVersion", PERSISTENT},
+    {"MapSpeedLimit", CLEAR_ON_ONROAD_TRANSITION},
     {"NextMapSpeedLimit", CLEAR_ON_ONROAD_TRANSITION},
-    {"OSMDownloadBounds", PERSISTENT},
-    {"OSMDownloadLocations", PERSISTENT},
-    {"OsmDownloadedDate", PERSISTENT},
-    {"OsmStateTitle", PERSISTENT},
-    {"OsmStateName", PERSISTENT},
-    {"OSMDownloadProgress", CLEAR_ON_MANAGER_START},
+    {"Offroad_OSMUpdateRequired", CLEAR_ON_MANAGER_START},
     {"OsmDbUpdatesCheck", CLEAR_ON_MANAGER_START},  // mapd database update happens with device ON, reset on boot
+    {"OSMDownloadBounds", PERSISTENT},
+    {"OsmDownloadedDate", PERSISTENT},
+    {"OSMDownloadLocations", PERSISTENT},
+    {"OSMDownloadProgress", CLEAR_ON_MANAGER_START},
     {"OsmLocal", PERSISTENT},
     {"OsmLocationName", PERSISTENT},
     {"OsmLocationTitle", PERSISTENT},
     {"OsmLocationUrl", PERSISTENT},
+    {"OsmStateName", PERSISTENT},
+    {"OsmStateTitle", PERSISTENT},
     {"OsmWayTest", PERSISTENT},
-    {"Offroad_OSMUpdateRequired", CLEAR_ON_MANAGER_START},
-
-    // Speed Limit Control
-    {"SpeedLimitControl", PERSISTENT | BACKUP},
-    {"SpeedLimitControlPolicy", PERSISTENT | BACKUP},
-    {"SpeedLimitEngageType", PERSISTENT | BACKUP},
-    {"SpeedLimitOffsetType", PERSISTENT | BACKUP},
-    {"SpeedLimitValueOffset", PERSISTENT | BACKUP},
-    {"SpeedLimitWarningType", PERSISTENT | BACKUP},
-    {"SpeedLimitWarningOffsetType", PERSISTENT | BACKUP},
-    {"SpeedLimitWarningValueOffset", PERSISTENT | BACKUP},
-    {"AccelPersonality", PERSISTENT},
-
-    // model panel params
-    {"GasGating", PERSISTENT | BACKUP},
-    {"LagdToggle", PERSISTENT | BACKUP},
+    {"RoadName", CLEAR_ON_ONROAD_TRANSITION},
 };
