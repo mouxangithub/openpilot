@@ -140,7 +140,7 @@ class DynamicExperimentalController:
     self._slow_down_filter = KalmanFilter(
       initial_value=0,
       initial_estimate_error=1.0,
-      measurement_noise=0.4,   # Higher because we want smoother transitions
+      measurement_noise=0.3,   # Higher because we want smoother transitions
       process_noise=0.15,      # Balance responsiveness and stability
       alpha=1.05,              # Moderate forgetting factor for quick adaptation
       window_size_equivalent=WMACConstants.SLOW_DOWN_WINDOW_SIZE
@@ -289,7 +289,6 @@ class DynamicExperimentalController:
     slow_down_threshold = float(
       interp(self._v_ego_kph, WMACConstants.SLOW_DOWN_BP, WMACConstants.SLOW_DOWN_DIST)
     )
-
     curv_score = np.clip(self._curvature / 0.1, 0.0, 1.0)
     endpt_score = 0.0
     if len(md.orientation.x) == len(md.position.x) == TRAJECTORY_SIZE:
@@ -349,7 +348,7 @@ class DynamicExperimentalController:
     # Enhanced radar mode with lead distance and acceleration consideration
 
     # Advanced radar mode decision logic
-    if self._has_lead_filtered:
+    if self._has_lead_filtered and not self._has_standstill:
       # Lead vehicle detected
       #  if self._has_standstill:
       #    # Vehicle is stopped
@@ -362,13 +361,6 @@ class DynamicExperimentalController:
       #    self._set_mode('blended')
       #    return
 
-      #Check distance-based conditions
-       if self._lead_dist < 15.0:
-      #Lead is closer than 30m
-         if self._lead_rel_vel < -0.5:
-      #Lead is getting closer, use blended for more responsive braking
-           self._set_mode('blended')
-           return
 
       # Lead is close but not getting closer significantly
       # Use acc for smooth following
@@ -376,15 +368,21 @@ class DynamicExperimentalController:
       #    return
       #  else:
       # Lead is far away, use normal acc behavior
+      self._set_mode('acc')
+      return
 
-
-    # When detecting slow down scenario or high curvature: blended
-    if self._has_slow_down:
+    #Check distance-based conditions
+    if self._lead_dist < 15.0:
       self._set_mode('blended')
       return
 
     # When standstill: blended
     if self._has_standstill:
+      self._set_mode('blended')
+      return
+
+    # When detecting slow down scenario or high curvature: blended
+    if self._has_slow_down:
       self._set_mode('blended')
       return
 
