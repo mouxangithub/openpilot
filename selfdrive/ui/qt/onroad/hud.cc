@@ -193,7 +193,7 @@ void HudRenderer::drawSpeedLimitSigns(QPainter &p, const QRect &surface_rect) {
   QRect sign_rect(sign_x, sign_y, sign_width, sign_height);
 
   // Draw based on metric/imperial preference
-  if (false) {
+  if (!is_metric) {
     // US/Canada (MUTCD style) sign - outer white background with no border
     p.setPen(Qt::NoPen);
     p.setBrush(QColor(255, 255, 255, 255));
@@ -206,22 +206,37 @@ void HudRenderer::drawSpeedLimitSigns(QPainter &p, const QRect &surface_rect) {
     p.drawRoundedRect(inner_rect, 22, 22);
 
     // "SPEED LIMIT" text - positioned relative to inner rect
-    p.setFont(InterFont(28, QFont::DemiBold));
+    p.setFont(InterFont(40, QFont::DemiBold));
     p.setPen(QColor(0, 0, 0, 255));
-    p.drawText(inner_rect.adjusted(0, 8, 0, 0), Qt::AlignTop | Qt::AlignHCenter, tr("SPEED"));
-    p.drawText(inner_rect.adjusted(0, 35, 0, 0), Qt::AlignTop | Qt::AlignHCenter, tr("LIMIT"));
+    p.drawText(inner_rect.adjusted(0, 10, 0, 0), Qt::AlignTop | Qt::AlignHCenter, tr("SPEED"));
+    p.drawText(inner_rect.adjusted(0, 50, 0, 0), Qt::AlignTop | Qt::AlignHCenter, tr("LIMIT"));
 
     // Speed value with color coding - positioned relative to inner rect
-    p.setFont(InterFont(75, QFont::Bold));
+    p.setFont(InterFont(90, QFont::Bold));
     QColor speed_color = over_speed_limit ? QColor(255, 0, 0, 255) : QColor(0, 0, 0, 255);
     p.setPen(speed_color);
-    p.drawText(inner_rect.adjusted(0, 65, 0, 0), Qt::AlignTop | Qt::AlignHCenter, speedLimitStr);
+    p.drawText(inner_rect.adjusted(0, 80, 0, 0), Qt::AlignTop | Qt::AlignHCenter, speedLimitStr);
 
     // Speed limit offset value
     if (!slcSubText.isEmpty()) {
-      p.setFont(InterFont(24, QFont::Bold));
-      p.setPen(QColor(0, 0, 0, 255));
-      p.drawText(inner_rect.adjusted(0, 65 + 75, 0, 0), Qt::AlignTop | Qt::AlignHCenter, slcSubText);
+      // Create small rounded box for offset at top-right of main sign (exact same style as MAX speed box)
+      int offset_box_size = 70;
+      QRect offset_box_rect(
+        sign_rect.right() - offset_box_size/2 + 10,  // Position more outside right edge
+        sign_rect.top() + offset_box_size/2 - 65,    // Position more outside top edge
+        offset_box_size,
+        offset_box_size
+      );
+
+      // Draw border and background exactly like MAX speed box
+      p.setPen(QPen(QColor(255, 255, 255, 75), 6));
+      p.setBrush(QColor(0, 0, 0, 255));
+      p.drawRoundedRect(offset_box_rect, 12, 12);
+
+      // Draw offset text in white (same as MAX speed box)
+      p.setFont(InterFont(30, QFont::Bold));
+      p.setPen(QColor(255, 255, 255, 255));
+      p.drawText(offset_box_rect, Qt::AlignCenter, slcSubText);
     }
   } else {
     // EU (Vienna style) sign - maximize circle size to fill the entire rect
