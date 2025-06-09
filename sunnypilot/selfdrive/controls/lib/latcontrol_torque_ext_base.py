@@ -10,6 +10,8 @@ import numpy as np
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N
 from openpilot.selfdrive.modeld.constants import ModelConstants
 
+from sunnypilot.models.modeld_lagd import ModeldLagd
+
 LAT_PLAN_MIN_IDX = 5
 LATERAL_LAG_MOD = 0.1 # seconds, modifies how far in the future we look ahead for the lateral plan
 
@@ -41,8 +43,9 @@ def get_lookahead_value(future_vals, current_val):
   return min_val
 
 
-class LatControlTorqueExtBase:
+class LatControlTorqueExtBase(ModeldLagd):
   def __init__(self, lac_torque, CP, CP_SP):
+    ModeldLagd.__init__(self)
     self.model_v2 = None
     self.model_valid = False
     self.use_steering_angle = lac_torque.use_steering_angle
