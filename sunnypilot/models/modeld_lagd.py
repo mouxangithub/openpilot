@@ -19,13 +19,13 @@ class ModeldLagd:
       lateral_delay = sm["liveDelay"].lateralDelay
       lat_smooth = model.LAT_SMOOTH_SECONDS
       result = lateral_delay + lat_smooth
-      cloudlog.debug(f"LAGD USING LIVE DELAY: {lateral_delay:.3f} + {lat_smooth:.3f} = {result:.3f}")
+      cloudlog.error(f"LAGD USING LIVE DELAY: {lateral_delay:.3f} + {lat_smooth:.3f} = {result:.3f}")
       return result
     steer_actuator_delay = CP.steerActuatorDelay
     lat_smooth = model.LAT_SMOOTH_SECONDS
     delay = self.delay
     result = (steer_actuator_delay + self.delay) + lat_smooth
-    cloudlog.debug(f"LAGD USING STEER ACTUATOR: {steer_actuator_delay:.3f} + {delay: .3f} + {lat_smooth:.3f} = {result:.3f}")
+    cloudlog.error(f"LAGD USING STEER ACTUATOR: {steer_actuator_delay:.3f} + {delay: .3f} + {lat_smooth:.3f} = {result:.3f}")
     return result
 
   def lagd_torqued_main(self, CP, msg):

@@ -13,6 +13,7 @@ from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDX
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, get_speed_error, get_accel_from_plan
 from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
 from openpilot.common.swaglog import cloudlog
+from opendbc.car.hyundai.values import HyundaiFlags
 
 from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_planner import LongitudinalPlannerSP
 
@@ -102,7 +103,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     else:
       accel_coast = ACCEL_MAX
 
-    v_ego = sm['carState'].vEgoCluster
+    v_ego = sm['carState'].vEgo if (self.CP.flags & HyundaiFlags.CANFD) else sm['carState'].vEgoCluster
     v_cruise_kph = min(sm['carState'].vCruise, V_CRUISE_MAX)
     v_cruise = v_cruise_kph * CV.KPH_TO_MS
     v_cruise_initialized = sm['carState'].vCruise != V_CRUISE_UNSET
