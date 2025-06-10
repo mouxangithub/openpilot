@@ -161,6 +161,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"VibePersonalityEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"VibeAccelPersonalityEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"VibeFollowPersonalityEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"VisionTurnSpeedControl", {PERSISTENT | BACKUP, BOOL, "0"}},
 
     // toyota specific params
     {"ToyotaAutoHold", {PERSISTENT | BACKUP, BOOL, "0"}},
