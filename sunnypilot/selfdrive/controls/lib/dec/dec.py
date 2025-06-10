@@ -396,6 +396,10 @@ class DynamicExperimentalController:
       self._set_mode('acc')
       return
 
+    if self._lead_rel_vel < 0.5:
+      self._set_mode('blended')
+      return
+
     # Default to acc mode
     self._set_mode('acc')
 
