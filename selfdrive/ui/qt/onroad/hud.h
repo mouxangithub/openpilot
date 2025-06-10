@@ -22,6 +22,7 @@ protected:
   void drawCurrentSpeed(QPainter &p, const QRect &surface_rect);
   void drawText(QPainter &p, int x, int y, const QString &text, int alpha = 255);
   void drawSpeedLimitSigns(QPainter &p, const QRect &rect);
+  void drawVisionTurnControl(QPainter &p, const QRect &surface_rect);
 
   // Additional drawing methods from implementation
   void drawUpcomingSpeedLimit(QPainter &p, const QRect &surface_rect);
@@ -51,6 +52,13 @@ protected:
 
   // Road information
   QString road_name;
+
+  // Vision Turn Speed Control (VTSC)
+  int vtsc_state = 0;
+  float vtsc_velocity = 0.0;
+  float vtsc_current_lateral_accel = 0.0;
+  float vtsc_max_predicted_lateral_accel = 0.0;
+  bool show_vtsc = false;
 
   float speed = 0;
   float set_speed = 0;
