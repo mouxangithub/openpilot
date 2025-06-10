@@ -26,7 +26,6 @@ static QColor interpColor(float x, const std::vector<float> &x_vals, const std::
 }
 
 HudRenderer::HudRenderer() {
-  // No need to load map icon anymore
 }
 
 void HudRenderer::updateState(const UIState &s) {
@@ -48,15 +47,10 @@ void HudRenderer::updateState(const UIState &s) {
 
   // Speed limit from SLC
   nav_speed_limit = slc.getSpeedLimit();
-  has_us_speed_limit = !is_metric;
-  has_eu_speed_limit = is_metric;
 
   // SLC state variables
-  slc_state = static_cast<int>(slc.getState());
   slc_speed_limit = slc.getSpeedLimit() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
   slc_speed_offset = slc.getSpeedLimitOffset() * (is_metric ? MS_TO_KPH : MS_TO_MPH);
-  slc_distance = int(slc.getDistToSpeedLimit() * (is_metric ? MS_TO_KPH : MS_TO_MPH) / 10.0) * 10;
-  is_map_speed_limit = true; // Assume map-based for now
   show_slc = slc_speed_limit > 0.0;
 
   // Handle older routes where vCruiseCluster is not set
@@ -90,7 +84,6 @@ void HudRenderer::draw(QPainter &p, const QRect &surface_rect) {
   bg.setColorAt(1, QColor::fromRgbF(0, 0, 0, 0));
   p.fillRect(0, 0, surface_rect.width(), UI_HEADER_HEIGHT, bg);
 
-
   if (is_cruise_available) {
     drawSetSpeed(p, surface_rect);
   }
@@ -108,16 +101,8 @@ void HudRenderer::draw(QPainter &p, const QRect &surface_rect) {
 void HudRenderer::drawSetSpeed(QPainter &p, const QRect &surface_rect) {
   // Draw outer box + border to contain set speed
   const QSize default_size = {172, 204};
-  QSize set_speed_size = default_size;
-
-  // Adjust width for metric
-  if (is_metric) {
-    set_speed_size.setWidth(200);
-  }
-
-  // Center the rect horizontally with proper positioning
-  int x_offset = 60;
-  QRect set_speed_rect(QPoint(x_offset, 45), set_speed_size);
+  QSize set_speed_size = is_metric ? QSize(200, 204) : default_size;
+  QRect set_speed_rect(QPoint(60 + (default_size.width() - set_speed_size.width()) / 2, 45), set_speed_size);
 
   // Draw set speed box
   p.setPen(QPen(QColor(255, 255, 255, 75), 6));
@@ -129,72 +114,60 @@ void HudRenderer::drawSetSpeed(QPainter &p, const QRect &surface_rect) {
   QColor set_speed_color = QColor(0x72, 0x72, 0x72, 0xff);
   if (is_cruise_set) {
     set_speed_color = QColor(255, 255, 255);
+    if (status == STATUS_DISENGAGED) {
+      max_color = QColor(255, 255, 255);
+    } else if (status == STATUS_OVERRIDE) {
+      max_color = QColor(0x91, 0x9b, 0x95, 0xff);
+    } else {
+      max_color = QColor(0x80, 0xd8, 0xa6, 0xff);
 
-    switch (status) {
-      case STATUS_DISENGAGED:
-        max_color = QColor(255, 255, 255);
-        break;
-      case STATUS_OVERRIDE:
-        max_color = QColor(0x91, 0x9b, 0x95, 0xff);
-        break;
-      default:
-        max_color = QColor(0x80, 0xd8, 0xa6, 0xff);
-
-        // Apply color interpolation based on speed limit
-        float comparison_speed = (show_slc && slc_speed_limit > 0) ? slc_speed_limit : nav_speed_limit;
-        if (comparison_speed > 0) {
-          auto interp_color = [=](QColor c1, QColor c2, QColor c3) {
-            return interpColor(set_speed, {comparison_speed + 5, comparison_speed + 15, comparison_speed + 25}, {c1, c2, c3});
-          };
-          max_color = interp_color(max_color, QColor(0xff, 0xe4, 0xbf), QColor(0xff, 0xbf, 0xbf));
-          set_speed_color = interp_color(set_speed_color, QColor(0xff, 0x95, 0x00), QColor(0xff, 0x00, 0x00));
-        }
-        break;
+      // Speed limit color interpolation
+      float comparison_speed = (show_slc && slc_speed_limit > 0) ? slc_speed_limit : nav_speed_limit;
+      if (comparison_speed > 0) {
+        auto interp_color = [=](QColor c1, QColor c2, QColor c3) {
+          return interpColor(set_speed, {comparison_speed + 5, comparison_speed + 15, comparison_speed + 25}, {c1, c2, c3});
+        };
+        max_color = interp_color(max_color, QColor(0xff, 0xe4, 0xbf), QColor(0xff, 0xbf, 0xbf));
+        set_speed_color = interp_color(set_speed_color, QColor(0xff, 0x95, 0x00), QColor(0xff, 0x00, 0x00));
+      }
     }
   }
 
   // Draw "MAX" text
   p.setFont(InterFont(40, QFont::DemiBold));
   p.setPen(max_color);
-  QRect max_rect = set_speed_rect.adjusted(0, 27, 0, 0);
-  p.drawText(max_rect, Qt::AlignTop | Qt::AlignHCenter, tr("MAX"));
+  p.drawText(set_speed_rect.adjusted(0, 27, 0, 0), Qt::AlignTop | Qt::AlignHCenter, tr("MAX"));
 
   // Draw set speed
   QString setSpeedStr = is_cruise_set ? QString::number(std::nearbyint(set_speed)) : "–";
   p.setFont(InterFont(90, QFont::Bold));
   p.setPen(set_speed_color);
-  QRect speed_rect = set_speed_rect.adjusted(0, 77, 0, 0);
-  p.drawText(speed_rect, Qt::AlignTop | Qt::AlignHCenter, setSpeedStr);
+  p.drawText(set_speed_rect.adjusted(0, 77, 0, 0), Qt::AlignTop | Qt::AlignHCenter, setSpeedStr);
 }
 
 void HudRenderer::drawSpeedLimitSigns(QPainter &p, const QRect &surface_rect) {
-  // Determine which speed limit to display and create sub-text
+  // Determine which speed limit to display
   float display_speed = (show_slc && slc_speed_limit > 0) ? slc_speed_limit : nav_speed_limit;
-  //bool is_active = show_slc ? (slc_state != static_cast<int>(cereal::LongitudinalPlanSP::SpeedLimitControlState::INACTIVE)) : true;
 
   if (display_speed <= 0) return;
 
   QString speedLimitStr = QString::number(std::nearbyint(display_speed));
 
-  // Create sub-text for offset (like old code)
+  // Create sub-text for offset
   QString slcSubText = "";
   if (show_slc && slc_speed_offset != 0) {
     slcSubText = (slc_speed_offset > 0 ? "+" : "") + QString::number(std::nearbyint(slc_speed_offset));
   }
 
-  // Independent positioning for speed limit sign (separate from MAX speed box)
-  // Use exact same dimensions as MAX speed box for both metric and imperial
-  const int sign_width = is_metric ? 200 : 172;  // Same width as MAX speed box
-  const int sign_x = is_metric ? 280 : 272;      // Position to the right of MAX box
-  const int sign_y = 45;       // Same top alignment as MAX box
-
-  // Use same height as MAX box for consistent sizing
-  const int sign_height = 204;  // Same as MAX box height
+  // Position speed limit sign to the right of MAX speed box
+  const int sign_width = is_metric ? 200 : 172;
+  const int sign_x = is_metric ? 280 : 272;
+  const int sign_y = 45;
+  const int sign_height = 204;
   QRect sign_rect(sign_x, sign_y, sign_width, sign_height);
 
-  // Draw based on metric/imperial preference
   if (!is_metric) {
-    // US/Canada (MUTCD style) sign - outer white background with no border
+    // US/Canada (MUTCD style) sign
     p.setPen(Qt::NoPen);
     p.setBrush(QColor(255, 255, 255, 255));
     p.drawRoundedRect(sign_rect, 32, 32);
@@ -205,13 +178,13 @@ void HudRenderer::drawSpeedLimitSigns(QPainter &p, const QRect &surface_rect) {
     p.setBrush(QColor(255, 255, 255, 255));
     p.drawRoundedRect(inner_rect, 22, 22);
 
-    // "SPEED LIMIT" text - positioned relative to inner rect
+    // "SPEED LIMIT" text
     p.setFont(InterFont(40, QFont::DemiBold));
     p.setPen(QColor(0, 0, 0, 255));
     p.drawText(inner_rect.adjusted(0, 10, 0, 0), Qt::AlignTop | Qt::AlignHCenter, tr("SPEED"));
     p.drawText(inner_rect.adjusted(0, 50, 0, 0), Qt::AlignTop | Qt::AlignHCenter, tr("LIMIT"));
 
-    // Speed value with color coding - positioned relative to inner rect
+    // Speed value with color coding
     p.setFont(InterFont(90, QFont::Bold));
     QColor speed_color = over_speed_limit ? QColor(255, 0, 0, 255) : QColor(0, 0, 0, 255);
     p.setPen(speed_color);
@@ -219,82 +192,72 @@ void HudRenderer::drawSpeedLimitSigns(QPainter &p, const QRect &surface_rect) {
 
     // Speed limit offset value
     if (!slcSubText.isEmpty()) {
-      // Create small rounded box for offset at top-right of main sign (exact same style as MAX speed box)
       int offset_box_size = 70;
       QRect offset_box_rect(
-        sign_rect.right() - offset_box_size/2 + 10,  // Position more outside right edge
-        sign_rect.top() + offset_box_size/2 - 65,    // Position more outside top edge
+        sign_rect.right() - offset_box_size/2 + 10,
+        sign_rect.top() + offset_box_size/2 - 65,
         offset_box_size,
         offset_box_size
       );
 
-      // Draw border and background exactly like MAX speed box
       p.setPen(QPen(QColor(255, 255, 255, 75), 6));
       p.setBrush(QColor(0, 0, 0, 255));
       p.drawRoundedRect(offset_box_rect, 12, 12);
 
-      // Draw offset text in white (same as MAX speed box)
       p.setFont(InterFont(30, QFont::Bold));
       p.setPen(QColor(255, 255, 255, 255));
       p.drawText(offset_box_rect, Qt::AlignCenter, slcSubText);
     }
   } else {
-    // EU (Vienna style) sign - maximize circle size to fill the entire rect
+    // EU (Vienna style) sign
     QRect vienna_rect = sign_rect;
-
-    // Use the absolute maximum size - the full rect with no margins at all
     int circle_size = std::min(vienna_rect.width(), vienna_rect.height());
     QRect circle_rect(vienna_rect.x(), vienna_rect.y(), circle_size, circle_size);
 
-    // If width > height, center horizontally; if height > width, center vertically
     if (vienna_rect.width() > vienna_rect.height()) {
         circle_rect.moveLeft(vienna_rect.x() + (vienna_rect.width() - circle_size) / 2);
     } else if (vienna_rect.height() > vienna_rect.width()) {
         circle_rect.moveTop(vienna_rect.y() + (vienna_rect.height() - circle_size) / 2);
     }
 
-    // Draw white circle background - uses maximum possible size
+    // Draw white circle background
     p.setPen(Qt::NoPen);
     p.setBrush(QColor(255, 255, 255, 255));
     p.drawEllipse(circle_rect);
 
-    // Draw red border ring - minimal margins to maximize size
+    // Draw red border ring
     QRect red_ring = circle_rect.adjusted(4, 4, -4, -4);
     p.setBrush(QColor(255, 0, 0, 255));
     p.drawEllipse(red_ring);
 
-    // Draw white center circle for text - very thin red ring
+    // Draw white center circle for text
     QRect center_circle = red_ring.adjusted(8, 8, -8, -8);
     p.setBrush(QColor(255, 255, 255, 255));
     p.drawEllipse(center_circle);
 
-    // Speed value - centered in white circle, similar size to MAX speed text
+    // Speed value
     int font_size = (speedLimitStr.size() >= 3) ? 70 : 85;
     p.setFont(InterFont(font_size, QFont::Bold));
     QColor speed_color = over_speed_limit ? QColor(255, 0, 0, 255) : QColor(0, 0, 0, 255);
     p.setPen(speed_color);
 
-    // Center the speed number - always centered regardless of offset
     QRect speed_text_rect = center_circle;
     p.drawText(speed_text_rect, Qt::AlignCenter, speedLimitStr);
 
-    // Speed limit offset value - displayed in separate small circle at top-right
+    // Speed limit offset value
     if (!slcSubText.isEmpty()) {
-      // Create small circle for offset at top-right of main circle
       int offset_circle_size = 80;
       QRect offset_circle_rect(
-        circle_rect.right() - offset_circle_size/2 + 10,  // Position more outside right edge
-        circle_rect.top() + offset_circle_size/2 - 35,    // Position more outside top edge
+        circle_rect.right() - offset_circle_size/2 + 10,
+        circle_rect.top() + offset_circle_size/2 - 35,
         offset_circle_size,
         offset_circle_size
       );
 
-      // Draw border and background same as MAX speed box
       p.setPen(QPen(QColor(255, 255, 255, 75), 6));
       p.setBrush(QColor(0, 0, 0, 255));
-      p.drawRoundedRect(offset_circle_rect, offset_circle_size/2, offset_circle_size/2); // Make it circular
+      p.drawRoundedRect(offset_circle_rect, offset_circle_size/2, offset_circle_size/2);
 
-      // Draw offset text in white
       p.setFont(InterFont(30, QFont::Bold));
       p.setPen(QColor(255, 255, 255, 255));
       p.drawText(offset_circle_rect, Qt::AlignCenter, slcSubText);
@@ -318,12 +281,4 @@ void HudRenderer::drawText(QPainter &p, int x, int y, const QString &text, int a
 
   p.setPen(QColor(0xff, 0xff, 0xff, alpha));
   p.drawText(real_rect.x(), real_rect.bottom(), text);
-}
-
-void HudRenderer::drawCenteredText(QPainter &p, int x, int y, const QString &text, QColor color) {
-  QRect real_rect = p.fontMetrics().boundingRect(text);
-  real_rect.moveCenter({x, y});
-
-  p.setPen(color);
-  p.drawText(real_rect, Qt::AlignCenter, text);
 }
