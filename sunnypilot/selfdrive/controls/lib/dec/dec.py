@@ -347,35 +347,6 @@ class DynamicExperimentalController:
   def _radar_mode(self) -> None:
     # Enhanced radar mode with lead distance and acceleration consideration
 
-    # Advanced radar mode decision logic
-    if self._has_lead_filtered and not self._has_standstill:
-      # Lead vehicle detected
-      #  if self._has_standstill:
-      #    # Vehicle is stopped
-      #    self._set_mode('blended')
-      #    return
-
-      # Check for rapid deceleration of lead vehicle
-      #  if self._lead_accel < -2.0:
-      # Lead is braking hard, use blended mode for better response
-      #    self._set_mode('blended')
-      #    return
-
-
-      # Lead is close but not getting closer significantly
-      # Use acc for smooth following
-      #    self._set_mode('acc')
-      #    return
-      #  else:
-      # Lead is far away, use normal acc behavior
-      self._set_mode('acc')
-      return
-
-    #Check distance-based conditions
-    if self._lead_dist < 15.0:
-      self._set_mode('blended')
-      return
-
     # When standstill: blended
     if self._has_standstill:
       self._set_mode('blended')
@@ -391,14 +362,20 @@ class DynamicExperimentalController:
       self._set_mode('blended')
       return
 
+    # Advanced radar mode decision logic
+    if self._has_lead_filtered and not self._has_standstill:
+      # Lead vehicle detected
+      if self._lead_dist < 13.0 and self._lead_rel_vel < 0.2:
+        self._set_mode('blended')
+        return
+      self._set_mode('acc')
+      return
+
     # Car driving at speed lower than set speed: acc
     if self._has_slowness:
       self._set_mode('acc')
       return
 
-    if self._lead_rel_vel < 0.5:
-      self._set_mode('blended')
-      return
 
     # Default to acc mode
     self._set_mode('acc')
