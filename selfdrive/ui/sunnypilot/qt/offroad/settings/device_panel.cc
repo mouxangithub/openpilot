@@ -31,7 +31,7 @@ DevicePanelSP::DevicePanelSP(SettingsWindowSP *parent) : DevicePanel(parent) {
       continue;
     }
 
-    auto *btn = new PushButtonSP(text, 750, this, param);
+    auto *btn = new PushButtonSP(text, 630, this, param);
     btn->setObjectName(id);
     buttons[id] = btn;
 
@@ -87,7 +87,7 @@ DevicePanelSP::DevicePanelSP(SettingsWindowSP *parent) : DevicePanel(parent) {
     params.put("DeviceBootMode", QString::number(index).toStdString());
     updateState();
   });
-  
+
   // Brightness
   brightness = new Brightness();
   connect(brightness, &OptionControlSP::updateLabels, brightness, &Brightness::refresh);
@@ -100,12 +100,12 @@ DevicePanelSP::DevicePanelSP(SettingsWindowSP *parent) : DevicePanel(parent) {
   QHBoxLayout *power_layout = new QHBoxLayout();
   power_layout->setSpacing(25);
 
-  PushButtonSP *rebootBtn = new PushButtonSP(tr("Reboot"), 750, this);
+  PushButtonSP *rebootBtn = new PushButtonSP(tr("Reboot"), 630, this);
   rebootBtn->setStyleSheet(rebootButtonStyle);
   power_layout->addWidget(rebootBtn);
   QObject::connect(rebootBtn, &PushButtonSP::clicked, this, &DevicePanelSP::reboot);
 
-  PushButtonSP *poweroffBtn = new PushButtonSP(tr("Power Off"), 750, this);
+  PushButtonSP *poweroffBtn = new PushButtonSP(tr("Power Off"), 630, this);
   poweroffBtn->setStyleSheet(powerOffButtonStyle);
   power_layout->addWidget(poweroffBtn);
   QObject::connect(poweroffBtn, &PushButtonSP::clicked, this, &DevicePanelSP::poweroff);
