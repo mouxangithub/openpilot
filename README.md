@@ -15,6 +15,25 @@
 
 参考 [juggler数据分析](tools/plotjuggler/README.md)
 
+<h3>
+secoc 参考文档：https://github.com/I-CAN-hack/secoc
+</h3>
+
+已内置secoc key脚本
+0.首先启动汽车进入Not Ready To Drive(慢慢按两次启动键，不需要踩制动踏板，POWER)
+1.先关闭openpilot程序，cd到项目目录下
+2.运行python key.py
+3.如果报错类似：Unexpected application version! b'\x018965B4221000\x00\x00\x00\x00'，请把b''引号里面的值复制到项目key.py脚本中的APPLICATION_VERSIONS中，例如
+```
+APPLICATION_VERSIONS = {
+    b'\x018965B4209000\x00\x00\x00\x00': b'\x01!!!!!!!!!!!!!!!!', # 2021 RAV4 Prime
+    b'\x018965B4233100\x00\x00\x00\x00': b'\x01!!!!!!!!!!!!!!!!', # 2023 RAV4 Prime
+    b'\x018965B4509100\x00\x00\x00\x00': b'\x01!!!!!!!!!!!!!!!!', # 2021 Sienna
+    b'\x018965B4221000\x00\x00\x00\x00': b'\x01!!!!!!!!!!!!!!!!', # 2021 RAV4 Prime
+}
+```
+4.最后看到SecOCKey输出则说明成功，SecOCKey不需要单独复制保存，会自动永久存储到系统中，只要不重装系统那些这个SecOCKey会一直保存
+
 ------
 
 ![](https://user-images.githubusercontent.com/47793918/233812617-beab2e71-57b9-479e-8bff-c3931347ca40.png)
