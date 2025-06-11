@@ -344,8 +344,9 @@ class DynamicExperimentalController:
     # Default to acc mode
     self._set_mode('acc')
 
-  def _radar_mode(self) -> None:
+  def _radar_mode(self, sm: messaging.SubMaster) -> None:
     # Enhanced radar mode with lead distance and acceleration consideration
+    lead_one = sm['radarState'].leadOne
 
     # When standstill: blended
     if self._has_standstill:
@@ -365,7 +366,7 @@ class DynamicExperimentalController:
     # Advanced radar mode decision logic
     if self._has_lead_filtered and not self._has_standstill:
       # Lead vehicle detected
-      if self._lead_dist < 13.0 and self._lead_rel_vel < 0.2:
+      if (lead_one.dRel < 13) and (lead_one.vRel < 0.3):
         self._set_mode('blended')
         return
       self._set_mode('acc')
@@ -396,7 +397,7 @@ class DynamicExperimentalController:
     if self._CP.radarUnavailable:
       self._radarless_mode()
     else:
-      self._radar_mode()
+      self._radar_mode(sm)
 
     self._active = sm['selfdriveState'].experimentalMode and self._enabled
     self._frame += 1
