@@ -359,14 +359,14 @@ class DynamicExperimentalController:
       return
 
     # When high curvature is detected: use blended for better curve handling
-    if self._high_curvature and self._v_ego_kph > 40.0:
+    if self._high_curvature and self._v_ego_kph > 60.0:
       self._set_mode('blended')
       return
 
     # Advanced radar mode decision logic
-    if self._has_lead_filtered and not self._has_standstill:
+    if lead_one.status:
       # Lead vehicle detected
-      if (lead_one.dRel < 13) and (lead_one.vRel < 0.3):
+      if self._v_ego_kph < 25.0:
         self._set_mode('blended')
         return
       self._set_mode('acc')
