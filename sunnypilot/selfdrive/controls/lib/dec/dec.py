@@ -33,41 +33,26 @@ from openpilot.sunnypilot.selfdrive.controls.lib.dec.constants import WMACConsta
 
 # d-e2e, from modeldata.h
 TRAJECTORY_SIZE = 33
-SET_MODE_TIMEOUT = 10
+SET_MODE_TIMEOUT = 15
 
 
-class KalmanFilter:
-  """
-  Simple one-dimensional Kalman filter implementation with forgetting factor.
-  - x: state estimate
-  - P: error covariance
-  - R: measurement error (uncertainty in measurements)
-  - Q: process noise (uncertainty in system dynamics)
-  - alpha: forgetting factor (1.0 = no forgetting, >1.0 = forget old data faster)
-  - window_size_equivalent: approx window size this filter behavior matches
-  """
-  def __init__(self, initial_value=0, initial_estimate_error=1.0, measurement_noise=0.1,
-               process_noise=0.01, alpha=1.0, window_size_equivalent=None):
-    # State estimate
+class SmoothKalmanFilter:
+  """Enhanced Kalman filter with smoothing for stable decision making."""
+
+  def __init__(self, initial_value=0, measurement_noise=0.1, process_noise=0.01,
+               alpha=1.0, smoothing_factor=0.85):
     self.x = initial_value
-    # Error covariance
-    self.P = initial_estimate_error
-    # Measurement noise
+    self.P = 1.0
     self.R = measurement_noise
-    # Process noise
     self.Q = process_noise
-    # Forgetting factor (>1.0 means forget old data faster)
     self.alpha = alpha
-    # Whether the filter has been initialized with data
+    self.smoothing_factor = smoothing_factor
     self.initialized = False
-    # History of most recent measurements for debugging and adaptive behavior
     self.history = []
     self.max_history = 10
-    # For diagnostic purposes
-    self.window_size_equivalent = window_size_equivalent
+    self.confidence = 0.0
 
   def add_data(self, measurement):
-    # Keep track of some history for debugging
     if len(self.history) >= self.max_history:
       self.history.pop(0)
     self.history.append(measurement)
@@ -75,40 +60,79 @@ class KalmanFilter:
     if not self.initialized:
       self.x = measurement
       self.initialized = True
+      self.confidence = 0.1
       return
 
-    # Prediction step (state extrapolation)
-    # x = x (no system dynamics in this simple implementation)
-    # Error covariance extrapolation with forgetting factor
+    # Prediction
     self.P = self.alpha * self.P + self.Q
 
-    # Update step
-    # Compute Kalman gain
+    # Update with smoothing
     K = self.P / (self.P + self.R)
-    # Update state estimate with measurement
-    self.x = self.x + K * (measurement - self.x)
-    # Update error covariance
-    self.P = (1 - K) * self.P
+    effective_K = K * (1.0 - self.smoothing_factor) + self.smoothing_factor * 0.1
+
+    innovation = measurement - self.x
+    self.x = self.x + effective_K * innovation
+    self.P = (1 - effective_K) * self.P
+
+    # Update confidence
+    if abs(innovation) < 0.1:
+      self.confidence = min(1.0, self.confidence + 0.05)
+    else:
+      self.confidence = max(0.1, self.confidence - 0.02)
 
   def get_value(self):
     return self.x if self.initialized else None
 
-  def get_recent_trend(self):
-    """Return the trend from recent data, -1 (decreasing), 0 (stable), 1 (increasing)"""
-    if len(self.history) < 3:
-      return 0
-
-    # Simple trend detector based on recent history
-    recent = self.history[-3:]
-    if recent[2] > recent[0] + 0.05:  # Increasing with threshold
-      return 1
-    elif recent[0] > recent[2] + 0.05:  # Decreasing with threshold
-      return -1
-    return 0
+  def get_confidence(self):
+    return self.confidence
 
   def reset_data(self):
     self.initialized = False
     self.history = []
+    self.confidence = 0.0
+
+
+class ModeTransitionManager:
+  """Manages smooth transitions between driving modes with hysteresis."""
+
+  def __init__(self):
+    self.current_mode = 'acc'
+    self.mode_confidence = {'acc': 1.0, 'blended': 0.0}
+    self.transition_timeout = 0
+    self.min_mode_duration = 25
+    self.mode_duration = 0
+
+  def request_mode(self, mode: str, confidence: float = 1.0):
+    # Update confidence
+    self.mode_confidence[mode] = min(1.0, self.mode_confidence[mode] + 0.1 * confidence)
+    for m in self.mode_confidence:
+      if m != mode:
+        self.mode_confidence[m] = max(0.0, self.mode_confidence[m] - 0.05)
+
+    # Require minimum duration in current mode
+    if self.mode_duration < self.min_mode_duration:
+      return
+
+    # Hysteresis: higher threshold for mode changes
+    confidence_threshold = 0.7 if mode != self.current_mode else 0.3
+
+    if self.mode_confidence[mode] > confidence_threshold:
+      if mode != self.current_mode and self.transition_timeout == 0:
+        self.transition_timeout = SET_MODE_TIMEOUT
+        self.current_mode = mode
+        self.mode_duration = 0
+
+  def update(self):
+    if self.transition_timeout > 0:
+      self.transition_timeout -= 1
+    self.mode_duration += 1
+
+    # Gradual confidence decay
+    for mode in self.mode_confidence:
+      self.mode_confidence[mode] *= 0.98
+
+  def get_mode(self) -> str:
+    return str(self.current_mode)
 
 
 class DynamicExperimentalController:
@@ -118,99 +142,61 @@ class DynamicExperimentalController:
     self._params = params or Params()
     self._enabled: bool = self._params.get_bool("DynamicExperimentalControl")
     self._active: bool = False
-    self._mode: str = 'acc'
     self._frame: int = 0
     self._urgency = 0.0
 
-    # Using Kalman filters for improved filtering
+    # Mode transition manager
+    self._mode_manager = ModeTransitionManager()
 
-    # Lead vehicle tracking - calibrated to match LEAD_WINDOW_SIZE=7
-    self._lead_filter = KalmanFilter(
-      initial_value=0,
-      initial_estimate_error=1.0,
-      measurement_noise=0.25,  # Higher value -> more smoothing
-      process_noise=0.08,      # Lower value -> more stable tracking
-      alpha=1.03,              # Slight forgetting factor
-      window_size_equivalent=WMACConstants.LEAD_WINDOW_SIZE
+    # Smooth filters for stable decision-making
+    self._lead_filter = SmoothKalmanFilter(
+      measurement_noise=0.15,
+      process_noise=0.05,
+      alpha=1.02,
+      smoothing_factor=0.9
     )
+
+    self._slow_down_filter = SmoothKalmanFilter(
+      measurement_noise=0.12,
+      process_noise=0.08,
+      alpha=1.03,
+      smoothing_factor=0.88
+    )
+
+    self._slowness_filter = SmoothKalmanFilter(
+      measurement_noise=0.1,
+      process_noise=0.06,
+      alpha=1.015,
+      smoothing_factor=0.92
+    )
+
+    self._curvature_filter = SmoothKalmanFilter(
+      measurement_noise=0.3,
+      process_noise=0.08,
+      alpha=1.03,
+      smoothing_factor=0.9
+    )
+
+    # State variables
     self._has_lead_filtered = False
-    self._has_lead_filtered_prev = False
-
-    # Slow down detection - calibrated to match SLOW_DOWN_WINDOW_SIZE=4
-    self._slow_down_filter = KalmanFilter(
-      initial_value=0,
-      initial_estimate_error=1.0,
-      measurement_noise=0.3,   # Higher because we want smoother transitions
-      process_noise=0.15,      # Balance responsiveness and stability
-      alpha=1.05,              # Moderate forgetting factor for quick adaptation
-      window_size_equivalent=WMACConstants.SLOW_DOWN_WINDOW_SIZE
-    )
-    self._has_slow_down: bool = False
-
-    # Slowness detection - calibrated to match SLOWNESS_WINDOW_SIZE=10
-    self._slowness_filter = KalmanFilter(
-      initial_value=0,
-      initial_estimate_error=1.0,
-      measurement_noise=0.18,  # Lower for faster response
-      process_noise=0.08,      # Balanced for stability in speed measurements
-      alpha=1.02,              # Slight forgetting factor
-      window_size_equivalent=WMACConstants.SLOWNESS_WINDOW_SIZE
-    )
-    self._has_slowness: bool = False
-
-    # For tracking lead vehicle distance
-    self._lead_dist_filter = KalmanFilter(
-      initial_value=0,
-      initial_estimate_error=5.0,  # Higher initial uncertainty
-      measurement_noise=0.3,
-      process_noise=2.0,           # Higher because distance can change rapidly
-      alpha=1.1                    # Forget old distance measurements faster
-    )
-    self._lead_dist = 0.0
-
-    # For tracking lead vehicle relative velocity
-    self._lead_vel_filter = KalmanFilter(
-      initial_value=0,
-      initial_estimate_error=2.0,
-      measurement_noise=0.2,
-      process_noise=1.0,           # Higher for velocity changes
-      alpha=1.2                    # Forget old velocity measurements faster
-    )
-    self._lead_rel_vel = 0.0
-
-    # Acceleration filter to detect rapid deceleration of lead
-    self._lead_accel_filter = KalmanFilter(
-      initial_value=0,
-      initial_estimate_error=1.0,
-      measurement_noise=0.3,
-      process_noise=2.0,           # Higher for acceleration changes
-      alpha=1.3                    # Forget old acceleration data quickly
-    )
-    self._lead_accel = 0.0
-    self._prev_lead_vel = 0.0
-
-    # Trajectory curvature detection for curves
-    self._curvature_filter = KalmanFilter(
-      initial_value=0,
-      initial_estimate_error=1.0,
-      measurement_noise=0.4,
-      process_noise=0.1,
-      alpha=1.05
-    )
-    self._curvature = 0.0
+    self._has_slow_down = False
+    self._has_slowness = False
     self._high_curvature = False
-
-    self._v_ego_kph = 0.
-    self._v_cruise_kph = 0.
+    self._curvature = 0.0
+    self._v_ego_kph = 0.0
+    self._v_cruise_kph = 0.0
     self._has_standstill = False
-    self._set_mode_timeout = 0
+
+    # Persistence counters for stability
+    self._standstill_count = 0
+    self._curve_count = 0
 
   def _read_params(self) -> None:
     if self._frame % int(1. / DT_MDL) == 0:
       self._enabled = self._params.get_bool("DynamicExperimentalControl")
 
   def mode(self) -> str:
-    return str(self._mode)
+    return self._mode_manager.get_mode()
 
   def enabled(self) -> bool:
     return self._enabled
@@ -227,169 +213,167 @@ class DynamicExperimentalController:
     self._v_cruise_kph = car_state.vCruise
     self._has_standstill = car_state.standstill
 
-    # Lead detection with Kalman filtering
+    # Persistent standstill detection
+    if self._has_standstill:
+      self._standstill_count = min(20, self._standstill_count + 1)
+    else:
+      self._standstill_count = max(0, self._standstill_count - 1)
+
+    # Lead detection
     self._lead_filter.add_data(float(lead_one.status))
-    lead_filtered_value = self._lead_filter.get_value() or 0.0
-    self._has_lead_filtered = lead_filtered_value > WMACConstants.LEAD_PROB
+    lead_value = self._lead_filter.get_value() or 0.0
+    self._has_lead_filtered = lead_value > WMACConstants.LEAD_PROB
 
-    # Track lead vehicle parameters if present
-    if lead_one.status:
-      # Track lead distance
-      self._lead_dist_filter.add_data(lead_one.dRel)
-      self._lead_dist = self._lead_dist_filter.get_value() or 0.0
-
-      # Track lead relative velocity
-      self._lead_vel_filter.add_data(lead_one.vRel)
-      current_vel = self._lead_vel_filter.get_value() or 0.0
-      self._lead_rel_vel = current_vel
-
-      # Calculate lead acceleration from velocity changes
-      if self._prev_lead_vel != 0:
-        accel = (current_vel - self._prev_lead_vel) / DT_MDL
-        self._lead_accel_filter.add_data(accel)
-        self._lead_accel = self._lead_accel_filter.get_value() or 0.0
-      self._prev_lead_vel = current_vel
-
-    # Calculate path curvature as a measure of how curvy the road ahead is
-    if len(md.position.x) == len(md.position.y) == TRAJECTORY_SIZE:
-      # Simple curvature calculation using the trajectory points
-      # Using points at indices that allow seeing further ahead
-      idx1, idx2, idx3 = 5, 15, 25  # Sample at different distances ahead
-
-      if idx3 < TRAJECTORY_SIZE:
-        try:
-          # Calculate vectors between points
-          v1x = md.position.x[idx2] - md.position.x[idx1]
-          v1y = md.position.y[idx2] - md.position.y[idx1]
-          v2x = md.position.x[idx3] - md.position.x[idx2]
-          v2y = md.position.y[idx3] - md.position.y[idx2]
-
-          # Calculate vector magnitudes
-          mag1 = (v1x**2 + v1y**2)**0.5
-          mag2 = (v2x**2 + v2y**2)**0.5
-
-          if mag1 > 0.1 and mag2 > 0.1:  # Avoid division by near-zero
-            # Calculate the dot product
-            dot_product = v1x * v2x + v1y * v2y
-            # Calculate the cosine of the angle
-            cos_angle = dot_product / (mag1 * mag2)
-            cos_angle = max(-1.0, min(1.0, cos_angle))  # Clamp to valid range
-            # Calculate the angle
-            angle = np.arccos(cos_angle)
-            # Normalize by the distance to get a curvature measure
-            curvature = angle / ((mag1 + mag2) / 2)
-
-            self._curvature_filter.add_data(curvature)
-            self._curvature = self._curvature_filter.get_value() or 0.0
-            self._high_curvature = self._curvature > 0.05  # Threshold for high curvature
-        except Exception:
-          pass  # Safely handle any numerical issues
+    # Curvature detection i sware this does not work but oh well
+    self._calculate_curvature(md)
 
     # Slow down detection
+    self._calculate_slow_down(md)
+
+    # Slowness detection
+    if not (self._standstill_count > 5):
+      current_slowness = float(self._v_ego_kph <= (self._v_cruise_kph * WMACConstants.SLOWNESS_CRUISE_OFFSET))
+      self._slowness_filter.add_data(current_slowness)
+      slowness_value = self._slowness_filter.get_value() or 0.0
+
+      # Hysteresis for slowness
+      threshold = WMACConstants.SLOWNESS_PROB * (0.8 if self._has_slowness else 1.1)
+      self._has_slowness = slowness_value > threshold
+
+  def _calculate_curvature(self, md): # someone help!!!
+    """Calculate path curvature for curve detection."""
+    if len(md.position.x) == len(md.position.y) == TRAJECTORY_SIZE:
+      try:
+        curvatures = []
+        for i in range(3):
+          idx1 = 4 + i * 2
+          idx2 = 12 + i * 3
+          idx3 = 22 + i * 2
+
+          if idx3 < TRAJECTORY_SIZE:
+            v1x = md.position.x[idx2] - md.position.x[idx1]
+            v1y = md.position.y[idx2] - md.position.y[idx1]
+            v2x = md.position.x[idx3] - md.position.x[idx2]
+            v2y = md.position.y[idx3] - md.position.y[idx2]
+
+            mag1 = (v1x**2 + v1y**2)**0.5
+            mag2 = (v2x**2 + v2y**2)**0.5
+
+            if mag1 > 0.5 and mag2 > 0.5:
+              dot_product = v1x * v2x + v1y * v2y
+              cos_angle = np.clip(dot_product / (mag1 * mag2), -1.0, 1.0)
+              angle = np.arccos(cos_angle)
+              curvature = angle / ((mag1 + mag2) / 2)
+              curvatures.append(curvature)
+
+        if curvatures:
+          avg_curvature = np.mean(curvatures)
+          self._curvature_filter.add_data(avg_curvature)
+          self._curvature = self._curvature_filter.get_value() or 0.0
+
+          # Speed-adaptive curve threshold
+          curve_threshold = 0.04 + (self._v_ego_kph / 1000.0)
+
+          if self._curvature > curve_threshold:
+            self._curve_count = min(8, self._curve_count + 1)
+          else:
+            self._curve_count = max(0, self._curve_count - 1)
+
+          self._high_curvature = self._curve_count > 3
+
+      except Exception:
+        pass
+
+  def _calculate_slow_down(self, md):
+    """Calculate urgency for slow down scenarios."""
     slow_down_threshold = float(
       interp(self._v_ego_kph, WMACConstants.SLOW_DOWN_BP, WMACConstants.SLOW_DOWN_DIST)
     )
-    curv_score = np.clip(self._curvature / 0.1, 0.0, 1.0)
-    endpt_score = 0.0
-    if len(md.orientation.x) == len(md.position.x) == TRAJECTORY_SIZE:
+
+    urgency = 0.0
+    if len(md.position.x) == TRAJECTORY_SIZE:
       endpoint_x = md.position.x[TRAJECTORY_SIZE - 1]
-      endpt_score = np.clip((slow_down_threshold - endpoint_x) / 10.0, 0.0, 1.0)
 
-    # Combine urgency from curvature + endpoint
-    urgency = max(curv_score, endpt_score)
+      if endpoint_x < slow_down_threshold:
+        shortage = slow_down_threshold - endpoint_x
+        urgency = min(1.0, shortage / 25.0)
 
-    # Apply Kalman filtering to slow down detection
+        # Speed-based adjustment
+        speed_factor = min(1.2, self._v_ego_kph / 50.0)
+        urgency *= speed_factor
+
     self._slow_down_filter.add_data(urgency)
     urgency_filtered = self._slow_down_filter.get_value() or 0.0
-
-    # Final decision using probabilistic threshold
     self._has_slow_down = urgency_filtered > WMACConstants.SLOW_DOWN_PROB
-
-    # use it for debug
     self._urgency = urgency_filtered
 
-
-    # Slowness detection with Kalman filtering
-    if not self._has_standstill:
-      self._slowness_filter.add_data(float(self._v_ego_kph <= (self._v_cruise_kph * WMACConstants.SLOWNESS_CRUISE_OFFSET)))
-      slowness_filtered_value = self._slowness_filter.get_value() or 0.0
-      self._has_slowness = slowness_filtered_value > WMACConstants.SLOWNESS_PROB
-
-    # Keep prev value for lead filtered
-    self._has_lead_filtered_prev = self._has_lead_filtered
-
   def _radarless_mode(self) -> None:
-    # Enhanced radarless mode implementation
+    """Radarless mode decision logic."""
 
-    # When standstill: blended
-    if self._has_standstill:
-      self._set_mode('blended')
+    # Standstill: use blended
+    if self._standstill_count > 3:
+      self._mode_manager.request_mode('blended', confidence=0.9)
       return
 
-    # When detecting slow down scenario: blended
+    # Slow down scenarios: use blended
     if self._has_slow_down:
-      self._set_mode('blended')
+      confidence = min(1.0, self._urgency * 1.2)
+      self._mode_manager.request_mode('blended', confidence=confidence)
       return
 
-    # When high curvature is detected: use blended for better curve handling
-    if self._high_curvature and self._v_ego_kph > 45.0:
-      self._set_mode('blended')
+    # High curvature at speed: use blended
+    if self._high_curvature and self._v_ego_kph > 40.0:
+      confidence = min(1.0, self._curvature * 15.0)
+      self._mode_manager.request_mode('blended', confidence=confidence)
       return
 
-    # Car driving at speed lower than set speed: acc
+    # Driving slow: use ACC
     if self._has_slowness:
-      self._set_mode('acc')
+      self._mode_manager.request_mode('acc', confidence=0.8)
       return
 
-    # Default to acc mode
-    self._set_mode('acc')
+    # Default: ACC
+    self._mode_manager.request_mode('acc', confidence=0.7)
 
   def _radar_mode(self, sm: messaging.SubMaster) -> None:
-    # Enhanced radar mode with lead distance and acceleration consideration
     lead_one = sm['radarState'].leadOne
+    """Simplified radar mode: lead + not standstill = ACC always."""
 
-    if self._has_lead_filtered and not self._has_standstill:
-      # Advanced radar mode decision logic
+    # If lead detected and not in standstill: always use ACC
+    if self._has_lead_filtered and not (self._standstill_count > 3):
       if lead_one.status:
         # Lead vehicle detected
         if self._v_ego_kph < 25.0:
-          self._set_mode('blended')
+          self._mode_manager.request_mode('blended', confidence=0.9)
           return
         else:
-          self._set_mode('acc')
+          self._mode_manager.request_mode('acc', confidence=0.9)
           return
 
-    # When standstill: blended
-    if self._has_standstill:
-      self._set_mode('blended')
+    # Standstill: use blended
+    if self._standstill_count > 3:
+      self._mode_manager.request_mode('blended', confidence=0.9)
       return
 
-    # When detecting slow down scenario or high curvature: blended
+    # Slow down scenarios: use blended
     if self._has_slow_down:
-      self._set_mode('blended')
+      confidence = min(1.0, self._urgency * 1.1)
+      self._mode_manager.request_mode('blended', confidence=confidence)
       return
 
-    # When high curvature is detected: use blended for better curve handling
-    if self._high_curvature and self._v_ego_kph > 60.0:
-      self._set_mode('blended')
+    # High curvature at speed: use blended
+    if self._high_curvature and self._v_ego_kph > 45.0:
+      confidence = min(1.0, self._curvature * 12.0)
+      self._mode_manager.request_mode('blended', confidence=confidence)
       return
 
-    # Car driving at speed lower than set speed: acc
+    # Driving slow: use ACC
     if self._has_slowness:
-      self._set_mode('acc')
+      self._mode_manager.request_mode('acc', confidence=0.8)
       return
 
-    # Default to acc mode
-    self._set_mode('acc')
-
-  def _set_mode(self, mode: str) -> None:
-    if self._set_mode_timeout == 0:
-      self._mode = mode
-      if mode == 'blended':
-        self._set_mode_timeout = SET_MODE_TIMEOUT
-
-    if self._set_mode_timeout > 0:
-      self._set_mode_timeout -= 1
+    # Default: ACC
+    self._mode_manager.request_mode('acc', confidence=0.7)
 
   def update(self, sm: messaging.SubMaster) -> None:
     self._read_params()
@@ -400,5 +384,6 @@ class DynamicExperimentalController:
     else:
       self._radar_mode(sm)
 
+    self._mode_manager.update()
     self._active = sm['selfdriveState'].experimentalMode and self._enabled
     self._frame += 1
