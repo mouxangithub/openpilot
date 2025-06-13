@@ -376,7 +376,7 @@ Please use caution when using this feature. Only use the blinker when traffic an
     </message>
     <message>
         <source>Auto (Dark)</source>
-        <translation>​自动（深色模式）​</translation>
+        <translation>​自动（夜晚）​</translation>
     </message>
     <message>
         <source>Overrides the brightness of the device.</source>
