@@ -130,7 +130,7 @@ class Soundd:
       if self.lang == "main_ko":
         wavefile = wave.open(BASEDIR + "/selfdrive/assets/sounds/" + filename, 'r')
       else:
-        wavefile = wave.open(BASEDIR + "/selfdrive/assets/sounds_eng/" + filename, 'r')
+        wavefile = wave.open(BASEDIR + "/selfdrive/assets/sounds_chs/" + filename, 'r')
 
       #assert wavefile.getnchannels() == 1
       assert wavefile.getsampwidth() == 2
