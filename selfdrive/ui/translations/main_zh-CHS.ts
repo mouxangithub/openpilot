@@ -729,7 +729,7 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>Remain Active</source>
-        <translation>保持启用状态</translation>
+        <translation>保持启用</translation>
     </message>
     <message>
         <source>Disengage</source>
@@ -757,7 +757,7 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>Remain Active: ALC will remain active when the brake pedal is pressed.</source>
-        <translation>保持启用状态：当刹车踏板被踩下时，ALC（自动车道居中）将保持激活。</translation>
+        <translation>保持启用：当刹车踏板被踩下时，ALC（自动车道居中）将保持激活。</translation>
     </message>
     <message>
         <source>Pause</source>
