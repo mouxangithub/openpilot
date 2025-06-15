@@ -231,7 +231,7 @@ class DynamicExperimentalController:
     self._calculate_slow_down(md)
 
     # Slowness detection
-    if not (self._standstill_count > 5):
+    if not (self._standstill_count > 5) and not self._has_slow_down:
       current_slowness = float(self._v_ego_kph <= (self._v_cruise_kph * WMACConstants.SLOWNESS_CRUISE_OFFSET))
       self._slowness_filter.add_data(current_slowness)
       slowness_value = self._slowness_filter.get_value() or 0.0
@@ -285,25 +285,53 @@ class DynamicExperimentalController:
         pass
 
   def _calculate_slow_down(self, md):
-    """Calculate urgency for slow down scenarios."""
-    slow_down_threshold = float(
-      interp(self._v_ego_kph, WMACConstants.SLOW_DOWN_BP, WMACConstants.SLOW_DOWN_DIST)
-    )
+    """Calculate urgency based on trajectory endpoint vs expected distance."""
 
+    # Reset to safe defaults
     urgency = 0.0
-    if len(md.position.x) == TRAJECTORY_SIZE:
-      endpoint_x = md.position.x[TRAJECTORY_SIZE - 1]
+    self._endpoint_x = float('inf')
 
-      if endpoint_x < slow_down_threshold:
-        shortage = slow_down_threshold - endpoint_x
-        urgency = min(1.0, shortage / 25.0)
+    # Need valid position data
+    if not len(md.position.x): # == TRAJECTORY_SIZE:
+      self._slow_down_filter.add_data(urgency)
+      urgency_filtered = self._slow_down_filter.get_value() or 0.0
+      self._has_slow_down = urgency_filtered > WMACConstants.SLOW_DOWN_PROB
+      self._urgency = urgency_filtered
+      return
 
-        # Speed-based adjustment
-        speed_factor = min(1.2, self._v_ego_kph / 50.0)
-        urgency *= speed_factor
+    # Get actual trajectory endpoint
+    endpoint_x = md.position.x[-1] # can be any length now ?
+    self._endpoint_x = endpoint_x
 
+    # Get expected distance based on current speed using tuned constants
+    expected_distance = interp(self._v_ego_kph,
+                               WMACConstants.SLOW_DOWN_BP,
+                               WMACConstants.SLOW_DOWN_DIST)
+
+    # Calculate urgency based on trajectory shortage
+    if endpoint_x < expected_distance:
+      shortage = expected_distance - endpoint_x
+      shortage_ratio = shortage / expected_distance
+
+      # Base urgency on shortage ratio
+      urgency = min(1.0, shortage_ratio * 2.0)
+
+      # Increase urgency for very short trajectories (imminent stops)
+      critical_distance = expected_distance * 0.4  # 40% of expected
+      if endpoint_x < critical_distance:
+        urgency = min(1.0, urgency * 1.5)
+
+      # Speed-based urgency adjustment
+      # Higher speeds need more attention when trajectory is short
+      if self._v_ego_kph > 30.0:
+        speed_factor = 1.0 + (self._v_ego_kph - 30.0) / 100.0
+        urgency = min(1.0, urgency * speed_factor)
+
+    # Apply smoothing filter
     self._slow_down_filter.add_data(urgency)
     urgency_filtered = self._slow_down_filter.get_value() or 0.0
+
+    # Update state
     self._has_slow_down = urgency_filtered > WMACConstants.SLOW_DOWN_PROB
     self._urgency = urgency_filtered
 
@@ -327,8 +355,8 @@ class DynamicExperimentalController:
       self._mode_manager.request_mode('blended', confidence=confidence)
       return
 
-    # Driving slow: use ACC
-    if self._has_slowness:
+    # Driving slow: use ACC (but not if actively slowing down)
+    if self._has_slowness and not self._has_slow_down:
       self._mode_manager.request_mode('acc', confidence=0.8)
       return
 
@@ -367,8 +395,8 @@ class DynamicExperimentalController:
       self._mode_manager.request_mode('blended', confidence=confidence)
       return
 
-    # Driving slow: use ACC
-    if self._has_slowness:
+    # Driving slow: use ACC (but not if actively slowing down)
+    if self._has_slowness and not self._has_slow_down:
       self._mode_manager.request_mode('acc', confidence=0.8)
       return
 

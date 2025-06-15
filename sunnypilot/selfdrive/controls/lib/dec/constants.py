@@ -8,8 +8,8 @@ class WMACConstants:
   SLOW_DOWN_PROB = 0.5  # Balanced threshold for slow down scenarios
 
   # Optimized slow down distance curve - smooth and progressive
-  SLOW_DOWN_BP = [0., 10., 20., 30., 40., 50., 60., 70., 80.]
-  SLOW_DOWN_DIST = [28., 40., 56., 74., 94., 116., 140., 166., 194.]
+  SLOW_DOWN_BP = [0, 25, 45, 65]
+  SLOW_DOWN_DIST = [45, 65, 85, 130]
 
   # Slowness detection parameters
   SLOWNESS_WINDOW_SIZE = 10  # Stable slowness detection
