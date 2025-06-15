@@ -50,6 +50,9 @@ def manager_init() -> None:
     ("BlindSpot", "0"),
     ("BlinkerMinLateralControlSpeed", "20"),  # MPH or km/h
     ("BlinkerPauseLateralControl", "0"),
+    ("CustomAccIncrementsEnabled", "0"),
+    ("CustomAccLongPressIncrement", "5"),
+    ("CustomAccShortPressIncrement", "1"),
     ("DeviceBootMode", "0"),
     ("DynamicExperimentalControl", "0"),
     ("GasGating", "1"),
