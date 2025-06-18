@@ -35,4 +35,5 @@ private:
   SpeedLimitControlSubpanel *slcScreen;
   SpeedLimitControl *slcControl;
   CustomAccIncrement *customAccIncrement = nullptr;
+  ParamControlSP *visionTurnSpeedControl = nullptr;
 };
