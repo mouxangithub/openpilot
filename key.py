@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import struct
-import time
-import binascii
 from subprocess import check_output, CalledProcessError
 
 from Crypto.Cipher import AES

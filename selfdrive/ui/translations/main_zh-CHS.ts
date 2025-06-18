@@ -170,7 +170,7 @@ Please use caution when using this feature. Only use the blinker when traffic an
     </message>
     <message>
         <source>Longitudinal Maneuver Mode</source>
-        <translation>纵向操控测试模式</translation>
+        <translation>纵向操控实验模式</translation>
     </message>
     <message>
         <source>Enable ADB</source>
@@ -1770,6 +1770,14 @@ This may take up to a minute.</source>
         <translation>自定义ACC速度增量</translation>
     </message>
     <message>
+        <source>Short Press</source>
+        <translation>短按</translation>
+    </message>
+    <message>
+        <source>Long Press</source>
+        <translation>长按</translation>
+    </message>
+    <message>
         <source>Enable custom Short &amp; Long press increments for cruise speed increase/decrease.</source>
         <translation>启用自定义短按/长按增量调节巡航速度增减功能。</translation>
     </message>
@@ -2148,7 +2156,7 @@ Are you sure you want to delete all the maps?</source>
     </message>
     <message>
         <source>Experimental Mode</source>
-        <translation>测试模式</translation>
+        <translation>实验模式</translation>
     </message>
     <message>
         <source>sunnypilot defaults to driving in &lt;b&gt;chill mode&lt;/b&gt;. Experimental mode enables &lt;b&gt;alpha-level features&lt;/b&gt; that aren&apos;t ready for chill mode. Experimental features are listed below:</source>
