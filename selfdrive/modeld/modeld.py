@@ -9,7 +9,7 @@ elif TICI:
   from openpilot.selfdrive.modeld.runners.tinygrad_helpers import qcom_tensor_from_opencl_address
   os.environ['QCOM'] = '1'
 else:
-  os.environ['LLVM'] = '1'
+  os.environ['GPU'] = '1'
   os.environ['JIT'] = '2'
 from tinygrad.tensor import Tensor
 from tinygrad.dtype import dtypes
@@ -267,7 +267,7 @@ def main(demo=False):
     if frame % 100 == 0:
       custom_lat_delay = params.get_float("SteerActuatorDelay") * 0.01
       #lat_smooth_seconds = params.get_float("SteerSmoothSec") * 0.01
-      
+
     if custom_lat_delay > 0.0:
       lat_delay = custom_lat_delay + lat_smooth_seconds
     else:

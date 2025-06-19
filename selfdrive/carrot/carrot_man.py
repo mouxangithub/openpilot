@@ -352,7 +352,7 @@ class CarrotMan:
             #  sock.sendto(dat, address)
 
             if remote_addr is None:
-              print(f"Broadcasting: {self.broadcast_ip}:{msg}")
+              # print(f"Broadcasting: {self.broadcast_ip}:{msg}")
               if not self.navd_active:
                 #print("clear path_points: navd_active: ", self.navd_active)
                 self.navi_points = []
@@ -589,7 +589,7 @@ class CarrotMan:
 
   def parse_kisa_data(self, data: bytes):
     result = {}
-    
+
     try:
       decoded = data.decode('utf-8')
     except UnicodeDecodeError:
@@ -605,7 +605,7 @@ class CarrotMan:
         except ValueError:
           result[key] = value
     return result
-  
+
   def kisa_app_thread(self):
     while True:
       try:
@@ -803,7 +803,7 @@ class CarrotMan:
       except Exception as e:
         print(f"carrot_cmd_zmq error: {e}")
         socket.close()
-        time.sleep(1) 
+        time.sleep(1)
         socket, poller = setup_socket()
 
   def recvall(self, sock, n):
@@ -1031,7 +1031,7 @@ class CarrotServ:
 
     self.gps_accuracy_phone = 0.0
     self.gps_accuracy_device = 0.0
-    
+
     self.totalDistance = 0
     self.xSpdLimit = 0
     self.xSpdDist = 0
@@ -1472,7 +1472,7 @@ class CarrotServ:
       if atc_type in ["turn left", "turn right"] and x_dist_to_turn > start_turn_dist:
         atc_type = "atc left" if atc_type == "turn left" else "atc right"
 
-    if self.autoTurnMapChange > 0 and check_steer: 
+    if self.autoTurnMapChange > 0 and check_steer:
       #print(f"x_dist_to_turn: {x_dist_to_turn}, atc_start_dist: {atc_start_dist}")
       #print(f"atc_activate_count: {self.atc_activate_count}")
       if self.atc_activate_count == 2:
@@ -1507,7 +1507,7 @@ class CarrotServ:
 
 
     return atc_desired, atc_type, atc_speed, atc_dist
-  
+
   def update_nav_instruction(self, sm):
     if sm.alive['navInstruction'] and sm.valid['navInstruction']:
       msg_nav = sm['navInstruction']
@@ -1537,7 +1537,7 @@ class CarrotServ:
         print(f"kisawazeroadspdlimit: {road_limit_speed} km/h")
         if not self.is_metric:
           road_limit_speed *= CV.MPH_TO_KPH
-        self.nRoadLimitSpeed = road_limit_speed 
+        self.nRoadLimitSpeed = road_limit_speed
     if "kisawazealert" in data:
       pass
     if "kisawazeendalert" in data:
@@ -1563,8 +1563,8 @@ class CarrotServ:
       if xSpdType >= 0:
         self.xSpdLimit = self.nRoadLimitSpeed
         self.xSpdDist = distance
-        self.xSpdType =xSpdType 
-    
+        self.xSpdType =xSpdType
+
   def update_navi(self, remote_ip, sm, pm, vturn_speed, coords, distances, route_speed):
 
     self.debugText = ""
@@ -1596,7 +1596,7 @@ class CarrotServ:
     self.active_kisa_count = max(self.active_kisa_count - 1, 0)
     if self.active_kisa_count > 0:
       self.active_carrot = 2
-      
+
     elif self.active_count > 0:
       self.active_carrot = 2 if self.active_sdi_count > 0 else 1
     else:
@@ -1790,7 +1790,7 @@ class CarrotServ:
     inst = messaging.new_message('navInstructionCarrot')
     if self.active_carrot > 1:
       inst.valid = True
-    
+
       instruction = inst.navInstructionCarrot
       instruction.distanceRemaining = self.nGoPosDist
       instruction.timeRemaining = self.nGoPosTime
@@ -1808,7 +1808,7 @@ class CarrotServ:
       navTypeNext, navModifierNext, xTurnInfoNext = "invalid", "", -1
       if self.nTBTTurnTypeNext in nav_type_mapping:
         navTypeNext, navModifierNext, xTurnInfoNext = nav_type_mapping[self.nTBTTurnTypeNext]
-      
+
       instruction.maneuverType = navType
       instruction.maneuverModifier = navModifier
 

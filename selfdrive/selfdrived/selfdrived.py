@@ -63,15 +63,15 @@ class SelfdriveD:
 
     self.gps_location_service = get_gps_location_service(self.params)
     self.gps_packets = [self.gps_location_service]
-    self.sensor_packets = ["accelerometer", "gyroscope"]
-    self.camera_packets = ["roadCameraState", "driverCameraState", "wideRoadCameraState"]
+    self.sensor_packets = []
+    self.camera_packets = ["roadCameraState"]
 
     self.disable_dm = self.params.get_int("DisableDM")
 
     # TODO: de-couple selfdrived with card/conflate on carState without introducing controls mismatches
     self.car_state_sock = messaging.sub_sock('carState', timeout=20)
 
-    ignore = self.sensor_packets + self.gps_packets + ['alertDebug']
+    ignore = self.sensor_packets + self.gps_packets + ['alertDebug', "accelerometer", "gyroscope", "driverMonitoringState"]]
     if SIMULATION:
       ignore += ['driverCameraState', 'managerState']
     elif self.disable_dm > 0:
@@ -122,7 +122,7 @@ class SelfdriveD:
     self.recalibrating_seen = False
     self.state_machine = StateMachine()
     self.rk = Ratekeeper(100, print_delay_threshold=None)
-    
+
     self.atc_type_last = ""
 
 
@@ -389,7 +389,8 @@ class SelfdriveD:
       gps_ok = self.sm.recv_frame[self.gps_location_service] > 0 and (self.sm.frame - self.sm.recv_frame[self.gps_location_service]) * DT_CTRL < 2.0
       if not gps_ok and self.sm['liveLocationKalman'].inputsOK and (self.distance_traveled > 1500):
         if self.distance_traveled < 1600:
-          self.events.add(EventName.noGps)
+          # self.events.add(EventName.noGps)
+          pass
       #if gps_ok:
       #  self.distance_traveled = 0
       self.distance_traveled += abs(CS.vEgo) * DT_CTRL
