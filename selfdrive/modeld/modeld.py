@@ -37,7 +37,7 @@ from openpilot.selfdrive.modeld.fill_model_msg import fill_model_msg, fill_pose_
 from openpilot.selfdrive.modeld.constants import ModelConstants, Plan
 from openpilot.selfdrive.modeld.models.commonmodel_pyx import DrivingModelFrame, CLContext
 
-from openpilot.sunnypilot.livedelay.lagd_toggle import ModeldLagd
+from openpilot.sunnypilot.livedelay.lagd_toggle import LagdToggle
 
 
 PROCESS_NAME = "selfdrive.modeld.modeld"
@@ -88,6 +88,7 @@ class ModelState:
   prev_desire: np.ndarray  # for tracking the rising edge of the pulse
 
   def __init__(self, context: CLContext):
+    self.LAT_SMOOTH_SECONDS = 0.0
     self.frames = {
       'input_imgs': DrivingModelFrame(context, ModelConstants.TEMPORAL_SKIP),
       'big_input_imgs': DrivingModelFrame(context, ModelConstants.TEMPORAL_SKIP)
@@ -256,7 +257,7 @@ def main(demo=False):
     CP = messaging.log_from_bytes(params.get("CarParams", block=True), car.CarParams)
   cloudlog.info("modeld got CarParams: %s", CP.brand)
 
-  modeld_lagd = ModeldLagd()
+  modeld_lagd = LagdToggle()
 
   # TODO this needs more thought, use .2s extra for now to estimate other delays
   # TODO Move smooth seconds to action function
