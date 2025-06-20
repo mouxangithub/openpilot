@@ -543,11 +543,11 @@ Please use caution when using this feature. Only use the blinker when traffic an
     <name>FirehosePanel</name>
     <message>
         <source>🔥 Firehose Mode 🔥</source>
-        <translation>🔥 训练数据上传模式 🔥</translation>
+        <translation>🔥 训练数据上传 🔥</translation>
     </message>
     <message>
         <source>Firehose Mode: ACTIVE</source>
-        <translation>训练数据上传模式：激活中</translation>
+        <translation>训练数据上传：激活中</translation>
     </message>
     <message>
         <source>ACTIVE</source>
@@ -1204,6 +1204,38 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <source>Not fingerprinted or manually selected</source>
         <translation>未进行指纹识别或手动选择</translation>
     </message>
+    <message>
+        <source>This setting will take effect immediately.</source>
+        <translation>此设置将立即生效。</translation>
+    </message>
+    <message>
+        <source>This setting will take effect once the device enters offroad state.</source>
+        <translation>此设置将在设备进入越野状态后生效。</translation>
+    </message>
+    <message>
+        <source>Vehicle Selector</source>
+        <translation>车辆选择</translation>
+    </message>
+    <message>
+        <source>Confirm</source>
+        <translation>确认</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <source>No vehicles found for query: %1</source>
+        <translation>未找到可供查询的车辆：%1</translation>
+    </message>
+    <message>
+        <source>Select a vehicle</source>
+        <translation>选择车辆</translation>
+    </message>
+    <message>
+        <source>Unrecognized Vehicle</source>
+        <translation>无法识别的车辆</translation>
+    </message>
 </context>
 <context>
     <name>PrimeAdWidget</name>
@@ -1341,7 +1373,7 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>Developer</source>
-        <translation>开发人员</translation>
+        <translation>开发</translation>
     </message>
     <message>
         <source>Firehose</source>
@@ -1384,7 +1416,7 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>Developer</source>
-        <translation>开发人员</translation>
+        <translation>开发</translation>
     </message>
     <message>
         <source>Firehose</source>
@@ -2286,7 +2318,7 @@ Are you sure you want to delete all the maps?</source>
     </message>
     <message>
         <source>&lt;span style=&apos;font-family: &quot;Noto Color Emoji&quot;;&apos;&gt;🔥&lt;/span&gt; Firehose Mode &lt;span style=&apos;font-family: Noto Color Emoji;&apos;&gt;🔥&lt;/span&gt;</source>
-        <translation>&lt;span style=&apos;font-family: &quot;Noto Color Emoji&quot;;&apos;&gt;🔥&lt;/span&gt; 训练数据上传模式 &lt;span style=&apos;font-family: Noto Color Emoji;&apos;&gt;🔥&lt;/span&gt;</translation>
+        <translation>&lt;span style=&apos;font-family: &quot;Noto Color Emoji&quot;;&apos;&gt;🔥&lt;/span&gt; 训练数据上传 &lt;span style=&apos;font-family: Noto Color Emoji;&apos;&gt;🔥&lt;/span&gt;</translation>
     </message>
     <message>
         <source>Maximize your training data uploads to improve openpilot&apos;s driving models.</source>
