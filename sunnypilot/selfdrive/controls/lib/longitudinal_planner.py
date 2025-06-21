@@ -10,11 +10,10 @@ from opendbc.car import structs
 from openpilot.common.params import Params
 from openpilot.selfdrive.car.cruise import V_CRUISE_UNSET
 from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
-from openpilot.sunnypilot.selfdrive.controls.lib.accel_personality.accel_controller import AccelController
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit_controller.speed_limit_controller import SpeedLimitController
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.selfdrive.controls.lib.vision_turn_controller import VisionTurnController
-
+from openpilot.sunnypilot.selfdrive.controls.lib.vibe_personality.vibe_personality import VibePersonalityController
 DecState = custom.LongitudinalPlanSP.DynamicExperimentalControl.DynamicExperimentalControlState
 
 
@@ -26,7 +25,8 @@ class LongitudinalPlannerSP:
     self.v_tsc = VisionTurnController(CP)
     self._params = Params()
     self.slc = SpeedLimitController(CP)
-    self.accel_controller = AccelController()
+    self.vibe_controller = VibePersonalityController()
+
     self.params = Params()
     self.param_read_counter = 0
     self.dynamic_personality = False
@@ -74,7 +74,8 @@ class LongitudinalPlannerSP:
     if self.param_read_counter % 50 == 0:
       self.read_param()
     self.dec.update(sm)
-    self.accel_controller.update()
+    #self.accel_controller.update()
+    self.vibe_controller.update()
 
   def publish_longitudinal_plan_sp(self, sm: messaging.SubMaster, pm: messaging.PubMaster) -> None:
     plan_sp_send = messaging.new_message('longitudinalPlanSP')
