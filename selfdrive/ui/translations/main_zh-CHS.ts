@@ -60,7 +60,7 @@
     </message>
     <message>
         <source>Cellular Metered</source>
-        <translation>按流量计费的手机移动网络</translation>
+        <translation>移动网络</translation>
     </message>
     <message>
         <source>Hidden Network</source>
@@ -68,7 +68,7 @@
     </message>
     <message>
         <source>CONNECT</source>
-        <translation>连线</translation>
+        <translation>连接</translation>
     </message>
     <message>
         <source>Enter SSID</source>
@@ -84,7 +84,7 @@
     </message>
     <message>
         <source>Prevent large data uploads when on a metered cellular connection</source>
-        <translation>在按流量计费的蜂窝网络下，禁止大流量数据上传</translation>
+        <translation>在移动网络下，禁止大流量数据上传</translation>
     </message>
     <message>
         <source>default</source>
@@ -92,7 +92,7 @@
     </message>
     <message>
         <source>metered</source>
-        <translation>按流量计费</translation>
+        <translation>按量计费</translation>
     </message>
     <message>
         <source>unmetered</source>
@@ -100,11 +100,11 @@
     </message>
     <message>
         <source>Wi-Fi Network Metered</source>
-        <translation>Wi-Fi 网络（按流量计费）</translation>
+        <translation>Wi-Fi 计费</translation>
     </message>
     <message>
         <source>Prevent large data uploads when on a metered Wi-Fi connection</source>
-        <translation>在按流量计费的 Wi-Fi 网络下，禁止大流量数据上传</translation>
+        <translation>在计费的 Wi-Fi 网络下，禁止大流量数据上传</translation>
     </message>
 </context>
 <context>
@@ -708,6 +708,10 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
 <context>
     <name>MadsSettings</name>
     <message>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
         <source>Toggle with Main Cruise</source>
         <translation>通过主巡航开关切换</translation>
     </message>
@@ -955,12 +959,12 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
 <context>
     <name>NetworkingSP</name>
     <message>
-        <source>扫描</source>
-        <translation></translation>
+        <source>Scan</source>
+        <translation>扫描</translation>
     </message>
     <message>
-        <source>扫描中...</source>
-        <translation></translation>
+        <source>Scanning...</source>
+        <translation>扫描中...</translation>
     </message>
 </context>
 <context>
