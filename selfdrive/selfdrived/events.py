@@ -699,7 +699,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # usually means the model has trouble understanding the scene. This is used
   # as a heuristic to warn the driver.
   EventName.posenetInvalid: {
-    ET.SOFT_DISABLE: soft_disable_alert("Posenet Speed Invalid"),
+    ET.SOFT_DISABLE: soft_disable_alert("Posenet速度无效"),
     ET.NO_ENTRY: posenet_invalid_alert,
   },
 
