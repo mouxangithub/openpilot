@@ -114,7 +114,6 @@ class LocationEstimator:
       meas = np.array([msg.aEgo, 0, -9.81])
       if np.linalg.norm(meas) >= ACCEL_SANITY_CHECK:
         return HandleLogResult.INPUT_INVALID
-
       acc_res = self.kf.predict_and_observe(sensor_time, ObservationKind.PHONE_ACCEL, meas)
       if acc_res is not None:
         _, new_x, _, new_P, _, _, (acc_err,), _, _ = acc_res
@@ -139,10 +138,8 @@ class LocationEstimator:
       gyro_camodo_yawrate_err = np.abs((meas[2] - gyro_bias[2]) - self.camodo_yawrate_distribution[0])
       gyro_camodo_yawrate_err_threshold = YAWRATE_CROSS_ERR_CHECK_FACTOR * self.camodo_yawrate_distribution[1]
       gyro_valid = gyro_camodo_yawrate_err < gyro_camodo_yawrate_err_threshold
-
       if np.linalg.norm(meas) >= ROTATION_SANITY_CHECK or not gyro_valid:
         return HandleLogResult.INPUT_INVALID
-
       gyro_res = self.kf.predict_and_observe(sensor_time, ObservationKind.PHONE_GYRO, meas)
       if gyro_res is not None:
         _, new_x, _, new_P, _, _, (gyro_err,), _, _ = gyro_res
@@ -296,9 +293,13 @@ def main():
     sm.update()
 
     # acc_msgs, gyro_msgs = (messaging.drain_sock(sock) for sock in sensor_sockets)
+    # acc_msgs, gyro_msgs = (messaging.drain_sock(sock) for sock in sensor_sockets)
 
     if filter_initialized:
       msgs = []
+      # for msg in acc_msgs + gyro_msgs:
+      #   t, valid, which, data = msg.logMonoTime, msg.valid, msg.which(), getattr(msg, msg.which())
+      #   msgs.append((t, valid, which, data))
       # for msg in acc_msgs + gyro_msgs:
       #   t, valid, which, data = msg.logMonoTime, msg.valid, msg.which(), getattr(msg, msg.which())
       #   msgs.append((t, valid, which, data))
