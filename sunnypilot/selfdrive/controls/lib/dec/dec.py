@@ -335,7 +335,8 @@ class DynamicExperimentalController:
     self._has_slow_down = urgency_filtered > WMACConstants.SLOW_DOWN_PROB
     self._urgency = urgency_filtered
 
-  def _radarless_mode(self) -> None:
+  def _radarless_mode(self, sm: messaging.SubMaster) -> None:
+    lead_one = sm['radarState'].leadOne
     """Radarless mode decision logic."""
 
     # Standstill: use blended
@@ -345,9 +346,15 @@ class DynamicExperimentalController:
 
     # Slow down scenarios: use blended
     if self._has_slow_down:
-      confidence = min(1.0, self._urgency * 1.2)
+      confidence = min(1.0, self._urgency * 1.5)
       self._mode_manager.request_mode('blended', confidence=confidence)
       return
+
+    if lead_one.status:
+      # Lead vehicle detected
+      if self._v_ego_kph < 25.0:
+        self._mode_manager.request_mode('blended', confidence=0.9)
+        return
 
     # High curvature at speed: use blended
     if self._high_curvature and self._v_ego_kph > 40.0:
@@ -408,7 +415,7 @@ class DynamicExperimentalController:
     self._update_calculations(sm)
 
     if self._CP.radarUnavailable:
-      self._radarless_mode()
+      self._radarless_mode(sm)
     else:
       self._radar_mode(sm)
 
