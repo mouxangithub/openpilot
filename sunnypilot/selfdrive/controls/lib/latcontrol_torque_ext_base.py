@@ -13,7 +13,7 @@ from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.sunnypilot.livedelay.lagd_toggle import LagdToggle
 
 LAT_PLAN_MIN_IDX = 5
-LATERAL_LAG_MOD = 0.1 # seconds, modifies how far in the future we look ahead for the lateral plan
+LATERAL_LAG_MOD = 0.0 # seconds, modifies how far in the future we look ahead for the lateral plan
 
 def get_predicted_lateral_jerk(lat_accels, t_diffs):
   # compute finite difference between subsequent model_v2.acceleration.y values
