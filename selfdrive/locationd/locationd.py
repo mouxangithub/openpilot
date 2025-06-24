@@ -293,9 +293,13 @@ def main():
     sm.update()
 
     # acc_msgs, gyro_msgs = (messaging.drain_sock(sock) for sock in sensor_sockets)
+    # acc_msgs, gyro_msgs = (messaging.drain_sock(sock) for sock in sensor_sockets)
 
     if filter_initialized:
       msgs = []
+      # for msg in acc_msgs + gyro_msgs:
+      #   t, valid, which, data = msg.logMonoTime, msg.valid, msg.which(), getattr(msg, msg.which())
+      #   msgs.append((t, valid, which, data))
       # for msg in acc_msgs + gyro_msgs:
       #   t, valid, which, data = msg.logMonoTime, msg.valid, msg.which(), getattr(msg, msg.which())
       #   msgs.append((t, valid, which, data))
