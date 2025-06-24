@@ -588,7 +588,47 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>MAX</source>
-        <translation>最高定速</translation>
+        <translation>最大</translation>
+    </message>
+    <message>
+        <source>SPEED</source>
+        <translation>速度</translation>
+    </message>
+    <message>
+        <source>LIMIT</source>
+        <translation>极限</translation>
+    </message>
+    <message>
+        <source>AHEAD</source>
+        <translation>前方</translation>
+    </message>
+    <message>
+        <source>IGNORED</source>
+        <translation>忽视</translation>
+    </message>
+    <message>
+        <source>PREPARING</source>
+        <translation>预备</translation>
+    </message>
+    <message>
+        <source>ADAPTING</source>
+        <translation>适应</translation>
+    </message>
+    <message>
+        <source>ACTIVE</source>
+        <translation>主动</translation>
+    </message>
+    <message>
+        <source>TURN AHEAD</source>
+        <translation>前行</translation>
+    </message>
+    <message>
+        <source>TURNING</source>
+        <translation>转弯</translation>
+    </message>
+    <message>
+        <source>TURN EXIT</source>
+        <translation>出口</translation>
     </message>
 </context>
 <context>
@@ -1800,6 +1840,199 @@ This may take up to a minute.</source>
     </message>
 </context>
 <context>
+    <name>SpeedLimitControlPolicy</name>
+    <message>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <source>Speed Limit Source</source>
+        <translation>限速来源</translation>
+    </message>
+    <message>
+        <source>Car
+Only</source>
+        <translation>仅限汽车</translation>
+    </message>
+    <message>
+        <source>Map
+Only</source>
+        <translation>仅限地图</translation>
+    </message>
+    <message>
+        <source>Car
+First</source>
+        <translation>汽车优先</translation>
+    </message>
+    <message>
+        <source>Map
+First</source>
+        <translation>地图优先</translation>
+    </message>
+    <message>
+        <source>Combined
+Data</source>
+        <translation>组合</translation>
+    </message>
+    <message>
+        <source>⦿ Car Only: Use Speed Limit data only from Car</source>
+        <translation>⦿ 仅限汽车：仅使用来自汽车的速度限制数据</translation>
+    </message>
+    <message>
+        <source>⦿ Map Only: Use Speed Limit data only from OpenStreetMaps</source>
+        <translation>⦿ 仅限地图：仅使用来自OpenStreetMaps的速度限制数据</translation>
+    </message>
+    <message>
+        <source>⦿ Car First: Use Speed Limit data from Car if available, else use from OpenStreetMaps</source>
+        <translation>⦿ 汽车优先：若汽车有速度限制数据，则使用该数据；若无，则使用OpenStreetMaps的数据</translation>
+    </message>
+    <message>
+        <source>⦿ Map First: Use Speed Limit data from OpenStreetMaps if available, else use from Car</source>
+        <translation>⦿ 地图优先：若OpenStreetMaps有速度限制数据，则使用该数据；若无，则使用车辆提供的数据</translation>
+    </message>
+    <message>
+        <source>⦿ Combined: Use combined Speed Limit data from Car &amp; OpenStreetMaps</source>
+        <translation>⦿ 组合：使用来自汽车和OpenStreetMaps的组合限速数据</translation>
+    </message>
+</context>
+<context>
+    <name>SpeedLimitControlSubpanel</name>
+    <message>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <source>Customize Warning</source>
+        <translation>自定义警告</translation>
+    </message>
+    <message>
+        <source>Customize Source</source>
+        <translation>自定义来源</translation>
+    </message>
+    <message>
+        <source>Engage Mode</source>
+        <translation>介入模式</translation>
+    </message>
+    <message>
+        <source>Speed Limit Offset</source>
+        <translation>速度限制偏移</translation>
+    </message>
+    <message>
+        <source>Auto</source>
+        <translation>自动</translation>
+    </message>
+    <message>
+        <source>User Confirm</source>
+        <translation>用户确认</translation>
+    </message>
+    <message>
+        <source>⦿ Auto: Automatic speed adjustment based on speed limit data</source>
+        <translation>⦿ 自动：根据限速数据自动调整速度</translation>
+    </message>
+    <message>
+        <source>⦿ User Confirm: Asks driver to confirm speed adjustment based on speed limit data</source>
+        <translation>⦿ 用户确认：要求驾驶员根据限速数据确认速度调整</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <source>Fixed</source>
+        <translation>固定</translation>
+    </message>
+    <message>
+        <source>Percent</source>
+        <translation>比例</translation>
+    </message>
+    <message>
+        <source>⦿ None: No Offset</source>
+        <translation>⦿ 无：无偏移</translation>
+    </message>
+    <message>
+        <source>⦿ Fixed: Adds a fixed offset [Speed Limit + Offset]</source>
+        <translation>⦿ 固定：添加固定偏移量[速度限制+偏移量]</translation>
+    </message>
+    <message>
+        <source>⦿ Percent: Adds a percent offset [Speed Limit + (Offset % Speed Limit)]</source>
+        <translation>⦿ 比例：添加百分比偏移量[速度限制 + (偏移量 % 速度限制)]</translation>
+    </message>
+</context>
+<context>
+    <name>SpeedLimitControlWarning</name>
+    <message>
+        <source>Back</source>
+        <translation>返回</translation>
+    </message>
+    <message>
+        <source>Speed Limit Warning</source>
+        <translation>限速警告</translation>
+    </message>
+    <message>
+        <source>Warning Offset</source>
+        <translation>警告偏移</translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation>N/A</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Display</source>
+        <translation>显示</translation>
+    </message>
+    <message>
+        <source>Chime</source>
+        <translation>警告</translation>
+    </message>
+    <message>
+        <source>⦿ Off: No Warning</source>
+        <translation>⦿ 关闭：无警告</translation>
+    </message>
+    <message>
+        <source>⦿ Display: Speed Limit Sign will visually alert</source>
+        <translation>⦿ 显示：限速标志将在视觉上发出警示</translation>
+    </message>
+    <message>
+        <source>⦿ Chime: Speed Limit Sign will visually alert along with an audible chime</source>
+        <translation>⦿ 警告：限速标志会通过视觉提示和蜂鸣声进行提醒</translation>
+    </message>
+    <message>
+        <source>None</source>
+        <translation>无</translation>
+    </message>
+    <message>
+        <source>Fixed</source>
+        <translation>固定</translation>
+    </message>
+    <message>
+        <source>Percent</source>
+        <translation>比例</translation>
+    </message>
+    <message>
+        <source>⦿ None: No Offset</source>
+        <translation>⦿ 无：无偏移</translation>
+    </message>
+    <message>
+        <source>⦿ Fixed: Adds a fixed offset [Speed Limit + Offset]</source>
+        <translation>⦿ 固定：添加固定偏移量[速度限制+偏移量]</translation>
+    </message>
+    <message>
+        <source>⦿ Percent: Adds a percent offset [Speed Limit + (Offset % Speed Limit)]</source>
+        <translation>⦿ 比例：添加百分比偏移量[速度限制 + (偏移量 % 速度限制)]</translation>
+    </message>
+</context>
+<context>
+    <name>SpeedLimitControl</name>
+    <message>
+        <source>Customize SLC</source>
+        <translation>自定义SLC</translation>
+    </message>
+</context>
+<context>
     <name>LongitudinalPanel</name>
     <message>
         <source>Custom ACC Speed Increments</source>
@@ -1812,6 +2045,18 @@ This may take up to a minute.</source>
     <message>
         <source>Long Press</source>
         <translation>长按</translation>
+    </message>
+    <message>
+        <source>Speed Limit Control (SLC)</source>
+        <translation>限速控制（SLC）</translation>
+    </message>
+    <message>
+        <source>Customize SLC</source>
+        <translation>自定义SLC</translation>
+    </message>
+    <message>
+        <source>When you engage ACC, you will be prompted to set the cruising speed to the speed limit of the road adjusted by the Offset and Source Policy specified, or the current driving speed. The maximum cruising speed will always be the MAX set speed.</source>
+        <translation>当您启用自适应巡航控制（ACC）时，系统会提示您将巡航速度设置为根据指定的偏移量和源策略调整后的道路限速，或设置为当前行驶速度。最大巡航速度始终为设定的最大速度。</translation>
     </message>
     <message>
         <source>Enable custom Short &amp; Long press increments for cruise speed increase/decrease.</source>
@@ -1835,6 +2080,10 @@ This may take up to a minute.</source>
     <message>
         <source>Show Blind Spot Warnings</source>
         <translation>显示盲区警告</translation>
+    </message>
+    <message>
+        <source>Enable Tesla Rainbow Mode</source>
+        <translation>启用特斯拉彩虹模式</translation>
     </message>
     <message>
         <source>Enabling this will display warnings when a vehicle is detected in your blind spot as long as your car has BSM supported.</source>
@@ -2257,6 +2506,30 @@ Are you sure you want to delete all the maps?</source>
     <message>
         <source>Enable Dynamic Experimental Control</source>
         <translation>启用动态实验性控制</translation>
+    </message>
+    <message>
+        <source>Toyota: Auto Brake Hold</source>
+        <translation>丰田：自动驻车</translation>
+    </message>
+    <message>
+        <source>As you may auto brake hold currently supported by openpilot, this feature will allow sunnypilot to automatically hold the vehicle at a stop when the lead car is stopped. (TSS2 only)</source>
+        <translation>正如您可能已经了解的，openpilot目前支持自动刹车保持功能，而sunnypilot也将通过此功能，在领头车辆停止时自动保持车辆停止状态。（仅限TSS2）</translation>
+    </message>
+    <message>
+        <source>Toyota: Enhanced BSM</source>
+        <translation>丰田：增强型盲点监测系统（BSM）</translation>
+    </message>
+    <message>
+        <source>Supports car that openpilot does not currently support such as the TSS-P/LSS, Prius TSS2, Lexus IS. This feature will allow sunnypilot to use the car's blind spot monitoring system to detect vehicles in the blind spot and alert the driver.</source>
+        <translation>支持目前OpenPilot尚不支持的车型，如TSS-P/LSS、普锐斯TSS2、雷克萨斯IS。该功能将允许Sunnypilot利用车辆的盲点监测系统来检测盲点中的车辆，并向驾驶员发出警报。</translation>
+    </message>
+    <message>
+        <source>Toyota: custom tune</source>
+        <translation>丰田：定制调校</translation>
+    </message>
+    <message>
+        <source>Custome tune for Toyota TSS2 cars. This feature will allow SunnyPilot to adjust vehicle dynamics to be more natural and comfortable, tuned off the TSS2 Prius, Corolla, and RAV4.</source>
+        <translation>为丰田TSS2车型定制调校。该功能将使SunnyPilot能够调整车辆动态，使其更加自然舒适，与TSS2 Prius、Corolla和RAV4的调校有所不同。</translation>
     </message>
     <message>
         <source>Enable toggle to allow the model to determine when to use sunnypilot ACC or sunnypilot End to End Longitudinal.</source>
