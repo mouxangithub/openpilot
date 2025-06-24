@@ -1,6 +1,5 @@
 import av
 import cv2
-import cv2
 
 class Camera:
     def __init__(self, cam_type_state, stream_type, camera_id):
