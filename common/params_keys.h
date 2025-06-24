@@ -141,6 +141,7 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"ModelRunnerTypeCache", CLEAR_ON_ONROAD_TRANSITION},
     {"OffroadMode", CLEAR_ON_MANAGER_START},
     {"QuietMode", PERSISTENT | BACKUP},
+    {"VisionTurnSpeedControl", PERSISTENT | BACKUP},
 
     // MADS params
     {"Mads", PERSISTENT | BACKUP},
@@ -198,4 +199,19 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"OsmStateTitle", PERSISTENT},
     {"OsmWayTest", PERSISTENT},
     {"RoadName", CLEAR_ON_ONROAD_TRANSITION},
+
+    // Speed Limit Control
+    {"SpeedLimitControl", PERSISTENT | BACKUP},
+    {"SpeedLimitControlPolicy", PERSISTENT | BACKUP},
+    {"SpeedLimitEngageType", PERSISTENT | BACKUP},
+    {"SpeedLimitOffsetType", PERSISTENT | BACKUP},
+    {"SpeedLimitValueOffset", PERSISTENT | BACKUP},
+    {"SpeedLimitWarningType", PERSISTENT | BACKUP},
+    {"SpeedLimitWarningOffsetType", PERSISTENT | BACKUP},
+    {"SpeedLimitWarningValueOffset", PERSISTENT | BACKUP},
+    // toyota specific params
+    {"ToyotaAutoHold", PERSISTENT},
+    {"ToyotaEnhancedBsm", PERSISTENT},
+    {"ToyotaTSS2Long", PERSISTENT},
+    {"RainbowMode", PERSISTENT},
 };

@@ -10,6 +10,10 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.modeld.constants import index_function
 from openpilot.selfdrive.controls.radard import _LEAD_ACCEL_TAU
 
+#from openpilot.sunnypilot.selfdrive.controls.lib.accel_personality.accel_controller import AccelController
+#from openpilot.sunnypilot.selfdrive.controls.lib.dynamic_personality.dynamic_personality_controller import DynamicPersonalityController
+from openpilot.sunnypilot.selfdrive.controls.lib.vibe_personality.vibe_personality import VibePersonalityController
+
 if __name__ == '__main__':  # generating code
   from openpilot.third_party.acados.acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
 else:
@@ -65,17 +69,18 @@ def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
     return 0.8
   elif personality==log.LongitudinalPersonality.aggressive:
     return 0.6
+    return 0.6
   else:
     raise NotImplementedError("Longitudinal personality not supported")
 
 
 def get_T_FOLLOW(personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.relaxed:
-    return 1.55
+    return 1.80
   elif personality==log.LongitudinalPersonality.standard:
-    return 1.35
+    return 1.50
   elif personality==log.LongitudinalPersonality.aggressive:
-    return 1.15
+    return 1.20
   else:
     raise NotImplementedError("Longitudinal personality not supported")
 
@@ -228,6 +233,9 @@ class LongitudinalMpc:
     self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
     self.reset()
     self.source = SOURCES[2]
+    #self.accel_controller = AccelController()
+    #self.dynamic_personality_controller = DynamicPersonalityController()
+    self.vibe_controller = VibePersonalityController()
 
   def reset(self):
     # self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
@@ -327,10 +335,19 @@ class LongitudinalMpc:
     lead_xv = self.extrapolate_lead(x_lead, v_lead, a_lead, a_lead_tau)
     return lead_xv
 
-  def update(self, radarstate, v_cruise, x, v, a, j, personality=log.LongitudinalPersonality.standard):
-    t_follow = get_T_FOLLOW(personality)
+  def update(self, radarstate, v_cruise, x, v, a, j, personality=log.LongitudinalPersonality.standard): #, dynamic_personality=False):
     v_ego = self.x0[1]
+    #self.vibe_controller.update()
+    #t_follow = self.vibe_controller.get_follow_distance_multiplier(v_ego) if dynamic_personality else get_T_FOLLOW(personality)
+    if self.vibe_controller.is_personality_enabled:
+      t_follow = self.vibe_controller.get_follow_distance_multiplier(v_ego)
+      print(f"[MPC Debug] Using DYNAMIC t_follow: {t_follow:.3f}s (from vibe controller)")
+    else:
+      t_follow = get_T_FOLLOW(personality)
+      print(f"[MPC Debug] Using STATIC t_follow: {t_follow:.3f}s (from personality: {personality})")
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
+    min_accel = self.vibe_controller.get_min_accel(v_ego)
+    a_cruise_min = min_accel
 
     lead_xv_0 = self.process_lead(radarstate.leadOne)
     lead_xv_1 = self.process_lead(radarstate.leadTwo)
@@ -350,7 +367,7 @@ class LongitudinalMpc:
 
       # Fake an obstacle for cruise, this ensures smooth acceleration to set speed
       # when the leads are no factor.
-      v_lower = v_ego + (T_IDXS * CRUISE_MIN_ACCEL * 1.05)
+      v_lower = v_ego + (T_IDXS * a_cruise_min * 1.05)
       # TODO does this make sense when max_a is negative?
       v_upper = v_ego + (T_IDXS * CRUISE_MAX_ACCEL * 1.05)
       v_cruise_clipped = np.clip(v_cruise * np.ones(N+1),
