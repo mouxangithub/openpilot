@@ -1,1 +1,1 @@
-#define DEFAULT_MODEL "Phoenix Reborn (Default)"
+#define DEFAULT_MODEL "Vibe Model (Default)"
