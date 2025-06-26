@@ -240,7 +240,7 @@ class WebRTCOfferStream(WebRTCBaseStream):
 
     streaming_offer = StreamingOffer(
       sdp=actual_offer.sdp,
-      video=list(self.expected_incoming_camera_types),
+      video_link=list(self.expected_incoming_camera_types),
     )
     remote_answer = await self.session_provider(streaming_offer)
     self._parse_incoming_streams(remote_sdp=remote_answer.sdp)
