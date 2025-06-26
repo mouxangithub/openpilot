@@ -1754,6 +1754,10 @@ This may take up to a minute.</source>
         <translation>舒适</translation>
     </message>
     <message>
+        <source>MoreRelaxed</source>
+        <translation>更舒适</translation>
+    </message>
+    <message>
         <source>Driving Personality</source>
         <translation>驾驶风格</translation>
     </message>
