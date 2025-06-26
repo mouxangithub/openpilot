@@ -341,10 +341,10 @@ class LongitudinalMpc:
     #t_follow = self.vibe_controller.get_follow_distance_multiplier(v_ego) if dynamic_personality else get_T_FOLLOW(personality)
     if self.vibe_controller.is_personality_enabled:
       t_follow = self.vibe_controller.get_follow_distance_multiplier(v_ego)
-      print(f"[MPC Debug] Using DYNAMIC t_follow: {t_follow:.3f}s (from vibe controller)")
+      # print(f"[MPC Debug] Using DYNAMIC t_follow: {t_follow:.3f}s (from vibe controller)")
     else:
       t_follow = get_T_FOLLOW(personality)
-      print(f"[MPC Debug] Using STATIC t_follow: {t_follow:.3f}s (from personality: {personality})")
+      # print(f"[MPC Debug] Using STATIC t_follow: {t_follow:.3f}s (from personality: {personality})")
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
     min_accel = self.vibe_controller.get_min_accel(v_ego)
     a_cruise_min = min_accel

@@ -55,7 +55,7 @@ class VibePersonalityController:
     self.personality = LongPersonality.standard
     self.frame = 0
 
-    print(f"[VibePersonalityController] Initializing with personality: {self.personality}")
+    # print(f"[VibePersonalityController] Initializing with personality: {self.personality}")
 
     # Precompute slopes for acceleration profiles for efficiency
     self.max_accel_slopes = {}
@@ -63,7 +63,7 @@ class VibePersonalityController:
     self.follow_distance_slopes = {}
 
     for personality in [LongPersonality.relaxed, LongPersonality.standard, LongPersonality.aggressive]:
-      print(f"[VibePersonalityController] Precomputing slopes for personality: {personality}")
+      # print(f"[VibePersonalityController] Precomputing slopes for personality: {personality}")
 
       # Acceleration slopes
       self.max_accel_slopes[personality] = self._compute_symmetric_slopes(
@@ -79,24 +79,24 @@ class VibePersonalityController:
         profile['x_vel'], profile['y_dist']
       )
 
-    print("[VibePersonalityController] Initialization complete")
+    # print("[VibePersonalityController] Initialization complete")
 
   def _update_personality_from_params(self):
     if self.frame % int(1. / DT_MDL) == 0:
       personality_str = self.params.get("LongitudinalPersonality", encoding='utf-8')
-      print(f"[VibePersonalityController] Reading personality param: {personality_str} (frame: {self.frame})")
+      # print(f"[VibePersonalityController] Reading personality param: {personality_str} (frame: {self.frame})")
 
       if personality_str is not None:
         try:
           personality_int = int(personality_str)
           if personality_int in [LongPersonality.relaxed, LongPersonality.standard, LongPersonality.aggressive]:
-            if personality_int != self.personality:
-              print(f"[VibePersonalityController] Personality changed: {self.personality} -> {personality_int}")
+            # if personality_int != self.personality:
+              # print(f"[VibePersonalityController] Personality changed: {self.personality} -> {personality_int}")
             self.personality = personality_int
-          else:
-            print(f"[VibePersonalityController] Invalid personality value: {personality_int}, keeping current: {self.personality}")
+          # else:
+            # print(f"[VibePersonalityController] Invalid personality value: {personality_int}, keeping current: {self.personality}")
         except (ValueError, TypeError):
-          print(f"[VibePersonalityController] Failed to parse personality param: {personality_str}, keeping current: {self.personality}")
+          # print(f"[VibePersonalityController] Failed to parse personality param: {personality_str}, keeping current: {self.personality}")
           # Keep current personality if parameter is invalid
           pass
 
@@ -120,10 +120,10 @@ class VibePersonalityController:
         self.min_accel_slopes[self.personality]
       )
 
-      print(f"[VibePersonalityController] Calculated accel limits: min={min_accel:.3f}, max={max_accel:.3f} m/s²")
+      # print(f"[VibePersonalityController] Calculated accel limits: min={min_accel:.3f}, max={max_accel:.3f} m/s²")
       return (float(min_accel), float(max_accel))
     except (KeyError, IndexError) as e:
-      print(f"[VibePersonalityController] Error calculating accel limits: {e}, using defaults: {default_accel_limits}")
+      # print(f"[VibePersonalityController] Error calculating accel limits: {e}, using defaults: {default_accel_limits}")
       # Fallback to default limits if personality not found or interpolation fails
       return (default_accel_limits[0], default_accel_limits[1])
 
@@ -148,15 +148,15 @@ class VibePersonalityController:
         self.follow_distance_slopes[self.personality]
       )
 
-      print(f"[VibePersonalityController] Calculated follow distance multiplier: {result:.3f}")
+      # print(f"[VibePersonalityController] Calculated follow distance multiplier: {result:.3f}")
       return float(result)
     except (KeyError, IndexError) as e:
-      print(f"[VibePersonalityController] Error calculating follow distance, using standard fallback: {e}")
+      # print(f"[VibePersonalityController] Error calculating follow distance, using standard fallback: {e}")
       # Fallback to standard profile
       profile = FOLLOW_DISTANCE_PROFILES[LongPersonality.standard]
       slopes = self._compute_symmetric_slopes(profile['x_vel'], profile['y_dist'])
       result = self._hermite_interpolate(v_ego, profile['x_vel'], profile['y_dist'], slopes)
-      print(f"[VibePersonalityController] Fallback follow distance multiplier: {result:.3f}")
+      # print(f"[VibePersonalityController] Fallback follow distance multiplier: {result:.3f}")
       return float(result)
 
   def get_max_accel(self, v_ego: float) -> float:
