@@ -444,7 +444,7 @@
         <translation>丰田必须设置为1，本田3</translation>
     </message>
     <message>
-        <source>Sound Volume(100%)"</source>
+        <source>Sound Volume(100%)</source>
         <translation>音量（100%）”</translation>
     </message>
     <message>
