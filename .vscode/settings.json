@@ -25,6 +25,7 @@
     "tools/**",
   ],
   "files.associations": {
-    "new": "cpp"
+    "new": "cpp",
+    "string": "cpp"
   }
 }
