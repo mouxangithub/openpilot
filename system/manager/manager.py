@@ -35,7 +35,7 @@ def get_default_params():
 
     ("SearchInput", "0"),
     ("GMapKey", "0"),
-    ("MapboxStyle", "0"),    
+    ("MapboxStyle", "0"),
 
 
     ("LongitudinalPersonalityMax", "3"),
@@ -341,11 +341,10 @@ def manager_thread() -> None:
 
 def main() -> None:
   manager_init()
-  print(f"python ../../opendbc/car/hyundai/values.py > {Params().get_param_path()}/SupportedCars")
-  os.system(f"python ../../opendbc/car/hyundai/values.py > {Params().get_param_path()}/SupportedCars")
-  os.system(f"python ../../opendbc/car/gm/values.py > {Params().get_param_path()}/SupportedCars_gm")
-  os.system(f"python ../../opendbc/car/toyota/values.py > {Params().get_param_path()}/SupportedCars_toyota")
-  os.system(f"python ../../opendbc/car/mazda/values.py > {Params().get_param_path()}/SupportedCars_mazda")
+  os.system(f"python ./opendbc/car/hyundai/values.py > {Params().get_param_path()}/SupportedCars")
+  os.system(f"python ./opendbc/car/gm/values.py > {Params().get_param_path()}/SupportedCars_gm")
+  os.system(f"python ./opendbc/car/toyota/values.py > {Params().get_param_path()}/SupportedCars_toyota")
+  os.system(f"python ./opendbc/car/mazda/values.py > {Params().get_param_path()}/SupportedCars_mazda")
 
   if os.getenv("PREPAREONLY") is not None:
     return
