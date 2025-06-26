@@ -445,7 +445,7 @@
     </message>
     <message>
         <source>Sound Volume(100%)</source>
-        <translation>音量（100%）”</translation>
+        <translation>音量（100%）</translation>
     </message>
     <message>
         <source>Sound Volume, Engage(10%)</source>
