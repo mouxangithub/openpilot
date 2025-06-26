@@ -348,6 +348,8 @@ def main() -> None:
   os.system(f"python ./opendbc/car/mazda/values.py > {Params().get_param_path()}/SupportedCars_mazda")
   os.system(f"python ./opendbc/car/honda/values.py > {Params().get_param_path()}/SupportedCars_honda")
   os.system(f"python ./opendbc/car/byd/values.py > {Params().get_param_path()}/SupportedCars_byd")
+  os.system(f"python ./opendbc/car/rivian/values.py > {Params().get_param_path()}/SupportedCars_rivian")
+  os.system(f"python ./opendbc/car/subaru/values.py > {Params().get_param_path()}/SupportedCars_subaru")
   os.system(f"python ./opendbc/car/ford/values.py > {Params().get_param_path()}/SupportedCars_ford")
   os.system(f"python ./opendbc/car/nissan/values.py > {Params().get_param_path()}/SupportedCars_nissan")
   os.system(f"python ./opendbc/car/tesla/values.py > {Params().get_param_path()}/SupportedCars_tesla")
