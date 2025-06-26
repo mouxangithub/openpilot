@@ -772,6 +772,8 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
     all_items.append(get_list((QString::fromStdString(Params().getParamPath()) + "/SupportedCars_mazda").toStdString().c_str()));
     all_items.append(get_list((QString::fromStdString(Params().getParamPath()) + "/SupportedCars_honda").toStdString().c_str()));
     all_items.append(get_list((QString::fromStdString(Params().getParamPath()) + "/SupportedCars_byd").toStdString().c_str()));
+    all_items.append(get_list((QString::fromStdString(Params().getParamPath()) + "/SupportedCars_rivian").toStdString().c_str()));
+    all_items.append(get_list((QString::fromStdString(Params().getParamPath()) + "/SupportedCars_subaru").toStdString().c_str()));
     all_items.append(get_list((QString::fromStdString(Params().getParamPath()) + "/SupportedCars_ford").toStdString().c_str()));
     all_items.append(get_list((QString::fromStdString(Params().getParamPath()) + "/SupportedCars_nissan").toStdString().c_str()));
     all_items.append(get_list((QString::fromStdString(Params().getParamPath()) + "/SupportedCars_tesla").toStdString().c_str()));
