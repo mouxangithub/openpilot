@@ -780,8 +780,6 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
       }
     }
 
-    print(car_groups)
-
     QStringList manufacturers = car_groups.keys();
     QString selectedManufacturer = MultiOptionDialog::getSelection(tr("Select Manufacturer"), manufacturers, manufacturers.isEmpty() ? "" : manufacturers.first(), this);
 
