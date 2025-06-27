@@ -19,7 +19,8 @@ The developer does **not take any responsibility** for real-world installation o
     3、新并安装所需的包
     sudo apt-get update
     sudo apt-get install libicu66
-
+## ⚠️ 需在虚拟环境下手动执行该命令安装xattr 否则启动会报错。    
+uv pip install xattr
 
 <div align="center" style="text-align: center;">
 
