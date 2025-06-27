@@ -64,8 +64,8 @@ class CameraMJPG:
         fourcc = cv2.VideoWriter_fourcc(*target_fourcc)
         self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
         self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)  # 优先选择最高分辨率
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 2592)  # 优先选择最高分辨率
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1944)
         self.cap.set(cv2.CAP_PROP_FPS, 20)
 
 
