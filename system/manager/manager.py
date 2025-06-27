@@ -68,7 +68,6 @@ def manager_init() -> None:
     ("NeuralNetworkLateralControl", "0"),
     ("QuietMode", "0"),
     ("VisionTurnSpeedControl", "1"),
-
     ("SpeedLimitControl", "0"),
     ("SpeedLimitControlPolicy", "3"),
     ("SpeedLimitEngageType", "0"),
