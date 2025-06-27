@@ -64,7 +64,7 @@ devs = subprocess.check_output('python3 -c "from tinygrad import Device; print(l
 if b"AMD" in devs:
   del Device
   print("USB GPU detected... building")
-  flags = "GPU=1 BEAM=0 IMAGE=0"
+  flags = "GPU=1 BEAM=0 IMAGE=0 JIT=2"
   bp = tg_compile(flags, "big_driving_policy")
   bv = tg_compile(flags, "big_driving_vision")
   lenv.SideEffect('lock', [bp, bv])  # tg doesn't support multi-process so build serially
