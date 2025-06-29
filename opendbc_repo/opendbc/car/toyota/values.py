@@ -107,7 +107,7 @@ class ToyotaSecOCPlatformConfig(PlatformConfig):
 
   def init(self):
     # don't expose car docs until SecOC cars can be suppressed from the comma website
-    self.car_docs = []
+    # self.car_docs = []
 
     self.flags |= ToyotaFlags.TSS2 | ToyotaFlags.NO_STOP_TIMER | ToyotaFlags.NO_DSU | ToyotaFlags.SECOC
 
