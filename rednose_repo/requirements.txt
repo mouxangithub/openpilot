@@ -9,3 +9,4 @@ pre-commit
 Cython
 pytest
 pytest-xdist
+xattr

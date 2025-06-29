@@ -3,8 +3,8 @@ import os
 from openpilot.system.hardware import TICI
 USBGPU = "USBGPU" in os.environ
 if USBGPU:
-  os.environ['AMD'] = '1'
-  os.environ['AMD_IFACE'] = 'USB'
+  os.environ['QCOM'] = '1'
+  os.environ['GPU'] = '1'
 elif TICI:
   from openpilot.selfdrive.modeld.runners.tinygrad_helpers import qcom_tensor_from_opencl_address
   os.environ['QCOM'] = '1'

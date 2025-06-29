@@ -1561,7 +1561,9 @@ class CarrotServ:
         xSpdType = 100
 
       if xSpdType >= 0:
-        self.xSpdLimit = self.nRoadLimitSpeed
+        offset = 5 if self.is_metric else 5 * CV.MPH_TO_KPH
+        self.xSpdLimit = self.nRoadLimitSpeed + offset
+        
         self.xSpdDist = distance
         self.xSpdType =xSpdType
 
@@ -1685,11 +1687,12 @@ class CarrotServ:
     if self.turnSpeedControlMode in [1,2]:
       speed_n_sources.append((max(abs(vturn_speed), self.autoCurveSpeedLowerLimit), "vturn"))
 
+    route_speed = max(route_speed * self.mapTurnSpeedFactor, self.autoCurveSpeedLowerLimit)
     if self.turnSpeedControlMode == 2:
       if 0 < self.xDistToTurn < 300:
-        speed_n_sources.append((route_speed * self.mapTurnSpeedFactor, "route"))
+        speed_n_sources.append((route_speed, "route"))
     elif self.turnSpeedControlMode == 3:
-      speed_n_sources.append((route_speed * self.mapTurnSpeedFactor, "route"))
+      speed_n_sources.append((route_speed, "route"))
       #speed_n_sources.append((self.calculate_current_speed(dist, speed * self.mapTurnSpeedFactor, 0, 1.2), "route"))
 
     desired_speed, source = min(speed_n_sources, key=lambda x: x[0])

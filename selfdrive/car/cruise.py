@@ -218,7 +218,7 @@ class VCruiseCarrot:
     self.AutoSpeedUptoRoadSpeedLimit = 0.0
 
     self.useLaneLineSpeed = self.params.get_int("UseLaneLineSpeed")
-    self.params.put_int("UseLaneLineSpeedApply", self.useLaneLineSpeed)
+    self.useLaneLineSpeedApply = self.useLaneLineSpeed
 
 
   @property
@@ -237,16 +237,19 @@ class VCruiseCarrot:
       self._log_timer = self._log_timeout
 
   def update_params(self, is_metric):
+    unit_factor = 1.0 if is_metric else CV.MPH_TO_KPH
     if self.frame % 10 == 0:
-      self.autoCruiseControl = self.params.get_int("AutoCruiseControl")
-      self.autoGasTokSpeed = self.params.get_int("AutoGasTokSpeed")
-      self.autoGasSyncSpeed = self.params.get_bool("AutoGasSyncSpeed")
+      self.autoCruiseControl = self.params.get_int("AutoCruiseControl") * unit_factor
+      self.autoGasTokSpeed = self.params.get_int("AutoGasTokSpeed") * unit_factor
+      self.autoGasSyncSpeed = self.params.get_bool("AutoGasSyncSpeed") * unit_factor
       self.autoSpeedUptoRoadSpeedLimit = self.params.get_float("AutoSpeedUptoRoadSpeedLimit") * 0.01
       self.autoRoadSpeedAdjust = self.params.get_float("AutoRoadSpeedAdjust") * 0.01
-      useLaneLineSpeed = self.params.get_int("UseLaneLineSpeed")
+
+      useLaneLineSpeed = self.params.get_int("UseLaneLineSpeed") * unit_factor
       if self.useLaneLineSpeed != useLaneLineSpeed:
-        self.params.put_int_nonblocking("UseLaneLineSpeedApply", useLaneLineSpeed)
+        self.useLaneLineSpeedApply = useLaneLineSpeed
       self.useLaneLineSpeed = useLaneLineSpeed
+
       self.speed_from_pcm = self.params.get_int("SpeedFromPCM")
       self._cruise_speed_unit = self.params.get_int("CruiseSpeedUnit")
       self._paddle_mode = self.params.get_int("PaddleMode")
@@ -255,7 +258,6 @@ class VCruiseCarrot:
       self.autoRoadSpeedLimitOffset = self.params.get_int("AutoRoadSpeedLimitOffset")
       self.autoNaviSpeedSafetyFactor = self.params.get_float("AutoNaviSpeedSafetyFactor") * 0.01
       self.cruiseOnDist = self.params.get_float("CruiseOnDist") * 0.01
-      unit_factor = 1.0 if is_metric else CV.MPH_TO_KPH
       cruiseSpeed1 = self.params.get_float("CruiseSpeed1") * unit_factor
       cruiseSpeed2 = self.params.get_float("CruiseSpeed2") * unit_factor
       cruiseSpeed3 = self.params.get_float("CruiseSpeed3") * unit_factor
@@ -552,7 +554,7 @@ class VCruiseCarrot:
         self.params.put_int_nonblocking("MyDrivingMode", self.params.get_int("MyDrivingMode") % 4 + 1) # 1,2,3,4 (1:eco, 2:safe, 3:normal, 4:high speed)
       elif button_type == ButtonType.lfaButton:
         useLaneLineSpeed = max(1, self.useLaneLineSpeed)
-        self.params.put_int_nonblocking("UseLaneLineSpeedApply", useLaneLineSpeed if self.params.get_int("UseLaneLineSpeedApply") == 0 else 0)
+        self.useLaneLineSpeedApply = useLaneLineSpeed if self.useLaneLineSpeedApply == 0 else 0
 
       elif button_type == ButtonType.cancel:
         self._cruise_cancel_state = True
@@ -594,15 +596,20 @@ class VCruiseCarrot:
     return v_cruise_kph
 
   def _auto_speed_up(self, v_cruise_kph):
-    if self._pause_auto_speed_up:
-      return v_cruise_kph
+    #if self._pause_auto_speed_up:
+    #  return v_cruise_kph
 
     road_limit_kph = self.nRoadLimitSpeed * self.autoSpeedUptoRoadSpeedLimit
     if road_limit_kph < 1.0:
       return v_cruise_kph
 
-    if self.v_lead_kph + 5 > v_cruise_kph and v_cruise_kph < road_limit_kph and self.d_rel < 60:
+    if not self._pause_auto_speed_up and self.v_lead_kph + 5 > v_cruise_kph and v_cruise_kph < road_limit_kph and self.d_rel < 60:
       v_cruise_kph = min(v_cruise_kph + 5, road_limit_kph)
+    elif self.autoRoadSpeedAdjust < 0 and self.nRoadLimitSpeed != self.nRoadLimitSpeed_last:  # 도로제한속도가 바뀌면, 바뀐속도로 속도를 바꿈.
+      if self.autoRoadSpeedLimitOffset < 0:
+        v_cruise_kph = self.nRoadLimitSpeed * self.autoNaviSpeedSafetyFactor
+      else:
+        v_cruise_kph = self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset
     elif self.nRoadLimitSpeed < self.nRoadLimitSpeed_last and self.autoRoadSpeedAdjust > 0:
       new_road_limit_kph = self.nRoadLimitSpeed * self.autoRoadSpeedAdjust + v_cruise_kph * (1 - self.autoRoadSpeedAdjust)
       self._add_log(f"AutoSpeed change {v_cruise_kph} -> {new_road_limit_kph}")
@@ -681,11 +688,11 @@ class VCruiseCarrot:
       elif self.xState == 3:
         v_cruise_kph = self.v_ego_kph_set
         self._cruise_control(-1, 3, "Cruise off (traffic sign)")
-      elif self.v_ego_kph_set >= 30 and not CC.enabled:
+      elif self.v_ego_kph_set >= self.autoGasTokSpeed and not CC.enabled:
         v_cruise_kph = self.v_ego_kph_set
         self._cruise_control(1, -1 if self.aTarget > 0.0 else 0, "Cruise on (gas pressed)")
     elif self._brake_pressed_count == -1 and self._soft_hold_active == 0:
-      if self.v_ego_kph_set > 40:
+      if self.v_ego_kph_set > self.autoGasTokSpeed:
         v_cruise_kph = self.v_ego_kph_set
         self._cruise_control(1, -1 if self.aTarget > 0.0 else 0, "Cruise on (speed)")
       elif abs(CS.steeringAngleDeg) < 20:

@@ -76,6 +76,7 @@ class CarState(CarStateBase):
 
     self.cruise_buttons_msg = None
     self.hda2_lfa_block_msg = None
+    self.cluster_speed_limit_msg = None
 
     # On some cars, CLU15->CF_Clu_VehicleSpeed can oscillate faster than the dash updates. Sample at 5 Hz
     self.cluster_speed = 0
@@ -461,6 +462,9 @@ class CarState(CarStateBase):
       if "TCS" in cp.vl:
         self.tcs_info_373 = copy.copy(cp.vl.get("TCS", {}))
 
+      if "CLUSTER_SPEED_LIMIT" in cp.vl:
+        self.cluster_speed_limit_msg = copy.copy(cp.vl.get("CLUSTER_SPEED_LIMIT", {}))
+
     if "GEAR" in cp.vl:
       ret.gearStep = cp.vl["GEAR"]["GEAR_STEP"]
     elif "GEAR_ALT" in cp.vl:
@@ -596,6 +600,8 @@ class CarState(CarStateBase):
     # 어떤차는 bus2에 있음, 내차는 bus0에 있는데.... 이건 옆두부와 관련이 없나?
     #if CP.flags & HyundaiFlags.CANFD_HDA2:
     #  pt_messages.append(("CLUSTER_SPEED_LIMIT", 10))
+    if Params().get_int("CanfdDebug") > 0:
+      pt_messages.append(("CLUSTER_SPEED_LIMIT", 10))
 
     cam_messages = []
     if CP.flags & HyundaiFlags.CANFD_HDA2 and not (CP.flags & HyundaiFlags.CAMERA_SCC.value):

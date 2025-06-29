@@ -1255,4 +1255,20 @@ This may take up to a minute.</source>
       <translation>레인리스</translation>
     </message>
   </context>
+  <context>
+  <name>PathEndDrawer</name>
+    <message>
+      <source>Signal slowing</source>
+      <translation>신호감속중</translation>
+    </message>
+    <message>
+      <source>Signal Error</source>
+      <translation>신호오류</translation>
+    </message>
+    <message>
+      <source>Signal Ready</source>
+      <translation>신호대기</translation>
+    </message>
+  </context>
+
 </TS>
