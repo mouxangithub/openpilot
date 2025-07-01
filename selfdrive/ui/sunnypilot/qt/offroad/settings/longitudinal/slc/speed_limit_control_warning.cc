@@ -22,25 +22,25 @@ SpeedLimitControlWarning::SpeedLimitControlWarning(QWidget *parent) : QWidget(pa
   ListWidgetSP *list = new ListWidgetSP(this, true);
 
   std::vector<QString> slc_warning_texts{
-    SLCWarningTypeText[static_cast<int>(SLCWarningType::OFF)],
-    SLCWarningTypeText[static_cast<int>(SLCWarningType::DISPLAY)],
-    SLCWarningTypeText[static_cast<int>(SLCWarningType::CHIME)]
+    tr(SLCWarningTypeText[static_cast<int>(SLCWarningType::OFF)]),
+    tr(SLCWarningTypeText[static_cast<int>(SLCWarningType::DISPLAY)]),
+    tr(SLCWarningTypeText[static_cast<int>(SLCWarningType::CHIME)])
   };
   slc_warning_settings = new ButtonParamControlSP(
     "SpeedLimitWarningType", tr("Speed Limit Warning"),
     "",
     "",
     slc_warning_texts,
-    300);
+    420);
   list->addItem(slc_warning_settings);
 
   QFrame *offsetFrame = new QFrame(this);
   QVBoxLayout *offsetLayout = new QVBoxLayout(offsetFrame);
 
   std::vector<QString> slc_warning_offset_texts{
-    SLCOffsetTypeText[static_cast<int>(SLCOffsetType::NONE)],
-    SLCOffsetTypeText[static_cast<int>(SLCOffsetType::FIXED)],
-    SLCOffsetTypeText[static_cast<int>(SLCOffsetType::PERCENT)]
+    tr(SLCOffsetTypeText[static_cast<int>(SLCOffsetType::NONE)]),
+    tr(SLCOffsetTypeText[static_cast<int>(SLCOffsetType::FIXED)]),
+    tr(SLCOffsetTypeText[static_cast<int>(SLCOffsetType::PERCENT)])
   };
   slc_warning_offset_settings = new ButtonParamControlSP(
     "SpeedLimitWarningOffsetType",
@@ -48,7 +48,7 @@ SpeedLimitControlWarning::SpeedLimitControlWarning(QWidget *parent) : QWidget(pa
     "",
     "",
     slc_warning_offset_texts,
-    300);
+    420);
   offsetLayout->addWidget(slc_warning_offset_settings);
 
   slc_warning_offset = new OptionControlSP(

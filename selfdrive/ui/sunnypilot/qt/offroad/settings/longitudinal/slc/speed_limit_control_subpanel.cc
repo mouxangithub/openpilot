@@ -51,16 +51,16 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
     showEvent(new QShowEvent());
   });
 
-  slcWarningControl->setFixedWidth(720);
-  slcSourceControl->setFixedWidth(720);
+  slcWarningControl->setFixedWidth(640);
+  slcSourceControl->setFixedWidth(640);
   slcBtnFrameLayout->addWidget(slcWarningControl, 0, 0, Qt::AlignLeft);
   slcBtnFrameLayout->addWidget(slcSourceControl, 0, 1, Qt::AlignRight);
   list->addItem(slcBtnFrame);
 
 
   std::vector<QString> slc_engage_texts{
-    SLCEngageTypeText[static_cast<int>(SLCEngageType::AUTO)],
-    SLCEngageTypeText[static_cast<int>(SLCEngageType::USER_CONFIRM)]
+    tr(SLCEngageTypeText[static_cast<int>(SLCEngageType::AUTO)]),
+    tr(SLCEngageTypeText[static_cast<int>(SLCEngageType::USER_CONFIRM)])
   };
   slc_engage_setting = new ButtonParamControlSP(
     "SpeedLimitEngageType",
@@ -68,7 +68,7 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
     "",
     "",
     slc_engage_texts,
-    500);
+    600);
   slc_engage_setting->showDescription();
   list->addItem(slc_engage_setting);
 
@@ -76,9 +76,9 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
   QVBoxLayout *offsetLayout = new QVBoxLayout(offsetFrame);
 
   std::vector<QString> slc_offset_texts{
-    SLCOffsetTypeText[static_cast<int>(SLCOffsetType::NONE)],
-    SLCOffsetTypeText[static_cast<int>(SLCOffsetType::FIXED)],
-    SLCOffsetTypeText[static_cast<int>(SLCOffsetType::PERCENT)]
+    tr(SLCOffsetTypeText[static_cast<int>(SLCOffsetType::NONE)]),
+    tr(SLCOffsetTypeText[static_cast<int>(SLCOffsetType::FIXED)]),
+    tr(SLCOffsetTypeText[static_cast<int>(SLCOffsetType::PERCENT)])
   };
   slc_offset_setting = new ButtonParamControlSP(
     "SpeedLimitOffsetType",
@@ -86,7 +86,7 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
     "",
     "",
     slc_offset_texts,
-    500);
+    420);
 
   offsetLayout->addWidget(slc_offset_setting);
 
