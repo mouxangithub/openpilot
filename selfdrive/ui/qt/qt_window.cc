@@ -8,6 +8,8 @@ void setMainWindow(QWidget *w) {
     w->setMinimumSize(QSize(640, 480)); // allow resize smaller than fullscreen
     w->setMaximumSize(DEVICE_SCREEN_SIZE);
     w->resize(sz);
+    // 设置全屏
+    w->setWindowState(Qt::WindowFullScreen);
   } else {
     w->setFixedSize(DEVICE_SCREEN_SIZE * scale);
   }

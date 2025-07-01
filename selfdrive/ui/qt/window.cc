@@ -94,6 +94,15 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
       device()->resetInteractiveTimeout();
       break;
     }
+    case QEvent::KeyPress: {
+      QKeyEvent *keyEvent = static_cast<QKeyEvent *>(event);
+      // F11和ESC关闭窗口
+      if (keyEvent->key() == Qt::Key_F11 || keyEvent->key() == Qt::Key_Escape) {
+        close(); // 直接关闭窗口
+        return true;
+      }
+      break;
+    }
     default:
       break;
   }

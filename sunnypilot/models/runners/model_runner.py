@@ -19,7 +19,7 @@ if USBGPU:
 elif TICI:
   os.environ['QCOM'] = '1'
 else:
-  os.environ['LLVM'] = '1'
+  os.environ['GPU'] = '1'
   os.environ['JIT'] = '2'  # TODO: This may cause issues
 
 
