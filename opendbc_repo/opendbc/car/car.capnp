@@ -247,6 +247,11 @@ struct CarState {
   gearStep @66 :Int16;          
   tpms @67 : Tpms;
   useLaneLineSpeed @68 : Float32;
+  leftLatDist @69 : Float32;  # distance to left lane line
+  rightLatDist @70 : Float32; # distance to right lane line
+  leftLongDist @71 : Float32; # distance to left lane line in the direction of travel
+  rightLongDist @72 : Float32; # distance to right lane line in the direction of travel
+  carrotCruise @73 : Int16;
 
   struct Tpms {
     fl @0 :Float32;
@@ -442,6 +447,7 @@ struct CarControl {
     leadDPath @14: Float32;
     leadRadar @15: Int16;
     modelDesire @16: Int16;
+    atcDistance @17: Float32;
 
     # not used with the dash, TODO: separate structs for dash UI and device UI
     audibleAlert @5: AudibleAlert;

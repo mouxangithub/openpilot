@@ -301,6 +301,32 @@
       "unit": 1
     },
     {
+      "group": "크루즈",
+      "name": "CarrotCruiseDecel",
+      "title": "당근크루즈감속도x0.01(-1)",
+      "descr": "-1:CruiseOFF 또는 감속도 지정",
+      "egroup": "CRUISE",
+      "etitle": "CarrotCruiseDecel(-1)",
+      "edescr": "-1:CruiseOFF, ",
+      "min": -1,
+      "max": 200,
+      "default": -1,
+      "unit": 10
+    },
+    {
+      "group": "크루즈",
+      "name": "CarrotCruiseAtcDecel",
+      "title": "당근크루즈감속도ATCx0.01(-1)",
+      "descr": "-1:변경안함",
+      "egroup": "CRUISE",
+      "etitle": "CarrotCruiseDecelATCx0.01(-1)",
+      "edescr": "-1:변경안함,",
+      "min": -1,
+      "max": 200,
+      "default": -1,
+      "unit": 10
+    },
+    {
       "group": "조향튜닝",
       "name": "CustomSR",
       "title": "CustomSteerRatiox0.1(0)",
@@ -616,12 +642,12 @@
       "group": "버튼설정",
       "name": "LfaButtonMode",
       "title": "LFA버튼작동모드(0)",
-      "descr": "0:일반,1:감속정지&Ready",
+      "descr": "0:일반,1:감속정지&Ready,2:당근크루즈",
       "egroup": "BUTN",
       "etitle": "LFA Button Mode(0)",
-      "edescr": "0:General,1:Decel&Stop, leadCar ready",
+      "edescr": "0:General,1:Decel&Stop, leadCar ready,2:CarrotCruise",
       "min": 0,
-      "max": 1,
+      "max": 2,
       "default": 0,
       "unit": 1
     },
@@ -1291,6 +1317,19 @@
     },
     {
       "group": "시작",
+      "name": "IsLdwsCar",
+      "title": "HYUNDAI: LDWS ONLY CAR(0)",
+      "descr": "LDWS ONLY CAR는 ON",
+      "egroup": "START",
+      "etitle": "HYUNDAI: LDWS ONLY CAR(0)",
+      "edescr": "LDWS ONLY CAR",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "unit": 1
+    },
+    {
+      "group": "시작",
       "name": "CanfdHDA2",
       "title": "CANFD HDA2지원(0)",
       "descr": "1: HDA2 강제인식, 2: HDA2+BSM",
@@ -1325,6 +1364,19 @@
       "edescr": "RadarTrack support(1,2), SCC radar always use(-1,2)",
       "min": -1,
       "max": 2,
+      "default": 0,
+      "unit": 1
+    },
+    {
+      "group": "시작",
+      "name": "EnableCornerRadar",
+      "title": "코너레이더 사용(0)",
+      "descr": "끼어드는 차량 검출(ccnc차량)",
+      "egroup": "START",
+      "etitle": "Enable Corner radar(0)",
+      "edescr": "Cutin Detection for CCNC car",
+      "min": 0,
+      "max": 1,
       "default": 0,
       "unit": 1
     },

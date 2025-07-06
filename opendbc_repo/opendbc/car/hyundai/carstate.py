@@ -93,6 +93,7 @@ class CarState(CarStateBase):
 
     self.cruise_buttons_alt = False # for CASPER_EV
     self.MainMode_ACC = False
+    self.ACCMode = 0
     self.LFA_ICON = 0
     self.paddle_button_prev = 0
 
@@ -100,6 +101,8 @@ class CarState(CarStateBase):
     self.rf_distance = 0
     self.lr_distance = 0
     self.rr_distance = 0
+    #self.lf_lateral = 0
+    #self.rf_lateral = 0
 
   def update(self, can_parsers) -> structs.CarState:
     cp = can_parsers[Bus.pt]
@@ -404,6 +407,7 @@ class CarState(CarStateBase):
     ret.cruiseState.available = self.main_enabled #cp.vl["TCS"]["ACCEnable"] == 0
     if self.CP.flags & HyundaiFlags.CAMERA_SCC.value:
       self.MainMode_ACC = cp_cam.vl["SCC_CONTROL"]["MainMode_ACC"] == 1
+      self.ACCMode = cp_cam.vl["SCC_CONTROL"]["ACCMode"]
       self.LFA_ICON = cp_cam.vl["LFAHDA_CLUSTER"]["LFA_ICON"]
       
     if self.CP.openpilotLongitudinalControl:
@@ -430,20 +434,28 @@ class CarState(CarStateBase):
       if self.CP.flags & HyundaiFlags.ANGLE_CONTROL.value:
         self.lfa_alt_info = copy.copy(cp_cam.vl["LFA_ALT"])
       self.lfahda_cluster_info = copy.copy(cp_cam.vl["LFAHDA_CLUSTER"])
-
+      corner = False
       if self.CP.extFlags & HyundaiExtFlags.CANFD_161.value:
         if "ADRV_0x161" in cp_cam.vl:
           self.adrv_info_161 = copy.copy(cp_cam.vl.get("ADRV_0x161", {}))
         if "CCNC_0x162" in cp_cam.vl:
           self.adrv_info_162 = copy.copy(cp_cam.vl.get("CCNC_0x162", {}))
-          self.lf_distance = cp_cam.vl["CCNC_0x162"]["LF_DETECT_DISTANCE"]
-          self.rf_distance = cp_cam.vl["CCNC_0x162"]["RF_DETECT_DISTANCE"]
+          ret.leftLongDist = self.lf_distance = cp_cam.vl["CCNC_0x162"]["LF_DETECT_DISTANCE"]
+          ret.rightLongDist = self.rf_distance = cp_cam.vl["CCNC_0x162"]["RF_DETECT_DISTANCE"]
           self.lr_distance = cp_cam.vl["CCNC_0x162"]["LR_DETECT_DISTANCE"]
           self.rr_distance = cp_cam.vl["CCNC_0x162"]["RR_DETECT_DISTANCE"]
+          ret.leftLatDist = cp_cam.vl["CCNC_0x162"]["LF_DETECT_LATERAL"]
+          ret.rightLatDist = cp_cam.vl["CCNC_0x162"]["RF_DETECT_LATERAL"]
+          corner = True
       if "ADRV_0x200" in cp_cam.vl:
         self.adrv_info_200 = copy.copy(cp_cam.vl.get("ADRV_0x200", {}))
       if "ADRV_0x1ea" in cp_cam.vl:
         self.adrv_info_1ea = copy.copy(cp_cam.vl.get("ADRV_0x1ea", {}))
+        if not corner:
+          ret.leftLongDist = cp_cam.vl["ADRV_0x1ea"]["LF_DETECT_DISTANCE"]
+          ret.rightLongDist = cp_cam.vl["ADRV_0x1ea"]["RF_DETECT_DISTANCE"]
+          ret.leftLatDist = cp_cam.vl["ADRV_0x1ea"]["LF_DETECT_LATERAL"]
+          ret.rightLatDist = cp_cam.vl["ADRV_0x1ea"]["RF_DETECT_LATERAL"]
       if "ADRV_0x160" in cp_cam.vl:
         self.adrv_info_160 = copy.copy(cp_cam.vl.get("ADRV_0x160", {}))
 

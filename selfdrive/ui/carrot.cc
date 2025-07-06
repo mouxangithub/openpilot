@@ -591,6 +591,7 @@ private:
     float   v_ego = 0.0;
     bool    brakeHoldActive = false;
     int    softHoldActive = 0;
+    int    carrotCruise = 0;
     bool    longActive = false;
 
     float   t_follow = 0.0;
@@ -606,6 +607,7 @@ protected:
         v_ego = sm["carState"].getCarState().getVEgo();
         brakeHoldActive = sm["carState"].getCarState().getBrakeHoldActive();
         softHoldActive = sm["carState"].getCarState().getSoftHoldActive();
+        carrotCruise = sm["carState"].getCarState().getCarrotCruise();
         auto selfdrive_state = sm["selfdriveState"].getSelfdriveState();
         longActive = selfdrive_state.getEnabled();
         //longActive = sm["carControl"].getCarControl().getLongActive();
@@ -695,8 +697,8 @@ public:
         int disp_y = y + 195;// 175;
         bool draw_dist = false;
         float disp_size = 50;
-        if (softHoldActive || brakeHoldActive) {
-            sprintf(str, "%s", (brakeHoldActive) ? "AUTOHOLD" : "SOFTHOLD");
+        if (softHoldActive || brakeHoldActive || carrotCruise) {
+            sprintf(str, "%s", (brakeHoldActive) ? "AUTOHOLD" : (softHoldActive) ? "SOFTHOLD": "CARROT");
             ui_draw_text(s, x, disp_y, str, disp_size, COLOR_WHITE, BOLD);
         }
         else if (longActive) {
@@ -749,11 +751,13 @@ public:
             }
         }
         QPolygonF tf_vertext;
-        tf_vertext.push_back(tf_vertex_left);
-        tf_vertext.push_back(tf_vertex_right);
-        ui_draw_line(s, tf_vertext, nullptr, nullptr, 3.0, COLOR_WHITE);
-        sprintf(str, "%.1f(%.2f)", tf_distance, t_follow);
-        ui_draw_text(s, tf_vertex_right.x(), tf_vertex_right.y(), str, 25, COLOR_WHITE, BOLD);
+        if (tf_distance > 0) {
+          tf_vertext.push_back(tf_vertex_left);
+          tf_vertext.push_back(tf_vertex_right);
+          ui_draw_line(s, tf_vertext, nullptr, nullptr, 3.0, COLOR_WHITE);
+          sprintf(str, "%.1f(%.2f)", tf_distance, t_follow);
+          ui_draw_text(s, tf_vertex_right.x(), tf_vertex_right.y(), str, 25, COLOR_WHITE, BOLD);
+        }
 
 
         float px[7], py[7];
@@ -2210,7 +2214,7 @@ public:
         int dx = bx - 50;
         int dy = by + 175;
         ui_fill_rect(s->vg, { dx - 55, dy - 38, 110, 48 }, mode_color, 15, 2);
-        ui_draw_text(s, dx, dy, driving_mode_str, 35, text_color, BOLD);
+        ui_draw_text(s, dx, dy, driving_mode_str, 32, text_color, BOLD);
         if (strcmp(driving_mode_str, driving_mode_str_last)) ui_draw_text_a(s, dx, dy, driving_mode_str, 30, COLOR_WHITE, BOLD);
         strcpy(driving_mode_str_last, driving_mode_str);
 
@@ -2788,9 +2792,9 @@ public:
         const auto live_delay = sm["liveDelay"].getLiveDelay();
         const auto live_torque_params = sm["liveTorqueParameters"].getLiveTorqueParameters();
         const auto live_params = sm["liveParameters"].getLiveParameters();
-        str.sprintf("LD[%d,%.2f],LT[%.0f,%s](%.2f/%.2f), SR(%.1f,%.1f)",
-            live_delay.getValidBlocks(), live_delay.getLateralDelay(),
-            live_torque_params.getTotalBucketPoints(), live_torque_params.getLiveValid() ? "ON" : "OFF",
+        str.sprintf("LD[%.0f%%,%.2f],LT[%.0f%%,%s](%.2f/%.2f), SR(%.1f,%.1f)",
+            (float)live_delay.getCalPerc(), live_delay.getLateralDelay(),
+            (float)live_torque_params.getCalPerc(), live_torque_params.getLiveValid() ? "ON" : "OFF",
             live_torque_params.getLatAccelFactorFiltered(), live_torque_params.getFrictionCoefficientFiltered(),
             live_params.getSteerRatio(), params.getFloat("CustomSR")/10.0);
         sprintf(top_right, "%s", str.toStdString().c_str());

@@ -120,6 +120,7 @@ class CarrotPlanner:
     self.autoNaviSpeedDecelRate = 1.5
 
     self.desireState = 0.0
+    self.desireStateCount = 0
     self.jerk_factor = 1.0
     self.jerk_factor_apply = 1.0
 
@@ -206,13 +207,15 @@ class CarrotPlanner:
     carState = sm['carState']
     if meta.laneChangeState == LaneChangeState.laneChangeStarting: # laneChangig
       self.desireState = meta.desireState[3] if carState.leftBlinker else meta.desireState[4]
+      self.desireStateCount += 1
     else:
       self.desireState = 0.0
+      self.desireStateCount = 0
 
   def dynamic_t_follow(self, t_follow, lead, desired_follow_distance):
 
     self.jerk_factor_apply = self.jerk_factor
-    if self.desireState > 0.9:  # lane change state
+    if self.desireState > 0.9 and self.desireStateCount < int(1.5 / DT_MDL):  # lane change state, 1.5초동안만.
       t_follow *= self.dynamicTFollowLC   # 차선변경시 t_follow를 줄임.
       self.jerk_factor_apply = self.jerk_factor * self.dynamicTFollowLC   # 차선변경시 jerk factor를 줄여 aggresive하게
     elif lead.status:      
@@ -233,16 +236,17 @@ class CarrotPlanner:
   def check_model_stopping(self, v_cruise, v, v_ego, a_ego, model_x, y, d_rel):
     v_ego_kph = v_ego * CV.MS_TO_KPH
     model_v = self.vFilter.process(v[-1])
-    startSign = model_v > 5.0 or model_v > (v[0]+2)
+    startSign = model_v > 5.0 or model_v > (v[0] + 2)
 
     if v_ego_kph < 1.0:
       stopSign = model_x < 20.0 and model_v < 10.0
     elif v_ego_kph < 82.0:
       stopSign = (model_x < d_rel - 3.0 and
-                  model_x < np.interp(v[0], [60/3.6, 80/3.6], [120.0, 150]) and
-                  ((model_v < 3.0) or (model_v < v[0]*0.7)) and
+                  model_x < np.interp(v[0] * 3.6, [60, 80], [120.0, 150]) and
+                  ((model_v < 3.0) or (model_v < v[0] * 0.7)) and
                   abs(y[-1]) < 5.0)
-      # 정상주행중 감속하는 경우(카메라 감속등), 오감지가 많음. (회생감속시:v_cruise=0에는 신호호감지하도록함.)
+      # 정상주행중 감속하는 경우(카메라 감속등), 오감지가 많음. 
+      # 회생감속시:v_cruise=0에는 신호호감지하도록함.
       if v_cruise != 0 and (self.xState == XState.e2eCruise and a_ego < -1.0):
         stopSign = False
     else:
@@ -327,7 +331,7 @@ class CarrotPlanner:
 
     return v_cruise_kph_apply
 
-  def update(self, sm, v_cruise_kph):
+  def update(self, sm, v_cruise_kph, mode):
     self._params_update()
 
     self._update_model_desire(sm)
@@ -466,7 +470,8 @@ class CarrotPlanner:
       self.actual_stop_distance = self.user_stop_distance
       self.xState = XState.e2eStop if self.user_stop_distance > 0 else XState.e2eStopped
 
-    mode = 'blended' if self.xState in [XState.e2ePrepare] else 'acc'
+    if mode == 'acc':
+      mode = 'blended' if self.xState in [XState.e2ePrepare] else 'acc'
 
     self.comfort_brake *= self.mySafeFactor
     self.actual_stop_distance = max(0, self.actual_stop_distance - (v_ego * DT_MDL))
