@@ -31,7 +31,7 @@ SpeedLimitControlWarning::SpeedLimitControlWarning(QWidget *parent) : QWidget(pa
     "",
     "",
     slc_warning_texts,
-    300);
+    420);
   list->addItem(slc_warning_settings);
 
   QFrame *offsetFrame = new QFrame(this);
@@ -48,7 +48,7 @@ SpeedLimitControlWarning::SpeedLimitControlWarning(QWidget *parent) : QWidget(pa
     "",
     "",
     slc_warning_offset_texts,
-    300);
+    420);
   offsetLayout->addWidget(slc_warning_offset_settings);
 
   slc_warning_offset = new OptionControlSP(

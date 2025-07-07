@@ -47,8 +47,11 @@ void SidebarSP::updateState(const UIStateSP &s) {
 void SidebarSP::drawSidebar(QPainter &p) {
   Sidebar::drawSidebar(p);
   // metrics
-  drawMetric(p, temp_status.first, temp_status.second, 310);
-  drawMetric(p, panda_status.first, panda_status.second, 440);
-  drawMetric(p, connect_status.first, connect_status.second, 570);
-  drawMetric(p, sunnylink_status.first, sunnylink_status.second, 700);
+  drawMetric(p, temp_status.first, temp_status.second, 338);
+  drawMetric(p, panda_status.first, panda_status.second, 496);
+  drawMetric(p, connect_status.first, connect_status.second, 654);
+  // drawMetric(p, temp_status.first, temp_status.second, 310);
+  // drawMetric(p, panda_status.first, panda_status.second, 440);
+  // drawMetric(p, connect_status.first, connect_status.second, 570);
+  // drawMetric(p, sunnylink_status.first, sunnylink_status.second, 700);
 }

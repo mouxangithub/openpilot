@@ -15,7 +15,7 @@ MadsSettings::MadsSettings(QWidget *parent) : QWidget(parent) {
   main_layout->setSpacing(20);
 
   // Back button
-  PanelBackButton *back = new PanelBackButton();
+  PanelBackButton* back = new PanelBackButton(tr("Back"));
   connect(back, &QPushButton::clicked, [=]() { emit backPress(); });
   main_layout->addWidget(back, 0, Qt::AlignLeft);
 
@@ -29,7 +29,7 @@ MadsSettings::MadsSettings(QWidget *parent) : QWidget(parent) {
   list->addItem(madsUnifiedEngagementModeToggle);
 
   // Steering Mode On Brake
-  madsSteeringMode = new ButtonParamControl("MadsSteeringMode", tr("Steering Mode on Brake Pedal"), "", "", madsSteeringModeTexts(), 500);
+  madsSteeringMode = new ButtonParamControl("MadsSteeringMode", tr("Steering Mode on Brake Pedal"), "", "", madsSteeringModeTexts(), 400);
   QObject::connect(madsSteeringMode, &ButtonParamControl::buttonClicked, [=] {
     updateToggles(offroad);
   });
