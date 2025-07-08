@@ -68,7 +68,7 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
     "",
     "",
     slc_engage_texts,
-    600);
+    640);
   slc_engage_setting->showDescription();
   list->addItem(slc_engage_setting);
 
@@ -86,7 +86,7 @@ SpeedLimitControlSubpanel::SpeedLimitControlSubpanel(QWidget *parent) : QStacked
     "",
     "",
     slc_offset_texts,
-    420);
+    425);
 
   offsetLayout->addWidget(slc_offset_setting);
 

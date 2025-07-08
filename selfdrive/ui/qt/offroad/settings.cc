@@ -114,7 +114,7 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
                                              "In relaxed mode sunnypilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with "
                                              "your steering wheel distance button."),
                                           "../assets/icons/speed_limit.png",
-                                          longi_button_texts);
+                                          longi_button_texts, 425);
   // accel controller
   std::vector<QString> accel_personality_texts{tr("Sport"), tr("Normal"), tr("Eco")};
   accel_personality_setting = new ButtonParamControlSP("AccelPersonality", tr("Acceleration Personality"),
@@ -122,7 +122,7 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
                                              "In eco mode, sunnypilot will apply smoother and more relaxed acceleration. On supported cars, you can cycle through these "
                                              "acceleration personality within Onroad Settings on the driving screen."),
                                           "",
-                                          accel_personality_texts);
+                                          accel_personality_texts, 425);
   accel_personality_setting->showDescription();
   // set up uiState update for personality setting
   QObject::connect(uiState(), &UIState::uiUpdate, this, &TogglesPanel::updateState);
