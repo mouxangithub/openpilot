@@ -69,6 +69,13 @@ class CarState(CarStateBase):
     # 假设最大值为4，使用5减去CAN值来获取正确的显示值
     ret.pcmCruiseGap = 5 - can_distance_setting if 1 <= can_distance_setting <= 4 else can_distance_setting
 
+    ret.engineRpm = cp.vl["ENGINE_DATA"]["RPM"]  # for mazda RPM
+
+    # 将CAN总线上的DISTANCE_SETTING值转换为与车辆显示一致的值
+    can_distance_setting = cp.vl["CRZ_CTRL"]["DISTANCE_SETTING"]
+    # 假设最大值为4，使用5减去CAN值来获取正确的显示值
+    ret.pcmCruiseGap = 5 - can_distance_setting if 1 <= can_distance_setting <= 4 else can_distance_setting
+
     ret.genericToggle = bool(cp.vl["BLINK_INFO"]["HIGH_BEAMS"])
     ret.leftBlindspot = cp.vl["BSM"]["LEFT_BS_STATUS"] != 0
     ret.rightBlindspot = cp.vl["BSM"]["RIGHT_BS_STATUS"] != 0

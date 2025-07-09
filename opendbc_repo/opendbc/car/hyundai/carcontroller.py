@@ -95,6 +95,7 @@ class CarController(CarControllerBase):
 
     self.activeCarrot = 0
     self.camera_scc_params = Params().get_int("HyundaiCameraSCC")
+    self.is_ldws_car = Params().get_bool("IsLdwsCar")
 
     self.steerDeltaUpOrg = self.steerDeltaUp = self.steerDeltaUpLC = self.params.STEER_DELTA_UP
     self.steerDeltaDownOrg = self.steerDeltaDown = self.steerDeltaDownLC = self.params.STEER_DELTA_DOWN
@@ -178,7 +179,8 @@ class CarController(CarControllerBase):
       else:
         curv = abs(actuators.curvature)
         y_std = actuators.yStd
-        curvature_threshold = np.interp(y_std, [0.0, 0.2], [0.5, 0.006])
+        #curvature_threshold = np.interp(y_std, [0.0, 0.2], [0.5, 0.006])
+        curvature_threshold = np.interp(y_std, [0.0, 0.1], [0.5, 0.006])
 
         curve_scale = np.clip(curv / curvature_threshold, 0.0, 1.0)
         torque_pts = [
@@ -292,6 +294,7 @@ class CarController(CarControllerBase):
         self.canfd_toggle_adas(CC, CS)
       if self.CP.openpilotLongitudinalControl:
         self.hyundai_jerk.make_jerk(self.CP, CS, accel, actuators, hud_control)
+        self.hyundai_jerk.check_carrot_cruise(CC, CS, hud_control, stopping, accel, actuators.aTargetNow)
 
         if True: #not camera_scc:
           can_sends.extend(hyundaicanfd.create_ccnc_messages(self.CP, self.packer, self.CAN, self.frame, CC, CS, hud_control, apply_angle, left_lane_warning, right_lane_warning, self.canfd_debug, self.MainMode_ACC_trigger, self.LFA_trigger))
@@ -302,7 +305,7 @@ class CarController(CarControllerBase):
         if self.frame % 2 == 0:
           if self.CP.flags & HyundaiFlags.CAMERA_SCC.value:
             can_sends.append(hyundaicanfd.create_acc_control_scc2(self.packer, self.CAN, CC.enabled, self.accel_last, accel, stopping, CC.cruiseControl.override,
-                                                             set_speed_in_units, hud_control, self.hyundai_jerk.jerk_u, self.hyundai_jerk.jerk_l, CS))
+                                                             set_speed_in_units, hud_control, self.hyundai_jerk, CS))
             can_sends.extend(hyundaicanfd.create_tcs_messages(self.packer, self.CAN, CS)) # for sorento SCC radar...
           else:
             can_sends.append(hyundaicanfd.create_acc_control(self.packer, self.CAN, CC.enabled, self.accel_last, accel, stopping, CC.cruiseControl.override,
@@ -320,28 +323,27 @@ class CarController(CarControllerBase):
       can_sends.append(hyundaican.create_lkas11(self.packer, self.frame, self.CP, apply_torque, apply_steer_req,
                                                 torque_fault, CS.lkas11, sys_warning, sys_state, CC.enabled,
                                                 hud_control.leftLaneVisible, hud_control.rightLaneVisible,
-                                                left_lane_warning, right_lane_warning))
+                                                left_lane_warning, right_lane_warning, self.is_ldws_car))
 
       if not self.CP.openpilotLongitudinalControl:
         can_sends.extend(self.create_button_messages(CC, CS, use_clu11=True))
       if self.CP.carFingerprint in CAN_GEARS["send_mdps12"]:  # send mdps12 to LKAS to prevent LKAS error
         can_sends.append(hyundaican.create_mdps12(self.packer, self.frame, CS.mdps12))
 
-      if self.frame % 2 == 0 and self.CP.openpilotLongitudinalControl and camera_scc:
+      if self.frame % 2 == 0 and self.CP.openpilotLongitudinalControl:
         self.hyundai_jerk.make_jerk(self.CP, CS, accel, actuators, hud_control)
-        jerk = 3.0 if actuators.longControlState == LongCtrlState.pid else 1.0
+        self.hyundai_jerk.check_carrot_cruise(CC, CS, hud_control, stopping, accel, actuators.aTargetNow)
+        #jerk = 3.0 if actuators.longControlState == LongCtrlState.pid else 1.0
         use_fca = self.CP.flags & HyundaiFlags.USE_FCA.value
-        can_sends.extend(hyundaican.create_acc_commands_scc(self.packer, CC.enabled, accel, self.hyundai_jerk, int(self.frame / 2),
-                                                        hud_control, set_speed_in_units, stopping,
-                                                        CC.cruiseControl.override, use_fca, CS, self.soft_hold_mode))
-      elif self.frame % 2 == 0 and self.CP.openpilotLongitudinalControl:
-        self.hyundai_jerk.make_jerk(self.CP, CS, accel, actuators, hud_control)
-        # TODO: unclear if this is needed
-        jerk = 3.0 if actuators.longControlState == LongCtrlState.pid else 1.0
-        use_fca = self.CP.flags & HyundaiFlags.USE_FCA.value
-        can_sends.extend(hyundaican.create_acc_commands(self.packer, CC.enabled, accel, self.hyundai_jerk, int(self.frame / 2),
-                                                        hud_control, set_speed_in_units, stopping,
-                                                        CC.cruiseControl.override, use_fca, self.CP, CS, self.soft_hold_mode))
+        if camera_scc:
+          can_sends.extend(hyundaican.create_acc_commands_scc(self.packer, CC.enabled, accel, self.hyundai_jerk, int(self.frame / 2),
+                                                          hud_control, set_speed_in_units, stopping,
+                                                          CC.cruiseControl.override, use_fca, CS, self.soft_hold_mode))
+        else:
+          can_sends.extend(hyundaican.create_acc_commands(self.packer, CC.enabled, accel, self.hyundai_jerk, int(self.frame / 2),
+                                                hud_control, set_speed_in_units, stopping,
+                                                CC.cruiseControl.override, use_fca, self.CP, CS, self.soft_hold_mode))
+
 
       # 20 Hz LFA MFA message
       if self.frame % 5 == 0 and self.CP.flags & HyundaiFlags.SEND_LFA.value:
@@ -528,11 +530,34 @@ class CarController(CarControllerBase):
 from openpilot.common.filter_simple import MyMovingAverage
 class HyundaiJerk:
   def __init__(self):
+    self.params = Params()
     self.jerk = 0.0
     self.jerk_u = self.jerk_l = 0.0
     self.cb_upper = self.cb_lower = 0.0
     self.jerk_u_min = 0.5
+    self.carrot_cruise = 1
+    self.carrot_cruise_accel = 0.0
 
+  def check_carrot_cruise(self, CC, CS, hud_control, stopping, accel, a_target_now):
+    carrot_cruise_decel = self.params.get_float("CarrotCruiseDecel")
+    carrot_cruise_atc_decel = self.params.get_float("CarrotCruiseAtcDecel")
+    if carrot_cruise_atc_decel >= 0 and 0 < hud_control.atcDistance < 500:
+      carrot_cruise_decel = max(carrot_cruise_decel, carrot_cruise_atc_decel)
+    self.carrot_cruise = 0
+    if CS.out.carrotCruise > 0 and not CC.cruiseControl.override:
+      if CS.softHoldActive == 0 and not stopping:
+        if CS.out.vEgo > 10/3.6:
+          if carrot_cruise_decel < 0:
+            if (a_target_now > -0.1 or accel > -0.1):
+              self.carrot_cruise = 1
+              self.carrot_cruise_accel = 0.0
+          else:
+            self.carrot_cruise = 2
+            carrot_cruise = min(accel, -carrot_cruise_decel * 0.01)
+            self.carrot_cruise_accel = max(carrot_cruise, self.carrot_cruise_accel - 1.0 * DT_CTRL) #  점진적으로 줄임.
+    if self.carrot_cruise == 0:
+      self.carrot_cruise_accel = CS.out.aEgo
+    
   def make_jerk(self, CP, CS, accel, actuators, hud_control):
     if actuators.longControlState == LongCtrlState.stopping:
       self.jerk = self.jerk_u_min / 2 - CS.out.aEgo

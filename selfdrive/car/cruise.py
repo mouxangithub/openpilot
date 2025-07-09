@@ -188,6 +188,7 @@ class VCruiseCarrot:
     self.cruise_state_available_last = False
 
     self._paddle_decel_active = False
+    self.carrot_cruise_active = False
 
     #self.events = []
     self.xState = 0
@@ -415,10 +416,10 @@ class VCruiseCarrot:
       self.long_pressed = True
       bt = self.button_prev
 
-      if bt == ButtonType.cancel:
-        button_type = bt
-        self.button_cnt = 0
-      elif bt in [ButtonType.accelCruise, ButtonType.decelCruise]:
+      #if bt == ButtonType.cancel:
+      #  button_type = bt
+      #  self.button_cnt = 0
+      if bt in [ButtonType.accelCruise, ButtonType.decelCruise]:
         mod = button_kph % V_CRUISE_DELTA
         if bt == ButtonType.accelCruise:
           button_kph += V_CRUISE_DELTA - mod
@@ -426,9 +427,10 @@ class VCruiseCarrot:
           button_kph -= V_CRUISE_DELTA - (-mod % V_CRUISE_DELTA)
         button_type = bt
         self.button_cnt %= self.button_long_time
-      elif bt in [ButtonType.gapAdjustCruise, ButtonType.lfaButton]:
-        button_type = bt
-        self.button_cnt %= self.button_long_time
+      else: #if bt in [ButtonType.gapAdjustCruise, ButtonType.lfaButton]:
+        if self.button_cnt < self.button_long_time + 2:
+          button_type = bt
+        #self.button_cnt %= self.button_long_time
 
     return button_kph, button_type, self.long_pressed
 
@@ -486,7 +488,7 @@ class VCruiseCarrot:
         self._pause_auto_speed_up = False
         if self._soft_hold_active > 0:
           self._soft_hold_active = 0
-        elif self._cruise_ready or not CC.enabled or CS.cruiseState.standstill:
+        elif self._cruise_ready or not CC.enabled or CS.cruiseState.standstill or self.carrot_cruise_active:
           pass
         elif self._v_cruise_kph_at_brake > 0 and v_cruise_kph < self._v_cruise_kph_at_brake:
           v_cruise_kph = self._v_cruise_kph_at_brake
@@ -495,10 +497,13 @@ class VCruiseCarrot:
           v_cruise_kph = button_kph
         else:
           v_cruise_kph = self._v_cruise_desired(CS, v_cruise_kph)
+        self.carrot_cruise_active = False
 
       elif button_type == ButtonType.decelCruise:
         self._lat_enabled = True
         self._pause_auto_speed_up = True
+        #self.carrot_cruise_active = False
+
         if self._soft_hold_active > 0:
           self._cruise_control(-1, -1, "Cruise off,softhold mode (decelCruise)")
         elif self._cruise_ready:
@@ -510,10 +515,13 @@ class VCruiseCarrot:
           v_cruise_kph = max(self.v_ego_kph_set, self._cruise_speed_min)
         elif self._cruise_button_mode in [0, 1]:
           v_cruise_kph = button_kph
+        elif self.v_ego_kph_set < 1.0:
+          self.carrot_cruise_active = True
         elif self.v_ego_kph_set > self._cruise_speed_min and v_cruise_kph > self.v_ego_kph_set:
           v_cruise_kph = self.v_ego_kph_set
         else:
-          self._cruise_control(-2, -1, "Cruise off (decelCruise)")
+          #self._cruise_control(-2, -1, "Cruise off (decelCruise)")
+          self.carrot_cruise_active = True
           #self.events.append(EventName.audioPrompt)
         self._v_cruise_kph_at_brake = 0
 
@@ -529,6 +537,8 @@ class VCruiseCarrot:
         if self._lfa_button_mode == 0:
           self._lat_enabled = not self._lat_enabled
           self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
+        elif self._lfa_button_mode == 2:
+          self.carrot_cruise_active = True
         else:
           if False: #CC.enabled and self._paddle_decel_active:  # 수정필요...
             self._paddle_decel_active = False
@@ -560,6 +570,7 @@ class VCruiseCarrot:
         self._cruise_cancel_state = True
         self._lat_enabled = False
         self._paddle_decel_active = False
+        self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
 
     if self._paddle_mode > 0 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:  # paddle button
       self._cruise_control(-2, -1, "Cruise off & Ready (paddle)")
@@ -602,6 +613,9 @@ class VCruiseCarrot:
     road_limit_kph = self.nRoadLimitSpeed * self.autoSpeedUptoRoadSpeedLimit
     if road_limit_kph < 1.0:
       return v_cruise_kph
+
+    if self.autoRoadSpeedLimitOffset > 0:
+      self._v_cruise_kph_at_brake = self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset
 
     if not self._pause_auto_speed_up and self.v_lead_kph + 5 > v_cruise_kph and v_cruise_kph < road_limit_kph and self.d_rel < 60:
       v_cruise_kph = min(v_cruise_kph + 5, road_limit_kph)
@@ -656,6 +670,7 @@ class VCruiseCarrot:
       self._pause_auto_speed_up = False
       if self._brake_pressed_count == -1 and self._soft_hold_active > 0:
         self._soft_hold_active = 2
+        #self.autoCruiseControl_cancel_timer = 0
         self._cruise_control(1, -1, "Cruise on (soft hold)")
       # GM: autoResume
       elif self.params.get_bool("ActivateCruiseAfterBrake"):

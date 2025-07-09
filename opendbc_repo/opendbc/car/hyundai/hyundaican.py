@@ -6,7 +6,7 @@ hyundai_checksum = crcmod.mkCrcFun(0x11D, initCrc=0xFD, rev=False, xorOut=0xdf)
 def create_lkas11(packer, frame, CP, apply_torque, steer_req,
                   torque_fault, lkas11, sys_warning, sys_state, enabled,
                   left_lane, right_lane,
-                  left_lane_depart, right_lane_depart):
+                  left_lane_depart, right_lane_depart, is_ldws_car):
   values = {s: lkas11[s] for s in [
     "CF_Lkas_LdwsActivemode",
     "CF_Lkas_LdwsSysState",
@@ -71,6 +71,9 @@ def create_lkas11(packer, frame, CP, apply_torque, steer_req,
     # This field is actually LdwsActivemode
     # Genesis and Optima fault when forwarding while engaged
     values["CF_Lkas_LdwsActivemode"] = 2
+
+  if is_ldws_car:
+    values["CF_Lkas_LdwsOpt_USM"] = 3
 
   dat = packer.make_can_msg("LKAS11", 0, values)[1]
 
@@ -139,6 +142,13 @@ def create_acc_commands_scc(packer, enabled, accel, jerk, idx, hud_control, set_
   d = hud_control.leadDistance
   objGap = 0 if d == 0 else 2 if d < 25 else 3 if d < 40 else 4 if d < 70 else 5 
   objGap2 = 0 if objGap == 0 else 2 if hud_control.leadRelSpeed < -0.2 else 1
+
+  if long_enabled:
+    if jerk.carrot_cruise == 1:
+      long_enabled = False
+      accel = -0.5
+    elif jerk.carrot_cruise == 2:
+      accel = jerk.carrot_cruise_accel
 
   if long_enabled:
     scc12_acc_mode = 2 if long_override else 1

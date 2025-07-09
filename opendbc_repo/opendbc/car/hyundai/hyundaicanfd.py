@@ -271,9 +271,21 @@ def create_lfahda_cluster(packer, CS, CAN, enabled):
   return packer.make_can_msg("LFAHDA_CLUSTER", CAN.ECAN, values)
 
 
-def create_acc_control_scc2(packer, CAN, enabled, accel_last, accel, stopping, gas_override, set_speed, hud_control, jerk_u, jerk_l, CS):
+def create_acc_control_scc2(packer, CAN, enabled, accel_last, accel, stopping, gas_override, set_speed, hud_control, hyundai_jerk, CS):
   enabled = (enabled or CS.softHoldActive > 0) and CS.paddle_button_prev == 0
 
+  acc_mode = 0 if not enabled else (2 if gas_override else 1)
+
+  if hyundai_jerk.carrot_cruise == 1:
+    acc_mode = 4 if enabled else 0
+    enabled = False
+    accel = accel_last = 0.5
+   
+  elif hyundai_jerk.carrot_cruise == 2:
+    accel = accel_last = hyundai_jerk.carrot_cruise_accel
+
+  jerk_u = hyundai_jerk.jerk_u
+  jerk_l = hyundai_jerk.jerk_l
   jerk = 5
   jn = jerk / 50
   if not enabled or gas_override:
@@ -283,7 +295,7 @@ def create_acc_control_scc2(packer, CAN, enabled, accel_last, accel, stopping, g
     a_val = np.clip(accel, accel_last - jn, accel_last + jn)
 
   values = CS.cruise_info
-  values["ACCMode"] = 0 if not enabled else (2 if gas_override else 1)
+  values["ACCMode"] = acc_mode
   values["MainMode_ACC"] = 1
   values["StopReq"] = 1 if stopping or CS.softHoldActive > 0 else 0
   values["aReqValue"] = a_val
@@ -318,7 +330,7 @@ def create_acc_control_scc2(packer, CAN, enabled, accel_last, accel, stopping, g
   soft_hold_info = 1 if CS.softHoldActive > 1 and enabled else 0
 
   #values["CRUISE_STANDSTILL"] = soft_hold_info # 이건 button 누르라는 display message로 보임.. # 1 if stopping and CS.out.aEgo > -0.1 else 0
-  values["CRUISE_STANDSTILL"] = 1 if stopping and CS.out.aEgo > -0.1 else 0 # 이거안하면 정지중 뒤로 밀리는 현상 발생하는듯.. (신호정지중에 뒤로 밀리는 경험함.. 시험해봐야)
+  values["CRUISE_STANDSTILL"] = 1 if stopping and CS.out.aEgo > -0.3 else 0 # 이거안하면 정지중 뒤로 밀리는 현상 발생하는듯.. (신호정지중에 뒤로 밀리는 경험함.. 시험해봐야)
 
   values["NEW_SIGNAL_2"] = 0    # 이것이 켜지면 가속을 안하는듯함.
   values["NEW_SIGNAL_4"] = 9 if hud_control.leadVisible else 0
@@ -540,11 +552,11 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control, disp_angle
         values["TauGapSet"] = hud_control.leadDistanceBars
         ret.append(packer.make_can_msg("ADRV_0x200", CAN.ECAN, values))
 
-      if CS.adrv_info_1ea is not None:
-        values = CS.adrv_info_1ea
-        values["HDA_MODE1"] = 8
-        values["HDA_MODE2"] = 1
-        ret.append(packer.make_can_msg("ADRV_0x1ea", CAN.ECAN, values))
+      #if CS.adrv_info_1ea is not None:
+      #  values = CS.adrv_info_1ea
+      #  values["HDA_MODE1"] = 8
+      #  values["HDA_MODE2"] = 1
+      #  ret.append(packer.make_can_msg("ADRV_0x1ea", CAN.ECAN, values))
 
       if CS.adrv_info_162 is not None:
         values = CS.adrv_info_162

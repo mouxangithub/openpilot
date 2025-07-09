@@ -1262,73 +1262,73 @@ class CarrotServ:
 
   def _get_sdi_descr(self, nSdiType):
     sdi_types = {
-        0: "신호과속",
-        1: "과속 (고정식)",
-        2: "구간단속 시작",
-        3: "구간단속 끝",
-        4: "구간단속중",
-        5: "꼬리물기단속카메라",
-        6: "신호 단속",
-        7: "과속 (이동식)",
-        8: "고정식 과속위험 구간(박스형)",
-        9: "버스전용차로구간",
-        10: "가변 차로 단속",
-        11: "갓길 감시 지점",
-        12: "끼어들기 금지",
-        13: "교통정보 수집지점",
-        14: "방범용cctv",
-        15: "과적차량 위험구간",
-        16: "적재 불량 단속",
-        17: "주차단속 지점",
-        18: "일방통행도로",
-        19: "철길 건널목",
-        20: "어린이 보호구역(스쿨존 시작 구간)",
-        21: "어린이 보호구역(스쿨존 끝 구간)",
-        22: "과속방지턱",
-        23: "lpg충전소",
-        24: "터널 구간",
-        25: "휴게소",
-        26: "톨게이트",
-        27: "안개주의 지역",
-        28: "유해물질 지역",
-        29: "사고다발",
-        30: "급커브지역",
-        31: "급커브구간1",
-        32: "급경사구간",
-        33: "야생동물 교통사고 잦은 구간",
-        34: "우측시야불량지점",
-        35: "시야불량지점",
-        36: "좌측시야불량지점",
-        37: "신호위반다발구간",
-        38: "과속운행다발구간",
-        39: "교통혼잡지역",
-        40: "방향별차로선택지점",
-        41: "무단횡단사고다발지점",
-        42: "갓길 사고 다발 지점",
-        43: "과속 사발 다발 지점",
-        44: "졸음 사고 다발 지점",
-        45: "사고다발지점",
-        46: "보행자 사고다발지점",
-        47: "차량도난사고 상습발생지점",
-        48: "낙석주의지역",
-        49: "결빙주의지역",
-        50: "병목지점",
-        51: "합류 도로",
-        52: "추락주의지역",
-        53: "지하차도 구간",
-        54: "주택밀집지역(교통진정지역)",
-        55: "인터체인지",
-        56: "분기점",
-        57: "휴게소(lpg충전가능)",
-        58: "교량",
-        59: "제동장치사고다발지점",
-        60: "중앙선침범사고다발지점",
-        61: "통행위반사고다발지점",
-        62: "목적지 건너편 안내",
-        63: "졸음 쉼터 안내",
-        64: "노후경유차단속",
-        65: "터널내 차로변경단속",
-        66: ""
+      0: "信号超速",
+      1: "超速 (固定式)",
+      2: "区间测速开始",
+      3: "区间测速结束",
+      4: "区间测速中",
+      5: "追尾测速摄像头",
+      6: "信号灯测速",
+      7: "超速 (移动式)",
+      8: "固定式超速危险区域(箱型)",
+      9: "公交专用车道区域",
+      10: "可变车道监控",
+      11: "路肩监控点",
+      12: "禁止插队",
+      13: "交通信息采集点",
+      14: "防犯监控",
+      15: "超载车辆危险区域",
+      16: "装载不良监控",
+      17: "停车监控点",
+      18: "单行道",
+      19: "铁路道口",
+      20: "儿童保护区(校园区开始)",
+      21: "儿童保护区(校园区结束)",
+      22: "减速带",
+      23: "LPG加气站",
+      24: "隧道区域",
+      25: "休息区",
+      26: "收费站",
+      27: "大雾注意区域",
+      28: "有害物质区域",
+      29: "事故多发",
+      30: "急转弯区域",
+      31: "急转弯区域1",
+      32: "急坡区域",
+      33: "野生动物交通事故频发区域",
+      34: "右侧视线不良点",
+      35: "视线不良点",
+      36: "左侧视线不良点",
+      37: "闯红灯多发区域",
+      38: "超速行驶多发区域",
+      39: "交通拥堵区域",
+      40: "方向车道选择点",
+      41: "横穿马路事故多发点",
+      42: "路肩事故多发点",
+      43: "超速事故多发点",
+      44: "疲劳驾驶事故多发点",
+      45: "事故多发点",
+      46: "行人事故多发点",
+      47: "车辆盗窃案件多发点",
+      48: "落石注意区域",
+      49: "路面结冰注意区域",
+      50: "瓶颈路段",
+      51: "汇流道路",
+      52: "坠落注意区域",
+      53: "地下通道区域",
+      54: "住宅密集区(交通缓和区)",
+      55: "互通式立交",
+      56: "分歧点",
+      57: "休息区(可加LPG)",
+      58: "桥梁",
+      59: "刹车故障事故多发点",
+      60: "越线事故多发点",
+      61: "违规通行事故多发点",
+      62: "目的地对面指引",
+      63: "疲劳休息区指引",
+      64: "老旧柴油车监控",
+      65: "隧道内变道监控",
+      66: ""
     }
     return sdi_types.get(nSdiType, "")
 
@@ -1563,7 +1563,7 @@ class CarrotServ:
       if xSpdType >= 0:
         offset = 5 if self.is_metric else 5 * CV.MPH_TO_KPH
         self.xSpdLimit = self.nRoadLimitSpeed + offset
-        
+
         self.xSpdDist = distance
         self.xSpdType =xSpdType
 
@@ -1591,8 +1591,8 @@ class CarrotServ:
     self.bearing = self._update_gps(v_ego, sm)
 
     self.xSpdDist = max(self.xSpdDist - delta_dist, -1000)
-    self.xDistToTurn = max(self.xDistToTurn - delta_dist, 0)
-    self.xDistToTurnNext = max(self.xDistToTurnNext - delta_dist, 0)
+    self.xDistToTurn = self.xDistToTurn - delta_dist
+    self.xDistToTurnNext = self.xDistToTurnNext - delta_dist
     self.active_count = max(self.active_count - 1, 0)
     self.active_sdi_count = max(self.active_sdi_count - 1, 0)
     self.active_kisa_count = max(self.active_kisa_count - 1, 0)
@@ -1625,7 +1625,8 @@ class CarrotServ:
       self.xSpdType = -1
       self.xSpdDist = self.xSpdLimit = 0
     if self.xTurnInfo < 0 or self.xDistToTurn < -50:
-      self.xDistToTurn = 0
+      if self.xDistToTurn > 0:
+        self.xDistToTurn = 0
       self.xTurnInfo = -1
       self.xDistToTurnNext = 0
       self.xTurnInfoNext = -1
@@ -1689,7 +1690,7 @@ class CarrotServ:
 
     route_speed = max(route_speed * self.mapTurnSpeedFactor, self.autoCurveSpeedLowerLimit)
     if self.turnSpeedControlMode == 2:
-      if 0 < self.xDistToTurn < 300:
+      if -500 < self.xDistToTurn < 500:
         speed_n_sources.append((route_speed, "route"))
     elif self.turnSpeedControlMode == 3:
       speed_n_sources.append((route_speed, "route"))
