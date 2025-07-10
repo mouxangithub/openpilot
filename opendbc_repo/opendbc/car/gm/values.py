@@ -247,7 +247,7 @@ class CAR(Platforms):
     CarSpecs(mass=1365, wheelbase=2.7, steerRatio=16.1, centerToFrontRatio=0.7),
   )
   CADILLAC_CT6_ACC = GMPlatformConfig(
-    [GMCarDocs("CT6-2019 Advanced ACC", "Adaptive Cruise Control (ACC)")],
+    [GMCarDocs("Cadillac CT6-2019 Advanced ACC", "Adaptive Cruise Control (ACC)")],
     GMCarSpecs(mass=1736, wheelbase=3.11, steerRatio=17.7, centerToFrontRatio=0.4),
   )
   GMC_YUKON = GMPlatformConfig(

@@ -24,7 +24,7 @@ class CarState(CarStateBase):
 
     self.prev_distance_button = 0
     self.distance_button = 0
-    self.pcmCruiseGap = 0  # copy from Hyundai
+    self.pcmCruiseGap = 0 # copy from Hyundai
 
   def update(self, can_parsers) -> structs.CarState:
     cp = can_parsers[Bus.pt]
@@ -62,6 +62,12 @@ class CarState(CarStateBase):
     can_gear = int(cp.vl["GEAR"]["GEAR"])
     ret.gearShifter = self.parse_gear_shifter(self.shifter_values.get(can_gear, None))
     ret.gearStep = cp.vl["GEAR"]["GEAR_BOX"]
+    ret.engineRpm = cp.vl["ENGINE_DATA"]["RPM"] # for mazda RPM
+
+    # 将CAN总线上的DISTANCE_SETTING值转换为与车辆显示一致的值
+    can_distance_setting = cp.vl["CRZ_CTRL"]["DISTANCE_SETTING"]
+    # 假设最大值为4，使用5减去CAN值来获取正确的显示值
+    ret.pcmCruiseGap = 5 - can_distance_setting if 1 <= can_distance_setting <= 4 else can_distance_setting
 
     ret.engineRpm = cp.vl["ENGINE_DATA"]["RPM"]  # for mazda RPM
 
