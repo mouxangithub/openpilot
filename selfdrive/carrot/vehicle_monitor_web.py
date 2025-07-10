@@ -3,6 +3,12 @@
 车辆监控网页应用
 接收UDP广播的车辆数据并在网页上实时显示
 兼容大多数Python环境
+
+修改说明：
+- 更新dataConfig以匹配基于mazda carstate.py修改后的数据结构
+- 支持新增的字段如 Gear Step, Standstill, Steering Pressed等
+- 移除了不适用于mazda的字段（如安全系统的详细状态）
+- 增加了系统状态监控面板
 """
 
 import json
@@ -266,10 +272,10 @@ HTML_TEMPLATE = """
         let isInitialized = false;
         let previousData = null;
 
-        // 数据结构配置 - 与参考代码保持一致
+        // 数据结构配置 - 匹配 mazda carstate.py 的数据结构
         const dataConfig = {
             "Basic Information": {
-                title: '🚗 基本信息',
+                title: '� 基本信息',
                 fields: {
                     "Car Model": '车辆型号',
                     "Fingerprint": '车辆指纹',
@@ -279,13 +285,14 @@ HTML_TEMPLATE = """
                 }
             },
             "Vehicle Status": {
-                title: '🏃 车辆状态',
+                title: '🚗 车辆状态',
                 fields: {
                     "Running Status": '运行状态',
                     "Cruise System": '巡航系统',
                     "Current Speed": '当前速度',
                     "Engine RPM": '发动机转速',
-                    "Gear Position": '挡位'
+                    "Gear Position": '挡位',
+                    "Gear Step": '变速箱档位'
                 }
             },
             "Cruise Information": {
@@ -294,7 +301,8 @@ HTML_TEMPLATE = """
                     "Cruise Status": '巡航状态',
                     "Adaptive Cruise": '自适应巡航',
                     "Set Speed": '设定速度',
-                    "Following Distance": '跟车距离'
+                    "Following Distance": '跟车距离',
+                    "Standstill": '静止状态'
                 }
             },
             "Wheel Speeds": {
@@ -312,34 +320,23 @@ HTML_TEMPLATE = """
                     "Steering Angle": '转向角度',
                     "Steering Torque": '转向扭矩',
                     "Steering Rate": '转向速率',
-                    "Lane Departure": '变道检测'
+                    "Steering Pressed": '方向盘被握持',
+                    "Steering EPS Torque": 'EPS扭矩'
                 }
             },
             "Pedal Status": {
                 title: '🦶 踏板状态',
                 fields: {
-                    "Throttle Position": '油门位置',
+                    "Gas Position": '油门位置',
                     "Brake Pressure": '刹车压力',
                     "Gas Pedal": '油门踏板',
                     "Brake Pedal": '刹车踏板'
                 }
             },
-            "Safety Systems": {
-                title: '🛡️ 安全系统',
-                fields: {
-                    "ESP Status": 'ESP状态',
-                    "ABS Status": 'ABS状态',
-                    "Traction Control": '牵引力控制',
-                    "Collision Warning": '碰撞警告'
-                }
-            },
             "Door Status": {
                 title: '🚪 车门状态',
                 fields: {
-                    "Driver Door": '驾驶员门',
-                    "Passenger Door": '乘客门',
-                    "Trunk": '后备箱',
-                    "Hood": '引擎盖',
+                    "Any Door Open": '车门开启',
                     "Seatbelt": '安全带'
                 }
             },
@@ -348,8 +345,7 @@ HTML_TEMPLATE = """
                 fields: {
                     "Left Turn Signal": '左转向灯',
                     "Right Turn Signal": '右转向灯',
-                    "High Beam": '远光灯',
-                    "Low Beam": '近光灯'
+                    "High Beam": '远光灯'
                 }
             },
             "Blind Spot Monitor": {
@@ -359,13 +355,12 @@ HTML_TEMPLATE = """
                     "Right Side": '右侧检测'
                 }
             },
-            "Other Information": {
-                title: '🔧 其他信息',
+            "System Status": {
+                title: '⚠️ 系统状态',
                 fields: {
-                    "Outside Temperature": '外部温度',
-                    "Range": '剩余续航',
-                    "Odometer": '里程表',
-                    "Instant Fuel Consumption": '瞬时油耗'
+                    "Low Speed Alert": '低速警告',
+                    "Steer Fault Temporary": '转向临时故障',
+                    "Steer Fault Permanent": '转向永久故障'
                 }
             },
             "selfdrive_status": {

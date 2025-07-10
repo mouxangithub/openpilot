@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 """
 车辆数据广播服务
-参考carrot_man.py的UDP广播机制和fleet_manager.py的车辆数据获取方式
+基于mazda carstate.py的实际数据结构进行车辆数据获取和UDP广播
 在8080端口进行UDP广播，每秒1次
+
+修改说明：
+- 基于 jixiexiaoge/openpilot/opendbc_repo/opendbc/car/mazda/carstate.py 的实际字段结构
+- 使用 getattr() 安全获取属性，避免属性不存在错误
+- 支持mazda特有的字段如 engineRpm, gearStep, pcmCruiseGap 等
+- 增加了系统状态监控（lowSpeedAlert, steerFaultTemporary等）
+- 优化了错误处理和资源管理
 """
 
 import json
@@ -96,9 +103,9 @@ class VehicleDataBroadcaster:
             if self.sm.alive['carState']:
                 CS = self.sm['carState']
 
-                # 基本状态判断
-                is_car_started = CS.vEgo > 0.1
-                is_car_engaged = CS.cruiseState.enabled
+                # 基本状态判断 - 使用standstill和vEgo
+                is_car_started = getattr(CS, 'vEgo', 0) > 0.1 and not getattr(CS, 'standstill', True)
+                is_car_engaged = getattr(CS.cruiseState, 'enabled', False) if hasattr(CS, 'cruiseState') else False
 
                 # 更新状态
                 if is_car_started:
@@ -106,13 +113,14 @@ class VehicleDataBroadcaster:
                 else:
                     vehicle_data["status"] = "vehicle_stopped"
 
-                # 构建基础信息 - 与参考代码完全一致
+                # 构建基础信息 - 基于mazda实际字段
                 vehicle_data["Vehicle Status"] = {
                     "Running Status": "Moving" if is_car_started else "Stopped",
                     "Cruise System": "Enabled" if is_car_engaged else "Disabled",
-                    "Current Speed": f"{CS.vEgo * 3.6:.1f} km/h",
-                    "Engine RPM": f"{CS.engineRPM:.0f} RPM" if hasattr(CS, 'engineRPM') and CS.engineRPM is not None and CS.engineRPM > 0 else "Unknown",
-                    "Gear Position": str(CS.gearShifter) if hasattr(CS, 'gearShifter') and CS.gearShifter is not None else "Unknown"
+                    "Current Speed": f"{getattr(CS, 'vEgo', 0) * 3.6:.1f} km/h",
+                    "Engine RPM": f"{getattr(CS, 'engineRpm', 0):.0f} RPM" if hasattr(CS, 'engineRpm') and CS.engineRpm is not None and CS.engineRpm > 0 else "Unknown",
+                    "Gear Position": str(getattr(CS, 'gearShifter', 'Unknown')),
+                    "Gear Step": getattr(CS, 'gearStep', 'Unknown')
                 }
 
                 vehicle_data["Basic Information"] = {
@@ -123,73 +131,77 @@ class VehicleDataBroadcaster:
                     "Steering Ratio": f"{car_specs.steerRatio:.1f}" if car_specs and hasattr(car_specs, 'steerRatio') else "Unknown"
                 }
 
-                # 巡航信息 - 即使车辆未启动也显示基本设置
-                vehicle_data["Cruise Information"] = {
-                    "Cruise Status": "On" if CS.cruiseState.enabled else "Off",
-                    "Adaptive Cruise": "On" if CS.cruiseState.available else "Off",
-                    "Set Speed": f"{CS.cruiseState.speed * 3.6:.1f} km/h" if CS.cruiseState.speed > 0 else "Not Set",
-                    "Following Distance": str(CS.pcmCruiseGap) if hasattr(CS, 'pcmCruiseGap') and CS.pcmCruiseGap > 0 else (str(CS.cruiseState.followDistance) if hasattr(CS.cruiseState, 'followDistance') and CS.cruiseState.followDistance is not None else "Unknown")
+                # 巡航信息 - 基于mazda实际cruiseState结构
+                cruise_state = getattr(CS, 'cruiseState', None)
+                if cruise_state:
+                    vehicle_data["Cruise Information"] = {
+                        "Cruise Status": "On" if getattr(cruise_state, 'enabled', False) else "Off",
+                        "Adaptive Cruise": "On" if getattr(cruise_state, 'available', False) else "Off",
+                        "Set Speed": f"{getattr(cruise_state, 'speed', 0) * 3.6:.1f} km/h" if getattr(cruise_state, 'speed', 0) > 0 else "Not Set",
+                        "Following Distance": str(getattr(CS, 'pcmCruiseGap', 'Unknown')),
+                        "Standstill": "Yes" if getattr(cruise_state, 'standstill', False) else "No"
+                    }
+                else:
+                    vehicle_data["Cruise Information"] = {
+                        "Cruise Status": "Off",
+                        "Adaptive Cruise": "Off",
+                        "Set Speed": "Not Set",
+                        "Following Distance": "Unknown",
+                        "Standstill": "Unknown"
+                    }
+
+                # 详细信息 - 基于mazda实际字段，显示所有可用信息
+                wheel_speeds = getattr(CS, 'wheelSpeeds', None)
+                if wheel_speeds:
+                    vehicle_data["Wheel Speeds"] = {
+                        "Front Left": f"{getattr(wheel_speeds, 'fl', 0) * 3.6:.1f} km/h",
+                        "Front Right": f"{getattr(wheel_speeds, 'fr', 0) * 3.6:.1f} km/h",
+                        "Rear Left": f"{getattr(wheel_speeds, 'rl', 0) * 3.6:.1f} km/h",
+                        "Rear Right": f"{getattr(wheel_speeds, 'rr', 0) * 3.6:.1f} km/h"
+                    }
+
+                # 转向系统信息
+                vehicle_data["Steering System"] = {
+                    "Steering Angle": f"{getattr(CS, 'steeringAngleDeg', 0):.1f}°",
+                    "Steering Torque": f"{getattr(CS, 'steeringTorque', 0):.1f} Nm",
+                    "Steering Rate": f"{getattr(CS, 'steeringRateDeg', 0):.1f}°/s",
+                    "Steering Pressed": "Yes" if getattr(CS, 'steeringPressed', False) else "No",
+                    "Steering EPS Torque": f"{getattr(CS, 'steeringTorqueEps', 0):.1f} Nm"
                 }
 
-                # 详细信息 - 与参考代码完全一致
-                if is_car_started or is_car_engaged:
-                    vehicle_data.update({
-                        "Wheel Speeds": {
-                            "Front Left": f"{CS.wheelSpeeds.fl * 3.6:.1f} km/h",
-                            "Front Right": f"{CS.wheelSpeeds.fr * 3.6:.1f} km/h",
-                            "Rear Left": f"{CS.wheelSpeeds.rl * 3.6:.1f} km/h",
-                            "Rear Right": f"{CS.wheelSpeeds.rr * 3.6:.1f} km/h"
-                        },
-                        "Steering System": {
-                            "Steering Angle": f"{CS.steeringAngleDeg:.1f}°",
-                            "Steering Torque": f"{CS.steeringTorque:.1f} Nm",
-                            "Steering Rate": f"{CS.steeringRateDeg:.1f}°/s",
-                            "Lane Departure": "Yes" if CS.leftBlinker or CS.rightBlinker else "No"
-                        },
-                        "Pedal Status": {
-                            "Throttle Position": f"{CS.gas * 100:.1f}%",
-                            "Brake Pressure": f"{CS.brake * 100:.1f}%",
-                            "Gas Pedal": "Pressed" if CS.gasPressed else "Released",
-                            "Brake Pedal": "Pressed" if CS.brakePressed else "Released"
-                        },
-                        "Safety Systems": {
-                            "ESP Status": "Active" if CS.espDisabled else "Normal",
-                            "ABS Status": "Active" if hasattr(CS, 'absActive') and CS.absActive else "Normal",
-                            "Traction Control": "Active" if hasattr(CS, 'tcsActive') and CS.tcsActive else "Normal",
-                            "Collision Warning": "Warning" if hasattr(CS, 'collisionWarning') and CS.collisionWarning else "Normal"
-                        },
-                        "Door Status": {
-                            "Driver Door": "Open" if CS.doorOpen else "Closed",
-                            "Passenger Door": "Open" if hasattr(CS, 'passengerDoorOpen') and CS.passengerDoorOpen else "Closed",
-                            "Trunk": "Open" if hasattr(CS, 'trunkOpen') and CS.trunkOpen else "Closed",
-                            "Hood": "Open" if hasattr(CS, 'hoodOpen') and CS.hoodOpen else "Closed",
-                            "Seatbelt": "Unbuckled" if CS.seatbeltUnlatched else "Buckled"
-                        },
-                        "Light Status": {
-                            "Left Turn Signal": "On" if CS.leftBlinker else "Off",
-                            "Right Turn Signal": "On" if CS.rightBlinker else "Off",
-                            "High Beam": "On" if CS.genericToggle else "Off",
-                            "Low Beam": "On" if hasattr(CS, 'lowBeamOn') and CS.lowBeamOn else "Off"
-                        },
-                        "Blind Spot Monitor": {
-                            "Left Side": "Vehicle Detected" if CS.leftBlindspot else "Clear",
-                            "Right Side": "Vehicle Detected" if CS.rightBlindspot else "Clear"
-                        }
-                    })
+                # 踏板状态
+                vehicle_data["Pedal Status"] = {
+                    "Gas Position": f"{getattr(CS, 'gas', 0) * 100:.1f}%",
+                    "Brake Pressure": f"{getattr(CS, 'brake', 0) * 100:.1f}%",
+                    "Gas Pedal": "Pressed" if getattr(CS, 'gasPressed', False) else "Released",
+                    "Brake Pedal": "Pressed" if getattr(CS, 'brakePressed', False) else "Released"
+                }
 
-                    # 添加可选的其他信息 - 与参考代码完全一致
-                    other_info = {}
-                    if hasattr(CS, 'outsideTemp'):
-                        other_info["Outside Temperature"] = f"{CS.outsideTemp:.1f}°C"
-                    if hasattr(CS, 'fuelGauge'):
-                        other_info["Range"] = f"{CS.fuelGauge:.1f}km"
-                    if hasattr(CS, 'odometer'):
-                        other_info["Odometer"] = f"{CS.odometer:.1f}km"
-                    if hasattr(CS, 'instantFuelConsumption'):
-                        other_info["Instant Fuel Consumption"] = f"{CS.instantFuelConsumption:.1f}L/100km"
+                # 门和安全带状态
+                vehicle_data["Door Status"] = {
+                    "Any Door Open": "Yes" if getattr(CS, 'doorOpen', False) else "No",
+                    "Seatbelt": "Unbuckled" if getattr(CS, 'seatbeltUnlatched', False) else "Buckled"
+                }
 
-                    if other_info:
-                        vehicle_data["Other Information"] = other_info
+                # 灯光状态
+                vehicle_data["Light Status"] = {
+                    "Left Turn Signal": "On" if getattr(CS, 'leftBlinker', False) else "Off",
+                    "Right Turn Signal": "On" if getattr(CS, 'rightBlinker', False) else "Off",
+                    "High Beam": "On" if getattr(CS, 'genericToggle', False) else "Off"
+                }
+
+                # 盲点监测
+                vehicle_data["Blind Spot Monitor"] = {
+                    "Left Side": "Vehicle Detected" if getattr(CS, 'leftBlindspot', False) else "Clear",
+                    "Right Side": "Vehicle Detected" if getattr(CS, 'rightBlindspot', False) else "Clear"
+                }
+
+                # 故障和警告状态
+                vehicle_data["System Status"] = {
+                    "Low Speed Alert": "Yes" if getattr(CS, 'lowSpeedAlert', False) else "No",
+                    "Steer Fault Temporary": "Yes" if getattr(CS, 'steerFaultTemporary', False) else "No",
+                    "Steer Fault Permanent": "Yes" if getattr(CS, 'steerFaultPermanent', False) else "No"
+                }
 
             else:
                 print("调试: carState 不可用")
@@ -199,18 +211,18 @@ class VehicleDataBroadcaster:
             if self.sm.alive['selfdriveState']:
                 selfdrive = self.sm['selfdriveState']
                 vehicle_data["selfdrive_status"] = {
-                    "active": selfdrive.active,
-                    "state": str(selfdrive.state)
+                    "active": getattr(selfdrive, 'active', False),
+                    "state": str(getattr(selfdrive, 'state', 'Unknown'))
                 }
 
             # 获取设备状态
             if self.sm.alive['deviceState']:
                 device = self.sm['deviceState']
                 device_status = {
-                    "network_type": str(device.networkType),
-                    "memory_usage_percent": device.memoryUsagePercent,
-                    "free_space_percent": device.freeSpacePercent,
-                    "thermal_status": str(device.thermalStatus)
+                    "network_type": str(getattr(device, 'networkType', 'Unknown')),
+                    "memory_usage_percent": getattr(device, 'memoryUsagePercent', 0),
+                    "free_space_percent": getattr(device, 'freeSpacePercent', 0),
+                    "thermal_status": str(getattr(device, 'thermalStatus', 'Unknown'))
                 }
 
                 # 添加可用的温度信息
