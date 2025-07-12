@@ -84,7 +84,7 @@ def update_translations(vanish: bool = False, translation_files: None | list[str
     root = tree.getroot()
     backup = backup_translation_types(root)
 
-    args = f"lupdate -locations none -recursive {UI_DIR} -ts {tr_file} -I {BASEDIR}"
+    args = f"lupdate -locations none -recursive {UI_DIR} {FROGPILOT_UI_DIR} -ts {tr_file} -I {BASEDIR}"
     if vanish:
       args += " -no-obsolete"
     if file in PLURAL_ONLY:

@@ -140,12 +140,18 @@ public:
     }
   }
 
-  void clearCheckedButtons() {
-    button_group->setExclusive(false);
+  void clearCheckedButtons(bool clear_exclusivity = false) {
+    if (clear_exclusivity) {
+      button_group->setExclusive(false);
+    }
+
     for (QAbstractButton *button : button_group->buttons()) {
       button->setChecked(false);
     }
-    button_group->setExclusive(true);
+
+    if (clear_exclusivity) {
+      button_group->setExclusive(true);
+    }
   }
 
   void setCheckedButton(int id) {
@@ -204,12 +210,18 @@ public:
     });
   }
 
-  void clearCheckedButtons() {
-    button_group->setExclusive(false);
+  void clearCheckedButtons(bool clear_exclusivity = false) {
+    if (clear_exclusivity) {
+      button_group->setExclusive(false);
+    }
+
     for (QAbstractButton *button : button_group->buttons()) {
       button->setChecked(false);
     }
-    button_group->setExclusive(true);
+
+    if (clear_exclusivity) {
+      button_group->setExclusive(true);
+    }
   }
 
   void setCheckedButton(int id) {

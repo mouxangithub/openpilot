@@ -209,7 +209,7 @@ void FrogPilotAnnotatedCameraWidget::paintFrogPilotWidgets(QPainter &p, UIState 
     paintRoadName(p);
   }
 
-  if ((mutcdSpeedLimit || viennaSpeedLimit) && frogpilot_toggles.value("speed_limit_sources").toBool()) {
+  if (!bigMapOpen && (mutcdSpeedLimit || viennaSpeedLimit) && frogpilot_toggles.value("speed_limit_sources").toBool()) {
     paintSpeedLimitSources(p, frogpilotCarState, frogpilotNavigation, frogpilotPlan);
   }
 
@@ -254,7 +254,7 @@ void FrogPilotAnnotatedCameraWidget::paintAdjacentPaths(QPainter &p, const cerea
   std::function<void(bool, float, const QPolygonF &)> drawAdjacentPathMetric = [this, &p, &frogpilot_toggles](bool isBlindSpot, float width, const QPolygonF &polygon) {
     QString text = isBlindSpot && frogpilot_toggles.value("blind_spot_path").toBool() ? tr("Vehicle in blind spot") : QString::number(width * distanceConversion, 'f', 2) + leadDistanceUnit;
 
-    p.setFont(InterFont(30, QFont::DemiBold));
+    p.setFont(InterFont(40, QFont::DemiBold));
     p.setPen(QPen(whiteColor()));
     p.drawText(polygon.boundingRect(), Qt::AlignCenter, text);
   };
@@ -386,9 +386,7 @@ void FrogPilotAnnotatedCameraWidget::paintCompass(QPainter &p, QJsonObject &frog
   const int baseRibbonWidth = qRound(360 * pixelsPerDegree);
 
   static QPixmap ribbonPixmap;
-
-  static bool initialized = false;
-  if (!initialized) {
+  if (!ribbonPixmap) {
     int ribbonHeight = compassWidget.height();
     int ribbonWidth = baseRibbonWidth * 2;
 
@@ -420,15 +418,15 @@ void FrogPilotAnnotatedCameraWidget::paintCompass(QPainter &p, QJsonObject &frog
         ribbonPainter.drawLine(x, ribbonHeight - notchHeight - 5, x, ribbonHeight);
       }
     }
-
-    initialized = true;
   }
 
   double rawBearing = QJsonDocument::fromJson(QString::fromStdString(params_memory.get("LastGPSPosition")).toUtf8()).object().value("bearing").toDouble(0.0);
+
   int bearing = qRound(fmod(rawBearing + 360.0, 360.0));
   int offset = qRound(bearing * pixelsPerDegree) % baseRibbonWidth;
-  int drawX = compassWidget.left() - offset;
+  int drawX = compassWidget.center().x() - offset;
 
+  p.drawPixmap(drawX - baseRibbonWidth, compassWidget.top() + 5, ribbonPixmap);
   p.drawPixmap(drawX, compassWidget.top() + 5, ribbonPixmap);
 
   int triangleSize = 40;
@@ -535,7 +533,7 @@ void FrogPilotAnnotatedCameraWidget::paintLeadMetrics(QPainter &p, bool adjacent
   float leadDistance = lead_data.getDRel() + (adjacent ? fabs(lead_data.getYRel()) : 0);
   float leadSpeed = std::max(lead_data.getVLead(), 0.0f);
 
-  p.setFont(InterFont(35, QFont::Bold));
+  p.setFont(InterFont(40, QFont::Bold));
   p.setPen(QPen(whiteColor()));
 
   QString text;

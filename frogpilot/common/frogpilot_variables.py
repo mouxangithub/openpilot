@@ -21,6 +21,7 @@ params = Params()
 params_cache = Params("/cache/params")
 params_default = Params("/dev/shm/params_default")
 params_memory = Params("/dev/shm/params")
+params_tracking = Params("/cache/tracking")
 
 GearShifter = car.CarState.GearShifter
 NON_DRIVING_GEARS = [GearShifter.neutral, GearShifter.park, GearShifter.reverse, GearShifter.unknown]
@@ -40,6 +41,9 @@ RANDOM_EVENTS_PATH = Path(__file__).parents[1] / "assets/random_events"
 THEME_SAVE_PATH = Path("/data/themes")
 
 ERROR_LOGS_PATH = Path("/data/error_logs")
+SCREEN_RECORDINGS_PATH = Path("/data/media/screen_recordings")
+
+BACKUP_PATH = Path("/cache/on_backup")
 
 KONIK_LOGS_PATH = Path("/data/media/0/realdata_konik")
 KONIK_PATH = Path("/cache/use_konik")
@@ -71,324 +75,325 @@ def get_frogpilot_toggles(block=True):
 def update_frogpilot_toggles():
   params_memory.put_bool("FrogPilotTogglesUpdated", True)
 
-frogpilot_default_params: list[tuple[str, str | bytes, int]] = [
-  ("AccelerationPath", "1", 2),
-  ("AccelerationProfile", "2", 0),
-  ("AdjacentLeadsUI", "0", 3),
-  ("AdjacentPath", "0", 3),
-  ("AdjacentPathMetrics", "0", 3),
-  ("AdvancedCustomUI", "0", 2),
-  ("AdvancedLateralTune", "0", 2),
-  ("AggressiveFollow", "1.25", 2),
-  ("AggressiveJerkAcceleration", "50", 3),
-  ("AggressiveJerkDanger", "100", 3),
-  ("AggressiveJerkDeceleration", "50", 3),
-  ("AggressiveJerkSpeed", "50", 3),
-  ("AggressiveJerkSpeedDecrease", "50", 3),
-  ("AggressivePersonalityProfile", "1", 2),
-  ("AlertVolumeControl", "0", 2),
-  ("AlwaysOnDM", "0", 0),
-  ("AlwaysOnLateral", "1", 0),
-  ("AlwaysOnLateralLKAS", "1", 0),
-  ("AlwaysOnLateralMain", "1", 0),
-  ("AutomaticallyDownloadModels", "1", 1),
-  ("AutomaticUpdates", "1", 0),
-  ("AvailableModelNames", "", 1),
-  ("AvailableModels", "", 1),
-  ("BigMap", "0", 2),
-  ("BlacklistedModels", "", 2),
-  ("BlindSpotMetrics", "1", 3),
-  ("BlindSpotPath", "1", 1),
-  ("BorderMetrics", "0", 3),
-  ("CameraView", "3", 2),
-  ("CarMake", "", 0),
-  ("CarModel", "", 0),
-  ("CarModelName", "", 0),
-  ("CarParamsPersistent", "", 0),
-  ("CECurves", "0", 1),
-  ("CECurvesLead", "0", 1),
-  ("CELead", "0", 1),
-  ("CEModelStopTime", str(PLANNER_TIME - 2), 2),
-  ("CENavigation", "1", 2),
-  ("CENavigationIntersections", "1", 2),
-  ("CENavigationLead", "1", 2),
-  ("CENavigationTurns", "1", 2),
-  ("CESignalSpeed", "55", 2),
-  ("CESignalLaneDetection", "1", 2),
-  ("CESlowerLead", "0", 1),
-  ("CESpeed", "0", 1),
-  ("CESpeedLead", "0", 1),
-  ("CEStoppedLead", "0", 1),
-  ("ClusterOffset", "1.015", 2),
-  ("Compass", "0", 1),
-  ("ConditionalExperimental", "1", 0),
-  ("CurveSensitivity", "100", 2),
-  ("CurveSpeedControl", "1", 1),
-  ("CustomAlerts", "1", 0),
-  ("CustomColors", "frog", 0),
-  ("CustomCruise", "1", 2),
-  ("CustomCruiseLong", "5", 2),
-  ("CustomDistanceIcons", "stock", 0),
-  ("CustomIcons", "frog-animated", 0),
-  ("CustomPersonalities", "0", 2),
-  ("CustomSignals", "frog", 0),
-  ("CustomSounds", "frog", 0),
-  ("CustomUI", "1", 1),
-  ("DecelerationProfile", "1", 2),
-  ("DeveloperMetrics", "1", 2),
-  ("DeveloperSidebar", "1", 2),
-  ("DeveloperSidebarMetric1", "1", 2),
-  ("DeveloperSidebarMetric2", "2", 2),
-  ("DeveloperSidebarMetric3", "3", 2),
-  ("DeveloperSidebarMetric4", "4", 2),
-  ("DeveloperSidebarMetric5", "5", 2),
-  ("DeveloperSidebarMetric6", "6", 2),
-  ("DeveloperSidebarMetric7", "7", 2),
-  ("DeveloperWidgets", "1", 2),
-  ("DeveloperUI", "0", 2),
-  ("DeviceManagement", "1", 1),
-  ("DeviceShutdown", "9", 1),
-  ("DisableOnroadUploads", "0", 2),
-  ("DisableOpenpilotLongitudinal", "0", 2),
-  ("DiscordUsername", "", 0),
-  ("DisengageVolume", "101", 2),
-  ("DistanceButtonControl", "1", 2),
-  ("DriverCamera", "0", 1),
-  ("DynamicPathWidth", "0", 2),
-  ("DynamicPedalsOnUI", "1", 2),
-  ("EngageVolume", "101", 2),
-  ("ExperimentalGMTune", "0", 2),
-  ("ExperimentalLongitudinalEnabled", "0", 0),
-  ("ExperimentalMode", "0", 0),
-  ("ExperimentalModeConfirmed", "0", 0),
-  ("ExperimentalModels", "", 1),
-  ("Fahrenheit", "0", 3),
-  ("ForceAutoTune", "0", 2),
-  ("ForceAutoTuneOff", "0", 2),
-  ("ForceFingerprint", "0", 2),
-  ("ForceMPHDashboard", "0", 2),
-  ("ForceStandstill", "0", 2),
-  ("ForceStops", "0", 2),
-  ("FPSCounter", "1", 3),
-  ("FrogsGoMoosTweak", "1", 2),
-  ("FullMap", "0", 2),
-  ("GasRegenCmd", "1", 2),
-  ("GithubSshKeys", "", 0),
-  ("GithubUsername", "", 0),
-  ("GoatScream", "0", 1),
-  ("GreenLightAlert", "0", 0),
-  ("GsmApn", "", 0),
-  ("GsmRoaming", "1", 0),
-  ("HideAlerts", "0", 2),
-  ("HideLeadMarker", "0", 2),
-  ("HideMapIcon", "0", 2),
-  ("HideMaxSpeed", "0", 2),
-  ("HideSpeed", "0", 2),
-  ("HideSpeedLimit", "0", 2),
-  ("HolidayThemes", "1", 0),
-  ("HumanAcceleration", "1", 2),
-  ("HumanFollowing", "1", 2),
-  ("IncreasedStoppedDistance", "0", 1),
-  ("IncreaseThermalLimits", "0", 2),
-  ("IsLdwEnabled", "0", 0),
-  ("IsMetric", "0", 0),
-  ("KonikDongleId", "", 3),
-  ("KonikMinutes", "0", 0),
-  ("LaneChangeCustomizations", "0", 0),
-  ("LaneChangeTime", "2.0", 0),
-  ("LaneDetectionWidth", "0", 2),
-  ("LaneLinesWidth", "4", 2),
-  ("LateralMetrics", "1", 3),
-  ("LateralTune", "1", 2),
-  ("LeadDepartingAlert", "0", 0),
-  ("LeadDetectionThreshold", "35", 3),
-  ("LeadInfo", "1", 2),
-  ("LKASButtonControl", "5", 2),
-  ("LockDoors", "1", 0),
-  ("LockDoorsTimer", "0", 0),
-  ("LongDistanceButtonControl", "5", 2),
-  ("LongitudinalMetrics", "1", 2),
-  ("LongitudinalTune", "1", 0),
-  ("LongPitch", "1", 2),
-  ("LoudBlindspotAlert", "0", 0),
-  ("LowVoltageShutdown", str(VBATT_PAUSE_CHARGING), 2),
-  ("MapAcceleration", "0", 1),
-  ("MapDeceleration", "0", 1),
-  ("MapGears", "0", 1),
-  ("MapsSelected", "", 0),
-  ("MapStyle", "0", 2),
-  ("MapTurnControl", "1", 1),
-  ("MaxDesiredAcceleration", "4.0", 3),
-  ("MinimumLaneChangeSpeed", str(LANE_CHANGE_SPEED_MIN / CV.MPH_TO_MS), 2),
-  ("Model", DEFAULT_CLASSIC_MODEL, 1),
-  ("ModelDrivesAndScores", "", 2),
-  ("ModelRandomizer", "0", 2),
-  ("ModelUI", "1", 2),
-  ("ModelVersion", DEFAULT_CLASSIC_MODEL_VERSION, 2),
-  ("ModelVersions", "", 2),
-  ("MTSCCurvatureCheck", "1", 2),
-  ("NavigationUI", "1", 1),
-  ("NavSettingLeftSide", "0", 0),
-  ("NavSettingTime24h", "0", 0),
-  ("NewLongAPI", "0", 2),
-  ("NNFF", "1", 2),
-  ("NNFFLite", "1", 2),
-  ("NoLogging", "0", 2),
-  ("NoUploads", "0", 2),
-  ("NudgelessLaneChange", "0", 0),
-  ("NumericalTemp", "1", 2),
-  ("OfflineMode", "0", 2),
-  ("Offset1", "5", 0),
-  ("Offset2", "5", 0),
-  ("Offset3", "5", 0),
-  ("Offset4", "5", 0),
-  ("Offset5", "10", 0),
-  ("Offset6", "10", 0),
-  ("Offset7", "10", 0),
-  ("OneLaneChange", "1", 2),
-  ("OnroadDistanceButton", "0", 0),
-  ("openpilotMinutes", "0", 0),
-  ("PathEdgeWidth", "20", 2),
-  ("PathWidth", "6.1", 2),
-  ("PauseAOLOnBrake", "0", 2),
-  ("PauseLateralOnSignal", "0", 2),
-  ("PauseLateralSpeed", "0", 2),
-  ("PedalsOnUI", "0", 2),
-  ("PersonalizeOpenpilot", "1", 0),
-  ("PreferredSchedule", "2", 0),
-  ("PromptDistractedVolume", "101", 2),
-  ("PromptVolume", "101", 2),
-  ("QOLLateral", "1", 2),
-  ("QOLLongitudinal", "1", 1),
-  ("QOLVisuals", "1", 0),
-  ("RadarTracksUI", "0", 3),
-  ("RainbowPath", "0", 1),
-  ("RandomEvents", "0", 1),
-  ("RandomThemes", "0", 1),
-  ("RecordFront", "0", 0),
-  ("RefuseVolume", "101", 2),
-  ("RelaxedFollow", "1.75", 2),
-  ("RelaxedJerkAcceleration", "100", 3),
-  ("RelaxedJerkDanger", "100", 3),
-  ("RelaxedJerkDeceleration", "100", 3),
-  ("RelaxedJerkSpeed", "100", 3),
-  ("RelaxedJerkSpeedDecrease", "100", 3),
-  ("RelaxedPersonalityProfile", "1", 2),
-  ("ReverseCruise", "0", 1),
-  ("RoadEdgesWidth", "2", 2),
-  ("RoadNameUI", "1", 2),
-  ("RotatingWheel", "1", 1),
-  ("ScreenBrightness", "101", 2),
-  ("ScreenBrightnessOnroad", "101", 2),
-  ("ScreenManagement", "1", 2),
-  ("ScreenRecorder", "1", 2),
-  ("ScreenTimeout", "30", 2),
-  ("ScreenTimeoutOnroad", "30", 2),
-  ("SearchInput", "0", 0),
-  ("SecOCKey", "", 0),
-  ("SetSpeedLimit", "0", 1),
-  ("SetSpeedOffset", "0", 2),
-  ("ShowCEMStatus", "1", 2),
-  ("ShowCPU", "1", 3),
-  ("ShowCSCStatus", "1", 2),
-  ("ShowGPU", "0", 3),
-  ("ShowIP", "0", 3),
-  ("ShowMemoryUsage", "1", 3),
-  ("ShowSLCOffset", "1", 2),
-  ("ShowSpeedLimits", "1", 1),
-  ("ShowSteering", "0", 3),
-  ("ShowStoppingPoint", "0", 2),
-  ("ShowStoppingPointMetrics", "0", 2),
-  ("ShowStorageLeft", "0", 3),
-  ("ShowStorageUsed", "0", 3),
-  ("Sidebar", "0", 0),
-  ("SidebarMetrics", "1", 3),
-  ("SignalMetrics", "0", 2),
-  ("SLCConfirmation", "0", 0),
-  ("SLCConfirmationHigher", "0", 0),
-  ("SLCConfirmationLower", "0", 0),
-  ("SLCFallback", "2", 1),
-  ("SLCLookaheadHigher", "0", 2),
-  ("SLCLookaheadLower", "0", 2),
-  ("SLCMapboxFiller", "1", 1),
-  ("SLCOverride", "1", 1),
-  ("SLCPriority1", "Navigation", 2),
-  ("SLCPriority2", "Map Data", 2),
-  ("SLCPriority3", "Dashboard", 2),
-  ("SNGHack", "1", 2),
-  ("SpeedLimitChangedAlert", "1", 0),
-  ("SpeedLimitController", "1", 0),
-  ("SpeedLimitFiller", "0", 2),
-  ("SpeedLimitSources", "0", 3),
-  ("SshEnabled", "0", 0),
-  ("StartupMessageBottom", "Human-tested, frog-approved 🐸", 0),
-  ("StartupMessageTop", "Hop in and buckle up!", 0),
-  ("StandardFollow", "1.45", 2),
-  ("StandardJerkAcceleration", "100", 3),
-  ("StandardJerkDanger", "100", 3),
-  ("StandardJerkDeceleration", "100", 3),
-  ("StandardJerkSpeed", "100", 3),
-  ("StandardJerkSpeedDecrease", "100", 3),
-  ("StandardPersonalityProfile", "1", 2),
-  ("StandbyMode", "0", 2),
-  ("StaticPedalsOnUI", "0", 2),
-  ("SteerDelay", "0", 3),
-  ("SteerDelayStock", "0", 3),
-  ("SteerFriction", "0", 3),
-  ("SteerFrictionStock", "0", 3),
-  ("SteerKP", "0", 3),
-  ("SteerKPStock", "0", 3),
-  ("SteerLatAccel", "0", 3),
-  ("SteerLatAccelStock", "0", 3),
-  ("SteerRatio", "0", 3),
-  ("SteerRatioStock", "0", 3),
-  ("StoppedTimer", "0", 1),
-  ("TacoTune", "0", 2),
-  ("TacoTuneHacks", "0", 2),
-  ("TetheringEnabled", "0", 0),
-  ("ToyotaDoors", "1", 0),
-  ("TrafficFollow", "0.5", 2),
-  ("TrafficJerkAcceleration", "50", 3),
-  ("TrafficJerkDanger", "100", 3),
-  ("TrafficJerkDeceleration", "50", 3),
-  ("TrafficJerkSpeed", "50", 3),
-  ("TrafficJerkSpeedDecrease", "50", 3),
-  ("TrafficPersonalityProfile", "1", 2),
-  ("TuningLevel", "0", 0),
-  ("TuningLevelConfirmed", "0", 0),
-  ("TurnAggressiveness", "100", 2),
-  ("TurnDesires", "0", 2),
-  ("UnlimitedLength", "1", 2),
-  ("UnlockDoors", "1", 0),
-  ("UpdaterAvailableBranches", "", 0),
-  ("UseKonikServer", "0", 2),
-  ("UseSI", "1", 3),
-  ("UseVienna", "0", 1),
-  ("VeryLongDistanceButtonControl", "6", 2),
-  ("VisionTurnControl", "1", 1),
-  ("VoltSNG", "0", 2),
-  ("WarningImmediateVolume", "101", 2),
-  ("WarningSoftVolume", "101", 2),
-  ("WheelIcon", "frog", 0),
-  ("WheelSpeed", "0", 2)
+frogpilot_default_params: list[tuple[str, str | bytes, int, str]] = [
+  ("AccelerationPath", "1", 2, "0"),
+  ("AccelerationProfile", "2", 0, "0"),
+  ("AdjacentLeadsUI", "0", 3, "0"),
+  ("AdjacentPath", "0", 3, "0"),
+  ("AdjacentPathMetrics", "0", 3, "0"),
+  ("AdvancedCustomUI", "0", 2, "0"),
+  ("AdvancedLateralTune", "0", 2, "0"),
+  ("AggressiveFollow", "1.25", 2, "1.25"),
+  ("AggressiveJerkAcceleration", "50", 3, "50"),
+  ("AggressiveJerkDanger", "100", 3, "100"),
+  ("AggressiveJerkDeceleration", "50", 3, "50"),
+  ("AggressiveJerkSpeed", "50", 3, "50"),
+  ("AggressiveJerkSpeedDecrease", "50", 3, "50"),
+  ("AggressivePersonalityProfile", "1", 2, "0"),
+  ("AlertVolumeControl", "0", 2, "0"),
+  ("AlwaysOnDM", "0", 0, "0"),
+  ("AlwaysOnLateral", "1", 0, "0"),
+  ("AlwaysOnLateralLKAS", "1", 0, "0"),
+  ("AlwaysOnLateralMain", "1", 0, "0"),
+  ("AutomaticallyDownloadModels", "1", 1, "0"),
+  ("AutomaticUpdates", "1", 0, "1"),
+  ("AvailableModelNames", "", 1, ""),
+  ("AvailableModels", "", 1, ""),
+  ("BigMap", "0", 2, "0"),
+  ("BlacklistedModels", "", 2, ""),
+  ("BlindSpotMetrics", "1", 3, "0"),
+  ("BlindSpotPath", "1", 1, "0"),
+  ("BorderMetrics", "0", 3, "0"),
+  ("CameraView", "3", 2, "0"),
+  ("CarMake", "", 0, ""),
+  ("CarModel", "", 0, ""),
+  ("CarModelName", "", 0, ""),
+  ("CarParamsPersistent", "", 0, ""),
+  ("CECurves", "0", 1, "0"),
+  ("CECurvesLead", "0", 1, "0"),
+  ("CELead", "0", 1, "0"),
+  ("CEModelStopTime", str(PLANNER_TIME - 2), 2, "0"),
+  ("CENavigation", "1", 2, "0"),
+  ("CENavigationIntersections", "1", 2, "0"),
+  ("CENavigationLead", "1", 2, "0"),
+  ("CENavigationTurns", "1", 2, "0"),
+  ("CESignalSpeed", "55", 2, "0"),
+  ("CESignalLaneDetection", "1", 2, "0"),
+  ("CESlowerLead", "0", 1, "0"),
+  ("CESpeed", "0", 1, "0"),
+  ("CESpeedLead", "0", 1, "0"),
+  ("CEStoppedLead", "0", 1, "0"),
+  ("ClusterOffset", "1.015", 2, "1.015"),
+  ("Compass", "0", 1, "0"),
+  ("ConditionalExperimental", "1", 0, "0"),
+  ("CurveSensitivity", "100", 2, "100"),
+  ("CurveSpeedControl", "1", 1, "0"),
+  ("CustomAlerts", "1", 0, "0"),
+  ("CustomColors", "frog", 0, "stock"),
+  ("CustomCruise", "1", 2, "1"),
+  ("CustomCruiseLong", "5", 2, "5"),
+  ("CustomDistanceIcons", "stock", 0, "stock"),
+  ("CustomIcons", "frog-animated", 0, "stock"),
+  ("CustomPersonalities", "0", 2, "0"),
+  ("CustomSignals", "frog", 0, "stock"),
+  ("CustomSounds", "frog", 0, "stock"),
+  ("CustomUI", "1", 1, "0"),
+  ("DecelerationProfile", "1", 2, "0"),
+  ("DeveloperMetrics", "1", 3, "0"),
+  ("DeveloperSidebar", "1", 3, "0"),
+  ("DeveloperSidebarMetric1", "1", 3, "0"),
+  ("DeveloperSidebarMetric2", "2", 3, "0"),
+  ("DeveloperSidebarMetric3", "3", 3, "0"),
+  ("DeveloperSidebarMetric4", "4", 3, "0"),
+  ("DeveloperSidebarMetric5", "5", 3, "0"),
+  ("DeveloperSidebarMetric6", "6", 3, "0"),
+  ("DeveloperSidebarMetric7", "7", 3, "0"),
+  ("DeveloperWidgets", "1", 3, "0"),
+  ("DeveloperUI", "0", 3, "0"),
+  ("DeviceManagement", "1", 1, "0"),
+  ("DeviceShutdown", "9", 1, "33"),
+  ("DisableOnroadUploads", "0", 2, "0"),
+  ("DisableOpenpilotLongitudinal", "0", 0, "0"),
+  ("DiscordUsername", "", 0, ""),
+  ("DisengageVolume", "101", 2, "101"),
+  ("DistanceButtonControl", "1", 2, "0"),
+  ("DriverCamera", "0", 1, "0"),
+  ("DynamicPathWidth", "0", 2, "0"),
+  ("DynamicPedalsOnUI", "1", 2, "0"),
+  ("EngageVolume", "101", 2, "101"),
+  ("ExperimentalGMTune", "0", 2, "0"),
+  ("ExperimentalLongitudinalEnabled", "0", 0, "0"),
+  ("ExperimentalModeConfirmed", "0", 0, "0"),
+  ("ExperimentalModels", "", 1, ""),
+  ("Fahrenheit", "0", 3, "0"),
+  ("ForceAutoTune", "0", 2, "0"),
+  ("ForceAutoTuneOff", "0", 2, "0"),
+  ("ForceFingerprint", "0", 2, "0"),
+  ("ForceMPHDashboard", "0", 2, "0"),
+  ("ForceStandstill", "0", 2, "0"),
+  ("ForceStops", "0", 2, "0"),
+  ("FPSCounter", "1", 3, "0"),
+  ("FrogsGoMoosTweak", "1", 2, "0"),
+  ("FullMap", "0", 2, "0"),
+  ("GasRegenCmd", "1", 2, "0"),
+  ("GithubSshKeys", "", 0, ""),
+  ("GithubUsername", "", 0, ""),
+  ("GoatScream", "0", 1, "0"),
+  ("GreenLightAlert", "0", 0, "0"),
+  ("GsmApn", "", 0, ""),
+  ("GsmRoaming", "1", 0, "0"),
+  ("HideAlerts", "0", 2, "0"),
+  ("HideLeadMarker", "0", 2, "0"),
+  ("HideMapIcon", "0", 2, "0"),
+  ("HideMaxSpeed", "0", 2, "0"),
+  ("HideSpeed", "0", 2, "0"),
+  ("HideSpeedLimit", "0", 2, "0"),
+  ("HolidayThemes", "1", 0, "0"),
+  ("HumanAcceleration", "1", 2, "0"),
+  ("HumanFollowing", "1", 2, "0"),
+  ("IncreasedStoppedDistance", "0", 1, "0"),
+  ("IncreaseThermalLimits", "0", 2, "0"),
+  ("IsLdwEnabled", "0", 0, "0"),
+  ("IsMetric", "0", 0, "0"),
+  ("KonikDongleId", "", 0, ""),
+  ("KonikMinutes", "0", 0, "0"),
+  ("LaneChangeCustomizations", "0", 0, "0"),
+  ("LaneChangeTime", "2.0", 0, "0"),
+  ("LaneDetectionWidth", "0", 2, "0"),
+  ("LaneLinesWidth", "4", 2, "2"),
+  ("LateralMetrics", "1", 3, "0"),
+  ("LateralTune", "1", 2, "0"),
+  ("LeadDepartingAlert", "0", 0, "0"),
+  ("LeadDetectionThreshold", "35", 3, "50"),
+  ("LeadInfo", "1", 2, "0"),
+  ("LiveDelay", "", 0, ""),
+  ("LKASButtonControl", "5", 2, "0"),
+  ("LockDoors", "1", 0, "0"),
+  ("LockDoorsTimer", "0", 0, "0"),
+  ("LongDistanceButtonControl", "5", 2, "0"),
+  ("LongitudinalMetrics", "1", 2, "0"),
+  ("LongitudinalTune", "1", 0, "0"),
+  ("LongPitch", "1", 2, "0"),
+  ("LoudBlindspotAlert", "0", 0, "0"),
+  ("LowVoltageShutdown", str(VBATT_PAUSE_CHARGING), 2, str(VBATT_PAUSE_CHARGING)),
+  ("MapAcceleration", "0", 1, "0"),
+  ("MapDeceleration", "0", 1, "0"),
+  ("MapGears", "0", 1, "0"),
+  ("MapsSelected", "", 0, ""),
+  ("MapStyle", "1", 2, "0"),
+  ("MapTurnControl", "1", 1, "0"),
+  ("MaxDesiredAcceleration", "4.0", 3, "2.0"),
+  ("MinimumLaneChangeSpeed", str(LANE_CHANGE_SPEED_MIN / CV.MPH_TO_MS), 2, str(LANE_CHANGE_SPEED_MIN / CV.MPH_TO_MS)),
+  ("Model", DEFAULT_CLASSIC_MODEL, 1, DEFAULT_CLASSIC_MODEL),
+  ("ModelDrivesAndScores", "", 2, ""),
+  ("ModelRandomizer", "0", 2, "0"),
+  ("ModelUI", "1", 2, "0"),
+  ("ModelVersion", DEFAULT_CLASSIC_MODEL_VERSION, 2, DEFAULT_CLASSIC_MODEL_VERSION),
+  ("ModelVersions", "", 2, ""),
+  ("MTSCCurvatureCheck", "1", 2, "1"),
+  ("NavigationUI", "1", 1, "0"),
+  ("NavSettingLeftSide", "0", 0, "0"),
+  ("NavSettingTime24h", "0", 0, "0"),
+  ("NewLongAPI", "0", 2, "1"),
+  ("NNFF", "1", 2, "0"),
+  ("NNFFLite", "1", 2, "0"),
+  ("NoLogging", "0", 2, "0"),
+  ("NoUploads", "0", 2, "0"),
+  ("NudgelessLaneChange", "0", 0, "0"),
+  ("NumericalTemp", "1", 2, "0"),
+  ("OfflineMode", "0", 2, "0"),
+  ("Offset1", "5", 0, "0"),
+  ("Offset2", "5", 0, "0"),
+  ("Offset3", "5", 0, "0"),
+  ("Offset4", "5", 0, "0"),
+  ("Offset5", "10", 0, "0"),
+  ("Offset6", "10", 0, "0"),
+  ("Offset7", "10", 0, "0"),
+  ("OneLaneChange", "1", 2, "0"),
+  ("OnroadDistanceButton", "0", 0, "0"),
+  ("openpilotMinutes", "0", 0, "0"),
+  ("PathEdgeWidth", "20", 2, "0"),
+  ("PathWidth", "6.1", 2, "5.9"),
+  ("PauseAOLOnBrake", "0", 2, "0"),
+  ("PauseLateralOnSignal", "0", 2, "0"),
+  ("PauseLateralSpeed", "0", 2, "0"),
+  ("PedalsOnUI", "0", 2, "0"),
+  ("PersonalizeOpenpilot", "1", 0, "0"),
+  ("PreferredSchedule", "2", 0, "0"),
+  ("PromptDistractedVolume", "101", 2, "101"),
+  ("PromptVolume", "101", 2, "101"),
+  ("QOLLateral", "1", 2, "0"),
+  ("QOLLongitudinal", "1", 1, "0"),
+  ("QOLVisuals", "1", 0, "0"),
+  ("RadarTracksUI", "0", 3, "0"),
+  ("RainbowPath", "0", 1, "0"),
+  ("RandomEvents", "0", 1, "0"),
+  ("RandomThemes", "0", 1, "0"),
+  ("RecordFront", "0", 0, "0"),
+  ("RefuseVolume", "101", 2, "101"),
+  ("RelaxedFollow", "1.75", 2, "1.75"),
+  ("RelaxedJerkAcceleration", "100", 3, "100"),
+  ("RelaxedJerkDanger", "100", 3, "100"),
+  ("RelaxedJerkDeceleration", "100", 3, "100"),
+  ("RelaxedJerkSpeed", "100", 3, "100"),
+  ("RelaxedJerkSpeedDecrease", "100", 3, "100"),
+  ("RelaxedPersonalityProfile", "1", 2, "0"),
+  ("ReverseCruise", "0", 1, "0"),
+  ("RoadEdgesWidth", "2", 2, "2"),
+  ("RoadNameUI", "1", 2, "0"),
+  ("RotatingWheel", "1", 1, "0"),
+  ("ScreenBrightness", "101", 2, "101"),
+  ("ScreenBrightnessOnroad", "101", 2, "101"),
+  ("ScreenManagement", "1", 2, "0"),
+  ("ScreenRecorder", "1", 2, "0"),
+  ("ScreenTimeout", "30", 2, "30"),
+  ("ScreenTimeoutOnroad", "30", 2, "10"),
+  ("SearchInput", "0", 0, "0"),
+  ("SecOCKey", "", 0, ""),
+  ("SetSpeedLimit", "0", 1, "0"),
+  ("SetSpeedOffset", "0", 2, "0"),
+  ("ShowCEMStatus", "1", 2, "0"),
+  ("ShowCPU", "1", 3, "0"),
+  ("ShowCSCStatus", "1", 2, "0"),
+  ("ShowGPU", "0", 3, "0"),
+  ("ShowIP", "0", 3, "0"),
+  ("ShowMemoryUsage", "1", 3, "0"),
+  ("ShowSLCOffset", "1", 2, "0"),
+  ("ShowSpeedLimits", "1", 1, "0"),
+  ("ShowSteering", "0", 3, "0"),
+  ("ShowStoppingPoint", "0", 2, "0"),
+  ("ShowStoppingPointMetrics", "0", 2, "0"),
+  ("ShowStorageLeft", "0", 3, "0"),
+  ("ShowStorageUsed", "0", 3, "0"),
+  ("Sidebar", "0", 0, "0"),
+  ("SignalMetrics", "0", 2, "0"),
+  ("SLCConfirmation", "0", 0, "0"),
+  ("SLCConfirmationHigher", "0", 0, "0"),
+  ("SLCConfirmationLower", "0", 0, "0"),
+  ("SLCFallback", "2", 1, "0"),
+  ("SLCLookaheadHigher", "0", 2, "0"),
+  ("SLCLookaheadLower", "0", 2, "0"),
+  ("SLCMapboxFiller", "1", 1, "0"),
+  ("SLCOverride", "1", 1, "0"),
+  ("SLCPriority1", "Navigation", 2, "Navigation"),
+  ("SLCPriority2", "Map Data", 2, "Map Data"),
+  ("SLCPriority3", "Dashboard", 2, "Dashboard"),
+  ("SNGHack", "1", 2, "0"),
+  ("SpeedLimitChangedAlert", "1", 0, "0"),
+  ("SpeedLimitController", "1", 0, "0"),
+  ("SpeedLimitFiller", "0", 0, "0"),
+  ("SpeedLimitSources", "0", 2, "0"),
+  ("SshEnabled", "0", 0, "0"),
+  ("StartupMessageBottom", "Human-tested, frog-approved 🐸", 0, "Always keep hands on wheel and eyes on road"),
+  ("StartupMessageTop", "Hop in and buckle up!", 0, "Be ready to take over at any time"),
+  ("StandardFollow", "1.45", 2, "1.45"),
+  ("StandardJerkAcceleration", "100", 3, "100"),
+  ("StandardJerkDanger", "100", 3, "100"),
+  ("StandardJerkDeceleration", "100", 3, "100"),
+  ("StandardJerkSpeed", "100", 3, "100"),
+  ("StandardJerkSpeedDecrease", "100", 3, "100"),
+  ("StandardPersonalityProfile", "1", 2, "0"),
+  ("StandbyMode", "0", 2, "0"),
+  ("StaticPedalsOnUI", "0", 2, "0"),
+  ("SteerDelay", "", 3, ""),
+  ("SteerDelayStock", "", 3, ""),
+  ("SteerFriction", "", 3, ""),
+  ("SteerFrictionStock", "", 3, ""),
+  ("SteerKP", "", 3, ""),
+  ("SteerKPStock", "", 3, ""),
+  ("SteerLatAccel", "", 3, ""),
+  ("SteerLatAccelStock", "", 3, ""),
+  ("SteerRatio", "", 3, ""),
+  ("SteerRatioStock", "", 3, ""),
+  ("StoppedTimer", "0", 1, "0"),
+  ("TacoTune", "0", 2, "0"),
+  ("TacoTuneHacks", "0", 2, "0"),
+  ("TetheringEnabled", "0", 0, "0"),
+  ("TogglesUpdated", "0", 0, "0"),
+  ("ToyotaDoors", "1", 0, "0"),
+  ("TrafficFollow", "0.5", 2, "0.5"),
+  ("TrafficJerkAcceleration", "50", 3, "50"),
+  ("TrafficJerkDanger", "100", 3, "100"),
+  ("TrafficJerkDeceleration", "50", 3, "50"),
+  ("TrafficJerkSpeed", "50", 3, "50"),
+  ("TrafficJerkSpeedDecrease", "50", 3, "50"),
+  ("TrafficPersonalityProfile", "1", 2, "0"),
+  ("TuningLevel", "0", 0, "0"),
+  ("TuningLevelConfirmed", "0", 0, "0"),
+  ("TurnAggressiveness", "100", 2, "100"),
+  ("TurnDesires", "0", 2, "0"),
+  ("UnlimitedLength", "1", 2, "0"),
+  ("UnlockDoors", "1", 0, "0"),
+  ("UpdaterAvailableBranches", "", 0, ""),
+  ("UseKonikServer", "0", 2, "0"),
+  ("UseSI", "1", 3, "1"),
+  ("UseVienna", "0", 1, "0"),
+  ("VeryLongDistanceButtonControl", "6", 2, "0"),
+  ("VisionTurnControl", "1", 1, "0"),
+  ("VoltSNG", "0", 2, "0"),
+  ("WarningImmediateVolume", "101", 2, "101"),
+  ("WarningSoftVolume", "101", 2, "101"),
+  ("WheelIcon", "frog", 0, "stock"),
+  ("WheelSpeed", "0", 2, "0")
 ]
 
-misc_tuning_levels: list[tuple[str, str | bytes, int]] = [
-  ("SLCPriority", "", 2),
-  ("WheelControls", "", 2)
+misc_tuning_levels: list[tuple[str, str | bytes, int, str]] = [
+  ("SidebarMetrics", "1", 3, "0"),
+  ("SLCPriority", "", 2, ""),
+  ("WheelControls", "", 2, "")
 ]
 
 class FrogPilotVariables:
   def __init__(self):
     self.frogpilot_toggles = get_frogpilot_toggles(block=False)
-    self.tuning_levels = {key: lvl for key, _, lvl in frogpilot_default_params + misc_tuning_levels}
+    self.tuning_levels = {key: lvl for key, _, lvl, _ in frogpilot_default_params + misc_tuning_levels}
 
-    self.short_branch = get_build_metadata().channel
-    self.development_branch = self.short_branch == "FrogPilot-Development"
-    self.release_branch = self.short_branch == "FrogPilot"
-    self.staging_branch = self.short_branch == "FrogPilot-Staging"
-    self.testing_branch = self.short_branch == "FrogPilot-Testing"
-    self.vetting_branch = self.short_branch == "FrogPilot-Vetting"
+    short_branch = get_build_metadata().channel
+    self.development_branch = short_branch == "FrogPilot-Development"
+    self.release_branch = short_branch == "FrogPilot"
+    self.staging_branch = short_branch == "FrogPilot-Staging"
+    self.testing_branch = short_branch == "FrogPilot-Testing"
+    self.vetting_branch = short_branch == "FrogPilot-Vetting"
 
     default = params_default
     level = self.tuning_levels
@@ -399,7 +404,8 @@ class FrogPilotVariables:
 
     tuning_level = params.get_int("TuningLevel") if params.get_bool("TuningLevelConfirmed") else 3
 
-    toggle.use_konik_server = params.get_bool("DeviceManagement") if tuning_level >= level["DeviceManagement"] else default.get_bool("DeviceManagement")
+    device_management = params.get_bool("DeviceManagement") if tuning_level >= level["DeviceManagement"] else default.get_bool("DeviceManagement")
+    toggle.use_konik_server = device_management
     toggle.use_konik_server &= params.get_bool("UseKonikServer") if tuning_level >= level["UseKonikServer"] else default.get_bool("UseKonikServer")
     toggle.use_konik_server |= Path("/data/openpilot/not_vetted").is_file()
 
@@ -422,7 +428,7 @@ class FrogPilotVariables:
       "TRAFFIC_MODE": 6
     }
 
-    for k, v, _ in frogpilot_default_params:
+    for k, v, _, _ in frogpilot_default_params:
       params_default.put(k, v)
 
     params_memory.put("FrogPilotTuningLevels", json.dumps(self.tuning_levels))
@@ -433,6 +439,8 @@ class FrogPilotVariables:
     toggle = self.frogpilot_toggles
 
     toggle.debug_mode = params.get_bool("DebugMode")
+    toggle.force_offroad = params_memory.get_bool("ForceOffroad")
+    toggle.force_onroad = params_memory.get_bool("ForceOnroad")
 
     tuning_level = params.get_int("TuningLevel") if params.get_bool("TuningLevelConfirmed") else 3
 
@@ -444,18 +452,25 @@ class FrogPilotVariables:
     msg_bytes = params.get("CarParams" if started else "CarParamsPersistent", block=started)
     if msg_bytes:
       with car.CarParams.from_bytes(msg_bytes) as CP:
+        is_torque_car = CP.lateralTuning.which() == "torque"
+
         always_on_lateral_set = bool(CP.alternativeExperience & ALTERNATIVE_EXPERIENCE.ALWAYS_ON_LATERAL)
         car_make = CP.carName
         car_model = CP.carFingerprint
+        friction = CP.lateralTuning.torque.friction if is_torque_car else 0.0
         has_auto_tune = car_make in {"hyundai", "toyota"} and CP.lateralTuning.which() == "torque"
         has_bsm = CP.enableBsm
         toggle.has_cc_long = bool(CP.flags & GMFlags.CC_LONG.value)
         has_pedal = CP.enableGasInterceptor
         has_radar = not CP.radarUnavailable
-        is_torque_car = CP.lateralTuning.which() == "torque"
+        has_sng = CP.autoResumeSng
+        latAccelFactor = CP.lateralTuning.torque.latAccelFactor if is_torque_car else 10.0
         max_acceleration_enabled = bool(CP.alternativeExperience & ALTERNATIVE_EXPERIENCE.RAISE_LONGITUDINAL_LIMITS_TO_ISO_MAX)
         openpilot_longitudinal = CP.openpilotLongitudinalControl
         pcm_cruise = CP.pcmCruise
+        steerActuatorDelay = CP.steerActuatorDelay
+        steerKp = CP.lateralTuning.torque.kp if is_torque_car else 1.0
+        steerRatio = CP.steerRatio
         toggle.stoppingDecelRate = CP.stoppingDecelRate
         taco_hacks_allowed = car_make == "hyundai" and CP.safetyConfigs[0].safetyModel == SafetyModel.hyundaiCanfd and CP.safetyConfigs[0].safetyParam != Panda.FLAG_HYUNDAI_CANFD_HDA2
         toggle.use_lkas_for_aol = not openpilot_longitudinal and CP.safetyConfigs[0].safetyModel == SafetyModel.hyundaiCanfd
@@ -465,15 +480,21 @@ class FrogPilotVariables:
       always_on_lateral_set = False
       car_make = "MOCK"
       car_model = "MOCK"
+      friction = 0.0
       has_auto_tune = False
       has_bsm = False
       toggle.has_cc_long = False
       has_pedal = False
       has_radar = False
+      has_sng = False
       is_torque_car = False
+      latAccelFactor = 10.0
       max_acceleration_enabled = False
       openpilot_longitudinal = False
       pcm_cruise = False
+      steerActuatorDelay = 0.0
+      steerKp = 1.0
+      steerRatio = 13.
       toggle.stoppingDecelRate = 0.8
       taco_hacks_allowed = False
       toggle.use_lkas_for_aol = False
@@ -502,20 +523,15 @@ class FrogPilotVariables:
     advanced_lateral_tuning = params.get_bool("AdvancedLateralTune") if tuning_level >= level["AdvancedLateralTune"] else default.get_bool("AdvancedLateralTune")
     toggle.force_auto_tune = advanced_lateral_tuning and not has_auto_tune and is_torque_car and (params.get_bool("ForceAutoTune") if tuning_level >= level["ForceAutoTune"] else default.get_bool("ForceAutoTune"))
     toggle.force_auto_tune_off = advanced_lateral_tuning and has_auto_tune and is_torque_car and (params.get_bool("ForceAutoTuneOff") if tuning_level >= level["ForceAutoTuneOff"] else default.get_bool("ForceAutoTuneOff"))
-    stock_steer_delay = params.get_float("SteerDelayStock")
-    toggle.steer_delay = np.clip(params.get_float("SteerDelay") if advanced_lateral_tuning and tuning_level >= level["SteerDelay"] else stock_steer_delay, stock_steer_delay * 0.5, stock_steer_delay * 1.5)
-    toggle.use_custom_steer_delay = bool(toggle.steer_delay != stock_steer_delay)
-    stock_steer_friction = params.get_float("SteerFrictionStock")
-    toggle.steer_friction = np.clip(params.get_float("SteerFriction") if advanced_lateral_tuning and tuning_level >= level["SteerFriction"] else stock_steer_friction, 0, 0.5)
-    toggle.use_custom_steer_friction = toggle.steer_friction != stock_steer_friction and is_torque_car and not toggle.force_auto_tune or toggle.force_auto_tune_off
-    stock_steer_kp = params.get_float("SteerKPStock")
-    toggle.steer_kp = [[0], [np.clip(params.get_float("SteerKP") if advanced_lateral_tuning and is_torque_car and tuning_level >= level["SteerKP"] else stock_steer_kp, stock_steer_kp * 0.5, stock_steer_kp * 1.5)]]
-    stock_steer_lat_accel_factor = params.get_float("SteerLatAccelStock")
-    toggle.steer_lat_accel_factor = np.clip(params.get_float("SteerLatAccel") if advanced_lateral_tuning and tuning_level >= level["SteerLatAccel"] else stock_steer_lat_accel_factor, stock_steer_lat_accel_factor * 0.5, stock_steer_lat_accel_factor * 1.5)
-    toggle.use_custom_lat_accel_factor = toggle.steer_lat_accel_factor != stock_steer_lat_accel_factor and is_torque_car and not toggle.force_auto_tune or toggle.force_auto_tune_off
-    stock_steer_ratio = params.get_float("SteerRatioStock")
-    toggle.steer_ratio = np.clip(params.get_float("SteerRatio") if advanced_lateral_tuning and tuning_level >= level["SteerRatio"] else stock_steer_ratio, stock_steer_ratio * 0.5, stock_steer_ratio * 1.5)
-    toggle.use_custom_steer_ratio = toggle.steer_ratio != stock_steer_ratio and not toggle.force_auto_tune or toggle.force_auto_tune_off
+    toggle.steerActuatorDelay = np.clip(params.get_float("SteerDelay"), 0.01, 1.0) if advanced_lateral_tuning and tuning_level >= level["SteerDelay"] else steerActuatorDelay
+    toggle.use_custom_steerActuatorDelay = bool(toggle.steerActuatorDelay != steerActuatorDelay)
+    toggle.friction = np.clip(params.get_float("SteerFriction"), 0, 0.5) if advanced_lateral_tuning and tuning_level >= level["SteerFriction"] else friction
+    toggle.use_custom_friction = toggle.friction != friction and is_torque_car and not toggle.force_auto_tune or toggle.force_auto_tune_off
+    toggle.steerKp = [[0], [np.clip(params.get_float("SteerKP"), steerKp * 0.5, steerKp * 1.5) if advanced_lateral_tuning and is_torque_car and tuning_level >= level["SteerKP"] else steerKp]]
+    toggle.latAccelFactor = np.clip(params.get_float("SteerLatAccel"), latAccelFactor * 0.75, latAccelFactor * 1.25) if advanced_lateral_tuning and tuning_level >= level["SteerLatAccel"] else latAccelFactor
+    toggle.use_custom_latAccelFactor = toggle.latAccelFactor != latAccelFactor and is_torque_car and not toggle.force_auto_tune or toggle.force_auto_tune_off
+    toggle.steerRatio = np.clip(params.get_float("SteerRatio"), steerRatio * 0.5, steerRatio * 1.5) if advanced_lateral_tuning and tuning_level >= level["SteerRatio"] else steerRatio
+    toggle.use_custom_steerRatio = toggle.steerRatio != steerRatio and not toggle.force_auto_tune or toggle.force_auto_tune_off
 
     toggle.alert_volume_control = params.get_bool("AlertVolumeControl") if tuning_level >= level["AlertVolumeControl"] else default.get_bool("AlertVolumeControl")
     toggle.disengage_volume = params.get_int("DisengageVolume") if toggle.alert_volume_control and tuning_level >= level["DisengageVolume"] else default.get_int("DisengageVolume")
@@ -532,7 +548,7 @@ class FrogPilotVariables:
     toggle.always_on_lateral_main = toggle.always_on_lateral_set and not toggle.use_lkas_for_aol and (params.get_bool("AlwaysOnLateralMain") if tuning_level >= level["AlwaysOnLateralMain"] else default.get_bool("AlwaysOnLateralMain"))
     toggle.always_on_lateral_pause_speed = params.get_int("PauseAOLOnBrake") if toggle.always_on_lateral_set and tuning_level >= level["PauseAOLOnBrake"] else default.get_int("PauseAOLOnBrake")
 
-    toggle.automatic_updates = params.get_bool("AutomaticUpdates") if tuning_level >= level["AutomaticUpdates"] else default.get_bool("AutomaticUpdates") or self.testing_branch
+    toggle.automatic_updates = params.get_bool("AutomaticUpdates") if tuning_level >= level["AutomaticUpdates"] and (self.release_branch or self.vetting_branch) or BACKUP_PATH.is_file() else default.get_bool("AutomaticUpdates")
 
     toggle.car_model = params.get("CarModel", encoding="utf-8") or car_model
 
@@ -572,32 +588,32 @@ class FrogPilotVariables:
 
     toggle.custom_personalities = openpilot_longitudinal and params.get_bool("CustomPersonalities") if tuning_level >= level["CustomPersonalities"] else default.get_bool("CustomPersonalities")
     aggressive_profile = toggle.custom_personalities and (params.get_bool("AggressivePersonalityProfile") if tuning_level >= level["AggressivePersonalityProfile"] else default.get_bool("AggressivePersonalityProfile"))
-    toggle.aggressive_jerk_acceleration = np.clip(params.get_int("AggressiveJerkAcceleration") / 100, 0.01, 5) if aggressive_profile and tuning_level >= level["AggressiveJerkAcceleration"] else default.get_int("AggressiveJerkAcceleration") / 100
-    toggle.aggressive_jerk_deceleration = np.clip(params.get_int("AggressiveJerkDeceleration") / 100, 0.01, 5) if aggressive_profile and tuning_level >= level["AggressiveJerkDeceleration"] else default.get_int("AggressiveJerkDeceleration") / 100
-    toggle.aggressive_jerk_danger = np.clip(params.get_int("AggressiveJerkDanger") / 100, 0.01, 5) if aggressive_profile and tuning_level >= level["AggressiveJerkDanger"] else default.get_int("AggressiveJerkDanger") / 100
-    toggle.aggressive_jerk_speed = np.clip(params.get_int("AggressiveJerkSpeed") / 100, 0.01, 5) if aggressive_profile and tuning_level >= level["AggressiveJerkSpeed"] else default.get_int("AggressiveJerkSpeed") / 100
-    toggle.aggressive_jerk_speed_decrease = np.clip(params.get_int("AggressiveJerkSpeedDecrease") / 100, 0.01, 5) if aggressive_profile and tuning_level >= level["AggressiveJerkSpeedDecrease"] else default.get_int("AggressiveJerkSpeedDecrease") / 100
+    toggle.aggressive_jerk_acceleration = np.clip(params.get_int("AggressiveJerkAcceleration") / 100, 0.25, 2) if aggressive_profile and tuning_level >= level["AggressiveJerkAcceleration"] else default.get_int("AggressiveJerkAcceleration") / 100
+    toggle.aggressive_jerk_deceleration = np.clip(params.get_int("AggressiveJerkDeceleration") / 100, 0.25, 2) if aggressive_profile and tuning_level >= level["AggressiveJerkDeceleration"] else default.get_int("AggressiveJerkDeceleration") / 100
+    toggle.aggressive_jerk_danger = np.clip(params.get_int("AggressiveJerkDanger") / 100, 0.25, 2) if aggressive_profile and tuning_level >= level["AggressiveJerkDanger"] else default.get_int("AggressiveJerkDanger") / 100
+    toggle.aggressive_jerk_speed = np.clip(params.get_int("AggressiveJerkSpeed") / 100, 0.25, 2) if aggressive_profile and tuning_level >= level["AggressiveJerkSpeed"] else default.get_int("AggressiveJerkSpeed") / 100
+    toggle.aggressive_jerk_speed_decrease = np.clip(params.get_int("AggressiveJerkSpeedDecrease") / 100, 0.25, 2) if aggressive_profile and tuning_level >= level["AggressiveJerkSpeedDecrease"] else default.get_int("AggressiveJerkSpeedDecrease") / 100
     toggle.aggressive_follow = np.clip(params.get_float("AggressiveFollow"), 1, 5) if aggressive_profile and tuning_level >= level["AggressiveFollow"] else default.get_float("AggressiveFollow")
     standard_profile = toggle.custom_personalities and (params.get_bool("StandardPersonalityProfile") if tuning_level >= level["StandardPersonalityProfile"] else default.get_bool("StandardPersonalityProfile"))
-    toggle.standard_jerk_acceleration = np.clip(params.get_int("StandardJerkAcceleration") / 100, 0.01, 5) if standard_profile and tuning_level >= level["StandardJerkAcceleration"] else default.get_int("StandardJerkAcceleration") / 100
-    toggle.standard_jerk_deceleration = np.clip(params.get_int("StandardJerkDeceleration") / 100, 0.01, 5) if standard_profile and tuning_level >= level["StandardJerkDeceleration"] else default.get_int("StandardJerkDeceleration") / 100
-    toggle.standard_jerk_danger = np.clip(params.get_int("StandardJerkDanger") / 100, 0.01, 5) if standard_profile and tuning_level >= level["StandardJerkDanger"] else default.get_int("StandardJerkDanger") / 100
-    toggle.standard_jerk_speed = np.clip(params.get_int("StandardJerkSpeed") / 100, 0.01, 5) if standard_profile and tuning_level >= level["StandardJerkSpeed"] else default.get_int("StandardJerkSpeed") / 100
-    toggle.standard_jerk_speed_decrease = np.clip(params.get_int("StandardJerkSpeedDecrease") / 100, 0.01, 5) if standard_profile and tuning_level >= level["StandardJerkSpeedDecrease"] else default.get_int("StandardJerkSpeedDecrease") / 100
+    toggle.standard_jerk_acceleration = np.clip(params.get_int("StandardJerkAcceleration") / 100, 0.25, 2) if standard_profile and tuning_level >= level["StandardJerkAcceleration"] else default.get_int("StandardJerkAcceleration") / 100
+    toggle.standard_jerk_deceleration = np.clip(params.get_int("StandardJerkDeceleration") / 100, 0.25, 2) if standard_profile and tuning_level >= level["StandardJerkDeceleration"] else default.get_int("StandardJerkDeceleration") / 100
+    toggle.standard_jerk_danger = np.clip(params.get_int("StandardJerkDanger") / 100, 0.25, 2) if standard_profile and tuning_level >= level["StandardJerkDanger"] else default.get_int("StandardJerkDanger") / 100
+    toggle.standard_jerk_speed = np.clip(params.get_int("StandardJerkSpeed") / 100, 0.25, 2) if standard_profile and tuning_level >= level["StandardJerkSpeed"] else default.get_int("StandardJerkSpeed") / 100
+    toggle.standard_jerk_speed_decrease = np.clip(params.get_int("StandardJerkSpeedDecrease") / 100, 0.25, 2) if standard_profile and tuning_level >= level["StandardJerkSpeedDecrease"] else default.get_int("StandardJerkSpeedDecrease") / 100
     toggle.standard_follow = np.clip(params.get_float("StandardFollow"), 1, 5) if standard_profile and tuning_level >= level["StandardFollow"] else default.get_float("StandardFollow")
     relaxed_profile = toggle.custom_personalities and (params.get_bool("RelaxedPersonalityProfile") if tuning_level >= level["RelaxedPersonalityProfile"] else default.get_bool("RelaxedPersonalityProfile"))
-    toggle.relaxed_jerk_acceleration = np.clip(params.get_int("RelaxedJerkAcceleration") / 100, 0.01, 5) if relaxed_profile and tuning_level >= level["RelaxedJerkAcceleration"] else default.get_int("RelaxedJerkAcceleration") / 100
-    toggle.relaxed_jerk_deceleration = np.clip(params.get_int("RelaxedJerkDeceleration") / 100, 0.01, 5) if relaxed_profile and tuning_level >= level["RelaxedJerkDeceleration"] else default.get_int("RelaxedJerkDeceleration") / 100
-    toggle.relaxed_jerk_danger = np.clip(params.get_int("RelaxedJerkDanger") / 100, 0.01, 5) if relaxed_profile and tuning_level >= level["RelaxedJerkDanger"] else default.get_int("RelaxedJerkDanger") / 100
-    toggle.relaxed_jerk_speed = np.clip(params.get_int("RelaxedJerkSpeed") / 100, 0.01, 5) if relaxed_profile and tuning_level >= level["RelaxedJerkSpeed"] else default.get_int("RelaxedJerkSpeed") / 100
-    toggle.relaxed_jerk_speed_decrease = np.clip(params.get_int("RelaxedJerkSpeedDecrease") / 100, 0.01, 5) if relaxed_profile and tuning_level >= level["RelaxedJerkSpeedDecrease"] else default.get_int("RelaxedJerkSpeedDecrease") / 100
+    toggle.relaxed_jerk_acceleration = np.clip(params.get_int("RelaxedJerkAcceleration") / 100, 0.25, 2) if relaxed_profile and tuning_level >= level["RelaxedJerkAcceleration"] else default.get_int("RelaxedJerkAcceleration") / 100
+    toggle.relaxed_jerk_deceleration = np.clip(params.get_int("RelaxedJerkDeceleration") / 100, 0.25, 2) if relaxed_profile and tuning_level >= level["RelaxedJerkDeceleration"] else default.get_int("RelaxedJerkDeceleration") / 100
+    toggle.relaxed_jerk_danger = np.clip(params.get_int("RelaxedJerkDanger") / 100, 0.25, 2) if relaxed_profile and tuning_level >= level["RelaxedJerkDanger"] else default.get_int("RelaxedJerkDanger") / 100
+    toggle.relaxed_jerk_speed = np.clip(params.get_int("RelaxedJerkSpeed") / 100, 0.25, 2) if relaxed_profile and tuning_level >= level["RelaxedJerkSpeed"] else default.get_int("RelaxedJerkSpeed") / 100
+    toggle.relaxed_jerk_speed_decrease = np.clip(params.get_int("RelaxedJerkSpeedDecrease") / 100, 0.25, 2) if relaxed_profile and tuning_level >= level["RelaxedJerkSpeedDecrease"] else default.get_int("RelaxedJerkSpeedDecrease") / 100
     toggle.relaxed_follow = np.clip(params.get_float("RelaxedFollow"), 1, 5) if relaxed_profile and tuning_level >= level["RelaxedFollow"] else default.get_float("RelaxedFollow")
     traffic_profile = toggle.custom_personalities and (params.get_bool("TrafficPersonalityProfile") if tuning_level >= level["TrafficPersonalityProfile"] else default.get_bool("TrafficPersonalityProfile"))
-    toggle.traffic_mode_jerk_acceleration = [np.clip(params.get_int("TrafficJerkAcceleration") / 100, 0.01, 5) if traffic_profile and tuning_level >= level["TrafficJerkAcceleration"] else default.get_int("TrafficJerkAcceleration") / 100, toggle.aggressive_jerk_acceleration]
-    toggle.traffic_mode_jerk_deceleration = [np.clip(params.get_int("TrafficJerkDeceleration") / 100, 0.01, 5) if traffic_profile and tuning_level >= level["TrafficJerkDeceleration"] else default.get_int("TrafficJerkDeceleration") / 100, toggle.aggressive_jerk_deceleration]
-    toggle.traffic_mode_jerk_danger = [np.clip(params.get_int("TrafficJerkDanger") / 100, 0.01, 5) if traffic_profile and tuning_level >= level["TrafficJerkDanger"] else default.get_int("TrafficJerkDanger") / 100, toggle.aggressive_jerk_danger]
-    toggle.traffic_mode_jerk_speed = [np.clip(params.get_int("TrafficJerkSpeed") / 100, 0.01, 5) if traffic_profile and tuning_level >= level["TrafficJerkSpeed"] else default.get_int("TrafficJerkSpeed") / 100, toggle.aggressive_jerk_speed]
-    toggle.traffic_mode_jerk_speed_decrease = [np.clip(params.get_int("TrafficJerkSpeedDecrease") / 100, 0.01, 5) if traffic_profile and tuning_level >= level["TrafficJerkSpeedDecrease"] else default.get_int("TrafficJerkSpeedDecrease") / 100, toggle.aggressive_jerk_speed_decrease]
+    toggle.traffic_mode_jerk_acceleration = [np.clip(params.get_int("TrafficJerkAcceleration") / 100, 0.25, 2) if traffic_profile and tuning_level >= level["TrafficJerkAcceleration"] else default.get_int("TrafficJerkAcceleration") / 100, toggle.aggressive_jerk_acceleration]
+    toggle.traffic_mode_jerk_deceleration = [np.clip(params.get_int("TrafficJerkDeceleration") / 100, 0.25, 2) if traffic_profile and tuning_level >= level["TrafficJerkDeceleration"] else default.get_int("TrafficJerkDeceleration") / 100, toggle.aggressive_jerk_deceleration]
+    toggle.traffic_mode_jerk_danger = [np.clip(params.get_int("TrafficJerkDanger") / 100, 0.25, 2) if traffic_profile and tuning_level >= level["TrafficJerkDanger"] else default.get_int("TrafficJerkDanger") / 100, toggle.aggressive_jerk_danger]
+    toggle.traffic_mode_jerk_speed = [np.clip(params.get_int("TrafficJerkSpeed") / 100, 0.25, 2) if traffic_profile and tuning_level >= level["TrafficJerkSpeed"] else default.get_int("TrafficJerkSpeed") / 100, toggle.aggressive_jerk_speed]
+    toggle.traffic_mode_jerk_speed_decrease = [np.clip(params.get_int("TrafficJerkSpeedDecrease") / 100, 0.25, 2) if traffic_profile and tuning_level >= level["TrafficJerkSpeedDecrease"] else default.get_int("TrafficJerkSpeedDecrease") / 100, toggle.aggressive_jerk_speed_decrease]
     toggle.traffic_mode_follow = [np.clip(params.get_float("TrafficFollow"), 0.5, 5) if traffic_profile and tuning_level >= level["TrafficFollow"] else default.get_float("TrafficFollow"), toggle.aggressive_follow]
 
     custom_ui = params.get_bool("CustomUI") if tuning_level >= level["CustomUI"] else default.get_bool("CustomUI")
@@ -621,13 +637,12 @@ class FrogPilotVariables:
     toggle.lead_metrics = (developer_metrics and params.get_bool("LeadInfo") if tuning_level >= level["LeadInfo"] else default.get_bool("LeadInfo")) or toggle.debug_mode
     toggle.numerical_temp = developer_metrics and (params.get_bool("NumericalTemp") if tuning_level >= level["NumericalTemp"] else default.get_bool("NumericalTemp")) or toggle.debug_mode
     toggle.fahrenheit = toggle.numerical_temp and (params.get_bool("Fahrenheit") if tuning_level >= level["Fahrenheit"] else default.get_bool("Fahrenheit")) and not toggle.debug_mode
-    toggle.sidebar_metrics = developer_metrics and (params.get_bool("SidebarMetrics") if tuning_level >= level["SidebarMetrics"] else default.get_bool("SidebarMetrics")) or toggle.debug_mode
-    toggle.cpu_metrics = toggle.sidebar_metrics and (params.get_bool("ShowCPU") if tuning_level >= level["ShowCPU"] else default.get_bool("ShowCPU")) or toggle.debug_mode
-    toggle.gpu_metrics = toggle.sidebar_metrics and (params.get_bool("ShowGPU") if tuning_level >= level["ShowGPU"] else default.get_bool("ShowGPU")) and not toggle.debug_mode
-    toggle.ip_metrics = toggle.sidebar_metrics and (params.get_bool("ShowIP") if tuning_level >= level["ShowIP"] else default.get_bool("ShowIP"))
-    toggle.memory_metrics = toggle.sidebar_metrics and (params.get_bool("ShowMemoryUsage") if tuning_level >= level["ShowMemoryUsage"] else default.get_bool("ShowMemoryUsage")) or toggle.debug_mode
-    toggle.storage_left_metrics = toggle.sidebar_metrics and (params.get_bool("ShowStorageLeft") if tuning_level >= level["ShowStorageLeft"] else default.get_bool("ShowStorageLeft")) and not toggle.debug_mode
-    toggle.storage_used_metrics = toggle.sidebar_metrics and (params.get_bool("ShowStorageUsed") if tuning_level >= level["ShowStorageUsed"] else default.get_bool("ShowStorageUsed")) and not toggle.debug_mode
+    toggle.cpu_metrics = developer_metrics and (params.get_bool("ShowCPU") if tuning_level >= level["ShowCPU"] else default.get_bool("ShowCPU")) or toggle.debug_mode
+    toggle.gpu_metrics = developer_metrics and (params.get_bool("ShowGPU") if tuning_level >= level["ShowGPU"] else default.get_bool("ShowGPU")) and not toggle.debug_mode
+    toggle.ip_metrics = developer_metrics and (params.get_bool("ShowIP") if tuning_level >= level["ShowIP"] else default.get_bool("ShowIP"))
+    toggle.memory_metrics = developer_metrics and (params.get_bool("ShowMemoryUsage") if tuning_level >= level["ShowMemoryUsage"] else default.get_bool("ShowMemoryUsage")) or toggle.debug_mode
+    toggle.storage_left_metrics = developer_metrics and (params.get_bool("ShowStorageLeft") if tuning_level >= level["ShowStorageLeft"] else default.get_bool("ShowStorageLeft")) and not toggle.debug_mode
+    toggle.storage_used_metrics = developer_metrics and (params.get_bool("ShowStorageUsed") if tuning_level >= level["ShowStorageUsed"] else default.get_bool("ShowStorageUsed")) and not toggle.debug_mode
     toggle.use_si_metrics = developer_metrics and (params.get_bool("UseSI") if tuning_level >= level["UseSI"] else default.get_bool("UseSI")) or toggle.debug_mode
     toggle.developer_sidebar = toggle.developer_ui and (params.get_bool("DeveloperSidebar") if tuning_level >= level["DeveloperSidebar"] else default.get_bool("DeveloperSidebar")) or toggle.debug_mode
     toggle.developer_sidebar_metric1 = params.get_int("DeveloperSidebarMetric1") if toggle.developer_sidebar and tuning_level >= level["DeveloperSidebarMetric1"] else 1 if toggle.debug_mode else default.get_float("DeveloperSidebarMetric1")
@@ -648,8 +663,8 @@ class FrogPilotVariables:
     toggle.device_shutdown_time = (device_shutdown_setting - 3) * 3600 if device_shutdown_setting >= 4 else device_shutdown_setting * (60 * 15)
     toggle.increase_thermal_limits = device_management and (params.get_bool("IncreaseThermalLimits") if tuning_level >= level["IncreaseThermalLimits"] else default.get_bool("IncreaseThermalLimits"))
     toggle.low_voltage_shutdown = np.clip(params.get_float("LowVoltageShutdown"), VBATT_PAUSE_CHARGING, 12.5) if device_management and tuning_level >= level["LowVoltageShutdown"] else default.get_float("LowVoltageShutdown")
-    toggle.no_logging = ((device_management and (params.get_bool("NoLogging") if tuning_level >= level["NoLogging"] else default.get_bool("NoLogging")) or self.development_branch) and not self.vetting_branch) or params_memory.get_bool("ForceOnroad")
-    toggle.no_uploads = (device_management and (params.get_bool("NoUploads") if tuning_level >= level["NoUploads"] else default.get_bool("NoUploads")) or self.development_branch) and not self.vetting_branch
+    toggle.no_logging = device_management and (params.get_bool("NoLogging") if tuning_level >= level["NoLogging"] else default.get_bool("NoLogging")) and not self.vetting_branch or toggle.force_onroad
+    toggle.no_uploads = device_management and (params.get_bool("NoUploads") if tuning_level >= level["NoUploads"] else default.get_bool("NoUploads")) and not self.vetting_branch
     toggle.no_onroad_uploads = toggle.no_uploads and (params.get_bool("DisableOnroadUploads") if tuning_level >= level["DisableOnroadUploads"] else default.get_bool("DisableOnroadUploads"))
     toggle.offline_mode = device_management and (params.get_bool("OfflineMode") if tuning_level >= level["OfflineMode"] else default.get_bool("OfflineMode"))
 
@@ -706,8 +721,8 @@ class FrogPilotVariables:
     toggle.one_lane_change = lane_change_customizations and (params.get_bool("OneLaneChange") if tuning_level >= level["OneLaneChange"] else default.get_bool("OneLaneChange"))
 
     lateral_tuning = params.get_bool("LateralTune") if tuning_level >= level["LateralTune"] else default.get_bool("LateralTune")
-    toggle.nnff = lateral_tuning and (params.get_bool("NNFF") if tuning_level >= level["NNFF"] else default.get_bool("NNFF")) and car_make != "honda"
-    toggle.nnff_lite = lateral_tuning and (params.get_bool("NNFFLite") if tuning_level >= level["NNFFLite"] else default.get_bool("NNFFLite")) and car_make != "honda"
+    toggle.nnff = lateral_tuning and (params.get_bool("NNFF") if tuning_level >= level["NNFF"] else default.get_bool("NNFF"))
+    toggle.nnff_lite = not toggle.nnff and lateral_tuning and (params.get_bool("NNFFLite") if tuning_level >= level["NNFFLite"] else default.get_bool("NNFFLite"))
     toggle.use_turn_desires = lateral_tuning and (params.get_bool("TurnDesires") if tuning_level >= level["TurnDesires"] else default.get_bool("TurnDesires"))
 
     lkas_button_control = (params.get_int("LKASButtonControl") if tuning_level >= level["LKASButtonControl"] else default.get_int("LKASButtonControl")) if car_make != "subaru" else 0
@@ -729,7 +744,7 @@ class FrogPilotVariables:
     toggle.deceleration_profile = params.get_int("DecelerationProfile") if longitudinal_tuning and tuning_level >= level["DecelerationProfile"] else default.get_int("DecelerationProfile")
     toggle.human_acceleration = longitudinal_tuning and (params.get_bool("HumanAcceleration") if tuning_level >= level["HumanAcceleration"] else default.get_bool("HumanAcceleration"))
     toggle.human_following = longitudinal_tuning and (params.get_bool("HumanFollowing") if tuning_level >= level["HumanFollowing"] else default.get_bool("HumanFollowing"))
-    toggle.lead_detection_probability = np.clip(params.get_int("LeadDetectionThreshold") / 100, 0.01, 0.99) if longitudinal_tuning and tuning_level >= level["LeadDetectionThreshold"] else default.get_int("LeadDetectionThreshold") / 100
+    toggle.lead_detection_probability = np.clip(params.get_int("LeadDetectionThreshold") / 100, 0.25, 0.50) if longitudinal_tuning and tuning_level >= level["LeadDetectionThreshold"] else default.get_int("LeadDetectionThreshold") / 100
     toggle.max_desired_acceleration = np.clip(params.get_float("MaxDesiredAcceleration"), 0.1, 4.0) if longitudinal_tuning and tuning_level >= level["MaxDesiredAcceleration"] else default.get_float("MaxDesiredAcceleration")
     toggle.taco_tune = longitudinal_tuning and (params.get_bool("TacoTune") if tuning_level >= level["TacoTune"] else default.get_bool("TacoTune"))
 
@@ -832,7 +847,7 @@ class FrogPilotVariables:
     toggle.screen_timeout = params.get_int("ScreenTimeout") if screen_management and tuning_level >= level["ScreenTimeout"] else default.get_int("ScreenTimeout")
     toggle.screen_timeout_onroad = params.get_int("ScreenTimeoutOnroad") if screen_management and tuning_level >= level["ScreenTimeoutOnroad"] else default.get_int("ScreenTimeoutOnroad")
 
-    toggle.sng_hack = openpilot_longitudinal and car_make == "toyota" and not has_pedal and (params.get_bool("SNGHack") if tuning_level >= level["SNGHack"] else default.get_bool("SNGHack"))
+    toggle.sng_hack = openpilot_longitudinal and car_make == "toyota" and not has_pedal and not has_sng and (params.get_bool("SNGHack") if tuning_level >= level["SNGHack"] else default.get_bool("SNGHack"))
 
     toggle.speed_limit_controller = openpilot_longitudinal and (params.get_bool("SpeedLimitController") if tuning_level >= level["SpeedLimitController"] else default.get_bool("SpeedLimitController"))
     toggle.force_mph_dashboard = toggle.speed_limit_controller and (params.get_bool("ForceMPHDashboard") if tuning_level >= level["ForceMPHDashboard"] else default.get_bool("ForceMPHDashboard"))

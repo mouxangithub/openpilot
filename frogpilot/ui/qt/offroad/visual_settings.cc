@@ -57,7 +57,7 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(FrogPilotSettingsWindow *parent) : 
     {"LeadInfo", tr("Lead Info"), tr("Metrics displayed under vehicle markers listing their distance and current speed."), ""},
     {"FPSCounter", tr("FPS Display"), tr("Display the <b>Frames Per Second (FPS)</b> at the bottom of the driving screen."), ""},
     {"NumericalTemp", tr("Numerical Temperature Gauge"), tr("Use numerical temperature readings instead of status labels in the sidebar."), ""},
-    {"SidebarMetrics", tr("Sidebar"), tr("Display system information (<b>CPU</b>, <b>GPU</b>, <b>RAM usage</b>, <b>IP address</b>, <b>device storage</b>) in the sidebar."), ""},
+    {"SidebarMetrics", tr("Sidebar Metrics"), tr("Display system information (<b>CPU</b>, <b>GPU</b>, <b>RAM usage</b>, <b>IP address</b>, <b>device storage</b>) in the sidebar."), ""},
     {"UseSI", tr("Use International System of Units"), tr("Display measurements using the <b>International System of Units (SI)</b> standard."), ""},
     {"DeveloperSidebar", tr("Developer Sidebar"), tr("Display debugging info and metrics in a dedicated sidebar on the right side of the screen."), ""},
     {"DeveloperSidebarMetric1", tr("Metric #1"), tr("Metric to display in the first metric in the \"Developer Sidebar\"."), ""},
@@ -140,10 +140,17 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(FrogPilotSettingsWindow *parent) : 
       std::vector<QString> temperatureToggleNames{tr("Fahrenheit")};
       visualToggle = new FrogPilotButtonToggleControl(param, title, desc, icon, temperatureToggles, temperatureToggleNames);
     } else if (param == "SidebarMetrics") {
-      std::vector<QString> sidebarMetricsToggles{"ShowCPU", "ShowGPU", "ShowIP", "ShowMemoryUsage", "ShowStorageLeft", "ShowStorageUsed"};
+      sidebarMetricsToggles = {"ShowCPU", "ShowGPU", "ShowIP", "ShowMemoryUsage", "ShowStorageLeft", "ShowStorageUsed"};
       std::vector<QString> sidebarMetricsToggleNames{tr("CPU"), tr("GPU"), tr("IP"), tr("RAM"), tr("SSD Left"), tr("SSD Used")};
-      FrogPilotButtonToggleControl *sidebarMetricsToggle = new FrogPilotButtonToggleControl(param, title, desc, icon, sidebarMetricsToggles, sidebarMetricsToggleNames, false, 150);
-      QObject::connect(sidebarMetricsToggle, &FrogPilotButtonToggleControl::buttonClicked, [this, sidebarMetricsToggle](int id) {
+      sidebarMetricsToggle = new FrogPilotButtonsControl(title, desc, icon, sidebarMetricsToggleNames, true, false, 150);
+      for (int i = 0; i < sidebarMetricsToggles.size(); ++i) {
+        if (params.getBool(sidebarMetricsToggles[i].toStdString())) {
+          sidebarMetricsToggle->setCheckedButton(i);
+        }
+      }
+      QObject::connect(sidebarMetricsToggle, &FrogPilotButtonsControl::buttonClicked, [this](int id) {
+        params.putBool(sidebarMetricsToggles[id].toStdString(), !params.getBool(sidebarMetricsToggles[id].toStdString()));
+
         if (id == 0) {
           params.putBool("ShowGPU", false);
         } else if (id == 1) {
@@ -158,7 +165,13 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(FrogPilotSettingsWindow *parent) : 
           params.putBool("ShowMemoryUsage", false);
           params.putBool("ShowStorageLeft", false);
         }
-        sidebarMetricsToggle->refresh();
+
+        sidebarMetricsToggle->clearCheckedButtons();
+        for (int i = 0; i < sidebarMetricsToggles.size(); ++i) {
+          if (params.getBool(sidebarMetricsToggles[i].toStdString())) {
+            sidebarMetricsToggle->setCheckedButton(i);
+          }
+        }
       });
       visualToggle = sidebarMetricsToggle;
     } else if (param == "DeveloperSidebar") {
@@ -269,17 +282,18 @@ FrogPilotVisualsPanel::FrogPilotVisualsPanel(FrogPilotSettingsWindow *parent) : 
       visualToggle = new FrogPilotButtonToggleControl(param, title, desc, icon, mapToggles, mapToggleNames);
     } else if (param == "MapStyle") {
       QMap<int, QString> styleMap {
-        {0, tr("Stock")},
-        {1, tr("Mapbox Streets")},
-        {2, tr("Mapbox Outdoors")},
-        {3, tr("Mapbox Light")},
-        {4, tr("Mapbox Dark")},
-        {7, tr("Mapbox Navigation Day")},
-        {8, tr("Mapbox Navigation Night")},
-        {5, tr("Mapbox Satellite")},
-        {6, tr("Mapbox Satellite Streets")},
-        {9, tr("Mapbox Traffic Night")},
-        {10, tr("mike854's (Satellite hybrid)")}
+        {0, tr("Stock openpilot")},
+        {1, tr("FrogsGoMoo's Personalized Style")},
+        {2, tr("Mapbox Streets")},
+        {3, tr("Mapbox Outdoors")},
+        {4, tr("Mapbox Light")},
+        {5, tr("Mapbox Dark")},
+        {6, tr("Mapbox Navigation Day")},
+        {7, tr("Mapbox Navigation Night")},
+        {8, tr("Mapbox Satellite")},
+        {9, tr("Mapbox Satellite Streets")},
+        {10, tr("Mapbox Traffic Night")},
+        {11, tr("Mike's Personalized Style")}
       };
 
       ButtonControl *mapStyleButton = new ButtonControl(title, tr("SELECT"), desc);
@@ -371,6 +385,12 @@ void FrogPilotVisualsPanel::showEvent(QShowEvent *event) {
   hasOpenpilotLongitudinal = parent->hasOpenpilotLongitudinal;
   hasRadar = parent->hasRadar;
   tuningLevel = parent->tuningLevel;
+
+  for (int i = 0; i < sidebarMetricsToggles.size(); ++i) {
+    if (params.getBool(sidebarMetricsToggles[i].toStdString())) {
+      sidebarMetricsToggle->setCheckedButton(i);
+    }
+  }
 
   updateToggles();
 }
@@ -484,7 +504,7 @@ void FrogPilotVisualsPanel::updateToggles() {
     }
 
     if (key == "ShowSpeedLimits") {
-      setVisible &= !params.getBool("SpeedLimitController");
+      setVisible &= !params.getBool("SpeedLimitController") || !hasOpenpilotLongitudinal;
     }
 
     if (key == "ShowStoppingPoint") {

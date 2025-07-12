@@ -74,12 +74,12 @@ private:
   void updateTheme();
 
   bool isCPU;
+  bool isDeveloperUI;
   bool isFahrenheit;
   bool isGPU;
   bool isIP;
   bool isMemoryUsage;
   bool isNumericalTemp;
-  bool isSidebarMetrics;
   bool isStorageLeft;
   bool isStorageUsed;
 

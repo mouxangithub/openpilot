@@ -19,7 +19,7 @@ from openpilot.common.realtime import DT_CTRL
 from openpilot.selfdrive.car import apply_hysteresis, gen_empty_fingerprint, scale_rot_inertia, scale_tire_stiffness, STD_CARGO_KG
 from openpilot.selfdrive.car.chrysler.values import CAR as ChryslerCAR, ChryslerFrogPilotFlags
 from openpilot.selfdrive.car.hyundai.hyundaicanfd import CanBus
-from openpilot.selfdrive.car.hyundai.values import CANFD_CAR, HyundaiFrogPilotFlags
+from openpilot.selfdrive.car.hyundai.values import CAR as HyundaiCAR, CANFD_CAR, HyundaiFrogPilotFlags
 from openpilot.selfdrive.car.toyota.values import CAR as ToyotaCAR, ToyotaFrogPilotFlags
 from openpilot.selfdrive.car.values import PLATFORMS
 from openpilot.selfdrive.controls.lib.drive_helpers import V_CRUISE_MAX, get_friction
@@ -227,7 +227,7 @@ class CarInterfaceBase(ABC):
     self.can_parsers = [self.cp, self.cp_cam, self.cp_adas, self.cp_body, self.cp_loopback]
 
     dbc_name = "" if self.cp is None else self.cp.dbc_name
-    self.CC: CarControllerBase = CarController(dbc_name, CP, self.VM)
+    self.CC: CarControllerBase = CarController(dbc_name, CP, FPCP, self.VM)
 
     # FrogPilot variables
     frogpilot_toggles = get_frogpilot_toggles()
@@ -306,16 +306,15 @@ class CarInterfaceBase(ABC):
   def get_frogpilot_params(cls, candidate: str, car_fw: list[car.CarParams.CarFw], fingerprint: dict[int, dict[int, int]], frogpilot_toggles: SimpleNamespace):
     fp_ret = custom.FrogPilotCarParams.new_message()
 
-    brand = candidate.split('_')[0].lower()
     platform = PLATFORMS[candidate]
     fp_ret.fpFlags |= int(platform.config.flags)
 
-    if brand == "chrysler":
+    if platform in ChryslerCAR:
       if candidate == ChryslerCAR.RAM_HD_5TH_GEN:
         if 570 not in fingerprint[0]:
           fp_ret.fpFlags |= ChryslerFrogPilotFlags.RAM_HD_ALT_BUTTONS.value
 
-    elif brand == "hyundai":
+    elif platform in HyundaiCAR:
       if candidate in CANFD_CAR:
         hda2 = Ecu.adas in [fw.ecu for fw in car_fw]
 
@@ -333,7 +332,7 @@ class CarInterfaceBase(ABC):
         if 0x544 in fingerprint[0]:
           fp_ret.fpFlags |= HyundaiFrogPilotFlags.NAV_MSG.value
 
-    elif brand == "toyota":
+    elif platform in ToyotaCAR:
       if candidate == ToyotaCAR.TOYOTA_PRIUS:
         if 0x23 in fingerprint[0]:
           fp_ret.fpFlags |= ToyotaFrogPilotFlags.ZSS.value
@@ -675,7 +674,7 @@ SendCan = tuple[int, int, bytes, int]
 
 
 class CarControllerBase(ABC):
-  def __init__(self, dbc_name: str, CP, VM):
+  def __init__(self, dbc_name: str, CP, FPPC, VM):
     pass
 
   @abstractmethod

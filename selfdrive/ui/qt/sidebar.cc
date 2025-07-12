@@ -47,12 +47,12 @@ void Sidebar::updateTheme() {
   QJsonObject &frogpilot_toggles = fs.frogpilot_toggles;
 
   isCPU = frogpilot_toggles.value("cpu_metrics").toBool();
+  isDeveloperUI = frogpilot_toggles.value("developer_ui").toBool();
   isFahrenheit = frogpilot_toggles.value("fahrenheit").toBool();
   isGPU = frogpilot_toggles.value("gpu_metrics").toBool();
   isIP = frogpilot_toggles.value("ip_metrics").toBool();
   isMemoryUsage = frogpilot_toggles.value("memory_metrics").toBool();
   isNumericalTemp = frogpilot_toggles.value("numerical_temp").toBool();
-  isSidebarMetrics = frogpilot_toggles.value("sidebar_metrics").toBool();
   isStorageLeft = frogpilot_toggles.value("storage_left_metrics").toBool();
   isStorageUsed = frogpilot_toggles.value("storage_used_metrics").toBool();
   sidebar_color1 = frogpilot_scene.use_stock_colors ? good_color : frogpilot_scene.sidebar_color1;
@@ -83,7 +83,7 @@ void Sidebar::mousePressEvent(QMouseEvent *event) {
   static int showMemory = 0;
   static int showTemp = 0;
 
-  if (cpuRect.contains(pos) && isSidebarMetrics) {
+  if (cpuRect.contains(pos) && isDeveloperUI) {
     showChip = (showChip + 1) % 3;
 
     isCPU = showChip == 1;
@@ -91,7 +91,7 @@ void Sidebar::mousePressEvent(QMouseEvent *event) {
 
     params.putBool("ShowCPU", isCPU);
     params.putBool("ShowGPU", isGPU);
-  } else if (memoryRect.contains(pos) && isSidebarMetrics) {
+  } else if (memoryRect.contains(pos) && isDeveloperUI) {
     showMemory = (showMemory + 1) % 4;
 
     isMemoryUsage = showMemory == 1;
@@ -101,7 +101,7 @@ void Sidebar::mousePressEvent(QMouseEvent *event) {
     params.putBool("ShowMemoryUsage", isMemoryUsage);
     params.putBool("ShowStorageLeft", isStorageLeft);
     params.putBool("ShowStorageUsed", isStorageUsed);
-  } else if (tempRect.contains(pos) && isSidebarMetrics) {
+  } else if (tempRect.contains(pos) && isDeveloperUI) {
     showTemp = (showTemp + 1) % 3;
 
     isFahrenheit = showTemp == 2;
@@ -267,19 +267,23 @@ void Sidebar::paintEvent(QPaintEvent *event) {
   // network
   int x = 58;
   const QColor gray(0x54, 0x54, 0x54);
+  p.setFont(InterFont(35));
+
   if (isIP) {
-    p.drawText(QRect(x, 196, 225, 27), Qt::AlignLeft | Qt::AlignVCenter, frogpilotUIState()->wifi->getIp4Address());
+    p.setPen(QColor(0xff, 0xff, 0xff));
+    p.save();
     p.setFont(InterFont(30));
+    p.drawText(QRect(50, 196, 225, 27), Qt::AlignLeft | Qt::AlignVCenter, frogpilotUIState()->wifi->getIp4Address());
+    p.restore();
   } else {
     for (int i = 0; i < 5; ++i) {
       p.setBrush(i < net_strength ? Qt::white : gray);
-      p.setFont(InterFont(35));
       p.drawEllipse(x, 196, 27, 27);
       x += 37;
     }
+    p.setPen(QColor(0xff, 0xff, 0xff));
   }
 
-  p.setPen(QColor(0xff, 0xff, 0xff));
   const QRect r = QRect(50, 247, 100, 50);
   p.drawText(r, Qt::AlignCenter, net_type);
 

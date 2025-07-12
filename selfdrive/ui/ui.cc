@@ -256,8 +256,8 @@ static void update_state(UIState *s, FrogPilotUIState *fs) {
   if (scene.started) {
     fs->frogpilot_scene.started_timer += 1;
   }
-  scene.started |= fs->params_memory.getBool("ForceOnroad");
-  scene.started &= !fs->params_memory.getBool("ForceOffroad");
+  scene.started |= fs->frogpilot_toggles.value("force_onroad").toBool();
+  scene.started &= !fs->frogpilot_toggles.value("force_offroad").toBool();
 
   scene.world_objects_visible = scene.world_objects_visible ||
                                 (scene.started &&
@@ -422,6 +422,8 @@ void Device::updateBrightness(const UIState &s, const FrogPilotUIState &fs) {
   int brightness = brightness_filter.update(clipped_brightness);
   if (!awake) {
     brightness = 0;
+  } else if (s.scene.started && frogpilot_toggles.value("force_onroad").toBool()) {
+    brightness = 100;
   } else if (s.scene.started && frogpilot_toggles.value("standby_mode").toBool() && !frogpilot_scene.wake_up_screen && interactive_timeout == 0) {
     brightness = 0;
   } else if (s.scene.started && frogpilot_toggles.value("screen_brightness_onroad").toInt() != 101) {

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1">
+<TS version="2.1" language="en-x-duck">
 <context>
     <name>AbstractAlert</name>
     <message>
@@ -1349,7 +1349,7 @@ Default: 1.75 seconds.</translation>
         <source>Controls how sensitive openpilot is to changes in acceleration in 'Relaxed' mode. Higher values result in smoother, more gradual acceleration, while lower values allow for quicker, more responsive changes that may feel abrupt.
 
 Default: 1.0.</source>
-        <translation type="gpt-4o-generated">Adjusts how keen openpilot is to wiggles and waddles in 'Relaxed' mode. Crank it up for a smooth, gliding experience, or dial it down for zippier, more peppy sprints that might feel a bit quacky. 
+        <translation type="gpt-4o-generated">Adjusts how keen openpilot is to wiggles and waddles in 'Relaxed' mode. Crank it up for a smooth, gliding experience, or dial it down for zippier, more peppy sprints that might feel a bit quacky.
 
 Default: 1.0.</translation>
     </message>
@@ -1357,7 +1357,7 @@ Default: 1.0.</translation>
         <source>Controls how sensitive openpilot is to changes in deceleration in 'Relaxed' mode. Higher values result in smoother braking, while lower values allow for quicker, more immediate braking that may feel abrupt.
 
 Default: 1.0.</source>
-        <translation type="gpt-4o-generated">Adjusts how feathered or quacky openpilot is to slowing down in 'Relaxed' mode. Dialing up the sensitivity leads to smoother landings, while dialing down might make stopping feel like a sudden splash. 
+        <translation type="gpt-4o-generated">Adjusts how feathered or quacky openpilot is to slowing down in 'Relaxed' mode. Dialing up the sensitivity leads to smoother landings, while dialing down might make stopping feel like a sudden splash.
 
 Default: 1.0.</translation>
     </message>
@@ -1373,7 +1373,7 @@ Default: 1.0.</translation>
         <source>Controls how quickly openpilot increases speed in 'Relaxed' mode. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt.
 
 Default: 1.0.</source>
-        <translation type="gpt-4o-generated">Guides how swiftly openpilot paddles up the pace in 'Relaxed' mode. Bigger numbers make for a smoother, easy-glide as you quack up the speed, while smaller numbers let you flap into faster, snappier shifts that might feel a bit sudden. 
+        <translation type="gpt-4o-generated">Guides how swiftly openpilot paddles up the pace in 'Relaxed' mode. Bigger numbers make for a smoother, easy-glide as you quack up the speed, while smaller numbers let you flap into faster, snappier shifts that might feel a bit sudden.
 
 Default: 1.0.</translation>
     </message>
@@ -2348,7 +2348,7 @@ Take the Reins, Turn Exceeds Feather Steering</translation>
 
 Pay Attention, Driver Distracted
 Touch Steering Wheel, Driver Unresponsive</source>
-        <translation type="gpt-4o-generated">Quack-quack! Heads up, watch them waddling eyes!  
+        <translation type="gpt-4o-generated">Quack-quack! Heads up, watch them waddling eyes!
 Give the wheel a little peck, driver seems to be floating off!</translation>
     </message>
     <message>

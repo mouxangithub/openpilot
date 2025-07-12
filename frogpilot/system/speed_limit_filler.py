@@ -216,17 +216,9 @@ class MapSpeedLogger:
         else:
           return []
 
-      except requests.ConnectionError:
-        print(f"ConnectionError while fetching from {api_url}")
-      except requests.HTTPError:
-        print(f"HTTPError while fetching from {api_url}")
-      except requests.RequestException:
-        print(f"RequestException while fetching from {api_url}")
-      except requests.Timeout:
-        print(f"Timeout while fetching from {api_url}")
       except Exception as error:
         sentry.capture_exception(error)
-        print(f"Unexpected error fetching from {api_url}: {error}")
+        print(f"[Overpass] Error: {error}")
 
     return None
 
@@ -247,29 +239,14 @@ class MapSpeedLogger:
         data = response.json()
         ways = [element for element in data.get("elements", []) if element.get("type") == "way"]
         return ways[0].get("tags", {}).get("maxspeed") if ways else None
-
-      except requests.ConnectionError:
-        print(f"ConnectionError while fetching from {api_url}")
-      except requests.HTTPError:
-        print(f"HTTPError while fetching from {api_url}")
-      except requests.RequestException:
-        print(f"RequestException while fetching from {api_url}")
-      except requests.Timeout:
-        print(f"Timeout while fetching from {api_url}")
       except Exception as error:
         sentry.capture_exception(error)
-        print(f"Unexpected error fetching from {api_url}: {error}")
+        print(f"[fetch_speed_limit_for_segment_id] Error: {error}")
 
     return None
 
   def process_entry(self, entry):
-    bearing = entry.get("bearing")
-    end_coords = entry.get("end_coordinates")
-    road_width = entry.get("road_width")
-    start_coords = entry.get("start_coordinates")
-
-    segments = self.fetch_segments_from_overpass(start_coords, end_coords, bearing, road_width)
-    return entry, segments
+    return entry, self.fetch_segments_from_overpass(entry["start_coordinates"], entry["end_coordinates"], entry["bearing"], entry["road_width"])
 
   def process_vetted_entry(self, entry):
     if datetime.now(timezone.utc) - datetime.fromisoformat(entry.get("last_vetted")) < timedelta(days=VETTING_INTERVAL):
@@ -335,8 +312,7 @@ class MapSpeedLogger:
       dataset.remove(entry)
 
       for segment in segments:
-        segment_id = segment["segment_id"]
-        if segment_id in existing_segment_ids:
+        if segment["segment_id"] in existing_segment_ids:
           continue
         if segment["maxspeed"]:
           continue
@@ -344,13 +320,13 @@ class MapSpeedLogger:
           continue
 
         filtered_dataset.append({
-          "segment_id": segment_id,
+          "segment_id": segment["segment_id"],
           "source": entry.get("source"),
           "speed_limit": entry.get("speed_limit"),
           "last_vetted": datetime.now(timezone.utc).isoformat()
         })
 
-        existing_segment_ids.add(segment_id)
+        existing_segment_ids.add(segment["segment_id"])
 
       processed_count += 1
 
@@ -360,22 +336,24 @@ class MapSpeedLogger:
         params.put("OverpassRequests", json.dumps(self.overpass_requests))
         params.put("SpeedLimits", json.dumps(list(dataset)))
         params.put("SpeedLimitsFiltered", json.dumps(list(filtered_dataset)))
-      elif len(dataset) == 0:
-        self.overpass_requests["total_requests"] += processed_count
-        self.total_requests = 0
 
-        params.put("OverpassRequests", json.dumps(self.overpass_requests))
-        params.put("SpeedLimits", json.dumps(list(dataset)))
-        params.put("SpeedLimitsFiltered", json.dumps(list(filtered_dataset)))
+    self.overpass_requests["total_requests"] += processed_count
+    self.total_requests = 0
 
-        params_memory.remove("UpdateSpeedLimits")
-        params_memory.remove("UpdateSpeedLimitsStatus")
+    params.put("OverpassRequests", json.dumps(self.overpass_requests))
+    params.put("SpeedLimits", json.dumps(list(dataset)))
+    params.put("SpeedLimitsFiltered", json.dumps(list(filtered_dataset)))
+
+    params_memory.remove("UpdateSpeedLimits")
+    params_memory.remove("UpdateSpeedLimitsStatus")
 
 def main():
   logger = MapSpeedLogger()
 
   while True:
     try:
+      logger.sm.update()
+
       if not logger.sm["deviceState"].started and params_memory.get_bool("UpdateSpeedLimits"):
         logger.update_speed_limits()
 

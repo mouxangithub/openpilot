@@ -47,20 +47,20 @@ def long_control_state_trans(CP, active, long_control_state, v_ego,
   return long_control_state
 
 def long_control_state_trans_old_long(CP, active, long_control_state, v_ego, v_target,
-                                      v_target_1sec, brake_pressed, cruise_standstill):
+                                      v_target_1sec, brake_pressed, cruise_standstill, frogpilot_toggles):
   accelerating = v_target_1sec > v_target
-  planned_stop = (v_target < CP.vEgoStopping and
-                  v_target_1sec < CP.vEgoStopping and
+  planned_stop = (v_target < frogpilot_toggles.vEgoStopping and
+                  v_target_1sec < frogpilot_toggles.vEgoStopping and
                   not accelerating)
-  stay_stopped = (v_ego < CP.vEgoStopping and
+  stay_stopped = (v_ego < frogpilot_toggles.vEgoStopping and
                   (brake_pressed or cruise_standstill))
   stopping_condition = planned_stop or stay_stopped
 
-  starting_condition = (v_target_1sec > CP.vEgoStarting and
+  starting_condition = (v_target_1sec > frogpilot_toggles.vEgoStarting and
                         accelerating and
                         not cruise_standstill and
                         not brake_pressed)
-  started_condition = v_ego > CP.vEgoStarting
+  started_condition = v_ego > frogpilot_toggles.vEgoStarting
 
   if not active:
     long_control_state = LongCtrlState.off
@@ -159,7 +159,7 @@ class LongControl:
     output_accel = self.last_output_accel
     self.long_control_state = long_control_state_trans_old_long(self.CP, active, self.long_control_state, CS.vEgo,
                                                                 v_target, v_target_1sec, CS.brakePressed,
-                                                                CS.cruiseState.standstill)
+                                                                CS.cruiseState.standstill, frogpilot_toggles)
 
     if self.long_control_state == LongCtrlState.off:
       self.reset_old_long(CS.vEgo)
@@ -168,7 +168,7 @@ class LongControl:
     elif self.long_control_state == LongCtrlState.stopping:
       if output_accel > self.CP.stopAccel:
         output_accel = min(output_accel, 0.0)
-        output_accel -= self.CP.stoppingDecelRate * DT_CTRL
+        output_accel -= frogpilot_toggles.stoppingDecelRate * DT_CTRL
       self.reset_old_long(CS.vEgo)
 
     elif self.long_control_state == LongCtrlState.starting:

@@ -19,6 +19,28 @@ DOWNLOAD_PROGRESS_PARAM = "ThemeDownloadProgress"
 HOLIDAY_THEME_PATH = Path(__file__).parent / "holiday_themes"
 STOCKOP_THEME_PATH = Path(__file__).parent / "stock_theme"
 
+HOLIDAY_SLUGS = {
+  "new_years": "New Year's",
+  "valentines_day": "Valentine's Day",
+  "st_patricks_day": "St. Patrick's Day",
+  "world_frog_day": "World Frog Day",
+  "april_fools": "April Fools",
+  "easter_week": "Easter",
+  "may_the_fourth": "May the Fourth",
+  "cinco_de_mayo": "Cinco de Mayo",
+  "stitch_day": "Stitch Day",
+  "fourth_of_july": "Fourth of July",
+  "halloween_week": "Halloween",
+  "thanksgiving_week": "Thanksgiving",
+  "christmas_week": "Christmas"
+}
+
+def calculate_thanksgiving(year):
+  november_first = date(year, 11, 1)
+  days_to_thursday = (3 - november_first.weekday()) % 7
+  first_thursday = november_first + timedelta(days=days_to_thursday)
+  return first_thursday + timedelta(days=21)
+
 def get_full_themes():
   theme_packs_path = THEME_SAVE_PATH / "theme_packs"
   if not theme_packs_path.exists():
@@ -45,6 +67,23 @@ def get_full_themes():
         valid_themes.add(base_name)
 
   return sorted(valid_themes)
+
+def get_holiday_theme_dates(year):
+  return {
+    "new_years": date(year, 1, 1),
+    "valentines_day": date(year, 2, 14),
+    "st_patricks_day": date(year, 3, 17),
+    "world_frog_day": date(year, 3, 20),
+    "april_fools": date(year, 4, 1),
+    "easter_week": easter.easter(year),
+    "may_the_fourth": date(year, 5, 4),
+    "cinco_de_mayo": date(year, 5, 5),
+    "stitch_day": date(year, 6, 26),
+    "fourth_of_july": date(year, 7, 4),
+    "halloween_week": date(year, 10, 31),
+    "thanksgiving_week": calculate_thanksgiving(year),
+    "christmas_week": date(year, 12, 21)
+  }
 
 def randomize_distance_icons(available_themes, selected_theme):
   theme_packs_path = THEME_SAVE_PATH / "theme_packs"
@@ -103,6 +142,8 @@ def update_theme_asset(asset_type, theme, holiday_theme):
 
   if holiday_theme != "stock":
     asset_location = HOLIDAY_THEME_PATH / holiday_theme / asset_type
+  elif theme in HOLIDAY_SLUGS or f"{theme}_week" in HOLIDAY_SLUGS:
+    asset_location = HOLIDAY_THEME_PATH / theme / asset_type
   else:
     asset_location = THEME_SAVE_PATH / "theme_packs" / theme / asset_type
 
@@ -138,6 +179,8 @@ def update_wheel_image(image, holiday_theme="stock", random_event=True):
     wheel_location = RANDOM_EVENTS_PATH / "steering_wheels"
   elif image == "stock":
     wheel_location = STOCKOP_THEME_PATH / "steering_wheel"
+  elif image in HOLIDAY_SLUGS or f"{image}_week" in HOLIDAY_SLUGS:
+    wheel_location = HOLIDAY_THEME_PATH / image / "steering_wheel"
   else:
     wheel_location = THEME_SAVE_PATH / "steering_wheels"
 
@@ -174,38 +217,14 @@ class ThemeManager:
     self.previous_asset_mappings = {}
 
   @staticmethod
-  def calculate_thanksgiving(year):
-    november_first = date(year, 11, 1)
-    days_to_thursday = (3 - november_first.weekday()) % 7
-    first_thursday = november_first + timedelta(days=days_to_thursday)
-    thanksgiving_date = first_thursday + timedelta(days=21)
-    return thanksgiving_date
-
-  @staticmethod
   def is_within_week_of(target_date, current_date):
     start_of_week = target_date - timedelta(days=target_date.weekday())
     return start_of_week <= current_date < target_date
 
   def update_holiday(self):
     current_date = date.today()
-    year = current_date.year
 
-    holidays = {
-      "new_years": date(year, 1, 1),
-      "valentines": date(year, 2, 14),
-      "st_patricks": date(year, 3, 17),
-      "world_frog_day": date(year, 3, 20),
-      "april_fools": date(year, 4, 1),
-      "easter_week": easter.easter(year),
-      "may_the_fourth": date(year, 5, 4),
-      "cinco_de_mayo": date(year, 5, 5),
-      "stitch_day": date(year, 6, 26),
-      "fourth_of_july": date(year, 7, 4),
-      "halloween_week": date(year, 10, 31),
-      "thanksgiving_week": self.calculate_thanksgiving(year),
-      "christmas_week": date(year, 12, 21)
-    }
-
+    holidays = get_holiday_theme_dates(current_date.year)
     for holiday, holiday_date in holidays.items():
       if (holiday.endswith("_week") and self.is_within_week_of(holiday_date, current_date)) or (current_date == holiday_date):
         return holiday

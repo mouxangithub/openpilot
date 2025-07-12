@@ -97,7 +97,7 @@ class LatControlTorque(LatControl):
 
       # precompute time differences between ModelConstants.T_IDXS
       self.t_diffs = np.diff(ModelConstants.T_IDXS)
-      self.desired_lat_jerk_time = lateral_delay + 0.3
+      self.desired_lat_jerk_time = lateral_delay
 
     if self.use_nnff:
       self.pitch = FirstOrderFilter(0.0, 0.5, 0.01)
@@ -108,7 +108,7 @@ class LatControlTorque(LatControl):
       self.nn_friction_override = CI.lat_torque_nn_model.friction_override
 
       # setup future time offsets
-      self.nn_time_offset = lateral_delay + 0.2
+      self.nn_time_offset = lateral_delay
       self.future_times = [0.3, 0.6, 1.0, 1.5] # seconds in the future
       self.nn_future_times = [i + self.nn_time_offset for i in self.future_times]
 
@@ -122,10 +122,10 @@ class LatControlTorque(LatControl):
       self.past_future_len = len(self.past_times) + len(self.nn_future_times)
 
   def update_live_delay(self, lateral_delay):
-    self.desired_lat_jerk_time = lateral_delay + 0.3
+    self.desired_lat_jerk_time = lateral_delay
 
     if self.use_nnff:
-      nn_time_offset = lateral_delay + 0.2
+      nn_time_offset = lateral_delay
       self.nn_future_times = [i + nn_time_offset for i in self.future_times]
       self.past_future_len = len(self.past_times) + len(self.nn_future_times)
 
@@ -252,7 +252,7 @@ class LatControlTorque(LatControl):
                                             gravity_adjusted=True)
 
       freeze_integrator = steer_limited or CS.steeringPressed or CS.vEgo < 5
-      self.pid._k_p = frogpilot_toggles.steer_kp
+      self.pid._k_p = frogpilot_toggles.steerKp
       output_torque = self.pid.update(pid_log.error,
                                       feedforward=ff,
                                       speed=CS.vEgo,

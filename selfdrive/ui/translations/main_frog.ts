@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1">
+<TS version="2.1" language="en-x-frog">
 <context>
     <name>AbstractAlert</name>
     <message>
@@ -1221,7 +1221,7 @@ It only hops off the lily pad when you press the "Cruise Control" button.</trans
         <source>Sets the following distance for 'Aggressive' mode. This determines roughly how many seconds you'll follow behind the car ahead.
 
 Default: 1.25 seconds.</source>
-        <translation type="gpt-4o-generated">Sets hop-happy distance for 'Aggressive' mode. This decides about how many seconds you'll leap behind the car ahead. 
+        <translation type="gpt-4o-generated">Sets hop-happy distance for 'Aggressive' mode. This decides about how many seconds you'll leap behind the car ahead.
 
 Default: 1.25 seconds.</translation>
     </message>
@@ -1229,7 +1229,7 @@ Default: 1.25 seconds.</translation>
         <source>Controls how sensitive openpilot is to changes in acceleration in 'Aggressive' mode. Higher values result in smoother, more gradual acceleration, while lower values allow for quicker, more responsive changes that may feel abrupt.
 
 Default: 0.5.</source>
-        <translation type="gpt-4o-generated">Tunes how jumpy-froggy openpilot gets with acceleration in 'Aggressive' mode. Crank it up for a silky-smooth glide, or dial down for a quicker leap that might feel a bit like a sudden splash. 
+        <translation type="gpt-4o-generated">Tunes how jumpy-froggy openpilot gets with acceleration in 'Aggressive' mode. Crank it up for a silky-smooth glide, or dial down for a quicker leap that might feel a bit like a sudden splash.
 
 Default: 0.5.</translation>
     </message>
@@ -1261,7 +1261,7 @@ Default: 0.5.</translation>
         <source>Controls how quickly openpilot decreases speed in 'Aggressive' mode. Higher values ensure smoother, more gradual speed changes when slowing down, while lower values allow for quicker, more responsive changes that may feel abrupt.
 
 Default: 0.5.</source>
-        <translation type="gpt-4o-generated">Hops along with how swiftly openpilot eases off the gas in 'Aggressive' mode. Crank up those numbers for a smoother, lily-pad-to-lily-pad glide when easing down, or dial it down for a snappier, more zippy change that might feel a tad abrupt. 
+        <translation type="gpt-4o-generated">Hops along with how swiftly openpilot eases off the gas in 'Aggressive' mode. Crank up those numbers for a smoother, lily-pad-to-lily-pad glide when easing down, or dial it down for a snappier, more zippy change that might feel a tad abrupt.
 
 Default: 0.5.</translation>
     </message>
@@ -1305,7 +1305,7 @@ Default: 1.0.</translation>
         <source>Adjusts how cautious openpilot is around other vehicles or obstacles in 'Standard' mode. Higher values increase following distances and prioritize safety, leading to more cautious driving, while lower values allow for closer following but may reduce reaction time.
 
 Default: 1.0.</source>
-        <translation type="gpt-4o-generated">Tweak how wary openpilot is when hopping around other vehicles or lily pad obstructions in 'Standard' mode. Crank it up for more spacious leaps and a safety-first mindset, making for extra vigilant driving. Dial it down for snugger hops, but be aware it might trim reaction time tadpoles. 
+        <translation type="gpt-4o-generated">Tweak how wary openpilot is when hopping around other vehicles or lily pad obstructions in 'Standard' mode. Crank it up for more spacious leaps and a safety-first mindset, making for extra vigilant driving. Dial it down for snugger hops, but be aware it might trim reaction time tadpoles.
 
 Default: 1.0.</translation>
     </message>
@@ -1397,7 +1397,7 @@ Default: 1.0.</translation>
         <source>Toggle 'Experimental Mode' on/off using either the steering wheel buttons or screen.
 
 This overrides 'Conditional Experimental Mode'.</source>
-        <translation type="gpt-4o-generated">Hop 'Experimental Mode' on or off using the steering wheel buttons or the screen. 
+        <translation type="gpt-4o-generated">Hop 'Experimental Mode' on or off using the steering wheel buttons or the screen.
 
 This leapfrogs over 'Conditional Experimental Mode'.</translation>
     </message>
@@ -2361,7 +2361,7 @@ Give the Wheel a Hop, Driver Zoned Out</translation>
         <source>Related alerts:
 
 openpilot Unavailable</source>
-        <translation type="gpt-4o-generated">Alerts from the Lily Pad:  
+        <translation type="gpt-4o-generated">Alerts from the Lily Pad:
 
 openpilot Unavailable</translation>
     </message>
@@ -3213,8 +3213,8 @@ Always On Lateral Active = 75%
 Fully disengaged = 50%</source>
         <translation type="gpt-4o-generated">Hops into action to tweak the width of the driving path display, depending on how much the system's engaged:
 
-Fully ribbited on = 100% 
-Always croaking laterally active = 75% 
+Fully ribbited on = 100%
+Always croaking laterally active = 75%
 Chillin' on the lily pad = 50%</translation>
     </message>
     <message>
@@ -3563,7 +3563,7 @@ Default lines up with the Vienna standard of 10 centimeters. 🐸</translation>
         <source>Adjust how thick the road edges appear on the display.
 
 Default matches half of the Vienna standard of 10 centimeters.</source>
-        <translation type="gpt-4o-generated">Tweak how plump the road edges look on the display. 
+        <translation type="gpt-4o-generated">Tweak how plump the road edges look on the display.
 
 Default's like half of the Vienna lily pad standard of 10 centimeters.</translation>
     </message>

@@ -232,7 +232,7 @@ void AdvancedNetworking::refresh() {
 }
 
 void AdvancedNetworking::toggleTethering(int id) {
-  wifi->setTetheringEnabled(id == 1 || id == 3);
+  wifi->setTetheringEnabled(id == 1 || id == 2 && uiState()->scene.started || id == 3);
   tetheringToggle->setEnabled(false);
 }
 

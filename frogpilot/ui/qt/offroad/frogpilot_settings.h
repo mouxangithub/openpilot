@@ -18,6 +18,7 @@ public:
   bool hasNNFFLog = true;
   bool hasOpenpilotLongitudinal = true;
   bool hasPCMCruise = false;
+  bool hasPedal = false;
   bool hasRadar = true;
   bool hasSNG = false;
   bool isBolt = false;
@@ -25,7 +26,6 @@ public:
   bool isGM = true;
   bool isHKG = true;
   bool isHKGCanFd = true;
-  bool isHonda = false;
   bool isSubaru = false;
   bool isTorqueCar = false;
   bool isToyota = true;
@@ -35,11 +35,11 @@ public:
   bool openpilotLongitudinalControlDisabled = false;
   bool tacoHacksAllowed = false;
 
-  float delayStock;
-  float frictionStock;
-  float kpStock;
-  float latAccelStock;
-  float steerRatioStock;
+  float friction;
+  float latAccelFactor;
+  float steerActuatorDelay;
+  float steerKp;
+  float steerRatio;
 
   int tuningLevel;
 

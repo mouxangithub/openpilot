@@ -43,6 +43,10 @@ private:
 
   std::set<QString> parentKeys;
 
+  std::vector<QString> sidebarMetricsToggles;
+
+  FrogPilotButtonsControl *sidebarMetricsToggle;
+
   FrogPilotButtonToggleControl *borderMetricsBtn;
 
   FrogPilotSettingsWindow *parent;

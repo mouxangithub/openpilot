@@ -76,8 +76,8 @@ FrogPilotLongitudinalPanel::FrogPilotLongitudinalPanel(FrogPilotSettingsWindow *
     {"TrafficJerkAcceleration", tr("Acceleration Sensitivity"), tr("How sensitive openpilot is to changes in acceleration while in <b>Traffic Mode</b>. Higher values result in smoother, more gradual acceleration, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"TrafficJerkDeceleration", tr("Deceleration Sensitivity"), tr("How sensitive openpilot is to changes in deceleration while in <b>Traffic Mode</b>. Higher values result in smoother, more gradual deceleration, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"TrafficJerkDanger", tr("Safety Distance Sensitivity"), tr("How cautious openpilot is around other vehicles or obstacles while in <b>Traffic Mode</b>. Higher values increase following distances and prioritize safety, leading to more cautious driving, while lower values allow for closer following but may reduce reaction time."), ""},
-    {"TrafficJerkSpeed", tr("Speed Increase Response"), tr("How quickly openpilot increases speed while in <b>Traffic Mode</b>. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"TrafficJerkSpeedDecrease", tr("Speed Decrease Response"), tr("How quickly openpilot decreases speed while in <b>Traffic Mode</b>. Higher values ensure smoother, more gradual speed changes when slowing down, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
+    {"TrafficJerkSpeed", tr("Speed Increase Response"), tr("How quickly openpilot increases speed while in <b>Traffic Mode</b>. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"ResetTrafficPersonality", tr("Reset Settings"), tr("Reset <b>Traffic Mode</b> settings to default values."), ""},
 
     {"AggressivePersonalityProfile", tr("Aggressive Personality"), tr("Customize the <b>Aggressive</b> personality profile. Designed for a more assertive driving style."), "../../frogpilot/assets/stock_theme/distance_icons/aggressive.png"},
@@ -85,8 +85,8 @@ FrogPilotLongitudinalPanel::FrogPilotLongitudinalPanel(FrogPilotSettingsWindow *
     {"AggressiveJerkAcceleration", tr("Acceleration Sensitivity"), tr("How sensitive openpilot is to changes in acceleration while using the <b>Aggressive</b> personality profile. Higher values result in smoother, more gradual acceleration, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"AggressiveJerkDeceleration", tr("Deceleration Sensitivity"), tr("How sensitive openpilot is to changes in deceleration while using the <b>Aggressive</b> personality profile. Higher values result in smoother, more gradual deceleration, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"AggressiveJerkDanger", tr("Safety Distance Sensitivity"), tr("How cautious openpilot is around other vehicles or obstacles while using the <b>Aggressive</b> personality profile. Higher values increase following distances and prioritize safety, leading to more cautious driving, while lower values allow for closer following but may reduce reaction time."), ""},
-    {"AggressiveJerkSpeed", tr("Speed Increase Response"), tr("How quickly openpilot increases speed while using the <b>Aggressive</b> personality profile. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"AggressiveJerkSpeedDecrease", tr("Speed Decrease Response"), tr("How quickly openpilot decreases speed while using the <b>Aggressive</b> personality profile. Higher values ensure smoother, more gradual speed changes when slowing down, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
+    {"AggressiveJerkSpeed", tr("Speed Increase Response"), tr("How quickly openpilot increases speed while using the <b>Aggressive</b> personality profile. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"ResetAggressivePersonality", tr("Reset Settings"), tr("Reset the <b>Aggressive</b> personality profile settings to default values."), ""},
 
     {"StandardPersonalityProfile", tr("Standard Personality"), tr("Customize the <b>Standard</b> personality profile. Designed for a balanced driving style."), "../../frogpilot/assets/stock_theme/distance_icons/standard.png"},
@@ -94,8 +94,8 @@ FrogPilotLongitudinalPanel::FrogPilotLongitudinalPanel(FrogPilotSettingsWindow *
     {"StandardJerkAcceleration", tr("Acceleration Sensitivity"), tr("How sensitive openpilot is to changes in acceleration while using the <b>Standard</b> personality profile. Higher values result in smoother, more gradual acceleration, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"StandardJerkDeceleration", tr("Deceleration Sensitivity"), tr("How sensitive openpilot is to changes in deceleration while using the <b>Standard</b> personality profile. Higher values result in smoother, more gradual deceleration, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"StandardJerkDanger", tr("Safety Distance Sensitivity"), tr("How cautious openpilot is around other vehicles or obstacles while using the <b>Standard</b> personality profile. Higher values increase following distances and prioritize safety, leading to more cautious driving, while lower values allow for closer following but may reduce reaction time."), ""},
-    {"StandardJerkSpeed", tr("Speed Increase Response"), tr("How quickly openpilot increases speed while using the <b>Standard</b> personality profile. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"StandardJerkSpeedDecrease", tr("Speed Decrease Response"), tr("How quickly openpilot decreases speed while using the <b>Standard</b> personality profile. Higher values ensure smoother, more gradual speed changes when slowing down, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
+    {"StandardJerkSpeed", tr("Speed Increase Response"), tr("How quickly openpilot increases speed while using the <b>Standard</b> personality profile. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"ResetStandardPersonality", tr("Reset Settings"), tr("Reset the <b>Standard</b> personality profile settings to default values."), ""},
 
     {"RelaxedPersonalityProfile", tr("Relaxed Personality"), tr("Customize the <b>Relaxed</b> personality profile. Designed for a more laid-back driving style."), "../../frogpilot/assets/stock_theme/distance_icons/relaxed.png"},
@@ -103,8 +103,8 @@ FrogPilotLongitudinalPanel::FrogPilotLongitudinalPanel(FrogPilotSettingsWindow *
     {"RelaxedJerkAcceleration", tr("Acceleration Sensitivity"), tr("How sensitive openpilot is to changes in acceleration while using the <b>Relaxed</b> personality profile. Higher values result in smoother, more gradual acceleration, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"RelaxedJerkDeceleration", tr("Deceleration Sensitivity"), tr("How sensitive openpilot is to changes in deceleration while using the <b>Relaxed</b> personality profile. Higher values result in smoother, more gradual deceleration, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"RelaxedJerkDanger", tr("Safety Distance Sensitivity"), tr("How cautious openpilot is around other vehicles or obstacles while using the <b>Relaxed</b> personality profile. Higher values increase following distances and prioritize safety, leading to more cautious driving, while lower values allow for closer following but may reduce reaction time."), ""},
-    {"RelaxedJerkSpeed", tr("Speed Increase Response"), tr("How quickly openpilot increases speed while using the <b>Relaxed</b> personality profile. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"RelaxedJerkSpeedDecrease", tr("Speed Decrease Response"), tr("How quickly openpilot decreases speed while using the <b>Relaxed</b> personality profile. Higher values ensure smoother, more gradual speed changes when slowing down, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
+    {"RelaxedJerkSpeed", tr("Speed Increase Response"), tr("How quickly openpilot increases speed while using the <b>Relaxed</b> personality profile. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt."), ""},
     {"ResetRelaxedPersonality", tr("Reset Settings"), tr("Reset the <b>Relaxed</b> personality profile settings to default values."), ""},
 
     {"LongitudinalTune", tr("Longitudinal Tuning"), tr("Settings that control how openpilot manages speed and acceleration."), "../../frogpilot/assets/toggle_icons/icon_longitudinal_tune.png"},
@@ -153,74 +153,7 @@ FrogPilotLongitudinalPanel::FrogPilotLongitudinalPanel(FrogPilotSettingsWindow *
   for (const auto &[param, title, desc, icon] : longitudinalToggles) {
     AbstractControl *longitudinalToggle;
 
-    if (param == "CustomPersonalities") {
-      FrogPilotManageControl *customPersonalitiesToggle = new FrogPilotManageControl(param, title, desc, icon);
-      QObject::connect(customPersonalitiesToggle, &FrogPilotManageControl::manageButtonClicked, [longitudinalLayout, customDrivingPersonalityPanel]() {
-        longitudinalLayout->setCurrentWidget(customDrivingPersonalityPanel);
-      });
-      longitudinalToggle = customPersonalitiesToggle;
-    } else if (param == "ResetTrafficPersonality" || param == "ResetAggressivePersonality" || param == "ResetStandardPersonality" || param == "ResetRelaxedPersonality") {
-      ButtonControl *resetBtn = new ButtonControl(title, tr("RESET"), desc);
-      longitudinalToggle = resetBtn;
-    } else if (param == "TrafficPersonalityProfile") {
-      FrogPilotManageControl *trafficPersonalityToggle = new FrogPilotManageControl(param, title, desc, icon);
-      QObject::connect(trafficPersonalityToggle, &FrogPilotManageControl::manageButtonClicked, [this, longitudinalLayout, trafficPersonalityPanel]() {
-        openSubSubPanel();
-
-        longitudinalLayout->setCurrentWidget(trafficPersonalityPanel);
-
-        customPersonalityOpen = true;
-      });
-      longitudinalToggle = trafficPersonalityToggle;
-    } else if (param == "AggressivePersonalityProfile") {
-      FrogPilotManageControl *aggressivePersonalityToggle = new FrogPilotManageControl(param, title, desc, icon);
-      QObject::connect(aggressivePersonalityToggle, &FrogPilotManageControl::manageButtonClicked, [this, longitudinalLayout, aggressivePersonalityPanel]() {
-        openSubSubPanel();
-
-        longitudinalLayout->setCurrentWidget(aggressivePersonalityPanel);
-
-        customPersonalityOpen = true;
-      });
-      longitudinalToggle = aggressivePersonalityToggle;
-    } else if (param == "StandardPersonalityProfile") {
-      FrogPilotManageControl *standardPersonalityToggle = new FrogPilotManageControl(param, title, desc, icon);
-      QObject::connect(standardPersonalityToggle, &FrogPilotManageControl::manageButtonClicked, [this, longitudinalLayout, standardPersonalityPanel]() {
-        openSubSubPanel();
-
-        longitudinalLayout->setCurrentWidget(standardPersonalityPanel);
-
-        customPersonalityOpen = true;
-      });
-      longitudinalToggle = standardPersonalityToggle;
-    } else if (param == "RelaxedPersonalityProfile") {
-      FrogPilotManageControl *relaxedPersonalityToggle = new FrogPilotManageControl(param, title, desc, icon);
-      QObject::connect(relaxedPersonalityToggle, &FrogPilotManageControl::manageButtonClicked, [this, longitudinalLayout, relaxedPersonalityPanel]() {
-        openSubSubPanel();
-
-        longitudinalLayout->setCurrentWidget(relaxedPersonalityPanel);
-
-        customPersonalityOpen = true;
-      });
-      longitudinalToggle = relaxedPersonalityToggle;
-    } else if (aggressivePersonalityKeys.find(param) != aggressivePersonalityKeys.end() ||
-               standardPersonalityKeys.find(param) != standardPersonalityKeys.end() ||
-               relaxedPersonalityKeys.find(param) != relaxedPersonalityKeys.end() ||
-               trafficPersonalityKeys.find(param) != trafficPersonalityKeys.end()) {
-      if (param == "TrafficFollow" || param == "AggressiveFollow" || param == "StandardFollow" || param == "RelaxedFollow") {
-        std::map<float, QString> followTimeLabels;
-        for (float i = 0; i <= 5; i += 0.01) {
-          followTimeLabels[i] = std::lround(i / 0.01) == 1 / 0.01 ? QString::number(i, 'f', 2) + tr(" second") : QString::number(i, 'f', 2) + tr(" seconds");
-        }
-        if (param == "TrafficFollow") {
-          longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 0.5, 5, QString(), followTimeLabels, 0.01, true);
-        } else {
-          longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 1, 5, QString(), followTimeLabels, 0.01, true);
-        }
-      } else {
-        longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 1, 500, "%");
-      }
-
-    } else if (param == "ConditionalExperimental") {
+    if (param == "ConditionalExperimental") {
       FrogPilotManageControl *conditionalExperimentalToggle = new FrogPilotManageControl(param, title, desc, icon);
       QObject::connect(conditionalExperimentalToggle, &FrogPilotManageControl::manageButtonClicked, [longitudinalLayout, conditionalExperimentalPanel]() {
         longitudinalLayout->setCurrentWidget(conditionalExperimentalPanel);
@@ -285,6 +218,73 @@ FrogPilotLongitudinalPanel::FrogPilotLongitudinalPanel(FrogPilotSettingsWindow *
     } else if (param == "CurveSensitivity" || param == "TurnAggressiveness") {
       longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 1, 200, "%");
 
+    } else if (param == "CustomPersonalities") {
+      FrogPilotManageControl *customPersonalitiesToggle = new FrogPilotManageControl(param, title, desc, icon);
+      QObject::connect(customPersonalitiesToggle, &FrogPilotManageControl::manageButtonClicked, [longitudinalLayout, customDrivingPersonalityPanel]() {
+        longitudinalLayout->setCurrentWidget(customDrivingPersonalityPanel);
+      });
+      longitudinalToggle = customPersonalitiesToggle;
+    } else if (param == "ResetTrafficPersonality" || param == "ResetAggressivePersonality" || param == "ResetStandardPersonality" || param == "ResetRelaxedPersonality") {
+      ButtonControl *resetBtn = new ButtonControl(title, tr("RESET"), desc);
+      longitudinalToggle = resetBtn;
+    } else if (param == "TrafficPersonalityProfile") {
+      FrogPilotManageControl *trafficPersonalityToggle = new FrogPilotManageControl(param, title, desc, icon);
+      QObject::connect(trafficPersonalityToggle, &FrogPilotManageControl::manageButtonClicked, [this, longitudinalLayout, trafficPersonalityPanel]() {
+        openSubSubPanel();
+
+        longitudinalLayout->setCurrentWidget(trafficPersonalityPanel);
+
+        customPersonalityOpen = true;
+      });
+      longitudinalToggle = trafficPersonalityToggle;
+    } else if (param == "AggressivePersonalityProfile") {
+      FrogPilotManageControl *aggressivePersonalityToggle = new FrogPilotManageControl(param, title, desc, icon);
+      QObject::connect(aggressivePersonalityToggle, &FrogPilotManageControl::manageButtonClicked, [this, longitudinalLayout, aggressivePersonalityPanel]() {
+        openSubSubPanel();
+
+        longitudinalLayout->setCurrentWidget(aggressivePersonalityPanel);
+
+        customPersonalityOpen = true;
+      });
+      longitudinalToggle = aggressivePersonalityToggle;
+    } else if (param == "StandardPersonalityProfile") {
+      FrogPilotManageControl *standardPersonalityToggle = new FrogPilotManageControl(param, title, desc, icon);
+      QObject::connect(standardPersonalityToggle, &FrogPilotManageControl::manageButtonClicked, [this, longitudinalLayout, standardPersonalityPanel]() {
+        openSubSubPanel();
+
+        longitudinalLayout->setCurrentWidget(standardPersonalityPanel);
+
+        customPersonalityOpen = true;
+      });
+      longitudinalToggle = standardPersonalityToggle;
+    } else if (param == "RelaxedPersonalityProfile") {
+      FrogPilotManageControl *relaxedPersonalityToggle = new FrogPilotManageControl(param, title, desc, icon);
+      QObject::connect(relaxedPersonalityToggle, &FrogPilotManageControl::manageButtonClicked, [this, longitudinalLayout, relaxedPersonalityPanel]() {
+        openSubSubPanel();
+
+        longitudinalLayout->setCurrentWidget(relaxedPersonalityPanel);
+
+        customPersonalityOpen = true;
+      });
+      longitudinalToggle = relaxedPersonalityToggle;
+    } else if (aggressivePersonalityKeys.find(param) != aggressivePersonalityKeys.end() ||
+               standardPersonalityKeys.find(param) != standardPersonalityKeys.end() ||
+               relaxedPersonalityKeys.find(param) != relaxedPersonalityKeys.end() ||
+               trafficPersonalityKeys.find(param) != trafficPersonalityKeys.end()) {
+      if (param == "TrafficFollow" || param == "AggressiveFollow" || param == "StandardFollow" || param == "RelaxedFollow") {
+        std::map<float, QString> followTimeLabels;
+        for (float i = 0; i <= 5; i += 0.01) {
+          followTimeLabels[i] = std::lround(i / 0.01) == 1 / 0.01 ? QString::number(i, 'f', 2) + tr(" second") : QString::number(i, 'f', 2) + tr(" seconds");
+        }
+        if (param == "TrafficFollow") {
+          longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 0.5, 5, QString(), followTimeLabels, 0.01, true);
+        } else {
+          longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 1, 5, QString(), followTimeLabels, 0.01, true);
+        }
+      } else {
+        longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 25, 200, "%");
+      }
+
     } else if (param == "LongitudinalTune") {
       FrogPilotManageControl *longitudinalTuneToggle = new FrogPilotManageControl(param, title, desc, icon);
       QObject::connect(longitudinalTuneToggle, &FrogPilotManageControl::manageButtonClicked, [longitudinalLayout, longitudinalTunePanel]() {
@@ -300,7 +300,7 @@ FrogPilotLongitudinalPanel::FrogPilotLongitudinalPanel(FrogPilotSettingsWindow *
       ButtonParamControl *decelerationProfileToggle = new ButtonParamControl(param, title, desc, icon, decelerationProfiles);
       longitudinalToggle = decelerationProfileToggle;
     } else if (param == "LeadDetectionThreshold") {
-      longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 1, 99, "%");
+      longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 25, 50, "%");
     } else if (param == "MaxDesiredAcceleration") {
       longitudinalToggle = new FrogPilotParamValueControl(param, title, desc, icon, 0.1, 4.0, tr(" m/s²"), std::map<float, QString>(), 0.1);
 
@@ -772,7 +772,6 @@ void FrogPilotLongitudinalPanel::updateToggles() {
     }
 
     if (key == "ReverseCruise") {
-      setVisible &= hasPCMCruise;
       setVisible &= isToyota;
     }
 

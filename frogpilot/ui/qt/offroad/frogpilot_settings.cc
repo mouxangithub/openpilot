@@ -139,11 +139,6 @@ FrogPilotSettingsWindow::FrogPilotSettingsWindow(SettingsWindow *parent) : QFram
                                           "Developer - Unlocks highly customizable settings for seasoned enthusiasts"),
                                           "../../frogpilot/assets/toggle_icons/icon_customization.png",
                                           togglePresets, true);
-
-  int timeTo100FPHours = 100 - (params_tracking.getInt("FrogPilotMinutes") / 60);
-  int timeTo250OPHours = 250 - (params.getInt("KonikMinutes") / 60) - (params.getInt("openpilotMinutes") / 60);
-  togglePreset->setEnabledButtons(3, timeTo100FPHours <= 0 || timeTo250OPHours <= 0);
-
   QObject::connect(togglePreset, &FrogPilotButtonsControl::buttonClicked, [this](int id) {
     tuningLevel = id;
 
@@ -153,12 +148,6 @@ FrogPilotSettingsWindow::FrogPilotSettingsWindow(SettingsWindow *parent) : QFram
 
     if (id == 3) {
       ConfirmationDialog::alert(tr("WARNING: This unlocks some potentially dangerous settings that can DRASTICALLY alter your driving experience!"), this);
-    }
-  });
-
-  QObject::connect(togglePreset, &FrogPilotButtonsControl::disabledButtonClicked, [this](int id) {
-    if (id == 3) {
-      ConfirmationDialog::alert(tr("The <b>Developer</b> preset is only available for users with either over 100 hours on FrogPilot, or 250 hours with openpilot."), this);
     }
   });
   togglePreset->setCheckedButton(params.getInt("TuningLevel"));
@@ -211,7 +200,7 @@ void FrogPilotSettingsWindow::updateVariables() {
     std::string carFingerprint = CP.getCarFingerprint();
     std::string carMake = CP.getCarName();
 
-    delayStock = CP.getSteerActuatorDelay();
+    friction = CP.getLateralTuning().getTorque().getFriction();
     hasAutoTune = (carMake == "hyundai" || carMake == "toyota") && CP.getLateralTuning().which() == cereal::CarParams::LateralTuning::TORQUE;
     hasBSM = CP.getEnableBsm();
     hasDashSpeedLimits = carMake == "ford" || carMake == "hyundai" || carMake == "toyota";
@@ -219,22 +208,22 @@ void FrogPilotSettingsWindow::updateVariables() {
     hasNNFFLog = nnffLogFileExists(QString::fromStdString(carFingerprint));
     hasOpenpilotLongitudinal = hasLongitudinalControl(CP);
     hasPCMCruise = CP.getPcmCruise();
+    hasPedal = CP.getEnableGasInterceptor();
     hasRadar = !CP.getRadarUnavailable();
     hasSNG = CP.getAutoResumeSng();
     isBolt = carFingerprint == "CHEVROLET_BOLT_CC" || carFingerprint == "CHEVROLET_BOLT_EUV";
     isGM = carMake == "gm";
     isHKG = carMake == "hyundai";
     isHKGCanFd = isHKG && safetyModel == cereal::CarParams::SafetyModel::HYUNDAI_CANFD;
-    isHonda = carMake == "honda";
     isSubaru = carMake == "subaru";
     isTorqueCar = CP.getLateralTuning().which() == cereal::CarParams::LateralTuning::TORQUE;
     isToyota = carMake == "toyota";
     isTSK = CP.getSecOcRequired();
     isVolt = carFingerprint == "CHEVROLET_VOLT";
-    frictionStock = CP.getLateralTuning().getTorque().getFriction();
-    kpStock = CP.getLateralTuning().getTorque().getKp();
-    latAccelStock = CP.getLateralTuning().getTorque().getLatAccelFactor();
-    steerRatioStock = CP.getSteerRatio();
+    latAccelFactor = CP.getLateralTuning().getTorque().getLatAccelFactor();
+    steerActuatorDelay = CP.getSteerActuatorDelay();
+    steerKp = CP.getLateralTuning().getTorque().getKp();
+    steerRatio = CP.getSteerRatio();
 
     float currentDelayStock = params.getFloat("SteerDelayStock");
     float currentFrictionStock = params.getFloat("SteerFrictionStock");
@@ -242,39 +231,39 @@ void FrogPilotSettingsWindow::updateVariables() {
     float currentLatAccelStock = params.getFloat("SteerLatAccelStock");
     float currentSteerRatioStock = params.getFloat("SteerRatioStock");
 
-    if (currentDelayStock != delayStock && delayStock != 0) {
+    if (currentDelayStock != steerActuatorDelay && steerActuatorDelay != 0) {
       if (params.getFloat("SteerDelay") == currentDelayStock || currentDelayStock == 0) {
-        params.putFloat("SteerDelay", delayStock);
+        params.putFloat("SteerDelay", steerActuatorDelay);
       }
-      params.putFloat("SteerDelayStock", delayStock);
+      params.putFloat("SteerDelayStock", steerActuatorDelay);
     }
 
-    if (currentFrictionStock != frictionStock && frictionStock != 0) {
+    if (currentFrictionStock != friction && friction != 0) {
       if (params.getFloat("SteerFriction") == currentFrictionStock || currentFrictionStock == 0) {
-        params.putFloat("SteerFriction", frictionStock);
+        params.putFloat("SteerFriction", friction);
       }
-      params.putFloat("SteerFrictionStock", frictionStock);
+      params.putFloat("SteerFrictionStock", friction);
     }
 
-    if (currentKPStock != kpStock && kpStock != 0) {
+    if (currentKPStock != steerKp && steerKp != 0) {
       if (params.getFloat("SteerKP") == currentKPStock || currentKPStock == 0) {
-        params.putFloat("SteerKP", kpStock);
+        params.putFloat("SteerKP", steerKp);
       }
-      params.putFloat("SteerKPStock", kpStock);
+      params.putFloat("SteerKPStock", steerKp);
     }
 
-    if (currentLatAccelStock != latAccelStock && latAccelStock != 0) {
+    if (currentLatAccelStock != latAccelFactor && latAccelFactor != 0) {
       if (params.getFloat("SteerLatAccel") == currentLatAccelStock || currentLatAccelStock == 0) {
-        params.putFloat("SteerLatAccel", latAccelStock);
+        params.putFloat("SteerLatAccel", latAccelFactor);
       }
-      params.putFloat("SteerLatAccelStock", latAccelStock);
+      params.putFloat("SteerLatAccelStock", latAccelFactor);
     }
 
-    if (currentSteerRatioStock != steerRatioStock && steerRatioStock != 0) {
+    if (currentSteerRatioStock != steerRatio && steerRatio != 0) {
       if (params.getFloat("SteerRatio") == currentSteerRatioStock || currentSteerRatioStock == 0) {
-        params.putFloat("SteerRatio", steerRatioStock);
+        params.putFloat("SteerRatio", steerRatio);
       }
-      params.putFloat("SteerRatioStock", steerRatioStock);
+      params.putFloat("SteerRatioStock", steerRatio);
     }
   }
 

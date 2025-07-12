@@ -37,16 +37,26 @@ FrogPilotUtilitiesPanel::FrogPilotUtilitiesPanel(FrogPilotSettingsWindow *parent
     if (id == 0) {
       params_memory.putBool("ForceOffroad", true);
       params_memory.putBool("ForceOnroad", false);
+
+      updateFrogPilotToggles();
     } else if (id == 1) {
       params_memory.putBool("ForceOffroad", false);
       params_memory.putBool("ForceOnroad", true);
 
-      util::sleep_for(1000);
+      params.put("CarParams", params.get("CarParamsPersistent"));
+
+      updateFrogPilotToggles();
+
+      while (!params.get("CarParams").empty()) {
+        util::sleep_for(UI_FREQ);
+      }
 
       params.put("CarParams", params.get("CarParamsPersistent"));
     } else if (id == 2) {
-      params_memory.remove("ForceOffroad");
-      params_memory.remove("ForceOnroad");
+      params_memory.putBool("ForceOffroad", false);
+      params_memory.putBool("ForceOnroad", false);
+
+      updateFrogPilotToggles();
     }
   });
   forceStartedBtn->setCheckedButton(2);
@@ -54,6 +64,11 @@ FrogPilotUtilitiesPanel::FrogPilotUtilitiesPanel(FrogPilotSettingsWindow *parent
 
   ButtonControl *reportIssueBtn = new ButtonControl(tr("Report a Bug or an Issue"), tr("REPORT"), tr("Let FrogsGoMoo know about an issue you're facing!"));
   QObject::connect(reportIssueBtn, &ButtonControl::clicked, [this]() {
+    if (!frogpilotUIState()->frogpilot_scene.online) {
+      ConfirmationDialog::alert(tr("Ensure your device has an internet connection before sending a report!"), this);
+      return;
+    }
+
     QStringList report_messages = {
       tr("I saw an alert that said \"openpilot crashed\""),
       tr("I'm noticing harsh acceleration"),
@@ -109,4 +124,29 @@ FrogPilotUtilitiesPanel::FrogPilotUtilitiesPanel(FrogPilotSettingsWindow *parent
     }
   });
   addItem(resetTogglesBtn);
+
+  ButtonControl *resetTogglesBtnStock = new ButtonControl(tr("Reset Toggles to Match Stock openpilot"), tr("RESET"), tr("Reset all toggles to match stock openpilot."));
+  QObject::connect(resetTogglesBtnStock, &ButtonControl::clicked, [this, parent, resetTogglesBtnStock]() {
+    if (ConfirmationDialog::confirm(tr("Are you sure you want to reset all toggles to match stock openpilot?"), tr("Reset"), this)) {
+      std::thread([this, parent, resetTogglesBtnStock]() mutable {
+        parent->keepScreenOn = true;
+
+        resetTogglesBtnStock->setEnabled(false);
+        resetTogglesBtnStock->setValue(tr("Resetting..."));
+
+        params.putBool("DoToggleResetStock", true);
+
+        resetTogglesBtnStock->setValue(tr("Reset!"));
+
+        util::sleep_for(2500);
+
+        resetTogglesBtnStock->setValue(tr("Rebooting..."));
+
+        util::sleep_for(2500);
+
+        Hardware::reboot();
+      }).detach();
+    }
+  });
+  addItem(resetTogglesBtnStock);
 }

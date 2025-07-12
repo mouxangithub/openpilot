@@ -102,7 +102,7 @@ def frogpilot_thread():
       frogpilot_toggles = get_frogpilot_toggles()
 
       if frogpilot_toggles.lock_doors_timer:
-        run_thread_with_lock("lock_doors", lock_doors, (frogpilot_toggles.lock_doors_timer, sm))
+        run_thread_with_lock("lock_doors", lock_doors, (frogpilot_toggles.lock_doors_timer, sm), report=False)
 
       if frogpilot_toggles.random_themes:
         theme_manager.update_active_theme(time_validated, frogpilot_toggles, randomize_theme=True)

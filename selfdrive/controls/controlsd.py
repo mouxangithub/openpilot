@@ -123,9 +123,9 @@ class Controls:
 
     # cleanup old params
     if not self.CP.experimentalLongitudinalAvailable:
-      self.params.put_bool("ExperimentalLongitudinalEnabled", False)
+      self.params.remove("ExperimentalLongitudinalEnabled")
     if not self.CP.openpilotLongitudinalControl:
-      self.params.put_bool("ExperimentalMode", False)
+      self.params.remove("ExperimentalMode")
 
     self.CS_prev = car.CarState.new_message()
     self.AM = AlertManager()
@@ -355,7 +355,7 @@ class Controls:
       self.events.add(EventName.usbError)
     if CS.canTimeout:
       self.events.add(EventName.canBusMissing)
-    elif not CS.canValid and not params_memory.get_bool("ForceOnroad"):
+    elif not CS.canValid and not self.frogpilot_toggles.force_onroad:
       self.events.add(EventName.canError)
 
     # generic catch-all. ideally, a more specific event should be added above instead
@@ -825,7 +825,7 @@ class Controls:
     if self.enabled:
       clear_event_types.add(ET.NO_ENTRY)
 
-    alerts = self.events.create_alerts(self.current_alert_types, [self.CP, CS, self.sm, self.is_metric, self.soft_disable_timer, self.frogpilot_toggles])
+    alerts = self.events.create_alerts(self.current_alert_types, [self.CP, CS, self.sm, self.is_metric, self.soft_disable_timer, self.params, self.frogpilot_toggles])
     self.AM.add_many(self.sm.frame, alerts)
     current_alert = self.AM.process_alerts(self.sm.frame, clear_event_types)
     if current_alert:

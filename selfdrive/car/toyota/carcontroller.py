@@ -12,7 +12,6 @@ from openpilot.selfdrive.car.toyota import toyotacan
 from openpilot.selfdrive.car.toyota.values import CAR, STATIC_DSU_MSGS, NO_STOP_TIMER_CAR, TSS2_CAR, \
                                         MIN_ACC_SPEED, PEDAL_TRANSITION, CarControllerParams, ToyotaFlags, \
                                         UNSUPPORTED_DSU_CAR, STOP_AND_GO_CAR
-from openpilot.selfdrive.controls.lib.drive_helpers import CRUISE_LONG_PRESS
 from openpilot.selfdrive.controls.lib.pid import PIDController
 from opendbc.can.packer import CANPacker
 
@@ -60,7 +59,7 @@ def get_long_tune(CP, params):
 
 
 class CarController(CarControllerBase):
-  def __init__(self, dbc_name, CP, VM):
+  def __init__(self, dbc_name, CP, FPCP, VM):
     self.CP = CP
     self.params = CarControllerParams(self.CP)
     self.frame = 0
@@ -93,10 +92,6 @@ class CarController(CarControllerBase):
 
     # FrogPilot variables
     self.doors_locked = False
-    self.reverse_cruise_active = False
-
-    self.cruise_timer = 0
-    self.previous_set_speed = 0
 
     self.stock_max_accel = self.params.ACCEL_MAX
 
@@ -300,7 +295,7 @@ class CarController(CarControllerBase):
 
         if self.CP.flags & ToyotaFlags.SECOC.value:
           can_sends.append(toyotacan.create_accel_command(self.packer, 0, pcm_cancel_cmd, self.permit_braking, self.standstill_req, lead,
-                                                          CS.acc_type, fcw_alert, self.distance_button, self.reverse_cruise_active))
+                                                          CS.acc_type, fcw_alert, self.distance_button, frogpilot_toggles.reverse_cruise_increase))
 
           acc_cmd_2 = toyotacan.create_accel_command_2(self.packer, pcm_accel_cmd)
           acc_cmd_2 = add_mac(self.secoc_key,
@@ -313,7 +308,7 @@ class CarController(CarControllerBase):
           self.secoc_acc_message_counter += 1
         else:
           can_sends.append(toyotacan.create_accel_command(self.packer, pcm_accel_cmd, pcm_cancel_cmd, self.permit_braking, self.standstill_req, lead,
-                                                          CS.acc_type, fcw_alert, self.distance_button, self.reverse_cruise_active))
+                                                          CS.acc_type, fcw_alert, self.distance_button, frogpilot_toggles.reverse_cruise_increase))
 
         self.accel = pcm_accel_cmd
 
@@ -323,7 +318,7 @@ class CarController(CarControllerBase):
         if self.CP.carFingerprint in UNSUPPORTED_DSU_CAR:
           can_sends.append(toyotacan.create_acc_cancel_command(self.packer))
         else:
-          can_sends.append(toyotacan.create_accel_command(self.packer, 0, pcm_cancel_cmd, True, False, lead, CS.acc_type, False, self.distance_button, self.reverse_cruise_active))
+          can_sends.append(toyotacan.create_accel_command(self.packer, 0, pcm_cancel_cmd, True, False, lead, CS.acc_type, False, self.distance_button, frogpilot_toggles.reverse_cruise_increase))
 
     # *** hud ui ***
     if self.CP.carFingerprint != CAR.TOYOTA_PRIUS_V:
@@ -363,14 +358,6 @@ class CarController(CarControllerBase):
     new_actuators.accel = self.accel
 
     # FrogPilot Toyota carcontroller functions
-    if False: #self.previous_set_speed != CS.out.cruiseState.speedCluster:
-      self.cruise_timer = CRUISE_LONG_PRESS
-    elif self.cruise_timer > 0:
-      self.cruise_timer -= 1
-    else:
-      self.previous_set_speed = CS.out.cruiseState.speedCluster
-
-    # Lock doors when in drive / unlock doors when in park
     if not self.doors_locked and CS.out.gearShifter != PARK:
       if frogpilot_toggles.lock_doors:
         can_sends.append(make_can_msg(0x750, LOCK_CMD, 0))
@@ -379,9 +366,6 @@ class CarController(CarControllerBase):
       if frogpilot_toggles.unlock_doors:
         can_sends.append(make_can_msg(0x750, UNLOCK_CMD, 0))
       self.doors_locked = False
-
-    self.reverse_cruise_active = frogpilot_toggles.reverse_cruise_increase
-    self.reverse_cruise_active &= self.cruise_timer <= 0
 
     self.frame += 1
     return new_actuators, can_sends

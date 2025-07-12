@@ -145,7 +145,7 @@ FrogPilotNavigationPanel::FrogPilotNavigationPanel(FrogPilotSettingsWindow *pare
   QObject::connect(updateSpeedLimitsToggle, &FrogPilotButtonControl::buttonClicked, [this](int id) {
     if (id == 0) {
       if (FrogPilotConfirmationDialog::yesorno(tr("Are you sure you want to cancel the speed limit update process?"), this)) {
-        updateSpeedLimitsToggle->clearCheckedButtons();
+        updateSpeedLimitsToggle->clearCheckedButtons(true);
 
         updateSpeedLimitsToggle->setVisibleButton(0, false);
         updateSpeedLimitsToggle->setVisibleButton(1, true);
@@ -174,7 +174,7 @@ FrogPilotNavigationPanel::FrogPilotNavigationPanel(FrogPilotSettingsWindow *pare
 
         ConfirmationDialog::alert(QString(tr("You have reached the request limit.\n\nIt will reset in %1 hours and %2 minutes.")).arg(hours).arg(minutes), this);
 
-        updateSpeedLimitsToggle->clearCheckedButtons();
+        updateSpeedLimitsToggle->clearCheckedButtons(true);
         return;
       }
 
@@ -190,7 +190,7 @@ FrogPilotNavigationPanel::FrogPilotNavigationPanel(FrogPilotSettingsWindow *pare
         updateSpeedLimitsToggle->setVisibleButton(0, false);
         updateSpeedLimitsToggle->setVisibleButton(1, true);
 
-        updateSpeedLimitsToggle->clearCheckedButtons();
+        updateSpeedLimitsToggle->clearCheckedButtons(true);
       }
     }
   });
@@ -270,7 +270,7 @@ void FrogPilotNavigationPanel::updateState(const UIState &s, const FrogPilotUISt
     if (params_memory.get("UpdateSpeedLimits").empty()) {
       updatingLimits = false;
 
-      updateSpeedLimitsToggle->clearCheckedButtons();
+      updateSpeedLimitsToggle->clearCheckedButtons(true);
       updateSpeedLimitsToggle->setValue("");
       updateSpeedLimitsToggle->setVisibleButton(0, false);
       updateSpeedLimitsToggle->setVisibleButton(1, true);

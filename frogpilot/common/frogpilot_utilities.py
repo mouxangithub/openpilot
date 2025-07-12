@@ -22,7 +22,7 @@ from openpilot.selfdrive.car.toyota.carcontroller import LOCK_CMD
 from openpilot.system.hardware import HARDWARE
 from panda import Panda
 
-from openpilot.frogpilot.common.frogpilot_variables import EARTH_RADIUS, KONIK_PATH, MAPD_PATH, MAPS_PATH, params, params_memory
+from openpilot.frogpilot.common.frogpilot_variables import EARTH_RADIUS, KONIK_PATH, MAPD_PATH, MAPS_PATH, params, params_cache, params_memory
 
 running_threads = {}
 
@@ -103,12 +103,12 @@ def calculate_road_curvature(modelData, v_ego):
 
   return float(max_pred_lat_acc / max(v_ego, 1)**2)
 
-def delete_file(path):
+def delete_file(path, report=True):
   path = Path(path)
   if path.is_file() or path.is_symlink():
-    run_cmd(["sudo", "rm", "-f", str(path)], success_message=f"Deleted file: {path}", fail_message=f"Failed to delete file: {path}")
+    run_cmd(["sudo", "rm", "-f", str(path)], success_message=f"Deleted file: {path}", fail_message=f"Failed to delete file: {path}", report=report)
   elif path.is_dir():
-    run_cmd(["sudo", "rm", "-rf", str(path)], success_message=f"Deleted directory: {path}", fail_message=f"Failed to delete directory: {path}")
+    run_cmd(["sudo", "rm", "-rf", str(path)], success_message=f"Deleted directory: {path}", fail_message=f"Failed to delete directory: {path}", report=report)
   else:
     print(f"File not found: {path}")
 
@@ -187,6 +187,7 @@ def update_maps(now):
 
   if isinstance(maps_selected, int):
     params.remove("MapsSelected")
+    params_cache.remove("MapsSelected")
     return
 
   if not (maps_selected.get("nations") or maps_selected.get("states")):
@@ -201,7 +202,7 @@ def update_maps(now):
   if maps_downloaded and (schedule == 0 or (schedule == 1 and not is_Sunday) or (schedule == 2 and not is_first)):
     return
 
-  suffix = "th" if 4 <= day <= 20 or 24 <= day <= 30 else ["st", "nd", "rd"][day % 10 - 1]
+  suffix = "th" if 11 <= day <= 13 else {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
   todays_date = now.strftime(f"%B {day}{suffix}, %Y")
 
   if maps_downloaded and params.get("LastMapsUpdate", encoding="utf-8") == todays_date:
@@ -216,9 +217,15 @@ def update_maps(now):
   params.put("LastMapsUpdate", todays_date)
 
 def update_openpilot():
+  while params_memory.get_bool("UpdateSpeedLimits"):
+    time.sleep(60)
+
+  if params.get("UpdaterState", encoding="utf-8") != "idle":
+    return
+
   subprocess.run(["pkill", "-SIGUSR1", "-f", "system.updated.updated"], check=False)
 
-  while not params.get("UpdaterState", encoding="utf-8") == "checking...":
+  while params.get("UpdaterState", encoding="utf-8") != "checking...":
     time.sleep(DT_HW)
 
   while params.get("UpdaterState", encoding="utf-8") == "checking...":

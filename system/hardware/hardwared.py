@@ -25,7 +25,7 @@ from openpilot.system.hardware.power_monitoring import PowerMonitoring
 from openpilot.system.hardware.fan_controller import TiciFanController
 from openpilot.system.version import terms_version, training_version
 
-from openpilot.frogpilot.common.frogpilot_variables import get_frogpilot_toggles, params_memory
+from openpilot.frogpilot.common.frogpilot_variables import get_frogpilot_toggles
 
 ThermalStatus = log.DeviceState.ThermalStatus
 NetworkType = log.DeviceState.NetworkType
@@ -345,8 +345,8 @@ def hardware_thread(end_event, hw_queue) -> None:
       should_start = should_start and all(startup_conditions.values())
 
     # Handle force offroad/onroad
-    should_start |= params_memory.get_bool("ForceOnroad")
-    should_start &= not params_memory.get_bool("ForceOffroad")
+    should_start |= frogpilot_toggles.force_onroad
+    should_start &= not frogpilot_toggles.force_offroad
 
     if should_start != should_start_prev or (count == 0):
       params.put_bool("IsEngaged", False)

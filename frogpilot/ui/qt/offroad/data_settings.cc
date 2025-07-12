@@ -1,3 +1,5 @@
+#include <sys/xattr.h>
+
 #include "frogpilot/ui/qt/offroad/data_settings.h"
 
 FrogPilotDataPanel::FrogPilotDataPanel(FrogPilotSettingsWindow *parent) : FrogPilotListWidget(parent), parent(parent) {
@@ -13,11 +15,20 @@ FrogPilotDataPanel::FrogPilotDataPanel(FrogPilotSettingsWindow *parent) : FrogPi
         deleteDrivingDataBtn->setEnabled(false);
         deleteDrivingDataBtn->setValue(tr("Deleting..."));
 
-        konikDataDir.removeRecursively();
-        konikDataDir.mkpath(".");
+        QList<QDir> footageDirs = {konikDataDir, realDataDir};
+        for (const QDir &footageDir : footageDirs) {
+          if (!footageDir.exists()) {
+            continue;
+          }
 
-        realDataDir.removeRecursively();
-        realDataDir.mkpath(".");
+          QFileInfoList entries = footageDir.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot);
+          for (const QFileInfo &entry : entries) {
+            char value[10] = {0};
+            if (!(getxattr(entry.absoluteFilePath().toUtf8().constData(), "user.preserve", value, sizeof(value)) > 0 && strcmp(value, "1") == 0)) {
+              QDir(entry.absoluteFilePath()).removeRecursively();
+            }
+          }
+        }
 
         deleteDrivingDataBtn->setValue(tr("Deleted!"));
 
@@ -347,6 +358,8 @@ FrogPilotDataPanel::FrogPilotDataPanel(FrogPilotSettingsWindow *parent) : FrogPi
             if (QFileInfo::exists(extractDirectory)) {
               QDir(extractDirectory).removeRecursively();
             }
+
+            QFile("/cache/on_backup").open(QIODevice::WriteOnly);
 
             params.putBool("AutomaticUpdates", false);
 

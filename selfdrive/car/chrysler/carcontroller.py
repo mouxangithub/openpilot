@@ -7,7 +7,7 @@ from openpilot.selfdrive.car.interfaces import CarControllerBase
 
 
 class CarController(CarControllerBase):
-  def __init__(self, dbc_name, CP, VM):
+  def __init__(self, dbc_name, CP, FPCP, VM):
     self.CP = CP
     self.apply_steer_last = 0
     self.frame = 0
@@ -19,6 +19,9 @@ class CarController(CarControllerBase):
 
     self.packer = CANPacker(dbc_name)
     self.params = CarControllerParams(CP)
+
+    # FrogPilot variables
+    self.FPCP = FPCP
 
   def update(self, CC, CS, now_nanos, frogpilot_toggles):
     can_sends = []

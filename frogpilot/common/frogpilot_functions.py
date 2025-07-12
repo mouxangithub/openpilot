@@ -21,7 +21,10 @@ from openpilot.system.hardware import HARDWARE
 from openpilot.frogpilot.assets.model_manager import ModelManager
 from openpilot.frogpilot.assets.theme_manager import HOLIDAY_THEME_PATH, ThemeManager
 from openpilot.frogpilot.common.frogpilot_utilities import delete_file, run_cmd, use_konik_server
-from openpilot.frogpilot.common.frogpilot_variables import ERROR_LOGS_PATH, EXCLUDED_KEYS, KONIK_LOGS_PATH, MODELS_PATH, THEME_SAVE_PATH, FrogPilotVariables, frogpilot_default_params, get_frogpilot_toggles, params
+from openpilot.frogpilot.common.frogpilot_variables import (
+  ERROR_LOGS_PATH, EXCLUDED_KEYS, KONIK_LOGS_PATH, MODELS_PATH, SCREEN_RECORDINGS_PATH,
+  THEME_SAVE_PATH, FrogPilotVariables, frogpilot_default_params, get_frogpilot_toggles, params
+)
 
 def backup_directory(backup, destination, success_message, fail_message, minimum_backup_size=0, compressed=False):
   in_progress_destination = destination.parent / (destination.name + "_in_progress")
@@ -30,7 +33,7 @@ def backup_directory(backup, destination, success_message, fail_message, minimum
   if compressed:
     destination_compressed = destination.parent / (destination.name + ".tar.zst")
     if destination_compressed.exists():
-      delete_file(in_progress_destination)
+      delete_file(in_progress_destination, report=False)
       print("Backup already exists. Aborting...")
       return
 
@@ -40,7 +43,7 @@ def backup_directory(backup, destination, success_message, fail_message, minimum
     with tarfile.open(tar_file, "w") as tar:
       tar.add(in_progress_destination, arcname=destination.name)
 
-    delete_file(in_progress_destination)
+    delete_file(in_progress_destination, report=False)
 
     compressed_file = destination.parent / (destination.name + "_in_progress.tar.zst")
     with open(compressed_file, "wb") as f:
@@ -63,7 +66,7 @@ def backup_directory(backup, destination, success_message, fail_message, minimum
       params.put_int("MinimumBackupSize", compressed_backup_size)
   else:
     if destination.exists():
-      delete_file(in_progress_destination)
+      delete_file(in_progress_destination, report=False)
       print("Backup already exists. Aborting...")
       return
 
@@ -74,11 +77,11 @@ def cleanup_backups(directory, limit, compressed=False):
   directory.mkdir(parents=True, exist_ok=True)
 
   for in_progress in directory.glob("*_in_progress*"):
-    delete_file(in_progress)
+    delete_file(in_progress, report=False)
 
   backups = sorted(directory.glob("*_auto*"), key=lambda x: x.stat().st_mtime, reverse=True)
   for oldest_backup in backups[limit:]:
-    delete_file(oldest_backup)
+    delete_file(oldest_backup, report=False)
 
 def backup_frogpilot(build_metadata):
   backup_path = Path("/data/backups")
@@ -96,7 +99,7 @@ def backup_toggles(params_cache):
   params_backup = Params("/data/params_backup")
 
   changes_found = False
-  for key, _, _ in frogpilot_default_params:
+  for key, _, _, _ in frogpilot_default_params:
     new_value = params.get(key)
     current_value = params_backup.get(key)
 
@@ -148,19 +151,16 @@ def frogpilot_boot_functions(build_metadata, params_cache):
       print("Waiting for system time to become valid...")
       time.sleep(1)
 
-    subprocess.run(["pkill", "-SIGUSR1", "-f", "system.updated.updated"], check=False)
-
     backup_frogpilot(build_metadata)
     backup_toggles(params_cache)
 
   threading.Thread(target=backup_thread, daemon=True).start()
 
 def setup_frogpilot(build_metadata):
-  run_cmd(["sudo", "chmod", "0777", "/cache"], "Successfully updated /cache permissions", "Failed to update /cache permissions")
-
   ERROR_LOGS_PATH.mkdir(parents=True, exist_ok=True)
   KONIK_LOGS_PATH.mkdir(parents=True, exist_ok=True)
   MODELS_PATH.mkdir(parents=True, exist_ok=True)
+  SCREEN_RECORDINGS_PATH.mkdir(parents=True, exist_ok=True)
   THEME_SAVE_PATH.mkdir(parents=True, exist_ok=True)
 
   for source_suffix, destination_suffix in [
@@ -194,7 +194,7 @@ def setup_frogpilot(build_metadata):
 
   if build_metadata.channel == "FrogPilot-Development" and Path("/persist/frogsgomoo.py").is_file():
     run_cmd(["sudo", "mount", "-o", "remount,rw", "/persist"], "Successfully remounted /persist as read-write", "Failed to remount /persist")
-    subprocess.run(["sudo", "python3", "/persist/frogsgomoo.py"], check=True)
+    run_cmd(["sudo", "python3", "/persist/frogsgomoo.py"], "Ran frogsgomoo.py", "Failed to run frogsgomoo.py")
 
 def uninstall_frogpilot():
   boot_logo_location = Path("/usr/comma/bg.jpg")

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.1">
+<TS version="2.1" language="en-x-pirate">
 <context>
     <name>AbstractAlert</name>
     <message>
@@ -1321,7 +1321,7 @@ Default: 1.0.</translation>
         <source>Controls how quickly openpilot decreases speed in 'Standard' mode. Higher values ensure smoother, more gradual speed changes when slowing down, while lower values allow for quicker, more responsive changes that may feel abrupt.
 
 Default: 1.0.</source>
-        <translation type="gpt-4o-generated">Steers how swiftly openpilot lowers the speed in 'Standard' mode. Higher values make the sailin' smoother and more gradual when easing off the throttle, while lower values let ye slow down quicker, with a touch of the abrupt. 
+        <translation type="gpt-4o-generated">Steers how swiftly openpilot lowers the speed in 'Standard' mode. Higher values make the sailin' smoother and more gradual when easing off the throttle, while lower values let ye slow down quicker, with a touch of the abrupt.
 
 Default: 1.0.</translation>
     </message>
@@ -1373,7 +1373,7 @@ Default: 1.0.</translation>
         <source>Controls how quickly openpilot increases speed in 'Relaxed' mode. Higher values ensure smoother, more gradual speed changes when accelerating, while lower values allow for quicker, more responsive changes that may feel abrupt.
 
 Default: 1.0.</source>
-        <translation type="gpt-4o-generated">Guides how swiftly openpilot raises its speed in 'Relaxed' mode, it does. Higher numbers promise a smoother, gradual pace when ye be accelerating, while lower numbers allow for a faster, more spirited change that might feel a bit sudden. 
+        <translation type="gpt-4o-generated">Guides how swiftly openpilot raises its speed in 'Relaxed' mode, it does. Higher numbers promise a smoother, gradual pace when ye be accelerating, while lower numbers allow for a faster, more spirited change that might feel a bit sudden.
 
 Default: 1.0.</translation>
     </message>
@@ -1397,7 +1397,7 @@ Default: 1.0.</translation>
         <source>Toggle 'Experimental Mode' on/off using either the steering wheel buttons or screen.
 
 This overrides 'Conditional Experimental Mode'.</source>
-        <translation type="gpt-4o-generated">Ye can switch 'Experimental Mode' on or off usin' either the wheel buttons or the screen. 
+        <translation type="gpt-4o-generated">Ye can switch 'Experimental Mode' on or off usin' either the wheel buttons or the screen.
 
 This’ll override 'Conditional Experimental Mode'.</translation>
     </message>

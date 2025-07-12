@@ -72,8 +72,8 @@ jobs:
     steps:
       - name: Configure Git Identity
         run: |
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --global user.name "James"
+          git config --global user.email "91348155+FrogAi@users.noreply.github.com"
 
       - name: Checkout Required Files
         uses: actions/checkout@v4
@@ -101,8 +101,12 @@ jobs:
       - name: Update Translations
         run: python selfdrive/ui/update_translations.py --vanish
 
-      - name: Translate Missing or Outdated Translations
-        run: python selfdrive/ui/translations/auto_translate.py --all-files $([[ "${{ github.event.inputs.vet_existing_translations }}" == "true" ]] && echo "--vet-translations")
+      - name: Update Missing Translations
+        run: python selfdrive/ui/translations/auto_translate.py --all-files
+
+      - name: Vet Existing Translations
+        if: github.event.inputs.vet_existing_translations == 'true'
+        run: python selfdrive/ui/translations/auto_translate.py --all-files --vet-translations
 
       - name: Commit and Push Translation Updates
         run: |
@@ -133,8 +137,8 @@ jobs:
         run: |
           git config --global http.postBuffer 104857600
 
-          git config --global user.name "${{ github.actor }}"
-          git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --global user.name "James"
+          git config --global user.email "91348155+FrogAi@users.noreply.github.com"
 
       - name: Update Repository
         run: |
@@ -142,8 +146,7 @@ jobs:
 
           if [ "${{ github.event.inputs.update_translations }}" = "true" ]; then
             git fetch origin ${{ needs.get_branch.outputs.branch }}
-            git reset --hard origin/${{ needs.get_branch.outputs.branch }}
-            git pull origin ${{ needs.get_branch.outputs.branch }}
+            git reset --hard FETCH_HEAD
           fi
 
       - name: Take Ownership of Build

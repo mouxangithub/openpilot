@@ -1,5 +1,22 @@
 #include "frogpilot/ui/qt/offroad/theme_settings.h"
 
+QStringList getHolidaySchemes() {
+  return QStringList()
+         << "New Year's"
+         << "Valentine's Day"
+         << "St. Patrick's Day"
+         << "World Frog Day"
+         << "April Fools"
+         << "Easter"
+         << "May the Fourth"
+         << "Cinco de Mayo"
+         << "Stitch Day"
+         << "Fourth of July"
+         << "Halloween"
+         << "Thanksgiving"
+         << "Christmas";
+}
+
 void updateAssetParam(const QString &assetParam, Params &params, const QString &value, bool add) {
   QStringList assets = QString::fromStdString(params.get(assetParam.toStdString())).split(",", QString::SkipEmptyParts);
   if (add) {
@@ -93,7 +110,7 @@ QString getThemeName(const std::string &paramKey, Params &params) {
 }
 
 QString storeThemeName(const QString &input, const std::string &paramKey, Params &params) {
-  QString output = input.toLower().remove("(").remove(")");
+  QString output = input.toLower().remove("(").remove(")").remove("'").remove(".");
   output.replace(" ", input.contains("(") ? "-" : "_");
   params.put(paramKey, output.toStdString());
   return getThemeName(paramKey, params);
@@ -184,6 +201,7 @@ FrogPilotThemesPanel::FrogPilotThemesPanel(FrogPilotSettingsWindow *parent) : Fr
           }
         } else if (id == 2) {
           colorSchemes.append("Stock");
+          colorSchemes.append(getHolidaySchemes());
           colorSchemes.sort();
 
           QString colorSchemeToSelect = MultiOptionDialog::getSelection(tr("Select a color scheme"), colorSchemes, getThemeName("CustomColors", params), this);
@@ -237,6 +255,7 @@ FrogPilotThemesPanel::FrogPilotThemesPanel(FrogPilotSettingsWindow *parent) : Fr
           }
         } else if (id == 2) {
           distanceIconPacks.append("Stock");
+          distanceIconPacks.append(getHolidaySchemes());
           distanceIconPacks.sort();
 
           QString distanceIconPackToSelect = MultiOptionDialog::getSelection(tr("Select a distance icon pack"), distanceIconPacks, getThemeName("CustomDistanceIcons", params), this);
@@ -290,6 +309,7 @@ FrogPilotThemesPanel::FrogPilotThemesPanel(FrogPilotSettingsWindow *parent) : Fr
           }
         } else if (id == 2) {
           iconPacks.append("Stock");
+          iconPacks.append(getHolidaySchemes());
           iconPacks.sort();
 
           QString iconPackToSelect = MultiOptionDialog::getSelection(tr("Select an icon pack"), iconPacks, getThemeName("CustomIcons", params), this);
@@ -343,6 +363,7 @@ FrogPilotThemesPanel::FrogPilotThemesPanel(FrogPilotSettingsWindow *parent) : Fr
           }
         } else if (id == 2) {
           signalAnimations.append("None");
+          signalAnimations.append(getHolidaySchemes());
           signalAnimations.sort();
 
           QString signalAnimationToSelect = MultiOptionDialog::getSelection(tr("Select a signal animation"), signalAnimations, getThemeName("CustomSignals", params), this);
@@ -396,6 +417,7 @@ FrogPilotThemesPanel::FrogPilotThemesPanel(FrogPilotSettingsWindow *parent) : Fr
           }
         } else if (id == 2) {
           soundPacks.append("Stock");
+          soundPacks.append(getHolidaySchemes());
           soundPacks.sort();
 
           QString soundPackToSelect = MultiOptionDialog::getSelection(tr("Select a sound pack"), soundPacks, getThemeName("CustomSounds", params), this);
@@ -450,6 +472,7 @@ FrogPilotThemesPanel::FrogPilotThemesPanel(FrogPilotSettingsWindow *parent) : Fr
         } else if (id == 2) {
           wheelIcons.append("None");
           wheelIcons.append("Stock");
+          wheelIcons.append(getHolidaySchemes());
           wheelIcons.sort();
 
           QString steeringWheelToSelect = MultiOptionDialog::getSelection(tr("Select a steering wheel"), wheelIcons, getThemeName("WheelIcon", params), this);
@@ -503,10 +526,12 @@ FrogPilotThemesPanel::FrogPilotThemesPanel(FrogPilotSettingsWindow *parent) : Fr
             }
           }
         } else if (id == 3) {
-          params.remove("StartupMessageTop");
-          params.remove("StartupMessageBottom");
+          if (FrogPilotConfirmationDialog::yesorno(tr("Are you sure you want to completely reset your startup message?"), this)) {
+            params.remove("StartupMessageTop");
+            params.remove("StartupMessageBottom");
 
-          startupAlertButton->clearCheckedButtons();
+            startupAlertButton->clearCheckedButtons(true);
+          }
         }
       });
       themeToggle = startupAlertButton;

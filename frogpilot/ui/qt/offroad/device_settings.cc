@@ -94,7 +94,7 @@ FrogPilotDevicePanel::FrogPilotDevicePanel(FrogPilotSettingsWindow *parent) : Fr
 
           screenRecorder->startRecording();
         } else if (id == 1) {
-          recorderToggle->clearCheckedButtons();
+          recorderToggle->clearCheckedButtons(true);
 
           recorderToggle->setVisibleButton(0, true);
           recorderToggle->setVisibleButton(1, false);
@@ -150,17 +150,23 @@ FrogPilotDevicePanel::FrogPilotDevicePanel(FrogPilotSettingsWindow *parent) : Fr
 
   std::set<QString> rebootKeys = {"UseKonikServer"};
   for (const QString &key : rebootKeys) {
-    QObject::connect(static_cast<ToggleControl*>(toggles[key]), &ToggleControl::toggleFlipped, [this](bool state) {
-      QFile konikFile("/cache/use_konik");
+    QObject::connect(static_cast<ToggleControl*>(toggles[key]), &ToggleControl::toggleFlipped, [this, key](bool state) {
+      QString filePath;
+      if (key == "UseKonikServer") {
+        filePath = "/cache/use_konik";
+      }
 
-      if (state) {
-        if (!konikFile.exists()) {
-          konikFile.open(QIODevice::WriteOnly);
-          konikFile.close();
-        }
-      } else {
-        if (konikFile.exists()) {
-          konikFile.remove();
+      if (!filePath.isEmpty()) {
+        QFile toggleFile(filePath);
+        if (state) {
+          if (!toggleFile.exists()) {
+            toggleFile.open(QIODevice::WriteOnly);
+            toggleFile.close();
+          }
+        } else {
+          if (toggleFile.exists()) {
+            toggleFile.remove();
+          }
         }
       }
 
@@ -202,6 +208,10 @@ void FrogPilotDevicePanel::updateToggles() {
     }
 
     bool setVisible = tuningLevel >= frogpilotToggleLevels[key].toDouble();
+
+    if (key == "UseKonikServer" && QFile("/data/not_vetted").exists()) {
+      static_cast<ToggleControl*>(toggle)->forceOn(true);
+    }
 
     toggle->setVisible(setVisible);
 

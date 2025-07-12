@@ -12,25 +12,50 @@ import requests
 TRANSLATIONS_DIR = pathlib.Path(__file__).resolve().parent
 TRANSLATIONS_LANGUAGES = TRANSLATIONS_DIR / "languages.json"
 
-OPENAI_MODEL = "gpt-4.1"
+OPENAI_MODEL = "gpt-4o"
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_PROMPT = "You are an experienced software-localization translator.\n\n" + \
-                "TASK\n" + \
-                "• Translate the *TEXT* block that follows from English to {language} (ISO-639 code).\n" + \
-                "• The text appears in the GUI of the openpilot driver-assistance software.\n\n" + \
-                "GUIDELINES\n" + \
-                "1. Keep placeholders exactly as in the source (e.g. %s, %d, {{0}}, {{file}}, <b>…</b>, \\n).\n" + \
-                "2. Match punctuation and capitalization unless target-language rules require otherwise.\n" + \
-                "3. Return the translation only—no extra quotes or commentary.\n" + \
-                "4. Preserve brand/product names, acronyms, camelCase/snake_case identifiers, file extensions, and similar code literals.\n" + \
-                "5. Maintain a concise, tech-neutral tone.\n\n" + \
-                "OUTPUT\n" + \
-                "Return a single UTF-8 string with no surrounding markdown or code fences."
 
-OPENAI_EVAL_PROMPT = "You are an experienced software-localization translation evaluator.\n\n" + \
-                     "Compare two translations (A and B) of the following English source text into {language}.\n" + \
-                     "Return only the better translation (A or B), with no extra commentary.\n\n" + \
-                     "Keep placeholders, punctuation and capitalization exactly."
+BASE_FUN_PROMPT_TEMPLATE = """
+You are a meticulous text stylist. Your task is to rewrite English text while following these strict rules:
+
+1.  **Clarity is Paramount**: The absolute highest priority is preserving the original meaning. The rewritten text MUST be perfectly and instantly understandable to an English speaker. If a choice exists between style and clarity, ALWAYS choose clarity.
+2.  **Conserve Length**: The rewritten text must be very close in character count to the original. Do not add unnecessary words, sentences, or flavor text that significantly increase the length. Be concise.
+3.  **Preserve Technical Elements**: NEVER translate or alter the following items. They must be kept exactly as they appear in the source text, verbatim:
+    * Placeholders (e.g., %1, %n, {{variable}})
+    * HTML/XML tags (e.g., `<div>`, `<br/>`, `<a>`)
+    * Measurement units and labels (e.g., `10px`, `2.5rem`, `5kg`, `100%`)
+    * File paths and URLs (e.g., `/path/to/file.png`, `https://example.com`)
+    * Code snippets, variable names, or technical jargon.
+    * All original punctuation and capitalization.
+
+With these strict rules in mind, subtly apply the following theme:
+{theme_instructions}
+"""
+
+FUN_THEME_INSTRUCTIONS = {
+  "frog": "Apply a 'frog' theme. You may use words like 'ribbit' or 'hop to it', but ONLY if it can be done without adding length or sacrificing clarity.",
+  "pirate": "Apply a 'pirate' theme. You may use phrases like 'Ahoy, matey' or 'shiver me timbers', but ONLY if it can be done without adding length or sacrificing clarity.",
+  "duck": "Apply a 'duck' theme. You may use words like 'quack' or 'waddle on over', but ONLY if it can be done without adding length or sacrificing clarity."
+}
+
+OPENAI_PROMPT = "You are a meticulous professional translator. " \
+                "Translate everything the user sends from English into {language}. " \
+                "Requirements:\n" \
+                "• Output *only* the translated string—no quotes, no labels, no commentary.\n" \
+                "• Preserve placeholders (e.g. %1, %n, {{variable}}), HTML/XML tags, line-breaks, " \
+                "capitalisation, and punctuation exactly as they appear.\n" \
+                "• If the text is already in {language}, or is code/file-paths/URLs that should not be " \
+                "translated, repeat it verbatim.\n" \
+                "• Never add additional context or explanations.\n"
+
+OPENAI_EVAL_PROMPT = "You are an expert bilingual reviewer (English ↔ {language}). " \
+                     "You will be given:\n" \
+                     "Source text (English), Translation A, Translation B.\n" \
+                     "Select the translation that is *more accurate, natural, and faithful* to the source, " \
+                     "while preserving placeholders, HTML tags, and punctuation.\n" \
+                     "Your response MUST contain *only* the chosen translation string. " \
+                     "DO NOT include labels like 'Translation A:' or any other commentary.\n" \
+                     "If both are equally good, return Translation A.\n"
 
 def get_language_files(languages: list[str] = None) -> dict[str, pathlib.Path]:
   files = {}
@@ -86,6 +111,14 @@ def evaluate_translation(source: str, old: str, new: str, language: str) -> str:
 
 
 def translate_phrase(text: str, language: str) -> str:
+  theme_instructions = FUN_THEME_INSTRUCTIONS.get(language.lower())
+
+  prompt = ""
+  if theme_instructions:
+    prompt = BASE_FUN_PROMPT_TEMPLATE.format(theme_instructions=theme_instructions)
+  else:
+    prompt = OPENAI_PROMPT.format(language=language)
+
   response = requests.post(
     "https://api.openai.com/v1/chat/completions",
     json={
@@ -93,14 +126,14 @@ def translate_phrase(text: str, language: str) -> str:
       "messages": [
         {
           "role": "system",
-          "content": OPENAI_PROMPT.format(language=language),
+          "content": prompt,
         },
         {
           "role": "user",
           "content": text,
         },
       ],
-      "temperature": 0.2,
+      "temperature": 0.1,
       "max_tokens": 1024,
       "top_p": 1,
     },
@@ -145,7 +178,10 @@ def translate_file(path: pathlib.Path, language: str, all_: bool, vet_translatio
           continue
       elif not all_:
         if translation_type != "unfinished":
-          continue
+          if translation_type.endswith("-generated") and not translation_type.startswith(OPENAI_MODEL):
+            pass
+          else:
+            continue
 
       text = cast(str, source.text)
       llm_translation = translate_phrase(text, language)
