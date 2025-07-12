@@ -48,5 +48,4 @@ if __name__ == "__main__":
       key = (fw.ecu.raw, addr, subAddr)
 
       fw_versions[platform][key].append(fw.fwVersion)
-
   format_brand_fw_versions(brand, fw_versions)

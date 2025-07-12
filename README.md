@@ -3,7 +3,94 @@
 <b>在pc设备上运行sunnypilot </b>
 </div>
 
-* PC最好有GPU可以支持opencl的加速
+* CPU比较强大
+* 有NVIDIA的GPU
+* 有AMD的GPU
+
+<h3>
+1. 环境安装
+</h3>
+
+参考 [webcam安装步骤](tools/webcam/README.md)
+
+<h3>
+2. GPU支持
+</h3>
+<h4>
+NVIDIA
+</h4>
+
+安装驱动
+参考[官方教程](https://developer.nvidia.com/cudnn-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=24.04&target_type=deb_local)
+
+以下为官方教程精简:
+
+```bash
+# 确保安装的nvidia驱动是cuda12
+sudo apt update
+sudo apt install nvidia-cuda-toolkit
+wget https://developer.download.nvidia.com/compute/cudnn/9.7.1/local_installers/cudnn-local-repo-ubuntu2404-9.7.1_1.0-1_amd64.deb
+sudo dpkg -i cudnn-local-repo-ubuntu2404-9.7.1_1.0-1_amd64.deb
+sudo cp /var/cudnn-local-repo-ubuntu2404-9.7.1/cudnn-*-keyring.gpg /usr/share/keyrings/
+sudo apt-get update
+sudo apt-get -y install cudnn
+sudo apt-get -y install cudnn-cuda-12
+```
+![bug修复](docs/assets/ops_cuda.png)
+
+按上图修改相应的文件和内容,之后`tools/op.sh build`编译,之后运行就行
+
+默热配置的是`CPU`,按理说安装好相关`GPU`驱动会自动调用相应的`GPU`加速
+
+<h4>
+AMD
+</h4>
+
+参考官方教程
+
+
+<h3>
+3. 摄像机参数设置
+</h3>
+
+首先使用一些常规软件获取摄像头的内参参数(例如GMLCCalibration),主要是内参matrix矩阵
+然后分别修改[camera.py](common/transformations/camera.py)和[ui.h](selfdrive/ui/ui.h)中相应摄像头的内参参数；另外根据自己的需求更改[camera.py](tools/webcam/camera.py)中的相机参数（像素和帧率，帧率最好是20的倍数，例如20,60）
+
+<h3>
+4. 数据分析
+</h3>
+
+参考 [juggler数据分析](tools/plotjuggler/README.md)
+
+------
+<div align="center" style="text-align: center;">
+<p>
+  <b>openpilot is an operating system for robotics.</b>
+  <br>
+  Currently, it upgrades the driver assistance system in 275+ supported cars.
+</p>
+
+<h3>
+  <a href="https://docs.comma.ai">Docs</a>
+  <span> · </span>
+  <a href="https://docs.comma.ai/contributing/roadmap/">Roadmap</a>
+  <span> · </span>
+  <a href="https://github.com/commaai/openpilot/blob/master/docs/CONTRIBUTING.md">Contribute</a>
+  <span> · </span>
+  <a href="https://discord.comma.ai">Community</a>
+  <span> · </span>
+  <a href="https://comma.ai/shop">Try it on a comma 3X</a>
+</h3>
+
+Quick start: `bash <(curl -fsSL openpilot.comma.ai)`
+
+![openpilot tests](https://github.com/commaai/openpilot/actions/workflows/selfdrive_tests.yaml/badge.svg)
+[![codecov](https://codecov.io/gh/commaai/openpilot/branch/master/graph/badge.svg)](https://codecov.io/gh/commaai/openpilot)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![X Follow](https://img.shields.io/twitter/follow/comma_ai)](https://x.com/comma_ai)
+[![Discord](https://img.shields.io/discord/469524606043160576)](https://discord.comma.ai)
+
+</div>
 
 ## 安装教程
 安装教程文档：https://gitee.com/huheas/pilotosinit
