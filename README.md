@@ -36,7 +36,6 @@ sudo apt-get update
 sudo apt-get -y install cudnn
 sudo apt-get -y install cudnn-cuda-12
 ```
-![bug修复](docs/assets/ops_cuda.png)
 
 按上图修改相应的文件和内容,之后`tools/op.sh build`编译,之后运行就行
 
