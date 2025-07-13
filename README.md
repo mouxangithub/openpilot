@@ -14,7 +14,7 @@
 参考 [webcam安装步骤](tools/webcam/README.md)
 
 <h3>
-2. GPU支持
+2. GPU支持（可选/可跳过）
 </h3>
 <h4>
 NVIDIA
@@ -40,7 +40,7 @@ sudo apt-get -y install cudnn-cuda-12
 
 按上图修改相应的文件和内容,之后`tools/op.sh build`编译,之后运行就行
 
-默热配置的是`CPU`,按理说安装好相关`GPU`驱动会自动调用相应的`GPU`加速
+默认配置的是`CPU`,按理说安装好相关`GPU`驱动会自动调用相应的`GPU`加速
 
 <h4>
 AMD
@@ -48,6 +48,11 @@ AMD
 
 参考官方教程
 
+<h4>
+参数修改
+</h4>
+
+将[SConscript](selfdrive/modeld/SConscript)中`GPU=1`改称`CUDA=1`或者`AMD=1`; 将[modeld.py](selfdrive/modeld/modeld.py)中`os.environ['GPU'] = '1'`改称`os.environ['CUDA'] = '1'`或者`os.environ['AMD'] = '1'`
 
 <h3>
 3. 摄像机参数设置
@@ -62,6 +67,34 @@ AMD
 
 参考 [juggler数据分析](tools/plotjuggler/README.md)
 
+<h3>
+5. 分支管理
+</h3>
+
+|    Branch    |         explain        |
+|:------------:|:--------------------------------:|
+| `master-new` | 同步sunnypilot的master-new分支 |
+| `master-new-pc` | PC版的稳定版本分支（PC建议使用这个） |
+| `master-new-pc-dev` | PC版的开发分支（定期同步最新改动），测试通过后会合入master-new-pc |
+| `master-rk3588` | 针对rk3588的分支，具体参考RKPilot仓库 |
+
+<h3>
+6. 环境变量
+</h3>
+
+|    Branch    |         explain        |
+|:------------:|:--------------------------------:|
+| `NO_DM=1` | 禁用DM摄像头（默认启用），注意您对安全负责⚠️ |
+| `NO_IMU=1` | 不使用can的上imu信息，适用于can信号里yawRate未填值的车型 |
+
+<h3>
+7. 免责声明！！！
+</h3>
+
+本仓库只是用来知识共享；请遵守当地法律法规，所产生的一切后果与开发者无关！
+
+------
+------
 ------
 <div align="center" style="text-align: center;">
 <p>
