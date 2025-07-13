@@ -155,9 +155,9 @@ procs = [
 # sunnypilot
 procs += [
   # Models
-  PythonProcess("models_manager", "sunnypilot.models.manager", only_offroad, enabled=not PC),
-  NativeProcess("modeld_snpe", "sunnypilot/modeld", ["./modeld"], and_(only_onroad, is_snpe_model), enabled=not PC),
-  NativeProcess("modeld_tinygrad", "sunnypilot/modeld_v2", ["./modeld"], and_(only_onroad, is_tinygrad_model), enabled=not PC),
+  PythonProcess("models_manager", "sunnypilot.models.manager", only_offroad),
+  NativeProcess("modeld_snpe", "sunnypilot/modeld", ["./modeld"], and_(only_onroad, is_snpe_model)),
+  NativeProcess("modeld_tinygrad", "sunnypilot/modeld_v2", ["./modeld"], and_(only_onroad, is_tinygrad_model)),
 
   # Backup
   PythonProcess("backup_manager", "sunnypilot.sunnylink.backups.manager", and_(only_offroad, sunnylink_ready_shim), enabled=not PC),
