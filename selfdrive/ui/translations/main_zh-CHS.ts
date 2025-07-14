@@ -380,6 +380,10 @@
         <translation>1:将SCC的CAN线连接到CAM，2:同步巡航状态，3:长期储存</translation>
     </message>
     <message>
+        <source>IsLdwsCar</source>
+        <translation>车道偏离警告系统</translation>
+    </message>
+    <message>
         <source>Enable Radar Track</source>
         <translation>启用雷达跟踪</translation>
     </message>
