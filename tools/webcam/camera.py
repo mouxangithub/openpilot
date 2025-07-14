@@ -1,5 +1,6 @@
 import av
-import cv2
+import cv2 as cv
+import platform
 
 class Camera:
   def __init__(self, cam_type_state, stream_type, camera_id):
@@ -8,7 +9,11 @@ class Camera:
     except ValueError:
       pass
 
-    self.cap = cv2.VideoCapture(camera_id)
+    if platform.system() == "Darwin":
+      camera_id = int(camera_id[-1])
+      self.cap = cv.VideoCapture(camera_id, cv.CAP_AVFOUNDATION)
+    else:
+      self.cap = cv.VideoCapture(camera_id)
     if not self.cap.isOpened():
       raise OSError(f"无法打开摄像头设备 {camera_id}")
 
@@ -19,12 +24,12 @@ class Camera:
     # 若 MJPG 不支持，回退默认
 
     # 获取实际设置的FPS并打印
-    self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+    self.fps = self.cap.get(cv.CAP_PROP_FPS)
     print(f"摄像头初始化后的FPS设置: {self.fps}")
 
     # 获取分辨率
-    self.W = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    self.H = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    self.W = int(self.cap.get(cv.CAP_PROP_FRAME_WIDTH))
+    self.H = int(self.cap.get(cv.CAP_PROP_FRAME_HEIGHT))
     self.cur_frame_id = 0
     self.cam_type_state = cam_type_state
     self.stream_type = stream_type
@@ -32,16 +37,16 @@ class Camera:
 
   def _configure_camera_format(self, target_fourcc):
     """尝试设置摄像头的FourCC格式"""
-    fourcc = cv2.VideoWriter_fourcc(*target_fourcc)
-    self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
-    self.cap.set(cv2.CAP_PROP_FOURCC, fourcc)
-    self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)  # 优先选择最高分辨率
-    self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-    self.cap.set(cv2.CAP_PROP_FPS, 20)
+    fourcc = cv.VideoWriter_fourcc(*target_fourcc)
+    self.cap.set(cv.CAP_PROP_FOURCC, fourcc)
+    self.cap.set(cv.CAP_PROP_FOURCC, fourcc)
+    self.cap.set(cv.CAP_PROP_FRAME_WIDTH, 1920)  # 优先选择最高分辨率
+    self.cap.set(cv.CAP_PROP_FRAME_HEIGHT, 1080)
+    self.cap.set(cv.CAP_PROP_FPS, 20)
 
   def _get_current_format(self):
     """获取当前实际格式"""
-    fourcc_code = int(self.cap.get(cv2.CAP_PROP_FOURCC))
+    fourcc_code = int(self.cap.get(cv.CAP_PROP_FOURCC))
     return ''.join([chr((fourcc_code >> 8 * i) & 0xFF) for i in range(4)])
 
   @staticmethod

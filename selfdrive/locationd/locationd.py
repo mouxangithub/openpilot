@@ -16,6 +16,7 @@ from openpilot.selfdrive.locationd.helpers import rotate_std
 from openpilot.selfdrive.locationd.models.pose_kf import PoseKalman, States
 from openpilot.selfdrive.locationd.models.constants import ObservationKind, GENERATED_DIR
 
+NO_IMU = os.getenv("NO_IMU") is not None
 ACCEL_SANITY_CHECK = 100.0  # m/s^2
 ROTATION_SANITY_CHECK = 10.0  # rad/s
 TRANS_SANITY_CHECK = 200.0  # m/s
@@ -133,6 +134,7 @@ class LocationEstimator:
 
     #   v = msg.gyroUncalibrated.v
     #   meas = np.array([-v[2], -v[1], -v[0]])
+    if not NO_IMU:
       # GYRO
       meas = np.array([0, 0, -msg.yawRate])
       gyro_bias = self.kf.x[States.GYRO_BIAS]
