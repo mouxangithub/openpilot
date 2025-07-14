@@ -9,7 +9,7 @@
 #include "selfdrive/ui/ui.h"
 
 #ifdef SUNNYPILOT
-constexpr int toggles_settings_index = 3;
+constexpr int toggles_settings_index = 2;
 #else
 constexpr int toggles_settings_index = 2;
 #endif
