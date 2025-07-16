@@ -1221,6 +1221,7 @@ struct ModelDataV2 {
     desiredCurvature @0 :Float32;
     desiredAcceleration @1 :Float32;
     shouldStop @2 :Bool;
+    desiredVelocity @3 :Float32;
   }
 }
 
@@ -1295,9 +1296,9 @@ struct LongitudinalPlan @0xe00b5b3eba12876c {
   xState @40: Int32;
   trafficState @41: Int32;
   events @42:List(OnroadEvent);
-  vTargetNotUsed @43: Float32;
+  vTargetNow @43: Float32;
   cruiseTarget @44: Float32;
-  jTargetNotUsed @45: Float32;
+  jTargetNow @45: Float32;
   tFollow @46: Float32;
   desiredDistance @47: Float32;
   myDrivingMode @48: Int32;
@@ -2526,13 +2527,19 @@ struct DebugAlert {
 struct UserFlag {
 }
 
-struct Microphone {
+struct SoundPressure @0xdc24138990726023 {
   soundPressure @0 :Float32;
 
   # uncalibrated, A-weighted
   soundPressureWeighted @3 :Float32;
   soundPressureWeightedDb @1 :Float32;
-  filteredSoundPressureWeightedDb @2 :Float32;
+
+  filteredSoundPressureWeightedDbDEPRECATED @2 :Float32;
+}
+
+struct AudioData {
+  data @0 :Data;
+  sampleRate @1 :UInt32;
 }
 
 struct Touch {
@@ -2612,7 +2619,8 @@ struct Event {
     livestreamDriverEncodeIdx @119 :EncodeIndex;
 
     # microphone data
-    microphone @103 :Microphone;
+    soundPressure @103 :SoundPressure;
+    rawAudioData @147 :AudioData;
 
     # systems stuff
     androidLog @20 :AndroidLogEntry;
