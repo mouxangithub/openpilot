@@ -33,7 +33,7 @@ def create_lkas11(packer, frame, CP, apply_torque, steer_req,
   values["CF_Lkas_ToiFlt"] = torque_fault  # seems to allow actuation on CR_Lkas_StrToqReq
   values["CF_Lkas_MsgCount"] = frame % 0x10
 
-  if CP.flags & HyundaiFlags.SEND_LFA.value:
+  if CP.flags & HyundaiFlags.SEND_LFA.value or CP.carFingerprint in (CAR.HYUNDAI_SANTA_FE):
     values["CF_Lkas_LdwsActivemode"] = int(left_lane) + (int(right_lane) << 1)
     values["CF_Lkas_LdwsOpt_USM"] = 2
 
