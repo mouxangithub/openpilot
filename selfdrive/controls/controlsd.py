@@ -166,7 +166,8 @@ class Controls:
     actuators.curvature = float(self.desired_curvature)
     steer, steeringAngleDeg, lac_log = self.LaC.update(CC.latActive, CS, self.VM, lp,
                                                        self.steer_limited_by_controls, self.desired_curvature,
-                                                       self.sm['liveLocationKalman'], curvature_limited)  # TODO what if not available
+                                                       self.sm['liveLocationKalman'], curvature_limited,
+                                                       model_data=self.sm['modelV2'])
     actuators.torque = float(steer)
     actuators.steeringAngleDeg = float(steeringAngleDeg)
     actuators.yStd = float(self.yStd)
