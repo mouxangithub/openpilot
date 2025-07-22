@@ -30,7 +30,8 @@ def dmonitoringd_thread():
       dat = DM.get_state_packet(valid=valid)
       pm.send('driverMonitoringState', dat)
     else:
-      DM.reset(rhd_saved=params.get_bool("IsRhdDetected"), always_on=params.get_bool("AlwaysOnDM"))
+      # DM.reset(rhd_saved=params.get_bool("IsRhdDetected"), always_on=params.get_bool("AlwaysOnDM"))
+      pass
 
     # load live always-on toggle
     if sm['driverStateV2'].frameId % 40 == 1:
