@@ -90,11 +90,13 @@ class SelfdriveD(CruiseHelper):
     if REPLAY:
       # no vipc in replay will make them ignored anyways
       ignore += ['roadCameraState', 'wideRoadCameraState']
-    self.sm = messaging.SubMaster(['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
-                                   'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'livePose', 'liveDelay',
-                                   'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
-                                   'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userFlag'] + \
-                                   self.camera_packets + self.sensor_packets + self.gps_packets + ["longitudinalPlanSP"],
+    subscribed_topics = ['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
+                         'carOutput', 'longitudinalPlan', 'livePose', 'liveDelay',
+                         'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
+                         'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userFlag']
+    if self.AlwaysOnDM:
+      subscribed_topics.append('driverMonitoringState')
+    self.sm = messaging.SubMaster(subscribed_topics + self.camera_packets + self.sensor_packets + self.gps_packets + ["longitudinalPlanSP"],
                                   ignore_alive=ignore, ignore_avg_freq=ignore,
                                   ignore_valid=ignore, frequency=int(1/DT_CTRL))
 
