@@ -31,7 +31,6 @@ REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ
 TESTING_CLOSET = "TESTING_CLOSET" in os.environ
 LONGITUDINAL_PERSONALITY_MAP = {v: k for k, v in log.LongitudinalPersonality.schema.enumerants.items()}
-NO_DM = os.getenv("NO_DM") is not None
 
 ThermalStatus = log.DeviceState.ThermalStatus
 State = log.SelfdriveState.OpenpilotState
@@ -48,6 +47,7 @@ IGNORED_SAFETY_MODES = (SafetyModel.silent, SafetyModel.noOutput)
 class SelfdriveD(CruiseHelper):
   def __init__(self, CP=None, CP_SP=None):
     self.params = Params()
+    self.AlwaysOnDM = self.params.get_bool("AlwaysOnDM")
 
     # Ensure the current branch is cached, otherwise the first cycle lags
     build_metadata = get_build_metadata()
@@ -75,22 +75,24 @@ class SelfdriveD(CruiseHelper):
     self.gps_packets = [self.gps_location_service]
     self.sensor_packets = ["accelerometer", "gyroscope"]
     self.camera_packets = ["roadCameraState", "wideRoadCameraState"]
-    if not NO_DM:
+    if self.AlwaysOnDM:
       self.camera_packets.append("driverCameraState")
 
     # TODO: de-couple selfdrived with card/conflate on carState without introducing controls mismatches
     self.car_state_sock = messaging.sub_sock('carState', timeout=20)
 
     ignore = self.sensor_packets + self.gps_packets + ['alertDebug']
-    if NO_DM:
+    if not self.AlwaysOnDM:
       ignore += ['driverMonitoringState']
     if SIMULATION:
-      ignore += ['driverCameraState', 'managerState']
+      ignore += ['managerState']
+      if self.AlwaysOnDM:
+        ignore += ['driverCameraState']
     if REPLAY:
       # no vipc in replay will make them ignored anyways
       ignore += ['roadCameraState', 'wideRoadCameraState']
     self.sm = messaging.SubMaster(['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
-                                   'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'livePose', 'liveDelay',
+                                   'carOutput', 'longitudinalPlan', 'livePose', 'liveDelay',
                                    'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
                                    'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userFlag'] + \
                                    self.camera_packets + self.sensor_packets + self.gps_packets + ["longitudinalPlanSP"],
@@ -200,7 +202,7 @@ class SelfdriveD(CruiseHelper):
     if not self.CP.pcmCruise and CS.vCruise > 250 and resume_pressed:
       self.events.add(EventName.resumeBlocked)
 
-    if not self.CP.notCar and not NO_DM:
+    if not self.CP.notCar and self.AlwaysOnDM:
       self.events.add_from_msg(self.sm['driverMonitoringState'].events)
       self.events_sp.add_from_msg(self.sm['longitudinalPlanSP'].events)
 
