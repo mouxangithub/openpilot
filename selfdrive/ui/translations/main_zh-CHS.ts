@@ -580,6 +580,10 @@ This is the time after which settings UI closes automatically if user is not int
         <source>DEFAULT</source>
         <translation>默认</translation>
     </message>
+    <message>
+        <source>Default</source>
+        <translation>默认</translation>
+    </message>
 </context>
 <context>
     <name>DriveStats</name>
