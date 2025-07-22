@@ -414,3 +414,45 @@ class DriverMonitoring:
       wrong_gear=sm['carState'].gearShifter in [car.CarState.GearShifter.reverse, car.CarState.GearShifter.park],
       car_speed=sm['carState'].vEgo
     )
+  def reset(self, rhd_saved=False, settings=None, always_on=False):
+    # 保留原始配置或使用当前值
+    if settings is None:
+      settings = DRIVER_MONITOR_SETTINGS()
+    # init policy settings
+    self.settings = settings
+
+    # 清除所有状态
+    self.wheel_on_right_default = rhd_saved
+    self.always_on = always_on
+    self.wheel_on_right = rhd_saved
+    self.wheel_on_right_last = None
+
+    # 重置注意力状态
+    self._reset_awareness()
+    self._set_timers(active_monitoring=True)
+    self._reset_events()
+
+    # 重置模型状态
+    self.face_detected = False
+    self.pose = DriverPose(self.settings._POSE_OFFSET_MAX_COUNT)
+    self.blink = DriverBlink()
+    self.eev1 = 0.
+    self.eev2 = 1.
+    self.ee1_calibrated = False
+    self.ee2_calibrated = False
+    self.ee1_offseter = RunningStatFilter(max_trackable=self.settings._POSE_OFFSET_MAX_COUNT)
+    self.ee2_offseter = RunningStatFilter(max_trackable=self.settings._POSE_OFFSET_MAX_COUNT)
+
+    # 重置分心状态
+    self.distracted_types = []
+    self.driver_distracted = F  self.driver_distraction_filter = FirstOrderFilter(0., self.settings._DISTRACTED_FILTER_TS, self.settings._DT_DMON)
+
+    # 重置计数器和标志alse
+    self.terminal_alert_cnt = 0
+    self.terminal_time = 0
+    self.step_change = 0.
+    self.active_monitoring_mode = True
+    self.is_model_uncertain = False
+    self.hi_stds = 0
+    self.threshold_pre = self.settings._DISTRACTED_PRE_TIME_TILL_TERMINAL / self.settings._DISTRACTED_TIME
+    self.threshold_prompt = self.settings._DISTRACTED_PROMPT_TIME_TILL_TERMINAL / self.settings._DISTRACTED_TIME
