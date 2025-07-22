@@ -34,25 +34,25 @@ class UIState:
 
   def _initialize(self):
     self.params = Params()
-    subscribed = [
-      "modelV2",
-      "controlsState",
-      "liveCalibration",
-      "radarState",
-      "deviceState",
-      "pandaStates",
-      "carParams",
-      "carState",
-      "driverStateV2",
-      "roadCameraState",
-      "wideRoadCameraState",
-      "managerState",
-      "selfdriveState",
-      "longitudinalPlan",
-    ]
-    if self.params.get_bool("AlwaysOnDM"):
-      subscribed.append('driverMonitoringState')
-    self.sm = messaging.SubMaster(subscribed)
+    self.sm = messaging.SubMaster(
+      [
+        "modelV2",
+        "controlsState",
+        "liveCalibration",
+        "radarState",
+        "deviceState",
+        "pandaStates",
+        "carParams",
+        "driverMonitoringState",
+        "carState",
+        "driverStateV2",
+        "roadCameraState",
+        "wideRoadCameraState",
+        "managerState",
+        "selfdriveState",
+        "longitudinalPlan",
+      ]
+    )
 
     self.prime_state = PrimeState()
 
