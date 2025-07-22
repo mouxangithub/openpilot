@@ -47,10 +47,6 @@ IGNORED_SAFETY_MODES = (SafetyModel.silent, SafetyModel.noOutput)
 class SelfdriveD(CruiseHelper):
   def __init__(self, CP=None, CP_SP=None):
     self.params = Params()
-    self.AlwaysOnDM = self.params.get_bool("AlwaysOnDM")
-
-    # Ensure the current branch is cached, otherwise the first cycle lags
-    build_metadata = get_build_metadata()
 
     if CP is None:
       cloudlog.info("selfdrived is waiting for CarParams")
@@ -74,28 +70,22 @@ class SelfdriveD(CruiseHelper):
     self.gps_location_service = get_gps_location_service(self.params)
     self.gps_packets = [self.gps_location_service]
     self.sensor_packets = ["accelerometer", "gyroscope"]
-    self.camera_packets = ["roadCameraState", "wideRoadCameraState"]
-    if self.AlwaysOnDM:
-      self.camera_packets.append("driverCameraState")
+    self.camera_packets = ["roadCameraState", "driverCameraState", "wideRoadCameraState"]
 
     # TODO: de-couple selfdrived with card/conflate on carState without introducing controls mismatches
     self.car_state_sock = messaging.sub_sock('carState', timeout=20)
 
     ignore = self.sensor_packets + self.gps_packets + ['alertDebug']
-    if not self.AlwaysOnDM:
-      ignore += ['driverMonitoringState']
     if SIMULATION:
       ignore += ['driverCameraState', 'managerState']
     if REPLAY:
       # no vipc in replay will make them ignored anyways
       ignore += ['roadCameraState', 'wideRoadCameraState']
-    subscribed_topics = ['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
-                         'carOutput', 'longitudinalPlan', 'livePose', 'liveDelay',
-                         'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
-                         'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userFlag']
-    if self.AlwaysOnDM:
-      subscribed_topics.append('driverMonitoringState')
-    self.sm = messaging.SubMaster(subscribed_topics + self.camera_packets + self.sensor_packets + self.gps_packets + ["longitudinalPlanSP"],
+    self.sm = messaging.SubMaster(['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
+                                   'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'livePose', 'liveDelay',
+                                   'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
+                                   'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userFlag'] + \
+                                   self.camera_packets + self.sensor_packets + self.gps_packets,
                                   ignore_alive=ignore, ignore_avg_freq=ignore,
                                   ignore_valid=ignore, frequency=int(1/DT_CTRL))
 
@@ -142,7 +132,7 @@ class SelfdriveD(CruiseHelper):
     self.ignored_processes.update({'mapd'})
 
     # Determine startup event
-    self.startup_event = EventName.startup # if build_metadata.openpilot.comma_remote and build_metadata.tested_channel else EventName.startupMaster
+    self.startup_event = EventName.startup
     if not car_recognized:
       self.startup_event = EventName.startupNoCar
     elif car_recognized and self.CP.passive:
@@ -202,7 +192,7 @@ class SelfdriveD(CruiseHelper):
     if not self.CP.pcmCruise and CS.vCruise > 250 and resume_pressed:
       self.events.add(EventName.resumeBlocked)
 
-    if not self.CP.notCar and self.AlwaysOnDM:
+    if not self.CP.notCar:
       self.events.add_from_msg(self.sm['driverMonitoringState'].events)
       self.events_sp.add_from_msg(self.sm['longitudinalPlanSP'].events)
 
