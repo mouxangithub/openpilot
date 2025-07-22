@@ -2755,8 +2755,8 @@ Are you sure you want to delete all the maps?</source>
         <translation>驾驶员监控常开</translation>
     </message>
     <message>
-        <source>Enable driver monitoring even when sunnypilot is not engaged.</source>
-        <translation>即使在sunnypilot未激活时也启用驾驶员监控。</translation>
+        <source>Reboot is required for the settings to take effect. It is recommended to enable this configuration.</source>
+        <translation>配置后需要重启方能生效，为了您的安全建议打开此项配置</translation>
     </message>
     <message>
         <source>Enable Dynamic Experimental Control</source>
