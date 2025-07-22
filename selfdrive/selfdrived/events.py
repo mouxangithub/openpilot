@@ -310,8 +310,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.steerTempUnavailableSilent: {
     ET.WARNING: Alert(
+      "请接管控制",
       "转向暂时不可用",
-      "",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.prompt, 1.8),
   },
@@ -319,7 +319,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   EventName.preDriverDistracted: {
     ET.PERMANENT: Alert(
       "请注意",
-      "",
+      "请目视前方",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
   },
@@ -342,8 +342,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.preDriverUnresponsive: {
     ET.PERMANENT: Alert(
-      "触摸方向盘：未检测到面部",
-      "",
+      "请触摸方向盘：未检测到面部",
+      "请回到驾驶位并摆正你的姿态",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .1),
   },
@@ -374,8 +374,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.resumeRequired: {
     ET.WARNING: Alert(
+      "请确认",
       "按恢复键以解除停止状态",
-      "",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .2),
   },
@@ -386,24 +386,24 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.preLaneChangeLeft: {
     ET.WARNING: Alert(
+      "注意后方来车",
       "请确认安全后进行左转变道",
-      "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
   },
 
   EventName.preLaneChangeRight: {
     ET.WARNING: Alert(
+      "注意后方来车",
       "请确认安全后进行右转变道",
-      "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
   },
 
   EventName.laneChangeBlocked: {
     ET.WARNING: Alert(
-      "盲点检测到车辆",
-      "",
+      "盲点监测",
+      "检测到后方来车",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.prompt, .1),
   },
@@ -411,7 +411,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   EventName.laneChange: {
     ET.WARNING: Alert(
       "正在变道",
-      "",
+      "注意后方来车",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
   },
@@ -495,8 +495,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.brakeHold: {
     ET.WARNING: Alert(
+      "请确认",
       "按恢复键以解除制动保持",
-      "",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .2),
   },
@@ -519,8 +519,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.preEnableStandstill: {
     ET.PRE_ENABLE: Alert(
-      "释放制动以启用",
-      "",
+      "准备启动",
+      "松开刹车以启用",
       AlertStatus.normal, AlertSize.small,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .1, creation_delay=1.),
   },
@@ -743,7 +743,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
     ET.IMMEDIATE_DISABLE: ImmediateDisableAlert("CAN总线错误"),
     ET.PERMANENT: Alert(
       "CAN总线错误：请检查连接",
-      "",
+      "请前往错误日志以获取更多信息",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1., creation_delay=1.),
     ET.NO_ENTRY: NoEntryAlert("CAN总线错误：请检查连接"),
