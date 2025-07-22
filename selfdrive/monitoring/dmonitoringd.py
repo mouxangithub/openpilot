@@ -18,9 +18,6 @@ def dmonitoringd_thread():
   # 20Hz <- dmonitoringmodeld
   while True:
     sm.update()
-    # 未打开驾驶员监控之间终止检测
-    if not DM.always_on:
-      continue
     if not sm.updated['driverStateV2']:
       # iterate when model has new output
       continue
@@ -29,13 +26,11 @@ def dmonitoringd_thread():
       valid = sm.all_checks()
       if valid:
         DM.run_step(sm)
-
       # publish
       dat = DM.get_state_packet(valid=valid)
       pm.send('driverMonitoringState', dat)
     else:
-      # 可选：清空状态或发送无效状态
-      pass
+      DM.reset(rhd_saved=params.get_bool("IsRhdDetected"), always_on=params.get_bool("AlwaysOnDM"))
 
     # load live always-on toggle
     if sm['driverStateV2'].frameId % 40 == 1:

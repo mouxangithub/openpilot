@@ -42,12 +42,11 @@ class Controls(ControlsExt):
     ControlsExt.__init__(self, self.CP, self.params)
 
     self.CI = interfaces[self.CP.carFingerprint](self.CP, self.CP_SP)
-    subscribed_topics = ['liveParameters', 'liveTorqueParameters', 'modelV2', 'selfdriveState',
-                     'liveCalibration', 'livePose', 'longitudinalPlan', 'carState', 'carOutput',
-                     'onroadEvents', 'driverAssistance', 'liveDelay'] + self.sm_services_ext
-    if self.params.get_bool("AlwaysOnDM"):
-      subscribed_topics.append('driverMonitoringState')
-    self.sm = messaging.SubMaster(subscribed_topics, poll='selfdriveState')
+
+    self.sm = messaging.SubMaster(['liveParameters', 'liveTorqueParameters', 'modelV2', 'selfdriveState',
+                                   'liveCalibration', 'livePose', 'longitudinalPlan', 'carState', 'carOutput',
+                                   'driverMonitoringState', 'onroadEvents', 'driverAssistance', 'liveDelay'] + self.sm_services_ext,
+                                  poll='selfdriveState')
     self.pm = messaging.PubMaster(['carControl', 'controlsState'] + self.pm_services_ext)
 
     self.steer_limited_by_controls = False
@@ -209,10 +208,7 @@ class Controls(ControlsExt):
     cs.upAccelCmd = float(self.LoC.pid.p)
     cs.uiAccelCmd = float(self.LoC.pid.i)
     cs.ufAccelCmd = float(self.LoC.pid.f)
-    awareness_status = 0.0
-    if hasattr(self.sm, 'driverMonitoringState'):
-      awareness_status = self.sm['driverMonitoringState'].awarenessStatus
-    cs.forceDecel = bool((awareness_status < 0.) or
+    cs.forceDecel = bool((self.sm['driverMonitoringState'].awarenessStatus < 0.) or
                          (self.sm['selfdriveState'].state == State.softDisabling))
 
     lat_tuning = self.CP.lateralTuning.which()

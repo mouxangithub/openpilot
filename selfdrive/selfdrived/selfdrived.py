@@ -48,10 +48,6 @@ IGNORED_SAFETY_MODES = (SafetyModel.silent, SafetyModel.noOutput)
 class SelfdriveD(CruiseHelper):
   def __init__(self, CP=None, CP_SP=None):
     self.params = Params()
-    self.AlwaysOnDM = self.params.get_bool("AlwaysOnDM")
-
-    # Ensure the current branch is cached, otherwise the first cycle lags
-    build_metadata = get_build_metadata()
 
     if CP is None:
       cloudlog.info("selfdrived is waiting for CarParams")
@@ -90,13 +86,11 @@ class SelfdriveD(CruiseHelper):
     if REPLAY:
       # no vipc in replay will make them ignored anyways
       ignore += ['roadCameraState', 'wideRoadCameraState']
-    subscribed_topics = ['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
-                         'carOutput', 'longitudinalPlan', 'livePose', 'liveDelay',
-                         'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
-                         'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userFlag']
-    if self.AlwaysOnDM:
-      subscribed_topics.append('driverMonitoringState')
-    self.sm = messaging.SubMaster(subscribed_topics + self.camera_packets + self.sensor_packets + self.gps_packets + ["longitudinalPlanSP"],
+    self.sm = messaging.SubMaster(['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
+                                   'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'livePose', 'liveDelay',
+                                   'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
+                                   'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userFlag'] + \
+                                   self.camera_packets + self.sensor_packets + self.gps_packets,
                                   ignore_alive=ignore, ignore_avg_freq=ignore,
                                   ignore_valid=ignore, frequency=int(1/DT_CTRL))
 
@@ -143,7 +137,7 @@ class SelfdriveD(CruiseHelper):
     self.ignored_processes.update({'mapd'})
 
     # Determine startup event
-    self.startup_event = EventName.startup # if build_metadata.openpilot.comma_remote and build_metadata.tested_channel else EventName.startupMaster
+    self.startup_event = EventName.startup
     if not car_recognized:
       self.startup_event = EventName.startupNoCar
     elif car_recognized and self.CP.passive:
