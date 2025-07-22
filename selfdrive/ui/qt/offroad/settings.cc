@@ -87,7 +87,7 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
     {
       "AlwaysOnDM",
       tr("Always-On Driver Monitoring"),
-      tr("Enable driver monitoring even when sunnypilot is not engaged."),
+      tr("Reboot is required for the settings to take effect. It is recommended to enable this configuration."),
       "../assets/icons/monitoring.png",
       false,
     },
