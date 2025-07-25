@@ -45,6 +45,7 @@ def manager_init() -> None:
   ]
 
   sunnypilot_default_params: list[tuple[str, str | bytes]] = [
+    ("AccelPersonality", "1"),
     ("AutoLaneChangeTimer", "0"),
     ("AutoLaneChangeBsmDelay", "0"),
     ("BlindSpot", "0"),
@@ -96,6 +97,7 @@ def manager_init() -> None:
     ("SpeedLimitWarningType", "0"),
     ("SpeedLimitWarningOffsetType", "0"),
     ("SpeedLimitWarningValueOffset", "0"),
+
   ]
 
   # device boot mode

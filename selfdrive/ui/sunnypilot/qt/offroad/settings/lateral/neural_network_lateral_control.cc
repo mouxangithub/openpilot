@@ -53,7 +53,7 @@ void NeuralNetworkLateralControl::updateToggle() {
     setDescription(nnffDescriptionBuilder(statusInitText));
   }
 
-  if (getDescription() != getBaseDescription()) {
-    showDescription();
-  }
+  // if (getDescription() != getBaseDescription()) {
+  //   showDescription();
+  // }
 }

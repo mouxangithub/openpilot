@@ -968,6 +968,22 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <translation>选择</translation>
     </message>
     <message>
+        <source>Refresh Model List</source>
+        <translation>模型列表</translation>
+    </message>
+    <message>
+        <source>REFRESH</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
+        <source>Fetching Latest Models</source>
+        <translation>获取最新模型</translation>
+    </message>
+    <message>
+        <source>REFRESH</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
         <source>No custom model selected!</source>
         <translation>未选择自定义模型！</translation>
     </message>
@@ -1202,27 +1218,27 @@ The default software delay value is 0.2</source>
     </message>
     <message>
         <source>Exact</source>
-        <translation>精确</translation>
+        <translation>精确匹配</translation>
     </message>
     <message>
         <source>Fuzzy</source>
-        <translation>模糊</translation>
+        <translation>模糊匹配</translation>
     </message>
     <message>
         <source>Match: &quot;Exact&quot; is ideal, but &quot;Fuzzy&quot; is fine too.</source>
-        <translation>匹配：&quot;Exact&quot;是理想的，但&quot;Fuzzy&quot;也可以。</translation>
+        <translation>匹配：&quot;精确匹配&quot;是最理想的，但&quot;模糊匹配&quot;也完全可以。</translation>
     </message>
     <message>
         <source>Formerly known as &lt;b&gt;&quot;NNFF&quot;&lt;/b&gt;, this replaces the lateral &lt;b&gt;&quot;torque&quot;&lt;/b&gt; controller, with one using a neural network trained on each car&apos;s (actually, each separate EPS firmware) driving data for increased controls accuracy.</source>
-        <translation>以前称为&lt;b&gt;&quot;NNFF&quot;&lt;/b&gt;，它取代了横向&lt;b&gt;&quot;torque&quot;&lt;/b&gt;控制，​​其中一个版本采用神经网络训练，针对每款车型（严格来说是针对不同的电动助力转向系统固件版本）的驾驶数据进行优化，从而提升控制精度。​​</translation>
+        <translation>曾被称为&lt;b&gt;&quot;NNFF&quot;&lt;/b&gt;的这项技术，取代了传统的&lt;b&gt;&quot;扭矩&quot;&lt;/b&gt;控制器，转而采用一种基于每辆车（实际上是指每个独立的EPS固件）的驾驶数据训练的神经网络，以提高控制精度。​</translation>
     </message>
     <message>
         <source>Reach out to the sunnypilot team in the following channel at the sunnypilot Discord server</source>
-        <translation>通过以下渠道联系sunnypilot Discord服务器上的sunnypilots团队</translation>
+        <translation>请通过以下频道在 sunnypilot Discord 服务器上联系 sunnypilot 团队</translation>
     </message>
     <message>
         <source>with feedback, or to provide log data for your car if your car is currently unsupported:</source>
-        <translation>提供反馈，或者在您的汽车目前不受支持的情况下为您的汽车提供日志数据：</translation>
+        <translation>提供反馈，或在您的汽车目前不受支持的情况下，提供汽车的日志数据：</translation>
     </message>
     <message>
         <source>if there are any issues:</source>
@@ -1967,6 +1983,14 @@ This may take up to a minute.</source>
         <source>When enabled, software updates will be disabled. &lt;b&gt;This requires a reboot to take effect.&lt;/b&gt;</source>
         <translation>当启用时，软件更新将被禁用。&lt;b&gt;这需要重启才能生效。&lt;/b&gt;</translation>
     </message>
+    <message>
+        <source>When enabled, software updates will be disabled.&lt;br&gt;&lt;b&gt;This requires a reboot to take effect.&lt;/b&gt;</source>
+        <translation>当启用时，软件更新将被禁用。&lt;br&gt;&lt;b&gt;这需要重启才能生效。&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>Please enable always offroad mode or turn off vehicle to adjust these toggles</source>
+        <translation>请启用离线模式，或关闭车辆以调整这个开关</translation>
+    </message>
 </context>
 <context>
     <name>SshControl</name>
@@ -2675,6 +2699,10 @@ Are you sure you want to delete all the maps?</source>
         <translation>上传驾驶员摄像头的数据，帮助改进驾驶员监控算法。</translation>
     </message>
     <message>
+        <source>Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect.</source>
+        <translation>在驾驶时录音并存储麦克风音频。这些音频将在Comma云端的行车记录仪视频中包含。</translation>
+    </message>
+    <message>
         <source>Disengage on Accelerator Pedal</source>
         <translation>踩油门时取消控制</translation>
     </message>
@@ -2760,11 +2788,11 @@ Are you sure you want to delete all the maps?</source>
     </message>
     <message>
         <source>Always-On Driver Monitoring</source>
-        <translation>驾驶员监控常开</translation>
+        <translation>启用驾驶员监控</translation>
     </message>
     <message>
-        <source>Reboot is required for the settings to take effect. It is recommended to enable this configuration.</source>
-        <translation>配置后需要重启方能生效，为了您的安全建议打开此项配置</translation>
+        <source>For your safety consideration, we recommend you enable this setting as it can effectively monitor and remind you of your driving safety habits in certain situations.</source>
+        <translation>为了您的安全考虑，建议您打开此设置，在某些情况下他能有效的监控并提醒您的驾驶安全习惯</translation>
     </message>
     <message>
         <source>Enable Dynamic Experimental Control</source>
