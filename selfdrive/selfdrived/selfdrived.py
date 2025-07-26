@@ -90,7 +90,7 @@ class SelfdriveD(CruiseHelper):
                                    'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'livePose', 'liveDelay',
                                    'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
                                    'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userFlag'] + \
-                                   self.camera_packets + self.sensor_packets + self.gps_packets,
+                                   self.camera_packets + self.sensor_packets + self.gps_packets + ["longitudinalPlanSP"],
                                   ignore_alive=ignore, ignore_avg_freq=ignore,
                                   ignore_valid=ignore, frequency=int(1/DT_CTRL))
 

@@ -21,10 +21,8 @@ jobs:
   setup:
     runs-on: ${{ github.event.inputs.runner_type }}
     outputs:
-      models: ${{ steps.get-models.outputs.models }}
-      RECOMPILED_DIR: ${{ steps.set-recompiled.outputs.RECOMPILED_DIR }}
-      JSON_FILE: ${{ steps.get-json.outputs.JSON_FILE }}
-      SRC_JSON_FILE: ${{ steps.get-json.outputs.SRC_JSON_FILE }}
+      json_file: ${{ steps.get-json.outputs.json_file }}
+      model_matrix: ${{ steps.set-matrix.outputs.model_matrix }}
     steps:
       - name: Set up SSH
         uses: webfactory/ssh-agent@v0.9.0
@@ -87,98 +85,44 @@ jobs:
           next=$((latest+1))
           json_file="driving_models_v${next}.json"
           cp "driving_models_v${latest}.json" "$json_file"
-          echo "json_file=$json_file" >> $GITHUB_OUTPUT
-          echo "JSON_FILE=docs/docs/$json_file" >> $GITHUB_ENV
+          echo "json_file=docs/docs/$json_file" >> $GITHUB_OUTPUT
           echo "SRC_JSON_FILE=docs/docs/driving_models_v${latest}.json" >> $GITHUB_ENV
-          echo "SRC_JSON_FILE: docs/docs/driving_models_v${latest}.json"
-
-      - name: Get tinygrad models from JSON
-        id: get-models
+      - name: Extract tinygrad models
+        id: set-matrix
         working-directory: docs/docs
         run: |
-          MODELS=$(jq -c '[.bundles[] | select(.runner=="tinygrad") | {ref, display_name, is_20hz}]' "$(basename "${SRC_JSON_FILE}")")
-          echo "models=${MODELS}" >> $GITHUB_OUTPUT
-          echo "Parsed models: ${MODELS}"
-        shell: bash
+          jq -c '[.bundles[] | select(.runner=="tinygrad") | {ref, display_name, is_20hz}]' "$(basename "${SRC_JSON_FILE}")" > matrix.json
+          echo "model_matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
 
-  get-models:
-    needs: setup
-    runs-on: ${{ github.event.inputs.runner_type }}
+  get_and_build:
+    needs: [setup]
+    uses: ./.github/workflows/sunnypilot-build-model.yaml
     strategy:
       matrix:
-        model: ${{ fromJson(needs.setup.outputs.models) }}
-      fail-fast: false
-    env:
-      OUTPUT_DIR: ${{ github.workspace }}/output/${{ matrix.model.display_name }}-${{ matrix.model.ref }}
-    steps:
-      - name: sparse checkout
-        uses: actions/checkout@v4
-        with:
-          repository: sunnypilot/sunnypilot
-          sparse-checkout: |
-            release/ci/build_model_from_upstream.sh
-          sparse-checkout-cone-mode: false
-          submodules: false
-      - name: Get model from upstream
-        run: |
-          bash release/ci/build_model_from_upstream.sh \
-            --mode get_model \
-            --upstream-branch "${{ matrix.model.ref }}" \
-            --custom-name "${{ matrix.model.display_name }}" \
-            --is-20hz "${{ matrix.model.is_20hz }}" \
-            --output-dir "${{ env.OUTPUT_DIR }}"
-      - name: Upload ONNX model artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: onnx-${{ matrix.model.display_name }}-${{ matrix.model.ref }}-${{ github.run_number }}
-          path: ${{ env.OUTPUT_DIR }}
+        model: ${{ fromJson(needs.setup.outputs.model_matrix) }}
+    name: Model [${{ matrix.model.display_name }}] from ref [${{ matrix.model.ref }}]
+    with:
+      upstream_branch: ${{ matrix.model.ref }}
+      custom_name: ${{ matrix.model.display_name }}
+      is_20hz: ${{ matrix.model.is_20hz || true }}
+    secrets: inherit
 
-  build-models:
-    needs: [setup, get-models]
-    runs-on: [self-hosted, tici]
-    strategy:
-      matrix:
-        model: ${{ fromJson(needs.setup.outputs.models) }}
-      fail-fast: false
-    env:
-      OUTPUT_DIR: ${{ github.workspace }}/output/${{ matrix.model.display_name }}-${{ matrix.model.ref }}
-      TINYGRAD_PATH: ${{ github.workspace }}/tinygrad_repo
-    steps:
-      - name: Checkout workflow branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          submodules: recursive
-      - name: Download model artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: onnx-${{ matrix.model.display_name }}-${{ matrix.model.ref }}-${{ github.run_number }}
-          path: ${{ env.OUTPUT_DIR }}
-      - name: Build model from upstream
-        run: |
-          bash release/ci/build_model_from_upstream.sh \
-            --mode build_model \
-            --custom-name "${{ matrix.model.display_name }}" \
-            --is-20hz "${{ matrix.model.is_20hz }}" \
-            --output-dir "${{ env.OUTPUT_DIR }}" \
-            --tinygrad-path "${{ env.TINYGRAD_PATH }}" \
-            --models-dir "${{ env.OUTPUT_DIR }}" \
-            --upstream-branch "${{ matrix.model.ref }}"
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: model-${{ matrix.model.display_name }}-${{ matrix.model.ref }}-${{ github.run_number }}
-          path: ${{ env.OUTPUT_DIR }}
-
-  postprocess:
-    needs: [setup, build-models]
-    runs-on: ${{ github.event.inputs.runner_type }}
-    if: needs.build-models.result == 'success'
+  push_results:
+    needs: [setup, get_and_build ]
+    runs-on: ubuntu-latest
     steps:
       - name: Download all model artifacts
         uses: actions/download-artifact@v4
         with:
-          path: gitlab_docs/models/${{ needs.setup.outputs.RECOMPILED_DIR }}
+          pattern: model-*
+          path: output
+      - run: |
+          ARTIFACT_DIR="gitlab_docs/models/$RECOMPILED_DIR"
+          mkdir -p "$ARTIFACT_DIR"
+          for name in $(ls output); do
+            mkdir -p "$ARTIFACT_DIR/$name"
+            cp -r output/$name/* "$ARTIFACT_DIR/$name/"
+          done
 
       - name: Push recompiled dir to GitLab
         env:
@@ -196,7 +140,7 @@ jobs:
       - name: Run json_parser.py to update JSON
         run: |
           python3 docs/json_parser.py \
-            --json-path "$JSON_FILE" \
+            --json-path "${{ needs.setup.outputs.json_file }}" \
             --recompiled-dir "gitlab_docs/models/$RECOMPILED_DIR"
 
       - name: Push updated JSON to GitHub docs repo
@@ -205,6 +149,6 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git checkout gh-pages
-          git add docs/"$(basename $JSON_FILE)"
-          git commit -m "Update $(basename $JSON_FILE) after recompiling models" || echo "No changes to commit"
+          git add docs/"$(basename ${{ needs.setup.outputs.json_file }})"
+          git commit -m "Create $(basename ${{ needs.setup.outputs.json_file }}) after recompiling models" || echo "No changes to commit"
           git push origin gh-pages
