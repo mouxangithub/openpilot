@@ -1081,7 +1081,7 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>Driving Model Selector</source>
-        <translation>驾驶模式选择</translation>
+        <translation>选择驾驶模型</translation>
     </message>
     <message>
         <source>Warning: You are on a metered connection!</source>
@@ -1136,6 +1136,14 @@ The default software delay value is 0.2</source>
     <message>
         <source>CLEAR</source>
         <translation>清除</translation>
+    </message>
+    <message>
+        <source>Clear Cache</source>
+        <translation>清除缓存</translation>
+    </message>
+    <message>
+        <source>This will delete ALL downloaded models from the cache &lt;br/&gt;&lt;u&gt;except the currently active model&lt;/u&gt;. &lt;br/&gt;&lt;br/&gt;Are you sure you want to continue?</source>
+        <translation>这将删除缓存中所有下载的模型 &lt;br/&gt;&lt;u&gt;除了当前正在使用的模型&lt;/u&gt;。 &lt;br/&gt;&lt;br/&gt;是否确定继续？</translation>
     </message>
 </context>
 <context>
@@ -1800,7 +1808,7 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>TEMP</source>
-        <translation>温度</translation>
+        <translation>设备温度</translation>
     </message>
     <message>
         <source>HIGH</source>
@@ -2978,6 +2986,28 @@ Are you sure you want to delete all the maps?</source>
     <message>
         <source>Forget</source>
         <translation>忽略</translation>
+    </message>
+</context>
+<context>
+    <name>OffroadHomeSP</name>
+    <message>
+        <source>ALWAYS OFFROAD ACTIVE</source>
+        <translation>离线模式已开启</translation>
+    </message>
+</context>
+<context>
+    <name>ExitOffroadButton</name>
+    <message>
+        <source>EXIT ALWAYS OFFROAD MODE</source>
+        <translation>退出离线模式</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to exit Always Offroad mode?</source>
+        <translation>您确定要退出离线模式吗？</translation>
+    </message>
+    <message>
+        <source>Confirm</source>
+        <translation>确定</translation>
     </message>
 </context>
 </TS>
