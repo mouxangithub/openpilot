@@ -87,10 +87,14 @@ protected slots:
 protected:
   Params params;
   std::map<std::string, ParamControl*> toggles;
+  ButtonParamControl *distraction_detection_level;
   ButtonParamControl *long_personality_setting;
   ButtonParamControl *accel_personality_setting;
+  ButtonControl *dashcam_port_btn;
+
 
   virtual void updateToggles();
+  void updateDashcamPortButton();
 };
 
 class SoftwarePanel : public ListWidget {
