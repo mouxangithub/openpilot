@@ -130,7 +130,7 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
                                           "Lenient: Only alerts on clear distractions. "
                                           "Off: Disable Driver Distraction Detection and Control."),
                                           "../assets/icons/monitoring.png",
-                                          distraction_button_texts, 425);
+                                          distraction_button_texts, 320);
 
   std::vector<QString> longi_button_texts{tr("Aggressive"), tr("Standard"), tr("Relaxed")};
   long_personality_setting = new ButtonParamControl("LongitudinalPersonality", tr("Driving Personality"),
