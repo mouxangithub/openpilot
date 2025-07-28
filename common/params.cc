@@ -498,6 +498,7 @@ std::unordered_map<std::string, uint32_t> keys = {
     {"SNGHack", PERSISTENT},
     {"SoundToDownload", CLEAR_ON_MANAGER_START},
     {"SpeedLimitAccepted", CLEAR_ON_MANAGER_START},
+    {"SpeedLimitChanged", CLEAR_ON_MANAGER_START},
     {"SpeedLimitChangedAlert", PERSISTENT},
     {"SpeedLimitController", PERSISTENT},
     {"SpeedLimitFiller", PERSISTENT},

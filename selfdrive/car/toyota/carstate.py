@@ -4,6 +4,7 @@ from cereal import car, custom
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.numpy_fast import mean
 from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.common.params import Params
 from openpilot.common.realtime import DT_CTRL
 from opendbc.can.can_define import CANDefine
 from opendbc.can.parser import CANParser
@@ -221,6 +222,9 @@ class CarState(CarStateBase):
     self.cruise_decreased = self.pcm_acc_status == 10
     self.cruise_increased_previously = self.cruise_increased
     self.cruise_increased = self.pcm_acc_status == 9
+    if Params("/dev/shm/params").get_bool("SpeedLimitChanged"):
+      print(f"[DEBUG] cruise_increased_previously updated to: {self.cruise_increased_previously}")
+      print(f"[DEBUG] cruise_increased updated to: {self.cruise_increased}")
 
     fp_ret.dashboardSpeedLimit = calculate_speed_limit(cp_cam, frogpilot_toggles)
 

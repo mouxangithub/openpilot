@@ -50,6 +50,7 @@ class SpeedLimitController:
 
     self.session = requests.Session()
     self.session.headers.update({"User-Agent": "frogpilot-mapbox-speed-limit-retriever/1.0 (https://github.com/FrogAi/FrogPilot)"})
+    print(f"[SLC_DEBUG] Initialized. self.target = {self.target}, self.previous_target = {self.previous_target}")
 
   @property
   def experimental_mode(self):
@@ -202,11 +203,21 @@ class SpeedLimitController:
 
   def handle_limit_change(self, desired_source, desired_target, sm):
     self.speed_limit_changed_timer += DT_MDL
+    print(f"[SLC_DEBUG] handle_limit_change called. desired_target: {desired_target}, current self.target: {self.target}")
 
-    speed_limit_accepted = (sm["frogpilotCarState"].accelPressed and not sm["carControl"].cruiseControl.override) or params_memory.get_bool("SpeedLimitAccepted")
+    accel_pressed = sm["frogpilotCarState"].accelPressed
+    cruiseControl_override = sm["carControl"].cruiseControl.override
+    speed_limit_accepted_param = params_memory.get_bool("SpeedLimitAccepted")
+
+    print(f"[SLC_DEBUG] accelPressed: {accel_pressed}, carControl.cruiseControl.override: {cruiseControl_override}, SpeedLimitAccepted param: {speed_limit_accepted_param}")
+
+    speed_limit_accepted = (accel_pressed and not cruiseControl_override) or speed_limit_accepted_param
     speed_limit_denied = sm["frogpilotCarState"].decelPressed or (self.speed_limit_changed_timer >= 30)
 
+    print(f"[SLC_DEBUG] speed_limit_accepted: {speed_limit_accepted}, speed_limit_denied: {speed_limit_denied}")
+
     if speed_limit_accepted:
+      print(f"[SLC_DEBUG] Speed limit ACCEPTED. Setting self.target to {desired_target}")
       self.overridden_speed = 0
 
       self.source = desired_source
@@ -221,24 +232,30 @@ class SpeedLimitController:
       self.previous_target = desired_target
 
     elif desired_target < self.target and not self.frogpilot_toggles.speed_limit_confirmation_lower:
+      print(f"[SLC_DEBUG] Lower speed limit change confirmed automatically. Setting self.target to {desired_target}")
       self.source = desired_source
       self.target = desired_target
 
     elif desired_target > self.target and not self.frogpilot_toggles.speed_limit_confirmation_higher:
+      print(f"[SLC_DEBUG] Higher speed limit change confirmed automatically. Setting self.target to {desired_target}")
       self.source = desired_source
       self.target = desired_target
 
     else:
+      print(f"[SLC_DEBUG] Speed limit change UNCONFIRMED. self.target remains {self.target}. Unconfirmed limit is {desired_target}")
       self.source = "None"
       self.unconfirmed_speed_limit = desired_target
 
     if self.target != self.previous_target and self.target > 0 and not speed_limit_denied:
+      print(f"[SLC_DEBUG] New target ({self.target}) is different from previous ({self.previous_target}). Updating previous_target.")
       self.denied_target = 0
 
       self.previous_source = self.source
       self.previous_target = self.target
 
       params.put_float_nonblocking("PreviousSpeedLimit", self.target)
+
+    print(f"[SLC_DEBUG] Exiting handle_limit_change. Final self.target = {self.target}")
 
   def update_limits(self, dashboard_speed_limit, gps_position, navigation_speed_limit, v_cruise, v_ego, sm):
     self.update_map_speed_limit(gps_position, v_ego)
@@ -248,7 +265,12 @@ class SpeedLimitController:
       "Map Data": self.map_speed_limit,
       "Navigation": navigation_speed_limit
     }
+    print(f"[SLC_DEBUG] Raw limits: {limits}")
     filtered_limits = {source: limit for source, limit in limits.items() if limit >= 1}
+    print(f"[SLC_DEBUG] Filtered limits (>= 1 m/s): {filtered_limits}")
+
+    desired_source = "None"
+    desired_target = 0
 
     if self.frogpilot_toggles.speed_limit_priority_highest:
       desired_source = max(filtered_limits, key=filtered_limits.get, default="None")
@@ -259,24 +281,30 @@ class SpeedLimitController:
       desired_target = filtered_limits.get(desired_source, 0)
 
     elif filtered_limits:
-      for priority in [
+      priorities = [
         self.frogpilot_toggles.speed_limit_priority1,
         self.frogpilot_toggles.speed_limit_priority2,
         self.frogpilot_toggles.speed_limit_priority3
-      ]:
+      ]
+      print(f"[SLC_DEBUG] Custom Priority Order: {priorities}")
+      for priority in priorities:
         if priority in filtered_limits:
           desired_source = priority
           desired_target = filtered_limits[desired_source]
+          print(f"[SLC_DEBUG] Found match in custom priority: desired_source={desired_source}, desired_target={desired_target}")
           break
       else:
         desired_source = "None"
         desired_target = 0
+        print("[SLC_DEBUG] No match found in custom priorities.")
 
     else:
+      print("[SLC_DEBUG] No valid speed limits from any source (Dashboard, Map, Nav). desired_target is 0.")
       desired_source = "None"
       desired_target = 0
 
     if desired_target == 0:
+      print("[SLC_DEBUG] desired_target is 0. Checking fallbacks...")
       if self.mapbox_requests["total_requests"] < self.mapbox_requests["max_requests"] and self.frogpilot_toggles.slc_mapbox_filler:
         self.get_mapbox_speed_limit(gps_position, v_ego, sm)
 
@@ -285,11 +313,13 @@ class SpeedLimitController:
           desired_target = self.mapbox_limit
 
       if desired_target == 0:
+        print("[SLC_DEBUG] desired_target still 0 after Mapbox. Checking other fallbacks...")
         if self.denied_target != self.previous_target > 0 and self.frogpilot_toggles.slc_fallback_previous_speed_limit:
           desired_source = self.previous_source
           desired_target = self.previous_target
 
           self.target = desired_target
+          print(f"[SLC_DEBUG] Using fallback 'Previous Speed Limit'. desired_target/self.target set to {self.target}")
 
         elif sm["controlsState"].enabled and self.frogpilot_toggles.slc_fallback_set_speed:
           desired_source = "None"
@@ -299,12 +329,17 @@ class SpeedLimitController:
       self.segment_distance = 0
 
     if abs(desired_target - self.previous_target) >= 1:
+      print(f"[SLC_DEBUG] Change detected. Calling handle_limit_change. desired_target={desired_target}, previous_target={self.previous_target}")
       self.handle_limit_change(desired_source, desired_target, sm)
     elif desired_source != self.source and abs(desired_target - self.target) < 1:
+      print(f"[SLC_DEBUG] Source changed but target is the same. Updating source to {desired_source}")
       self.source = desired_source
     else:
       self.speed_limit_changed_timer = 0
       self.unconfirmed_speed_limit = 0
+
+    print(f"[SLC_DEBUG] END OF update_limits. Current self.target = {self.target}")
+    params_memory.put_bool("SpeedLimitChanged", self.speed_limit_changed_timer > DT_MDL)
 
   def update_override(self, v_cruise, v_cruise_diff, v_ego, v_ego_diff, sm):
     self.override_slc = self.overridden_speed > self.target + self.offset > 0
