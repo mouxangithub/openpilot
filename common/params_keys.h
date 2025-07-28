@@ -244,4 +244,5 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"DashcamServerPort", PERSISTENT | BACKUP},
     {"DashcamServerEnabled", PERSISTENT | BACKUP},
 
+    {"RoadEdgeLaneChangeEnabled", PERSISTENT | BACKUP},
 };
