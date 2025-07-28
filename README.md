@@ -21,153 +21,278 @@ FrogPilot is a fully open-sourced fork of openpilot, featuring clear and concise
 ------
 FrogPilot was last updated on:
 
-**April 12th, 2025**
-
-Features
-------
-
-FrogPilot offers a wide range of customizable features that are easily toggled on or off to suit your preferences. Whether you want a completely stock openpilot experience, or want to add some fun and personal touches, FrogPilot has you covered! Some of the features include:
+**July 18th, 2025**
 
 ------
-⚡ **Advanced Customizations:**
 
-  - "Alert Volume Controller" to set the volume level for each of of openpilot's sounds
-  - Customize the following distance and jerk values for each personality profile
-  - Fine tune your car's "Steer Ratio" to perfect your lateral control
-  - Increase the distance when stopped behind lead vehicles
-  - Increase the max set speed by a custom interval (i.e. 2, 3, 4, 5, 6, etc. instead of just 1)
-  - Select between past, present, and future openpilot driving models
-------
-🎨 **Custom Themes:**
+# Features
 
-  - 🐸 Frog theme (with a bonus 🐐 sound effect)
-  - <img src="https://images.emojiterra.com/google/noto-emoji/unicode-15/color/512px/1f1f7-1f1fa.png" width="15" height="12"> Russia / Joseph Stalin theme
-  - 🔌 Tesla theme
-  - Holiday themes! Minor holidays last a day, while major holidays (Easter, Halloween, Thanksgiving, Christmas) last a week
-  - Random events triggered by specific actions while driving with openpilot
+## 🔊 Alerts & Sounds
+<details>
+<summary>Alert Volume Controller</summary>
 
-  - 📢 Want to add a theme? Request one in the "feature-request" channel in the FrogPilot Discord!
-------
-🚀 **Conditional Experimental Mode:**
+&nbsp;&nbsp;&nbsp;*Fine-tune the audio levels for each specific alert category to create a more personalized and less intrusive auditory experience*
 
-  - Auto-activates "Experimental Mode" under several conditions, including:
-    - Approaching intersections and turns while using navigation
-    - Approaching slower vehicles to take advantage of "Experimental Mode"'s smoother braking
-    - Curve and stop light/stop sign detection
-    - Driving below a set speed
-    - Turn signal activation below 55mph for turn assistance
-------
-📊 **Developer UI:**
+- **Disengage Volume:** Adjust the volume for alerts like "Adaptive Cruise Disabled" or when the brake pedal is pressed
+- **Engage Volume:** Control the volume for engagement confirmations, such as "openpilot engaged"
+- **Prompt Volume:** Set the volume for non-critical prompts, like "Car Detected in Blindspot"
+- **Warning Soft & Immediate Volume:** Configure the volume for more urgent warnings that require your attention
 
-  - Display various driving logics such as the distance, speed, and the desired following distance to your lead vehicle
-  - Lane measuring of the adjacent lanes for lane detection
-  - Tap the "VEHICLE ONLINE"/"CPU"/"GPU" gauge to toggle between CPU and GPU monitoring
-  - Tap the "CONNECT ONLINE"/"MEMORY"/"LEFT"/"USED" gauge to toggle between RAM and storage monitoring
-------
-🛠 **Device Management:**
+  **Location:** `FrogPilot → Alerts and Sounds → Alert Volume Control`
+</details>
 
-  - Adjustable screen brightness for both onroad and offroad states
-  - Adjustable screen timeout times for both onroad and offroad states
-  - Backup and restore previous versions of FrogPilot
-  - Backup and restore previous versions of toggle configurations
-  - Battery level threshold to automatically shut the device down after you car's battery falls below a set voltage limit when offroad
-  - Delete stored driving data for increased privacy/space via the "Device" panel
-  - Device can operate offline indefinitely
-  - Disable logging and/or uploading
-  - Disable uploads while onroad to help reduce data usage
-  - Flash the Panda within the "Device" menu
-  - "Standby Mode" that wakes the screen up between engagement states or when important alerts are triggered
-  - Timer to automatically shut down after going offroad
-------
-🚖 **Lateral Adjustments:**
+<details>
+<summary>Custom Alerts</summary>
 
-  - Activate lateral control by simply pressing the "Cruise Control" button
-  - Force comma's auto tuning for unsupported vehicles
-  - Lateral control won't disengage on gas or brake
-  - Nudgeless lane changes with lane detection to prevent driving into curbs or going offroad
-  - Pause lateral control when below a set speed
-  - Pause lateral control when pressing the brake
-  - Pause lateral control when turn signals are active
-  - Precise turns by using turn desires when below the minimum lane change speed
-  - [Twilsonco's NNFF](https://github.com/twilsonco/openpilot) for smoother steering control
-------
-🚘 **Longitudinal Adjustments:**
+&nbsp;&nbsp;&nbsp;*Enable a variety of custom non-critical alerts to stay better informed on the road*
 
-  - Aggressive acceleration when following a lead vehicle from a stop
-  - "Map Turn Speed Controller" to slow down for curves based on stored map data
-    - With an additional toggle to fine tune the speed aggressiveness
-  - Smoother braking behind slower leads
-  - "Speed Limit Controller" to adjust your speed to the posted speed limit
-    - With additional toggles to set offsets for "0-34 mph", "35-54 mph", "55-64 mph", and "65-99 mph"
-  - "Sport" and "Eco" acceleration and deceleration profiles
-  - "Traffic Mode" tailored towards driving in traffic
-  - Tweak the lead detection threshold to detect leads sooner for smoother braking on stopped/slower vehicles
-  - "Vision Turn Speed Controller" for smoother handling of curves
-    - With additional toggles to fine tune the speed aggressiveness and curve detection sensitivity
-------
-🗺️ **Navigation:**
+- **Goat Scream Steering Saturated Alert:** A unique and infamous alert that lets you know when the steering has reached its limit
+- **Green Light Alert:** Get notified when the traffic light ahead turns green
+- **Lead Departing Alert:** Get an alert when the lead car starts moving
+- **Loud Blindspot Alert:** A louder alert for when a vehicle is detected in the blindspot when attempting to change lanes
+- **Speed Limit Changed Alert:** Chimes whenever the posted speed limit changes
 
-  - 3D buildings
-  - Custom map styles
-  - Full screen map that takes up the entire screen for a more expansive map view
-  - iOS shortcuts to quickly set navigation destinations
-  - Navigate on openpilot without a comma prime subscription
-  - Offline maps
-  - "Open Street Maps" integration for speed limit control and road name view
-------
-🎮 **Onroad UI:**
+  **Location:** `FrogPilot → Alerts and Sounds → FrogPilot Alerts`
+</details>
 
-  - Compass that rotates according to the direction you're driving
-  - FPS counter in the screen's border
-  - Hide various UI elements on the screen for a cleaner UI
-  - Pedals on the onroad UI indicate when the gas/brake pedals are being used
-  - Road UI Customizations:
-    - Acceleration path to show the model's desired acceleration/deceleration
-    - Blind spot path when a vehicle is detected in your blind spot
-    - Increase/decrease the lane line, path, and road edge widths
-    - Path edge colors based on specific driving statuses:
-      - 🔵 Blue - Navigation active
-      - 🟦 Light Blue - "Always On Lateral" active
-      - 🟢 Green - Default
-      - 🟠 Orange - "Experimental Mode" active
-      - 🔴 Red - "Traffic Mode" active
-      - 🟡 Yellow - "Conditional Experimental Mode" overridden
-    - "Unlimited" road UI that extends out as far as the model can see
-  - Sidebar retains it's previous position between reboots/ignition cycles
-  - Steering wheel icons
-    - 📢 Request your own steering wheel icon in the "feature-request" channel!
-  - Steering wheel in the onroad UI rotates alongside your physical steering wheel
-------
-🚙 **Vehicle Specific Additions:**
+---
 
-  - Automatic/manual fingerprint selection to force a selected fingerprint
-  - Custom longitudinal tunings for GM EVs and trucks for smoother gas and brake control
-  - Custom longitudinal tunings for Toyota/Lexus for smoother gas and brake control
-  - Disable openpilot longitudinal control to use your car's stock cruise control
-  - GM Volt support
-  - Honda Clarity support
-  - Increased torque for the Subaru Crosstrek
-  - Lock doors automatically when in the drive gear for Toyota/Lexus and unlock when in park
-  - openpilot longitudinal control for GM vehicles without ACC
-  - Pedal interceptor support for GM vehicles
-  - "Stop and Go" hack for Toyota's without stop and go functionality
-  - ZSS support for the Toyota Prius and Sienna
-------
-🚦 **Quality of Life Features:**
+## 🛠 Device & System
+<details>
+<summary>Device Management</summary>
 
-  - Automatic updates for a completely "set and forget" experience
-  - Camera view selection
-  - Custom alerts for green lights, vehicles in blindspot, lead departing, and the current speed limit changing
-  - Display the driver camera when in reverse
-  - Driving statistics to show how many hours and miles you've driven on the home screen
-  - Fleet Manager to easily access your driving data and screen recordings
-  - Numerical temperature gauge
-  - Retain tethering status between reboots
-  - Screenrecorder
-  - Toggle "Experimental Mode" via the "Lane Departure Alert" button, holding down the "Distance" button for 0.5+ seconds, or by double tapping the screen
+&nbsp;&nbsp;&nbsp;*Access a range of settings to manage your device's behavior*
 
-How to Install
-------
+- **Battery Shutdown Threshold:** Automatically shuts down the device if the 12V battery voltage drops below a set threshold to prevent drain
+- **Device Shutdown Timer:** Powers down the device X minutes after the car turns off
+- **Increase Thermal Limits:** Allow the device to run hotter than the comma-recommended limit for better performance in hot climates (use with caution)
+
+  **Location:** `FrogPilot → System Management → Device Controls`
+</details>
+
+<details>
+<summary>Screen Management</summary>
+
+&nbsp;&nbsp;&nbsp;*Customize the on-device screen experience*
+
+- **Screen Brightness (On-road/Off-road):** Set different screen brightness levels for when you are driving and when you are parked
+- **Screen Recorder:** Enable a button on the driving screen to record the device's screen
+- **Screen Timeout (On-road/Off-road):** Automatically turn off the screen after a set period of inactivity, with separate settings for on-road and off-road
+
+  **Location:** `FrogPilot → System Management → Device Controls → Screen Settings`
+</details>
+
+<details>
+<summary>Data & Logging Management</summary>
+
+&nbsp;&nbsp;&nbsp;*Take control of your data privacy*
+
+- **Disable Data Logging:** Stops local drive logging for privacy and reduced storage wear
+- **Disable Uploads:** Blocks all cloud uploads for maximum privacy
+
+  **Location:** `FrogPilot → System Management → Device Controls`
+</details>
+
+<details>
+<summary>Backup & Restore</summary>
+
+&nbsp;&nbsp;&nbsp;*Easily back up and restore your entire FrogPilot configuration*
+
+- **FrogPilot Backups:** Backup/restore the entire FrogPilot software state
+- **Toggle Backups:** Save or restore only your toggle configuration profiles
+
+  **Location:** `FrogPilot → System Management → Data`
+</details>
+
+<details>
+<summary>System Utilities</summary>
+
+&nbsp;&nbsp;&nbsp;*Access useful utilities to maintain and troubleshoot your FrogPilot installation*
+
+- **Flash Panda:** One-tap recovery/upgrade of the Panda CAN-interface firmware
+- **Report a Bug or an Issue:** Submit bug reports or feature requests directly from the device
+- **Reset Toggles to Default:** Restores every toggle to factory defaults
+
+  **Location:** `FrogPilot → System Management → Utilities`
+</details>
+
+---
+
+## 🚗 Driving Features
+<details>
+<summary>Longitudinal Control</summary>
+
+&nbsp;&nbsp;&nbsp;*Customize the acceleration and braking behavior of your vehicle*
+
+- **Acceleration Profile:** Choose "Sport" for quicker acceleration or "Eco" for a gentler, more efficient ride
+- **Deceleration Profile:** Select "Sport" for more aggressive braking or "Eco" for smoother, more gradual stops
+- **Human-Like Acceleration:** Mimic the acceleration of the lead vehicle for a more natural feel
+- **Human-Like Approach:** Dynamically adjust following distance when approaching slower vehicles
+- **Lead Detection Confidence:** Adjust the sensitivity for detecting vehicles ahead
+- **Maximum Acceleration Rate:** Set a cap on how fast FrogPilot can accelerate
+- **"Taco Bell Run" Turn Speed Hack:** Slow down for smoother turns at intersections
+
+  **Location:** `FrogPilot → Driving Controls → Gas / Brake → Longitudinal Tuning`
+</details>
+
+<details>
+<summary>Lateral Control</summary>
+
+&nbsp;&nbsp;&nbsp;*Fine-tune the steering behavior of your vehicle*
+
+- **Always On Lateral:** Keep lane-centering active even when cruise control is disengaged
+- **Lane Change Customizations:** Enable automatic lane changes, set a delay, and define a minimum speed
+- **Lateral Tuning:** Access advanced settings like "Force Turn Desires" and "NNFF" for more precise steering control
+- **Pause Steering Below:** Temporarily pause steering assistance at low speeds
+
+  **Location:** `FrogPilot → Driving Controls → Steering`
+</details>
+
+<details>
+<summary>Conditional Experimental Mode (CEM)</summary>
+
+&nbsp;&nbsp;&nbsp;*Let FrogPilot intelligently switch to Experimental Mode in situations where the model's end-to-end planning is beneficial*
+
+- **Conditions:** Activate based on speed, upcoming curves, lead vehicles, navigation maneuvers, or when the model wants to stop
+- **Status Widget:** Display the CEM status on the driving screen
+
+  **Location:** `FrogPilot → Driving Controls → Gas / Brake → Conditional Experimental Mode`
+</details>
+
+<details>
+<summary>Custom Driving Personalities</summary>
+
+&nbsp;&nbsp;&nbsp;*Go beyond the standard driving profiles and fine-tune the following distance, acceleration, and braking responsiveness for each personality*
+
+- **Profiles:** Customize the **Traffic**, **Aggressive**, **Standard**, and **Relaxed** profiles
+- **Reset to Default:** Option to reset each personality's settings to their default values
+
+  **Location:** `FrogPilot → Driving Controls → Gas / Brake → Customize Driving Personalities`
+</details>
+
+<details>
+<summary>Speed Limit Controller (SLC)</summary>
+
+&nbsp;&nbsp;&nbsp;*Automatically adjust the vehicle's cruise speed to match the current speed limit*
+
+- **Source Priority:** Define the priority order for speed limit sources (Dashboard, Map Data, Navigation)
+- **Speed Limit Offsets:** Set offsets to drive slightly above or below the posted limit
+- **Visuals & Quality of Life:** Show the speed limit offset, require confirmation for new speed limits, and more
+
+  **Location:** `FrogPilot → Driving Controls → Gas / Brake → Speed Limit Controller`
+</details>
+
+---
+
+## 🗺️ Navigation Features
+<details>
+<summary>Custom Map Styles & Display</summary>
+
+&nbsp;&nbsp;&nbsp;*Personalize your navigation view*
+
+- **Big Map:** Expands the navigation map to cover most or all of the screen
+- **Map Style:** Choose from various map styles like Mapbox Streets, Satellite, or Dark mode
+
+  **Location:** `FrogPilot → Theme and Appearance → Navigation Widgets`
+</details>
+
+<details>
+<summary>Navigate on Openpilot (Primeless)</summary>
+
+&nbsp;&nbsp;&nbsp;*Enjoy full turn-by-turn navigation without needing a comma prime subscription*
+
+- **Destination Search Provider:** Choose between MapBox, Amap, or Google for destination searches
+- **Mapbox Setup:** View detailed instructions to set up your Mapbox API keys
+
+  **Location:** `FrogPilot → Navigation`
+</details>
+
+<details>
+<summary>Offline Maps</summary>
+
+&nbsp;&nbsp;&nbsp;*Download map data for entire regions or countries directly to your device. This ensures that navigation and features like Speed Limit Controller work flawlessly even without an internet connection*
+
+- **Automatic Updates:** Set a schedule for automatic map updates
+- **Data Sources:** Select which countries and states to download
+
+  **Location:** `FrogPilot → Navigation → Map Data`
+</details>
+
+---
+
+## 🎨 User Interface
+<details>
+<summary>Custom On-Road UI Widgets</summary>
+
+&nbsp;&nbsp;&nbsp;*Add useful widgets to your driving screen for a more informative experience*
+
+- **Acceleration Path:** Colorize the driving path based on acceleration and deceleration
+- **Adjacent Lanes:** Display driving paths for adjacent lanes
+- **Blind Spot Path:** Show a red path for vehicles detected in your blind spot
+- **Compass:** Display a compass to show your current driving direction
+- **Driving Personality Button:** See and switch between driving personalities on the screen
+- **Pedals Indicator:** Show on-screen indicators when the gas or brake pedals are used
+- **Rotating Steering Wheel:** The on-screen steering wheel rotates in sync with your car's wheel
+
+  **Location:** `FrogPilot → Theme and Appearance → Driving Screen Widgets`
+</details>
+
+<details>
+<summary>Custom Themes & Appearance</summary>
+
+&nbsp;&nbsp;&nbsp;*Completely change the look and feel of the openpilot UI*
+
+- **Color Theme:** Swap the entire UI color palette
+- **Icon Pack:** Replace default icons with themed packs
+- **Holiday Themes:** Enable holiday-based visual themes
+- **Rainbow Path:** The driving path turns into a Mario Kart-inspired "Rainbow Path"
+- **Random Events:** Enable occasional fun Easter-egg graphics/sounds
+- **Startup Alert:** Customize the startup message
+
+  **Location:** `FrogPilot → Theme and Appearance → Theme`
+</details>
+
+<details>
+<summary>Developer UI</summary>
+
+&nbsp;&nbsp;&nbsp;*Get a behind-the-scenes look at openpilot's operation with detailed on-screen metrics*
+
+- **Developer Metrics:** Display performance data, sensor readings, and system metrics
+- **Border Metrics:** Use the screen border to show metrics like blind-spot warnings or steering torque
+- **Developer Sidebar:** Show debugging info in a dedicated sidebar
+- **Developer Widgets:** Display overlays for adjacent leads and the model's stopping point
+
+  **Location:** `FrogPilot → Theme and Appearance → Developer UI`
+</details>
+
+<details>
+<summary>Model & Path Visualization</summary>
+
+&nbsp;&nbsp;&nbsp;*Customize how the driving path and lane lines are displayed on the screen*
+
+- **Path/Lane/Edge Width:** Adjust the thickness of the driving path, lane lines, and road edges
+- **Dynamic Path Width:** The path width changes based on the engagement state
+- **"Unlimited" Road UI:** Extend the display of the road ahead as far as the model can see
+
+  **Location:** `FrogPilot → Theme and Appearance → Model UI`
+</details>
+
+<details>
+<summary>Quality of Life Visuals</summary>
+
+&nbsp;&nbsp;&nbsp;*Improve your driving experience with these visual tweaks*
+
+- **Camera View:** Choose between Auto, Driver, Standard, and Wide camera views
+- **Driver Camera on Reverse:** Show the driver camera feed when the vehicle is in reverse
+- **Standby Mode:** Let the screen sleep during long drives, waking instantly for alerts
+- **Stopped Timer:** Replace the speed display with a timer when stopped
+
+  **Location:** `FrogPilot → Theme and Appearance → Quality of Life`
+</details>
+
+---
+
+# 🧰 How to Install
 
 Easiest way to install FrogPilot is via this URL at the installation screen:
 
@@ -175,12 +300,13 @@ Easiest way to install FrogPilot is via this URL at the installation screen:
 frogpilot.download
 ```
 
-DO NOT install the "FrogPilot-Development" branch. I'm constantly breaking things on there, so unless you don't want to use openpilot, NEVER install it!
+DO NOT install the **"FrogPilot-Development"** branch. I'm constantly breaking things on there, so unless you don't want to use openpilot, NEVER install it!
 
 ![](https://i.imgur.com/swr0kqJ.png)
 
-Bug reports / Feature Requests
-------
+---
+
+# 🐞 Bug reports / Feature Requests
 
 If you encounter any issues or bugs while using FrogPilot, or if you have any suggestions for new features or improvements, please don't hesitate to post about it on the Discord! I'm always looking for ways to improve the fork and provide a better experience for everyone!
 
@@ -188,13 +314,15 @@ To report a bug or request a new feature, make a post in the #bug-reports or #fe
 
 I will do my best to respond to bug reports and feature requests in a timely manner, but please understand that I may not be able to address every request immediately. Your feedback and suggestions are valuable, and I appreciate your help in making FrogPilot the best it can be!
 
-Discord
-------
+---
+
+# 📱 Discord
 
 [Join the FrogPilot Community Discord!](https://discord.gg/frogpilot)
 
-Credits
-------
+---
+
+# 📋 Credits
 
 * [AlexandreSato](https://github.com/AlexandreSato)
 * [Crwusiz](https://github.com/crwusiz)
@@ -209,8 +337,15 @@ Credits
 * [ServerDummy](https://github.com/ServerDummy)
 * [Twilsonco](https://github.com/twilsonco)
 
-Licensing
-------
+---
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=FrogAi/FrogPilot&type=Date)](https://www.star-history.com/#FrogAi/FrogPilot&Date)
+
+---
+
+# ⚖️ Licensing
 
 openpilot is released under the MIT license. Some parts of the software are released under other licenses as specified.
 
@@ -224,5 +359,4 @@ NO WARRANTY EXPRESSED OR IMPLIED.**
 
 <img src="https://d1qb2nb5cznatu.cloudfront.net/startups/i/1061157-bc7e9bf3b246ece7322e6ffe653f6af8-medium_jpg.jpg?buster=1458363130" width="75"></img> <img src="https://cdn-images-1.medium.com/max/1600/1*C87EjxGeMPrkTuVRVWVg4w.png" width="225"></img>
 
-![openpilot tests](https://github.com/commaai/openpilot/actions/workflows/selfdrive_tests.yaml/badge.svg)
-[![codecov](https://codecov.io/gh/commaai/openpilot/branch/master/graph/badge.svg)](https://codecov.io/gh/commaai/openpilot)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/FrogAi/FrogPilot)
