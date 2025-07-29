@@ -19,6 +19,7 @@ from openpilot.system.hardware import PC
 from openpilot.system.hardware.hw import Paths
 from pathlib import Path
 
+# see the README.md for more details on the model selector versioning
 CURRENT_SELECTOR_VERSION = 1
 REQUIRED_MIN_SELECTOR_VERSION = 1
 
