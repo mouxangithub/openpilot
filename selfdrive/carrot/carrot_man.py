@@ -589,7 +589,7 @@ class CarrotMan:
 
   def parse_kisa_data(self, data: bytes):
     result = {}
-    
+
     try:
       decoded = data.decode('utf-8')
     except UnicodeDecodeError:
@@ -605,7 +605,7 @@ class CarrotMan:
         except ValueError:
           result[key] = value
     return result
-  
+
   def kisa_app_thread(self):
     while True:
       try:
@@ -803,7 +803,7 @@ class CarrotMan:
       except Exception as e:
         print(f"carrot_cmd_zmq error: {e}")
         socket.close()
-        time.sleep(1) 
+        time.sleep(1)
         socket, poller = setup_socket()
 
   def recvall(self, sock, n):
@@ -1031,7 +1031,7 @@ class CarrotServ:
 
     self.gps_accuracy_phone = 0.0
     self.gps_accuracy_device = 0.0
-    
+
     self.totalDistance = 0
     self.xSpdLimit = 0
     self.xSpdDist = 0
@@ -1262,73 +1262,73 @@ class CarrotServ:
 
   def _get_sdi_descr(self, nSdiType):
     sdi_types = {
-        0: "신호과속",
-        1: "과속 (고정식)",
-        2: "구간단속 시작",
-        3: "구간단속 끝",
-        4: "구간단속중",
-        5: "꼬리물기단속카메라",
-        6: "신호 단속",
-        7: "과속 (이동식)",
-        8: "고정식 과속위험 구간(박스형)",
-        9: "버스전용차로구간",
-        10: "가변 차로 단속",
-        11: "갓길 감시 지점",
-        12: "끼어들기 금지",
-        13: "교통정보 수집지점",
-        14: "방범용cctv",
-        15: "과적차량 위험구간",
-        16: "적재 불량 단속",
-        17: "주차단속 지점",
-        18: "일방통행도로",
-        19: "철길 건널목",
-        20: "어린이 보호구역(스쿨존 시작 구간)",
-        21: "어린이 보호구역(스쿨존 끝 구간)",
-        22: "과속방지턱",
-        23: "lpg충전소",
-        24: "터널 구간",
-        25: "휴게소",
-        26: "톨게이트",
-        27: "안개주의 지역",
-        28: "유해물질 지역",
-        29: "사고다발",
-        30: "급커브지역",
-        31: "급커브구간1",
-        32: "급경사구간",
-        33: "야생동물 교통사고 잦은 구간",
-        34: "우측시야불량지점",
-        35: "시야불량지점",
-        36: "좌측시야불량지점",
-        37: "신호위반다발구간",
-        38: "과속운행다발구간",
-        39: "교통혼잡지역",
-        40: "방향별차로선택지점",
-        41: "무단횡단사고다발지점",
-        42: "갓길 사고 다발 지점",
-        43: "과속 사발 다발 지점",
-        44: "졸음 사고 다발 지점",
-        45: "사고다발지점",
-        46: "보행자 사고다발지점",
-        47: "차량도난사고 상습발생지점",
-        48: "낙석주의지역",
-        49: "결빙주의지역",
-        50: "병목지점",
-        51: "합류 도로",
-        52: "추락주의지역",
-        53: "지하차도 구간",
-        54: "주택밀집지역(교통진정지역)",
-        55: "인터체인지",
-        56: "분기점",
-        57: "휴게소(lpg충전가능)",
-        58: "교량",
-        59: "제동장치사고다발지점",
-        60: "중앙선침범사고다발지점",
-        61: "통행위반사고다발지점",
-        62: "목적지 건너편 안내",
-        63: "졸음 쉼터 안내",
-        64: "노후경유차단속",
-        65: "터널내 차로변경단속",
-        66: ""
+      0: "信号测速",
+      1: "测速摄像头(固定)",
+      2: "区间测速起点",
+      3: "区间测速终点",
+      4: "区间测速中",
+      5: "违法变道抓拍",
+      6: "信号违法抓拍",
+      7: "测速摄像头(移动)",
+      8: "固定测速危险路段",
+      9: "公交专用道",
+      10: "可变车道监控",
+      11: "应急车道监控",
+      12: "禁止加塞",
+      13: "交通信息采集点",
+      14: "治安监控",
+      15: "超载车辆危险路段",
+      16: "货物装载违规抓拍",
+      17: "违停抓拍点",
+      18: "单行道",
+      19: "铁路道口",
+      20: "学校区域(起点)",
+      21: "学校区域(终点)",
+      22: "减速带",
+      23: "LPG加油站",
+      24: "隧道路段",
+      25: "服务区",
+      26: "收费站",
+      27: "雾区",
+      28: "危险品运输路段",
+      29: "事故多发路段",
+      30: "急弯路段",
+      31: "连续弯道路段",
+      32: "陡坡路段",
+      33: "野生动物出没路段",
+      34: "右侧视线不良",
+      35: "视线不良路段",
+      36: "左侧视线不良",
+      37: "信号违法多发路段",
+      38: "超速多发路段",
+      39: "交通拥堵区域",
+      40: "车道选择提示点",
+      41: "行人违法穿行多发点",
+      42: "应急车道事故多发点",
+      43: "超速事故多发点",
+      44: "疲劳驾驶事故多发点",
+      45: "事故多发点",
+      46: "行人事故多发点",
+      47: "车辆盗窃多发点",
+      48: "落石区域",
+      49: "结冰路段",
+      50: "道路变窄",
+      51: "汇流路段",
+      52: "坠落危险区域",
+      53: "地下通道",
+      54: "住宅密集区",
+      55: "互通立交",
+      56: "分流点",
+      57: "服务区(含LPG)",
+      58: "桥梁",
+      59: "制动系统事故多发点",
+      60: "压线事故多发点",
+      61: "违法通行事故多发点",
+      62: "目的地对面提醒",
+      63: "疲劳驾驶休息区",
+      64: "柴油车尾气检测",
+      65: "隧道内禁止变道",
+      66: ""
     }
     return sdi_types.get(nSdiType, "")
 
@@ -1472,7 +1472,7 @@ class CarrotServ:
       if atc_type in ["turn left", "turn right"] and x_dist_to_turn > start_turn_dist:
         atc_type = "atc left" if atc_type == "turn left" else "atc right"
 
-    if self.autoTurnMapChange > 0 and check_steer: 
+    if self.autoTurnMapChange > 0 and check_steer:
       #print(f"x_dist_to_turn: {x_dist_to_turn}, atc_start_dist: {atc_start_dist}")
       #print(f"atc_activate_count: {self.atc_activate_count}")
       if self.atc_activate_count == 2:
@@ -1507,7 +1507,7 @@ class CarrotServ:
 
 
     return atc_desired, atc_type, atc_speed, atc_dist
-  
+
   def update_nav_instruction(self, sm):
     if sm.alive['navInstruction'] and sm.valid['navInstruction']:
       msg_nav = sm['navInstruction']
@@ -1537,7 +1537,7 @@ class CarrotServ:
         print(f"kisawazeroadspdlimit: {road_limit_speed} km/h")
         if not self.is_metric:
           road_limit_speed *= CV.MPH_TO_KPH
-        self.nRoadLimitSpeed = road_limit_speed 
+        self.nRoadLimitSpeed = road_limit_speed
     if "kisawazealert" in data:
       pass
     if "kisawazeendalert" in data:
@@ -1563,10 +1563,10 @@ class CarrotServ:
       if xSpdType >= 0:
         offset = 5 if self.is_metric else 5 * CV.MPH_TO_KPH
         self.xSpdLimit = self.nRoadLimitSpeed + offset
-        
+
         self.xSpdDist = distance
-        self.xSpdType =xSpdType 
-    
+        self.xSpdType =xSpdType
+
   def update_navi(self, remote_ip, sm, pm, vturn_speed, coords, distances, route_speed):
 
     self.debugText = ""
@@ -1598,7 +1598,7 @@ class CarrotServ:
     self.active_kisa_count = max(self.active_kisa_count - 1, 0)
     if self.active_kisa_count > 0:
       self.active_carrot = 2
-      
+
     elif self.active_count > 0:
       self.active_carrot = 2 if self.active_sdi_count > 0 else 1
     else:
@@ -1794,7 +1794,7 @@ class CarrotServ:
     inst = messaging.new_message('navInstructionCarrot')
     if self.active_carrot > 1:
       inst.valid = True
-    
+
       instruction = inst.navInstructionCarrot
       instruction.distanceRemaining = self.nGoPosDist
       instruction.timeRemaining = self.nGoPosTime
@@ -1812,7 +1812,7 @@ class CarrotServ:
       navTypeNext, navModifierNext, xTurnInfoNext = "invalid", "", -1
       if self.nTBTTurnTypeNext in nav_type_mapping:
         navTypeNext, navModifierNext, xTurnInfoNext = nav_type_mapping[self.nTBTTurnTypeNext]
-      
+
       instruction.maneuverType = navType
       instruction.maneuverModifier = navModifier
 
