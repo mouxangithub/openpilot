@@ -163,55 +163,6 @@ Please use caution when using this feature. Only use the blinker when traffic an
     </message>
 </context>
 <context>
-    <name>DeveloperPanelSP</name>
-    <message>
-        <source>Enable GitHub runner service</source>
-        <translation>启用 GitHub Runner 服务</translation>
-    </message>
-    <message>
-        <source>Enables or disables the github runner service.</source>
-        <translation>启用或禁用 GitHub Runner 服务</translation>
-    </message>
-    <message>
-        <source>Error Log</source>
-        <translation>错误日志</translation>
-    </message>
-    <message>
-        <source>VIEW</source>
-        <translation>查看</translation>
-    </message>
-    <message>
-        <source>View the error log for sunnypilot crashes.</source>
-        <translation>查看 ​​sunnypilot​​ 崩溃的错误日志</translation>
-    </message>
-    <message>
-        <source>Show Advanced Controls</source>
-        <translation>显示高级控件</translation>
-    </message>
-    <message>
-        <source>Toggle visibility of advanced sunnypilot controls.
-This only toggles the visibility of the controls; it does not toggle the actual control enabled/disabled state.</source>
-        <translation>切换高级SunnyPilot控件的可见性。
-这仅切换控件的可见性，不会切换实际控件的启用/禁用状态。</translation>
-    </message>
-    <message>
-        <source>Enable Quickboot Mode</source>
-        <translation>启用快速启动模式</translation>
-    </message>
-    <message>
-        <source>Enable Quickboot Mode</source>
-        <translation>启用快速启动模式</translation>
-    </message>
-    <message>
-        <source>Quickboot mode requires updates to be disabled.&lt;br&gt;Enable &apos;Disable Updates&apos; in the Software panel first.</source>
-        <translation>快速启动模式需要禁用更新。&lt;br&gt;请先在软件面板中启用&quot;禁用更新&quot;。</translation>
-    </message>
-    <message>
-        <source>When toggled on, this creates a prebuilt file to allow accelerated boot times. When toggled off, it immediately removes the prebuilt file so compilation of locally edited cpp files can be made. &lt;br&gt;&lt;br&gt;&lt;b&gt;To edit C++ files locally on device, you MUST first turn off this toggle so the changes can recompile.&lt;/b&gt;</source>
-        <translation>当开关打开时，这会创建一个预构建的文件以实现更快的启动时间。当开关关闭时，它会立即删除预构建文件，以便可以编译本地编辑的cpp文件。&lt;br&gt;&lt;br&gt;&lt;b&gt;要在设备上本地编辑C++文件，您必须首先关闭此开关，以便更改可以重新编译。&lt;/b&gt;</translation>
-    </message>
-</context>
-<context>
     <name>DeveloperPanel</name>
     <message>
         <source>Joystick Debug Mode</source>
@@ -230,12 +181,41 @@ This only toggles the visibility of the controls; it does not toggle the actual 
         <translation>ADB（Android调试桥接）允许通过USB或网络连接到您的设备。更多信息请参见 [https://docs.comma.ai/how-to/connect-to-comma](https://docs.comma.ai/how-to/connect-to-comma)。</translation>
     </message>
     <message>
+        <source>openpilot Longitudinal Control (Alpha)</source>
+        <translation>​​openpilot 纵向控制（Alpha 测试版）​​</translation>
+    </message>
+    <message>
+        <source>WARNING: openpilot longitudinal control is in alpha for this car and will disable Automatic Emergency Braking (AEB).</source>
+        <translation>​​警告：当前车型的 openpilot 纵向控制功能处于 Alpha 测试阶段，启用后将禁用自动紧急制动（AEB）。​​</translation>
+    </message>
+    <message>
+        <source>On this car, sunnypilot defaults to the car&apos;s built-in ACC instead of openpilot&apos;s longitudinal control. Enable this to switch to openpilot longitudinal control. Enabling Experimental mode is recommended when enabling openpilot longitudinal control alpha.</source>
+        <translation>​​该车型默认使用原车自带的自适应巡航（ACC），而非 sunnypilot 的纵向控制功能。开启此选项将切换为 sunnypilot 纵向控制。建议启用时同步开启「实验模式」以获得完整 Alpha 版功能支持。​​</translation>
+    </message>
+</context>
+<context>
+    <name>DeveloperPanelSP</name>
+    <message>
+        <source>Show Advanced Controls</source>
+        <translation>显示高级控件</translation>
+    </message>
+    <message>
+        <source>Toggle visibility of advanced sunnypilot controls.
+This only toggles the visibility of the controls; it does not toggle the actual control enabled/disabled state.</source>
+        <translation>切换高级SunnyPilot控件的可见性。
+这仅切换控件的可见性，不会切换实际控件的启用/禁用状态。</translation>
+    </message>
+    <message>
         <source>Enable GitHub runner service</source>
         <translation>启用 GitHub Runner 服务</translation>
     </message>
     <message>
         <source>Enables or disables the github runner service.</source>
         <translation>启用或禁用 GitHub Runner 服务</translation>
+    </message>
+    <message>
+        <source>Enable Quickboot Mode</source>
+        <translation>启用快速启动模式</translation>
     </message>
     <message>
         <source>Error Log</source>
@@ -260,6 +240,14 @@ This only toggles the visibility of the controls; it does not toggle the actual 
     <message>
         <source>On this car, sunnypilot defaults to the car&apos;s built-in ACC instead of openpilot&apos;s longitudinal control. Enable this to switch to openpilot longitudinal control. Enabling Experimental mode is recommended when enabling openpilot longitudinal control alpha.</source>
         <translation>​​该车型默认使用原车自带的自适应巡航（ACC），而非 sunnypilot 的纵向控制功能。开启此选项将切换为 sunnypilot 纵向控制。建议启用时同步开启「实验模式」以获得完整 Alpha 版功能支持。​​</translation>
+    </message>
+    <message>
+        <source>When toggled on, this creates a prebuilt file to allow accelerated boot times. When toggled off, it immediately removes the prebuilt file so compilation of locally edited cpp files can be made. &lt;br&gt;&lt;br&gt;&lt;b&gt;To edit C++ files locally on device, you MUST first turn off this toggle so the changes can recompile.&lt;/b&gt;</source>
+        <translation>当开关打开时，这会创建一个预构建的文件以实现更快的启动时间。当开关关闭时，它会立即删除预构建文件，以便可以编译本地编辑的cpp文件。&lt;br&gt;&lt;br&gt;&lt;b&gt;要在设备上本地编辑C++文件，您必须首先关闭此开关，以便更改可以重新编译。&lt;/b&gt;</translation>
+    </message>
+    <message>
+        <source>Quickboot mode requires updates to be disabled.&lt;br&gt;Enable &apos;Disable Updates&apos; in the Software panel first.</source>
+        <translation>快速启动模式需要禁用更新。&lt;br&gt;请先在软件面板中启用&quot;禁用更新&quot;。</translation>
     </message>
 </context>
 <context>
@@ -455,6 +443,38 @@ This only toggles the visibility of the controls; it does not toggle the actual 
         <source>Overrides the brightness of the device.</source>
         <translation>​​覆盖设备的亮度设置​​</translation>
     </message>
+    <message>
+        <source>sunnypilot requires the device to be mounted within 4° left or right and within 5° up or 9° down.</source>
+        <translation>sunnypilot要求设备安装的偏航角在左4°和右4°之间，俯仰角在上5°和下9°之间。</translation>
+    </message>
+    <message>
+        <source>
+
+Steering lag calibration is %1% complete.</source>
+        <translation>
+
+转向延迟校准完成%1%。</translation>
+    </message>
+    <message>
+        <source>
+
+Steering lag calibration is complete.</source>
+        <translation>
+
+转向延迟校准已完成。</translation>
+    </message>
+    <message>
+        <source> Steering torque response calibration is %1% complete.</source>
+        <translation> 转向力矩响应校准完成%1%。</translation>
+    </message>
+    <message>
+        <source> Steering torque response calibration is complete.</source>
+        <translation> 转向力矩响应校准已完成。</translation>
+    </message>
+    <message>
+        <source>openpilot is continuously calibrating, resetting is rarely required. Resetting calibration will restart openpilot if the car is powered on.</source>
+        <translation>openpilot会持续进行校准，很少需要重置。如果汽车通电，重置校准将重新启动openpilot。</translation>
+    </message>
 </context>
 <context>
     <name>DevicePanelSP</name>
@@ -620,6 +640,21 @@ This is the time after which settings UI closes automatically if user is not int
     </message>
 </context>
 <context>
+    <name>ExitOffroadButton</name>
+    <message>
+        <source>EXIT ALWAYS OFFROAD MODE</source>
+        <translation>退出离线模式</translation>
+    </message>
+    <message>
+        <source>Are you sure you want to exit Always Offroad mode?</source>
+        <translation>您确定要退出离线模式吗？</translation>
+    </message>
+    <message>
+        <source>Confirm</source>
+        <translation>确定</translation>
+    </message>
+</context>
+<context>
     <name>ExperimentalModeButton</name>
     <message>
         <source>EXPERIMENTAL MODE ON</source>
@@ -665,6 +700,10 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     <message>
         <source>&lt;span stylesheet=&apos;font-size: 60px; font-weight: bold; color: #e74c3c;&apos;&gt;INACTIVE&lt;/span&gt;: connect to an unmetered network</source>
         <translation>&lt;span stylesheet=&apos;font-size: 60px; font-weight: bold; color: #e74c3c;&apos;&gt;闲置&lt;/span&gt;：请连接到不限流量的网络</translation>
+    </message>
+    <message>
+        <source>Firehose Mode</source>
+        <translation> 训练数据上传</translation>
     </message>
 </context>
 <context>
@@ -861,6 +900,81 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     <message>
         <source>Pause lateral control with blinker when traveling below the desired speed selected.</source>
         <translation>当行驶速度低于所选的理想速度时，用转向灯暂停横向控制。</translation>
+    </message>
+</context>
+<context>
+    <name>LongitudinalPanel</name>
+    <message>
+        <source>Custom ACC Speed Increments</source>
+        <translation>自定义ACC速度增量</translation>
+    </message>
+    <message>
+        <source>Short Press</source>
+        <translation>短按</translation>
+    </message>
+    <message>
+        <source>Long Press</source>
+        <translation>长按</translation>
+    </message>
+    <message>
+        <source>Speed Limit Control (SLC)</source>
+        <translation>限速控制（SLC）</translation>
+    </message>
+    <message>
+        <source>Customize SLC</source>
+        <translation>自定义SLC</translation>
+    </message>
+    <message>
+        <source>When you engage ACC, you will be prompted to set the cruising speed to the speed limit of the road adjusted by the Offset and Source Policy specified, or the current driving speed. The maximum cruising speed will always be the MAX set speed.</source>
+        <translation>当您启用自适应巡航控制（ACC）时，系统会提示您将巡航速度设置为根据指定的偏移量和源策略调整后的道路限速，或设置为当前行驶速度。最大巡航速度始终为设定的最大速度。</translation>
+    </message>
+    <message>
+        <source>Enable custom Short &amp; Long press increments for cruise speed increase/decrease.</source>
+        <translation>启用自定义短按/长按增量调节巡航速度增减功能。</translation>
+    </message>
+    <message>
+        <source>This feature can only be used with openpilot longitudinal control enabled.</source>
+        <translation>该功能仅在使用openpilot纵向控制时可用。</translation>
+    </message>
+    <message>
+        <source>This feature is not supported on this platform due to vehicle limitations.</source>
+        <translation>由于车辆限制，该平台不支持此功能。</translation>
+    </message>
+    <message>
+        <source>Start the vehicle to check vehicle compatibility.</source>
+        <translation>启动车辆以检查车辆兼容性。</translation>
+    </message>
+    <message>
+        <source>Vision Turn Speed Controller</source>
+        <translation>视觉转向速度控制器</translation>
+    </message>
+    <message>
+        <source>Also known as V-TSC, this controller automatically slows down for curvature while OP longitudinal is engaged.</source>
+        <translation>该控制器也被称为V-TSC，在OP纵向接合时，它能根据曲率自动减速。</translation>
+    </message>
+    <message>
+        <source>Vibe Personality Controller</source>
+        <translation>高级驾驶个性系统</translation>
+    </message>
+    <message>
+        <source>Advanced driving personality system with separate controls for acceleration behavior (Eco/Normal/Sport) and following distance/braking (Relaxed/Standard/Aggressive). Customize your driving experience with independent acceleration and distance personalities.</source>
+        <translation>高级驾驶个性系统，分别控制驾驶模式行为（Eco/Normal/Sport）和跟车距离行为（Relaxed/Standard/Aggressive）。通过独立的加速和距离个性，定制您的驾驶体验。</translation>
+    </message>
+    <message>
+        <source>Acceleration Personality</source>
+        <translation>驾驶模式行为</translation>
+    </message>
+    <message>
+        <source>Controls acceleration behavior: Eco (efficient), Normal (balanced), Sport (responsive). Adjust how aggressively the vehicle accelerates while maintaining smooth operation.</source>
+        <translation>驾驶模式行为：节能（高效）、普通（平衡）、运动（响应）。调整车辆加速的力度，同时保持平稳运行。</translation>
+    </message>
+    <message>
+        <source>Following Distance Personality</source>
+        <translation>跟车距离行为</translation>
+    </message>
+    <message>
+        <source>Controls following distance and braking behavior: Relaxed (longer distance, gentler braking), Standard (balanced), Aggressive (shorter distance, firmer braking). Fine-tune your comfort level in traffic situations.</source>
+        <translation>控制跟车距离和刹车行为：舒适（更长距离，更柔和的刹车），标准（平衡），激进（更短距离，更坚定的刹车）。根据您的舒适度在交通情况下进行微调。</translation>
     </message>
 </context>
 <context>
@@ -1092,8 +1206,12 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <translation>选择驾驶模型</translation>
     </message>
     <message>
-        <source>Warning: You are on a metered connection!</source>
-        <translation>警告：您使用的是按流量计费的连接！</translation>
+        <source>
+
+Warning: You are on a metered connection!</source>
+        <translation>
+
+警告：您使用的是按流量计费的连接！</translation>
     </message>
     <message>
         <source>Continue</source>
@@ -1152,6 +1270,26 @@ The default software delay value is 0.2</source>
     <message>
         <source>This will delete ALL downloaded models from the cache &lt;br/&gt;&lt;u&gt;except the currently active model&lt;/u&gt;. &lt;br/&gt;&lt;br/&gt;Are you sure you want to continue?</source>
         <translation>这将删除缓存中所有下载的模型 &lt;br/&gt;&lt;u&gt;除了当前正在使用的模型&lt;/u&gt;。 &lt;br/&gt;&lt;br/&gt;是否确定继续？</translation>
+    </message>
+    <message>
+        <source>  %1 - %2</source>
+        <translation>  %1 - %2</translation>
+    </message>
+    <message>
+        <source>  download failed - %1</source>
+        <translation>  下载失败 - %1</translation>
+    </message>
+    <message>
+        <source>  pending - %1</source>
+        <translation>  等待 - %1</translation>
+    </message>
+    <message>
+        <source>Current:</source>
+        <translation>当前:</translation>
+    </message>
+    <message>
+        <source>This will delete ALL downloaded models from the cache&lt;br/&gt;&lt;u&gt;except the currently active model&lt;/u&gt;.&lt;br/&gt;&lt;br/&gt;Are you sure you want to continue?</source>
+        <translation>这将删除缓存中所有下载的模型&lt;br/&gt;&lt;u&gt;除了当前正在使用的模型&lt;/u&gt;。&lt;br/&gt;&lt;br/&gt;是否确定继续？</translation>
     </message>
 </context>
 <context>
@@ -1317,6 +1455,14 @@ The default software delay value is 0.2</source>
         <source>sunnypilot is now in Always Offroad mode. sunnypilot won&apos;t start until Always Offroad mode is disabled. Go to &quot;Settings&quot; -&gt; &quot;Device&quot; to exit Always Offroad mode.</source>
         <translation>sunnypilot现在处于离线模式。在禁用离线模式之前，sunnypilot不会启动。转到&quot;设置&quot; -&gt; &quot;设备&quot;退出“始终离线模式”模式。</translation>
     </message>
+    <message>
+        <source>OpenStreetMap database is out of date. New maps must be downloaded if you wish to continue using OpenStreetMap data for Enhanced Speed Control and road name display.
+
+%1</source>
+        <translation>OpenStreetMap 数据库已过时。如果你希望继续使用 OpenStreetMap 数据来进行增强型速度控制和道路名称显示，必须下载新的地图。
+
+%1</translation>
+    </message>
 </context>
 <context>
     <name>OffroadHome</name>
@@ -1331,6 +1477,13 @@ The default software delay value is 0.2</source>
     <message>
         <source> ALERT</source>
         <translation> 警报</translation>
+    </message>
+</context>
+<context>
+    <name>OffroadHomeSP</name>
+    <message>
+        <source>ALWAYS OFFROAD ACTIVE</source>
+        <translation>始终启动离线中</translation>
     </message>
 </context>
 <context>
@@ -1354,6 +1507,144 @@ The default software delay value is 0.2</source>
     <message>
         <source>System Unresponsive</source>
         <translation>系统无响应</translation>
+    </message>
+</context>
+<context>
+    <name>OsmPanel</name>
+    <message>
+        <source>Mapd Version</source>
+        <translation>地图版本</translation>
+    </message>
+    <message>
+        <source>Offline Maps ETA</source>
+        <translation>预计时间</translation>
+    </message>
+    <message>
+        <source>Time Elapsed</source>
+        <translation>已用时间</translation>
+    </message>
+    <message>
+        <source>Loading...</source>
+        <translation>加载中...</translation>
+    </message>
+    <message>
+        <source>Downloaded Maps</source>
+        <translation>地图缓存</translation>
+    </message>
+    <message>
+        <source>DELETE</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <source>This will delete ALL downloaded maps
+
+Are you sure you want to delete all the maps?</source>
+        <translation>这将删除所有已下载的地图
+确定要删除全部地图吗？</translation>
+    </message>
+    <message>
+        <source>Yes, delete all the maps.</source>
+        <translation>是的，删除所有地图。</translation>
+    </message>
+    <message>
+        <source>Database Update</source>
+        <translation>更新时间</translation>
+    </message>
+    <message>
+        <source>CHECK</source>
+        <translation>检查</translation>
+    </message>
+    <message>
+        <source>Country</source>
+        <translation>国家</translation>
+    </message>
+    <message>
+        <source>SELECT</source>
+        <translation>选择</translation>
+    </message>
+    <message>
+        <source>Fetching Country list...</source>
+        <translation>正在获取国家列表...</translation>
+    </message>
+    <message>
+        <source>State</source>
+        <translation>州/省</translation>
+    </message>
+    <message>
+        <source>Fetching State list...</source>
+        <translation>正在获取地区列表...</translation>
+    </message>
+    <message>
+        <source>All</source>
+        <translation>全部</translation>
+    </message>
+    <message>
+        <source>REFRESH</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
+        <source>UPDATE</source>
+        <translation>更新</translation>
+    </message>
+    <message>
+        <source>Download starting...</source>
+        <translation>开始下载...</translation>
+    </message>
+    <message>
+        <source>Error: Invalid download. Retry.</source>
+        <translation>错误：下载无效。请重试。</translation>
+    </message>
+    <message>
+        <source>Download complete!</source>
+        <translation>下载完成！</translation>
+    </message>
+    <message>
+        <source>
+
+Warning: You are on a metered connection!</source>
+        <translation>
+
+警告：您当前使用的是计量收费网络连接！</translation>
+    </message>
+    <message>
+        <source>This will start the download process and it might take a while to complete.</source>
+        <translation>这将开始更新下载地图数据，可能需要一些时间才能完成。</translation>
+    </message>
+    <message>
+        <source>Continue on Metered</source>
+        <translation>使用流量继续</translation>
+    </message>
+    <message>
+        <source>Start Download</source>
+        <translation>开始下载</translation>
+    </message>
+    <message>
+        <source>m</source>
+        <translation>m</translation>
+    </message>
+    <message>
+        <source>s</source>
+        <translation>s</translation>
+    </message>
+    <message>
+        <source>Calculating...</source>
+        <translation>计算中...</translation>
+    </message>
+    <message>
+        <source>Downloaded</source>
+        <translation>已下载</translation>
+    </message>
+    <message>
+        <source>Calculating ETA...</source>
+        <translation>正在计算预计到达时间...</translation>
+    </message>
+    <message>
+        <source>Ready</source>
+        <translation>准备就绪</translation>
+    </message>
+    <message>
+        <source>Time remaining: </source>
+        <translation>剩余时间：</translation>
     </message>
 </context>
 <context>
@@ -1780,6 +2071,18 @@ This may take up to a minute.</source>
         <source>Custom Software</source>
         <translation>定制软件</translation>
     </message>
+    <message>
+        <source>WARNING: Custom Software</source>
+        <translation>警告：定制软件</translation>
+    </message>
+    <message>
+        <source>Use caution when installing third-party software. Third-party software has not been tested by comma, and may cause damage to your device and/or vehicle.
+
+If you&apos;d like to proceed, use https://flash.comma.ai to restore your device to a factory state later.</source>
+        <translation>请谨慎安装第三方软件。第三方软件未经comma测试，可能会对您的设备和/
+
+如果您想继续，请稍后使用 https://flash.comma.ai 将您的设备恢复到出厂状态</translation>
+    </message>
 </context>
 <context>
     <name>SetupWidget</name>
@@ -2018,6 +2321,14 @@ This may take up to a minute.</source>
     <message>
         <source>Please enable always offroad mode or turn off vehicle to adjust these toggles</source>
         <translation>请启用离线模式，或关闭车辆以调整这个开关</translation>
+    </message>
+    <message>
+        <source>%1 updates requires a reboot.&lt;br&gt;Reboot now?</source>
+        <translation>%1 更新需要重新启动。&lt;br&gt;现在重新启动吗？</translation>
+    </message>
+    <message>
+        <source>Reboot</source>
+        <translation>重启</translation>
     </message>
 </context>
 <context>
@@ -2260,81 +2571,6 @@ Data</source>
     </message>
 </context>
 <context>
-    <name>LongitudinalPanel</name>
-    <message>
-        <source>Custom ACC Speed Increments</source>
-        <translation>自定义ACC速度增量</translation>
-    </message>
-    <message>
-        <source>Short Press</source>
-        <translation>短按</translation>
-    </message>
-    <message>
-        <source>Long Press</source>
-        <translation>长按</translation>
-    </message>
-    <message>
-        <source>Speed Limit Control (SLC)</source>
-        <translation>限速控制（SLC）</translation>
-    </message>
-    <message>
-        <source>Customize SLC</source>
-        <translation>自定义SLC</translation>
-    </message>
-    <message>
-        <source>When you engage ACC, you will be prompted to set the cruising speed to the speed limit of the road adjusted by the Offset and Source Policy specified, or the current driving speed. The maximum cruising speed will always be the MAX set speed.</source>
-        <translation>当您启用自适应巡航控制（ACC）时，系统会提示您将巡航速度设置为根据指定的偏移量和源策略调整后的道路限速，或设置为当前行驶速度。最大巡航速度始终为设定的最大速度。</translation>
-    </message>
-    <message>
-        <source>Enable custom Short &amp; Long press increments for cruise speed increase/decrease.</source>
-        <translation>启用自定义短按/长按增量调节巡航速度增减功能。</translation>
-    </message>
-    <message>
-        <source>This feature can only be used with openpilot longitudinal control enabled.</source>
-        <translation>该功能仅在使用openpilot纵向控制时可用。</translation>
-    </message>
-    <message>
-        <source>This feature is not supported on this platform due to vehicle limitations.</source>
-        <translation>由于车辆限制，该平台不支持此功能。</translation>
-    </message>
-    <message>
-        <source>Start the vehicle to check vehicle compatibility.</source>
-        <translation>启动车辆以检查车辆兼容性。</translation>
-    </message>
-    <message>
-        <source>Vision Turn Speed Controller</source>
-        <translation>视觉转向速度控制器</translation>
-    </message>
-    <message>
-        <source>Also known as V-TSC, this controller automatically slows down for curvature while OP longitudinal is engaged.</source>
-        <translation>该控制器也被称为V-TSC，在OP纵向接合时，它能根据曲率自动减速。</translation>
-    </message>
-    <message>
-        <source>Vibe Personality Controller</source>
-        <translation>高级驾驶个性系统</translation>
-    </message>
-    <message>
-        <source>Advanced driving personality system with separate controls for acceleration behavior (Eco/Normal/Sport) and following distance/braking (Relaxed/Standard/Aggressive). Customize your driving experience with independent acceleration and distance personalities.</source>
-        <translation>高级驾驶个性系统，分别控制驾驶模式行为（Eco/Normal/Sport）和跟车距离行为（Relaxed/Standard/Aggressive）。通过独立的加速和距离个性，定制您的驾驶体验。</translation>
-    </message>
-    <message>
-        <source>Acceleration Personality</source>
-        <translation>驾驶模式行为</translation>
-    </message>
-    <message>
-        <source>Controls acceleration behavior: Eco (efficient), Normal (balanced), Sport (responsive). Adjust how aggressively the vehicle accelerates while maintaining smooth operation.</source>
-        <translation>驾驶模式行为：节能（高效）、普通（平衡）、运动（响应）。调整车辆加速的力度，同时保持平稳运行。</translation>
-    </message>
-    <message>
-        <source>Following Distance Personality</source>
-        <translation>跟车距离行为</translation>
-    </message>
-    <message>
-        <source>Controls following distance and braking behavior: Relaxed (longer distance, gentler braking), Standard (balanced), Aggressive (shorter distance, firmer braking). Fine-tune your comfort level in traffic situations.</source>
-        <translation>控制跟车距离和刹车行为：舒适（更长距离，更柔和的刹车），标准（平衡），激进（更短距离，更坚定的刹车）。根据您的舒适度在交通情况下进行微调。</translation>
-    </message>
-</context>
-<context>
     <name>VisualsPanel</name>
     <message>
         <source>Show Blind Spot Warnings</source>
@@ -2379,140 +2615,6 @@ Data</source>
     <message>
         <source>All</source>
         <translation>全部</translation>
-    </message>
-</context>
-<context>
-    <name>OsmPanel</name>
-    <message>
-        <source>Mapd Version</source>
-        <translation>地图版本</translation>
-    </message>
-    <message>
-        <source>Offline Maps ETA</source>
-        <translation>预计时间</translation>
-    </message>
-    <message>
-        <source>Time Elapsed</source>
-        <translation>已用时间</translation>
-    </message>
-    <message>
-        <source>Loading...</source>
-        <translation>加载中...</translation>
-    </message>
-    <message>
-        <source>Downloaded Maps</source>
-        <translation>地图缓存</translation>
-    </message>
-    <message>
-        <source>DELETE</source>
-        <translation>删除</translation>
-    </message>
-    <message>
-        <source>This will delete ALL downloaded maps
-
-Are you sure you want to delete all the maps?</source>
-        <translation>这将删除所有已下载的地图
-确定要删除全部地图吗？</translation>
-    </message>
-    <message>
-        <source>Yes, delete all the maps.</source>
-        <translation>是的，删除所有地图。</translation>
-    </message>
-    <message>
-        <source>Database Update</source>
-        <translation>更新时间</translation>
-    </message>
-    <message>
-        <source>CHECK</source>
-        <translation>检查</translation>
-    </message>
-    <message>
-        <source>Country</source>
-        <translation>国家</translation>
-    </message>
-    <message>
-        <source>SELECT</source>
-        <translation>选择</translation>
-    </message>
-    <message>
-        <source>Fetching Country list...</source>
-        <translation>正在获取国家列表...</translation>
-    </message>
-    <message>
-        <source>State</source>
-        <translation>州/省</translation>
-    </message>
-    <message>
-        <source>Fetching State list...</source>
-        <translation>正在获取地区列表...</translation>
-    </message>
-    <message>
-        <source>All</source>
-        <translation>全部</translation>
-    </message>
-    <message>
-        <source>REFRESH</source>
-        <translation>刷新</translation>
-    </message>
-    <message>
-        <source>UPDATE</source>
-        <translation>更新</translation>
-    </message>
-    <message>
-        <source>Download starting...</source>
-        <translation>开始下载...</translation>
-    </message>
-    <message>
-        <source>Error: Invalid download. Retry.</source>
-        <translation>错误：下载无效。请重试。</translation>
-    </message>
-    <message>
-        <source>Download complete!</source>
-        <translation>下载完成！</translation>
-    </message>
-    <message>
-        <source>\n\nWarning: You are on a metered connection!</source>
-        <translation>\n\n警告：您当前使用的是计量收费网络连接！</translation>
-    </message>
-    <message>
-        <source>This will start the download process and it might take a while to complete.</source>
-        <translation>这将开始更新下载地图数据，可能需要一些时间才能完成。</translation>
-    </message>
-    <message>
-        <source>Continue on Metered</source>
-        <translation>使用流量继续</translation>
-    </message>
-    <message>
-        <source>Start Download</source>
-        <translation>开始下载</translation>
-    </message>
-    <message>
-        <source>m</source>
-        <translation>m</translation>
-    </message>
-    <message>
-        <source>s</source>
-        <translation>s</translation>
-    </message>
-    <message>
-        <source>Calculating...</source>
-        <translation>计算中...</translation>
-    </message>
-    <message>
-        <source>Downloaded</source>
-        <translation>已下载</translation>
-    </message>
-    <message>
-        <source>Calculating ETA...</source>
-        <translation>正在计算预计到达时间...</translation>
-    </message>
-    <message>
-        <source>Ready</source>
-        <translation>准备就绪</translation>
-    </message>
-    <message>
-        <source>Time remaining: </source>
-        <translation>剩余时间：</translation>
     </message>
 </context>
 <context>
@@ -2940,6 +3042,17 @@ Are you sure you want to delete all the maps?</source>
     </message>
 </context>
 <context>
+    <name>TreeOptionDialog</name>
+    <message>
+        <source>Select</source>
+        <translation>选择</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+</context>
+<context>
     <name>Updater</name>
     <message>
         <source>Update Required</source>
@@ -3017,21 +3130,6 @@ Are you sure you want to delete all the maps?</source>
     <message>
         <source>ALWAYS OFFROAD ACTIVE</source>
         <translation>离线模式已开启</translation>
-    </message>
-</context>
-<context>
-    <name>ExitOffroadButton</name>
-    <message>
-        <source>EXIT ALWAYS OFFROAD MODE</source>
-        <translation>退出离线模式</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to exit Always Offroad mode?</source>
-        <translation>您确定要退出离线模式吗？</translation>
-    </message>
-    <message>
-        <source>Confirm</source>
-        <translation>确定</translation>
     </message>
 </context>
 <context>

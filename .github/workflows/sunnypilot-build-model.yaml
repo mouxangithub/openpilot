@@ -25,6 +25,11 @@ on:
         required: false
         type: boolean
         default: true
+      artifact_suffix:
+        description: 'Suffix for artifact name'
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       upstream_branch:
@@ -86,7 +91,7 @@ jobs:
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
         with:
-          name: models-${{ env.REF }}
+          name: models-${{ env.REF }}${{ inputs.artifact_suffix  }}
           path: ${{ github.workspace }}/openpilot/selfdrive/modeld/models/*.onnx
 
   build_model:
@@ -149,7 +154,7 @@ jobs:
       - name: Download model artifacts
         uses: actions/download-artifact@v4
         with:
-          name: models-${{ env.REF }}
+          name: models-${{ env.REF }}${{ inputs.artifact_suffix }}
           path: ${{ github.workspace }}/selfdrive/modeld/models
 
       - name: Build Model
@@ -192,11 +197,21 @@ jobs:
             --upstream-branch "${{ inputs.upstream_branch }}" \
             ${{ inputs.is_20hz && '--is-20hz' || '' }}
 
+      - name: Write artifact name to file
+        run: echo "model-${{ env.MODEL_NAME }}${{ inputs.artifact_suffix }}-${{ github.run_number }}" > ${{ env.OUTPUT_DIR }}/artifact_name.txt
+
       - name: Upload Build Artifacts
+        id: upload-artifact
         uses: actions/upload-artifact@v4
         with:
-          name: model-${{ env.MODEL_NAME }}-${{ github.run_number }}
+          name: model-${{ env.MODEL_NAME }}${{ inputs.artifact_suffix }}-${{ github.run_number }}
           path: ${{ env.OUTPUT_DIR }}
+
+      - name: Upload artifact name file
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifact-name-${{ inputs.custom_name || inputs.upstream_branch }}
+          path: ${{ env.OUTPUT_DIR }}/artifact_name.txt
 
       - name: Re-enable powersave
         if: always()
