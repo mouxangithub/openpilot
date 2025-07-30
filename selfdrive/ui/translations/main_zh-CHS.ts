@@ -1604,7 +1604,7 @@ Are you sure you want to delete all the maps?</source>
 Warning: You are on a metered connection!</source>
         <translation>
 
-警告：您当前使用的是计量收费网络连接！</translation></translation>
+警告：您当前使用的是计量收费网络连接！</translation>
     </message>
     <message>
         <source>This will start the download process and it might take a while to complete.</source>
