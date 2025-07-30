@@ -1,4 +1,5 @@
 from opendbc.car.mazda.values import Buttons, MazdaFlags
+from opendbc.car.common.conversions import Conversions as CV
 
 
 def create_steering_control(packer, CP, frame, apply_torque, lkas):
@@ -94,7 +95,7 @@ def create_button_cmd(packer, CP, counter, button):
   res = int(button == Buttons.RESUME)
   inc = int(button == Buttons.SET_PLUS)
   dec = int(button == Buttons.SET_MINUS)
-  
+
   if CP.flags & MazdaFlags.GEN1:
     values = {
       "CAN_OFF": can,
@@ -128,3 +129,38 @@ def create_button_cmd(packer, CP, counter, button):
     }
 
     return packer.make_can_msg("CRZ_BTNS", 0, values)
+
+
+# Enhanced CSLC helper functions for Mazda CX-5 2022
+
+def align_speed_to_increment(speed, is_metric=True):
+  """
+  Align speed to appropriate increment (5 km/h or 1 mph)
+
+  Args:
+    speed: Speed value to align
+    is_metric: Whether to use metric units
+
+  Returns:
+    Aligned speed value
+  """
+  if is_metric:
+    return int(round(speed / 5.0) * 5.0)
+  else:
+    return int(round(speed))
+
+
+def get_speed_limits(is_metric=True):
+  """
+  Get speed limits for CX-5 2022
+
+  Args:
+    is_metric: Whether to use metric units
+
+  Returns:
+    Tuple of (min_speed, max_speed)
+  """
+  if is_metric:
+    return (30, 160)  # 30-160 km/h for CX-5 2022
+  else:
+    return (20, 100)  # 20-100 mph

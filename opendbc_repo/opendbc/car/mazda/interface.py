@@ -5,7 +5,6 @@ from opendbc.car.mazda.values import CAR, LKAS_LIMITS
 from opendbc.car.interfaces import CarInterfaceBase
 from opendbc.car.mazda.carcontroller import CarController
 from opendbc.car.mazda.carstate import CarState
-from opendbc.car.mazda.values import CAR, LKAS_LIMITS
 
 
 class CarInterface(CarInterfaceBase):
