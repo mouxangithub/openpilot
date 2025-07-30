@@ -230,7 +230,7 @@ def startup_master_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubM
   if "REPLAY" in os.environ:
     branch = "replay"
 
-  return StartupAlert("WARNING: This branch is not tested", branch, alert_status=AlertStatus.userPrompt)
+  return StartupAlert("未安装CarrotAmap则不建议使用此分支", alert_status=AlertStatus.userPrompt)
 
 def below_engage_speed_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
   return NoEntryAlert(f"Drive above {get_display_speed(CP.minEnableSpeed, metric)} to engage")
@@ -382,7 +382,7 @@ def car_parser_result(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMast
     results,
     AlertStatus.normal, AlertSize.small,
     Priority.LOW, VisualAlert.none, AudibleAlert.none, 1., creation_delay=1.)
-  
+
 
 EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # ********** events with no alerts **********
@@ -492,7 +492,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.steerTempUnavailableSilent: {
     ET.WARNING: Alert(
-      "Steering Temporarily Unavailable",
+      "驻车中...",
       "",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, 1.8),

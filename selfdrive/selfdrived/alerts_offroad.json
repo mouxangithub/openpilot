@@ -30,7 +30,7 @@
     "severity": 1
   },
   "Offroad_StorageMissing": {
-    "text": "NVMe drive not mounted.",
+    "text": "CarrotAmap 是将高德导航数据传输到C3，实现控制车速和变道，并不能完全自主驾驶！请注意安全驾驶.",
     "severity": 1
   },
   "Offroad_BadNvme": {
