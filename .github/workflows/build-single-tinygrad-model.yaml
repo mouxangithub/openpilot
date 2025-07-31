@@ -24,12 +24,8 @@ on:
         required: false
         type: string
         default: ''
-      set_min_version:
-        description: 'Minimum selector version required for the models (see helpers.py or readme.md)'
-        required: true
-        type: string
-      sort_by_date:
-        description: 'Sort bundles by date'
+      bypass_push:
+        description: 'Bypass pushing to GitLab for build-all'
         required: false
         default: true
         type: boolean
@@ -91,6 +87,7 @@ jobs:
     secrets: inherit
 
   publish_model:
+    if: ${{ !inputs.bypass_push && !cancelled() }}
     concurrency:
       group: gitlab-push-${{ inputs.recompiled_dir }}
       cancel-in-progress: false
@@ -112,7 +109,7 @@ jobs:
           GIT_SSH_COMMAND: 'ssh -o UserKnownHostsFile=~/.ssh/known_hosts'
         run: |
           echo "Cloning GitLab"
-          git clone --depth 1 --filter=tree:0 --sparse git@gitlab.com:sunnypilot/public/docs.sunnypilot.ai2.git gitlab_docs
+          git clone --depth 1 --filter=tree:0 --sparse git@gitlab.com:sunnypilot/public/docs.sunnypilot.ai3.git gitlab_docs
           cd gitlab_docs
           echo "checkout models/${RECOMPILED_DIR}"
           git sparse-checkout set --no-cone models/${RECOMPILED_DIR}
@@ -156,6 +153,11 @@ jobs:
           name: ${{ steps.read-artifact-name.outputs.artifact_name }}
           path: output
 
+      - name: Remove unwanted files
+        run: |
+          find output -type f -name 'dmonitoring_model_tinygrad.pkl' -delete
+          find output -type f -name 'dmonitoring_model.onnx' -delete
+
       - name: Copy model artifact(s) to GitLab recompiled dir
         env:
           ARTIFACT_NAME: ${{ steps.read-artifact-name.outputs.artifact_name }}
@@ -191,14 +193,7 @@ jobs:
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
           git commit -m "Create/Update $RECOMPILED_DIR with new/updated model from build-single-tinygrad-model" || echo "No changes to commit"
-          n=0
-          until [ $n -ge 10 ]
-          do
-            git push origin main && break
-            echo "push failed, retrying"
-            git pull --rebase origin main
-            n=$((n+1))
-          done
+          git push origin main
 
       - run: |
           cd docs
@@ -216,11 +211,10 @@ jobs:
           fi
           [ -n "${{ inputs.generation }}" ] && ARGS="$ARGS --generation \"${{ inputs.generation }}\""
           [ -n "${{ inputs.version }}" ] && ARGS="$ARGS --version \"${{ inputs.version }}\""
-          [ -n "${{ inputs.set_min_version }}" ] && ARGS="$ARGS --set-min-version \"${{ inputs.set_min_version }}\""
-          [ -n "${{ inputs.sort_by_date }}" ] && ARGS="$ARGS --sort-by-date"
           eval python3 docs/json_parser.py \
             --json-path "$JSON_FILE" \
             --recompiled-dir "gitlab_docs/models/$RECOMPILED_DIR" \
+            --sort-by-date \
             $ARGS
 
       - name: Push updated JSON to GitHub docs repo
