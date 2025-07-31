@@ -7,7 +7,7 @@ from functools import cache
 from pathlib import Path
 from types import SimpleNamespace
 
-from cereal import car, log
+from cereal import car, custom, log
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.params import Params
@@ -231,6 +231,7 @@ frogpilot_default_params: list[tuple[str, str | bytes, int, str]] = [
   ("ForceMPHDashboard", "0", 2, "0"),
   ("ForceStandstill", "0", 2, "0"),
   ("ForceStops", "0", 2, "0"),
+  ("ForceTorqueController", "0", 2, "0"),
   ("FPSCounter", "1", 3, "0"),
   ("FrogsGoMoosTweak", "1", 2, "0"),
   ("FullMap", "0", 2, "0"),
@@ -537,29 +538,36 @@ class FrogPilotVariables:
       safety_config.safetyModel = car.CarParams.SafetyModel.noOutput
       CP.safetyConfigs = [safety_config]
 
-    is_torque_car = CP.lateralTuning.which() == "torque"
+    fpmsg_bytes = params.get("FrogPilotCarParams" if started else "FrogPilotCarParamsPersistent", block=started)
+    if fpmsg_bytes:
+      with custom.FrogPilotCarParams.from_bytes(fpmsg_bytes) as fpcp_reader:
+        FPCP = fpcp_reader.as_builder()
+    else:
+      FPCP = CP
+
+    is_torque_car = FPCP.lateralTuning.which() == "torque"
     if not is_torque_car:
-      CarInterfaceBase.configure_torque_tune(CP.carFingerprint, CP.lateralTuning)
+      CarInterfaceBase.configure_torque_tune(CP.carFingerprint, FPCP.lateralTuning)
 
     always_on_lateral_set = bool(CP.alternativeExperience & ALTERNATIVE_EXPERIENCE.ALWAYS_ON_LATERAL)
     car_make = CP.carName
     car_model = CP.carFingerprint
-    friction = CP.lateralTuning.torque.friction
-    has_auto_tune = car_make in {"hyundai", "toyota"} and CP.lateralTuning.which() == "torque"
+    friction = FPCP.lateralTuning.torque.friction
+    has_auto_tune = car_make in {"hyundai", "toyota"} and FPCP.lateralTuning.which() == "torque"
     has_bsm = CP.enableBsm
     toggle.has_cc_long = bool(CP.flags & GMFlags.CC_LONG.value)
     has_nnff = not comma_nnff_supported(car_model) and nnff_supported(car_model)
     has_pedal = CP.enableGasInterceptor
     has_radar = not CP.radarUnavailable
     has_sng = CP.autoResumeSng
-    latAccelFactor = CP.lateralTuning.torque.latAccelFactor
+    latAccelFactor = FPCP.lateralTuning.torque.latAccelFactor
     longitudinalActuatorDelay = CP.longitudinalActuatorDelay
     openpilot_longitudinal = CP.openpilotLongitudinalControl
     pcm_cruise = CP.pcmCruise
     startAccel = CP.startAccel
     stopAccel = CP.stopAccel
     steerActuatorDelay = CP.steerActuatorDelay
-    steerKp = CP.lateralTuning.torque.kp
+    steerKp = FPCP.lateralTuning.torque.kp
     steerRatio = CP.steerRatio
     toggle.stoppingDecelRate = CP.stoppingDecelRate
     taco_hacks_allowed = car_make == "hyundai" and CP.safetyConfigs[0].safetyModel == SafetyModel.hyundaiCanfd
@@ -789,6 +797,7 @@ class FrogPilotVariables:
     toggle.one_lane_change = lane_change_customizations and (params.get_bool("OneLaneChange") if tuning_level >= level["OneLaneChange"] else default.get_bool("OneLaneChange"))
 
     lateral_tuning = params.get_bool("LateralTune") if tuning_level >= level["LateralTune"] else default.get_bool("LateralTune")
+    toggle.force_torque_controller = lateral_tuning and not is_torque_car and (params.get_bool("ForceTorqueController") if tuning_level >= level["ForceTorqueController"] else default.get_bool("ForceTorqueController"))
     toggle.nnff = lateral_tuning and has_nnff and is_torque_car and (params.get_bool("NNFF") if tuning_level >= level["NNFF"] else default.get_bool("NNFF"))
     toggle.nnff_lite = not toggle.nnff and lateral_tuning and is_torque_car and (params.get_bool("NNFFLite") if tuning_level >= level["NNFFLite"] else default.get_bool("NNFFLite"))
     toggle.use_turn_desires = lateral_tuning and (params.get_bool("TurnDesires") if tuning_level >= level["TurnDesires"] else default.get_bool("TurnDesires"))

@@ -51,6 +51,7 @@ FrogPilotLateralPanel::FrogPilotLateralPanel(FrogPilotSettingsWindow *parent) : 
     {"OneLaneChange", tr("One Lane Change Per Signal"), tr("Limit lane changes to one per turn signal activation."), ""},
 
     {"LateralTune", tr("Lateral Tuning"), tr("Settings for fine-tuning openpilot's lateral controls."), "../../frogpilot/assets/toggle_icons/icon_lateral_tune.png"},
+    {"ForceTorqueController", tr("Force Torque Controller"), tr("Use a steadier steering method that holds lane center more firmly, especially through curves and in crosswinds."), ""},
     {"TurnDesires", tr("Force Turn Desires Below Lane Change Speed"), tr("Force turn desires below the minimum lane change speed to improve turning accuracy."), ""},
     {"NNFF", tr("Neural Network Feedforward (NNFF)"), tr("Use <b>Twilsonco’s</b> <b>Neural Network FeedForward</b> model for smoother, model-based steering trained on your vehicle's data."), ""},
     {"NNFFLite", tr("Smooth Curve Handling"), tr("Use <b>Twilsonco’s</b> torque-based adjustments to smooth out steering during curves."), ""},

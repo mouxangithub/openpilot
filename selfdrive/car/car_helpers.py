@@ -205,7 +205,7 @@ def get_car(logcan, sendcan, experimental_long_allowed, params, num_pandas=1, fr
 
   CarInterface, _, _ = interfaces[candidate]
   CP = CarInterface.get_params(candidate, fingerprints, car_fw, experimental_long_allowed, frogpilot_toggles, docs=False)
-  FPCP = CarInterface.get_frogpilot_params(candidate, car_fw, fingerprints, frogpilot_toggles)
+  FPCP = CarInterface.get_frogpilot_params(candidate, car_fw, fingerprints, CP, frogpilot_toggles)
   CP.carVin = vin
   CP.carFw = car_fw
   CP.fingerprintSource = source

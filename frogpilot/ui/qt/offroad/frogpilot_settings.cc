@@ -199,9 +199,7 @@ void FrogPilotSettingsWindow::updateState() {
 
 void FrogPilotSettingsWindow::updateVariables() {
   std::string carParams = params.get("CarParamsPersistent");
-  std::string frogpilotCarParams = params.get("FrogPilotCarParamsPersistent");
-
-  if (!carParams.empty() && !frogpilotCarParams.empty()) {
+  if (!carParams.empty()) {
     AlignedBuffer aligned_buf;
     capnp::FlatArrayMessageReader cmsg(aligned_buf.align(carParams.data(), carParams.size()));
     cereal::CarParams::Reader CP = cmsg.getRoot<cereal::CarParams>();
@@ -210,11 +208,6 @@ void FrogPilotSettingsWindow::updateVariables() {
     std::string carFingerprint = CP.getCarFingerprint();
     std::string carMake = CP.getCarName();
 
-    capnp::FlatArrayMessageReader fpcmsg(aligned_buf.align(frogpilotCarParams.data(), frogpilotCarParams.size()));
-    cereal::FrogPilotCarParams::Reader FPCP = fpcmsg.getRoot<cereal::FrogPilotCarParams>();
-
-    friction = CP.getLateralTuning().getTorque().getFriction();
-    hasAutoTune = (carMake == "hyundai" || carMake == "toyota") && CP.getLateralTuning().which() == cereal::CarParams::LateralTuning::TORQUE;
     hasBSM = CP.getEnableBsm();
     hasDashSpeedLimits = carMake == "ford" || carMake == "hyundai" || carMake == "toyota";
     hasExperimentalOpenpilotLongitudinal = CP.getExperimentalLongitudinalAvailable();
@@ -230,16 +223,12 @@ void FrogPilotSettingsWindow::updateVariables() {
     isHKG = carMake == "hyundai";
     isHKGCanFd = isHKG && safetyModel == cereal::CarParams::SafetyModel::HYUNDAI_CANFD;
     isSubaru = carMake == "subaru";
-    isTorqueCar = CP.getLateralTuning().which() == cereal::CarParams::LateralTuning::TORQUE;
     isToyota = carMake == "toyota";
     isTSK = CP.getSecOcRequired();
     isVolt = carFingerprint == "CHEVROLET_VOLT";
-    latAccelFactor = CP.getLateralTuning().getTorque().getLatAccelFactor();
     longitudinalActuatorDelay = CP.getLongitudinalActuatorDelay();
-    openpilotLongitudinalControlDisabled = FPCP.getOpenpilotLongitudinalControlDisabled();
     startAccel = CP.getStartAccel();
     steerActuatorDelay = CP.getSteerActuatorDelay();
-    steerKp = CP.getLateralTuning().getTorque().getKp();
     steerRatio = CP.getSteerRatio();
     stopAccel = CP.getStopAccel();
     stoppingDecelRate = CP.getStoppingDecelRate();
@@ -334,6 +323,20 @@ void FrogPilotSettingsWindow::updateVariables() {
       }
       params.putFloat("VEgoStoppingStock", vEgoStopping);
     }
+  }
+
+  std::string frogpilotCarParams = params.get("FrogPilotCarParamsPersistent");
+  if (!frogpilotCarParams.empty()) {
+    AlignedBuffer aligned_buf;
+    capnp::FlatArrayMessageReader fpcmsg(aligned_buf.align(frogpilotCarParams.data(), frogpilotCarParams.size()));
+    cereal::FrogPilotCarParams::Reader FPCP = fpcmsg.getRoot<cereal::FrogPilotCarParams>();
+
+    friction = FPCP.getLateralTuning().getTorque().getFriction();
+    //hasAutoTune = (carMake == "hyundai" || carMake == "toyota") && FPCP.getLateralTuning().which() == cereal::FrogPilotCarParams::LateralTuning::TORQUE;
+    isTorqueCar = FPCP.getLateralTuning().which() == cereal::FrogPilotCarParams::LateralTuning::TORQUE;
+    latAccelFactor = FPCP.getLateralTuning().getTorque().getLatAccelFactor();
+    openpilotLongitudinalControlDisabled = FPCP.getOpenpilotLongitudinalControlDisabled();
+    steerKp = FPCP.getLateralTuning().getTorque().getKp();
   }
 
   isC3 = util::read_file("/sys/firmware/devicetree/base/model").find("tici") != std::string::npos;

@@ -161,7 +161,7 @@ class CarInterfaceBase(ABC):
     return ret
 
   @classmethod
-  def get_frogpilot_params(cls, candidate: str, car_fw: list[car.CarParams.CarFw], fingerprint: dict[int, dict[int, int]], frogpilot_toggles: SimpleNamespace):
+  def get_frogpilot_params(cls, candidate: str, car_fw: list[car.CarParams.CarFw], fingerprint: dict[int, dict[int, int]], CP, frogpilot_toggles: SimpleNamespace):
     fp_ret = custom.FrogPilotCarParams.new_message()
 
     platform = PLATFORMS[candidate]
@@ -194,6 +194,14 @@ class CarInterfaceBase(ABC):
       if candidate == ToyotaCAR.TOYOTA_PRIUS:
         if 0x23 in fingerprint[0]:
           fp_ret.fpFlags |= ToyotaFrogPilotFlags.ZSS.value
+
+    if CP.steerControlType != car.CarParams.SteerControlType.angle:
+      if CP.lateralTuning.which() == "pid" and (frogpilot_toggles.force_torque_controller or frogpilot_toggles.nnff or frogpilot_toggles.nnff_lite):
+        CarInterfaceBase.configure_torque_tune(candidate, fp_ret.lateralTuning)
+      elif CP.lateralTuning.which() == "torque":
+        CarInterfaceBase.configure_torque_tune(candidate, fp_ret.lateralTuning)
+      else:
+        fp_ret.lateralTuning = "pid"
 
     fp_ret.openpilotLongitudinalControlDisabled = frogpilot_toggles.disable_openpilot_long
 

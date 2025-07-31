@@ -75,10 +75,10 @@ class Controls:
       cloudlog.info("controlsd got CarParams")
 
       with custom.FrogPilotCarParams.from_bytes(self.params.get("FrogPilotCarParams", block=True)) as fpmsg:
-        FPCP = fpmsg.as_builder()
+        self.FPCP = fpmsg.as_builder()
 
       # Uses car interface helper functions, altering state won't be considered by card for actuation
-      self.CI = get_car_interface(self.CP, FPCP)
+      self.CI = get_car_interface(self.CP, self.FPCP)
     else:
       self.CI, self.CP = CI, CI.CP
 
@@ -138,8 +138,8 @@ class Controls:
       self.LaC = LatControlAngle(self.CP, self.CI)
     elif self.CP.lateralTuning.which() == 'pid':
       self.LaC = LatControlPID(self.CP, self.CI)
-    elif self.CP.lateralTuning.which() == 'torque':
-      self.LaC = LatControlTorque(self.CP, self.CI)
+    elif self.FPCP.lateralTuning.which() == 'torque':
+      self.LaC = LatControlTorque(self.CP, self.FPCP, self.CI)
 
     self.initialized = False
     self.state = State.disabled
@@ -601,7 +601,7 @@ class Controls:
     self.VM.update_params(x, sr)
 
     # Update Torque Params
-    if self.CP.lateralTuning.which() == 'torque':
+    if self.FPCP.lateralTuning.which() == 'torque':
       torque_params = self.sm['liveTorqueParameters']
       if self.sm.all_checks(['liveTorqueParameters']) and (torque_params.useParams or self.frogpilot_toggles.force_auto_tune):
         self.LaC.update_live_torque_params(torque_params.latAccelFactorFiltered, torque_params.latAccelOffsetFiltered,
@@ -691,7 +691,7 @@ class Controls:
 
     # Send a "steering required alert" if saturation count has reached the limit
     if lac_log.active and not recent_steer_pressed and not self.CP.notCar:
-      if self.CP.lateralTuning.which() == 'torque' and not self.joystick_mode:
+      if self.FPCP.lateralTuning.which() == 'torque' and not self.joystick_mode:
         undershooting = abs(lac_log.desiredLateralAccel) / abs(1e-3 + lac_log.actualLateralAccel) > 1.2
         turning = abs(lac_log.desiredLateralAccel) > 1.0
         good_speed = CS.vEgo > 5
@@ -875,7 +875,7 @@ class Controls:
     controlsState.experimentalMode = self.experimental_mode
     controlsState.personality = self.personality
 
-    lat_tuning = self.CP.lateralTuning.which()
+    lat_tuning = self.FPCP.lateralTuning.which()
     if self.joystick_mode:
       controlsState.lateralControlState.debugState = lac_log
     elif self.CP.steerControlType == car.CarParams.SteerControlType.angle:

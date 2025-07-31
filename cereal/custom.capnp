@@ -99,6 +99,11 @@ struct FrogPilotCarParams @0xf35cc4560bbf6ec2 {
   fpFlags @0 :UInt32;
   isHDA2 @1 :Bool;
   openpilotLongitudinalControlDisabled @2 :Bool;
+
+  lateralTuning :union {
+    pid @3 :Car.CarParams.LateralPIDTuning;
+    torque @4 :Car.CarParams.LateralTorqueTuning;
+  }
 }
 
 struct FrogPilotCarState @0xda96579883444c35 {
