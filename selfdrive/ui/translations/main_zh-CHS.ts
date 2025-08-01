@@ -5397,4 +5397,33 @@ This may take up to a minute.</source>
         <translation>忽略</translation>
     </message>
 </context>
+<context>
+    <name>TSKKeyboard</name>
+    <message>
+        <source>TSK Keyboard</source>
+        <translation>汽车安全密钥</translation>
+    </message>
+    <message>
+        <source>INSTALL</source>
+        <translation>安装</translation>
+    </message>
+    <message>
+        <source>Archived key: </source>
+        <translation>存储密钥</translation>
+    </message>
+    <message>
+        <source>Enter your Car Security Key</source>
+        <translation>请输入您的汽车安全密钥</translation>
+    </message>
+    <message>
+        <source>Success!
+Restart comma to have openpilot use the key</source>
+        <translation>安装成功！
+重启您的设备让openpilot使用该密钥</translation>
+    </message>
+    <message>
+        <source>Invalid key: %1</source>
+        <translation>无效密钥: %1</translation>
+    </message>
+</context>
 </TS>
