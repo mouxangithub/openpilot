@@ -80,16 +80,12 @@ void FrogPilotAnnotatedCameraWidget::updateSignals() {
       for (int i = 0; i < frameCount; ++i) {
         movie.jumpToFrame(i);
 
-        QImage image = movie.currentPixmap().toImage().convertToFormat(QImage::Format_Indexed8);
-
-        QPixmap frame = QPixmap::fromImage(image);
+        QPixmap frame = movie.currentPixmap().copy();
         signalImages.append(frame);
       }
 
       movie.stop();
     } else if (fileName.endsWith(".png", Qt::CaseInsensitive)) {
-      QProcess::execute("optipng", QStringList() << "-o7" << filePath);
-
       QVector<QPixmap> &targetList = fileName.contains("blindspot", Qt::CaseInsensitive) ? blindspotImages : signalImages;
       targetList.append(QPixmap(filePath));
     } else {
