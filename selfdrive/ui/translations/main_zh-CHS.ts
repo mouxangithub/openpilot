@@ -2154,6 +2154,10 @@ If you&apos;d like to proceed, use https://flash.comma.ai to restore your device
         <translation>设备GPU</translation>
     </message>
     <message>
+        <source>Free Space</source>
+        <translation>存储空间</translation>
+    </message>
+    <message>
         <source>MEMORY</source>
         <translation>设备内存</translation>
     </message>
