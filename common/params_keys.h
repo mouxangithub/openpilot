@@ -159,6 +159,9 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"VibeAccelPersonalityEnabled", PERSISTENT},
     {"VibeFollowPersonalityEnabled", PERSISTENT},
 
+    // Blend acc to e2e transition
+    {"BlendAccToE2ETransition", PERSISTENT | BACKUP},
+
     // MADS params
     {"Mads", PERSISTENT | BACKUP},
     {"MadsMainCruiseAllowed", PERSISTENT | BACKUP},

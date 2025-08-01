@@ -51,6 +51,7 @@ def manager_init() -> None:
     ("AccelPersonality", "1"),
     ("AutoLaneChangeTimer", "0"),
     ("AutoLaneChangeBsmDelay", "0"),
+    ("BlendAccToE2ETransition", "0"),
     ("BlindSpot", "0"),
     ("BlinkerMinLateralControlSpeed", "20"),  # MPH or km/h
     ("BlinkerPauseLateralControl", "0"),

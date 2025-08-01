@@ -5,7 +5,7 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 import cereal.messaging as messaging
-from cereal import custom
+from cereal import log, custom
 
 from opendbc.car import structs
 from openpilot.common.params import Params
@@ -44,24 +44,31 @@ class ControlsExt:
     # MADS not available, use stock state to engage
     return bool(sm['selfdriveState'].active)
 
-  def _set_custom_lead_vehicle_state(self, CC_SP: custom.CarControlSP,  sm: messaging.SubMaster) -> None:
-    """ Update the custom LeadVehicle state in CarControlSP. """
-    CC_SP.leadData = custom.LeadData.new_message()
-    CC_SP.leadData.relSpeed = 0.0
-    CC_SP.leadData.visible = sm['longitudinalPlan'].hasLead
-
-    if sm.valid['radarState']:
-      leadOne = sm['radarState'].leadOne
-      # Set leadDistance and leadRelSpeed if the lead vehicle is detected
-      CC_SP.leadData.distance = leadOne.dRel if leadOne.status else 0.0
-      CC_SP.leadData.relSpeed = leadOne.vRel if leadOne.status else 0.0
-
+  @staticmethod
+  def get_lead_data(ld: log.RadarState.LeadData) -> dict:
+    return {
+      "dRel": ld.dRel,
+      "yRel": ld.yRel,
+      "vRel": ld.vRel,
+      "aRel": ld.aRel,
+      "vLead": ld.vLead,
+      "dPath": ld.dPath,
+      "vLat": ld.vLat,
+      "vLeadK": ld.vLeadK,
+      "aLeadK": ld.aLeadK,
+      "fcw": ld.fcw,
+      "status": ld.status,
+      "aLeadTau": ld.aLeadTau,
+      "modelProb": ld.modelProb,
+      "radar": ld.radar,
+      "radarTrackId": ld.radarTrackId,
+    }
 
   def state_control_ext(self, sm: messaging.SubMaster) -> custom.CarControlSP:
     CC_SP = custom.CarControlSP.new_message()
 
-    # Custom LeadVehicle state
-    self._set_custom_lead_vehicle_state(CC_SP, sm)
+    CC_SP.leadOne = self.get_lead_data(sm['radarState'].leadOne)
+    CC_SP.leadTwo = self.get_lead_data(sm['radarState'].leadTwo)
 
     # MADS state
     CC_SP.mads = sm['selfdriveStateSP'].mads
