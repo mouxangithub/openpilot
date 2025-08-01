@@ -2143,7 +2143,19 @@ If you&apos;d like to proceed, use https://flash.comma.ai to restore your device
     </message>
     <message>
         <source>PANDA</source>
-        <translation>车辆通讯</translation>
+        <translation>PANDA</translation>
+    </message>
+    <message>
+        <source>CPU</source>
+        <translation>设备CPU</translation>
+    </message>
+    <message>
+        <source>GPU</source>
+        <translation>设备GPU</translation>
+    </message>
+    <message>
+        <source>MEMORY</source>
+        <translation>设备内存</translation>
     </message>
     <message>
         <source>--</source>
