@@ -1,6 +1,5 @@
 #include <QApplication>
 #include <QDir>
-#include <QFile>
 #include <QLabel>
 #include <QPushButton>
 #include <QScrollBar>

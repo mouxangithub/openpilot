@@ -103,9 +103,6 @@ class FrogPilotCard:
 
     if sm.updated["frogpilotPlan"] or any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise) for be in carState.buttonEvents):
       self.accel_pressed = any(be.type in (ButtonType.accelCruise, ButtonType.resumeCruise) for be in carState.buttonEvents)
-      if params_memory.get_bool("SpeedLimitChanged"):
-        print(f"[DEBUG] ButtonEvent: {[be.type for be in carState.buttonEvents]}")
-        print(f"[DEBUG] accel_pressed updated to: {self.accel_pressed}")
 
     if sm.updated["frogpilotPlan"] or any(be.type == ButtonType.decelCruise for be in carState.buttonEvents):
       self.decel_pressed = any(be.type == ButtonType.decelCruise for be in carState.buttonEvents)
