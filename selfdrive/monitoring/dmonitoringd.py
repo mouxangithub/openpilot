@@ -22,15 +22,17 @@ def dmonitoringd_thread():
 
   # 20Hz <- dmonitoringmodeld
   while True:
+    # 联合驾驶员摄像头上传
+    front_camera_allowed = params.get_bool("RecordFront")
     sm.update()
     if not sm.updated['driverStateV2']:
       # iterate when model has new output
       continue
 
     valid = sm.all_checks()
-    if valid:
+    if front_camera_allowed and valid:
       DM.run_step(sm)
-    elif driver_view_enabled:
+    elif front_camera_allowed and driver_view_enabled:
       DM.face_detected = sm['driverStateV2'].leftDriverData.faceProb > DM.settings._FACE_THRESHOLD or sm['driverStateV2'].rightDriverData.faceProb > DM.settings._FACE_THRESHOLD
 
     # publish
