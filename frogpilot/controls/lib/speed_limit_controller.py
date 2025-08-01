@@ -303,7 +303,7 @@ class SpeedLimitController:
       desired_source = "None"
       desired_target = 0
 
-    if desired_target == 0:
+    if desired_target == 0 or self.target == 0:
       print("[SLC_DEBUG] desired_target is 0. Checking fallbacks...")
       if self.mapbox_requests["total_requests"] < self.mapbox_requests["max_requests"] and self.frogpilot_toggles.slc_mapbox_filler:
         self.get_mapbox_speed_limit(gps_position, v_ego, sm)
@@ -312,7 +312,7 @@ class SpeedLimitController:
           desired_source = "Mapbox"
           desired_target = self.mapbox_limit
 
-      if desired_target == 0:
+      if desired_target == 0 or self.target == 0:
         print("[SLC_DEBUG] desired_target still 0 after Mapbox. Checking other fallbacks...")
         if self.denied_target != self.previous_target > 0 and self.frogpilot_toggles.slc_fallback_previous_speed_limit:
           desired_source = self.previous_source
