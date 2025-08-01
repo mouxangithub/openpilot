@@ -954,11 +954,7 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>Blend chill to experimental mode transition</source>
-        <translation>融合轻松状态到实验模式的转变</translation>
-    </message>
-    <message>
-        <source>Blend chill to experimental mode transition</source>
-        <translation>融合轻松状态到实验模式的转变</translation>
+        <translation>混合轻松模式到实验模式过渡</translation>
     </message>
     <message>
         <source>Enable to blend braking desires when switching from chill to experimental in a smoother, more natural way. This allows for a gradual transition when switching from ACC to E2E longitudinal control.</source>
