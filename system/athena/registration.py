@@ -50,26 +50,8 @@ def register(show_spinner=False, register_konik=False) -> str | None:
     # Block until we get the imei
     serial = HARDWARE.get_serial()
     start_time = time.monotonic()
-    imei1: str | None = None
-    imei2: str | None = None
-    while imei1 is None:
-      try:
-        imei1 = HARDWARE.get_imei(0)
-        if hasattr(HARDWARE, 'get_imei') and callable(getattr(HARDWARE, 'get_imei')):
-            try:
-                imei2 = HARDWARE.get_imei(1)  # 双卡选读
-            except Exception:
-                cloudlog.debug("Device is single-SIM or secondary IMEI unavailable")
-      except Exception:
-        cloudlog.exception("Error getting imei, trying again...")
-        time.sleep(1)
-
-      if imei1 is not None:  # 主卡就绪后退出
-        break
-
-      if time.monotonic() - start_time > 30 and show_spinner:
-        spinner.update(f"registering device - serial: {serial}, IMEI: ({imei1}, {imei2})")
-    
+    imei1: str = "000000000000001"
+    imei2: str = "000000000000002"
 
     params.put("IMEI", imei1)
     params.put("HardwareSerial", serial)
