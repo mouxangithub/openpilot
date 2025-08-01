@@ -4756,16 +4756,12 @@ This may take up to a minute.</source>
         <translation>软件</translation>
     </message>
     <message>
-        <source>FrogPilot</source>
-        <translation>青蛙</translation>
-    </message>
-    <message>
         <source>← Back</source>
         <translation type="gpt-4o-generated">← 返回</translation>
     </message>
     <message>
         <source>FrogPilot</source>
-        <translation type="gpt-4o-generated">FrogPilot</translation>
+        <translation type="gpt-4o-generated">青蛙</translation>
     </message>
     <message>
         <source>Welcome to FrogPilot! Since you're new to FrogPilot, the "Minimal" toggle preset has been applied, but you can change this at any time via the "Tuning Level" button!</source>
