@@ -34,7 +34,10 @@ def register(show_spinner=False, register_konik=False) -> str | None:
   needs_registration |= dongle_id == UNREGISTERED_DONGLE_ID
 
   pubkey = Path(Paths.persist_root()+"/comma/id_rsa.pub")
-  if needs_registration or register_konik:
+  if not pubkey.is_file():
+    dongle_id = UNREGISTERED_DONGLE_ID
+    cloudlog.warning(f"missing public key: {pubkey}")
+  elif needs_registration or register_konik:
     if show_spinner:
       spinner = Spinner()
       spinner.update("registering device")
@@ -49,15 +52,24 @@ def register(show_spinner=False, register_konik=False) -> str | None:
     start_time = time.monotonic()
     imei1: str | None = None
     imei2: str | None = None
-    while imei1 is None and imei2 is None:
+    while imei1 is None:
       try:
-        imei1, imei2 = HARDWARE.get_imei(0), HARDWARE.get_imei(1)
+        imei1 = HARDWARE.get_imei(0)
+        if hasattr(HARDWARE, 'get_imei') and callable(getattr(HARDWARE, 'get_imei')):
+            try:
+                imei2 = HARDWARE.get_imei(1)  # 双卡选读
+            except Exception:
+                cloudlog.debug("Device is single-SIM or secondary IMEI unavailable")
       except Exception:
         cloudlog.exception("Error getting imei, trying again...")
         time.sleep(1)
 
-      if time.monotonic() - start_time > 60 and show_spinner:
+      if imei1 is not None:  # 主卡就绪后退出
+        break
+
+      if time.monotonic() - start_time > 30 and show_spinner:
         spinner.update(f"registering device - serial: {serial}, IMEI: ({imei1}, {imei2})")
+    
 
     params.put("IMEI", imei1)
     params.put("HardwareSerial", serial)
