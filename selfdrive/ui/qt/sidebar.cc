@@ -147,6 +147,16 @@ void Sidebar::updateState(const UIState &s) {
     memoryStatus = {{tr("MEMORY"), memory}, warning_color};
   }
   setProperty("memoryStatus", QVariant::fromValue(memoryStatus));
+
+  int free_space = deviceState.getFreeSpacePercent();
+  QString free_spaces = QString::number(free_space) + "%";
+  ItemStatus freeStatus = {{tr("Free Space"), free_spaces}, good_color};
+  if (free_space >= 80) {
+    freeStatus = {{tr("Free Space"), free_spaces}, danger_color};
+  } else if (free_space >= 50) {
+    freeStatus = {{tr("Free Space"), free_spaces}, warning_color};
+  }
+  setProperty("freeStatus", QVariant::fromValue(freeStatus));
 }
 
 void Sidebar::paintEvent(QPaintEvent *event) {
