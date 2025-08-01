@@ -4756,6 +4756,10 @@ This may take up to a minute.</source>
         <translation>软件</translation>
     </message>
     <message>
+        <source>FrogPilot</source>
+        <translation>青蛙</translation>
+    </message>
+    <message>
         <source>← Back</source>
         <translation type="gpt-4o-generated">← 返回</translation>
     </message>
