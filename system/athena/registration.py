@@ -34,10 +34,7 @@ def register(show_spinner=False, register_konik=False) -> str | None:
   needs_registration |= dongle_id == UNREGISTERED_DONGLE_ID
 
   pubkey = Path(Paths.persist_root()+"/comma/id_rsa.pub")
-  if not pubkey.is_file():
-    dongle_id = UNREGISTERED_DONGLE_ID
-    cloudlog.warning(f"missing public key: {pubkey}")
-  elif needs_registration or register_konik:
+  if needs_registration or register_konik:
     if show_spinner:
       spinner = Spinner()
       spinner.update("registering device")
