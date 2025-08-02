@@ -28,10 +28,13 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ControlsReady", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, BOOL}},
     {"CurrentBootlog", {PERSISTENT, STRING}},
     {"CurrentRoute", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, STRING}},
+    {"DashcamServerEnabled", {PERSISTENT | BACKUP, BOOL}},
+    {"DashcamServerPort", {PERSISTENT | BACKUP, BOOL}},
     {"DisableLogging", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, BOOL}},
     {"DisablePowerDown", {PERSISTENT | BACKUP, BOOL}},
     {"DisableUpdates", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"DisengageOnAccelerator", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"DistractionDetectionLevel", {PERSISTENT | BACKUP, BOOL}},
     {"DongleId", {PERSISTENT, STRING}},
     {"DoReboot", {CLEAR_ON_MANAGER_START, BOOL}},
     {"DoShutdown", {CLEAR_ON_MANAGER_START, BOOL}},
@@ -189,6 +192,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     {"DynamicExperimentalControl", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"BlindSpot", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"RainbowMode", {PERSISTENT | BACKUP, BOOL}},
 
     // model panel params
     {"LagdToggle", {PERSISTENT | BACKUP, BOOL, "1"}},
@@ -214,4 +218,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"OsmStateTitle", {PERSISTENT, STRING}},
     {"OsmWayTest", {PERSISTENT, STRING}},
     {"RoadName", {CLEAR_ON_ONROAD_TRANSITION, STRING, ""}},
+
+    {"DashcamServerPid", {PERSISTENT, STRING}},
+    {"DashcamServerPort", {PERSISTENT | BACKUP, BOOL}},
+    {"DashcamServerEnabled", {PERSISTENT | BACKUP, BOOL}},
 };

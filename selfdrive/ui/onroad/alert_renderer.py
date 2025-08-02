@@ -42,22 +42,22 @@ class Alert:
 
 # Pre-defined alert instances
 ALERT_STARTUP_PENDING = Alert(
-  text1="openpilot Unavailable",
-  text2="Waiting to start",
+  text1="openpilot不可用",
+  text2="等待开始",
   size=AlertSize.mid,
   status=AlertStatus.normal,
 )
 
 ALERT_CRITICAL_TIMEOUT = Alert(
-  text1="TAKE CONTROL IMMEDIATELY",
-  text2="System Unresponsive",
+  text1="立即控制",
+  text2="系统无响应",
   size=AlertSize.full,
   status=AlertStatus.critical,
 )
 
 ALERT_CRITICAL_REBOOT = Alert(
-  text1="System Unresponsive",
-  text2="Reboot Device",
+  text1="系统无响应",
+  text2="重启设备",
   size=AlertSize.full,
   status=AlertStatus.critical,
 )

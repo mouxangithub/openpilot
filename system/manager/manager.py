@@ -31,7 +31,53 @@ def manager_init() -> None:
   params.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
   params.clear_all(ParamKeyFlag.CLEAR_ON_IGNITION_ON)
   if build_metadata.release_channel:
-    params.clear_all(ParamKeyFlag.DEVELOPMENT_ONLY)
+    params.clear_all(ParamKeyType.DEVELOPMENT_ONLY)
+
+  default_params: list[tuple[str, str | bytes]] = [
+    ("CompletedTrainingVersion", "0"),
+    ("DisengageOnAccelerator", "0"),
+    ("DistractionDetectionLevel", "1"),  # 默认为适中模式
+    ("DashcamServerPort", "8009"),  # 默认8009端口
+    ("DashcamServerEnabled", "0"),  # 默认关闭
+    ("GsmMetered", "1"),
+    ("HasAcceptedTerms", "0"),
+    ("LanguageSetting", "main_en"),
+    ("OpenpilotEnabledToggle", "1"),
+    ("LongitudinalPersonality", str(log.LongitudinalPersonality.standard)),
+  ]
+
+  sunnypilot_default_params: list[tuple[str, str | bytes]] = [
+    ("AutoLaneChangeTimer", "0"),
+    ("AutoLaneChangeBsmDelay", "0"),
+    ("BlindSpot", "0"),
+    ("BlinkerMinLateralControlSpeed", "20"),  # MPH or km/h
+    ("BlinkerPauseLateralControl", "0"),
+    ("Brightness", "0"),
+    ("ChevronInfo", "4"),
+    ("CustomAccIncrementsEnabled", "0"),
+    ("CustomAccLongPressIncrement", "5"),
+    ("CustomAccShortPressIncrement", "1"),
+    ("DeviceBootMode", "0"),
+    ("DisableUpdates", "0"),
+    ("DynamicExperimentalControl", "0"),
+    ("HyundaiLongitudinalTuning", "0"),
+    ("InteractivityTimeout", "0"),
+    ("LagdToggle", "1"),
+    ("LagdToggledelay", "0.2"),
+    ("Mads", "1"),
+    ("MadsMainCruiseAllowed", "1"),
+    ("MadsSteeringMode", "0"),
+    ("MadsUnifiedEngagementMode", "1"),
+    ("MapdVersion", f"{VERSION}"),
+    ("MaxTimeOffroad", "1800"),
+    ("ModelManager_LastSyncTime", "0"),
+    ("ModelManager_ModelsCache", ""),
+    ("NeuralNetworkLateralControl", "0"),
+    ("QuickBootToggle", "0"),
+    ("QuietMode", "0"),
+    ("RainbowMode", "0"),
+    ("ShowAdvancedControls", "0" if build_metadata.tested_channel else "1"),
+  ]
 
   # device boot mode
   if params.get("DeviceBootMode") == 1:  # start in Always Offroad mode
@@ -74,6 +120,7 @@ def manager_init() -> None:
     dongle_id = reg_res
   else:
     raise Exception(f"Registration failed for device {serial}")
+
   os.environ['DONGLE_ID'] = dongle_id  # Needed for swaglog
   os.environ['GIT_ORIGIN'] = build_metadata.openpilot.git_normalized_origin # Needed for swaglog
   os.environ['GIT_BRANCH'] = build_metadata.channel # Needed for swaglog
