@@ -698,7 +698,7 @@ This is the time after which settings UI closes automatically if user is not int
     <message>
         <source>openpilot learns to drive by watching humans, like you, drive.
 
-Firehose Mode allows you to maximize your training data uploads to improve openpilot&apos;s driving models. More data means bigger models, which means better Experimental Mode.</source>
+Firehose Mode allows you to maximize your training data uploads to improve sunnypilot&apos;s driving models. More data means bigger models, which means better Experimental Mode.</source>
         <translation>openpilot 通过观察人类驾驶（包括您）来学习如何驾驶。
 
 “Firehose 模式”允许您最大化上传训练数据，以改进 openpilot 的驾驶模型。更多数据意味着更强大的模型，也就意味着更优秀的“实验模式”。</translation>
@@ -716,8 +716,8 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <translation>激活中</translation>
     </message>
     <message>
-        <source>For maximum effectiveness, bring your device inside and connect to a good USB-C adapter and Wi-Fi weekly.&lt;br&gt;&lt;br&gt;Firehose Mode can also work while you&apos;re driving if connected to a hotspot or unlimited SIM card.&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Frequently Asked Questions&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter how or where I drive?&lt;/i&gt; Nope, just drive as you normally would.&lt;br&gt;&lt;br&gt;&lt;i&gt;Do all of my segments get pulled in Firehose Mode?&lt;/i&gt; No, we selectively pull a subset of your segments.&lt;br&gt;&lt;br&gt;&lt;i&gt;What&apos;s a good USB-C adapter?&lt;/i&gt; Any fast phone or laptop charger should be fine.&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter which software I run?&lt;/i&gt; Yes, only upstream openpilot (and particular forks) are able to be used for training.</source>
-        <translation>为了达到最佳效果，请每周将您的设备带回室内，并连接到优质的 USB-C 充电器和 Wi-Fi。&lt;br&gt;&lt;br&gt;Firehose 模式在行驶时也能运行，但需连接到移动热点或使用不限流量的 SIM 卡。&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;常见问题&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;我开车的方式或地点有影响吗？&lt;/i&gt;不会，请像平常一样驾驶即可。&lt;br&gt;&lt;br&gt;&lt;i&gt;Firehose 模式会上传所有的驾驶片段吗？&lt;/i&gt;不会，我们会选择性地上传部分片段。&lt;br&gt;&lt;br&gt;&lt;i&gt;什么是好的 USB-C 充电器？&lt;/i&gt;任何快速手机或笔记本电脑充电器都应该适用。&lt;br&gt;&lt;br&gt;&lt;i&gt;我使用的软件版本有影响吗？&lt;/i&gt;有的，只有官方 openpilot（以及特定的分支）可以用于训练。</translation>
+        <source>For maximum effectiveness, bring your device inside and connect to a good USB-C adapter and Wi-Fi weekly.&lt;br&gt;&lt;br&gt;Firehose Mode can also work while you&apos;re driving if connected to a hotspot or unlimited SIM card.&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Frequently Asked Questions&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter how or where I drive?&lt;/i&gt; Nope, just drive as you normally would.&lt;br&gt;&lt;br&gt;&lt;i&gt;Do all of my segments get pulled in Firehose Mode?&lt;/i&gt; No, we selectively pull a subset of your segments.&lt;br&gt;&lt;br&gt;&lt;i&gt;What&apos;s a good USB-C adapter?&lt;/i&gt; Any fast phone or laptop charger should be fine.&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter which software I run?&lt;/i&gt; Yes, only upstream sunnypiloy (and particular forks) are able to be used for training.</source>
+        <translation>为了达到最佳效果，请每周将您的设备带回室内，并连接到优质的 USB-C 充电器和 Wi-Fi。&lt;br&gt;&lt;br&gt;Firehose 模式在行驶时也能运行，但需连接到移动热点或使用不限流量的 SIM 卡。&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;常见问题&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;我开车的方式或地点有影响吗？&lt;/i&gt;不会，请像平常一样驾驶即可。&lt;br&gt;&lt;br&gt;&lt;i&gt;Firehose 模式会上传所有的驾驶片段吗？&lt;/i&gt;不会，我们会选择性地上传部分片段。&lt;br&gt;&lt;br&gt;&lt;i&gt;什么是好的 USB-C 充电器？&lt;/i&gt;任何快速手机或笔记本电脑充电器都应该适用。&lt;br&gt;&lt;br&gt;&lt;i&gt;我使用的软件版本有影响吗？&lt;/i&gt;有的，只有官方 sunnypilot（以及特定的分支）可以用于训练。</translation>
     </message>
     <message numerus="yes">
         <source>&lt;b&gt;%n segment(s)&lt;/b&gt; of your driving is in the training dataset so far.</source>
@@ -995,6 +995,14 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     <message>
         <source>Also known as V-TSC, this controller automatically slows down for curvature while OP longitudinal is engaged.</source>
         <translation>该控制器也被称为V-TSC，在OP纵向接合时，它能根据曲率自动减速。</translation>
+    </message>
+    <message>
+        <source>Blend chill to experimental mode transition</source>
+        <translation>混合轻松模式到实验模式过渡</translation>
+    </message>
+    <message>
+        <source>Enable to blend braking desires when switching from chill to experimental in a smoother, more natural way. This allows for a gradual transition when switching from ACC to E2E longitudinal control.</source>
+        <translation>在从轻松模式切换到实验模式时，能够以更平滑、更自然的方式混合刹车需求。这使得从自适应巡航控制（ACC）切换到端到端纵向控制时，可以实现渐进式过渡。</translation>
     </message>
     <message>
         <source>Vibe Personality Controller</source>
