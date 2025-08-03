@@ -44,7 +44,7 @@ LongitudinalPanel::LongitudinalPanel(QWidget *parent) : QWidget(parent) {
     tr("Enable to blend braking desires when switching from chill to experimental in a smoother, more natural way. "
       "This allows for a gradual transition when switching from ACC to E2E longitudinal control."),
     "../assets/offroad/icon_shell.png", nullptr, true);
-  accToE2ETransitionControl->showDescription();
+  // accToE2ETransitionControl->showDescription();
   list->addItem(accToE2ETransitionControl);
 
   // Vibe Personality Controller
@@ -132,12 +132,12 @@ void LongitudinalPanel::refresh(bool _offroad) {
 
   if (offroad) {
     customAccIncrement->setDescription(onroadOnlyDescription);
-    customAccIncrement->showDescription();
+    // customAccIncrement->showDescription();
   } else {
     if (has_longitudinal_control) {
       if (is_pcm_cruise) {
         customAccIncrement->setDescription(accPcmCruiseDisabledDescription);
-        customAccIncrement->showDescription();
+        // customAccIncrement->showDescription();
       } else {
         customAccIncrement->setDescription(accEnabledDescription);
       }
@@ -145,7 +145,7 @@ void LongitudinalPanel::refresh(bool _offroad) {
       params.remove("CustomAccIncrementsEnabled");
       customAccIncrement->toggleFlipped(false);
       customAccIncrement->setDescription(accNoLongDescription);
-      customAccIncrement->showDescription();
+      // customAccIncrement->showDescription();
     }
   }
   bool vibePersonalityEnabled = params.getBool("VibePersonalityEnabled");

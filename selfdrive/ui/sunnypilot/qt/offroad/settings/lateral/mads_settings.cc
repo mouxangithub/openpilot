@@ -15,7 +15,7 @@ MadsSettings::MadsSettings(QWidget *parent) : QWidget(parent) {
   main_layout->setSpacing(20);
 
   // Back button
-  PanelBackButton *back = new PanelBackButton();
+  PanelBackButton* back = new PanelBackButton(tr("Back"));
   connect(back, &QPushButton::clicked, [=]() { emit backPress(); });
   main_layout->addWidget(back, 0, Qt::AlignLeft);
 
@@ -64,11 +64,11 @@ void MadsSettings::updateToggles(bool _offroad) {
 
       madsMainCruiseToggle->setEnabled(false);
       madsMainCruiseToggle->setDescription(madsDescriptionBuilder(DEFAULT_TO_OFF, MADS_MAIN_CRUISE_BASE_DESC));
-      madsMainCruiseToggle->showDescription();
+      // madsMainCruiseToggle->showDescription();
 
       madsUnifiedEngagementModeToggle->setEnabled(false);
       madsUnifiedEngagementModeToggle->setDescription(madsDescriptionBuilder(DEFAULT_TO_ON, MADS_UNIFIED_ENGAGEMENT_MODE_BASE_DESC));
-      madsUnifiedEngagementModeToggle->showDescription();
+      // madsUnifiedEngagementModeToggle->showDescription();
 
       madsSteeringModeValues = convertMadsSteeringModeValues({MadsSteeringMode::DISENGAGE});
       madsSteeringMode->setDescription(madsDescriptionBuilder(STATUS_DISENGAGE_ONLY, madsSteeringModeDescription(steering_mode)));
@@ -85,18 +85,18 @@ void MadsSettings::updateToggles(bool _offroad) {
   } else {
     madsMainCruiseToggle->setEnabled(false);
     madsMainCruiseToggle->setDescription(madsDescriptionBuilder(STATUS_CHECK_COMPATIBILITY, MADS_MAIN_CRUISE_BASE_DESC));
-    madsMainCruiseToggle->showDescription();
+    // madsMainCruiseToggle->showDescription();
 
     madsUnifiedEngagementModeToggle->setEnabled(false);
     madsUnifiedEngagementModeToggle->setDescription(madsDescriptionBuilder(STATUS_CHECK_COMPATIBILITY, MADS_UNIFIED_ENGAGEMENT_MODE_BASE_DESC));
-    madsUnifiedEngagementModeToggle->showDescription();
+    // madsUnifiedEngagementModeToggle->showDescription();
 
     madsSteeringModeValues = {};
     madsSteeringMode->setDescription(madsDescriptionBuilder(STATUS_CHECK_COMPATIBILITY, madsSteeringModeDescription(steering_mode)));
   }
 
   madsSteeringMode->setEnableSelectedButtons(_offroad, madsSteeringModeValues);
-  madsSteeringMode->showDescription();
+  // madsSteeringMode->showDescription();
 
   offroad = _offroad;
 }
