@@ -1842,7 +1842,7 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>comma prime</source>
-        <translation>comma prime</translation>
+        <translation>comma 高级会员</translation>
     </message>
 </context>
 <context>
