@@ -443,8 +443,8 @@ double ModelsPanel::calculateCacheSize() {
 }
 
 void ModelsPanel::showEvent(QShowEvent *event) {
-  lagd_toggle_control->showDescription();
-  if (delay_control->isVisible()) {
-    delay_control->showDescription();
-  }
+  // lagd_toggle_control->showDescription();
+  // if (delay_control->isVisible()) {
+  //   delay_control->showDescription();
+  // }
 }
