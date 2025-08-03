@@ -38,7 +38,7 @@ LaneChangeSettings::LaneChangeSettings(QWidget* parent) : QWidget(parent) {
   // Controls: Auto Lane Change Timer
   autoLaneChangeTimer = new AutoLaneChangeTimer();
   autoLaneChangeTimer->setUpdateOtherToggles(true);
-  autoLaneChangeTimer->showDescription();
+  // autoLaneChangeTimer->showDescription();
   connect(autoLaneChangeTimer, &OptionControlSP::updateLabels, autoLaneChangeTimer, &AutoLaneChangeTimer::refresh);
   connect(autoLaneChangeTimer, &AutoLaneChangeTimer::updateOtherToggles, this, &LaneChangeSettings::updateToggles);
   list->addItem(autoLaneChangeTimer);

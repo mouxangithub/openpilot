@@ -54,12 +54,12 @@ void LongitudinalPanel::refresh(bool _offroad) {
 
   if (offroad) {
     customAccIncrement->setDescription(onroadOnlyDescription);
-    customAccIncrement->showDescription();
+    // customAccIncrement->showDescription();
   } else {
     if (has_longitudinal_control) {
       if (is_pcm_cruise) {
         customAccIncrement->setDescription(accPcmCruiseDisabledDescription);
-        customAccIncrement->showDescription();
+        // customAccIncrement->showDescription();
       } else {
         customAccIncrement->setDescription(accEnabledDescription);
       }
@@ -67,7 +67,7 @@ void LongitudinalPanel::refresh(bool _offroad) {
       params.remove("CustomAccIncrementsEnabled");
       customAccIncrement->toggleFlipped(false);
       customAccIncrement->setDescription(accNoLongDescription);
-      customAccIncrement->showDescription();
+      // customAccIncrement->showDescription();
     }
   }
 

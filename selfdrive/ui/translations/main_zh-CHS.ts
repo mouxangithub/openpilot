@@ -246,10 +246,6 @@ This only toggles the visibility of the controls; it does not toggle the actual 
         <translation>​​警告：当前车型的 openpilot 纵向控制功能处于 Alpha 测试阶段，启用后将禁用自动紧急制动（AEB）。​​</translation>
     </message>
     <message>
-        <source>On this car, sunnypilot defaults to the car&apos;s built-in ACC instead of openpilot&apos;s longitudinal control. Enable this to switch to openpilot longitudinal control. Enabling Experimental mode is recommended when enabling openpilot longitudinal control alpha.</source>
-        <translation>​​该车型默认使用原车自带的自适应巡航（ACC），而非 sunnypilot 的纵向控制功能。开启此选项将切换为 sunnypilot 纵向控制。建议启用时同步开启「实验模式」以获得完整 Alpha 版功能支持。​​</translation>
-    </message>
-    <message>
         <source>When toggled on, this creates a prebuilt file to allow accelerated boot times. When toggled off, it immediately removes the prebuilt file so compilation of locally edited cpp files can be made. &lt;br&gt;&lt;br&gt;&lt;b&gt;To edit C++ files locally on device, you MUST first turn off this toggle so the changes can recompile.&lt;/b&gt;</source>
         <translation>当开关打开时，这会创建一个预构建的文件以实现更快的启动时间。当开关关闭时，它会立即删除预构建文件，以便可以编译本地编辑的cpp文件。&lt;br&gt;&lt;br&gt;&lt;b&gt;要在设备上本地编辑C++文件，您必须首先关闭此开关，以便更改可以重新编译。&lt;/b&gt;</translation>
     </message>
@@ -343,6 +339,22 @@ This only toggles the visibility of the controls; it does not toggle the actual 
     <message>
         <source>sunnypilot requires the device to be mounted within 4° left or right and within 5° up or 9° down.</source>
         <translation>sunnypilot要求设备安装的偏航角在左4°和右4°之间，俯仰角在上5°和下9°之间。</translation>
+    </message>
+    <message>
+        <source>
+
+Steering lag calibration is %1% complete.</source>
+        <translation>
+
+转向延迟校准完成%1%。</translation>
+    </message>
+    <message>
+        <source>
+
+Steering lag calibration is complete.</source>
+        <translation>
+
+转向延迟校准已完成。</translation>
     </message>
     <message>
         <source>Steering lag calibration is %1% complete.</source>
@@ -2848,6 +2860,10 @@ Data</source>
         <translation>踩油门时取消控制</translation>
     </message>
     <message>
+        <source>When enabled, pressing the accelerator pedal will disengage sunnypilot.</source>
+        <translation>启用后，踩下油门踏板将取消sunnypilot。</translation>
+    </message>
+    <message>
         <source>When enabled, pressing the accelerator pedal will disengage openpilot.</source>
         <translation>启用后，踩下油门踏板将取消openpilot。</translation>
     </message>
@@ -2856,8 +2872,16 @@ Data</source>
         <translation>实验模式</translation>
     </message>
     <message>
+        <source>sunnypilot defaults to driving in &lt;b&gt;chill mode&lt;/b&gt;. Experimental mode enables &lt;b&gt;alpha-level features&lt;/b&gt; that aren&apos;t ready for chill mode. Experimental features are listed below:</source>
+        <translation>sunnypilot 默认 &lt;b&gt;轻松模式&lt;/b&gt;驾驶车辆。试验模式启用一些轻松模式之外的 &lt;b&gt;试验性功能&lt;/b&gt;。试验性功能包括：</translation>
+    </message>
+    <message>
         <source>openpilot defaults to driving in &lt;b&gt;chill mode&lt;/b&gt;. Experimental mode enables &lt;b&gt;alpha-level features&lt;/b&gt; that aren&apos;t ready for chill mode. Experimental features are listed below:</source>
         <translation>openpilot 默认 &lt;b&gt;轻松模式&lt;/b&gt;驾驶车辆。试验模式启用一些轻松模式之外的 &lt;b&gt;试验性功能&lt;/b&gt;。试验性功能包括：</translation>
+    </message>
+    <message>
+        <source>Let the driving model control the gas and brakes. sunnypilot will drive as it thinks a human would, including stopping for red lights and stop signs. Since the driving model decides the speed to drive, the set speed will only act as an upper bound. This is an alpha quality feature; mistakes should be expected.</source>
+        <translation>允许驾驶模型控制加速和制动，sunnypilot将模仿人类驾驶车辆，包括在红灯和停车让行标识前停车。鉴于驾驶模型确定行驶车速，所设定的车速仅作为上限。此功能尚处于早期测试状态，有可能会出现操作错误。</translation>
     </message>
     <message>
         <source>Let the driving model control the gas and brakes. openpilot will drive as it thinks a human would, including stopping for red lights and stop signs. Since the driving model decides the speed to drive, the set speed will only act as an upper bound. This is an alpha quality feature; mistakes should be expected.</source>
@@ -2928,8 +2952,12 @@ Data</source>
         <translation>端到端纵向控制</translation>
     </message>
     <message>
+        <source>Standard is recommended. In aggressive mode, sunnypilot will follow lead cars closer and be more aggressive with the gas and brake. In relaxed mode sunnypilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with your steering wheel distance button.</source>
+        <translation>推荐使用标准模式。在积极模式下，openpilot会更靠近前方车辆，并在油门和刹车方面更加激进。在放松模式下，sunnypilot会与前方车辆保持更远距离。在支持的车型上，你可以使用方向盘上的距离按钮来循环切换这些驾驶风格。</translation>
+    </message>
+    <message>
         <source>Standard is recommended. In aggressive mode, openpilot will follow lead cars closer and be more aggressive with the gas and brake. In relaxed mode openpilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with your steering wheel distance button.</source>
-        <translation>推荐使用标准模式。在积极模式下，openpilot 会更靠近前方车辆，并在油门和刹车方面更加激进。在放松模式下，openpilot 会与前方车辆保持更远距离。在支持的车型上，你可以使用方向盘上的距离按钮来循环切换这些驾驶风格。</translation>
+        <translation>推荐使用标准模式。在积极模式下，openpilot会更靠近前方车辆，并在油门和刹车方面更加激进。在放松模式下，openpilot会与前方车辆保持更远距离。在支持的车型上，你可以使用方向盘上的距离按钮来循环切换这些驾驶风格。</translation>
     </message>
     <message>
         <source>The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. The Experimental mode logo will also be shown in the top right corner.</source>

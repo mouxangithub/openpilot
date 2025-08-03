@@ -98,7 +98,7 @@ ModelsPanel::ModelsPanel(QWidget *parent) : QWidget(parent) {
 
   // LiveDelay toggle
   lagd_toggle_control = new ParamControlSP("LagdToggle", tr("Live Learning Steer Delay"), "", "../assets/offroad/icon_shell.png");
-  lagd_toggle_control->showDescription();
+  // lagd_toggle_control->showDescription();
   list->addItem(lagd_toggle_control);
 
   // Software delay control
@@ -114,7 +114,7 @@ ModelsPanel::ModelsPanel(QWidget *parent) : QWidget(parent) {
   connect(lagd_toggle_control, &ParamControlSP::toggleFlipped, [=](bool state) {
     delay_control->setVisible(!state);
   });
-  delay_control->showDescription();
+  // delay_control->showDescription();
   list->addItem(delay_control);
 }
 
@@ -425,8 +425,8 @@ double ModelsPanel::calculateCacheSize() {
 }
 
 void ModelsPanel::showEvent(QShowEvent *event) {
-  lagd_toggle_control->showDescription();
-  if (delay_control->isVisible()) {
-    delay_control->showDescription();
-  }
+  // lagd_toggle_control->showDescription();
+  // if (delay_control->isVisible()) {
+  //   delay_control->showDescription();
+  // }
 }
