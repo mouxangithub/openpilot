@@ -5,7 +5,7 @@
 #include "selfdrive/ui/qt/widgets/input.h"
 
 TSKKeyboard::TSKKeyboard() :
-  ButtonControl(tr("TSK Keyboard (tap to see installed)"), tr("INSTALL"), "") {
+  ButtonControl(tr("SecOCKey Install"), tr("INSTALL"), "") {
 
   QObject::connect(this, &ButtonControl::clicked, [=]() {
     setEnabled(false);
