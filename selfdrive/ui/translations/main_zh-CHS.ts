@@ -3154,8 +3154,8 @@ Data</source>
 <context>
     <name>TSKKeyboard</name>
     <message>
-        <source>TSK Keyboard (tap to see installed)</source>
-        <translation>TSK安装器</translation>
+        <source>SecOCKey Install</source>
+        <translation>汽车安全密钥</translation>
     </message>
     <message>
         <source>INSTALL</source>
