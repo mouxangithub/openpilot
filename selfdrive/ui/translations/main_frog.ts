@@ -1320,38 +1320,6 @@
         <translation type="gpt-4o-generated">Display the &lt;b&gt;Conditional Experimental Mode&lt;/b&gt; status on the driving screen.</translation>
     </message>
     <message>
-        <source>Curve Speed Controller</source>
-        <translation type="gpt-4o-generated">Curve Speed Hopper</translation>
-    </message>
-    <message>
-        <source>Automatically slows down for upcoming curves using data from your own driving, adapting to curves just like you would.</source>
-        <translation type="gpt-4o-generated">Automatically slows down for upcoming curves using data from your own driving, adapting to curves just as you would.</translation>
-    </message>
-    <message>
-        <source>Calibrated Lateral Acceleration</source>
-        <translation type="gpt-4o-generated">Calibrated Sideways Acceleration</translation>
-    </message>
-    <message>
-        <source>Displays the learned lateral acceleration target based on your driving.</source>
-        <translation type="gpt-4o-generated">Shows the learned lateral acceleration target based on your driving.</translation>
-    </message>
-    <message>
-        <source>Calibration Progress</source>
-        <translation type="gpt-4o-generated">Calibration Status</translation>
-    </message>
-    <message>
-        <source>How much driving data has been collected to personalize the vehicle's curve handling behavior.</source>
-        <translation type="gpt-4o-generated">How much driving data has been gathered to customize the vehicle's curve handling behavior?</translation>
-    </message>
-    <message>
-        <source>Reset Curve Data</source>
-        <translation type="gpt-4o-generated">Reset Curve Info</translation>
-    </message>
-    <message>
-        <source>Reset collected user data for &lt;b&gt;Curve Speed Control&lt;/b&gt;.</source>
-        <translation type="gpt-4o-generated">Clear gathered user data for &lt;b&gt;Curve Speed Control&lt;/b&gt;.</translation>
-    </message>
-    <message>
         <source>Show &lt;b&gt;Curve Speed Control&lt;/b&gt;'s desired speed on the driving screen.</source>
         <translation type="gpt-4o-generated">Display &lt;b&gt;Curve Speed Control&lt;/b&gt;'s target speed on the driving screen.</translation>
     </message>
@@ -1896,10 +1864,6 @@
         <translation type="gpt-4o-generated">RESTART</translation>
     </message>
     <message>
-        <source>Are you sure you want to completely reset your curvature data?</source>
-        <translation type="gpt-4o-generated">Are you certain you want to fully reset your curvature data?</translation>
-    </message>
-    <message>
         <source>Standard</source>
         <translation type="gpt-4o-generated">Regular</translation>
     </message>
@@ -2086,6 +2050,58 @@
     <message>
         <source>Target speed offset applied for posted limits between 120 and 140 km/h.</source>
         <translation type="gpt-4o-generated">Target speed offset applied for posted limits from 120 to 140 km/h.</translation>
+    </message>
+    <message>
+        <source>Curve Speed Control</source>
+        <translation type="gpt-4o-generated">Curve Speed Hop</translation>
+    </message>
+    <message>
+        <source>Automatically slow down for upcoming curves using downloaded maps or the driving model.</source>
+        <translation type="gpt-4o-generated">Automatically ease up for approaching curves using downloaded maps or the driving model.</translation>
+    </message>
+    <message>
+        <source>Curve Detection Method</source>
+        <translation type="gpt-4o-generated">Curve Detection Technique</translation>
+    </message>
+    <message>
+        <source>How curves are detected. &lt;b&gt;Map-Based&lt;/b&gt; uses downloaded map data to identify curves and determine the appropriate speed in which to handle them at, while &lt;b&gt;Vision&lt;/b&gt; relies solely on the driving model.</source>
+        <translation type="gpt-4o-generated">How curves are detected. &lt;b&gt;Map-Based&lt;/b&gt; uses downloaded map data to identify curves and determine the suitable speed to navigate them, while &lt;b&gt;Vision&lt;/b&gt; relies solely on the driving model.</translation>
+    </message>
+    <message>
+        <source>Curve Detection Failsafe</source>
+        <translation type="gpt-4o-generated">Curve Detection Backup</translation>
+    </message>
+    <message>
+        <source>Only trigger &lt;b&gt;Curve Speed Control&lt;/b&gt; if a curve is detected with the model while using the &lt;b&gt;Map-Based&lt;/b&gt; method. Useful to help prevent false positives.</source>
+        <translation type="gpt-4o-generated">Activate &lt;b&gt;Curve Speed Control&lt;/b&gt; only when the model detects a curve while employing the &lt;b&gt;Map-Based&lt;/b&gt; method. This helps avoid false positives.</translation>
+    </message>
+    <message>
+        <source>Curve Detection Sensitivity</source>
+        <translation type="gpt-4o-generated">Curve Detection Ribbit</translation>
+    </message>
+    <message>
+        <source>How sensitive openpilot is when detecting curves. Higher values trigger earlier responses at the risk of triggering too often, while lower values increase confidence at the risk of triggering too infrequently.</source>
+        <translation type="gpt-4o-generated">How sensitive openpilot is when detecting curves. Higher values prompt earlier responses, risking more frequent triggers, while lower values boost confidence, risking less frequent triggers.</translation>
+    </message>
+    <message>
+        <source>Curve Speed Aggressiveness</source>
+        <translation type="gpt-4o-generated">Curve Speed Intensity</translation>
+    </message>
+    <message>
+        <source>How aggressive openpilot is when navigating through curves. Higher values result in faster turns but may reduce comfort or stability, while lower values result in slower, smoother turns at the risk of being overly cautious.</source>
+        <translation type="gpt-4o-generated">How aggressive openpilot is when navigating curves. Higher values lead to quicker turns but may reduce comfort or stability, while lower values result in slower, smoother turns, risking excessive caution.</translation>
+    </message>
+    <message>
+        <source>Map Based</source>
+        <translation type="gpt-4o-generated">Map Focused</translation>
+    </message>
+    <message>
+        <source>Vision</source>
+        <translation type="gpt-4o-generated">Sight</translation>
+    </message>
+    <message>
+        <source>The &lt;b&gt;Map Based&lt;/b&gt; option is only available when some &lt;b&gt;Map Data&lt;/b&gt; has been downloaded!</source>
+        <translation type="gpt-4o-generated">The &lt;b&gt;Map Based&lt;/b&gt; option is available only when some &lt;b&gt;Map Data&lt;/b&gt; has been downloaded!</translation>
     </message>
 </context>
 <context>
@@ -2445,48 +2461,8 @@
         <translation type="gpt-4o-generated">The "Model Randomizer" functions only with downloaded models. Would you like to download all the driving models?</translation>
     </message>
     <message>
-        <source>Update Tinygrad</source>
-        <translation type="gpt-4o-generated">Refresh Tinygrad</translation>
-    </message>
-    <message>
-        <source>Update the Tinygrad model process to support the latest models.</source>
-        <translation type="gpt-4o-generated">Revise the Tinygrad model process to accommodate the newest models.</translation>
-    </message>
-    <message>
-        <source>UPDATE</source>
-        <translation type="gpt-4o-generated">REVISION</translation>
-    </message>
-    <message>
-        <source>Cancelling...</source>
-        <translation type="gpt-4o-generated">Stopping...</translation>
-    </message>
-    <message>
-        <source>This will redownload and recompile all of your Tinygrad models, so only proceed if you won't be driving for the next 30+ minutes!</source>
-        <translation type="gpt-4o-generated">This will redownload and recompile all your Tinygrad models, so only proceed if you won't be hopping into the driver's seat for the next 30+ minutes!</translation>
-    </message>
-    <message>
-        <source>Updating...</source>
-        <translation type="gpt-4o-generated">Refreshing...</translation>
-    </message>
-    <message>
         <source>Offline...</source>
         <translation type="gpt-4o-generated">Disconnected...</translation>
-    </message>
-    <message>
-        <source>Update available!</source>
-        <translation type="gpt-4o-generated">New update ready!</translation>
-    </message>
-    <message>
-        <source>Up to date!</source>
-        <translation type="gpt-4o-generated">Current!</translation>
-    </message>
-    <message>
-        <source>Updated!</source>
-        <translation type="gpt-4o-generated">Refreshed!</translation>
-    </message>
-    <message>
-        <source>This model requires a compilation process that will take a few minutes. Do you wish to continue?</source>
-        <translation type="gpt-4o-generated">This model needs a compilation process that will take a few minutes. Do you want to proceed?</translation>
     </message>
 </context>
 <context>
@@ -3169,10 +3145,6 @@ Want to submit your own animations? Ribbit them in the "custom-themes" channel o
     <message>
         <source>Turn Signal</source>
         <translation type="gpt-4o-generated">Indicator</translation>
-    </message>
-    <message>
-        <source>Offline...</source>
-        <translation type="gpt-4o-generated">Disconnected...</translation>
     </message>
 </context>
 <context>
@@ -4652,10 +4624,6 @@ Want to submit your own animations? Ribbit them in the "custom-themes" channel o
         <translation type="gpt-4o-generated">ft</translation>
     </message>
     <message>
-        <source>Reboot</source>
-        <translation type="gpt-4o-generated">Restart</translation>
-    </message>
-    <message>
         <source>Exit</source>
         <translation type="gpt-4o-generated">Leave</translation>
     </message>
@@ -4687,6 +4655,10 @@ Want to submit your own animations? Ribbit them in the "custom-themes" channel o
             <numerusform>%n day past</numerusform>
             <numerusform>%n days past</numerusform>
         </translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation type="gpt-4o-generated">Reinstate</translation>
     </message>
 </context>
 <context>

@@ -206,7 +206,7 @@ void FrogPilotSettingsWindow::updateVariables() {
     cereal::CarParams::SafetyModel safetyModel = CP.getSafetyConfigs()[0].getSafetyModel();
 
     std::string carFingerprint = CP.getCarFingerprint();
-    std::string carMake = CP.getCarName();
+    carMake = CP.getCarName();
 
     hasBSM = CP.getEnableBsm();
     hasDashSpeedLimits = carMake == "ford" || carMake == "hyundai" || carMake == "toyota";
@@ -332,7 +332,7 @@ void FrogPilotSettingsWindow::updateVariables() {
     cereal::FrogPilotCarParams::Reader FPCP = fpcmsg.getRoot<cereal::FrogPilotCarParams>();
 
     friction = FPCP.getLateralTuning().getTorque().getFriction();
-    //hasAutoTune = (carMake == "hyundai" || carMake == "toyota") && FPCP.getLateralTuning().which() == cereal::FrogPilotCarParams::LateralTuning::TORQUE;
+    hasAutoTune = (carMake == "hyundai" || carMake == "toyota") && FPCP.getLateralTuning().which() == cereal::FrogPilotCarParams::LateralTuning::TORQUE;
     isTorqueCar = FPCP.getLateralTuning().which() == cereal::FrogPilotCarParams::LateralTuning::TORQUE;
     latAccelFactor = FPCP.getLateralTuning().getTorque().getLatAccelFactor();
     openpilotLongitudinalControlDisabled = FPCP.getOpenpilotLongitudinalControlDisabled();

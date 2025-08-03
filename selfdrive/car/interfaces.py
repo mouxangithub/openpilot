@@ -201,7 +201,7 @@ class CarInterfaceBase(ABC):
       elif CP.lateralTuning.which() == "torque":
         CarInterfaceBase.configure_torque_tune(candidate, fp_ret.lateralTuning)
       else:
-        fp_ret.lateralTuning = "pid"
+        fp_ret.lateralTuning.init("pid")
 
     fp_ret.openpilotLongitudinalControlDisabled = frogpilot_toggles.disable_openpilot_long
 

@@ -1992,42 +1992,6 @@
         <translation type="gpt-4o-generated">ความเร็วที่ openpilot เริ่มเข้าสู่สถานะหยุด ค่าในระดับสูงจะเบรกก่อนเพื่อการหยุดที่นุ่มนวลขึ้นแต่ก็อาจหยุดเร็วเกินไป; ค่าในระดับต่ำจะรอนานขึ้นและอาจเลยจุดหยุดไป</translation>
     </message>
     <message>
-        <source>Curve Speed Controller</source>
-        <translation type="gpt-4o-generated">ตัวควบคุมความเร็วโค้ง</translation>
-    </message>
-    <message>
-        <source>Automatically slows down for upcoming curves using data from your own driving, adapting to curves just like you would.</source>
-        <translation type="gpt-4o-generated">ชะลอความเร็วโดยอัตโนมัติเมื่อเข้าใกล้โค้งโดยใช้ข้อมูลจากการขับขี่ของคุณเอง ปรับให้เข้ากับโค้งเหมือนที่คุณทำ</translation>
-    </message>
-    <message>
-        <source>Calibrated Lateral Acceleration</source>
-        <translation type="gpt-4o-generated">ความเร่งด้านข้างที่ปรับเทียบแล้ว</translation>
-    </message>
-    <message>
-        <source>Displays the learned lateral acceleration target based on your driving.</source>
-        <translation type="gpt-4o-generated">แสดงเป้าหมายการเร่งความเร็วด้านข้างที่เรียนรู้จากการขับขี่ของคุณ</translation>
-    </message>
-    <message>
-        <source>Calibration Progress</source>
-        <translation type="gpt-4o-generated">ความคืบหน้าการปรับเทียบ</translation>
-    </message>
-    <message>
-        <source>How much driving data has been collected to personalize the vehicle's curve handling behavior.</source>
-        <translation type="gpt-4o-generated">มีการรวบรวมข้อมูลการขับขี่มากเพียงใดเพื่อปรับแต่งพฤติกรรมการเข้าโค้งของรถยนต์ให้เป็นส่วนตัว</translation>
-    </message>
-    <message>
-        <source>Reset Curve Data</source>
-        <translation type="gpt-4o-generated">รีเซ็ตข้อมูลเส้นโค้ง</translation>
-    </message>
-    <message>
-        <source>Reset collected user data for &lt;b&gt;Curve Speed Control&lt;/b&gt;.</source>
-        <translation type="gpt-4o-generated">รีเซ็ตข้อมูลผู้ใช้ที่รวบรวมสำหรับ &lt;b&gt;การควบคุมความเร็วโค้ง&lt;/b&gt;.</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to completely reset your curvature data?</source>
-        <translation type="gpt-4o-generated">คุณแน่ใจหรือไม่ว่าต้องการรีเซ็ตข้อมูลความโค้งของคุณทั้งหมด?</translation>
-    </message>
-    <message>
         <source>Speed Offset (0–24 mph)</source>
         <translation type="gpt-4o-generated">การชดเชยความเร็ว (0–24 mph)</translation>
     </message>
@@ -2086,6 +2050,58 @@
     <message>
         <source>Speed Offset (120–140 km/h)</source>
         <translation type="gpt-4o-generated">การชดเชยความเร็ว (120–140 กม./ชม.)</translation>
+    </message>
+    <message>
+        <source>Curve Speed Control</source>
+        <translation type="gpt-4o-generated">การควบคุมความเร็วในโค้ง</translation>
+    </message>
+    <message>
+        <source>Automatically slow down for upcoming curves using downloaded maps or the driving model.</source>
+        <translation type="gpt-4o-generated">ชะลอความเร็วอัตโนมัติสำหรับโค้งที่กำลังจะมาถึงโดยใช้แผนที่ที่ดาวน์โหลดหรือโมเดลการขับขี่</translation>
+    </message>
+    <message>
+        <source>Curve Detection Method</source>
+        <translation type="gpt-4o-generated">วิธีการตรวจจับเส้นโค้ง</translation>
+    </message>
+    <message>
+        <source>How curves are detected. &lt;b&gt;Map-Based&lt;/b&gt; uses downloaded map data to identify curves and determine the appropriate speed in which to handle them at, while &lt;b&gt;Vision&lt;/b&gt; relies solely on the driving model.</source>
+        <translation type="gpt-4o-generated">วิธีการตรวจจับโค้ง &lt;b&gt;Map-Based&lt;/b&gt; ใช้ข้อมูลแผนที่ที่ดาวน์โหลดมาเพื่อระบุโค้งและกำหนดความเร็วที่เหมาะสมในการจัดการกับโค้งเหล่านั้น ในขณะที่ &lt;b&gt;Vision&lt;/b&gt; พึ่งพาเฉพาะโมเดลการขับขี่เท่านั้น</translation>
+    </message>
+    <message>
+        <source>Curve Detection Failsafe</source>
+        <translation type="gpt-4o-generated">การตรวจจับเส้นโค้งที่ปลอดภัย</translation>
+    </message>
+    <message>
+        <source>Only trigger &lt;b&gt;Curve Speed Control&lt;/b&gt; if a curve is detected with the model while using the &lt;b&gt;Map-Based&lt;/b&gt; method. Useful to help prevent false positives.</source>
+        <translation type="gpt-4o-generated">เรียกใช้ &lt;b&gt;Curve Speed Control&lt;/b&gt; เฉพาะเมื่อมีการตรวจจับโค้งด้วยโมเดลขณะใช้วิธี &lt;b&gt;Map-Based&lt;/b&gt; มีประโยชน์ในการช่วยป้องกันการแจ้งเตือนที่ผิดพลาด</translation>
+    </message>
+    <message>
+        <source>Curve Detection Sensitivity</source>
+        <translation type="gpt-4o-generated">ความไวในการตรวจจับเส้นโค้ง</translation>
+    </message>
+    <message>
+        <source>How sensitive openpilot is when detecting curves. Higher values trigger earlier responses at the risk of triggering too often, while lower values increase confidence at the risk of triggering too infrequently.</source>
+        <translation type="gpt-4o-generated">ความไวของ openpilot ในการตรวจจับโค้ง ค่าที่สูงขึ้นจะทำให้เกิดการตอบสนองเร็วขึ้นแต่เสี่ยงต่อการเกิดบ่อยเกินไป ในขณะที่ค่าที่ต่ำลงจะเพิ่มความมั่นใจแต่เสี่ยงต่อการเกิดไม่บ่อยพอ</translation>
+    </message>
+    <message>
+        <source>Curve Speed Aggressiveness</source>
+        <translation type="gpt-4o-generated">ความก้าวร้าวของความเร็วในโค้ง</translation>
+    </message>
+    <message>
+        <source>How aggressive openpilot is when navigating through curves. Higher values result in faster turns but may reduce comfort or stability, while lower values result in slower, smoother turns at the risk of being overly cautious.</source>
+        <translation type="gpt-4o-generated">ความก้าวร้าวของ openpilot เมื่อขับผ่านโค้ง ค่าที่สูงขึ้นจะทำให้เลี้ยวได้เร็วขึ้นแต่ก็อาจลดความสบายหรือความเสถียร ในขณะที่ค่าที่ต่ำกว่าจะทำให้เลี้ยวได้ช้าลงและนุ่มนวลขึ้นแต่เสี่ยงต่อการระมัดระวังเกินไป</translation>
+    </message>
+    <message>
+        <source>Map Based</source>
+        <translation type="gpt-4o-generated">แผนที่เป็นพื้นฐาน</translation>
+    </message>
+    <message>
+        <source>Vision</source>
+        <translation type="gpt-4o-generated">วิสัยทัศน์</translation>
+    </message>
+    <message>
+        <source>The &lt;b&gt;Map Based&lt;/b&gt; option is only available when some &lt;b&gt;Map Data&lt;/b&gt; has been downloaded!</source>
+        <translation type="gpt-4o-generated">ตัวเลือก &lt;b&gt;Map Based&lt;/b&gt; จะใช้ได้เฉพาะเมื่อมีการดาวน์โหลด &lt;b&gt;Map Data&lt;/b&gt; บางส่วนแล้วเท่านั้น!</translation>
     </message>
 </context>
 <context>
@@ -2445,48 +2461,8 @@
         <translation type="gpt-4o-generated">"Model Randomizer" ใช้งานได้เฉพาะกับโมเดลที่ดาวน์โหลดแล้วเท่านั้น คุณต้องการดาวน์โหลดโมเดลการขับขี่ทั้งหมดหรือไม่?</translation>
     </message>
     <message>
-        <source>Update Tinygrad</source>
-        <translation type="gpt-4o-generated">อัปเดต Tinygrad</translation>
-    </message>
-    <message>
-        <source>Update the Tinygrad model process to support the latest models.</source>
-        <translation type="gpt-4o-generated">อัปเดตกระบวนการโมเดล Tinygrad เพื่อรองรับโมเดลล่าสุด</translation>
-    </message>
-    <message>
-        <source>UPDATE</source>
-        <translation type="gpt-4o-generated">อัปเดต</translation>
-    </message>
-    <message>
-        <source>Cancelling...</source>
-        <translation type="gpt-4o-generated">ยกเลิก...</translation>
-    </message>
-    <message>
-        <source>This will redownload and recompile all of your Tinygrad models, so only proceed if you won't be driving for the next 30+ minutes!</source>
-        <translation type="gpt-4o-generated">นี่จะดาวน์โหลดใหม่และคอมไพล์ Tinygrad models ของคุณทั้งหมด ดังนั้นดำเนินการต่อเฉพาะเมื่อคุณจะไม่ขับรถในอีก 30+ นาทีข้างหน้า!</translation>
-    </message>
-    <message>
-        <source>Updating...</source>
-        <translation type="gpt-4o-generated">กำลังอัปเดต...</translation>
-    </message>
-    <message>
         <source>Offline...</source>
         <translation type="gpt-4o-generated">ออฟไลน์...</translation>
-    </message>
-    <message>
-        <source>Update available!</source>
-        <translation type="gpt-4o-generated">มีการอัปเดตใหม่!</translation>
-    </message>
-    <message>
-        <source>Up to date!</source>
-        <translation type="gpt-4o-generated">ทันสมัย!</translation>
-    </message>
-    <message>
-        <source>Updated!</source>
-        <translation type="gpt-4o-generated">อัปเดตแล้ว!</translation>
-    </message>
-    <message>
-        <source>This model requires a compilation process that will take a few minutes. Do you wish to continue?</source>
-        <translation type="gpt-4o-generated">โมเดลนี้ต้องการกระบวนการคอมไพล์ซึ่งจะใช้เวลาสักครู่ คุณต้องการดำเนินการต่อหรือไม่?</translation>
     </message>
 </context>
 <context>
@@ -3165,10 +3141,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>Turn Signal</source>
         <translation type="gpt-4o-generated">ไฟเลี้ยว</translation>
-    </message>
-    <message>
-        <source>Offline...</source>
-        <translation type="gpt-4o-generated">ออฟไลน์...</translation>
     </message>
 </context>
 <context>
@@ -4631,10 +4603,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
 <context>
     <name>QObject</name>
     <message>
-        <source>Reboot</source>
-        <translation>รีบูต</translation>
-    </message>
-    <message>
         <source>Exit</source>
         <translation>ปิด</translation>
     </message>
@@ -4679,6 +4647,10 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>FrogPilot</source>
         <translation type="gpt-4o-generated">FrogPilot</translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation type="gpt-4o-generated">คืนค่า</translation>
     </message>
 </context>
 <context>

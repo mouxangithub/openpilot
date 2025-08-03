@@ -2,66 +2,81 @@
 import numpy as np
 import time
 
-import cereal.messaging as messaging
 import openpilot.system.sentry as sentry
 
-from cereal.services import SERVICE_LIST
-from openpilot.common.realtime import Ratekeeper
+from cereal import messaging
+from common.filter_simple import FirstOrderFilter
+from common.realtime import DT_CTRL
 
-DETECTED_INSIDE_TIME = 5.0
-GRAVITY = 9.81
-HIT_THRESHOLD = 2.5
-INSIDE_THRESHOLD = 0.1
-SENSOR_FREQ = SERVICE_LIST["accelerometer"].frequency
+from openpilot.frogpilot.common.frogpilot_utilities import wait_for_no_driver
+
+MOVEMENT_THRESHOLD = 0.01
+MOVEMENT_TIME = 60
+SENTRY_COOLDOWN_TIME = MOVEMENT_TIME + 5
 
 class SentryMode:
   def __init__(self):
-    self.sm = messaging.SubMaster(["accelerometer"])
+    self.sm = messaging.SubMaster(["accelerometer", "deviceState", "driverMonitoringState", "managerState", "pandaStates"], poll="accelerometer")
 
-    self.inside_motion_threshold = int(DETECTED_INSIDE_TIME * SENSOR_FREQ)
+    self.sentry_tripped = False
 
-    self.inside_motion_counter = 0
+    self.movement_timestamp = 0
+    self.sentry_tripped_timestamp = 0
+
+    self.acceleration_filters = [FirstOrderFilter(0, 0.5, DT_CTRL) for _ in range(3)]
+
+    self.previous_accelerations = None
 
   def update(self):
     self.sm.update()
 
-    if not self.sm.updated["accelerometer"]:
-      return None
+    accelerations = self.sm["accelerometer"].acceleration.v
+    if len(accelerations) == 3:
+      if self.previous_accelerations is not None:
+        acceleration_change = np.array(accelerations) - np.array(self.previous_accelerations)
+        for idx in range(3):
+          self.acceleration_filters[idx].update(acceleration_change[idx])
 
-    acceleration_delta = abs(np.linalg.norm(self.sm["accelerometer"].acceleration.v) - GRAVITY)
-    print(f"acceleration_delta = {acceleration_delta:.2f} m/s^2")
+      self.previous_accelerations = accelerations
 
-    if acceleration_delta > HIT_THRESHOLD:
-      print(f"EVENT: Vehicle HIT detected! Δg = {acceleration_delta:.2f} m/s^2")
-      self.inside_motion_counter = 0
-      return "HIT"
+    self.check_for_movement()
 
-    if acceleration_delta > INSIDE_THRESHOLD:
-      self.inside_motion_counter += 1
+  def check_for_movement(self):
+    now_timestamp = time.monotonic()
 
-      if self.inside_motion_counter >= self.inside_motion_threshold:
-        print(f"EVENT: Sustained motion detected! Person likely INSIDE. (Δg = {acceleration_delta:.2f} m/s^2)")
-        self.inside_motion_counter = 0
-        return "INSIDE"
+    movement = any(abs(acceleration_filter.x) > MOVEMENT_THRESHOLD for acceleration_filter in self.acceleration_filters)
+    if movement:
+      self.movement_timestamp = float(now_timestamp)
+
+    reset_tripped_state = now_timestamp - self.movement_timestamp > MOVEMENT_TIME
+    reset_tripped_state &= now_timestamp - self.sentry_tripped_timestamp > SENTRY_COOLDOWN_TIME
+
+    if movement:
+      sentry_tripped = True
+    elif self.sentry_tripped and not reset_tripped_state:
+      sentry_tripped = True
     else:
-      self.inside_motion_counter = 0
+      sentry_tripped = False
 
-    return None
+    if sentry_tripped and not self.sentry_tripped:
+      self.sentry_tripped_timestamp = time.monotonic()
+
+    self.sentry_tripped = sentry_tripped
 
 def main():
-  rate_keeper = Ratekeeper(SENSOR_FREQ, None)
   sentry_mode = SentryMode()
 
   try:
     while True:
-      event = sentry_mode.update()
-      if event:
-        print(f"*** ALERT: Event '{event}' triggered at {time.ctime()} ***\n")
+      wait_for_no_driver(sentry_mode.sm, True)
 
-      rate_keeper.keep_time()
-  except Exception as error:
-    print(f"An error occurred: {error}")
-    sentry.capture_exception(error)
+      sentry_mode.update()
+
+      if sentry_mode.sentry_tripped:
+        print(f"*** ALERT: Sentry tripped at {sentry_mode.sentry_tripped_timestamp} ***\n")
+  except Exception as exception:
+    print(f"An error occurred: {exception}")
+    sentry.capture_exception(exception)
 
 if __name__ == "__main__":
   main()

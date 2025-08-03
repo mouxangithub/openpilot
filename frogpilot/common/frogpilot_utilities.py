@@ -51,10 +51,10 @@ def run_thread_with_lock(name, target, args=(), report=True):
           print(f"HTTP error: {error}")
         except subprocess.CalledProcessError as error:
           print(f"CalledProcessError in thread '{name}': {error}")
-        except Exception as error:
-          print(f"Error in thread '{name}': {error}")
+        except Exception as exception:
+          print(f"Error in thread '{name}': {exception}")
           if report:
-            sentry.capture_exception(error)
+            sentry.capture_exception(exception)
       thread = threading.Thread(target=wrapped_target, args=args, daemon=True)
       thread.start()
       running_threads[name] = thread
@@ -148,9 +148,9 @@ def flash_panda():
       panda.reset(enter_bootstub=True)
       panda.flash()
       panda.close()
-    except Exception as error:
-      print(f"Error flashing Panda {serial}: {error}")
-      sentry.capture_exception(error)
+    except Exception as exception:
+      print(f"Error flashing Panda {serial}: {exception}")
+      sentry.capture_exception(exception)
 
   params_memory.remove("FlashPanda")
 
@@ -175,12 +175,12 @@ def is_url_pingable(url):
     response = requests.head(url, headers=headers, timeout=10, allow_redirects=True)
     response.raise_for_status()
     return True
-  except requests.RequestException as e:
-    print(f"Network/HTTP error for {url}: {e}")
+  except requests.RequestException as exception:
+    print(f"Network/HTTP error for {url}: {exception}")
     return False
-  except Exception as e:
-    print(f"An unexpected error occurred while checking {url}: {e}")
-    sentry.capture_exception(e)
+  except Exception as exception:
+    print(f"An unexpected error occurred while checking {url}: {exception}")
+    sentry.capture_exception(exception)
     return False
 
 def lock_doors(lock_doors_timer, sm):
@@ -215,11 +215,11 @@ def run_cmd(cmd, success_message, fail_message, report=True, env=None):
       print(f"Error Output: {error.stderr.strip()}")
     if report:
       sentry.capture_exception(error)
-  except Exception as error:
-    print(f"Unexpected error occurred: {error}")
+  except Exception as exception:
+    print(f"Unexpected error occurred: {exception}")
     print(fail_message)
     if report:
-      sentry.capture_exception(error)
+      sentry.capture_exception(exception)
 
 def update_maps(now):
   while not MAPD_PATH.exists():
@@ -259,7 +259,7 @@ def update_maps(now):
   params.put("LastMapsUpdate", todays_date)
 
 def update_openpilot():
-  def check_for_updates():
+  def update_available():
     subprocess.run(["pkill", "-SIGUSR1", "-f", "system.updated.updated"], check=False)
 
     while params.get("UpdaterState", encoding="utf-8") != "checking...":
@@ -287,13 +287,15 @@ def update_openpilot():
   if params.get("UpdaterState", encoding="utf-8") != "idle":
     return
 
-  if not check_for_updates():
+  if not update_available():
     return
 
   while running_threads.get("lock_doors", threading.Thread()).is_alive() or params_memory.get_bool("IsOnroad"):
     time.sleep(60)
 
-  check_for_updates()
+  while True:
+    if not update_available():
+      break
 
   HARDWARE.reboot()
 

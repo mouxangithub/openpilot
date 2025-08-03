@@ -1992,42 +1992,6 @@
         <translation type="gpt-4o-generated">openpilotが停止状態に入る速度。高い値はスムーズな停止のために早めにブレーキをかけますが、早すぎる可能性があります。低い値は待機時間が長くなり、行き過ぎることがあります。</translation>
     </message>
     <message>
-        <source>Curve Speed Controller</source>
-        <translation type="gpt-4o-generated">カーブ速度コントローラー</translation>
-    </message>
-    <message>
-        <source>Automatically slows down for upcoming curves using data from your own driving, adapting to curves just like you would.</source>
-        <translation type="gpt-4o-generated">自分の運転データを使用して、カーブに差し掛かると自動的に減速し、自分が運転するようにカーブに適応します。</translation>
-    </message>
-    <message>
-        <source>Calibrated Lateral Acceleration</source>
-        <translation type="gpt-4o-generated">較正された横加速度</translation>
-    </message>
-    <message>
-        <source>Displays the learned lateral acceleration target based on your driving.</source>
-        <translation type="gpt-4o-generated">運転に基づいて学習された横加速度の目標を表示します。</translation>
-    </message>
-    <message>
-        <source>Calibration Progress</source>
-        <translation type="gpt-4o-generated">キャリブレーション進行中</translation>
-    </message>
-    <message>
-        <source>How much driving data has been collected to personalize the vehicle's curve handling behavior.</source>
-        <translation type="gpt-4o-generated">車両のカーブハンドリング動作をパーソナライズするために、どれだけの運転データが収集されましたか。</translation>
-    </message>
-    <message>
-        <source>Reset Curve Data</source>
-        <translation type="gpt-4o-generated">カーブデータをリセット</translation>
-    </message>
-    <message>
-        <source>Reset collected user data for &lt;b&gt;Curve Speed Control&lt;/b&gt;.</source>
-        <translation type="gpt-4o-generated">&lt;b&gt;カーブスピードコントロール&lt;/b&gt;の収集されたユーザーデータをリセットします。</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to completely reset your curvature data?</source>
-        <translation type="gpt-4o-generated">カーブデータを完全にリセットしてもよろしいですか？</translation>
-    </message>
-    <message>
         <source>Speed Offset (0–24 mph)</source>
         <translation type="gpt-4o-generated">速度オフセット (0–24 mph)</translation>
     </message>
@@ -2086,6 +2050,58 @@
     <message>
         <source>Speed Offset (120–140 km/h)</source>
         <translation type="gpt-4o-generated">速度オフセット (120–140 km/h)</translation>
+    </message>
+    <message>
+        <source>Curve Speed Control</source>
+        <translation type="gpt-4o-generated">カーブ速度制御</translation>
+    </message>
+    <message>
+        <source>Automatically slow down for upcoming curves using downloaded maps or the driving model.</source>
+        <translation type="gpt-4o-generated">ダウンロードした地図や運転モデルを使用して、これからのカーブに備えて自動的に減速します。</translation>
+    </message>
+    <message>
+        <source>Curve Detection Method</source>
+        <translation type="gpt-4o-generated">曲線検出法</translation>
+    </message>
+    <message>
+        <source>How curves are detected. &lt;b&gt;Map-Based&lt;/b&gt; uses downloaded map data to identify curves and determine the appropriate speed in which to handle them at, while &lt;b&gt;Vision&lt;/b&gt; relies solely on the driving model.</source>
+        <translation type="gpt-4o-generated">カーブの検出方法。&lt;b&gt;地図ベース&lt;/b&gt;はダウンロードされた地図データを使用してカーブを特定し、それに対処するための適切な速度を決定します。一方、&lt;b&gt;ビジョン&lt;/b&gt;は運転モデルのみに依存します。</translation>
+    </message>
+    <message>
+        <source>Curve Detection Failsafe</source>
+        <translation type="gpt-4o-generated">カーブ検出フェイルセーフ</translation>
+    </message>
+    <message>
+        <source>Only trigger &lt;b&gt;Curve Speed Control&lt;/b&gt; if a curve is detected with the model while using the &lt;b&gt;Map-Based&lt;/b&gt; method. Useful to help prevent false positives.</source>
+        <translation type="gpt-4o-generated">カーブがモデルで検出された場合にのみ、&lt;b&gt;マップベース&lt;/b&gt;の方法を使用して&lt;b&gt;カーブ速度制御&lt;/b&gt;をトリガーします。誤検知を防ぐのに役立ちます。</translation>
+    </message>
+    <message>
+        <source>Curve Detection Sensitivity</source>
+        <translation type="gpt-4o-generated">カーブ検出感度</translation>
+    </message>
+    <message>
+        <source>How sensitive openpilot is when detecting curves. Higher values trigger earlier responses at the risk of triggering too often, while lower values increase confidence at the risk of triggering too infrequently.</source>
+        <translation type="gpt-4o-generated">openpilotがカーブを検出する際の感度。高い値は、頻繁にトリガーされるリスクがある一方で、早期の反応を引き起こし、低い値は、トリガーがあまりにも少なくなるリスクがある一方で、信頼性を高めます。</translation>
+    </message>
+    <message>
+        <source>Curve Speed Aggressiveness</source>
+        <translation type="gpt-4o-generated">カーブ速度の攻撃性</translation>
+    </message>
+    <message>
+        <source>How aggressive openpilot is when navigating through curves. Higher values result in faster turns but may reduce comfort or stability, while lower values result in slower, smoother turns at the risk of being overly cautious.</source>
+        <translation type="gpt-4o-generated">openpilotがカーブを通過する際の攻撃性。値が高いほど速いターンが可能になりますが、快適性や安定性が低下する可能性があります。一方、値が低いと、より慎重になりすぎるリスクがあるものの、より遅く滑らかなターンになります。</translation>
+    </message>
+    <message>
+        <source>Map Based</source>
+        <translation type="gpt-4o-generated">マップベース</translation>
+    </message>
+    <message>
+        <source>Vision</source>
+        <translation type="gpt-4o-generated">ビジョン</translation>
+    </message>
+    <message>
+        <source>The &lt;b&gt;Map Based&lt;/b&gt; option is only available when some &lt;b&gt;Map Data&lt;/b&gt; has been downloaded!</source>
+        <translation type="gpt-4o-generated">&lt;b&gt;マップベース&lt;/b&gt;オプションは、&lt;b&gt;マップデータ&lt;/b&gt;がダウンロードされている場合にのみ利用可能です！</translation>
     </message>
 </context>
 <context>
@@ -2445,48 +2461,8 @@
         <translation type="gpt-4o-generated">「モデルランダマイザー」はダウンロードされたモデルでのみ動作します。すべてのドライビングモデルをダウンロードしますか？</translation>
     </message>
     <message>
-        <source>Update Tinygrad</source>
-        <translation type="gpt-4o-generated">Tinygradを更新する</translation>
-    </message>
-    <message>
-        <source>Update the Tinygrad model process to support the latest models.</source>
-        <translation type="gpt-4o-generated">Tinygradモデルプロセスを更新して最新のモデルをサポートします。</translation>
-    </message>
-    <message>
-        <source>UPDATE</source>
-        <translation type="gpt-4o-generated">更新</translation>
-    </message>
-    <message>
-        <source>Cancelling...</source>
-        <translation type="gpt-4o-generated">キャンセルしています...</translation>
-    </message>
-    <message>
-        <source>This will redownload and recompile all of your Tinygrad models, so only proceed if you won't be driving for the next 30+ minutes!</source>
-        <translation type="gpt-4o-generated">これは、すべてのTinygradモデルを再ダウンロードして再コンパイルするため、次の30分以上運転しない場合にのみ進めてください！</translation>
-    </message>
-    <message>
-        <source>Updating...</source>
-        <translation type="gpt-4o-generated">更新中...</translation>
-    </message>
-    <message>
         <source>Offline...</source>
         <translation type="gpt-4o-generated">オフライン...</translation>
-    </message>
-    <message>
-        <source>Update available!</source>
-        <translation type="gpt-4o-generated">アップデートが利用可能です！</translation>
-    </message>
-    <message>
-        <source>Up to date!</source>
-        <translation type="gpt-4o-generated">最新情報！</translation>
-    </message>
-    <message>
-        <source>Updated!</source>
-        <translation type="gpt-4o-generated">更新しました！</translation>
-    </message>
-    <message>
-        <source>This model requires a compilation process that will take a few minutes. Do you wish to continue?</source>
-        <translation type="gpt-4o-generated">このモデルはコンパイルプロセスが必要で、数分かかります。続行しますか？</translation>
     </message>
 </context>
 <context>
@@ -3169,10 +3145,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>Turn Signal</source>
         <translation type="gpt-4o-generated">ターンシグナル</translation>
-    </message>
-    <message>
-        <source>Offline...</source>
-        <translation type="gpt-4o-generated">オフライン...</translation>
     </message>
 </context>
 <context>
@@ -4635,10 +4607,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
 <context>
     <name>QObject</name>
     <message>
-        <source>Reboot</source>
-        <translation>再起動</translation>
-    </message>
-    <message>
         <source>Exit</source>
         <translation>閉じる</translation>
     </message>
@@ -4683,6 +4651,10 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>FrogPilot</source>
         <translation type="gpt-4o-generated">フロッグパイロット</translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation type="gpt-4o-generated">復元</translation>
     </message>
 </context>
 <context>

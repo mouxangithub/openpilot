@@ -780,37 +780,31 @@ void FrogPilotThemesPanel::updateState(const UIState &s, const FrogPilotUIState 
   manageCustomColorsBtn->setEnabledButtons(0, !themeDownloading);
   manageCustomColorsBtn->setEnabledButtons(1, fs.frogpilot_scene.online && (!themeDownloading || colorDownloading) && !cancellingDownload && !colorsDownloaded && parked);
   manageCustomColorsBtn->setEnabledButtons(2, !themeDownloading);
-  manageCustomColorsBtn->setValue(fs.frogpilot_scene.online ? (parked ? "" : "Not parked") : tr("Offline..."));
 
   manageCustomIconsBtn->setText(1, iconDownloading ? tr("CANCEL") : tr("DOWNLOAD"));
   manageCustomIconsBtn->setEnabledButtons(0, !themeDownloading);
   manageCustomIconsBtn->setEnabledButtons(1, fs.frogpilot_scene.online && (!themeDownloading || iconDownloading) && !cancellingDownload && !iconsDownloaded && parked);
   manageCustomIconsBtn->setEnabledButtons(2, !themeDownloading);
-  manageCustomIconsBtn->setValue(fs.frogpilot_scene.online ? (parked ? "" : "Not parked") : tr("Offline..."));
 
   manageCustomSignalsBtn->setText(1, signalDownloading ? tr("CANCEL") : tr("DOWNLOAD"));
   manageCustomSignalsBtn->setEnabledButtons(0, !themeDownloading);
   manageCustomSignalsBtn->setEnabledButtons(1, fs.frogpilot_scene.online && (!themeDownloading || signalDownloading) && !cancellingDownload && !signalsDownloaded && parked);
   manageCustomSignalsBtn->setEnabledButtons(2, !themeDownloading);
-  manageCustomSignalsBtn->setValue(fs.frogpilot_scene.online ? (parked ? "" : "Not parked") : tr("Offline..."));
 
   manageCustomSoundsBtn->setText(1, soundDownloading ? tr("CANCEL") : tr("DOWNLOAD"));
   manageCustomSoundsBtn->setEnabledButtons(0, !themeDownloading);
   manageCustomSoundsBtn->setEnabledButtons(1, fs.frogpilot_scene.online && (!themeDownloading || soundDownloading) && !cancellingDownload && !soundsDownloaded && parked);
   manageCustomSoundsBtn->setEnabledButtons(2, !themeDownloading);
-  manageCustomSoundsBtn->setValue(fs.frogpilot_scene.online ? (parked ? "" : "Not parked") : tr("Offline..."));
 
   manageDistanceIconsBtn->setText(1, distanceIconDownloading ? tr("CANCEL") : tr("DOWNLOAD"));
   manageDistanceIconsBtn->setEnabledButtons(0, !themeDownloading);
   manageDistanceIconsBtn->setEnabledButtons(1, fs.frogpilot_scene.online && (!themeDownloading || distanceIconDownloading) && !cancellingDownload && !distanceIconsDownloaded && parked);
   manageDistanceIconsBtn->setEnabledButtons(2, !themeDownloading);
-  manageDistanceIconsBtn->setValue(fs.frogpilot_scene.online ? (parked ? "" : "Not parked") : tr("Offline..."));
 
   manageWheelIconsBtn->setText(1, wheelDownloading ? tr("CANCEL") : tr("DOWNLOAD"));
   manageWheelIconsBtn->setEnabledButtons(0, !themeDownloading);
   manageWheelIconsBtn->setEnabledButtons(1, fs.frogpilot_scene.online && (!themeDownloading || wheelDownloading) && !cancellingDownload && !wheelsDownloaded && parked);
   manageWheelIconsBtn->setEnabledButtons(2, !themeDownloading);
-  manageWheelIconsBtn->setValue(fs.frogpilot_scene.online ? (parked ? "" : "Not parked") : tr("Offline..."));
 
   parent->keepScreenOn = themeDownloading;
 }

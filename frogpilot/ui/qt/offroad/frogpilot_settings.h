@@ -68,6 +68,8 @@ private:
 
   bool panelOpen;
 
+  std::string carMake;
+
   FrogPilotButtonsControl *drivingPanelButtons;
   FrogPilotButtonsControl *systemPanelButtons;
   FrogPilotButtonsControl *togglePreset;

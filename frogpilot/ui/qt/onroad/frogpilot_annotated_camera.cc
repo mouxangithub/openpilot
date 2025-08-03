@@ -88,8 +88,6 @@ void FrogPilotAnnotatedCameraWidget::updateSignals() {
 
       movie.stop();
     } else if (fileName.endsWith(".png", Qt::CaseInsensitive)) {
-      QProcess::execute("optipng", QStringList() << "-o7" << filePath);
-
       QVector<QPixmap> &targetList = fileName.contains("blindspot", Qt::CaseInsensitive) ? blindspotImages : signalImages;
       targetList.append(QPixmap(filePath));
     } else {

@@ -1992,42 +1992,6 @@
         <translation type="gpt-4o-generated">Geschwindigkeit, bei der openpilot beginnt, in den gestoppten Zustand zu wechseln. Höhere Werte bremsen früher für sanftere Stopps, können aber zu früh anhalten; niedrigere Werte warten länger und können überschießen.</translation>
     </message>
     <message>
-        <source>Curve Speed Controller</source>
-        <translation type="gpt-4o-generated">Kurvengeschwindigkeitsregler</translation>
-    </message>
-    <message>
-        <source>Automatically slows down for upcoming curves using data from your own driving, adapting to curves just like you would.</source>
-        <translation type="gpt-4o-generated">Verlangsamt automatisch bei bevorstehenden Kurven mithilfe von Daten aus Ihrem eigenen Fahrverhalten und passt sich den Kurven genauso an, wie Sie es tun würden.</translation>
-    </message>
-    <message>
-        <source>Calibrated Lateral Acceleration</source>
-        <translation type="gpt-4o-generated">Kalibrierte Querbeschleunigung</translation>
-    </message>
-    <message>
-        <source>Displays the learned lateral acceleration target based on your driving.</source>
-        <translation type="gpt-4o-generated">Zeigt das erlernte Querbeschleunigungsziel basierend auf Ihrem Fahrverhalten an.</translation>
-    </message>
-    <message>
-        <source>Calibration Progress</source>
-        <translation type="gpt-4o-generated">Kalibrierungsfortschritt</translation>
-    </message>
-    <message>
-        <source>How much driving data has been collected to personalize the vehicle's curve handling behavior.</source>
-        <translation type="gpt-4o-generated">Wie viele Fahrdaten wurden gesammelt, um das Kurvenverhalten des Fahrzeugs zu personalisieren.</translation>
-    </message>
-    <message>
-        <source>Reset Curve Data</source>
-        <translation type="gpt-4o-generated">Kurvendaten zurücksetzen</translation>
-    </message>
-    <message>
-        <source>Reset collected user data for &lt;b&gt;Curve Speed Control&lt;/b&gt;.</source>
-        <translation type="gpt-4o-generated">Gesammelte Benutzerdaten für &lt;b&gt;Kurvengeschwindigkeitsregelung&lt;/b&gt; zurücksetzen.</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to completely reset your curvature data?</source>
-        <translation type="gpt-4o-generated">Möchten Sie Ihre Krümmungsdaten wirklich vollständig zurücksetzen?</translation>
-    </message>
-    <message>
         <source>Speed Offset (0–24 mph)</source>
         <translation type="gpt-4o-generated">Geschwindigkeitsoffset (0–24 mph)</translation>
     </message>
@@ -2086,6 +2050,58 @@
     <message>
         <source>Speed Offset (120–140 km/h)</source>
         <translation type="gpt-4o-generated">Geschwindigkeitsversatz (120–140 km/h)</translation>
+    </message>
+    <message>
+        <source>Curve Speed Control</source>
+        <translation type="gpt-4o-generated">Kurvengeschwindigkeitsregelung</translation>
+    </message>
+    <message>
+        <source>Automatically slow down for upcoming curves using downloaded maps or the driving model.</source>
+        <translation type="gpt-4o-generated">Automatisch für bevorstehende Kurven verlangsamen, indem heruntergeladene Karten oder das Fahrmodell verwendet werden.</translation>
+    </message>
+    <message>
+        <source>Curve Detection Method</source>
+        <translation type="gpt-4o-generated">Kurvenerkennungsmethode</translation>
+    </message>
+    <message>
+        <source>How curves are detected. &lt;b&gt;Map-Based&lt;/b&gt; uses downloaded map data to identify curves and determine the appropriate speed in which to handle them at, while &lt;b&gt;Vision&lt;/b&gt; relies solely on the driving model.</source>
+        <translation type="gpt-4o-generated">Wie Kurven erkannt werden. &lt;b&gt;Kartenbasiert&lt;/b&gt; verwendet heruntergeladene Kartendaten, um Kurven zu identifizieren und die geeignete Geschwindigkeit zu bestimmen, mit der sie bewältigt werden können, während &lt;b&gt;Vision&lt;/b&gt; sich ausschließlich auf das Fahrmodell stützt.</translation>
+    </message>
+    <message>
+        <source>Curve Detection Failsafe</source>
+        <translation type="gpt-4o-generated">Kurvenerkennungssicherung</translation>
+    </message>
+    <message>
+        <source>Only trigger &lt;b&gt;Curve Speed Control&lt;/b&gt; if a curve is detected with the model while using the &lt;b&gt;Map-Based&lt;/b&gt; method. Useful to help prevent false positives.</source>
+        <translation type="gpt-4o-generated">Nur &lt;b&gt;Kurvengeschwindigkeitsregelung&lt;/b&gt; auslösen, wenn eine Kurve mit dem Modell erkannt wird, während die &lt;b&gt;Kartenbasierte&lt;/b&gt; Methode verwendet wird. Nützlich, um Fehlalarme zu vermeiden.</translation>
+    </message>
+    <message>
+        <source>Curve Detection Sensitivity</source>
+        <translation type="gpt-4o-generated">Kurvenerkennungsempfindlichkeit</translation>
+    </message>
+    <message>
+        <source>How sensitive openpilot is when detecting curves. Higher values trigger earlier responses at the risk of triggering too often, while lower values increase confidence at the risk of triggering too infrequently.</source>
+        <translation type="gpt-4o-generated">Wie empfindlich openpilot beim Erkennen von Kurven ist. Höhere Werte führen zu früheren Reaktionen mit dem Risiko, zu häufig auszulösen, während niedrigere Werte das Vertrauen erhöhen, mit dem Risiko, zu selten auszulösen.</translation>
+    </message>
+    <message>
+        <source>Curve Speed Aggressiveness</source>
+        <translation type="gpt-4o-generated">Kurvengeschwindigkeitsaggressivität</translation>
+    </message>
+    <message>
+        <source>How aggressive openpilot is when navigating through curves. Higher values result in faster turns but may reduce comfort or stability, while lower values result in slower, smoother turns at the risk of being overly cautious.</source>
+        <translation type="gpt-4o-generated">Wie aggressiv openpilot beim Navigieren durch Kurven ist. Höhere Werte führen zu schnelleren Kurven, können jedoch den Komfort oder die Stabilität verringern, während niedrigere Werte zu langsameren, sanfteren Kurven führen, mit dem Risiko, zu vorsichtig zu sein.</translation>
+    </message>
+    <message>
+        <source>Map Based</source>
+        <translation type="gpt-4o-generated">Kartenbasiert</translation>
+    </message>
+    <message>
+        <source>Vision</source>
+        <translation type="gpt-4o-generated">Vision</translation>
+    </message>
+    <message>
+        <source>The &lt;b&gt;Map Based&lt;/b&gt; option is only available when some &lt;b&gt;Map Data&lt;/b&gt; has been downloaded!</source>
+        <translation type="gpt-4o-generated">Die Option &lt;b&gt;Kartenbasiert&lt;/b&gt; ist nur verfügbar, wenn einige &lt;b&gt;Kartendaten&lt;/b&gt; heruntergeladen wurden!</translation>
     </message>
 </context>
 <context>
@@ -2445,48 +2461,8 @@
         <translation type="gpt-4o-generated">Der "Modell-Zufallsgenerator" funktioniert nur mit heruntergeladenen Modellen. Möchten Sie alle Fahrmodelle herunterladen?</translation>
     </message>
     <message>
-        <source>Update Tinygrad</source>
-        <translation type="gpt-4o-generated">Tinygrad aktualisieren</translation>
-    </message>
-    <message>
-        <source>Update the Tinygrad model process to support the latest models.</source>
-        <translation type="gpt-4o-generated">Aktualisieren Sie den Tinygrad-Modellprozess, um die neuesten Modelle zu unterstützen.</translation>
-    </message>
-    <message>
-        <source>UPDATE</source>
-        <translation type="gpt-4o-generated">AKTUALISIEREN</translation>
-    </message>
-    <message>
-        <source>Cancelling...</source>
-        <translation type="gpt-4o-generated">Abbrechen...</translation>
-    </message>
-    <message>
-        <source>This will redownload and recompile all of your Tinygrad models, so only proceed if you won't be driving for the next 30+ minutes!</source>
-        <translation type="gpt-4o-generated">Dies wird alle Ihre Tinygrad-Modelle erneut herunterladen und neu kompilieren. Fahren Sie also nur fort, wenn Sie in den nächsten 30+ Minuten nicht fahren werden!</translation>
-    </message>
-    <message>
-        <source>Updating...</source>
-        <translation type="gpt-4o-generated">Aktualisierung...</translation>
-    </message>
-    <message>
         <source>Offline...</source>
         <translation type="gpt-4o-generated">Offline...</translation>
-    </message>
-    <message>
-        <source>Update available!</source>
-        <translation type="gpt-4o-generated">Update verfügbar!</translation>
-    </message>
-    <message>
-        <source>Up to date!</source>
-        <translation type="gpt-4o-generated">Auf dem neuesten Stand!</translation>
-    </message>
-    <message>
-        <source>Updated!</source>
-        <translation type="gpt-4o-generated">Aktualisiert!</translation>
-    </message>
-    <message>
-        <source>This model requires a compilation process that will take a few minutes. Do you wish to continue?</source>
-        <translation type="gpt-4o-generated">Dieses Modell erfordert einen Kompilierungsprozess, der einige Minuten dauern wird. Möchten Sie fortfahren?</translation>
     </message>
 </context>
 <context>
@@ -3165,10 +3141,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>Turn Signal</source>
         <translation type="gpt-4o-generated">Blinker</translation>
-    </message>
-    <message>
-        <source>Offline...</source>
-        <translation type="gpt-4o-generated">Offline...</translation>
     </message>
 </context>
 <context>
@@ -4632,10 +4604,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
 <context>
     <name>QObject</name>
     <message>
-        <source>Reboot</source>
-        <translation>Neustart</translation>
-    </message>
-    <message>
         <source>Exit</source>
         <translation>Verlassen</translation>
     </message>
@@ -4683,6 +4651,10 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>FrogPilot</source>
         <translation type="gpt-4o-generated">FrogPilot</translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation type="gpt-4o-generated">Wiederherstellen</translation>
     </message>
 </context>
 <context>

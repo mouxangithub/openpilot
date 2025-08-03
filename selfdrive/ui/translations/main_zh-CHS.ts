@@ -1992,42 +1992,6 @@
         <translation type="gpt-4o-generated">openpilot开始进入停止状态的速度。较高的值会更早刹车以实现更平稳的停车，但可能会过早停止；较低的值则等待时间更长，可能会超出。</translation>
     </message>
     <message>
-        <source>Curve Speed Controller</source>
-        <translation type="gpt-4o-generated">曲线速度控制器</translation>
-    </message>
-    <message>
-        <source>Automatically slows down for upcoming curves using data from your own driving, adapting to curves just like you would.</source>
-        <translation type="gpt-4o-generated">利用您自己的驾驶数据自动减速以应对即将到来的弯道，就像您自己一样适应弯道。</translation>
-    </message>
-    <message>
-        <source>Calibrated Lateral Acceleration</source>
-        <translation type="gpt-4o-generated">校准横向加速度</translation>
-    </message>
-    <message>
-        <source>Displays the learned lateral acceleration target based on your driving.</source>
-        <translation type="gpt-4o-generated">显示基于您的驾驶学习的横向加速度目标。</translation>
-    </message>
-    <message>
-        <source>Calibration Progress</source>
-        <translation type="gpt-4o-generated">校准进度</translation>
-    </message>
-    <message>
-        <source>How much driving data has been collected to personalize the vehicle's curve handling behavior.</source>
-        <translation type="gpt-4o-generated">已经收集了多少驾驶数据来个性化车辆的曲线处理行为。</translation>
-    </message>
-    <message>
-        <source>Reset Curve Data</source>
-        <translation type="gpt-4o-generated">重置曲线数据</translation>
-    </message>
-    <message>
-        <source>Reset collected user data for &lt;b&gt;Curve Speed Control&lt;/b&gt;.</source>
-        <translation type="gpt-4o-generated">重置&lt;b&gt;曲线速度控制&lt;/b&gt;的收集用户数据。</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to completely reset your curvature data?</source>
-        <translation type="gpt-4o-generated">您确定要完全重置您的曲率数据吗？</translation>
-    </message>
-    <message>
         <source>Speed Offset (0–24 mph)</source>
         <translation type="gpt-4o-generated">速度偏移（0–24 英里/小时）</translation>
     </message>
@@ -2086,6 +2050,58 @@
     <message>
         <source>Speed Offset (120–140 km/h)</source>
         <translation type="gpt-4o-generated">速度偏移（120–140 km/h）</translation>
+    </message>
+    <message>
+        <source>Curve Speed Control</source>
+        <translation type="gpt-4o-generated">曲线速度控制</translation>
+    </message>
+    <message>
+        <source>Automatically slow down for upcoming curves using downloaded maps or the driving model.</source>
+        <translation type="gpt-4o-generated">使用下载的地图或驾驶模型自动减速以应对即将到来的弯道。</translation>
+    </message>
+    <message>
+        <source>Curve Detection Method</source>
+        <translation type="gpt-4o-generated">曲线检测方法</translation>
+    </message>
+    <message>
+        <source>How curves are detected. &lt;b&gt;Map-Based&lt;/b&gt; uses downloaded map data to identify curves and determine the appropriate speed in which to handle them at, while &lt;b&gt;Vision&lt;/b&gt; relies solely on the driving model.</source>
+        <translation type="gpt-4o-generated">如何检测曲线。&lt;b&gt;基于地图&lt;/b&gt;使用下载的地图数据来识别曲线并确定处理它们的适当速度，而&lt;b&gt;视觉&lt;/b&gt;则完全依赖于驾驶模型。</translation>
+    </message>
+    <message>
+        <source>Curve Detection Failsafe</source>
+        <translation type="gpt-4o-generated">曲线检测故障保护</translation>
+    </message>
+    <message>
+        <source>Only trigger &lt;b&gt;Curve Speed Control&lt;/b&gt; if a curve is detected with the model while using the &lt;b&gt;Map-Based&lt;/b&gt; method. Useful to help prevent false positives.</source>
+        <translation type="gpt-4o-generated">仅在使用&lt;b&gt;基于地图&lt;/b&gt;方法时检测到曲线时触发&lt;b&gt;曲线速度控制&lt;/b&gt;。有助于防止误报。</translation>
+    </message>
+    <message>
+        <source>Curve Detection Sensitivity</source>
+        <translation type="gpt-4o-generated">曲线检测灵敏度</translation>
+    </message>
+    <message>
+        <source>How sensitive openpilot is when detecting curves. Higher values trigger earlier responses at the risk of triggering too often, while lower values increase confidence at the risk of triggering too infrequently.</source>
+        <translation type="gpt-4o-generated">openpilot在检测曲线时的敏感度。较高的值会在更早的时间触发响应，但可能会过于频繁触发，而较低的值会增加信心，但可能触发过于不频繁。</translation>
+    </message>
+    <message>
+        <source>Curve Speed Aggressiveness</source>
+        <translation type="gpt-4o-generated">曲线速度激进性</translation>
+    </message>
+    <message>
+        <source>How aggressive openpilot is when navigating through curves. Higher values result in faster turns but may reduce comfort or stability, while lower values result in slower, smoother turns at the risk of being overly cautious.</source>
+        <translation type="gpt-4o-generated">openpilot在通过曲线时的激进程度。较高的值会导致转弯速度更快，但可能会降低舒适性或稳定性，而较低的值会导致转弯速度较慢、更平稳，但可能过于谨慎。</translation>
+    </message>
+    <message>
+        <source>Map Based</source>
+        <translation type="gpt-4o-generated">基于地图</translation>
+    </message>
+    <message>
+        <source>Vision</source>
+        <translation type="gpt-4o-generated">愿景</translation>
+    </message>
+    <message>
+        <source>The &lt;b&gt;Map Based&lt;/b&gt; option is only available when some &lt;b&gt;Map Data&lt;/b&gt; has been downloaded!</source>
+        <translation type="gpt-4o-generated">&lt;b&gt;基于地图&lt;/b&gt;的选项仅在下载了一些&lt;b&gt;地图数据&lt;/b&gt;后可用！</translation>
     </message>
 </context>
 <context>
@@ -2445,48 +2461,8 @@
         <translation type="gpt-4o-generated">“模型随机器”仅适用于已下载的模型。您想下载所有驾驶模型吗？</translation>
     </message>
     <message>
-        <source>Update Tinygrad</source>
-        <translation type="gpt-4o-generated">更新Tinygrad</translation>
-    </message>
-    <message>
-        <source>Update the Tinygrad model process to support the latest models.</source>
-        <translation type="gpt-4o-generated">更新Tinygrad模型流程以支持最新模型。</translation>
-    </message>
-    <message>
-        <source>UPDATE</source>
-        <translation type="gpt-4o-generated">更新</translation>
-    </message>
-    <message>
-        <source>Cancelling...</source>
-        <translation type="gpt-4o-generated">取消中...</translation>
-    </message>
-    <message>
-        <source>This will redownload and recompile all of your Tinygrad models, so only proceed if you won't be driving for the next 30+ minutes!</source>
-        <translation type="gpt-4o-generated">这将重新下载并重新编译您所有的Tinygrad模型，因此只有在接下来的30分钟内不需要开车时才继续进行！</translation>
-    </message>
-    <message>
-        <source>Updating...</source>
-        <translation type="gpt-4o-generated">正在更新...</translation>
-    </message>
-    <message>
         <source>Offline...</source>
         <translation type="gpt-4o-generated">离线...</translation>
-    </message>
-    <message>
-        <source>Update available!</source>
-        <translation type="gpt-4o-generated">更新可用！</translation>
-    </message>
-    <message>
-        <source>Up to date!</source>
-        <translation type="gpt-4o-generated">最新！</translation>
-    </message>
-    <message>
-        <source>Updated!</source>
-        <translation type="gpt-4o-generated">已更新！</translation>
-    </message>
-    <message>
-        <source>This model requires a compilation process that will take a few minutes. Do you wish to continue?</source>
-        <translation type="gpt-4o-generated">此模型需要一个编译过程，大约需要几分钟。您是否希望继续？</translation>
     </message>
 </context>
 <context>
@@ -3169,10 +3145,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>Turn Signal</source>
         <translation type="gpt-4o-generated">转向灯</translation>
-    </message>
-    <message>
-        <source>Offline...</source>
-        <translation type="gpt-4o-generated">离线...</translation>
     </message>
 </context>
 <context>
@@ -4635,10 +4607,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
 <context>
     <name>QObject</name>
     <message>
-        <source>Reboot</source>
-        <translation>重启</translation>
-    </message>
-    <message>
         <source>Exit</source>
         <translation>退出</translation>
     </message>
@@ -4683,6 +4651,10 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>FrogPilot</source>
         <translation type="gpt-4o-generated">FrogPilot</translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation type="gpt-4o-generated">恢复</translation>
     </message>
 </context>
 <context>
@@ -4761,7 +4733,7 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>FrogPilot</source>
-        <translation type="gpt-4o-generated">青蛙</translation>
+        <translation type="gpt-4o-generated">FrogPilot</translation>
     </message>
     <message>
         <source>Welcome to FrogPilot! Since you're new to FrogPilot, the "Minimal" toggle preset has been applied, but you can change this at any time via the "Tuning Level" button!</source>
@@ -5395,35 +5367,6 @@ This may take up to a minute.</source>
     <message>
         <source>Forget</source>
         <translation>忽略</translation>
-    </message>
-</context>
-<context>
-    <name>TSKKeyboard</name>
-    <message>
-        <source>TSK Keyboard</source>
-        <translation>汽车安全密钥</translation>
-    </message>
-    <message>
-        <source>INSTALL</source>
-        <translation>安装</translation>
-    </message>
-    <message>
-        <source>Archived key: </source>
-        <translation>存储密钥</translation>
-    </message>
-    <message>
-        <source>Enter your Car Security Key</source>
-        <translation>请输入您的汽车安全密钥</translation>
-    </message>
-    <message>
-        <source>Success!
-Restart comma to have openpilot use the key</source>
-        <translation>安装成功！
-重启您的设备让openpilot使用该密钥</translation>
-    </message>
-    <message>
-        <source>Invalid key: %1</source>
-        <translation>无效密钥: %1</translation>
     </message>
 </context>
 </TS>

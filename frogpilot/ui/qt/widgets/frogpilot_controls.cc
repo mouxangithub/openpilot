@@ -30,6 +30,8 @@ void loadImage(const QString &basePath, QPixmap &pixmap, QSharedPointer<QMovie> 
 
   QFileInfo gifFile(basePath + ".gif");
   if (gifFile.exists()) {
+    QProcess::execute("gifsicle", QStringList() << "-O3" << gifFile.filePath() << "-o" << gifFile.filePath());
+
     QSharedPointer<QMovie> gif(new QMovie(gifFile.filePath()));
     if (!gif->isValid()) {
       pixmap = loadPixmap(basePath + ".png", size, aspectRatioMode);

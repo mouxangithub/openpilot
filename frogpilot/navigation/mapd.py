@@ -46,8 +46,8 @@ def download():
 
         os.fsync(version_file.fileno())
       return
-    except Exception as error:
-      print(f"Failed to download mapd from {url}: {error}")
+    except Exception as exception:
+      print(f"Failed to download mapd from {url}: {exception}")
 
 def get_latest_version():
   while not (is_url_pingable("https://github.com") or is_url_pingable("https://gitlab.com")):
@@ -57,8 +57,8 @@ def get_latest_version():
     try:
       with urllib.request.urlopen(url, timeout=10) as response:
         return json.loads(response.read().decode("utf-8"))["version"]
-    except Exception as error:
-      print(f"Error fetching mapd version from {url}: {error}")
+    except Exception as exception:
+      print(f"Error fetching mapd version from {url}: {exception}")
   return "v0"
 
 def mapd_thread():
@@ -84,15 +84,15 @@ def mapd_thread():
       print(f"{MAPD_PATH} is not executable. Fixing permissions...")
       try:
         os.chmod(MAPD_PATH, os.stat(MAPD_PATH).st_mode | stat.S_IEXEC)
-      except Exception as e:
-        print(f"Failed to set executable permissions on {MAPD_PATH}: {e}")
+      except Exception as exception:
+        print(f"Failed to set executable permissions on {MAPD_PATH}: {exception}")
         continue
 
     try:
       process = subprocess.Popen(str(MAPD_PATH))
       process.wait()
-    except FileNotFoundError as e:
-      print(f"Subprocess failed: {e}")
+    except FileNotFoundError as error:
+      print(f"Subprocess failed: {error}")
       download()
 
 def main():

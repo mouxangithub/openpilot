@@ -146,8 +146,8 @@ class SpeedLimitController:
         successful = True
 
         return response.json()
-      except Exception as error:
-        print(f"Unexpected error in Mapbox request: {error}")
+      except Exception as exception:
+        print(f"Unexpected error in Mapbox request: {exception}")
       finally:
         self.calling_mapbox = False
 
@@ -192,8 +192,8 @@ class SpeedLimitController:
         self.mapbox_limit = 0
         self.segment_distance = v_ego
 
-      except Exception as error:
-        print(f"Mapbox Callback Error: {error}")
+      except Exception as exception:
+        print(f"Mapbox Callback Error: {exception}")
         self.mapbox_limit = 0
         self.segment_distance = v_ego
 

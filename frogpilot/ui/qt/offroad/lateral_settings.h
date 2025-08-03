@@ -39,10 +39,10 @@ private:
 
   std::map<QString, AbstractControl*> toggles;
 
-  std::set<QString> advancedLateralTuneKeys = {"ForceAutoTune", "ForceAutoTuneOff", "SteerDelay", "SteerFriction", "SteerLatAccel", "SteerKP", "SteerRatio"};
+  std::set<QString> advancedLateralTuneKeys = {"ForceAutoTune", "ForceAutoTuneOff", "ForceTorqueController", "SteerDelay", "SteerFriction", "SteerLatAccel", "SteerKP", "SteerRatio"};
   std::set<QString> aolKeys = {"AlwaysOnLateralLKAS", "AlwaysOnLateralMain", "PauseAOLOnBrake"};
   std::set<QString> laneChangeKeys = {"LaneChangeTime", "LaneDetectionWidth", "MinimumLaneChangeSpeed", "NudgelessLaneChange", "OneLaneChange"};
-  std::set<QString> lateralTuneKeys = {"ForceTorqueController", "NNFF", "NNFFLite", "TurnDesires"};
+  std::set<QString> lateralTuneKeys = {"NNFF", "NNFFLite", "TurnDesires"};
   std::set<QString> qolKeys = {"PauseLateralSpeed"};
 
   std::set<QString> parentKeys;

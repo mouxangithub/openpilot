@@ -160,8 +160,8 @@ class MapSpeedLogger:
 
       response.raise_for_status()
       return response.json().get("elements", [])
-    except requests.exceptions.RequestException as error:
-      print(f"Overpass API request failed: {error}")
+    except requests.exceptions.RequestException as exception:
+      print(f"Overpass API request failed: {exception}")
       self.cached_segments.clear()
       return []
 
@@ -403,9 +403,9 @@ def main():
       else:
         time.sleep(5)
 
-    except Exception as error:
-      print(f"Error in speed_limit_filler: {error}")
-      sentry.capture_exception(error)
+    except Exception as exception:
+      print(f"Error in speed_limit_filler: {exception}")
+      sentry.capture_exception(exception)
       time.sleep(1)
 
 if __name__ == "__main__":

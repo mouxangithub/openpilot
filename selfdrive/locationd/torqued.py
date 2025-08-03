@@ -102,7 +102,7 @@ class TorqueEstimator(ParameterEstimator):
           cache_ltp = log_evt.liveTorqueParameters
         with car.CarParams.from_bytes(params_cache) as msg:
           cache_CP = msg
-        if self.get_restore_key(cache_CP, FPCP, cache_ltp.version) == self.get_restore_key(CP, VERSION):
+        if self.get_restore_key(cache_CP, FPCP, cache_ltp.version) == self.get_restore_key(CP, FPCP, VERSION):
           if cache_ltp.liveValid:
             initial_params = {
               'latAccelFactor': cache_ltp.latAccelFactorFiltered,

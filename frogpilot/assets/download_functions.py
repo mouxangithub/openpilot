@@ -26,8 +26,8 @@ def check_github_rate_limit(session):
     print("GitHub rate limit reached")
     print(f"GitHub Rate Limit Resets At (UTC): {reset_time}")
     return False
-  except requests.exceptions.RequestException as error:
-    print(f"Error checking GitHub rate limit: {error}")
+  except requests.exceptions.RequestException as exception:
+    print(f"Error checking GitHub rate limit: {exception}")
     return False
 
 def download_file(cancel_param, destination, progress_param, url, download_param, session, files=1, file_number=1):
@@ -67,16 +67,16 @@ def download_file(cancel_param, destination, progress_param, url, download_param
 
         temp_file_path.rename(destination)
 
-  except Exception as error:
-    handle_request_error(error, destination, download_param, progress_param)
+  except Exception as exception:
+    handle_request_error(exception, destination, download_param, progress_param)
 
 def get_remote_file_size(url, session):
   try:
     response = session.head(url, headers={"Accept-Encoding": "identity"}, timeout=10)
     response.raise_for_status()
     return int(response.headers.get("Content-Length", 0))
-  except Exception as error:
-    handle_request_error(error, None, None, None)
+  except Exception as exception:
+    handle_request_error(exception, None, None, None)
     return 0
 
 def get_repository_url(session):

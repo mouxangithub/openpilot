@@ -290,8 +290,8 @@ def setup(app):
           try:
             result = future.result()
             yield f"data: {json.dumps({'routes': [result]})}\n\n"
-          except Exception as e:
-            print(f"Error processing route: {e}")
+          except Exception as exception:
+            print(f"Error processing route: {exception}")
           yield f"data: {json.dumps({'progress': processed, 'total': total})}\n\n"
 
         for path, name in routes:
@@ -518,8 +518,8 @@ def setup(app):
           try:
             result = future.result()
             yield f"data: {json.dumps({'recordings': [result]})}\n\n"
-          except Exception as e:
-            print(f"Error processing recording: {e}")
+          except Exception as exception:
+            print(f"Error processing recording: {exception}")
 
           yield f"data: {json.dumps({'progress': processed, 'total': total})}\n\n"
 
@@ -1211,8 +1211,8 @@ def setup(app):
           resp = requests.post(DISCORD_WEBHOOK_URL, json=payload)
           if resp.status_code not in (200, 204):
             print(f"Discord notification failed: {resp.status_code} {resp.text}")
-        except Exception as e:
-          print(f"Error sending Discord message: {e}")
+        except Exception as exception:
+          print(f"Error sending Discord message: {exception}")
 
       asset_types = []
       submission_urls = {}
@@ -1296,8 +1296,8 @@ def setup(app):
         "branches": submission_urls
       }), 200
 
-    except Exception as e:
-      return jsonify({"error": str(e)}), 500
+    except Exception as exception:
+      return jsonify({"error": str(exception)}), 500
 
     finally:
       if "theme_path" in locals() and theme_path.parent.exists():

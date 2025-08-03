@@ -4,7 +4,6 @@ from cereal import car, custom
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.numpy_fast import mean
 from openpilot.common.filter_simple import FirstOrderFilter
-from openpilot.common.params import Params
 from openpilot.common.realtime import DT_CTRL
 from opendbc.can.can_define import CANDefine
 from opendbc.can.parser import CANParser
@@ -208,7 +207,7 @@ class CarState(CarStateBase):
     if self.CP.carFingerprint in (TSS2_CAR - RADAR_ACC_CAR) or (self.CP.flags & ToyotaFlags.SMART_DSU and not self.CP.flags & ToyotaFlags.RADAR_CAN_FILTER):
       # distance button is wired to the ACC module (camera or radar)
       self.prev_distance_button = self.distance_button
-      if self.CP.carFingerprint in (SECOC_CAR - RADAR_ACC_CAR) and self.SP.carFingerprint != CAR.TOYOTA_WILDLANDER_PHEV:
+      if self.CP.carFingerprint in (SECOC_CAR - RADAR_ACC_CAR):
         self.distance_button = cp.vl["PCM_CRUISE_4"]["DISTANCE"]
       elif self.CP.carFingerprint in (TSS2_CAR - RADAR_ACC_CAR):
         self.distance_button = cp_acc.vl["ACC_CONTROL"]["DISTANCE"]
@@ -277,9 +276,8 @@ class CarState(CarStateBase):
         ("GEAR_PACKET_HYBRID", 60),
         ("SECOC_SYNCHRONIZATION", 10),
         ("GAS_PEDAL", 42),
+        ("PCM_CRUISE_4", 1),
       ]
-      if CP.carFingerprint not in RADAR_ACC_CAR and CP.carFingerprint  != CAR.TOYOTA_WILDLANDER_PHEV:
-        messages.append(("PCM_CRUISE_4", 1))
     else:
       messages.append(("VSC1S07", 20))
       if CP.carFingerprint not in [CAR.TOYOTA_MIRAI]:

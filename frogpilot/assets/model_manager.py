@@ -368,8 +368,8 @@ class ModelManager:
       else:
         return {file["name"]: file["size"] for file in model_files if "size" in file}
 
-    except Exception as error:
-      handle_request_error(f"Failed to fetch model sizes from {'GitHub' if 'github' in repo_url else 'GitLab'}: {error}", None, None, None)
+    except Exception as exception:
+      handle_request_error(f"Failed to fetch model sizes from {'GitHub' if 'github' in repo_url else 'GitLab'}: {exception}", None, None, None)
       return {}
 
   def fetch_models(self, url, repo_url, boot_run=False):
@@ -382,8 +382,8 @@ class ModelManager:
         self.update_model_params(model_info)
         self.check_models(boot_run, repo_url)
         self.check_tinygrad(boot_run, repo_url)
-    except Exception as error:
-      handle_request_error(error, None, None, None)
+    except Exception as exception:
+      handle_request_error(exception, None, None, None)
       return []
 
   def load_model_sizes(self):
@@ -532,8 +532,8 @@ class ModelManager:
 
       update_frogpilot_toggles()
 
-    except Exception as e:
-      handle_error(tinygrad_tar_path, "Update Failed", f"An unexpected error occurred: {e}", UPDATE_TINYGRAD_PARAM, DOWNLOAD_PROGRESS_PARAM)
+    except Exception as exception:
+      handle_error(tinygrad_tar_path, "Update Failed", f"An unexpected error occurred: {exception}", UPDATE_TINYGRAD_PARAM, DOWNLOAD_PROGRESS_PARAM)
 
   def wait_for_offroad(self, sm):
     while sm["deviceState"].started and sm["carState"].gearShifter != GearShifter.park:

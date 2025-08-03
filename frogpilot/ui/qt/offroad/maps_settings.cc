@@ -177,12 +177,12 @@ void FrogPilotMapsPanel::updateState(const UIState &s, const FrogPilotUIState &f
 
   bool parked = !s.scene.started || fs.frogpilot_scene.parked || fs.frogpilot_toggles.value("frogs_go_moo").toBool();
 
-  downloadMapsButton->setEnabled(!cancellingDownload && hasMapsSelected && fs.frogpilot_scene.online && parked);
-  downloadMapsButton->setValue(fs.frogpilot_scene.online ? (parked ? "" : "Not parked") : tr("Offline..."));
-
   std::string osmDownloadProgress = params.get("OSMDownloadProgress");
   if (!osmDownloadProgress.empty() && !cancellingDownload) {
     updateDownloadLabels(osmDownloadProgress);
+  } else {
+    downloadMapsButton->setEnabled(!cancellingDownload && hasMapsSelected && fs.frogpilot_scene.online && parked);
+    downloadMapsButton->setValue(fs.frogpilot_scene.online ? (parked ? "" : "Not parked") : tr("Offline..."));
   }
 
   parent->keepScreenOn = !osmDownloadProgress.empty();

@@ -1992,42 +1992,6 @@
         <translation type="gpt-4o-generated">السرعة التي يبدأ فيها openpilot بالدخول في حالة التوقف. القيم الأعلى تكبح في وقت مبكر لتوقفات أكثر سلاسة ولكن قد تتوقف في وقت مبكر جدًا؛ القيم الأدنى تنتظر لفترة أطول وقد تتجاوز النقطة المحددة.</translation>
     </message>
     <message>
-        <source>Curve Speed Controller</source>
-        <translation type="gpt-4o-generated">متحكم سرعة المنحنى</translation>
-    </message>
-    <message>
-        <source>Automatically slows down for upcoming curves using data from your own driving, adapting to curves just like you would.</source>
-        <translation type="gpt-4o-generated">يتباطأ تلقائيًا عند الاقتراب من المنحنيات باستخدام بيانات قيادتك الخاصة، ويتكيف مع المنحنيات تمامًا كما تفعل.</translation>
-    </message>
-    <message>
-        <source>Calibrated Lateral Acceleration</source>
-        <translation type="gpt-4o-generated">التسارع الجانبي المعاير</translation>
-    </message>
-    <message>
-        <source>Displays the learned lateral acceleration target based on your driving.</source>
-        <translation type="gpt-4o-generated">يعرض هدف التسارع الجانبي المكتسب بناءً على قيادتك.</translation>
-    </message>
-    <message>
-        <source>Calibration Progress</source>
-        <translation type="gpt-4o-generated">تقدم المعايرة</translation>
-    </message>
-    <message>
-        <source>How much driving data has been collected to personalize the vehicle's curve handling behavior.</source>
-        <translation type="gpt-4o-generated">كمية بيانات القيادة التي تم جمعها لتخصيص سلوك التعامل مع المنحنيات في السيارة.</translation>
-    </message>
-    <message>
-        <source>Reset Curve Data</source>
-        <translation type="gpt-4o-generated">إعادة تعيين بيانات المنحنى</translation>
-    </message>
-    <message>
-        <source>Reset collected user data for &lt;b&gt;Curve Speed Control&lt;/b&gt;.</source>
-        <translation type="gpt-4o-generated">إعادة تعيين البيانات المجمعة لمراقبة سرعة المنحنى.</translation>
-    </message>
-    <message>
-        <source>Are you sure you want to completely reset your curvature data?</source>
-        <translation type="gpt-4o-generated">هل أنت متأكد أنك تريد إعادة تعيين بيانات الانحناء بالكامل؟</translation>
-    </message>
-    <message>
         <source>Speed Offset (0–24 mph)</source>
         <translation type="gpt-4o-generated">إزاحة السرعة (0–24 ميل/ساعة)</translation>
     </message>
@@ -2086,6 +2050,58 @@
     <message>
         <source>Speed Offset (120–140 km/h)</source>
         <translation type="gpt-4o-generated">إزاحة السرعة (120-140 كم/س)</translation>
+    </message>
+    <message>
+        <source>Curve Speed Control</source>
+        <translation type="gpt-4o-generated">التحكم في سرعة المنحنى</translation>
+    </message>
+    <message>
+        <source>Automatically slow down for upcoming curves using downloaded maps or the driving model.</source>
+        <translation type="gpt-4o-generated">التباطؤ تلقائيًا للمنحنيات القادمة باستخدام الخرائط المحملة أو نموذج القيادة.</translation>
+    </message>
+    <message>
+        <source>Curve Detection Method</source>
+        <translation type="gpt-4o-generated">طريقة كشف المنحنى</translation>
+    </message>
+    <message>
+        <source>How curves are detected. &lt;b&gt;Map-Based&lt;/b&gt; uses downloaded map data to identify curves and determine the appropriate speed in which to handle them at, while &lt;b&gt;Vision&lt;/b&gt; relies solely on the driving model.</source>
+        <translation type="gpt-4o-generated">كيف يتم اكتشاف المنحنيات. يستخدم &lt;b&gt;المستند إلى الخريطة&lt;/b&gt; بيانات الخريطة المحملة لتحديد المنحنيات وتحديد السرعة المناسبة للتعامل معها، بينما يعتمد &lt;b&gt;الرؤية&lt;/b&gt; فقط على نموذج القيادة.</translation>
+    </message>
+    <message>
+        <source>Curve Detection Failsafe</source>
+        <translation type="gpt-4o-generated">فشل اكتشاف المنحنى</translation>
+    </message>
+    <message>
+        <source>Only trigger &lt;b&gt;Curve Speed Control&lt;/b&gt; if a curve is detected with the model while using the &lt;b&gt;Map-Based&lt;/b&gt; method. Useful to help prevent false positives.</source>
+        <translation type="gpt-4o-generated">قم بتفعيل &lt;b&gt;التحكم في سرعة المنحنى&lt;/b&gt; فقط إذا تم اكتشاف منحنى باستخدام النموذج أثناء استخدام طريقة &lt;b&gt;المعتمدة على الخريطة&lt;/b&gt;. مفيد للمساعدة في منع الإيجابيات الكاذبة.</translation>
+    </message>
+    <message>
+        <source>Curve Detection Sensitivity</source>
+        <translation type="gpt-4o-generated">حساسية اكتشاف المنحنى</translation>
+    </message>
+    <message>
+        <source>How sensitive openpilot is when detecting curves. Higher values trigger earlier responses at the risk of triggering too often, while lower values increase confidence at the risk of triggering too infrequently.</source>
+        <translation type="gpt-4o-generated">مدى حساسية openpilot عند اكتشاف المنحنيات. القيم الأعلى تؤدي إلى استجابات مبكرة مع خطر التفعيل بشكل متكرر، بينما القيم الأدنى تزيد الثقة مع خطر التفعيل بشكل غير متكرر.</translation>
+    </message>
+    <message>
+        <source>Curve Speed Aggressiveness</source>
+        <translation type="gpt-4o-generated">حدة سرعة المنحنى</translation>
+    </message>
+    <message>
+        <source>How aggressive openpilot is when navigating through curves. Higher values result in faster turns but may reduce comfort or stability, while lower values result in slower, smoother turns at the risk of being overly cautious.</source>
+        <translation type="gpt-4o-generated">مدى عدوانية openpilot عند التنقل عبر المنحنيات. تؤدي القيم الأعلى إلى انعطافات أسرع ولكن قد تقلل من الراحة أو الاستقرار، بينما تؤدي القيم الأقل إلى انعطافات أبطأ وأكثر سلاسة مع خطر أن تكون مفرطة في الحذر.</translation>
+    </message>
+    <message>
+        <source>Map Based</source>
+        <translation type="gpt-4o-generated">مبني على الخريطة</translation>
+    </message>
+    <message>
+        <source>Vision</source>
+        <translation type="gpt-4o-generated">رؤية</translation>
+    </message>
+    <message>
+        <source>The &lt;b&gt;Map Based&lt;/b&gt; option is only available when some &lt;b&gt;Map Data&lt;/b&gt; has been downloaded!</source>
+        <translation type="gpt-4o-generated">خيار &lt;b&gt;المستند إلى الخريطة&lt;/b&gt; متاح فقط عندما يتم تنزيل بعض &lt;b&gt;بيانات الخريطة&lt;/b&gt;!</translation>
     </message>
 </context>
 <context>
@@ -2445,48 +2461,8 @@
         <translation type="gpt-4o-generated">يعمل "Model Randomizer" فقط مع النماذج التي تم تنزيلها. هل تريد تنزيل جميع نماذج القيادة؟</translation>
     </message>
     <message>
-        <source>Update Tinygrad</source>
-        <translation type="gpt-4o-generated">تحديث Tinygrad</translation>
-    </message>
-    <message>
-        <source>Update the Tinygrad model process to support the latest models.</source>
-        <translation type="gpt-4o-generated">تحديث عملية نموذج Tinygrad لدعم النماذج الأحدث.</translation>
-    </message>
-    <message>
-        <source>UPDATE</source>
-        <translation type="gpt-4o-generated">تحديث</translation>
-    </message>
-    <message>
-        <source>Cancelling...</source>
-        <translation type="gpt-4o-generated">إلغاء...</translation>
-    </message>
-    <message>
-        <source>This will redownload and recompile all of your Tinygrad models, so only proceed if you won't be driving for the next 30+ minutes!</source>
-        <translation type="gpt-4o-generated">سيؤدي ذلك إلى إعادة تنزيل وإعادة تجميع جميع نماذج Tinygrad الخاصة بك، لذا تابع فقط إذا كنت لن تقود السيارة خلال الـ 30 دقيقة القادمة!</translation>
-    </message>
-    <message>
-        <source>Updating...</source>
-        <translation type="gpt-4o-generated">جارٍ التحديث...</translation>
-    </message>
-    <message>
         <source>Offline...</source>
         <translation type="gpt-4o-generated">غير متصل...</translation>
-    </message>
-    <message>
-        <source>Update available!</source>
-        <translation type="gpt-4o-generated">تحديث متاح!</translation>
-    </message>
-    <message>
-        <source>Up to date!</source>
-        <translation type="gpt-4o-generated">محدث!</translation>
-    </message>
-    <message>
-        <source>Updated!</source>
-        <translation type="gpt-4o-generated">محدث!</translation>
-    </message>
-    <message>
-        <source>This model requires a compilation process that will take a few minutes. Do you wish to continue?</source>
-        <translation type="gpt-4o-generated">يتطلب هذا النموذج عملية تجميع ستستغرق بضع دقائق. هل ترغب في المتابعة؟</translation>
     </message>
 </context>
 <context>
@@ -3169,10 +3145,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>Turn Signal</source>
         <translation type="gpt-4o-generated">إشارة الانعطاف</translation>
-    </message>
-    <message>
-        <source>Offline...</source>
-        <translation type="gpt-4o-generated">غير متصل...</translation>
     </message>
 </context>
 <context>
@@ -4640,10 +4612,6 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
 <context>
     <name>QObject</name>
     <message>
-        <source>Reboot</source>
-        <translation>إعادة التشغيل</translation>
-    </message>
-    <message>
         <source>Exit</source>
         <translation>إغلاق</translation>
     </message>
@@ -4703,6 +4671,10 @@ Want to submit your own animations? Share them in the "custom-themes" channel on
     <message>
         <source>FrogPilot</source>
         <translation type="gpt-4o-generated">FrogPilot</translation>
+    </message>
+    <message>
+        <source>Restore</source>
+        <translation type="gpt-4o-generated">استعادة</translation>
     </message>
 </context>
 <context>

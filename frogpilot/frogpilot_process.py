@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import datetime
 import json
+import os
 import time
 
 import openpilot.system.sentry as sentry
@@ -16,6 +17,7 @@ from openpilot.frogpilot.common.frogpilot_utilities import flash_panda, is_url_p
 from openpilot.frogpilot.common.frogpilot_variables import ERROR_LOGS_PATH, FrogPilotVariables, get_frogpilot_toggles, params, params_cache, params_memory
 from openpilot.frogpilot.controls.frogpilot_planner import FrogPilotPlanner
 from openpilot.frogpilot.controls.lib.frogpilot_tracking import FrogPilotTracking
+from openpilot.frogpilot.system.frogpilot_stats import send_stats
 
 ASSET_CHECK_RATE = (1 / DT_MDL)
 
@@ -51,7 +53,7 @@ def assets_checks(model_manager, theme_manager, sm):
     if asset_to_download:
       run_thread_with_lock("download_theme", theme_manager.download_theme, (asset_type, asset_to_download, param))
 
-def update_checks(manually_updated, model_manager, now, started, theme_manager, sm, frogpilot_toggles, boot_run=False):
+def update_checks(manually_updated, model_manager, now, theme_manager, frogpilot_toggles, boot_run=False):
   while not (is_url_pingable("https://github.com") or is_url_pingable("https://gitlab.com")):
     time.sleep(60)
 
@@ -113,6 +115,9 @@ def frogpilot_thread():
       if frogpilot_toggles.random_themes:
         theme_manager.update_active_theme(time_validated, frogpilot_toggles, randomize_theme=True)
 
+      if time_validated and is_url_pingable(os.environ.get("STATS_URL", "")):
+        send_stats()
+
       params_memory.put_bool("IsOnroad", False)
 
     elif started and not started_previously:
@@ -168,7 +173,7 @@ def frogpilot_thread():
 
     if run_update_checks:
       theme_manager.update_active_theme(time_validated, frogpilot_toggles)
-      run_thread_with_lock("update_checks", update_checks, (manually_updated, model_manager, now, started, theme_manager, sm, frogpilot_toggles))
+      run_thread_with_lock("update_checks", update_checks, (manually_updated, model_manager, now, theme_manager, frogpilot_toggles))
 
       run_update_checks = False
     elif not time_validated:
@@ -177,7 +182,7 @@ def frogpilot_thread():
         continue
 
       theme_manager.update_active_theme(time_validated, frogpilot_toggles)
-      run_thread_with_lock("update_checks", update_checks, (manually_updated, model_manager, now, started, theme_manager, sm, frogpilot_toggles, True))
+      run_thread_with_lock("update_checks", update_checks, (manually_updated, model_manager, now, theme_manager, frogpilot_toggles, True))
 
     rate_keeper.keep_time()
 
