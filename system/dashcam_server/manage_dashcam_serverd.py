@@ -24,11 +24,11 @@ def is_dashcam_server_enabled(params):
 
 def get_dashcam_server_port(params):
   """获取 dashcam server 端口"""
-  return params.get("DashcamServerPort", encoding='utf-8')
+  return params.get("DashcamServerPort")
 
 def is_dashcam_server_running(params, pid_param):
   """检测 dashcam server 是否正在运行"""
-  pid = params.get(pid_param, encoding='utf-8')
+  pid = params.get(pid_param)
   if pid is None:
     return False
 
@@ -55,7 +55,7 @@ def start_dashcam_server(params, pid_param, process_name, target):
 
 def stop_dashcam_server(params, pid_param, process_name):
   """停止 dashcam server"""
-  pid = params.get(pid_param, encoding='utf-8')
+  pid = params.get(pid_param)
   if pid is None:
     return
 
