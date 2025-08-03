@@ -68,6 +68,14 @@ ModelsPanel::ModelsPanel(QWidget *parent) : QWidget(parent) {
   connect(uiStateSP(), &UIStateSP::uiUpdate, this, &ModelsPanel::updateLabels);
   list->addItem(currentModelLblBtn);
 
+  refreshAvailableModelsBtn = new ButtonControlSP(tr("Refresh Model List"), tr("REFRESH"), "", this);
+  connect(refreshAvailableModelsBtn, &ButtonControlSP::clicked, this, [=]() {
+    params.put("ModelManager_LastSyncTime", "0");
+    ConfirmationDialog::alert(tr("Fetching Latest Models"), this);
+  });
+
+  list->addItem(refreshAvailableModelsBtn);
+
   clearModelCacheBtn = new ButtonControlSP(tr("Clear Model Cache"), tr("CLEAR"), "", this);
   connect(clearModelCacheBtn, &ButtonControlSP::clicked, this, &ModelsPanel::clearModelCache);
 
@@ -95,6 +103,14 @@ ModelsPanel::ModelsPanel(QWidget *parent) : QWidget(parent) {
   list->addItem(policyFrame);
 
   list->addItem(horizontal_line());
+
+  // Dynamic Modeld Outputs toggle
+  dynamicModeldOutputs = new ParamControlSP("DynamicModeldOutputs", tr("Allow Dynamic Model Outputs"),
+                                            tr("Enable this to allow potentially smoother Gas and Brake controls on all models produced "
+                                               "after September, 2024."),
+                                               "../assets/offroad/icon_shell.png");
+  dynamicModeldOutputs->showDescription();
+  list->addItem(dynamicModeldOutputs);
 
   // LiveDelay toggle
   lagd_toggle_control = new ParamControlSP("LagdToggle", tr("Live Learning Steer Delay"), "", "../assets/offroad/icon_shell.png");
@@ -356,6 +372,7 @@ void ModelsPanel::updateLabels() {
   handleBundleDownloadProgress();
   currentModelLblBtn->setEnabled(!is_onroad && !isDownloading());
   currentModelLblBtn->setValue(GetActiveModelInternalName());
+  dynamicModeldOutputs->showDescription();
 
   // Update lagdToggle description with current value
   QString desc = tr("Enable this for the car to learn and adapt its steering response time. "

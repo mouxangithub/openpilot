@@ -8,6 +8,21 @@
 #include "selfdrive/ui/sunnypilot/qt/offroad/settings/longitudinal_panel.h"
 
 LongitudinalPanel::LongitudinalPanel(QWidget *parent) : QWidget(parent) {
+  setStyleSheet(R"(
+    #back_btn {
+      font-size: 50px;
+      margin: 0px;
+      padding: 15px;
+      border-width: 0;
+      border-radius: 30px;
+      color: #dddddd;
+      background-color: #393939;
+    }
+    #back_btn:pressed {
+      background-color:  #4a4a4a;
+    }
+  )");
+
   main_layout = new QStackedLayout(this);
   ListWidget *list = new ListWidget(this, false);
 
@@ -23,7 +38,70 @@ LongitudinalPanel::LongitudinalPanel(QWidget *parent) : QWidget(parent) {
 
   QObject::connect(uiState(), &UIState::offroadTransition, this, &LongitudinalPanel::refresh);
 
+  // chill to experimental transition control
+  accToE2ETransitionControl = new ParamControlSP("BlendAccToE2ETransition",
+    tr("Blend chill to experimental mode transition"),
+    tr("Enable to blend braking desires when switching from chill to experimental in a smoother, more natural way. "
+      "This allows for a gradual transition when switching from ACC to E2E longitudinal control."),
+    "../assets/offroad/icon_shell.png", nullptr, true);
+  accToE2ETransitionControl->showDescription();
+  list->addItem(accToE2ETransitionControl);
+
+  // Vibe Personality Controller
+  vibePersonalityControl = new ParamControlSP("VibePersonalityEnabled",
+    tr("Vibe Personality Controller"),
+    tr("Advanced driving personality system with separate controls for acceleration behavior (Eco/Normal/Sport) and following distance/braking (Relaxed/Standard/Aggressive). "
+      "Customize your driving experience with independent acceleration and distance personalities."),
+    "../assets/offroad/icon_shell.png");
+  list->addItem(vibePersonalityControl);
+
+  connect(vibePersonalityControl, &ParamControlSP::toggleFlipped, [=]() {
+    refresh(offroad);
+  });
+
+  // Vibe Acceleration Personality
+  vibeAccelPersonalityControl = new ParamControlSP("VibeAccelPersonalityEnabled",
+    tr("Acceleration Personality"),
+    tr("Controls acceleration behavior: Eco (efficient), Normal (balanced), Sport (responsive). "
+      "Adjust how aggressively the vehicle accelerates while maintaining smooth operation."),
+    "../assets/offroad/icon_shell.png");
+  list->addItem(vibeAccelPersonalityControl);
+
+  // Vibe Following Distance Personality
+  vibeFollowPersonalityControl = new ParamControlSP("VibeFollowPersonalityEnabled",
+    tr("Following Distance Personality"),
+    tr("Controls following distance and braking behavior: Relaxed (longer distance, gentler braking), Standard (balanced), Aggressive (shorter distance, firmer braking). "
+      "Fine-tune your comfort level in traffic situations."),
+    "../assets/offroad/icon_shell.png");
+  list->addItem(vibeFollowPersonalityControl);
+
+  slcControl = new SpeedLimitControl(
+    "SpeedLimitControl",
+    tr("Speed Limit Control (SLC)"),
+    tr("When you engage ACC, you will be prompted to set the cruising speed to the speed limit of the road adjusted by the Offset and Source Policy specified, or the current driving speed. "
+      "The maximum cruising speed will always be the MAX set speed."),
+    "",
+    this);
+  list->addItem(slcControl);
+
+  connect(slcControl, &SpeedLimitControl::slcSettingsButtonClicked, [=]() {
+    cruisePanelScroller->setLastScrollPosition();
+    main_layout->setCurrentWidget(slcScreen);
+  });
+
+  slcScreen = new SpeedLimitControlSubpanel(this);
+  connect(slcScreen, &SpeedLimitControlSubpanel::backPress, [=]() {
+    cruisePanelScroller->restoreScrollPosition();
+    main_layout->setCurrentWidget(cruisePanelScreen);
+  });
+  visionTurnSpeedControl = new ParamControlSP("VisionTurnSpeedControl",
+    tr("Vision Turn Speed Controller"),
+    tr("Also known as V-TSC, this controller automatically slows down for curvature while OP longitudinal is engaged."),
+    "../assets/offroad/icon_shell.png");
+  list->addItem(visionTurnSpeedControl);
+
   main_layout->addWidget(cruisePanelScreen);
+  main_layout->addWidget(slcScreen);
   main_layout->setCurrentWidget(cruisePanelScreen);
   refresh(offroad);
 }
@@ -70,10 +148,26 @@ void LongitudinalPanel::refresh(bool _offroad) {
       customAccIncrement->showDescription();
     }
   }
+  bool vibePersonalityEnabled = params.getBool("VibePersonalityEnabled");
+  if (vibePersonalityEnabled) {
+    vibeAccelPersonalityControl->setVisible(true);
+    vibeFollowPersonalityControl->setVisible(true);
+  } else {
+    vibeAccelPersonalityControl->setVisible(false);
+    vibeFollowPersonalityControl->setVisible(false);
+  }
 
   // enable toggle when long is available and is not PCM cruise
   customAccIncrement->setEnabled(has_longitudinal_control && !is_pcm_cruise && !offroad);
   customAccIncrement->refresh();
+
+  // Vibe Personality controls - always enabled for toggling
+  vibePersonalityControl->setEnabled(true);
+  vibeAccelPersonalityControl->setEnabled(true);
+  vibeFollowPersonalityControl->setEnabled(true);
+  vibePersonalityControl->refresh();
+  vibeAccelPersonalityControl->refresh();
+  vibeFollowPersonalityControl->refresh();
 
   offroad = _offroad;
 }

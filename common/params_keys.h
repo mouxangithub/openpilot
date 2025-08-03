@@ -152,6 +152,10 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"QuietMode", PERSISTENT | BACKUP},
     {"RainbowMode", PERSISTENT},
     {"ShowAdvancedControls", PERSISTENT | BACKUP},
+    {"VisionTurnSpeedControl", PERSISTENT | BACKUP},
+
+    // Blend acc to e2e transition
+    {"BlendAccToE2ETransition", PERSISTENT | BACKUP},
 
     // MADS params
     {"Mads", PERSISTENT | BACKUP},
@@ -160,6 +164,7 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"MadsUnifiedEngagementMode", PERSISTENT | BACKUP},
 
     // Model Manager params
+    {"DynamicModeldOutputs", PERSISTENT | BACKUP},
     {"ModelManager_ActiveBundle", PERSISTENT},
     {"ModelManager_ClearCache", CLEAR_ON_MANAGER_START},
     {"ModelManager_DownloadIndex", CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION},
@@ -218,4 +223,24 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"DashcamServerPort", PERSISTENT | BACKUP},
     {"DashcamServerEnabled", PERSISTENT | BACKUP},
 
+    // toyota specific params
+    {"ToyotaAutoHold", PERSISTENT},
+    {"ToyotaEnhancedBsm", PERSISTENT},
+    {"ToyotaTSS2Long", PERSISTENT},
+    {"RainbowMode", PERSISTENT},
+    {"VibePersonalityEnabled", PERSISTENT},
+    {"VibeAccelPersonalityEnabled", PERSISTENT},
+    {"VibeFollowPersonalityEnabled", PERSISTENT},
+    {"AccelPersonality", PERSISTENT},
+    {"ToyotaDriveMode", PERSISTENT},
+    // Speed Limit Control
+    {"SpeedLimitControl", PERSISTENT | BACKUP},
+    {"SpeedLimitControlPolicy", PERSISTENT | BACKUP},
+    {"SpeedLimitEngageType", PERSISTENT | BACKUP},
+    {"SpeedLimitOffsetType", PERSISTENT | BACKUP},
+    {"SpeedLimitValueOffset", PERSISTENT | BACKUP},
+    {"SpeedLimitWarningType", PERSISTENT | BACKUP},
+    {"SpeedLimitWarningOffsetType", PERSISTENT | BACKUP},
+    {"SpeedLimitWarningValueOffset", PERSISTENT | BACKUP},
+    {"RoadEdgeLaneChangeEnabled", PERSISTENT | BACKUP},
 };

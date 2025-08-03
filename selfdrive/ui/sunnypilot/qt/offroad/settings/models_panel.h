@@ -67,6 +67,7 @@ private:
   bool is_onroad = false;
 
   ButtonControlSP *currentModelLblBtn;
+  ParamControlSP *dynamicModeldOutputs;
   ParamControlSP *lagd_toggle_control;
   OptionControlSP *delay_control;
   QProgressBar *supercomboProgressBar;
@@ -79,5 +80,6 @@ private:
   QFrame *policyFrame;
   Params params;
   ButtonControlSP *clearModelCacheBtn;
+  ButtonControlSP *refreshAvailableModelsBtn;
 
 };

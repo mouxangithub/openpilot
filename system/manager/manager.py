@@ -50,6 +50,7 @@ def manager_init() -> None:
   sunnypilot_default_params: list[tuple[str, str | bytes]] = [
     ("AutoLaneChangeTimer", "0"),
     ("AutoLaneChangeBsmDelay", "0"),
+    ("BlendAccToE2ETransition", "0"),
     ("BlindSpot", "0"),
     ("BlinkerMinLateralControlSpeed", "20"),  # MPH or km/h
     ("BlinkerPauseLateralControl", "0"),
@@ -61,6 +62,7 @@ def manager_init() -> None:
     ("DeviceBootMode", "0"),
     ("DisableUpdates", "0"),
     ("DynamicExperimentalControl", "0"),
+    ("DynamicModeldOutputs", "0"),
     ("HyundaiLongitudinalTuning", "0"),
     ("InteractivityTimeout", "0"),
     ("LagdToggle", "1"),
@@ -78,6 +80,27 @@ def manager_init() -> None:
     ("QuietMode", "0"),
     ("RainbowMode", "0"),
     ("ShowAdvancedControls", "0" if build_metadata.tested_channel else "1"),
+
+    ("ToyotaAutoHold", "0"),
+    ("ToyotaEnhancedBsm", "0"),
+    ("ToyotaTSS2Long", "0"),
+    ("VibePersonalityEnabled", "0"),
+    ("VibeAccelPersonalityEnabled", "0"),
+    ("VibeFollowPersonalityEnabled", "0"),
+    ("AccelPersonality", "1"),
+    ("ToyotaDriveMode", "0"),
+
+    ("VisionTurnSpeedControl", "1"),
+
+    ("SpeedLimitControl", "0"),
+    ("SpeedLimitControlPolicy", "3"),
+    ("SpeedLimitEngageType", "0"),
+    ("SpeedLimitOffsetType", "0"),
+    ("SpeedLimitValueOffset", "0"),
+    ("SpeedLimitWarningType", "0"),
+    ("SpeedLimitWarningOffsetType", "0"),
+    ("SpeedLimitWarningValueOffset", "0"),
+    ("RoadEdgeLaneChangeEnabled", "1"),
   ]
 
   # device boot mode
