@@ -157,7 +157,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventNameSP.speedLimitActive: {
     ET.WARNING: Alert(
-      "设定速度调整以符合限速规定",
+      "设定速度已调整以符合限速标志",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 3.),
@@ -174,5 +174,4 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
   EventNameSP.speedLimitValueChange: {
     ET.WARNING: speed_limit_adjust_alert,
   },
-
 }

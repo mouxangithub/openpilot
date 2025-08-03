@@ -224,6 +224,10 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"OsmWayTest", PERSISTENT},
     {"RoadName", CLEAR_ON_ONROAD_TRANSITION},
 
+    {"DashcamServerPid", PERSISTENT},
+    {"DashcamServerPort", PERSISTENT | BACKUP},
+    {"DashcamServerEnabled", PERSISTENT | BACKUP},
+
     // toyota specific params
     {"ToyotaAutoHold", PERSISTENT},
     {"ToyotaEnhancedBsm", PERSISTENT},
@@ -243,9 +247,5 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"SpeedLimitWarningType", PERSISTENT | BACKUP},
     {"SpeedLimitWarningOffsetType", PERSISTENT | BACKUP},
     {"SpeedLimitWarningValueOffset", PERSISTENT | BACKUP},
-    {"DashcamServerPid", PERSISTENT},
-    {"DashcamServerPort", PERSISTENT | BACKUP},
-    {"DashcamServerEnabled", PERSISTENT | BACKUP},
-
     {"RoadEdgeLaneChangeEnabled", PERSISTENT | BACKUP},
 };

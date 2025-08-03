@@ -92,7 +92,6 @@ protected:
   ButtonParamControl *accel_personality_setting;
   ButtonControl *dashcam_port_btn;
 
-
   virtual void updateToggles();
   void updateDashcamPortButton();
 };
