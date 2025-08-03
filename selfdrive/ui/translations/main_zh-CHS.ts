@@ -953,6 +953,14 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <translation>长按</translation>
     </message>
     <message>
+        <source>Blend chill to experimental mode transition</source>
+        <translation>融合轻松模式向实验模式过渡</translation>
+    </message>
+    <message>
+        <source>Enable to blend braking desires when switching from chill to experimental in a smoother, more natural way. This allows for a gradual transition when switching from ACC to E2E longitudinal control.</source>
+        <translation>在从轻松模式切换到实验模式时，能够以更平滑、更自然的方式融合刹车需求。这允许在从ACC切换到E2E纵向控制时实现渐进的过渡。</translation>
+    </message>
+    <message>
         <source>Speed Limit Control (SLC)</source>
         <translation>限速控制（SLC）</translation>
     </message>
@@ -987,6 +995,14 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     <message>
         <source>Also known as V-TSC, this controller automatically slows down for curvature while OP longitudinal is engaged.</source>
         <translation>该控制器也被称为V-TSC，在OP纵向接合时，它能根据曲率自动减速。</translation>
+    </message>
+    <message>
+        <source>Blend chill to experimental mode transition</source>
+        <translation>混合轻松模式到实验模式过渡</translation>
+    </message>
+    <message>
+        <source>Enable to blend braking desires when switching from chill to experimental in a smoother, more natural way. This allows for a gradual transition when switching from ACC to E2E longitudinal control.</source>
+        <translation>在从轻松模式切换到实验模式时，能够以更平滑、更自然的方式混合刹车需求。这使得从自适应巡航控制（ACC）切换到端到端纵向控制时，可以实现渐进式过渡。</translation>
     </message>
     <message>
         <source>Vibe Personality Controller</source>
@@ -2736,7 +2752,7 @@ Data</source>
     </message>
     <message>
         <source>Backup Failed</source>
-        <translation>>备份失败</translation>
+        <translation>备份失败</translation>
     </message>
     <message>
         <source>Settings backup completed.</source>
