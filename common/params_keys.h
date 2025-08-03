@@ -34,7 +34,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"DisablePowerDown", {PERSISTENT | BACKUP, BOOL}},
     {"DisableUpdates", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"DisengageOnAccelerator", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"DistractionDetectionLevel", {PERSISTENT | BACKUP, BOOL}},
+    {"DistractionDetectionLevel", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"DongleId", {PERSISTENT, STRING}},
     {"DoReboot", {CLEAR_ON_MANAGER_START, BOOL}},
     {"DoShutdown", {CLEAR_ON_MANAGER_START, BOOL}},
@@ -69,7 +69,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"IsTakingSnapshot", {CLEAR_ON_MANAGER_START, BOOL}},
     {"IsTestedBranch", {CLEAR_ON_MANAGER_START, BOOL}},
     {"JoystickDebugMode", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, BOOL}},
-    {"LanguageSetting", {PERSISTENT | BACKUP, STRING, "main_en"}},
+    {"LanguageSetting", {PERSISTENT | BACKUP, STRING, "zh_CN"}},
     {"LastAthenaPingTime", {CLEAR_ON_MANAGER_START, INT}},
     {"LastGPSPosition", {PERSISTENT, STRING}},
     {"LastManagerExitReason", {CLEAR_ON_MANAGER_START, STRING}},
@@ -157,6 +157,10 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"QuickBootToggle", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"QuietMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ShowAdvancedControls", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"VisionTurnSpeedControl", {PERSISTENT | BACKUP, BOOL, "1"}},
+
+    // Blend acc to e2e transition
+    {"BlendAccToE2ETransition", {PERSISTENT | BACKUP, BOOL, "0"}},
 
     // MADS params
     {"Mads", {PERSISTENT | BACKUP, BOOL, "1"}},
@@ -165,6 +169,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MadsUnifiedEngagementMode", {PERSISTENT | BACKUP, BOOL, "1"}},
 
     // Model Manager params
+    {"DynamicModeldOutputs", {PERSISTENT | BACKUP, BOOL}},
     {"ModelManager_ActiveBundle", {PERSISTENT, STRING}},
     {"ModelManager_ClearCache", {CLEAR_ON_MANAGER_START, BOOL}},
     {"ModelManager_DownloadIndex", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, INT, "0"}},
@@ -192,7 +197,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     {"DynamicExperimentalControl", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"BlindSpot", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"RainbowMode", {PERSISTENT | BACKUP, BOOL}},
 
     // model panel params
     {"LagdToggle", {PERSISTENT | BACKUP, BOOL, "1"}},
@@ -219,7 +223,27 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"OsmWayTest", {PERSISTENT, STRING}},
     {"RoadName", {CLEAR_ON_ONROAD_TRANSITION, STRING, ""}},
 
-    {"DashcamServerPid", {PERSISTENT, STRING}},
-    {"DashcamServerPort", {PERSISTENT | BACKUP, BOOL}},
-    {"DashcamServerEnabled", {PERSISTENT | BACKUP, BOOL}},
+    // toyota specific params
+    {"ToyotaAutoHold", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"ToyotaEnhancedBsm", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"ToyotaTSS2Long", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"RainbowMode", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"VibePersonalityEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"VibeAccelPersonalityEnabled", {PERSISTENT | BACKUP, STRING, "0"}},
+    {"VibeFollowPersonalityEnabled", {PERSISTENT | BACKUP, STRING, "0"}},
+    {"AccelPersonality", {PERSISTENT | BACKUP, STRING, "1"}},
+    {"ToyotaDriveMode", {PERSISTENT | BACKUP, BOOL, "0"}},
+    // Speed Limit Control
+    {"SpeedLimitControl", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"SpeedLimitControlPolicy", {PERSISTENT | BACKUP, STRING, "3"}},
+    {"SpeedLimitEngageType", {PERSISTENT | BACKUP, STRING, "0"}},
+    {"SpeedLimitOffsetType", {PERSISTENT | BACKUP, STRING, "0"}},
+    {"SpeedLimitValueOffset", {PERSISTENT | BACKUP, STRING, "0"}},
+    {"SpeedLimitWarningType", {PERSISTENT | BACKUP, STRING, "0"}},
+    {"SpeedLimitWarningOffsetType", {PERSISTENT | BACKUP, STRING, "0"}},
+    {"SpeedLimitWarningValueOffset", {PERSISTENT | BACKUP, STRING, "0"}},
+    {"RoadEdgeLaneChangeEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"DashcamServerPid", {PERSISTENT, STRING, ""}},
+    {"DashcamServerPort", {PERSISTENT | BACKUP, STRING, "8009"}},
+    {"DashcamServerEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
 };
