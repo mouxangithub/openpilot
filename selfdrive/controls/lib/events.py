@@ -194,7 +194,7 @@ class NormalPermanentAlert(Alert):
 
 
 class StartupAlert(Alert):
-  def __init__(self, alert_text_1: str, alert_text_2: str = "Always keep hands on wheel and eyes on road", alert_status=AlertStatus.normal):
+  def __init__(self, alert_text_1: str, alert_text_2: str = "请始终保持双手握住方向盘并注视道路", alert_status=AlertStatus.normal):
     super().__init__(alert_text_1, alert_text_2,
                      alert_status, AlertSize.mid,
                      Priority.LOWER, VisualAlert.none, AudibleAlert.none, 5.),
@@ -239,17 +239,17 @@ def below_engage_speed_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.
 
 def below_steer_speed_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
   return Alert(
-    f"Steer Unavailable Below {get_display_speed(CP.minSteerSpeed, metric)}",
+    f"转向不可用（低于{get_display_speed(CP.minSteerSpeed, metric)}）",
     "",
     AlertStatus.userPrompt, AlertSize.small,
     Priority.LOW, VisualAlert.steerRequired, AudibleAlert.prompt, 0.4)
 
 
 def calibration_incomplete_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
-  first_word = 'Recalibration' if sm['liveCalibration'].calStatus == log.LiveCalibrationData.Status.recalibrating else 'Calibration'
+  first_word = '重新校准' if sm['liveCalibration'].calStatus == log.LiveCalibrationData.Status.recalibrating else '校准'
   return Alert(
-    f"{first_word} in Progress: {sm['liveCalibration'].calPerc:.0f}%",
-    f"Drive Above {get_display_speed(MIN_SPEED_FILTER, metric)}",
+    f"{first_word} 进行中: {sm['liveCalibration'].calPerc:.0f}%",
+    f"请保持车速高于{get_display_speed(MIN_SPEED_FILTER, metric)}",
     AlertStatus.normal, AlertSize.mid,
     Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .2)
 
@@ -258,13 +258,13 @@ def calibration_incomplete_alert(CP: car.CarParams, CS: car.CarState, sm: messag
 
 def out_of_space_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
   full_perc = round(100. - sm['deviceState'].freeSpacePercent)
-  return NormalPermanentAlert("存储空间不足", f"{full_perc}% full")
+  return NormalPermanentAlert("存储空间不足", f"已使用{full_perc}%存储空间")
 
 
 def posenet_invalid_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
   mdl = sm['modelV2'].velocity.x[0] if len(sm['modelV2'].velocity.x) else math.nan
   err = CS.vEgo - mdl
-  msg = f"Speed Error: {err:.1f} m/s"
+  msg = f"速度误差: {err:.1f} 米/秒"
   return NoEntryAlert(msg, alert_text_1="Posenet 速度无效")
 
 
@@ -298,29 +298,29 @@ def overheat_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster,
   cpu = max(sm['deviceState'].cpuTempC, default=0.)
   gpu = max(sm['deviceState'].gpuTempC, default=0.)
   temp = max((cpu, gpu, sm['deviceState'].memoryTempC))
-  return NormalPermanentAlert("系统过热", f"{temp:.0f} °C")
+  return NormalPermanentAlert("系统过热", f"温度: {temp:.0f}°C")
 
 
 def low_memory_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
-  return NormalPermanentAlert("内存不足", f"{sm['deviceState'].memoryUsagePercent}% used")
+  return NormalPermanentAlert("内存不足", f"内存使用率: {sm['deviceState'].memoryUsagePercent}%")
 
 
 def high_cpu_usage_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
   x = max(sm['deviceState'].cpuUsagePercent, default=0.)
-  return NormalPermanentAlert("CPU 使用率过高", f"{x}% used")
+  return NormalPermanentAlert("CPU 使用率过高", f"CPU使用率: {x}%")
 
 
 def modeld_lagging_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
-  return NormalPermanentAlert("驾驶模型延迟", f"{sm['modelV2'].frameDropPerc:.1f}% frames dropped")
+  return NormalPermanentAlert("驾驶模型延迟", f"帧丢失率: {sm['modelV2'].frameDropPerc:.1f}%")
 
 
 def wrong_car_mode_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
   if frogpilot_toggles.has_cc_long:
-    text = "Enable Cruise Control to Engage"
+    text = "启用巡航控制以激活"
   elif CP.carName == "honda":
-    text = "Enable Main Switch to Engage"
+    text = "启用主开关以激活"
   else:
-    text = "Enable Adaptive Cruise to Engage"
+    text = "启用自适应巡航以激活"
   return NoEntryAlert(text)
 
 
@@ -338,30 +338,30 @@ def custom_startup_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubM
 
 def forcing_stop_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
   model_length = sm['frogpilotPlan'].forcingStopLength
-  model_length_msg = f"{model_length:.1f} meters" if metric else f"{model_length * CV.METER_TO_FOOT:.1f} feet"
+  model_length_msg = f"{model_length:.1f} 米" if metric else f"{model_length * CV.METER_TO_FOOT:.1f} 英尺"
 
   return Alert(
-    f"Forcing the car to stop in {model_length_msg}",
-    "Press the gas pedal or 'Resume' button to override",
+    f"强制车辆停止在 {model_length_msg}",
+    "请踩下油门踏板或恢复按钮以启动",
     AlertStatus.frogpilot, AlertSize.mid,
     Priority.MID, VisualAlert.none, AudibleAlert.prompt, 1.)
 
 
 def holiday_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
   holiday_messages = {
-    "new_years": "Happy New Year! 🎉",
-    "valentines": "Happy Valentine's Day! ❤️",
-    "st_patricks": "Happy St. Patrick's Day! 🍀",
-    "world_frog_day": "Happy World Frog Day! 🐸",
-    "april_fools": "Happy April Fool's Day! 🤡",
-    "easter_week": "Happy Easter! 🐰",
-    "may_the_fourth": "May the 4th be with you! 🚀",
-    "cinco_de_mayo": "¡Feliz Cinco de Mayo! 🌮",
-    "stitch_day": "Happy Stitch Day! 💙",
-    "fourth_of_july": "Happy Fourth of July! 🎆",
-    "halloween_week": "Happy Halloween! 🎃",
-    "thanksgiving_week": "Happy Thanksgiving! 🦃",
-    "christmas_week": "Merry Christmas! 🎄",
+    "new_years": "新年快乐！🎉",
+    "valentines": "情人节快乐！❤️",
+    "st_patricks": "圣帕特里克节快乐！🍀",
+    "world_frog_day": "世界青蛙日快乐！🐸",
+    "april_fools": "愚人节快乐！🤡",
+    "easter_week": "复活节快乐！🐰",
+    "may_the_fourth": "愿原力与你同在！🚀",
+    "cinco_de_mayo": "五月五日节快乐！🌮",
+    "stitch_day": "史迪奇日快乐！💙",
+    "fourth_of_july": "美国独立日快乐！🎆",
+    "halloween_week": "万圣节快乐！🎃",
+    "thanksgiving_week": "感恩节快乐！🦃",
+    "christmas_week": "圣诞节快乐！🎄",
   }
 
   return Alert(
@@ -373,11 +373,11 @@ def holiday_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, 
 
 def no_lane_available_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, params: Params, frogpilot_toggles: SimpleNamespace) -> Alert:
   lane_width = sm['frogpilotPlan'].laneWidthLeft if CS.leftBlinker else sm['frogpilotPlan'].laneWidthRight
-  lane_width_msg = f"{lane_width:.1f} meters" if metric else f"{lane_width * CV.METER_TO_FOOT:.1f} feet"
+  lane_width_msg = f"{lane_width:.1f} 米" if metric else f"{lane_width * CV.METER_TO_FOOT:.1f} 英尺"
 
   return Alert(
-    "No lane available",
-    f"Detected lane width is only {lane_width_msg}",
+    "当前没有可用的车道线",
+    f"检测到的车道宽度仅为 {lane_width_msg}",
     AlertStatus.normal, AlertSize.mid,
     Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .2)
 
@@ -386,13 +386,13 @@ def torque_nn_load_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubM
   model_name = params.get("NNFFModelName", encoding='utf-8')
   if model_name is None:
     return Alert(
-      "NNFF Torque Controller not available",
-      "Donate logs to Twilsonco to get your car supported!",
+      "NNFF 扭矩控制器不可用",
+      "提供日志给 Twilsonco 以获得您的车辆支持！",
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 10.0)
   else:
     return Alert(
-      "NNFF Torque Controller loaded",
+      "NNFF 扭矩控制器已加载",
       model_name,
       AlertStatus.frogpilot, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.engage, 5.0)
@@ -412,7 +412,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   },
 
   EventName.controlsInitializing: {
-    ET.NO_ENTRY: NoEntryAlert("System Initializing"),
+    ET.NO_ENTRY: NoEntryAlert("系统初始化中"),
   },
 
   EventName.startup: {
@@ -431,40 +431,40 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   # Car is not recognized
   EventName.startupNoCar: {
-    ET.PERMANENT: StartupAlert("行车记录仪模式 for unsupported car"),
+    ET.PERMANENT: StartupAlert("行车记录仪模式：车辆不支持"),
   },
 
   EventName.startupNoFw: {
     ET.PERMANENT: StartupAlert("车辆未识别",
-                               "Check comma power connections",
+                               "检查 comma 电源连接",
                                alert_status=AlertStatus.userPrompt),
   },
 
   EventName.startupNoSecOcKey: {
-    ET.PERMANENT: NormalPermanentAlert("Dashcam Mode",
-                                       "Security Key Not Available",
+    ET.PERMANENT: NormalPermanentAlert("行车记录仪模式",
+                                       "安全密钥不可用",
                                        priority=Priority.HIGH),
   },
 
   EventName.dashcamMode: {
-    ET.PERMANENT: NormalPermanentAlert("Dashcam Mode",
+    ET.PERMANENT: NormalPermanentAlert("行车记录仪模式",
                                        priority=Priority.LOWEST),
   },
 
   EventName.invalidLkasSetting: {
     ET.PERMANENT: NormalPermanentAlert("原厂 LKAS 已启用",
-                                       "Turn off stock LKAS to engage"),
+                                       "关闭原厂 LKAS 以启用"),
   },
 
   EventName.cruiseMismatch: {
-    #ET.PERMANENT: ImmediateDisableAlert("openpilot failed to cancel cruise"),
+    #ET.PERMANENT: ImmediateDisableAlert("openpilot 未能取消巡航"),
   },
 
   # openpilot doesn't recognize the car. This switches openpilot into a
   # read-only mode. This can be solved by adding your fingerprint.
   # See https://github.com/commaai/openpilot/wiki/Fingerprinting for more information
   EventName.carUnrecognized: {
-    ET.PERMANENT: NormalPermanentAlert("Dashcam Mode",
+    ET.PERMANENT: NormalPermanentAlert("行车记录仪模式",
                                        "车辆未识别",
                                        priority=Priority.LOWEST),
   },
@@ -506,7 +506,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.preDriverDistracted: {
     ET.PERMANENT: Alert(
-      "Pay Attention",
+      "请注意",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1),
@@ -514,23 +514,23 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.promptDriverDistracted: {
     ET.PERMANENT: Alert(
-      "Pay Attention",
-      "Driver Distracted",
+      "请注意",
+      "驾驶员分心",
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.MID, VisualAlert.steerRequired, AudibleAlert.promptDistracted, .1),
   },
 
   EventName.driverDistracted: {
     ET.PERMANENT: Alert(
-      "DISENGAGE IMMEDIATELY",
-      "Driver Distracted",
+      "立即解除",
+      "驾驶员分心",
       AlertStatus.critical, AlertSize.full,
       Priority.HIGH, VisualAlert.steerRequired, AudibleAlert.warningImmediate, .1),
   },
 
   EventName.preDriverUnresponsive: {
     ET.PERMANENT: Alert(
-      "Touch Steering Wheel: No Face Detected",
+      "请触摸方向盘：未检测到人脸",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .1, alert_rate=0.75),
@@ -538,24 +538,24 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.promptDriverUnresponsive: {
     ET.PERMANENT: Alert(
-      "Touch Steering Wheel",
-      "Driver Unresponsive",
+      "请触摸方向盘",
+      "驾驶员无反应",
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.MID, VisualAlert.steerRequired, AudibleAlert.promptDistracted, .1),
   },
 
   EventName.driverUnresponsive: {
     ET.PERMANENT: Alert(
-      "DISENGAGE IMMEDIATELY",
-      "Driver Unresponsive",
+      "立即解除",
+      "驾驶员无反应",
       AlertStatus.critical, AlertSize.full,
       Priority.HIGH, VisualAlert.steerRequired, AudibleAlert.warningImmediate, .1),
   },
 
   EventName.manualRestart: {
     ET.WARNING: Alert(
-      "TAKE CONTROL",
-      "Resume Driving Manually",
+      "请手动接管",
+      "即将恢复手动驾驶",
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .2),
   },
@@ -614,7 +614,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   # Thrown when the fan is driven at >50% but is not rotating
   EventName.fanMalfunction: {
-    ET.PERMANENT: NormalPermanentAlert("风扇故障", "Likely Hardware Issue"),
+    ET.PERMANENT: NormalPermanentAlert("风扇故障", "可能是硬件问题"),
   },
 
   # Camera is not outputting frames
@@ -625,7 +625,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   },
   # Camera framerate too low
   EventName.cameraFrameRate: {
-    ET.PERMANENT: NormalPermanentAlert("摄像头帧率低", "Reboot your Device"),
+    ET.PERMANENT: NormalPermanentAlert("摄像头帧率低", "请重启设备"),
     ET.SOFT_DISABLE: soft_disable_alert("摄像头帧率低"),
     ET.NO_ENTRY: NoEntryAlert("摄像头帧率低: Reboot Your Device"),
   },
@@ -768,7 +768,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   },
 
   EventName.soundsUnavailable: {
-    ET.PERMANENT: NormalPermanentAlert("未找到扬声器", "Reboot your Device"),
+    ET.PERMANENT: NormalPermanentAlert("未找到扬声器", "请重启设备"),
     ET.NO_ENTRY: NoEntryAlert("未找到扬声器"),
   },
 
@@ -893,7 +893,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventName.highCpuUsage: {
     #ET.SOFT_DISABLE: soft_disable_alert("系统故障：重启设备"),
-    #ET.PERMANENT: NormalPermanentAlert("System Malfunction", "Reboot your Device"),
+    #ET.PERMANENT: NormalPermanentAlert("System Malfunction", "请重启设备"),
     ET.NO_ENTRY: high_cpu_usage_alert,
   },
 
@@ -986,7 +986,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # and this alert is thrown.
   EventName.relayMalfunction: {
     ET.IMMEDIATE_DISABLE: ImmediateDisableAlert("Harness Relay Malfunction"),
-    ET.PERMANENT: NormalPermanentAlert("Harness Relay Malfunction", "Check Hardware"),
+    ET.PERMANENT: NormalPermanentAlert("Harness Relay Malfunction", "检查硬件"),
     ET.NO_ENTRY: NoEntryAlert("Harness Relay Malfunction"),
   },
 
@@ -1027,8 +1027,8 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # FrogPilot Events
   EventName.blockUser: {
     ET.PERMANENT: Alert(
-      "Don't use the 'Development' branch!",
-      "Forcing you into 'Dashcam Mode' for your safety",
+      "请勿使用'Development'开发分支！",
+      "为了您的安全，强制启用'行车记录仪模式'",
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.HIGHEST, VisualAlert.none, AudibleAlert.none, 1.),
   },
