@@ -227,6 +227,7 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"ToyotaAutoHold", PERSISTENT},
     {"ToyotaEnhancedBsm", PERSISTENT},
     {"ToyotaTSS2Long", PERSISTENT},
+    {"ToyotaStockLongitudinal", PERSISTENT},
     {"RainbowMode", PERSISTENT},
     {"VibePersonalityEnabled", PERSISTENT},
     {"VibeAccelPersonalityEnabled", PERSISTENT},

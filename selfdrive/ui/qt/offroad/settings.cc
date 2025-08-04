@@ -73,6 +73,14 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
       false,
     },
     {
+      "ToyotaStockLongitudinal",
+      tr("Toyota: Stock Toyota Longitudinal"),
+      tr("This feature will allow sunnypilot to use the stock Toyota longitudinal control instead of the sunnypilot longitudinal control. "
+         ""),
+      "../assets/offroad/icon_blank.png",
+      false,
+    },
+    {
       "DisengageOnAccelerator",
       tr("Disengage on Accelerator Pedal"),
       tr("When enabled, pressing the accelerator pedal will disengage sunnypilot."),
