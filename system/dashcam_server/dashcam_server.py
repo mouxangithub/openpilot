@@ -16,15 +16,13 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass, asdict
 
-from aiohttp import web, WSMsgType
+from aiohttp import web
 from aiohttp.web_fileresponse import FileResponse
 from aiohttp.web import StreamResponse
 
 from openpilot.system.hardware.hw import Paths
 from openpilot.common.params import Params
 from openpilot.system.loggerd.config import SEGMENT_LENGTH
-
-SEGMENT_LENGTH = 60  # 默认段长度60秒
 
 # 配置
 DEFAULT_PORT = 8009
@@ -1097,7 +1095,7 @@ class DashcamServer:
 async def main():
   params = Params()
   params.put("DashcamServerPid", str(os.getpid()))
-  port = int(params.get("DashcamServerPort", encoding='utf-8'))
+  port = int(params.get("DashcamServerPort"))
 
   logging.basicConfig(
     level=logging.INFO,

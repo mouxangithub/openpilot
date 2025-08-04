@@ -2872,6 +2872,14 @@ Data</source>
         <translation>在驾驶时录音并存储麦克风音频。这些音频将在Comma云端的行车记录仪视频中包含。</translation>
     </message>
     <message>
+        <source>Toyota: Stock Toyota Longitudinal</source>
+        <translation>丰田：原厂丰田纵向控制</translation>
+    </message>
+    <message>
+        <source>This feature will allow sunnypilot to use the stock Toyota longitudinal control instead of the sunnypilot longitudinal control. </source>
+        <translation>此功能将允许sunnypilot使用原厂丰田纵向控制，而不是sunnypilot纵向控制。</translation>
+    </message>
+    <message>
         <source>Disengage on Accelerator Pedal</source>
         <translation>踩油门时取消控制</translation>
     </message>
