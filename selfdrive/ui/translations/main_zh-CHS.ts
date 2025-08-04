@@ -3068,12 +3068,12 @@ Data</source>
         <translation>将车辆驾驶模式按钮与加速特性相关联，根据驾驶风格（例如：放松、标准、运动）进行调整</translation>
     </message>
     <message>
-        <source>Toyota: Auto Brake Hold</source>
-        <translation>丰田：自动驻车</translation>
+        <source>Toyota: Auto Brake Hold FOR TSS2 HYBRID CARS</source>
+        <translation>丰田：自动驻车，适用于TSS2混合动力车型</translation>
     </message>
     <message>
-        <source>As you may auto brake hold currently supported by openpilot, this feature will allow sunnypilot to automatically hold the vehicle at a stop when the lead car is stopped. (TSS2 only)</source>
-        <translation>正如您可能已经了解的，openpilot目前支持自动刹车保持功能，而sunnypilot也将通过此功能，在前车停止时自动保持车辆停止状态。（仅限TSS2）</translation>
+        <source>As you may auto brake hold currently supported by openpilot, this feature will allow sunnypilot to automatically hold the vehicle at a stop when the lead car is stopped. (TSS2 Hybird only)</source>
+        <translation>正如您可能已经了解的，openpilot目前支持自动刹车保持功能，而sunnypilot也将通过此功能，在前车停止时自动保持车辆停止状态。（仅限TSS2混动车型）</translation>
     </message>
     <message>
         <source>Toyota: Enhanced BSM</source>
