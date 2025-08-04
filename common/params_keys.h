@@ -221,12 +221,13 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"OsmStateName", {PERSISTENT, STRING, "All"}},
     {"OsmStateTitle", {PERSISTENT, STRING}},
     {"OsmWayTest", {PERSISTENT, STRING}},
-    {"RoadName", {CLEAR_ON_ONROAD_TRANSITION, STRING, ""}},
+    {"RoadName", {CLEAR_ON_ONROAD_TRANSITION, STRING}},
 
     // toyota specific params
     {"ToyotaAutoHold", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ToyotaEnhancedBsm", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ToyotaTSS2Long", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"ToyotaStockLongitudinal", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"RainbowMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"VibePersonalityEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"VibeAccelPersonalityEnabled", {PERSISTENT | BACKUP, STRING, "0"}},
