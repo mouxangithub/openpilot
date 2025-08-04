@@ -75,8 +75,7 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
     {
       "ToyotaStockLongitudinal",
       tr("Toyota: Stock Toyota Longitudinal"),
-      tr("This feature will allow sunnypilot to use the stock Toyota longitudinal control instead of the sunnypilot longitudinal control. "
-         ""),
+      tr("This feature will allow sunnypilot to use the stock Toyota longitudinal control instead of the sunnypilot longitudinal control. "),
       "../assets/offroad/icon_blank.png",
       false,
     },
