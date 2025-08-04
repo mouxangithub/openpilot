@@ -22,7 +22,8 @@ inline int get_path_length_idx(const cereal::XYZTData::Reader &line, const float
   return max_idx;
 }
 
-class ModelRenderer {
+class ModelRenderer : public QObject {
+  Q_OBJECT
 public:
   virtual ~ModelRenderer() = default;
 
@@ -52,9 +53,9 @@ protected:
   QColor getIndicatorColor(float absoluteValue, float lowThreshold, float highThreshold);
   int calculateSpanAngle(float absoluteValue, float maxValue);
 
-
   void updatePathGradient(QLinearGradient &bg);
   QColor blendColors(const QColor &start, const QColor &end, float t);
+
 
   bool longitudinal_control = false;
   bool experimental_mode = false;
