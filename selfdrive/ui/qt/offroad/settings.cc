@@ -42,8 +42,8 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
     },
     {
       "ToyotaAutoHold",
-      tr("Toyota: Auto Brake Hold"),
-      tr("umm auto brake hold?"),
+      tr("Toyota: Auto Brake Hold FOR TSS2 HYBRID CARS"),
+      tr("As you may auto brake hold currently supported by openpilot, this feature will allow sunnypilot to automatically hold the vehicle at a stop when the lead car is stopped. (TSS2 Hybird only)"),
       "../assets/offroad/icon_blank.png",
       false,
     },
