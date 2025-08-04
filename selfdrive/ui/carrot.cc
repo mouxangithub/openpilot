@@ -1935,7 +1935,7 @@ public:
               int max_z = lane_lines[2].getZ().size();
               float z_offset = 0.0;
               foreach(const QString & pair, pairs) {
-                QStringList xy = pair.split(",");  // 用","分隔x和y
+                QStringList xy = pair.split(",");  // ","로 x와 y 구분
                 if (xy.size() == 3) {
                   //printf("coords = x: %.1f, y: %.1f, d:%.1f\n", xy[0].toFloat(), xy[1].toFloat(), xy[2].toFloat());
                   float x = xy[0].toFloat();
@@ -2821,7 +2821,42 @@ public:
 
         // bottom_left
         QString gitBranch = QString::fromStdString(params.get("GitBranch"));
-        sprintf(bottom_left, "%s", gitBranch.toStdString().c_str());
+
+        // 获取速度相关数据
+        float v_ego_kph = car_state.getVEgo() * MS_TO_KPH;
+        float v_cruise = car_state.getVCruiseCluster();
+
+        // 获取其他速度数据
+        float apply_speed = 250.0;
+        int nRoadLimitSpeed = 30;
+        int xSpdLimit = 0;
+        float cruiseTarget = 0.0;
+
+        // 从carrotMan获取数据（如果可用）
+        if (sm.alive("carrotMan")) {
+            const auto carrot_man = sm["carrotMan"].getCarrotMan();
+            apply_speed = carrot_man.getDesiredSpeed();
+            nRoadLimitSpeed = carrot_man.getNRoadLimitSpeed();
+            xSpdLimit = carrot_man.getXSpdLimit();
+        }
+
+        // 从longitudinalPlan获取cruiseTarget
+        if (sm.alive("longitudinalPlan")) {
+            const auto lp = sm["longitudinalPlan"].getLongitudinalPlan();
+            cruiseTarget = lp.getCruiseTarget();
+        }
+
+        // 格式化速度信息字符串
+        char speed_info[256];
+        sprintf(speed_info, "%s_%.0f_%.0f_%.0f_%d_%d_%.0f",
+                gitBranch.toStdString().c_str(),
+                v_ego_kph,
+                v_cruise,
+                apply_speed,
+                nRoadLimitSpeed,
+                xSpdLimit,
+                cruiseTarget);
+        sprintf(bottom_left, "%s", speed_info);
 
         // bottom_right
         Params params_memory = Params("/dev/shm/params");
