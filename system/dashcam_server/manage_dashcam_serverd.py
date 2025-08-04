@@ -19,7 +19,8 @@ def main():
 
 def is_dashcam_server_enabled(params):
   """检测 dashcam server 是否被用户启用"""
-  return int(params.get("DashcamServerEnabled"))
+  value = params.get("DashcamServerEnabled")
+  return int(value) if value is not None else 0  # 默认禁用状态
 
 
 def get_dashcam_server_port(params):
