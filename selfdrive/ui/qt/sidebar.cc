@@ -146,7 +146,7 @@ void Sidebar::updateState(const UIState &s) {
   ItemStatus freeStatus = {{tr("Free Space"), free_spaces}, good_color};
   if (free_space <= 20) {
     freeStatus = {{tr("Free Space"), free_spaces}, danger_color};
-  } else if (free_space >= 50) {
+  } else if (free_space <= 60) {
     freeStatus = {{tr("Free Space"), free_spaces}, warning_color};
   }
   setProperty("freeStatus", QVariant::fromValue(freeStatus));
