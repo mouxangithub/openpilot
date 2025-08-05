@@ -183,7 +183,7 @@ class VCruiseCarrot:
     self._cruise_cancel_state = False
     self._pause_auto_speed_up = False
     self._activate_cruise = 0
-    self._lat_enabled = self.params.get_int("AutoEngage") > 0
+    self._lat_enabled = self.params.get_int("AutoEngage") >= 1
     self._v_cruise_kph_at_brake = 0
     self.cruise_state_available_last = False
 
@@ -325,7 +325,7 @@ class VCruiseCarrot:
 
     if CS.cruiseState.available:
       if not self.cruise_state_available_last:
-        self._lat_enabled = True
+        self._lat_enabled = self.params.get_int("AutoEngage") >= 1 # 111
       if not self.CP.pcmCruise:
         # if stock cruise is completely disabled, then we can use our own set speed logic
         self.v_cruise_kph = np.clip(v_cruise_kph, self._cruise_speed_min, self._cruise_speed_max)
@@ -464,8 +464,8 @@ class VCruiseCarrot:
           speed_kph = int(self.carrot_arg)
           if 0 < speed_kph < 200:
             v_cruise_kph = speed_kph
-            self._add_log(f"Cruise speed set to {v_cruise_kph} (carrot command)")       
-    
+            self._add_log(f"Cruise speed set to {v_cruise_kph} (carrot command)")
+
     return v_cruise_kph, button_type, long_pressed
 
   def _update_cruise_buttons(self, CS, CC, v_cruise_kph):
@@ -484,7 +484,6 @@ class VCruiseCarrot:
 
     if not long_pressed:
       if button_type == ButtonType.accelCruise:
-        self._lat_enabled = True
         self._pause_auto_speed_up = False
         if self._soft_hold_active > 0:
           self._soft_hold_active = 0
@@ -500,7 +499,6 @@ class VCruiseCarrot:
         self.carrot_cruise_active = False
 
       elif button_type == ButtonType.decelCruise:
-        self._lat_enabled = True
         self._pause_auto_speed_up = True
         #self.carrot_cruise_active = False
 
@@ -542,14 +540,14 @@ class VCruiseCarrot:
         else:
           if False: #CC.enabled and self._paddle_decel_active:  # 수정필요...
             self._paddle_decel_active = False
-          else:          
+          else:
             self._paddle_decel_active = True
         print("lfaButton")
       elif button_type == ButtonType.cancel:
         self._paddle_decel_active = False
-        #if self._cruise_cancel_state:
-        #  self._lat_enabled = not self._lat_enabled
-        #  self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
+        if self._cruise_cancel_state:
+          self._lat_enabled = False
+          self._add_log("Lateral disabled")
         self._cruise_cancel_state = True
         #self._v_cruise_kph_at_brake = 0
     else:
@@ -715,7 +713,7 @@ class VCruiseCarrot:
           if self.xState == 3:  # 감속중
             v_cruise_kph = self.v_ego_kph_set
           self._cruise_control(1, 0, "Cruise on (traffic sign)")
-        elif 0 < self.d_rel < 20: 
+        elif 0 < self.d_rel < 20:
           # v_cruise_kph = self.v_ego_kph_set # 전방에 차가 가까이 있을때, 기존속도 유지
           self._cruise_control(1, -1 if self.v_ego_kph_set < 1 else 0, "Cruise on (lead car)")
 
