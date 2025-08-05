@@ -126,11 +126,6 @@ void ModelRenderer::drawPath(QPainter &painter, const cereal::ModelDataV2::Reade
           // Use soft lightness for a premium feel
           bg.setColorAt(eased_point, QColor::fromHslF(path_hue / 360.0, 1.0f, 0.55f, alpha));
       }
-      painter.setBrush(bg);
-      painter.drawPolygon(track_vertices);
-
-      LongFuel(painter, height, width);
-      LateralFuel(painter, height, width);
   } else if (experimental_mode) {
     // The first half of track_vertices are the points for the right side of the path
     const auto &acceleration = model.getAcceleration().getX();
@@ -157,11 +152,6 @@ void ModelRenderer::drawPath(QPainter &painter, const cereal::ModelDataV2::Reade
       // Skip a point, unless next is last
       i += (i + 2) < max_len ? 1 : 0;
     }
-    painter.setBrush(bg);
-    painter.drawPolygon(track_vertices);
-
-    LongFuel(painter, height, width);
-    LateralFuel(painter, height, width);
   } else {
     updatePathGradient(bg);
   }
