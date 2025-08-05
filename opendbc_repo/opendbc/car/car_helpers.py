@@ -166,6 +166,15 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
       from opendbc.car.gm.values import CAR as GM
       from opendbc.car.toyota.values import CAR as TOYOTA
       from opendbc.car.mazda.values import CAR as MAZDA
+      from opendbc.car.ford.values import CAR as FORD
+      from opendbc.car.byd.values import CAR as BYD
+      from opendbc.car.rivian.values import CAR as RIVIAN
+      from opendbc.car.subaru.values import CAR as SUBARU
+      from opendbc.car.nissan.values import CAR as NISSAN
+      from opendbc.car.tesla.values import CAR as TESLA
+      from opendbc.car.chrysler.values import CAR as CHRYSLER
+      from opendbc.car.volkswagen.values import CAR as VOLKSWAGEN
+      from opendbc.car.honda.values import CAR as HONDA
       for platform in GM:
         for doc in platform.config.car_docs:
           if name == doc.name:
@@ -182,6 +191,42 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
         for doc in platform.config.car_docs:
           if name == doc.name:
             return platform
+      for platform in FORD:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in BYD:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in RIVIAN:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in SUBARU:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in NISSAN:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in TESLA:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in CHRYSLER:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in VOLKSWAGEN:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in HONDA:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
       return None
     found_car = find_car(selected_car.decode("utf-8"))
     if found_car is not None:
@@ -189,7 +234,7 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
 
   print(f"SelectedCar = {candidate}")
   Params().put("CarName", candidate)
-  
+
   CarInterface = interfaces[candidate]
   CP: CarParams = CarInterface.get_params(candidate, fingerprints, car_fw, alpha_long_allowed, docs=False)
   CP.carVin = vin
