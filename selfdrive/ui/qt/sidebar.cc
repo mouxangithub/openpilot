@@ -144,7 +144,7 @@ void Sidebar::updateState(const UIState &s) {
   int free_space = deviceState.getFreeSpacePercent();
   QString free_spaces = QString::number(free_space) + "%";
   ItemStatus freeStatus = {{tr("Free Space"), free_spaces}, good_color};
-  if (free_space >= 80) {
+  if (free_space <= 20) {
     freeStatus = {{tr("Free Space"), free_spaces}, danger_color};
   } else if (free_space >= 50) {
     freeStatus = {{tr("Free Space"), free_spaces}, warning_color};
