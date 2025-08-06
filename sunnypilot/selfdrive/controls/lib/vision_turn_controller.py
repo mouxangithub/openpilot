@@ -14,8 +14,8 @@ TRAJECTORY_SIZE = 33
 
 _MIN_V = 20 * CV.KPH_TO_MS  # Do not operate under 20 km/h
 
-_ENTERING_PRED_LAT_ACC_TH = 1.3  # Predicted Lat Acc threshold to trigger entering turn state.
-_ABORT_ENTERING_PRED_LAT_ACC_TH = 1.1  # Predicted Lat Acc threshold to abort entering state if speed drops.
+_ENTERING_PRED_LAT_ACC_TH = 1.2  # Predicted Lat Acc threshold to trigger entering turn state.
+_ABORT_ENTERING_PRED_LAT_ACC_TH = 1.0  # Predicted Lat Acc threshold to abort entering state if speed drops.
 
 _TURNING_LAT_ACC_TH = 1.6  # Lat Acc threshold to trigger turning state.
 
@@ -38,7 +38,7 @@ _ENTERING_SMOOTH_DECEL_BP = [1.3, 3.]  # absolute value of lat acc ahead
 
 # Lookup table for the acceleration for the TURNING state
 # depending on the current lateral acceleration of the vehicle.
-_TURNING_ACC_V = [1.4, 1.1, 1.0, 0.79, 0.104, 0.1]  # acc value
+_TURNING_ACC_V = [1.4, 1.0, 0.9, 0.5, 0.09, 0.08]  # acc value
 _TURNING_ACC_BP = [1.5, 10, 12, 14, 16, 18]  # absolute value of current lat acc
 
 _LEAVING_ACC = 0.5  # Conformable acceleration to regain speed while leaving a turn.
