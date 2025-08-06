@@ -1,6 +1,6 @@
 #!/bin/env sh
 
-persist_dir=/persist
+persist_dir=${HOME}/.comma/persist
 target_dir=${persist_dir}/comma
 # Change target dir from sunnylink to comma to make this no longer a test
 
