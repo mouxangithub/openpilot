@@ -219,7 +219,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"OsmStateName", {PERSISTENT, STRING, "All"}},
     {"OsmStateTitle", {PERSISTENT, STRING}},
     {"OsmWayTest", {PERSISTENT, STRING}},
-    {"RoadName", {CLEAR_ON_ONROAD_TRANSITION, STRING}},
+    {"RoadName", {CLEAR_ON_ONROAD_TRANSITION, STRING, ""}},
 
     // toyota specific params
     {"ToyotaAutoHold", {PERSISTENT | BACKUP, BOOL, "0"}},
