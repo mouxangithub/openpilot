@@ -69,29 +69,6 @@ class VibePersonalityController:
       'follow_enabled': 'VibeFollowPersonalityEnabled'
     }
 
-    # Precompute slopes for all personalities
-    self._precompute_slopes()
-
-  def _precompute_slopes(self):
-    """Precompute all interpolation slopes for efficiency"""
-    self.max_accel_slopes = {}
-    self.min_accel_slopes = {}
-    self.follow_distance_slopes = {}
-
-    # Precompute for AccelPersonality (acceleration)
-    for personality in [AccelPersonality.eco, AccelPersonality.normal, AccelPersonality.sport]:
-      if personality in MAX_ACCEL_PROFILES:
-        self.max_accel_slopes[personality] = self._compute_slopes(MAX_ACCEL_BREAKPOINTS, MAX_ACCEL_PROFILES[personality])
-
-    # Precompute for LongPersonality (braking and following)
-    for personality in [LongPersonality.relaxed, LongPersonality.standard, LongPersonality.aggressive]:
-      if personality in MIN_ACCEL_PROFILES:
-        self.min_accel_slopes[personality] = self._compute_slopes(MIN_ACCEL_BREAKPOINTS, MIN_ACCEL_PROFILES[personality])
-
-      if personality in FOLLOW_DISTANCE_PROFILES:
-        profile = FOLLOW_DISTANCE_PROFILES[personality]
-        self.follow_distance_slopes[personality] = self._compute_slopes(profile['x_vel'], profile['y_dist'])
-
   def _update_from_params(self):
     """Update personalities from params (rate limited)"""
     if self.frame % int(1. / DT_MDL) != 0:
@@ -209,12 +186,10 @@ class VibePersonalityController:
 
     try:
       # Max acceleration from AccelPersonality
-      max_a = self._interpolate(v_ego, MAX_ACCEL_BREAKPOINTS, MAX_ACCEL_PROFILES[self.accel_personality],
-                                self.max_accel_slopes[self.accel_personality])
+      max_a = np.interp(v_ego, MAX_ACCEL_BREAKPOINTS, MAX_ACCEL_PROFILES[self.accel_personality])
 
       # Min acceleration (braking) from LongPersonality
-      min_a = self._interpolate(v_ego, MIN_ACCEL_BREAKPOINTS, MIN_ACCEL_PROFILES[self.long_personality],
-                                self.min_accel_slopes[self.long_personality])
+      min_a = np.interp(v_ego, MIN_ACCEL_BREAKPOINTS, MIN_ACCEL_PROFILES[self.long_personality])
 
       return float(min_a), float(max_a)
     except (KeyError, IndexError):
@@ -228,8 +203,7 @@ class VibePersonalityController:
 
     try:
       profile = FOLLOW_DISTANCE_PROFILES[self.long_personality]
-      multiplier = float(self._interpolate(v_ego, profile['x_vel'], profile['y_dist'],
-                                           self.follow_distance_slopes[self.long_personality]))
+      multiplier = float(np.interp(v_ego, profile['x_vel'], profile['y_dist']))
       return multiplier
     except (KeyError, IndexError):
       return None
@@ -274,33 +248,3 @@ class VibePersonalityController:
   def update(self):
     """Update frame counter"""
     self.frame = (self.frame + 1) % 1000000
-
-  def _compute_slopes(self, x, y):
-    """Compute slopes for Hermite interpolation using symmetric difference method."""
-    n = len(x)
-    if n < 2:
-      raise ValueError("At least two points required")
-
-    m = np.zeros(n)
-    for i in range(n):
-      if i == 0:
-        m[i] = (y[1] - y[0]) / (x[1] - x[0])
-      elif i == n-1:
-        m[i] = (y[i] - y[i-1]) / (x[i] - x[i-1])
-      else:
-        m[i] = ((y[i+1] - y[i]) / (x[i+1] - x[i]) + (y[i] - y[i-1]) / (x[i] - x[i-1])) / 2
-    return m
-
-  def _interpolate(self, x, xp, yp, slopes):
-    """Perform cubic Hermite interpolation."""
-    x = np.clip(x, xp[0], xp[-1])
-    idx = np.clip(np.searchsorted(xp, x) - 1, 0, len(slopes) - 2)
-
-    x0, x1 = xp[idx], xp[idx+1]
-    y0, y1 = yp[idx], yp[idx+1]
-    m0, m1 = slopes[idx], slopes[idx+1]
-
-    t = (x - x0) / (x1 - x0)
-    h = [2*t**3 - 3*t**2 + 1, t**3 - 2*t**2 + t, -2*t**3 + 3*t**2, t**3 - t**2]
-
-    return h[0]*y0 + h[1]*(x1 - x0)*m0 + h[2]*y1 + h[3]*(x1 - x0)*m1
