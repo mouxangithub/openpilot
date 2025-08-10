@@ -226,7 +226,8 @@ class VibePersonalityController:
 
     try:
       profile = FOLLOW_DISTANCE_PROFILES[self.long_personality]
-      multiplier = float(np.interp(v_ego, profile['x_vel'], profile['y_dist']))
+      multiplier = float(self._interpolate(v_ego, profile['x_vel'], profile['y_dist'],
+                                           self.follow_distance_slopes[self.long_personality]))
       return multiplier
     except (KeyError, IndexError):
       return None
