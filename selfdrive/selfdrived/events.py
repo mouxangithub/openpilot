@@ -848,7 +848,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
     ET.WARNING: personality_changed_alert,
   },
 
-  EventName.userFlag: {
+  EventName.userBookmark: {
     ET.PERMANENT: NormalPermanentAlert("书签已保存", duration=1.5),
   },
 
