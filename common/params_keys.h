@@ -166,7 +166,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ToyotaEnhancedBsm", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ToyotaTSS2Long", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ToyotaStockLongitudinal", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"AccelPersonality", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"AccelPersonality", {PERSISTENT | BACKUP, INT, std::to_string(static_cast<int>(cereal::LongitudinalPlanSP::AccelerationPersonality::NORMAL))}},
     {"ToyotaDriveMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"RoadEdgeLaneChangeEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
 
