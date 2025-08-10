@@ -30,6 +30,10 @@ DESCRIPTIONS = {
     "Lenient: Only alerts on clear distractions.\n"
     "Off: Disable Driver Distraction Detection and Control."
   ),
+  "RecordAudioFeedback": (
+    "Press the LKAS button to record audio feedback about openpilot. When this toggle is disabled, the button acts as a bookmark button. " +
+    "The event will be highlighted in comma connect and the segment will be preserved on your device's storage."
+  ),
 }
 
 
@@ -95,6 +99,12 @@ class TogglesLayout(Widget):
         "Record Microphone Audio",
         DESCRIPTIONS["RecordAudio"],
         self._params.get_bool("RecordAudio"),
+        icon="microphone.png",
+      ),
+      toggle_item(
+        "Record Audio Feedback with LKAS button",
+        DESCRIPTIONS["RecordAudioFeedback"],
+        self._params.get_bool("RecordAudioFeedback"),
         icon="microphone.png",
       ),
       toggle_item(

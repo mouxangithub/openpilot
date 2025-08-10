@@ -1523,6 +1523,10 @@ The default software delay value is 0.2</source>
 
 %1</translation>
     </message>
+    <message>
+        <source>openpilot detected excessive %1 actuation on your last drive. Please contact support at https://comma.ai/support and share your device&apos;s Dongle ID for troubleshooting.</source>
+        <translation>openpilot 在您上次驾驶时检测到 %1 过度激活。请访问 https://comma.ai/support 与支持团队联系，并分享您设备的 Dongle ID 以进行故障排除。</translation>
+    </message>
 </context>
 <context>
     <name>OffroadHome</name>
@@ -3156,6 +3160,16 @@ Data</source>
     <message>
         <source>Update failed</source>
         <translation>更新失败</translation>
+    </message>
+    <message>
+        <source>Record Audio Feedback with LKAS button</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Press the LKAS button to record and share driving feedback with the openpilot team. When this toggle is disabled, the button acts as a bookmark button. The event will be highlighted in comma connect and the segment will be preserved on your device&apos;s storage.
+
+Note that this feature is only compatible with select cars.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
