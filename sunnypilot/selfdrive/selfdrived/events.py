@@ -1,6 +1,6 @@
 import cereal.messaging as messaging
 from cereal import log, car, custom
-from openpilot.common.conversions import Conversions as CV
+from opendbc.car.common.conversions import Conversions as CV
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EventsBase, Priority, ET, Alert, \
   NoEntryAlert, ImmediateDisableAlert, EngagementAlert, NormalPermanentAlert, AlertCallbackType, wrong_car_mode_alert
 
