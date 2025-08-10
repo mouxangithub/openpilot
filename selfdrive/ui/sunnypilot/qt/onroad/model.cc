@@ -87,7 +87,6 @@ void ModelRendererSP::drawPath(QPainter &painter, const cereal::ModelDataV2::Rea
     // Normal path rendering
     ModelRenderer::drawPath(painter, model, surface_rect.height(), surface_rect.width());
   }
-  ModelRenderer::drawPath(painter, model, surface_rect.height(), surface_rect.width());
 
   drawLeadStatus(painter, surface_rect.height(), surface_rect.width());
 }
