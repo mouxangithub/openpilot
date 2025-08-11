@@ -42,7 +42,6 @@ void HudRenderer::updateState(const UIState &s) {
     is_cruise_set = false;
     set_speed = SET_SPEED_NA;
     speed = 0.0;
-    engine_rpm = 0.0f;
     return;
   }
 
@@ -515,30 +514,11 @@ void HudRenderer::drawCurrentSpeed(QPainter &p, const QRect &surface_rect) {
   QString speedStr = QString::number(std::nearbyint(speed));
 
   p.setFont(InterFont(176, QFont::Bold));
-  // Change color based on eco mode (RPM = 0)
-  if (is_eco_mode) {
-    drawEcoText(p, surface_rect.center().x(), 210, speedStr);
-  } else {
-    drawText(p, surface_rect.center().x(), 210, speedStr);
-  }
+  drawText(p, surface_rect.center().x(), 210, speedStr);
 
   p.setFont(InterFont(66));
-
-  // Also make units eco green when in eco mode
-  if (is_eco_mode) {
-    drawEcoText(p, surface_rect.center().x(), 290, is_metric ? tr("km/h") : tr("mph"), 200);
-  } else {
-    drawText(p, surface_rect.center().x(), 290, is_metric ? tr("km/h") : tr("mph"), 200);
-  }
+  drawText(p, surface_rect.center().x(), 290, is_metric ? tr("km/h") : tr("mph"), 200);
 }
-
-void HudRenderer::drawEcoText(QPainter &p, int x, int y, const QString &text, int alpha) {
-  QRect real_rect = p.fontMetrics().boundingRect(text);
-  real_rect.moveCenter({x, y - real_rect.height() / 2});
-  p.setPen(QColor(0x80, 0xd8, 0xa6, alpha));
-  p.drawText(real_rect.x(), real_rect.bottom(), text);
-}
-
 
 void HudRenderer::drawText(QPainter &p, int x, int y, const QString &text, int alpha) {
   QRect real_rect = p.fontMetrics().boundingRect(text);
