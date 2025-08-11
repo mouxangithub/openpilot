@@ -121,7 +121,7 @@ void SoftwarePanel::updateLabels() {
   bool failed = std::atoi(params.get("UpdateFailedCount").c_str()) > 0;
   if (updater_state != "idle") {
     downloadBtn->setEnabled(false);
-    downloadBtn->setValue(updater_state);
+    downloadBtn->setValue(tr(updater_state.toStdString().c_str()));
   } else {
     if (failed) {
       downloadBtn->setText(tr("CHECK"));
