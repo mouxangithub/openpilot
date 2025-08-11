@@ -139,7 +139,7 @@ void HudRenderer::draw(QPainter &p, const QRect &surface_rect) {
   //}
 
   // Draw road name if available
-  if (!road_name.isEmpty()) {
+  if (!road_name.isEmpty() && !road_name.isNull()) {
     drawRoadName(p, surface_rect);
   }
 
@@ -480,7 +480,7 @@ void HudRenderer::drawSLCStateIndicator(QPainter &p, const QRect &surface_rect) 
 }
 
 void HudRenderer::drawRoadName(QPainter &p, const QRect &surface_rect) {
-  if (road_name.isEmpty()) return;
+  if (road_name.isEmpty() || road_name.isNull()) return;
 
   // Set font first to measure text
   p.setFont(InterFont(40, QFont::Normal));
