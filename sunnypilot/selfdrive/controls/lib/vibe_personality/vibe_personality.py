@@ -15,34 +15,43 @@ AccelPersonality = custom.LongitudinalPlanSP.AccelerationPersonality
 
 # Acceleration Profiles mapped to AccelPersonality (eco/normal/sport)
 MAX_ACCEL_PROFILES = {
-  AccelPersonality.eco:       [2.00, 2.00, 1.32, 0.83, .57,  .46, .367, .317, .089],  # eco
-  AccelPersonality.normal:    [2.00, 2.00, 1.42, 1.10, .65,  .56, .43, .36, .12],   # normal
-  AccelPersonality.sport:     [2.00, 2.00, 1.52, 1.40, .80,  .70, .53, .46, .20],   # sport
+  AccelPersonality.eco:       [2.00, 2.00, 1.80, 0.83, .57,  .46, .28, .13, .088],  # eco
+  AccelPersonality.normal:    [2.00, 2.00, 1.90, 1.20, .63,  .54, .33, .22, .13],   # normal
+  AccelPersonality.sport:     [2.00, 2.00, 1.95, 1.50, .80,  .70, .52, .34, .2],   # sport
 }
 MAX_ACCEL_BREAKPOINTS =       [0.,   6.,   9.,   11.,  16.,  20., 25., 30., 55.]
 
 # Braking profiles mapped to LongPersonality (relaxed/standard/aggressive)
 MIN_ACCEL_PROFILES = {
-  LongPersonality.relaxed:    [-.1, -.1, -.2, -1.20, -1.20],  # gentler braking
-  LongPersonality.standard:   [-.2, -.2, -.3, -1.20, -1.20],  # normal braking
+  LongPersonality.relaxed:    [-.1, -.1, -.2, -1.10, -1.10],  # gentler braking
+  LongPersonality.standard:   [-.2, -.2, -.3, -1.15, -1.15],  # normal braking
   LongPersonality.aggressive: [-.3, -.3, -.4, -1.20, -1.20],  # more aggressive braking
 }
-MIN_ACCEL_BREAKPOINTS =       [0.,   1.,   8.,   9,   50.]
+MIN_ACCEL_BREAKPOINTS =       [0.,   1.,   2.,   3,   50.]
 
 # Following Distance Profiles mapped to LongPersonality (relaxed/standard/aggressive)
 FOLLOW_DISTANCE_PROFILES = {
   LongPersonality.relaxed: {
-    'x_vel':  [0.,   19.7, 22.2, 40.],
-    'y_dist': [1.40, 1.40, 1.65, 1.65]  # longer following distance
+    'x_vel':  [0.,  5.55,  8.33,  40.],
+    'y_dist': [1.21, 1.20, 1.20,  1.75]  # longer following distance
   },
+  # 'x_vel':  [0.,  5.5,   8.3,  13.9, 16.4, 22.2, 25., 40.],
+  #'y_dist': [1.15, 1.15, 1.30, 1.30, 1.50, 1.50, 1.75, 1.75]  # longer following distance
+  # },
   LongPersonality.standard: {
-    'x_vel':  [0.,   19.7, 22.2, 40.],
-    'y_dist': [1.35, 1.35, 1.37, 1.37]  # normal following distance
+    'x_vel':  [0.,  5.55,  8.33,  40.],
+    'y_dist': [1.17, 1.16, 1.15,  1.50]  # longer following distance
   },
+  #'x_vel':  [0.,   16.4, 22.2, 40.],
+  #'y_dist': [1.03, 1.03, 1.50, 1.50]  # normal following distance
+  # },
   LongPersonality.aggressive: {
-    'x_vel':  [0.,   19.7, 22.2, 40.],
-    'y_dist': [1.20, 1.20, 1.30, 1.30]  # shorter following distance
-  }
+    'x_vel':  [0.,  5.55,   40.],
+    'y_dist': [0.95, 0.95,  1.30]  # longer following distance
+  },
+  #'x_vel':  [0.,   16.4, 22.2, 40.],
+  #'y_dist': [0.90, 0.90, 1.30, 1.30]  # shorter following distance
+  # }
 }
 
 class VibePersonalityController:

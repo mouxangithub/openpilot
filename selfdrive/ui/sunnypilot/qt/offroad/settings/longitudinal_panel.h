@@ -33,7 +33,6 @@ private:
   QWidget *cruisePanelScreen = nullptr;
   CustomAccIncrement *customAccIncrement = nullptr;
 
-  ParamControlSP *accToE2ETransitionControl;
   ParamControlSP *vibePersonalityControl;
   ParamControlSP *vibeAccelPersonalityControl;
   ParamControlSP *vibeFollowPersonalityControl;
