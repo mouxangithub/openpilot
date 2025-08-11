@@ -71,7 +71,6 @@ protected:
   Eigen::Matrix3f car_space_transform = Eigen::Matrix3f::Zero();
   QRectF clip_region;
 
-
   // Gauge configuration constants
   static constexpr qreal GAUGE_SIZE = 140.0;
   static constexpr qreal BACKGROUND_SIZE_MULTIPLIER = 1.4;

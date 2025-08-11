@@ -29,6 +29,7 @@ from openpilot.sunnypilot.models.helpers import get_active_bundle, get_model_pat
 from openpilot.sunnypilot.modeld.models.commonmodel_pyx import ModelFrame, CLContext
 from openpilot.sunnypilot.selfdrive.controls.lib.relc import RoadEdgeLaneChangeController
 from openpilot.sunnypilot.modeld.modeld_base import ModelStateBase
+from openpilot.sunnypilot.selfdrive.controls.lib.relc import RoadEdgeLaneChangeController
 
 
 PROCESS_NAME = "selfdrive.modeld.modeld_snpe"

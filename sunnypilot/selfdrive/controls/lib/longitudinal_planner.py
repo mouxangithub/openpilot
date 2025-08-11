@@ -8,21 +8,14 @@ import math
 
 from cereal import messaging, custom
 from opendbc.car import structs
-from opendbc.car.interfaces import ACCEL_MIN
-from openpilot.common.params import Params
 from openpilot.selfdrive.car.cruise import V_CRUISE_UNSET
+from opendbc.car.interfaces import ACCEL_MIN
 from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
-#from openpilot.sunnypilot.selfdrive.controls.lib.accel_personality.accel_controller import AccelController
-from openpilot.sunnypilot.selfdrive.controls.lib.vibe_personality.vibe_personality import VibePersonalityController
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit_controller.speed_limit_controller import SpeedLimitController
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
-from openpilot.sunnypilot.selfdrive.controls.lib.vision_turn_controller import VisionTurnController
 from openpilot.sunnypilot.models.helpers import get_active_bundle
-
-from openpilot.sunnypilot.selfdrive.controls.lib.vibe_personality.vibe_personality import VibePersonalityController
-from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit_controller.speed_limit_controller import SpeedLimitController
-from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.selfdrive.controls.lib.vision_turn_controller import VisionTurnController
+from openpilot.sunnypilot.selfdrive.controls.lib.vibe_personality.vibe_personality import VibePersonalityController
 DecState = custom.LongitudinalPlanSP.DynamicExperimentalControl.DynamicExperimentalControlState
 
 
@@ -32,10 +25,10 @@ class LongitudinalPlannerSP:
 
     self.dec = DynamicExperimentalController(CP, mpc)
     self.vibe_controller = VibePersonalityController()
-    self.slc = SpeedLimitController(CP)
-    self.v_tsc = VisionTurnController(CP)
     self.transition_init()
     self.generation = int(model_bundle.generation) if (model_bundle := get_active_bundle()) else None
+    self.slc = SpeedLimitController(CP)
+    self.v_tsc = VisionTurnController(CP)
 
   @property
   def mlsim(self) -> bool:
@@ -49,7 +42,6 @@ class LongitudinalPlannerSP:
     return self.dec.mode()
 
   def transition_init(self) -> None:
-    self._params = Params()
     self._transition_counter = 0
     self._transition_steps = 40
     self._last_mode = 'acc'
@@ -61,7 +53,7 @@ class LongitudinalPlannerSP:
       self._last_mode = mode
 
   def blend_accel_transition(self, mpc_accel: float, e2e_accel: float, v_ego: float) -> float:
-    if self._params.get_bool("BlendAccToE2ETransition"):
+    if self.dec.enabled():
       if self._transition_counter < self._transition_steps:
         self._transition_counter += 1
         progress = self._transition_counter / self._transition_steps

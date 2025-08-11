@@ -4,7 +4,7 @@ import math
 
 from cereal import custom
 from openpilot.common.params import Params
-from opendbc.car.common.conversions import Conversions as CV
+from openpilot.common.constants import CV
 from openpilot.selfdrive.car.cruise import V_CRUISE_MAX
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N
 
@@ -198,7 +198,7 @@ class VisionTurnController:
 
     # 2. If not polynomially derived from lanes, then derive it from a driving path as provided by `lateralPlanner`.
     if path_poly is None and lat_planner_data is not None and len(lat_planner_data.psis) == CONTROL_N \
-       and lat_planner_data.dPathPoints[0] > 0:
+          and lat_planner_data.dPathPoints[0] > 0:
       yData = list(lat_planner_data.dPathPoints)
       path_poly = np.polyfit(lat_planner_data.psis, yData[0:CONTROL_N], 3)
 
@@ -210,7 +210,7 @@ class VisionTurnController:
       sm['carState'].steeringAngleDeg * CV.DEG_TO_RAD / (self._CP.steerRatio * self._CP.wheelbase))
     self._current_lat_acc = current_curvature * self._v_ego ** 2
     self._max_v_for_current_curvature = math.sqrt(_A_LAT_REG_MAX / current_curvature) if current_curvature > 0 \
-        else V_CRUISE_MAX * CV.KPH_TO_MS
+      else V_CRUISE_MAX * CV.KPH_TO_MS
 
     pred_curvatures = eval_curvature(path_poly, _EVAL_RANGE)
     max_pred_curvature = np.amax(pred_curvatures)

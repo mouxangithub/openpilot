@@ -3125,6 +3125,18 @@ Data</source>
         <source>openpilot longitudinal control may come in a future update.</source>
         <translation>openpilot纵向控制功能可能在未来的更新中提供。</translation>
     </message>
+    <message>
+        <source>Record Audio Feedback with LKAS button</source>
+        <translation>使用车道保持辅助系统（LKAS）按钮录制音频反馈</translation>
+    </message>
+    <message>
+        <source>Press the LKAS button to record and share driving feedback with the openpilot team. When this toggle is disabled, the button acts as a bookmark button. The event will be highlighted in comma connect and the segment will be preserved on your device&apos;s storage.
+
+Note that this feature is only compatible with select cars.</source>
+        <translation>按下LKAS按钮，即可记录并与OpenPilot团队分享驾驶反馈。当此开关处于禁用状态时，该按钮将作为书签按钮使用。相关事件将在Comma Connect中高亮显示，且该片段将保存在您设备的存储空间中。
+
+请注意，此功能仅与部分车辆兼容。</translation>
+    </message>
 </context>
 <context>
     <name>TreeOptionDialog</name>
@@ -3170,18 +3182,6 @@ Data</source>
     <message>
         <source>Update failed</source>
         <translation>更新失败</translation>
-    </message>
-    <message>
-        <source>Record Audio Feedback with LKAS button</source>
-        <translation>使用车道保持辅助系统（LKAS）按钮录制音频反馈</translation>
-    </message>
-    <message>
-        <source>Press the LKAS button to record and share driving feedback with the openpilot team. When this toggle is disabled, the button acts as a bookmark button. The event will be highlighted in comma connect and the segment will be preserved on your device&apos;s storage.
-
-Note that this feature is only compatible with select cars.</source>
-        <translation>按下LKAS按钮，即可记录并与OpenPilot团队分享驾驶反馈。当此开关处于禁用状态时，该按钮将作为书签按钮使用。相关事件将在Comma Connect中高亮显示，且该片段将保存在您设备的存储空间中。
-
-请注意，此功能仅与部分车辆兼容。</translation>
     </message>
     <message>
         <source>Enable driver monitoring even when sunnypilot is not engaged.</source>
