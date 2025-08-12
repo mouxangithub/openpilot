@@ -78,29 +78,6 @@ class VibePersonalityController:
       'follow_enabled': 'VibeFollowPersonalityEnabled'
     }
 
-    # Precompute slopes for all personalities
-    self._precompute_slopes()
-
-  def _precompute_slopes(self):
-    """Precompute all interpolation slopes for efficiency"""
-    self.max_accel_slopes = {}
-    self.min_accel_slopes = {}
-    self.follow_distance_slopes = {}
-
-    # Precompute for AccelPersonality (acceleration)
-    for personality in [AccelPersonality.eco, AccelPersonality.normal, AccelPersonality.sport]:
-      if personality in MAX_ACCEL_PROFILES:
-        self.max_accel_slopes[personality] = self._compute_slopes(MAX_ACCEL_BREAKPOINTS, MAX_ACCEL_PROFILES[personality])
-
-    # Precompute for LongPersonality (braking and following)
-    for personality in [LongPersonality.relaxed, LongPersonality.standard, LongPersonality.aggressive]:
-      if personality in MIN_ACCEL_PROFILES:
-        self.min_accel_slopes[personality] = self._compute_slopes(MIN_ACCEL_BREAKPOINTS, MIN_ACCEL_PROFILES[personality])
-
-      if personality in FOLLOW_DISTANCE_PROFILES:
-        profile = FOLLOW_DISTANCE_PROFILES[personality]
-        self.follow_distance_slopes[personality] = self._compute_slopes(profile['x_vel'], profile['y_dist'])
-
   def _update_from_params(self):
     """Update personalities from params (rate limited)"""
     if self.frame % int(1. / DT_MDL) != 0:
@@ -235,8 +212,7 @@ class VibePersonalityController:
 
     try:
       profile = FOLLOW_DISTANCE_PROFILES[self.long_personality]
-      multiplier = float(self._interpolate(v_ego, profile['x_vel'], profile['y_dist'],
-                                           self.follow_distance_slopes[self.long_personality]))
+      multiplier = float(np.interp(v_ego, profile['x_vel'], profile['y_dist']))
       return multiplier
     except (KeyError, IndexError):
       return None
