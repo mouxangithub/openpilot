@@ -23,31 +23,31 @@ MAX_ACCEL_BREAKPOINTS =       [0.,   4.,   6.,   9.,   11.,  16.,  20., 25., 30.
 
 # Braking profiles mapped to LongPersonality (relaxed/standard/aggressive)
 MIN_ACCEL_PROFILES = {
-  LongPersonality.relaxed:    [-.23, -.24, -.33, -0.7, -1.10],  # gentler braking
-  LongPersonality.standard:   [-.24, -.25, -.35, -0.8, -1.15],  # normal braking
-  LongPersonality.aggressive: [-.25, -.26, -.37, -0.9, -1.20],  # more aggressive braking
+  LongPersonality.relaxed:    [-.23, -.24, -.33, -1.10],  # gentler braking
+  LongPersonality.standard:   [-.24, -.25, -.35, -1.15],  # normal braking
+  LongPersonality.aggressive: [-.25, -.26, -.37, -1.20],  # more aggressive braking
 }
-MIN_ACCEL_BREAKPOINTS =       [0.,   1.,   2.,   3,   50.]
+MIN_ACCEL_BREAKPOINTS =       [0.,   1.,   2.,   50.]
 
 # Following Distance Profiles mapped to LongPersonality (relaxed/standard/aggressive)
 FOLLOW_DISTANCE_PROFILES = {
   LongPersonality.relaxed: {
-    'x_vel':  [0.,   2.,   14,   16,   40.],
-    'y_dist': [1.325, 1.32, 1.31, 1.31, 1.75]  # longer following distance
+    'x_vel':  [0.,   10.,   40.],
+    'y_dist': [1.20, 1.20, 1.75]  # longer following distance
   },
   # 'x_vel':  [0.,  5.5,   8.3,  13.9, 16.4, 22.2, 25., 40.],
   #'y_dist': [1.15, 1.15, 1.30, 1.30, 1.50, 1.50, 1.75, 1.75]  # longer following distance
   # },
   LongPersonality.standard: {
-    'x_vel':  [0.,   2.,   14,   16,   40.],
-    'y_dist': [1.245, 1.24, 1.23, 1.23, 1.50]  # longer following distance
+    'x_vel':  [0.,   10.,  40.],
+    'y_dist': [1.015, 1.00, 1.50]  # longer following distance
   },
   #'x_vel':  [0.,   16.4, 22.2, 40.],
   #'y_dist': [1.03, 1.03, 1.50, 1.50]  # normal following distance
   # },
   LongPersonality.aggressive: {
-    'x_vel':  [0.,   1.,   2.,   14,   16,   40.],
-    'y_dist': [1.06, 1.065, 1.06, 1.05, 1.05, 1.30]  # longer following distance
+    'x_vel':  [0.,   10.,  40.],
+    'y_dist': [0.93, 0.90, 1.30]  # longer following distance
   },
   #'x_vel':  [0.,   16.4, 22.2, 40.],
   #'y_dist': [0.90, 0.90, 1.30, 1.30]  # shorter following distance
