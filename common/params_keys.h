@@ -171,9 +171,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ToyotaDriveMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"RoadEdgeLaneChangeEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
 
-    // Blend acc to e2e transition
-    {"BlendAccToE2ETransition", {PERSISTENT | BACKUP, BOOL, "0"}},
-
     // MADS params
     {"Mads", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"MadsMainCruiseAllowed", {PERSISTENT | BACKUP, BOOL, "1"}},
