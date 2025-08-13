@@ -107,11 +107,11 @@ class Parser:
             self.parse_mdn('lead', outs, in_N=SplitModelConstants.LEAD_MHP_N, out_N=SplitModelConstants.LEAD_MHP_SELECTION,
                            out_shape=(SplitModelConstants.LEAD_TRAJ_LEN, SplitModelConstants.LEAD_WIDTH))
         if 'plan' in outs:
-          if outs['plan'].shape[1] > 2 * SplitModelConstants.PLAN_WIDTH * SplitModelConstants.IDX_N:
-            self._parse_plan_mhp(outs)
-          else:
+          if outs['plan'].shape[1] == 2 * SplitModelConstants.IDX_N * SplitModelConstants.PLAN_WIDTH:
             self.parse_mdn('plan', outs, in_N=0, out_N=0,
                            out_shape=(SplitModelConstants.IDX_N, SplitModelConstants.PLAN_WIDTH))
+          else:
+            self._parse_plan_mhp(outs)
     else:
         if 'lead' in outs:
             self.parse_mdn('lead', outs, in_N=SplitModelConstants.LEAD_MHP_N, out_N=SplitModelConstants.LEAD_MHP_SELECTION,
