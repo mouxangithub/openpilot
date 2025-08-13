@@ -1918,7 +1918,7 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>sunnypilot</source>
-        <translation type="unfinished"></translation>
+        <translation>阳光驾驶</translation>
     </message>
 </context>
 <context>
