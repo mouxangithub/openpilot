@@ -210,7 +210,7 @@ void DevicePanelSP::updateState() {
   toggleDeviceBootMode->setDescription(deviceSleepModeDescription(currStatus));
 
   QString timeoutValue = QString::fromStdString(params.get("InteractivityTimeout"));
-  if (timeoutValue == "0") {
+  if (timeoutValue == "0" || timeoutValue.isEmpty()) {
     interactivityTimeout->setLabel(tr("Default"));
   } else {
     interactivityTimeout->setLabel(timeoutValue + "s");

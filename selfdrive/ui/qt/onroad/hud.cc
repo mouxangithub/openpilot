@@ -68,7 +68,8 @@ void HudRenderer::updateState(const UIState &s) {
   }
 
   // Road name
-  road_name = QString::fromStdString(live_map_data.getRoadName());
+  QString raw_road_name = QString::fromStdString(live_map_data.getRoadName());
+  road_name = (raw_road_name == "None" || raw_road_name.isEmpty()) ? "" : raw_road_name;
 
   // Vision Turn Speed Control
   const auto vtsc = lp_sp.getVisionTurnSpeedControl();
@@ -114,7 +115,7 @@ void HudRenderer::draw(QPainter &p, const QRect &surface_rect) {
 
   // Draw header gradient
   QLinearGradient bg(0, UI_HEADER_HEIGHT - (UI_HEADER_HEIGHT / 2.5), 0, UI_HEADER_HEIGHT);
-  bg.setColorAt(0, QColor::fromRgbF(0, 0, 0, 0.45));
+  bg.setColorAt(0, QColor::fromRgbF(0, 0, 0, 0));
   bg.setColorAt(1, QColor::fromRgbF(0, 0, 0, 0));
   p.fillRect(0, 0, surface_rect.width(), UI_HEADER_HEIGHT, bg);
 
@@ -139,7 +140,7 @@ void HudRenderer::draw(QPainter &p, const QRect &surface_rect) {
   //}
 
   // Draw road name if available
-  if (!road_name.isEmpty() && !road_name.isNull()) {
+  if (!road_name.isEmpty() && !road_name.isNull() && road_name != "None") {
     drawRoadName(p, surface_rect);
   }
 
@@ -480,7 +481,7 @@ void HudRenderer::drawSLCStateIndicator(QPainter &p, const QRect &surface_rect) 
 }
 
 void HudRenderer::drawRoadName(QPainter &p, const QRect &surface_rect) {
-  if (road_name.isEmpty() || road_name.isNull()) return;
+  if (road_name.isEmpty() || road_name.isNull() || road_name == "None") return;
 
   // Set font first to measure text
   p.setFont(InterFont(40, QFont::Normal));

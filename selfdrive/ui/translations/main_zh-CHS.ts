@@ -1968,7 +1968,7 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>sunnylink</source>
-        <translation>阳光云端</translation>
+        <translation>云端</translation>
     </message>
     <message>
         <source>Toggles</source>
@@ -1992,7 +1992,7 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>Firehose</source>
-        <translation>训练上传</translation>
+        <translation>数据流</translation>
     </message>
     <message>
         <source>Steering</source>
@@ -2792,6 +2792,14 @@ Data</source>
         <source>Settings restored. Confirm to restart the interface.</source>
         <translation>设置已恢复。确认重新启动界面。</translation>
     </message>
+    <message>
+        <source>Enable sunnylink uploader to allow sunnypilot to upload your driving data to sunnypilot servers. (only for highest tiers, and does NOT bring ANY benefit to you. We are just testing data volume.)</source>
+        <translation>启用sunnylink上传器，允许sunnypilot将您的驾驶数据上传至sunnypilot服务器。（仅适用于最高等级，且不会为您带来任何好处。我们仅在测试数据量。）</translation>
+    </message>
+    <message>
+        <source>[Don&apos;t use] Enable sunnylink uploader</source>
+        <translation>[请勿使用]启用sunnylink上传器</translation>
+    </message>
 </context>
 <context>
     <name>SunnylinkSponsorPopup</name>
@@ -2844,11 +2852,11 @@ Data</source>
     </message>
     <message>
         <source>Welcome to sunnypilot</source>
-        <translation type="unfinished"></translation>
+        <translation>欢迎使用阳光驾驶</translation>
     </message>
     <message>
         <source>You must accept the Terms and Conditions to use sunnypilot. Read the latest terms at &lt;span style=&apos;color: #465BEA;&apos;&gt;https://comma.ai/terms&lt;/span&gt; before continuing.</source>
-        <translation type="unfinished"></translation>
+        <translation>您必须接受条款和条件才能使用sunnypilot。在继续之前，请阅读最新的条款：&lt;span style=&apos;color: #465BEA;&apos;&gt;https://comma.ai/terms&lt;/span&gt;。</translation>
     </message>
 </context>
 <context>
@@ -3111,7 +3119,7 @@ Data</source>
     </message>
     <message>
         <source>Enable sunnypilot</source>
-        <translation>启用sunnypilot</translation>
+        <translation>启用阳光驾驶</translation>
     </message>
     <message>
         <source>Use the sunnypilot system for adaptive cruise control and lane keep driver assistance. Your attention is required at all times to use this feature.</source>
