@@ -4,6 +4,7 @@
 #include <QPainterPath>
 
 #include "selfdrive/ui/qt/util.h"
+#include "selfdrive/ui/ui.h"
 
 constexpr int SET_SPEED_NA = 255;
 
@@ -514,10 +515,14 @@ void HudRenderer::drawRoadName(QPainter &p, const QRect &surface_rect) {
 void HudRenderer::drawCurrentSpeed(QPainter &p, const QRect &surface_rect) {
   QString speedStr = QString::number(std::nearbyint(speed));
 
+  QColor bgColor = bg_colors[status];
+
   p.setFont(InterFont(176, QFont::Bold));
+  p.setPen(bgColor);
   drawText(p, surface_rect.center().x(), 210, speedStr);
 
   p.setFont(InterFont(66));
+  p.setPen(bgColor);
   drawText(p, surface_rect.center().x(), 290, is_metric ? tr("km/h") : tr("mph"), 200);
 }
 

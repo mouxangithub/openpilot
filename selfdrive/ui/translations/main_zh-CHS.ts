@@ -2340,6 +2340,14 @@ Warning: You are on a metered connection!</source>
         <source>Reboot</source>
         <translation>重启</translation>
     </message>
+    <message>
+        <source>Disabling</source>
+        <translation>禁用</translation>
+    </message>
+    <message>
+        <source>Enabling</source>
+        <translation>启用</translation>
+    </message>
 </context>
 <context>
     <name>SoftwarePanelSP</name>
