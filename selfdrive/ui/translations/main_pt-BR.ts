@@ -1155,7 +1155,7 @@ The default software delay value is 0.2</source>
     </message>
     <message>
         <source>openpilot detected excessive %1 actuation on your last drive. Please contact support at https://comma.ai/support and share your device&apos;s Dongle ID for troubleshooting.</source>
-        <translation type="unfinished"></translation>
+        <translation>openpilot detectou atuação excessiva de %1 na sua última condução. Entre em contato com o suporte em https://comma.ai/support e compartilhe o Dongle ID do seu dispositivo para solução de problemas.</translation>
     </message>
     <message>
         <source>Immediately connect to the internet to check for updates. If you do not connect to the internet, sunnypilot won&apos;t engage in %1</source>
@@ -2198,13 +2198,15 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>Record Audio Feedback with LKAS button</source>
-        <translation type="unfinished"></translation>
+        <translation>Gravar feedback de áudio com o botão LKAS</translation>
     </message>
     <message>
         <source>Press the LKAS button to record and share driving feedback with the openpilot team. When this toggle is disabled, the button acts as a bookmark button. The event will be highlighted in comma connect and the segment will be preserved on your device&apos;s storage.
 
 Note that this feature is only compatible with select cars.</source>
-        <translation type="unfinished"></translation>
+        <translation>Pressione o botão LKAS para gravar e compartilhar feedback de direção com a equipe do openpilot. Quando esta opção estiver desativada, o botão funcionará como um botão de marcador. O evento será destacado no comma connect e o segmento será preservado no armazenamento do seu dispositivo.
+
+Observe que este recurso é compatível apenas com alguns modelos de carros.</translation>
     </message>
     <message>
         <source>Enable sunnypilot</source>
