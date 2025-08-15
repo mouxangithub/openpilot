@@ -4,7 +4,6 @@
 #include <QPainterPath>
 
 #include "selfdrive/ui/qt/util.h"
-#include "selfdrive/ui/ui.h"
 
 constexpr int SET_SPEED_NA = 255;
 
@@ -515,15 +514,34 @@ void HudRenderer::drawRoadName(QPainter &p, const QRect &surface_rect) {
 void HudRenderer::drawCurrentSpeed(QPainter &p, const QRect &surface_rect) {
   QString speedStr = QString::number(std::nearbyint(speed));
 
-  QColor bgColor = bg_colors[status];
-
   p.setFont(InterFont(176, QFont::Bold));
-  p.setPen(bgColor);
-  drawText(p, surface_rect.center().x(), 210, speedStr);
+  drawSpeedText(p, surface_rect.center().x(), 210, speedStr);
 
   p.setFont(InterFont(66));
+  drawSpeedText(p, surface_rect.center().x(), 290, is_metric ? tr("km/h") : tr("mph"), 200);
+}
+
+void HudRenderer::drawSpeedText(QPainter &p, int x, int y, const QString &text, int alpha) {
+  QRect real_rect = p.fontMetrics().boundingRect(text);
+  real_rect.moveCenter({x, y - real_rect.height() / 2});
+  QColor bgColor = QColor(0xff, 0xff, 0xff, alpha);
+  if (is_cruise_set) {
+    if (status == STATUS_DISENGAGED) {
+      bgColor = QColor(0xff, 0xff, 0xff, alpha);
+    } else if (status == STATUS_OVERRIDE) {
+      bgColor = QColor(0x91, 0x9b, 0x95, alpha);
+    } else if (status == STATUS_ENGAGED) {
+      bgColor = QColor(0x17, 0x86, 0x44, alpha);
+    } else if (status == STATUS_LAT_ONLY) {
+      bgColor = QColor(0x00, 0xc8, 0xc8, alpha);
+    }  else if (status == STATUS_LONG_ONLY) {
+      bgColor = QColor(0x96, 0x1C, 0xA8, alpha);
+    } else {
+      bgColor = QColor(0x80, 0xd8, 0xa6, alpha);
+    }
+  }
   p.setPen(bgColor);
-  drawText(p, surface_rect.center().x(), 290, is_metric ? tr("km/h") : tr("mph"), 200);
+  p.drawText(real_rect.x(), real_rect.bottom(), text);
 }
 
 void HudRenderer::drawText(QPainter &p, int x, int y, const QString &text, int alpha) {
