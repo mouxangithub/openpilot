@@ -28,7 +28,7 @@ REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ
 TESTING_CLOSET = "TESTING_CLOSET" in os.environ
 LONGITUDINAL_PERSONALITY_MAP = {v: k for k, v in log.LongitudinalPersonality.schema.enumerants.items()}
-
+NO_DM = os.getenv("NO_DM") is not None
 ThermalStatus = log.DeviceState.ThermalStatus
 State = log.SelfdriveState.OpenpilotState
 PandaType = log.PandaState.PandaType
@@ -63,15 +63,22 @@ class SelfdriveD:
 
     self.gps_location_service = get_gps_location_service(self.params)
     self.gps_packets = [self.gps_location_service]
-    self.sensor_packets = ["accelerometer", "gyroscope"]
-    self.camera_packets = ["roadCameraState", "driverCameraState", "wideRoadCameraState"]
+    # self.sensor_packets = ["accelerometer", "gyroscope"]
+    # self.camera_packets = ["roadCameraState", "driverCameraState", "wideRoadCameraState"]
+    self.sensor_packets = []
+    self.camera_packets = ["roadCameraState"]
+    if not NO_DM:
+      self.camera_packets.append("driverCameraState")
 
     self.disable_dm = self.params.get_int("DisableDM")
 
     # TODO: de-couple selfdrived with card/conflate on carState without introducing controls mismatches
     self.car_state_sock = messaging.sub_sock('carState', timeout=20)
 
-    ignore = self.sensor_packets + self.gps_packets + ['alertDebug']
+    # ignore = self.sensor_packets + self.gps_packets + ['alertDebug']
+    ignore = self.sensor_packets + self.gps_packets + ['alertDebug', "accelerometer", "gyroscope"]
+    if NO_DM:
+      ignore += ['driverMonitoringState']
     if SIMULATION:
       ignore += ['driverCameraState', 'managerState']
     elif self.disable_dm > 0:
@@ -122,7 +129,7 @@ class SelfdriveD:
     self.recalibrating_seen = False
     self.state_machine = StateMachine()
     self.rk = Ratekeeper(100, print_delay_threshold=None)
-    
+
     self.atc_type_last = ""
 
 
@@ -179,7 +186,7 @@ class SelfdriveD:
     if not self.CP.pcmCruise and CS.vCruise > 250 and resume_pressed:
       self.events.add(EventName.resumeBlocked)
 
-    if not self.CP.notCar and self.params.get_int("DisableDM") == 0:
+    if not self.CP.notCar and self.params.get_int("DisableDM") == 0 and not NO_DM:
       self.events.add_from_msg(self.sm['driverMonitoringState'].events)
 
     self.events.add_from_msg(self.sm['longitudinalPlan'].events)  ## carrot
@@ -389,7 +396,8 @@ class SelfdriveD:
       gps_ok = self.sm.recv_frame[self.gps_location_service] > 0 and (self.sm.frame - self.sm.recv_frame[self.gps_location_service]) * DT_CTRL < 2.0
       if not gps_ok and self.sm['liveLocationKalman'].inputsOK and (self.distance_traveled > 1500):
         if self.distance_traveled < 1600:
-          self.events.add(EventName.noGps)
+          # self.events.add(EventName.noGps)
+          pass
       #if gps_ok:
       #  self.distance_traveled = 0
       self.distance_traveled += abs(CS.vEgo) * DT_CTRL

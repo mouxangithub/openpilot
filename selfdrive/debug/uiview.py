@@ -10,7 +10,8 @@ if __name__ == "__main__":
   CP = car.CarParams(notCar=True, wheelbase=1, steerRatio=10)
   Params().put("CarParams", CP.to_bytes())
 
-  procs = ['camerad', 'ui', 'modeld', 'calibrationd', 'plannerd', 'dmonitoringmodeld', 'dmonitoringd']
+  # procs = ['camerad', 'ui', 'modeld', 'calibrationd', 'plannerd', 'dmonitoringmodeld', 'dmonitoringd']
+  procs = ['webcamerad', 'ui', 'calibrationd', 'plannerd']
   for p in procs:
     managed_processes[p].start()
 
