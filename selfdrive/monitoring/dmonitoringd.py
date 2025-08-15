@@ -22,7 +22,7 @@ def dmonitoringd_thread():
       continue
 
     valid = sm.all_checks()
-    if valid:
+    if DM.always_on and valid:
       DM.run_step(sm)
 
     # publish

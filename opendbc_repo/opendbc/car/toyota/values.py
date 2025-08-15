@@ -106,7 +106,7 @@ class ToyotaSecOCPlatformConfig(PlatformConfig):
 
   def init(self):
     # don't expose car docs until SecOC cars can be suppressed from the comma website
-    self.car_docs = []
+    # self.car_docs = []
 
     self.flags |= ToyotaFlags.TSS2 | ToyotaFlags.NO_STOP_TIMER | ToyotaFlags.NO_DSU | ToyotaFlags.SECOC
 
@@ -280,6 +280,10 @@ class CAR(Platforms):
   TOYOTA_RAV4_PRIME = ToyotaSecOCPlatformConfig(
     [ToyotaCarDocs("Toyota RAV4 Prime 2021-23", min_enable_speed=MIN_ACC_SPEED)],
     CarSpecs(mass=4372. * CV.LB_TO_KG, wheelbase=2.68, steerRatio=16.88, tireStiffnessFactor=0.5533),
+  )
+  TOYOTA_WILDLANDER_PHEV = ToyotaSecOCPlatformConfig(
+    [ToyotaCarDocs("Toyota Wildlander PHEV 2021-23", min_enable_speed=MIN_ACC_SPEED)],
+    CarSpecs(mass=4155. * CV.LB_TO_KG, wheelbase=2.69, steerRatio=16.88, tireStiffnessFactor=0.5533),
   )
   TOYOTA_YARIS = ToyotaSecOCPlatformConfig(
     [ToyotaCarDocs("Toyota Yaris 2023 (Non-US only)", min_enable_speed=MIN_ACC_SPEED)],
