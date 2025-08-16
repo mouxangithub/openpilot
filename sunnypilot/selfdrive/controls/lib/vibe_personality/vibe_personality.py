@@ -40,7 +40,7 @@ FOLLOW_DISTANCE_PROFILES = {
   # },
   LongPersonality.standard: {
     'x_vel':  [0.,   22.,  25.,  40.],
-    'y_dist': [1.35, 1.35, 1.50, 1.50]  # longer following distance
+    'y_dist': [1.40, 1.40, 1.50, 1.50]  # longer following distance
   },
   #'x_vel':  [0.,   16.4, 22.2, 40.],
   #'y_dist': [1.03, 1.03, 1.50, 1.50]  # normal following distance
