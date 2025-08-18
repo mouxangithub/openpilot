@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+if [ "$USE_WEBCAM" = "1" ]; then
+    pip install -r tools/webcam/requirements.txt
+fi
+
 if [[ ! "${BASH_SOURCE[0]}" = "${0}" ]]; then
   echo "Invalid invocation! This script must not be sourced."
   echo "Run 'op.sh' directly or check your .bashrc for a valid alias"
