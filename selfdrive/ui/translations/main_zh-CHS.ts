@@ -3008,8 +3008,20 @@ Data</source>
         <translation>支持目前OpenPilot尚不支持的车型，如TSS-P/LSS、普锐斯TSS2、雷克萨斯IS。该功能将允许Sunnypilot利用车辆的盲点监测系统来检测盲点中的车辆，并向驾驶员发出警报。</translation>
     </message>
     <message>
+        <source>Toyota: Prius TSS2 BSM and some tssp</source>
+        <translation>丰田：TSS混动车型盲区检测和一些信号</translation>
+    </message>
+    <message>
+        <source>Add support for BSM.</source>
+        <translation>支持有BSM的车型。</translation>
+    </message>
+    <message>
         <source>Toyota: custom tune</source>
         <translation>丰田：定制调校</translation>
+    </message>
+    <message>
+        <source>idk something gas and brakee</source>
+        <translation>我不知道该加油还是刹车</translation>
     </message>
     <message>
         <source>Custome tune for Toyota TSS2 cars. This feature will allow SunnyPilot to adjust vehicle dynamics to be more natural and comfortable, tuned off the TSS2 Prius, Corolla, and RAV4.</source>

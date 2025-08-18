@@ -1,0 +1,63 @@
+Model 1 checkpoint: merged_onnx_heads_keep with w=0.5 from (model1: 'a423dec7-7dcc-4523-aaae-a4012d56b9b5/400') and (model2: 'aac83a2b-ad88-4df6-bf60-a1f137ec09da/400')
+Model 2 checkpoint: 30bba5b8-1269-45b2-8e53-672ce1f38623/400
+Base model: driving_policy.onnx
+Model to merge: driving_policy.onnx
+--------------------------------------------------
+Found 63 common weights to merge.
+
+--------------------------------------------------
+WEIGHT NAME ANALYSIS:
+Common weights: ['onnx::Add_221', 'onnx::MatMul_222', 'onnx::MatMul_223', 'onnx::MatMul_238', 'onnx::MatMul_239', 'onnx::MatMul_240', 'pad', 'policy_model.action_block.action_block_in.0.bias', 'policy_model.action_block.action_block_in.0.weight', 'policy_model.action_block.action_block_out.bias']...
+--------------------------------------------------
+
+Updating model checkpoint to: 'merged_onnx_heads_keep with w=0.5 from (model1: 'merged_onnx_heads_keep with w=0.5 from (model1: 'a423dec7-7dcc-4523-aaae-a4012d56b9b5/400') and (model2: 'aac83a2b-ad88-4df6-bf60-a1f137ec09da/400')') and (model2: '30bba5b8-1269-45b2-8e53-672ce1f38623/400')'
+MERGE SUMMARY:
+  Merged 63 common trunk weights (weight=0.5)
+  behavior: Using model1's driving patterns with merged hidden layers
+--------------------------------------------------
+MODEL VALIDATION
+
+1. ONNX Structure Validation:
+    ONNX structure is valid
+
+2. Model Metadata Validation:
+   IR Version: 8
+   Opset Version: [17]
+   Producer: pytorch 2.7.1
+
+3. Graph Structure Validation:
+   Nodes: 107
+   Inputs: 5
+   Outputs: 1
+   Initializers: 63
+   Original nodes: 107 -> Merged: 107
+   Original initializers: 63 -> Merged: 63
+
+4. Input/Output Shape Validation:
+   Input 0: desire -> [1, 25, 8] (10)
+   Input 1: traffic_convention -> [1, 2] (10)
+   Input 2: lateral_control_params -> [1, 2] (10)
+   Input 3: prev_desired_curv -> [1, 25, 1] (10)
+   Input 4: features_buffer -> [1, 25, 512] (10)
+   Output 0: outputs -> [1, 4968] (10)
+
+5. Weight Statistics Validation:
+ Potential weight issues found:
+   policy_model.temporal_summarizer._extra_in.0.weight: shape=(512, 202), mean=0.006653, std=0.097839
+   policy_model.temporal_summarizer._extra_in.0.bias: shape=(512,), mean=0.028183, std=0.084229
+
+6. Node Connectivity Validation:
+    All node inputs are satisfied
+
+7. Inference Capability Test:
+    Model can be loaded by ONNX Runtime
+   Input: desire -> [1, 25, 8] (tensor(float16))
+   Input: traffic_convention -> [1, 2] (tensor(float16))
+   Input: lateral_control_params -> [1, 2] (tensor(float16))
+   Input: prev_desired_curv -> [1, 25, 1] (tensor(float16))
+   Input: features_buffer -> [1, 25, 512] (tensor(float16))
+
+8. Model Size Analysis:
+   Original model: 14.86 MB
+   Merged model: 14.86 MB
+   Size change: +0.0%
