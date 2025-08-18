@@ -1,1 +1,1 @@
-#define DEFAULT_MODEL "Down To Ride (Default)"
+#define DEFAULT_MODEL "Kumars Vibe (Default)"

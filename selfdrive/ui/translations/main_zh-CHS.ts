@@ -1949,7 +1949,7 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>Firehose</source>
-        <translation>Firehose</translation>
+        <translation>数据流</translation>
     </message>
 </context>
 <context>
@@ -2013,69 +2013,6 @@ Warning: You are on a metered connection!</source>
     <message>
         <source>OSM</source>
         <translation>地图</translation>
-    </message>
-</context>
-<context>
-    <name>Setup</name>
-    <message>
-        <source>×</source>
-        <translation type="unfinished">×</translation>
-    </message>
-    <message>
-        <source>Device</source>
-        <translation>设备</translation>
-    </message>
-    <message>
-        <source>Network</source>
-        <translation type="unfinished">网络</translation>
-    </message>
-    <message>
-        <source>sunnylink</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Toggles</source>
-        <translation type="unfinished">设定</translation>
-    </message>
-    <message>
-        <source>Software</source>
-        <translation type="unfinished">软件</translation>
-    </message>
-    <message>
-        <source>Models</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Steering</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Cruise</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Visuals</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>OSM</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Trips</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Vehicle</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Firehose</source>
-        <translation type="unfinished">Firehose</translation>
-    </message>
-    <message>
-        <source>Developer</source>
-        <translation>开发人员</translation>
     </message>
 </context>
 <context>
@@ -2347,49 +2284,6 @@ Warning: You are on a metered connection!</source>
     <message>
         <source>Enabling</source>
         <translation>启用</translation>
-    </message>
-</context>
-<context>
-    <name>SoftwarePanelSP</name>
-    <message>
-        <source>Search Branch</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Enter search keywords, or leave blank to list all branches.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Disable Updates</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>When enabled, software updates will be disabled. &lt;b&gt;This requires a reboot to take effect.&lt;/b&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>No branches found for keywords: %1</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Select a branch</source>
-        <translation type="unfinished">选择分支</translation>
-    </message>
-    <message>
-        <source>%1 updates requires a reboot.&lt;br&gt;Reboot now?</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Reboot</source>
-        <translation type="unfinished">重启</translation>
-    </message>
-    <message>
-        <source>When enabled, software updates will be disabled.&lt;br&gt;&lt;b&gt;This requires a reboot to take effect.&lt;/b&gt;</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Please enable always offroad mode or turn off vehicle to adjust these toggles</source>
-        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -3114,8 +3008,20 @@ Data</source>
         <translation>支持目前OpenPilot尚不支持的车型，如TSS-P/LSS、普锐斯TSS2、雷克萨斯IS。该功能将允许Sunnypilot利用车辆的盲点监测系统来检测盲点中的车辆，并向驾驶员发出警报。</translation>
     </message>
     <message>
+        <source>Toyota: Prius TSS2 BSM and some tssp</source>
+        <translation>丰田：TSS混动车型盲区检测和一些信号</translation>
+    </message>
+    <message>
+        <source>Add support for BSM.</source>
+        <translation>支持有BSM的车型。</translation>
+    </message>
+    <message>
         <source>Toyota: custom tune</source>
         <translation>丰田：定制调校</translation>
+    </message>
+    <message>
+        <source>idk something gas and brakee</source>
+        <translation>我不知道该加油还是刹车</translation>
     </message>
     <message>
         <source>Custome tune for Toyota TSS2 cars. This feature will allow SunnyPilot to adjust vehicle dynamics to be more natural and comfortable, tuned off the TSS2 Prius, Corolla, and RAV4.</source>
@@ -3217,49 +3123,6 @@ Note that this feature is only compatible with select cars.</source>
     <message>
         <source>Cancel</source>
         <translation>取消</translation>
-    </message>
-</context>
-<context>
-    <name>VisualsPanel</name>
-    <message>
-        <source>Show Blind Spot Warnings</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Enabling this will display warnings when a vehicle is detected in your blind spot as long as your car has BSM supported.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source> Changing this setting will restart openpilot if the car is powered on.</source>
-        <translation> 如果车辆已通电，更改此设置将会重新启动 openpilot。</translation>
-    </message>
-    <message>
-        <source>Off</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Distance</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Speed</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Time</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>All</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Display Metrics Below Chevron</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Display useful metrics below the chevron that tracks the lead car (only applicable to cars with openpilot longitudinal control).</source>
-        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
