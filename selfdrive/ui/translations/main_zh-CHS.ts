@@ -1282,8 +1282,28 @@ Warning: You are on a metered connection!</source>
         <translation>​​实时学习转向延迟校准​​</translation>
     </message>
     <message>
+        <source>Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. Keeping this on provides the stock openpilot experience.</source>
+        <translation>​启用此功能，汽车便可学习和调整其转向响应时间。禁用此功能则使用固定的转向响应时间。保持启用此功能可提供原厂OpenPilot体验。</translation>
+    </message>
+    <message>
         <source>Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. Keeping this on provides the stock openpilot experience. The Current value is updated automatically when the vehicle is Onroad.</source>
         <translation>​启用此功能，汽车便可学习和调整其转向响应时间。禁用此功能则使用固定的转向响应时间。保持启用此功能可提供原厂OpenPilot体验。当车辆处于公路行驶状态时，当前值会自动更新。</translation>
+    </message>
+    <message>
+        <source>Live Steer Delay:</source>
+        <translation>实时转向延迟：</translation>
+    </message>
+    <message>
+        <source>Actuator Delay:</source>
+        <translation>执行器延迟：</translation>
+    </message>
+    <message>
+        <source>Software Delay:</source>
+        <translation>软件延迟：</translation>
+    </message>
+    <message>
+        <source>Total Delay:</source>
+        <translation>总延迟：</translation>
     </message>
     <message>
         <source>Adjust Software Delay</source>
@@ -3008,8 +3028,20 @@ Data</source>
         <translation>支持目前OpenPilot尚不支持的车型，如TSS-P/LSS、普锐斯TSS2、雷克萨斯IS。该功能将允许Sunnypilot利用车辆的盲点监测系统来检测盲点中的车辆，并向驾驶员发出警报。</translation>
     </message>
     <message>
+        <source>Toyota: Prius TSS2 BSM and some tssp</source>
+        <translation>丰田：TSS混动车型盲区检测和一些信号</translation>
+    </message>
+    <message>
+        <source>Add support for BSM.</source>
+        <translation>支持有BSM的车型。</translation>
+    </message>
+    <message>
         <source>Toyota: custom tune</source>
         <translation>丰田：定制调校</translation>
+    </message>
+    <message>
+        <source>idk something gas and brakee</source>
+        <translation>我不知道该加油还是刹车</translation>
     </message>
     <message>
         <source>Custome tune for Toyota TSS2 cars. This feature will allow SunnyPilot to adjust vehicle dynamics to be more natural and comfortable, tuned off the TSS2 Prius, Corolla, and RAV4.</source>
