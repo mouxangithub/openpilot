@@ -1282,8 +1282,28 @@ Warning: You are on a metered connection!</source>
         <translation>​​实时学习转向延迟校准​​</translation>
     </message>
     <message>
+        <source>Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. Keeping this on provides the stock openpilot experience.</source>
+        <translation>​启用此功能，汽车便可学习和调整其转向响应时间。禁用此功能则使用固定的转向响应时间。保持启用此功能可提供原厂OpenPilot体验。</translation>
+    </message>
+    <message>
         <source>Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. Keeping this on provides the stock openpilot experience. The Current value is updated automatically when the vehicle is Onroad.</source>
         <translation>​启用此功能，汽车便可学习和调整其转向响应时间。禁用此功能则使用固定的转向响应时间。保持启用此功能可提供原厂OpenPilot体验。当车辆处于公路行驶状态时，当前值会自动更新。</translation>
+    </message>
+    <message>
+        <source>Live Steer Delay:</source>
+        <translation>实时转向延迟：</translation>
+    </message>
+    <message>
+        <source>Actuator Delay:</source>
+        <translation>执行器延迟：</translation>
+    </message>
+    <message>
+        <source>Software Delay:</source>
+        <translation>软件延迟：</translation>
+    </message>
+    <message>
+        <source>Total Delay:</source>
+        <translation>总延迟：</translation>
     </message>
     <message>
         <source>Adjust Software Delay</source>
