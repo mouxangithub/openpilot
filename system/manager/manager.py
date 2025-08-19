@@ -350,19 +350,19 @@ def manager_thread() -> None:
 
 def main() -> None:
   manager_init()
-  os.system(f"python ./opendbc/car/hyundai/values.py > {Params().get_param_path()}/SupportedCars")
-  os.system(f"python ./opendbc/car/gm/values.py > {Params().get_param_path()}/SupportedCars_gm")
-  os.system(f"python ./opendbc/car/toyota/values.py > {Params().get_param_path()}/SupportedCars_toyota")
-  os.system(f"python ./opendbc/car/mazda/values.py > {Params().get_param_path()}/SupportedCars_mazda")
-  os.system(f"python ./opendbc/car/honda/values.py > {Params().get_param_path()}/SupportedCars_honda")
-  os.system(f"python ./opendbc/car/byd/values.py > {Params().get_param_path()}/SupportedCars_byd")
-  os.system(f"python ./opendbc/car/rivian/values.py > {Params().get_param_path()}/SupportedCars_rivian")
-  os.system(f"python ./opendbc/car/subaru/values.py > {Params().get_param_path()}/SupportedCars_subaru")
-  os.system(f"python ./opendbc/car/ford/values.py > {Params().get_param_path()}/SupportedCars_ford")
-  os.system(f"python ./opendbc/car/nissan/values.py > {Params().get_param_path()}/SupportedCars_nissan")
-  os.system(f"python ./opendbc/car/tesla/values.py > {Params().get_param_path()}/SupportedCars_tesla")
-  os.system(f"python ./opendbc/car/chrysler/values.py > {Params().get_param_path()}/SupportedCars_chrysler")
-  os.system(f"python ./opendbc/car/volkswagen/values.py > {Params().get_param_path()}/SupportedCars_volkswagen")
+  os.system(f"python ../../car/hyundai/values.py > {Params().get_param_path()}/SupportedCars")
+  os.system(f"python ../../car/gm/values.py > {Params().get_param_path()}/SupportedCars_gm")
+  os.system(f"python ../../car/toyota/values.py > {Params().get_param_path()}/SupportedCars_toyota")
+  os.system(f"python ../../car/mazda/values.py > {Params().get_param_path()}/SupportedCars_mazda")
+  os.system(f"python ../../car/honda/values.py > {Params().get_param_path()}/SupportedCars_honda")
+  os.system(f"python ../../car/byd/values.py > {Params().get_param_path()}/SupportedCars_byd")
+  os.system(f"python ../../car/rivian/values.py > {Params().get_param_path()}/SupportedCars_rivian")
+  os.system(f"python ../../car/subaru/values.py > {Params().get_param_path()}/SupportedCars_subaru")
+  os.system(f"python ../../car/ford/values.py > {Params().get_param_path()}/SupportedCars_ford")
+  os.system(f"python ../../car/nissan/values.py > {Params().get_param_path()}/SupportedCars_nissan")
+  os.system(f"python ../../car/tesla/values.py > {Params().get_param_path()}/SupportedCars_tesla")
+  os.system(f"python ../../car/chrysler/values.py > {Params().get_param_path()}/SupportedCars_chrysler")
+  os.system(f"python ../../car/volkswagen/values.py > {Params().get_param_path()}/SupportedCars_volkswagen")
 
   if os.getenv("PREPAREONLY") is not None:
     return
