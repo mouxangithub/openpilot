@@ -246,4 +246,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"DashcamServerPid", {PERSISTENT, STRING}},
     {"DashcamServerPort", {PERSISTENT | BACKUP, INT, "8009"}},
     {"DashcamServerEnabled", {PERSISTENT | BACKUP, INT, "0"}},
+
+    {"dp_dev_dashy", {PERSISTENT, INT, "2"}},
 };

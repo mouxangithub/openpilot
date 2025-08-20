@@ -2988,6 +2988,34 @@ Data</source>
         <translation>端口号 (1024-65535)</translation>
     </message>
     <message>
+        <source>Lite</source>
+        <translation>轻量</translation>
+    </message>
+    <message>
+        <source>Full</source>
+        <translation>完整</translation>
+    </message>
+    <message>
+        <source>dashy</source>
+        <translation>实时流服务</translation>
+    </message>
+    <message>
+        <source>dashy - dragonpilot's all-in-one system hub for you.
+
+Visit http://&lt;device_ip&gt;:5088 to access.
+
+Off - Turn off dashy completely.
+Lite: File Manager only.
+Full: File Manager + Live Stream.</source>
+        <translation>实时流服务 - dragonpilot 的一体化系统中心，专为您的设备设计。
+
+访问 http://&lt;device_ip&gt;:5088
+
+关闭 - 完全关闭 dashy。
+轻量版：仅文件管理器。
+完整版: 文件管理器 + 实时流。</translation>
+    </message>
+    <message>
         <source>Enable Dynamic Experimental Control</source>
         <translation>启用动态实验性控制</translation>
     </message>

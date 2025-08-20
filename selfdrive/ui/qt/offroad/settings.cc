@@ -135,6 +135,12 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
     },
   };
 
+  std::vector<QString> dashy_mode_texts{tr("Off"), tr("Lite"), tr("Full")};
+  dashy_mode_settings = new ButtonParamControl("dp_dev_dashy", tr("dashy"),
+                                          tr("dashy - dragonpilot's all-in-one system hub for you.\n\nVisit http://<device_ip>:5088 to access.\n\nOff - Turn off dashy completely.\nLite: File Manager only.\nFull: File Manager + Live Stream."),
+                                          "",
+                                          dashy_mode_texts);
+
   std::vector<QString> distraction_button_texts{tr("Strict"), tr("Moderate"), tr("Lenient"), tr("Off")};
   distraction_detection_level = new ButtonParamControl("DistractionDetectionLevel", tr("Distraction Detection Level"),
                                           tr("Set how sensitive the driver distraction detection should be. "
@@ -212,6 +218,7 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
       });
       addItem(dashcam_port_btn);
     }
+    addItem(dashy_mode_settings);
   }
 
   auto alwaysOnDMToggle = toggles["AlwaysOnDM"];

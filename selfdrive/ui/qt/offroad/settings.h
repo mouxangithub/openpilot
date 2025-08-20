@@ -90,6 +90,7 @@ protected:
   ButtonParamControl *distraction_detection_level;
   ButtonParamControl *long_personality_setting;
   ButtonParamControl *accel_personality_setting;
+  ButtonParamControl *dashy_mode_settings;
   ButtonControl *dashcam_port_btn;
 
   virtual void updateToggles();
