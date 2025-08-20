@@ -33,8 +33,8 @@ void detect_board_type(void) {
     hw_type = HW_TYPE_GREY_PANDA;
     current_board = &board_grey;
   } else if(!detect_with_pull(GPIOB, 15, PULL_UP)) {
-    hw_type = HW_TYPE_UNO;
-    current_board = &board_uno;
+    hw_type = HW_TYPE_DOS;
+    current_board = &board_dos;
   } else {
     hw_type = HW_TYPE_BLACK_PANDA;
     current_board = &board_black;
