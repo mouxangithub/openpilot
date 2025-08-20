@@ -167,7 +167,7 @@ class Route:
       except StopIteration:
         qcamera_path = None
 
-      segments.append(Segment(segment, log_path, qlog_path, camera_path, dcamera_path, ecamera_path, qcamera_path, self.metadata['url']))
+      segments.append(Segment(segment, log_path, qlog_path, camera_path, dcamera_path, ecamera_path, qcamera_path, ""))
 
     if len(segments) == 0:
       raise ValueError(f'Could not find segments for route {self.name.canonical_name} in data directory {data_dir}')

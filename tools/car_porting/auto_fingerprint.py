@@ -16,8 +16,6 @@ if __name__ == "__main__":
   parser.add_argument("segments", help="第几段数据", default=None, nargs="?")
   parser.add_argument("platform", help="The platform, or leave empty to auto-determine using fuzzy", default=None, nargs="?")
   args = parser.parse_args()
-
-  # lr = LogReader(args.route, ReadMode.QLOG)
   r = Route(args.route, data_dir=args.data_dir)
   lr = LogReader(r.log_paths()[int(args.segments)] if args.segments is not None else r.log_paths(), default_mode=ReadMode.QLOG)
   CP = lr.first("carParams")

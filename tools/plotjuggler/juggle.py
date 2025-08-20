@@ -82,7 +82,6 @@ def process(can, lr):
 
 
 def juggle_route(route_or_segment_name, can, layout, dbc, should_migrate):
-  # lr = LogReader(route_or_segment_name, default_mode=ReadMode.AUTO_INTERACTIVE)
   from openpilot.tools.lib.route import Route
   r = Route(route_or_segment_name, data_dir=args.data_dir)
   lr = LogReader(r.log_paths()[int(args.segments)] if args.segments is not None else r.log_paths(), default_mode=ReadMode.AUTO_INTERACTIVE)

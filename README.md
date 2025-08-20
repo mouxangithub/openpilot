@@ -3,9 +3,8 @@
 <b>在pc设备上运行sunnypilot </b>
 </div>
 
-* CPU比较强大
-* 有NVIDIA的GPU
-* 有AMD的GPU
+* PC最好有GPU可以支持opencl的加速
+* 实测mac的m芯片速度比较快，不需要配置第二步
 
 <h3>
 1. 环境安装
@@ -14,7 +13,7 @@
 参考 [webcam安装步骤](tools/webcam/README.md)
 
 <h3>
-2. GPU支持
+2. GPU支持（可选/可跳过）
 </h3>
 <h4>
 NVIDIA
@@ -37,9 +36,8 @@ sudo apt-get -y install cudnn
 sudo apt-get -y install cudnn-cuda-12
 ```
 
-按上图修改相应的文件和内容,之后`tools/op.sh build`编译,之后运行就行
+然后`tools/op.sh build`编译,之后运行就行
 
-默热配置的是`CPU`,按理说安装好相关`GPU`驱动会自动调用相应的`GPU`加速
 
 <h4>
 AMD
@@ -47,6 +45,11 @@ AMD
 
 参考官方教程
 
+<h4>
+参数修改
+</h4>
+
+将[SConscript](selfdrive/modeld/SConscript)中`GPU=1`改称`CUDA=1`或者`AMD=1`; 将[modeld.py](selfdrive/modeld/modeld.py)中`os.environ['GPU'] = '1'`改称`os.environ['CUDA'] = '1'`或者`os.environ['AMD'] = '1'`
 
 <h3>
 3. 摄像机参数设置
@@ -55,31 +58,45 @@ AMD
 首先使用一些常规软件获取摄像头的内参参数(例如GMLCCalibration),主要是内参matrix矩阵
 然后分别修改[camera.py](common/transformations/camera.py)和[ui.h](selfdrive/ui/ui.h)中相应摄像头的内参参数；另外根据自己的需求更改[camera.py](tools/webcam/camera.py)中的相机参数（像素和帧率，帧率最好是20的倍数，例如20,60）
 
-## 安装教程
-安装教程文档：https://gitee.com/huheas/pilotosinit
+<h3>
+4. 数据分析
+</h3>
 
-## 数据分析
 参考 [juggler数据分析](tools/plotjuggler/README.md)
 
-## Secoc
-secoc 参考文档：https://github.com/I-CAN-hack/secoc
+<h3>
+5. 分支管理
+</h3>
 
-为需要使用secoc获取解密的车型内置了secoc key脚本
-  1. 首先启动汽车进入Not Ready To Drive(慢慢按两次启动键，不需要踩制动踏板，POWER)
-  2. 先关闭openpilot程序，linux终端进入项目目录下
-  3. 运行python key.py
-  4. 如果报错类似：Unexpected application version! b'\x018965B4221000\x00\x00\x00\x00'，请把b''引号里面的值复制到项目key.py脚本中的APPLICATION_VERSIONS中，例如下方代码
-  5. 最后看到SecOCKey输出则说明成功，SecOCKey不需要单独复制保存，会自动永久存储到系统中，只要不重装系统那些这个SecOCKey会一直保存
-```
-APPLICATION_VERSIONS = {
-    b'\x018965B4209000\x00\x00\x00\x00': b'\x01!!!!!!!!!!!!!!!!', # 2021 RAV4 Prime
-    b'\x018965B4233100\x00\x00\x00\x00': b'\x01!!!!!!!!!!!!!!!!', # 2023 RAV4 Prime
-    b'\x018965B4509100\x00\x00\x00\x00': b'\x01!!!!!!!!!!!!!!!!', # 2021 Sienna
-    b'\x018965B4221000\x00\x00\x00\x00': b'\x01!!!!!!!!!!!!!!!!', # 2021 RAV4 Prime
-}
-```
+|    Branch    |         explain        |
+|:------------:|:--------------------------------:|
+| `master-new` | 同步sunnypilot的master-new分支 |
+| `master-new-pc` | PC版的稳定版本分支（PC建议使用这个） |
+| `master-new-pc-dev` | PC版的开发分支（定期同步最新改动），测试通过后会合入master-new-pc |
+| `master-rk3588` | 针对rk3588的分支，具体参考RKPilot仓库 |
+
+备注：master-new-pc-dev分支兼容comma3设备（适配BYD车型/优化纵向控制）
+
+<h3>
+6. 环境变量
+</h3>
+
+|    Branch    |         explain        |
+|:------------:|:--------------------------------:|
+| `DRIVER_CAM=x` | 启用DM摄像头（默认不启用），并指定其设备编号x |
+| `NO_IMU=1` | 不使用can的上imu信息，适用于can信号里yawRate未填值的车型 |
+
+<h3>
+7. 免责声明！！！
+</h3>
+
+本仓库只是用来知识共享；请遵守当地法律法规，所产生的一切后果与开发者无关！
+
+------
+------
 ------
 
+# sunnypilot
 ![](https://user-images.githubusercontent.com/47793918/233812617-beab2e71-57b9-479e-8bff-c3931347ca40.png)
 
 ## 🌞 What is sunnypilot?

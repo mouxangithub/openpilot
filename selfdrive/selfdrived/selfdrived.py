@@ -21,7 +21,7 @@ from openpilot.selfdrive.selfdrived.helpers import ExcessiveActuationCheck
 from openpilot.selfdrive.selfdrived.state import StateMachine
 from openpilot.selfdrive.selfdrived.alertmanager import AlertManager, set_offroad_alert
 
-from openpilot.system.hardware import HARDWARE
+from openpilot.system.hardware import HARDWARE, PC
 from openpilot.system.version import get_build_metadata
 
 from openpilot.sunnypilot.mads.mads import ModularAssistiveDrivingSystem
@@ -34,8 +34,8 @@ SIMULATION = "SIMULATION" in os.environ
 TESTING_CLOSET = "TESTING_CLOSET" in os.environ
 
 LONGITUDINAL_PERSONALITY_MAP = {v: k for k, v in log.LongitudinalPersonality.schema.enumerants.items()}
-NO_DM = os.getenv("NO_DM") is not None
 MIN_EXCESSIVE_ACTUATION_COUNT = int(0.25 / DT_CTRL)
+DRIVER_CAM = os.getenv("DRIVER_CAM") is not None
 
 ThermalStatus = log.DeviceState.ThermalStatus
 State = log.SelfdriveState.OpenpilotState
@@ -80,15 +80,19 @@ class SelfdriveD(CruiseHelper):
     self.gps_location_service = get_gps_location_service(self.params)
     self.gps_packets = [self.gps_location_service]
     self.sensor_packets = []
+    if not PC:
+      self.sensor_packets += ["accelerometer", "gyroscope"]
     self.camera_packets = ["roadCameraState"]
-    if not NO_DM:
+    if DRIVER_CAM:
       self.camera_packets.append("driverCameraState")
 
     # TODO: de-couple selfdrived with card/conflate on carState without introducing controls mismatches
     self.car_state_sock = messaging.sub_sock('carState', timeout=20)
 
-    ignore = self.sensor_packets + self.gps_packets + ['alertDebug', "accelerometer", "gyroscope"] + ['modelDataV2SP']
-    if NO_DM:
+    ignore = self.sensor_packets + self.gps_packets + ['alertDebug'] + ['modelDataV2SP']
+    if PC:
+      ignore += ['accelerometer', 'gyroscope']
+    if not DRIVER_CAM:
       ignore += ['driverMonitoringState']
     if SIMULATION:
       ignore += ['driverCameraState', 'managerState']
@@ -210,7 +214,7 @@ class SelfdriveD(CruiseHelper):
     if not self.CP.pcmCruise and CS.vCruise > 250 and resume_pressed:
       self.events.add(EventName.resumeBlocked)
 
-    if not self.CP.notCar and not NO_DM:
+    if not self.CP.notCar and DRIVER_CAM:
       self.events.add_from_msg(self.sm['driverMonitoringState'].events)
       self.events_sp.add_from_msg(self.sm['longitudinalPlanSP'].events)
 
