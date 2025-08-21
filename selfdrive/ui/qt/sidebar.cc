@@ -85,20 +85,20 @@ void Sidebar::updateState(const UIState &s) {
   ItemStatus connectStatus;
   auto last_ping = deviceState.getLastAthenaPingTime();
   if (last_ping == 0) {
-    connectStatus = ItemStatus{{tr("CONNECT"), tr("OFFLINE")}, warning_color};
+    connectStatus = ItemStatus{{tr("CONNECT"), tr("永远在线")}, warning_color};
   } else {
     connectStatus = nanos_since_boot() - last_ping < 80e9
-                        ? ItemStatus{{tr("CONNECT"), tr("ONLINE")}, good_color}
-                        : ItemStatus{{tr("CONNECT"), tr("ERROR")}, danger_color};
+                        ? ItemStatus{{tr("CONNECT"), tr("永远在线")}, good_color}
+                        : ItemStatus{{tr("CONNECT"), tr("永远在线")}, danger_color};
   }
   setProperty("connectStatus", QVariant::fromValue(connectStatus));
 
-  ItemStatus tempStatus = {{tr("TEMP"), tr("HIGH")}, danger_color};
+  ItemStatus tempStatus = {{tr("温度"), tr("很热")}, danger_color};
   auto ts = deviceState.getThermalStatus();
   if (ts == cereal::DeviceState::ThermalStatus::GREEN) {
-    tempStatus = {{tr("TEMP"), tr("GOOD")}, good_color};
+    tempStatus = {{tr("温度"), tr("凉爽")}, good_color};
   } else if (ts == cereal::DeviceState::ThermalStatus::YELLOW) {
-    tempStatus = {{tr("TEMP"), tr("OK")}, warning_color};
+    tempStatus = {{tr("温度"), tr("还行")}, warning_color};
   }
   setProperty("tempStatus", QVariant::fromValue(tempStatus));
 
