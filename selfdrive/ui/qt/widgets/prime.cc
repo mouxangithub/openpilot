@@ -147,7 +147,7 @@ PrimeAdWidget::PrimeAdWidget(QWidget* parent) : QFrame(parent) {
   main_layout->setSpacing(0);
 
 
-    QLabel *upgrade = new QLabel(tr("欢迎选购MR.one"));
+    QLabel *upgrade = new QLabel(tr("欢迎选购Mr.one"));
   upgrade->setStyleSheet("font-size: 75px; font-weight: bold;");
   main_layout->addWidget(upgrade, 0, Qt::AlignTop);
   main_layout->addSpacing(50);
