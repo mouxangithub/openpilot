@@ -85,11 +85,11 @@ void Sidebar::updateState(const UIState &s) {
   ItemStatus connectStatus;
   auto last_ping = deviceState.getLastAthenaPingTime();
   if (last_ping == 0) {
-    connectStatus = ItemStatus{{tr("CONNECT"), tr("永远在线")}, warning_color};
+    connectStatus = ItemStatus{{tr("CONNECT"), tr("永远在线")}, good_color};
   } else {
     connectStatus = nanos_since_boot() - last_ping < 80e9
                         ? ItemStatus{{tr("CONNECT"), tr("永远在线")}, good_color}
-                        : ItemStatus{{tr("CONNECT"), tr("永远在线")}, danger_color};
+                        : ItemStatus{{tr("CONNECT"), tr("永远在线")}, good_color};
   }
   setProperty("connectStatus", QVariant::fromValue(connectStatus));
 
