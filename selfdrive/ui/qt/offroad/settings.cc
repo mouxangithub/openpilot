@@ -503,8 +503,8 @@ SettingsWindow::SettingsWindow(QWidget *parent) : QFrame(parent) {
   if(false) {
     panels.append({tr("Firehose"), new FirehosePanel(this)});
   }
-  panels.append({ tr("Carrot"), new CarrotPanel(this) });
-  panels.append({ tr("Developer"), new DeveloperPanel(this) });
+  panels.append({ tr("萝卜"), new CarrotPanel(this) });
+  panels.append({ tr("开发"), new DeveloperPanel(this) });
 
   nav_btns = new QButtonGroup(this);
   for (auto &[name, panel] : panels) {
