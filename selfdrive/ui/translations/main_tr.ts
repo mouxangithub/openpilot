@@ -374,8 +374,8 @@ This only toggles the visibility of the controls; it does not toggle the actual 
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>Cihazınızı comma connect (connect.comma.ai) ile eşleştirin ve comma prime aboneliğine göz atın.</translation>
+        <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
+        <translation>Cihazınızı comma connect (stable.konik.ai) ile eşleştirin ve comma prime aboneliğine göz atın.</translation>
     </message>
     <message>
         <source>Pair Device</source>
@@ -1356,16 +1356,16 @@ Warning: You are on a metered connection!</source>
         <translation>comma.ai hesabınız ile cihazı eşleştirin</translation>
     </message>
     <message>
-        <source>Go to https://connect.comma.ai on your phone</source>
-        <translation>Telefonuzdan https://connect.comma.ai sitesine gidin</translation>
+        <source>Go to https://stable.konik.ai on your phone</source>
+        <translation>Telefonuzdan https://stable.konik.ai sitesine gidin</translation>
     </message>
     <message>
         <source>Click &quot;add new device&quot; and scan the QR code on the right</source>
         <translation>Yeni cihaz eklemek için sağdaki QR kodunu okutun</translation>
     </message>
     <message>
-        <source>Bookmark connect.comma.ai to your home screen to use it like an app</source>
-        <translation>Uygulama gibi kullanmak için connect.comma.ai sitesini yer işaretlerine ekleyin.</translation>
+        <source>Bookmark stable.konik.ai to your home screen to use it like an app</source>
+        <translation>Uygulama gibi kullanmak için stable.konik.ai sitesini yer işaretlerine ekleyin.</translation>
     </message>
     <message>
         <source>Please connect to Wi-Fi to complete initial pairing</source>
@@ -1480,8 +1480,8 @@ Warning: You are on a metered connection!</source>
         <translation>Hemen yükselt</translation>
     </message>
     <message>
-        <source>Become a comma prime member at connect.comma.ai</source>
-        <translation>connect.comma.ai üzerinden comma prime üyesi olun</translation>
+        <source>Become a comma prime member at stable.konik.ai</source>
+        <translation>stable.konik.ai üzerinden comma prime üyesi olun</translation>
     </message>
     <message>
         <source>PRIME FEATURES:</source>
@@ -1645,8 +1645,8 @@ Warning: You are on a metered connection!</source>
         <translation>Kurulumu bitir</translation>
     </message>
     <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>Cihazınızı comma connect (connect.comma.ai) ile eşleştirin ve comma prime aboneliğine göz atın.</translation>
+        <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
+        <translation>Cihazınızı comma connect (stable.konik.ai) ile eşleştirin ve comma prime aboneliğine göz atın.</translation>
     </message>
     <message>
         <source>Pair device</source>
