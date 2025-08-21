@@ -5,14 +5,14 @@
 #include "selfdrive/ui/qt/widgets/input.h"
 
 SshControl::SshControl() :
-  ButtonControl(tr("SSH Keys"), "", tr("Warning: This grants SSH access to all public keys in your GitHub settings. Never enter a GitHub username "
-                                       "other than your own. A comma employee will NEVER ask you to add their GitHub username.")) {
+  ButtonControl(tr("SSH密钥"), "", tr("警告：这将授予对您GitHub设置中所有公钥的SSH访问权限。请勿输入除您自己之外的GitHub用户名。"
+                                       "Comma员工绝不会要求您添加他们的GitHub用户名。")) {
 
   QObject::connect(this, &ButtonControl::clicked, [=]() {
-    if (text() == tr("ADD")) {
-      QString username = InputDialog::getText(tr("Enter your GitHub username"), this);
+    if (text() == tr("添加")) {
+      QString username = InputDialog::getText(tr("输入您的GitHub用户名"), this);
       if (username.length() > 0) {
-        setText(tr("LOADING"));
+        setText(tr("加载中"));
         setEnabled(false);
         getUserKeys(username);
       }
@@ -30,10 +30,10 @@ void SshControl::refresh() {
   QString param = QString::fromStdString(params.get("GithubSshKeys"));
   if (param.length()) {
     setValue(QString::fromStdString(params.get("GithubUsername")));
-    setText(tr("REMOVE"));
+    setText(tr("移除"));
   } else {
     setValue("");
-    setText(tr("ADD"));
+    setText(tr("添加"));
   }
   setEnabled(true);
 }
@@ -46,13 +46,13 @@ void SshControl::getUserKeys(const QString &username) {
         params.put("GithubUsername", username.toStdString());
         params.put("GithubSshKeys", resp.toStdString());
       } else {
-        ConfirmationDialog::alert(tr("Username '%1' has no keys on GitHub").arg(username), this);
+        ConfirmationDialog::alert(tr("用户名 '%1' 在GitHub上没有密钥").arg(username), this);
       }
     } else {
       if (request->timeout()) {
-        ConfirmationDialog::alert(tr("Request timed out"), this);
+        ConfirmationDialog::alert(tr("请求超时"), this);
       } else {
-        ConfirmationDialog::alert(tr("Username '%1' doesn't exist on GitHub").arg(username), this);
+        ConfirmationDialog::alert(tr("用户名 '%1' 在GitHub上不存在").arg(username), this);
       }
     }
 
