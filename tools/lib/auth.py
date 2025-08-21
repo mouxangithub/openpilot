@@ -76,6 +76,8 @@ def auth_redirect_link(method):
       'scope': 'read:user',
     })
     return 'https://github.com/login/oauth/authorize?' + urlencode(params)
+  else:
+    raise NotImplementedError(f"no redirect implemented for method {method}")
 
 
 def login(method):

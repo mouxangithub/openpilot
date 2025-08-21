@@ -100,9 +100,9 @@ PairingPopup::PairingPopup(QWidget *parent) : DialogBase(parent) {
         <li style='margin-bottom: 50px;'>%2</li>
         <li style='margin-bottom: 50px;'>%3</li>
       </ol>
-    )").arg(tr("Go to https://stable.konik.aion your phone"))
+    )").arg(tr("Go to https://stable.konik.ai on your phone"))
     .arg(tr("Click \"add new device\" and scan the QR code on the right"))
-    .arg(tr("Bookmark stable.konik.aito your home screen to use it like an app")), this);
+    .arg(tr("Bookmark stable.konik.ai to your home screen to use it like an app")), this);
 
     instructions->setStyleSheet("font-size: 47px; font-weight: bold; color: black;");
     instructions->setWordWrap(true);

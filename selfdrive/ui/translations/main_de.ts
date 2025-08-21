@@ -375,7 +375,7 @@ This only toggles the visibility of the controls; it does not toggle the actual 
     </message>
     <message>
         <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
-        <translation>Koppele dein Gerät mit Comma connect (stable.konik.ai) und sichere dir dein Comma Prime Angebot.</translation>
+        <translation>Koppele dein Gerät mit Comma Connect (stable.konik.ai) und sichere dir dein Comma Prime Angebot.</translation>
     </message>
     <message>
         <source>Pair Device</source>
@@ -1652,7 +1652,7 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
-        <translation>Koppele dein Gerät mit Comma connect (stable.konik.ai) und sichere dir dein Comma Prime Angebot.</translation>
+        <translation>Koppele dein Gerät mit Comma Connect (stable.konik.ai) und sichere dir dein Comma Prime Angebot.</translation>
     </message>
     <message>
         <source>Pair device</source>
