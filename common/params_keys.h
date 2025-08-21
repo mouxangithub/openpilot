@@ -140,6 +140,8 @@ inline static std::unordered_map<std::string, uint32_t> keys = {
     {"CarSelected3", PERSISTENT},
     {"SupportedCars", PERSISTENT},
     {"SupportedCars_gm", PERSISTENT},
+    {"SupportedCars_tesla", PERSISTENT},
+    {"SupportedCars_volkswagen", PERSISTENT},
     {"ShowDebugUI", PERSISTENT},
     {"ShowTpms", PERSISTENT},
     {"ShowDateTime", PERSISTENT},
