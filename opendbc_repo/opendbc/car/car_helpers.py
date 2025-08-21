@@ -160,7 +160,48 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
     candidate = "MOCK"
 
   selected_car = Params().get("CarSelected3")
- 
+  if selected_car:
+    def find_car(name: str):
+      from opendbc.car.hyundai.values import CAR as HYUNDAI
+      from opendbc.car.gm.values import CAR as GM
+      from opendbc.car.toyota.values import CAR as TOYOTA
+      from opendbc.car.mazda.values import CAR as MAZDA
+      from opendbc.car.tesla.values import CAR as TESLA
+      from opendbc.car.volkswagen.values import CAR as VOLKSWAGEN
+      from opendbc.car.honda.values import CAR as HONDA
+      for platform in GM:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in TOYOTA:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in HYUNDAI:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in MAZDA:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in VOLKSWAGEN:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in TESLA:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in HONDA:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      return None
+    found_car = find_car(selected_car.decode("utf-8"))
+    if found_car is not None:
+      candidate = found_car
+
   print(f"SelectedCar = {candidate}")
   Params().put("CarName", candidate)
 
