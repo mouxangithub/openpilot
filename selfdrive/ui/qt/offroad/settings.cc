@@ -185,17 +185,17 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   QHBoxLayout* power_layout = new QHBoxLayout();
   power_layout->setSpacing(30);
 
-  QPushButton* reboot_btn = new QPushButton(tr("Reboot"));
+  QPushButton* reboot_btn = new QPushButton(tr("重启"));
   reboot_btn->setObjectName("reboot_btn");
   power_layout->addWidget(reboot_btn);
   QObject::connect(reboot_btn, &QPushButton::clicked, this, &DevicePanel::reboot);
   //차선캘리
-  QPushButton *reset_CalibBtn = new QPushButton(tr("ReCalibration"));
+  QPushButton *reset_CalibBtn = new QPushButton(tr("重新校准"));
   reset_CalibBtn->setObjectName("reset_CalibBtn");
   power_layout->addWidget(reset_CalibBtn);
   QObject::connect(reset_CalibBtn, &QPushButton::clicked, this, &DevicePanel::calibration);
 
-  QPushButton* poweroff_btn = new QPushButton(tr("Power Off"));
+  QPushButton* poweroff_btn = new QPushButton(tr("关机"));
   poweroff_btn->setObjectName("poweroff_btn");
   power_layout->addWidget(poweroff_btn);
   QObject::connect(poweroff_btn, &QPushButton::clicked, this, &DevicePanel::poweroff);
@@ -209,12 +209,12 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   QHBoxLayout* init_layout = new QHBoxLayout();
   init_layout->setSpacing(30);
 
-  QPushButton* init_btn = new QPushButton(tr("Git Pull & Reboot"));
+  QPushButton* init_btn = new QPushButton(tr("Git 拉取 & 重启"));
   init_btn->setObjectName("init_btn");
   init_layout->addWidget(init_btn);
   //QObject::connect(init_btn, &QPushButton::clicked, this, &DevicePanel::reboot);
   QObject::connect(init_btn, &QPushButton::clicked, [&]() {
-    if (ConfirmationDialog::confirm(tr("Git pull & Reboot?"), tr("Yes"), this)) {
+    if (ConfirmationDialog::confirm(tr("执行 Git 拉取 & 重启？"), tr("是"), this)) {
       QString cmd =
         "bash -c 'cd /data/openpilot && "
         "git fetch && "
@@ -225,40 +225,41 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
         "fi'";
 
       if (!QProcess::startDetached(cmd)) {
-        ConfirmationDialog::alert(tr("Failed to start update process."), this);
+        ConfirmationDialog::alert(tr("启动更新过程失败。"), this);
       }
       else {
-        ConfirmationDialog::alert(tr("Update process started. Device will reboot if updates are applied."), this);
+        ConfirmationDialog::alert(tr("更新过程已启动。如果有更新，设备将重启。"), this);
       }
     }
     });
 
-  QPushButton* default_btn = new QPushButton(tr("Set default"));
+  QPushButton* default_btn = new QPushButton(tr("恢复默认"));
   default_btn->setObjectName("default_btn");
   init_layout->addWidget(default_btn);
   //QObject::connect(default_btn, &QPushButton::clicked, this, &DevicePanel::poweroff);
   QObject::connect(default_btn, &QPushButton::clicked, [&]() {
-    if (ConfirmationDialog::confirm(tr("Set to default?"), tr("Yes"), this)) {
+    if (ConfirmationDialog::confirm(tr("恢复为默认设置？"), tr("是"), this)) {
       //emit parent->closeSettings();
       QTimer::singleShot(1000, []() {
-        printf("Set to default\n");
+        printf("恢复为默认设置\n");
         Params().putInt("SoftRestartTriggered", 2);
-        printf("Set to default2\n");
+        printf("恢复为默认设置完成\n");
         });
     }
     });
 
-  QPushButton* remove_mapbox_key_btn = new QPushButton(tr("Remove MapboxKey"));
+  QPushButton* remove_mapbox_key_btn = new QPushButton(tr("移除 Mapbox Key"));
   remove_mapbox_key_btn->setObjectName("remove_mapbox_key_btn");
   init_layout->addWidget(remove_mapbox_key_btn);
   QObject::connect(remove_mapbox_key_btn, &QPushButton::clicked, [&]() {
-    if (ConfirmationDialog::confirm(tr("Remove Mapbox key?"), tr("Yes"), this)) {
+    if (ConfirmationDialog::confirm(tr("移除 Mapbox Key？"), tr("是"), this)) {
       QTimer::singleShot(1000, []() {
         Params().put("MapboxPublicKey", "");
         Params().put("MapboxSecretKey", "");
         });
     }
     });
+
 
   setStyleSheet(R"(
     #reboot_btn { height: 120px; border-radius: 15px; background-color: #2CE22C; }
