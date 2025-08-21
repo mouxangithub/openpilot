@@ -596,7 +596,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   select_layout->setSpacing(10);
 
 
-  QPushButton* start_btn = new QPushButton(tr("Start"));
+  QPushButton* start_btn = new QPushButton(tr("开始"));
   start_btn->setObjectName("start_btn");
   QObject::connect(start_btn, &QPushButton::clicked, this, [this]() {
     this->currentCarrotIndex = 0;
@@ -604,7 +604,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
     updateButtonStyles();
   });
 
-  QPushButton* cruise_btn = new QPushButton(tr("Cruise"));
+  QPushButton* cruise_btn = new QPushButton(tr("巡航"));
   cruise_btn->setObjectName("cruise_btn");
   QObject::connect(cruise_btn, &QPushButton::clicked, this, [this]() {
     this->currentCarrotIndex = 1;
@@ -612,7 +612,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
     updateButtonStyles();
   });
 
-  QPushButton* speed_btn = new QPushButton(tr("Speed"));
+  QPushButton* speed_btn = new QPushButton(tr("速度"));
   speed_btn->setObjectName("speed_btn");
   QObject::connect(speed_btn, &QPushButton::clicked, this, [this]() {
     this->currentCarrotIndex = 2;
@@ -620,7 +620,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
     updateButtonStyles();
   });
 
-  QPushButton* latLong_btn = new QPushButton(tr("Tuning"));
+  QPushButton* latLong_btn = new QPushButton(tr("调节"));
   latLong_btn->setObjectName("latLong_btn");
   QObject::connect(latLong_btn, &QPushButton::clicked, this, [this]() {
     this->currentCarrotIndex = 3;
@@ -628,7 +628,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
     updateButtonStyles();
   });
 
-  QPushButton* disp_btn = new QPushButton(tr("Disp"));
+  QPushButton* disp_btn = new QPushButton(tr("显示"));
   disp_btn->setObjectName("disp_btn");
   QObject::connect(disp_btn, &QPushButton::clicked, this, [this]() {
     this->currentCarrotIndex = 4;
