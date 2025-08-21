@@ -374,8 +374,8 @@ This only toggles the visibility of the controls; it does not toggle the actual 
         <translation>Désengager pour éteindre</translation>
     </message>
     <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>Associez votre appareil avec comma connect (connect.comma.ai) et profitez de l&apos;offre comma prime.</translation>
+        <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
+        <translation>Associez votre appareil avec comma connect (stable.konik.ai) et profitez de l&apos;offre comma prime.</translation>
     </message>
     <message>
         <source>Pair Device</source>
@@ -1359,16 +1359,16 @@ Warning: You are on a metered connection!</source>
         <translation>Associez votre appareil à votre compte comma</translation>
     </message>
     <message>
-        <source>Go to https://connect.comma.ai on your phone</source>
-        <translation>Allez sur https://connect.comma.ai sur votre téléphone</translation>
+        <source>Go to https://stable.konik.ai on your phone</source>
+        <translation>Allez sur https://stable.konik.ai sur votre téléphone</translation>
     </message>
     <message>
         <source>Click &quot;add new device&quot; and scan the QR code on the right</source>
         <translation>Cliquez sur &quot;ajouter un nouvel appareil&quot; et scannez le code QR à droite</translation>
     </message>
     <message>
-        <source>Bookmark connect.comma.ai to your home screen to use it like an app</source>
-        <translation>Ajoutez connect.comma.ai à votre écran d&apos;accueil pour l&apos;utiliser comme une application</translation>
+        <source>Bookmark stable.konik.ai to your home screen to use it like an app</source>
+        <translation>Ajoutez stable.konik.ai à votre écran d&apos;accueil pour l&apos;utiliser comme une application</translation>
     </message>
     <message>
         <source>Please connect to Wi-Fi to complete initial pairing</source>
@@ -1483,8 +1483,8 @@ Warning: You are on a metered connection!</source>
         <translation>Mettre à niveau</translation>
     </message>
     <message>
-        <source>Become a comma prime member at connect.comma.ai</source>
-        <translation>Devenez membre comma prime sur connect.comma.ai</translation>
+        <source>Become a comma prime member at stable.konik.ai</source>
+        <translation>Devenez membre comma prime sur stable.konik.ai</translation>
     </message>
     <message>
         <source>PRIME FEATURES:</source>
@@ -1651,8 +1651,8 @@ Warning: You are on a metered connection!</source>
         <translation>Terminer l&apos;installation</translation>
     </message>
     <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>Associez votre appareil avec comma connect (connect.comma.ai) et profitez de l&apos;offre comma prime.</translation>
+        <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
+        <translation>Associez votre appareil avec comma connect (stable.konik.ai) et profitez de l&apos;offre comma prime.</translation>
     </message>
     <message>
         <source>Pair device</source>

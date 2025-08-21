@@ -378,8 +378,8 @@ This only toggles the visibility of the controls; it does not toggle the actual 
         <translation>다시보기</translation>
     </message>
     <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>기기를 comma connect (connect.comma.ai)와 페어링하고 comma prime 혜택을 받으세요.</translation>
+        <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
+        <translation>기기를 comma connect (stable.konik.ai)와 페어링하고 comma prime 혜택을 받으세요.</translation>
     </message>
     <message>
         <source>Pair Device</source>
@@ -1375,16 +1375,16 @@ Warning: You are on a metered connection!</source>
         <translation>기기를 comma 계정에 페어링하세요.</translation>
     </message>
     <message>
-        <source>Go to https://connect.comma.ai on your phone</source>
-        <translation>휴대폰에서 https://connect.comma.ai로 이동하세요.</translation>
+        <source>Go to https://stable.konik.ai on your phone</source>
+        <translation>휴대폰에서 https://stable.konik.ai로 이동하세요.</translation>
     </message>
     <message>
         <source>Click &quot;add new device&quot; and scan the QR code on the right</source>
         <translation>&quot;새 기기 추가&quot;를 누르고 오른쪽에 있는 QR 코드를 스캔하세요.</translation>
     </message>
     <message>
-        <source>Bookmark connect.comma.ai to your home screen to use it like an app</source>
-        <translation>connect.comma.ai를 홈 화면에 북마크하여 앱처럼 사용하세요.</translation>
+        <source>Bookmark stable.konik.ai to your home screen to use it like an app</source>
+        <translation>stable.konik.ai를 홈 화면에 북마크하여 앱처럼 사용하세요.</translation>
     </message>
     <message>
         <source>Please connect to Wi-Fi to complete initial pairing</source>
@@ -1499,8 +1499,8 @@ Warning: You are on a metered connection!</source>
         <translation>지금 업그레이드하세요</translation>
     </message>
     <message>
-        <source>Become a comma prime member at connect.comma.ai</source>
-        <translation>connect.comma.ai에서 comma 프라임 회원이 되세요.</translation>
+        <source>Become a comma prime member at stable.konik.ai</source>
+        <translation>stable.konik.ai에서 comma 프라임 회원이 되세요.</translation>
     </message>
     <message>
         <source>PRIME FEATURES:</source>
@@ -1664,8 +1664,8 @@ Warning: You are on a metered connection!</source>
         <translation>설정 완료하기</translation>
     </message>
     <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>기기를 comma connect (connect.comma.ai)와 페어링하고 comma prime 혜택을 받으세요.</translation>
+        <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
+        <translation>기기를 comma connect (stable.konik.ai)와 페어링하고 comma prime 혜택을 받으세요.</translation>
     </message>
     <message>
         <source>Pair device</source>
