@@ -300,7 +300,7 @@ DevicePanel::DevicePanel(SettingsWindow *parent) : ListWidget(parent) {
   });
   addItem(retrainingBtn);
 
-  auto statusCalibBtn = new ButtonControl(tr("Calibration Status"), tr("SHOW"), "");
+  auto statusCalibBtn = new ButtonControl(tr("校准状态"), tr("显示"), "");
   connect(statusCalibBtn, &ButtonControl::showDescriptionEvent, this, &DevicePanel::updateCalibDescription);
   addItem(statusCalibBtn);
 
