@@ -28,7 +28,7 @@ def get_default_params():
     ("DisengageOnAccelerator", "0"),
     ("GsmMetered", "1"),
     ("HasAcceptedTerms", "0"),
-    ("LanguageSetting", "main_en"),
+    ("LanguageSetting", "main_zh-CHS"),
     ("OpenpilotEnabledToggle", "1"),
     ("LongitudinalPersonality", str(log.LongitudinalPersonality.standard)),
     ("IsMetric", "1"),
