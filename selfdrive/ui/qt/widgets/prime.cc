@@ -164,7 +164,7 @@ PrimeAdWidget::PrimeAdWidget(QWidget* parent) : QFrame(parent) {
   main_layout->addWidget(features, 0, Qt::AlignBottom);
   main_layout->addSpacing(30);
 
-  QVector<QString> bullets = {tr("自动变道"), tr("速度控制"), tr("高德导航"), tr("全中文")};
+  QVector<QString> bullets = {tr("高德导航"), tr("高速NOA"), tr("完全自定义"), tr("全中文体验")};
   for (auto &b : bullets) {
     const QString check = "<b><font color='#465BEA'>✓</font></b> ";
     QLabel *l = new QLabel(check + b);
