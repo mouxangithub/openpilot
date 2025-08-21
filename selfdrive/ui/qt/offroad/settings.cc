@@ -636,7 +636,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
     updateButtonStyles();
   });
 
-  QPushButton* path_btn = new QPushButton(tr("Path"));
+  QPushButton* path_btn = new QPushButton(tr("轨迹"));
   path_btn->setObjectName("path_btn");
   QObject::connect(path_btn, &QPushButton::clicked, this, [this]() {
     this->currentCarrotIndex = 5;
