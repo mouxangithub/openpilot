@@ -126,7 +126,7 @@ procs = [
   PythonProcess("updated", "system.updated.updated", enable_updated, enabled=not PC),
   PythonProcess("uploader", "system.loggerd.uploader", enable_connect),
   PythonProcess("statsd", "system.statsd", always_run),
-  PythonProcess("cars1", "opendbc.car.gen_supported_cars", always_run),
+
 
   # debug procs
   NativeProcess("bridge", "cereal/messaging", ["./bridge"], notcar),
