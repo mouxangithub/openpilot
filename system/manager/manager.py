@@ -61,7 +61,7 @@ def get_default_params():
     ("CarrotCruiseAtcDecel", "-1"),
     ("CommaLongAcc", "0"),
     ("AutoGasTokSpeed", "0"),
-    ("AutoGasSyncSpeed", "1"),
+    ("AutoGasSyncSpeed", "0"),
     ("AutoEngage", "0"),
     ("DisableMinSteerSpeed", "0"),
     ("SoftHoldMode", "0"),
