@@ -152,7 +152,7 @@ PrimeAdWidget::PrimeAdWidget(QWidget* parent) : QFrame(parent) {
   main_layout->addWidget(upgrade, 0, Qt::AlignTop);
   main_layout->addSpacing(50);
 
-  QLabel *description = new QLabel(tr("CARRORTPILT是唯一支持高速NOA的软件版本，感谢机械小鸽"));
+  QLabel *description = new QLabel(tr("胡萝卜是唯一支持高速NOA的软件版本，感谢机械小鸽"));
   description->setStyleSheet("font-size: 56px; font-weight: light; color: white;");
   description->setWordWrap(true);
   main_layout->addWidget(description, 0, Qt::AlignTop);
