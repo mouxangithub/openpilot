@@ -52,7 +52,7 @@ class CarInterface(CarInterfaceBase):
       if any(msg in fingerprint[1] for msg in (0x40, 0x86, 0xB2, 0xFD)):  # Airbag_01, LWI_01, ESP_19, ESP_21
         ret.networkLocation = NetworkLocation.gateway
       else:
-        ret.networkLocation = NetworkLocation.fwdCamera
+        ret.networkLocation = NetworkLocation.gateway
 
       if 0x126 in fingerprint[2]:  # HCA_01
         ret.flags |= VolkswagenFlags.STOCK_HCA_PRESENT.value
