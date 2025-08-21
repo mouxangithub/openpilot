@@ -36,7 +36,7 @@ void PairingQRWidget::hideEvent(QHideEvent *event) {
 
 void PairingQRWidget::refresh() {
   QString pairToken = CommaApi::create_jwt({{"pair", true}});
-  QString qrString = "https://stable.konik.ai/?pair=" + pairToken;
+  QString qrString = "https://stable.konik.ai?pair=" + pairToken;
   this->updateQrCode(qrString);
   update();
 }
