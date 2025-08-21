@@ -168,6 +168,7 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
       from opendbc.car.mazda.values import CAR as MAZDA
       from opendbc.car.tesla.values import CAR as TESLA
       from opendbc.car.volkswagen.values import CAR as VOLKSWAGEN
+      from opendbc.car.honda.values import CAR as HONDA
       for platform in GM:
         for doc in platform.config.car_docs:
           if name == doc.name:
@@ -189,6 +190,10 @@ def get_car(can_recv: CanRecvCallable, can_send: CanSendCallable, set_obd_multip
           if name == doc.name:
             return platform
       for platform in TESLA:
+        for doc in platform.config.car_docs:
+          if name == doc.name:
+            return platform
+      for platform in HONDA:
         for doc in platform.config.car_docs:
           if name == doc.name:
             return platform
