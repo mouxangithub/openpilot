@@ -8,12 +8,12 @@
 #include "selfdrive/ui/sunnypilot/qt/widgets/prime.h"
 
 SetupWidgetSP::SetupWidgetSP(QWidget *parent) : SetupWidget(parent) {
-  PrimeUserWidget *primeUser = new PrimeUserWidget;
-  content_layout->insertWidget(0, primeUser);
+  // PrimeUserWidget *primeUser = new PrimeUserWidget;
+  // content_layout->insertWidget(0, primeUser);
 
-  primeUser->setVisible(uiState()->prime_state->isSubscribed());
+  // primeUser->setVisible(uiState()->prime_state->isSubscribed());
 
-  QObject::connect(uiState()->prime_state, &PrimeState::changed, [=]() {
-    primeUser->setVisible(uiState()->prime_state->isSubscribed());
-  });
+  // QObject::connect(uiState()->prime_state, &PrimeState::changed, [=]() {
+  //   primeUser->setVisible(uiState()->prime_state->isSubscribed());
+  // });
 }
