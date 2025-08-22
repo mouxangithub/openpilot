@@ -22,8 +22,20 @@ OffroadHomeSP::OffroadHomeSP(QWidget *parent) : OffroadHome(parent) {
   });
   left_layout->addWidget(btn_exit_offroad);
 
-  left_layout->addWidget(new DriveStats(this));
+  // left_layout->addWidget(new DriveStats(this));
+  // left_widget->setStyleSheet("border-radius: 10px;");
+  PrimeUserWidget *primeUser = new PrimeUserWidget();
+  primeUser->setStyleSheet(R"(
+    border-radius: 10px;
+    background-color: #333333;
+  )");
+  left_layout->addWidget(primeUser);
+  left_layout->addStretch();
   left_widget->setStyleSheet("border-radius: 10px;");
+  primeUser->setVisible(uiState()->prime_state->isSubscribed());
+  QObject::connect(uiState()->prime_state, &PrimeState::changed, [=]() {
+    primeUser->setVisible(uiState()->prime_state->isSubscribed());
+  });
 
   home_layout->insertWidget(0, left_widget);
 

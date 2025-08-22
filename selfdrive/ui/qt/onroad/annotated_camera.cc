@@ -24,7 +24,10 @@ AnnotatedCameraWidget::AnnotatedCameraWidget(VisionStreamType type, QWidget *par
 void AnnotatedCameraWidget::updateState(const UIState &s) {
   // update engageability/experimental mode button
   experimental_btn->updateState(s);
-  dmon.updateState(s);
+  auto params = Params();
+  if (params.getBool("AlwaysOnDM")) {
+    dmon.updateState(s);
+  }
 }
 
 void AnnotatedCameraWidget::initializeGL() {
@@ -130,7 +133,10 @@ void AnnotatedCameraWidget::paintGL() {
   painter.setPen(Qt::NoPen);
 
   model.draw(painter, rect());
-  dmon.draw(painter, rect());
+  auto params = Params();
+  if (params.getBool("AlwaysOnDM")) {
+    dmon.draw(painter, rect());
+  }
   hud.updateState(*s);
   hud.draw(painter, rect());
 
