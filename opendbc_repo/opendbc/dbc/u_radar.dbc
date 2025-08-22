@@ -1,0 +1,1486 @@
+
+
+VERSION ""
+
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: RADAR
+
+BO_ 513 RadarState: 8 XXX
+ SG_ NVMReadStatus : 6|1@0+ (1,0) [0|1] "" XXX
+ SG_ NVMWriteStatus : 7|1@0+ (1,0) [0|1] "" XXX
+ SG_ MaxDistanceCfg : 15|10@0+ (2,0) [0|2046] "m" XXX
+ SG_ RadarPowerCfg : 25|3@0+ (1,0) [0|7] "" XXX
+ SG_ SensorID : 34|3@0+ (1,0) [0|7] "" XXX
+ SG_ SortIndex : 38|3@0+ (1,0) [0|7] "" XXX
+ SG_ CtrlRelayCfg : 41|1@0+ (1,0) [0|1] "" XXX
+ SG_ OutputTypeCfg : 43|2@0+ (1,0) [0|3] "" XXX
+ SG_ QualityInfoCfg : 44|1@0+ (1,0) [0|1] "" XXX
+ SG_ ExtInfoCfg : 45|1@0+ (1,0) [0|1] "" XXX
+ SG_ CANBaudRate : 55|3@0+ (1,0) [0|7] "" XXX
+ SG_ InterfaceType : 57|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCSThreshold : 58|3@1+ (1,0) [0|7] "" XXX
+ SG_ CalibrationEnabled : 63|2@0+ (1,0) [0|3] "" XXX
+
+VAL_ 513 NVMReadStatus 0 "Failed" 1 "Successful";
+VAL_ 513 NVMWriteStatus 0 "Failed" 1 "Successful";
+VAL_ 513 RadarPowerCfg 0 "Standard" 1 "-3dB Gain" 2 "-6dB Gain" 3 "-9dB Gain";
+VAL_ 513 SortIndex 0 "No Sorting" 1 "Sort By Range" 2 "Sort By RCS";
+VAL_ 513 CtrlRelayCfg 0 "Off" 1 "On";
+VAL_ 513 OutputTypeCfg 0 "None" 1 "Objects" 2 "Clusters";
+VAL_ 513 QualityInfoCfg 0 "Off" 1 "On";
+VAL_ 513 ExtInfoCfg 0 "Off" 1 "On";
+VAL_ 513 CANBaudRate 0 "500K" 1 "250K" 2 "1M";
+VAL_ 513 RCSThreshold 0 "Standard" 1 "High Sensitivity";
+VAL_ 513 CalibrationEnabled 1 "Enabled" 2 "Initial Recovery";
+
+BO_ 1546 Status: 8 RADAR
+ SG_ NoOfObjects : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ MeasCount : 15|16@0+ (1,0) [0|65535] "" XXX
+ SG_ InterfaceVersion : 31|4@0+ (1,0) [0|15] "" XXX
+
+BO_ 1547 ObjectData: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 1547 "Object detection and tracking information";
+VAL_ 1547 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 1547 Class 0 "point" 1 "vehicle";
+
+BO_ 383 ObjectData_0: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 383 "Object detection and tracking information";
+VAL_ 383 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 383 Class 0 "point" 1 "vehicle";
+        
+BO_ 384 ObjectData_1: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 384 "Object detection and tracking information";
+VAL_ 384 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 384 Class 0 "point" 1 "vehicle";
+        
+BO_ 385 ObjectData_2: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 385 "Object detection and tracking information";
+VAL_ 385 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 385 Class 0 "point" 1 "vehicle";
+        
+BO_ 386 ObjectData_3: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 386 "Object detection and tracking information";
+VAL_ 386 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 386 Class 0 "point" 1 "vehicle";
+        
+BO_ 387 ObjectData_4: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 387 "Object detection and tracking information";
+VAL_ 387 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 387 Class 0 "point" 1 "vehicle";
+        
+BO_ 388 ObjectData_5: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 388 "Object detection and tracking information";
+VAL_ 388 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 388 Class 0 "point" 1 "vehicle";
+        
+BO_ 389 ObjectData_6: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 389 "Object detection and tracking information";
+VAL_ 389 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 389 Class 0 "point" 1 "vehicle";
+        
+BO_ 390 ObjectData_7: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 390 "Object detection and tracking information";
+VAL_ 390 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 390 Class 0 "point" 1 "vehicle";
+        
+BO_ 391 ObjectData_8: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 391 "Object detection and tracking information";
+VAL_ 391 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 391 Class 0 "point" 1 "vehicle";
+        
+BO_ 392 ObjectData_9: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 392 "Object detection and tracking information";
+VAL_ 392 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 392 Class 0 "point" 1 "vehicle";
+        
+BO_ 393 ObjectData_10: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 393 "Object detection and tracking information";
+VAL_ 393 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 393 Class 0 "point" 1 "vehicle";
+        
+BO_ 394 ObjectData_11: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 394 "Object detection and tracking information";
+VAL_ 394 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 394 Class 0 "point" 1 "vehicle";
+        
+BO_ 395 ObjectData_12: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 395 "Object detection and tracking information";
+VAL_ 395 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 395 Class 0 "point" 1 "vehicle";
+        
+BO_ 396 ObjectData_13: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 396 "Object detection and tracking information";
+VAL_ 396 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 396 Class 0 "point" 1 "vehicle";
+        
+BO_ 397 ObjectData_14: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 397 "Object detection and tracking information";
+VAL_ 397 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 397 Class 0 "point" 1 "vehicle";
+        
+BO_ 398 ObjectData_15: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 398 "Object detection and tracking information";
+VAL_ 398 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 398 Class 0 "point" 1 "vehicle";
+        
+BO_ 399 ObjectData_16: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 399 "Object detection and tracking information";
+VAL_ 399 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 399 Class 0 "point" 1 "vehicle";
+        
+BO_ 400 ObjectData_17: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 400 "Object detection and tracking information";
+VAL_ 400 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 400 Class 0 "point" 1 "vehicle";
+        
+BO_ 401 ObjectData_18: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 401 "Object detection and tracking information";
+VAL_ 401 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 401 Class 0 "point" 1 "vehicle";
+        
+BO_ 402 ObjectData_19: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 402 "Object detection and tracking information";
+VAL_ 402 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 402 Class 0 "point" 1 "vehicle";
+        
+BO_ 403 ObjectData_20: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 403 "Object detection and tracking information";
+VAL_ 403 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 403 Class 0 "point" 1 "vehicle";
+        
+BO_ 404 ObjectData_21: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 404 "Object detection and tracking information";
+VAL_ 404 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 404 Class 0 "point" 1 "vehicle";
+        
+BO_ 405 ObjectData_22: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 405 "Object detection and tracking information";
+VAL_ 405 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 405 Class 0 "point" 1 "vehicle";
+        
+BO_ 406 ObjectData_23: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 406 "Object detection and tracking information";
+VAL_ 406 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 406 Class 0 "point" 1 "vehicle";
+        
+BO_ 407 ObjectData_24: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 407 "Object detection and tracking information";
+VAL_ 407 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 407 Class 0 "point" 1 "vehicle";
+        
+BO_ 408 ObjectData_25: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 408 "Object detection and tracking information";
+VAL_ 408 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 408 Class 0 "point" 1 "vehicle";
+        
+BO_ 409 ObjectData_26: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 409 "Object detection and tracking information";
+VAL_ 409 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 409 Class 0 "point" 1 "vehicle";
+        
+BO_ 410 ObjectData_27: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 410 "Object detection and tracking information";
+VAL_ 410 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 410 Class 0 "point" 1 "vehicle";
+        
+BO_ 411 ObjectData_28: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 411 "Object detection and tracking information";
+VAL_ 411 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 411 Class 0 "point" 1 "vehicle";
+        
+BO_ 412 ObjectData_29: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 412 "Object detection and tracking information";
+VAL_ 412 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 412 Class 0 "point" 1 "vehicle";
+        
+BO_ 413 ObjectData_30: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 413 "Object detection and tracking information";
+VAL_ 413 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 413 Class 0 "point" 1 "vehicle";
+        
+BO_ 414 ObjectData_31: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 414 "Object detection and tracking information";
+VAL_ 414 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 414 Class 0 "point" 1 "vehicle";
+        
+BO_ 415 ObjectData_32: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 415 "Object detection and tracking information";
+VAL_ 415 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 415 Class 0 "point" 1 "vehicle";
+        
+BO_ 416 ObjectData_33: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 416 "Object detection and tracking information";
+VAL_ 416 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 416 Class 0 "point" 1 "vehicle";
+        
+BO_ 417 ObjectData_34: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 417 "Object detection and tracking information";
+VAL_ 417 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 417 Class 0 "point" 1 "vehicle";
+        
+BO_ 418 ObjectData_35: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 418 "Object detection and tracking information";
+VAL_ 418 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 418 Class 0 "point" 1 "vehicle";
+        
+BO_ 419 ObjectData_36: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 419 "Object detection and tracking information";
+VAL_ 419 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 419 Class 0 "point" 1 "vehicle";
+        
+BO_ 420 ObjectData_37: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 420 "Object detection and tracking information";
+VAL_ 420 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 420 Class 0 "point" 1 "vehicle";
+        
+BO_ 421 ObjectData_38: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 421 "Object detection and tracking information";
+VAL_ 421 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 421 Class 0 "point" 1 "vehicle";
+        
+BO_ 422 ObjectData_39: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 422 "Object detection and tracking information";
+VAL_ 422 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 422 Class 0 "point" 1 "vehicle";
+        
+BO_ 423 ObjectData_40: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 423 "Object detection and tracking information";
+VAL_ 423 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 423 Class 0 "point" 1 "vehicle";
+        
+BO_ 424 ObjectData_41: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 424 "Object detection and tracking information";
+VAL_ 424 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 424 Class 0 "point" 1 "vehicle";
+        
+BO_ 425 ObjectData_42: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 425 "Object detection and tracking information";
+VAL_ 425 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 425 Class 0 "point" 1 "vehicle";
+        
+BO_ 426 ObjectData_43: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 426 "Object detection and tracking information";
+VAL_ 426 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 426 Class 0 "point" 1 "vehicle";
+        
+BO_ 427 ObjectData_44: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 427 "Object detection and tracking information";
+VAL_ 427 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 427 Class 0 "point" 1 "vehicle";
+        
+BO_ 428 ObjectData_45: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 428 "Object detection and tracking information";
+VAL_ 428 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 428 Class 0 "point" 1 "vehicle";
+        
+BO_ 429 ObjectData_46: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 429 "Object detection and tracking information";
+VAL_ 429 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 429 Class 0 "point" 1 "vehicle";
+        
+BO_ 430 ObjectData_47: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 430 "Object detection and tracking information";
+VAL_ 430 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 430 Class 0 "point" 1 "vehicle";
+        
+BO_ 431 ObjectData_48: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 431 "Object detection and tracking information";
+VAL_ 431 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 431 Class 0 "point" 1 "vehicle";
+        
+BO_ 432 ObjectData_49: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 432 "Object detection and tracking information";
+VAL_ 432 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 432 Class 0 "point" 1 "vehicle";
+        
+BO_ 433 ObjectData_50: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 433 "Object detection and tracking information";
+VAL_ 433 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 433 Class 0 "point" 1 "vehicle";
+        
+BO_ 434 ObjectData_51: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 434 "Object detection and tracking information";
+VAL_ 434 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 434 Class 0 "point" 1 "vehicle";
+        
+BO_ 435 ObjectData_52: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 435 "Object detection and tracking information";
+VAL_ 435 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 435 Class 0 "point" 1 "vehicle";
+        
+BO_ 436 ObjectData_53: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 436 "Object detection and tracking information";
+VAL_ 436 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 436 Class 0 "point" 1 "vehicle";
+        
+BO_ 437 ObjectData_54: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 437 "Object detection and tracking information";
+VAL_ 437 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 437 Class 0 "point" 1 "vehicle";
+        
+BO_ 438 ObjectData_55: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 438 "Object detection and tracking information";
+VAL_ 438 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 438 Class 0 "point" 1 "vehicle";
+        
+BO_ 439 ObjectData_56: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 439 "Object detection and tracking information";
+VAL_ 439 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 439 Class 0 "point" 1 "vehicle";
+        
+BO_ 440 ObjectData_57: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 440 "Object detection and tracking information";
+VAL_ 440 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 440 Class 0 "point" 1 "vehicle";
+        
+BO_ 441 ObjectData_58: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 441 "Object detection and tracking information";
+VAL_ 441 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 441 Class 0 "point" 1 "vehicle";
+        
+BO_ 442 ObjectData_59: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 442 "Object detection and tracking information";
+VAL_ 442 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 442 Class 0 "point" 1 "vehicle";
+        
+BO_ 443 ObjectData_60: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 443 "Object detection and tracking information";
+VAL_ 443 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 443 Class 0 "point" 1 "vehicle";
+        
+BO_ 444 ObjectData_61: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 444 "Object detection and tracking information";
+VAL_ 444 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 444 Class 0 "point" 1 "vehicle";
+        
+BO_ 445 ObjectData_62: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 445 "Object detection and tracking information";
+VAL_ 445 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 445 Class 0 "point" 1 "vehicle";
+        
+BO_ 446 ObjectData_63: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 446 "Object detection and tracking information";
+VAL_ 446 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 446 Class 0 "point" 1 "vehicle";
+        
+BO_ 447 ObjectData_64: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 447 "Object detection and tracking information";
+VAL_ 447 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 447 Class 0 "point" 1 "vehicle";
+        
+BO_ 448 ObjectData_65: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 448 "Object detection and tracking information";
+VAL_ 448 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 448 Class 0 "point" 1 "vehicle";
+        
+BO_ 449 ObjectData_66: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 449 "Object detection and tracking information";
+VAL_ 449 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 449 Class 0 "point" 1 "vehicle";
+        
+BO_ 450 ObjectData_67: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 450 "Object detection and tracking information";
+VAL_ 450 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 450 Class 0 "point" 1 "vehicle";
+        
+BO_ 451 ObjectData_68: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 451 "Object detection and tracking information";
+VAL_ 451 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 451 Class 0 "point" 1 "vehicle";
+        
+BO_ 452 ObjectData_69: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 452 "Object detection and tracking information";
+VAL_ 452 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 452 Class 0 "point" 1 "vehicle";
+        
+BO_ 453 ObjectData_70: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 453 "Object detection and tracking information";
+VAL_ 453 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 453 Class 0 "point" 1 "vehicle";
+        
+BO_ 454 ObjectData_71: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 454 "Object detection and tracking information";
+VAL_ 454 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 454 Class 0 "point" 1 "vehicle";
+        
+BO_ 455 ObjectData_72: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 455 "Object detection and tracking information";
+VAL_ 455 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 455 Class 0 "point" 1 "vehicle";
+        
+BO_ 456 ObjectData_73: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 456 "Object detection and tracking information";
+VAL_ 456 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 456 Class 0 "point" 1 "vehicle";
+        
+BO_ 457 ObjectData_74: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 457 "Object detection and tracking information";
+VAL_ 457 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 457 Class 0 "point" 1 "vehicle";
+        
+BO_ 458 ObjectData_75: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 458 "Object detection and tracking information";
+VAL_ 458 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 458 Class 0 "point" 1 "vehicle";
+        
+BO_ 459 ObjectData_76: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 459 "Object detection and tracking information";
+VAL_ 459 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 459 Class 0 "point" 1 "vehicle";
+        
+BO_ 460 ObjectData_77: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 460 "Object detection and tracking information";
+VAL_ 460 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 460 Class 0 "point" 1 "vehicle";
+        
+BO_ 461 ObjectData_78: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 461 "Object detection and tracking information";
+VAL_ 461 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 461 Class 0 "point" 1 "vehicle";
+        
+BO_ 462 ObjectData_79: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 462 "Object detection and tracking information";
+VAL_ 462 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 462 Class 0 "point" 1 "vehicle";
+        
+BO_ 463 ObjectData_80: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 463 "Object detection and tracking information";
+VAL_ 463 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 463 Class 0 "point" 1 "vehicle";
+        
+BO_ 464 ObjectData_81: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 464 "Object detection and tracking information";
+VAL_ 464 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 464 Class 0 "point" 1 "vehicle";
+        
+BO_ 465 ObjectData_82: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 465 "Object detection and tracking information";
+VAL_ 465 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 465 Class 0 "point" 1 "vehicle";
+        
+BO_ 466 ObjectData_83: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 466 "Object detection and tracking information";
+VAL_ 466 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 466 Class 0 "point" 1 "vehicle";
+        
+BO_ 467 ObjectData_84: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 467 "Object detection and tracking information";
+VAL_ 467 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 467 Class 0 "point" 1 "vehicle";
+        
+BO_ 468 ObjectData_85: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 468 "Object detection and tracking information";
+VAL_ 468 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 468 Class 0 "point" 1 "vehicle";
+        
+BO_ 469 ObjectData_86: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 469 "Object detection and tracking information";
+VAL_ 469 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 469 Class 0 "point" 1 "vehicle";
+        
+BO_ 470 ObjectData_87: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 470 "Object detection and tracking information";
+VAL_ 470 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 470 Class 0 "point" 1 "vehicle";
+        
+BO_ 471 ObjectData_88: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 471 "Object detection and tracking information";
+VAL_ 471 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 471 Class 0 "point" 1 "vehicle";
+        
+BO_ 472 ObjectData_89: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 472 "Object detection and tracking information";
+VAL_ 472 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 472 Class 0 "point" 1 "vehicle";
+        
+BO_ 473 ObjectData_90: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 473 "Object detection and tracking information";
+VAL_ 473 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 473 Class 0 "point" 1 "vehicle";
+        
+BO_ 474 ObjectData_91: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 474 "Object detection and tracking information";
+VAL_ 474 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 474 Class 0 "point" 1 "vehicle";
+        
+BO_ 475 ObjectData_92: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 475 "Object detection and tracking information";
+VAL_ 475 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 475 Class 0 "point" 1 "vehicle";
+        
+BO_ 476 ObjectData_93: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 476 "Object detection and tracking information";
+VAL_ 476 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 476 Class 0 "point" 1 "vehicle";
+        
+BO_ 477 ObjectData_94: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 477 "Object detection and tracking information";
+VAL_ 477 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 477 Class 0 "point" 1 "vehicle";
+        
+BO_ 478 ObjectData_95: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 478 "Object detection and tracking information";
+VAL_ 478 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 478 Class 0 "point" 1 "vehicle";
+        
+BO_ 479 ObjectData_96: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 479 "Object detection and tracking information";
+VAL_ 479 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 479 Class 0 "point" 1 "vehicle";
+        
+BO_ 480 ObjectData_97: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 480 "Object detection and tracking information";
+VAL_ 480 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 480 Class 0 "point" 1 "vehicle";
+        
+BO_ 481 ObjectData_98: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 481 "Object detection and tracking information";
+VAL_ 481 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 481 Class 0 "point" 1 "vehicle";
+        
+BO_ 482 ObjectData_99: 8 RADAR
+ SG_ ID : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ DistLong : 15|13@0+ (0.2,-500) [-500|1138.2] "m" XXX
+ SG_ DistLat : 18|11@0+ (0.2,-204.6) [-204.6|204.8] "m" XXX
+ SG_ VRelLong : 39|10@0+ (0.25,-128) [-128|127.75] "m/s" XXX
+ SG_ VRelLat : 45|9@0+ (0.25,-64) [-64|63.75] "m/s" XXX
+ SG_ DynProp : 50|3@0+ (1,0) [0|7] "" XXX
+ SG_ Class : 52|2@0+ (1,0) [0|3] "" XXX
+ SG_ RCS : 63|8@0+ (0.5,-64) [-64|63.75] "dBm2" XXX
+
+CM_ BO_ 482 "Object detection and tracking information";
+VAL_ 482 DynProp 0 "moving" 1 "stationary" 2 "oncoming" 3 "crossing_left" 4 "crossing_right" 5 "unknown" 6 "stopped";
+VAL_ 482 Class 0 "point" 1 "vehicle";
+        

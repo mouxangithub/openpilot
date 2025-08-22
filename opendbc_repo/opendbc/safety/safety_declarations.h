@@ -303,6 +303,8 @@ extern struct sample_t angle_meas;         // last 6 steer angles/curvatures
 // This flag allows AEB to be commanded from openpilot.
 #define ALT_EXP_ALLOW_AEB 16
 
+#define ALT_EXP_ALKA 1024
+
 extern int alternative_experience;
 
 // time since safety mode has been changed

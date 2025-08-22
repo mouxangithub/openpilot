@@ -20,6 +20,7 @@ from opendbc.car.interfaces import CarInterfaceBase, RadarInterfaceBase
 from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
 from openpilot.selfdrive.car.cruise import VCruiseHelper
 from openpilot.selfdrive.car.car_specific import MockCarState
+from opendbc.safety import ALTERNATIVE_EXPERIENCE
 
 REPLAY = "REPLAY" in os.environ
 
@@ -101,6 +102,9 @@ class Car:
         with car.CarParams.from_bytes(cached_params_raw) as _cached_params:
           cached_params = _cached_params
 
+      if self.params.get_bool("dp_lat_alka"):
+        dp_params |= structs.DPFlags.LateralALKA
+
       self.CI = get_car(*self.can_callbacks, obd_callback(self.params), alpha_long_allowed, is_release, num_pandas, dp_params, cached_params)
       self.RI = interfaces[self.CI.CP.carFingerprint].RadarInterface(self.CI.CP)
       self.CP = self.CI.CP
@@ -111,7 +115,18 @@ class Car:
       self.CI, self.CP = CI, CI.CP
       self.RI = RI
 
+    if self.params.get_bool("dp_lon_ext_radar"):
+      if "EXT_RADAR_SERIAL" in os.environ and self.params.get_bool("dp_lon_ext_radar_serial"):
+        from opendbc.car.serial_radar_interface import RadarInterface
+        self.RI = RadarInterface(self.CI.CP)
+      else:
+        from opendbc.car.radar_interface import RadarInterface
+        self.RI = RadarInterface(self.CI.CP)
+
     self.CP.alternativeExperience = 0
+    if dp_params & structs.DPFlags.LateralALKA:
+      self.CP.alternativeExperience |= ALTERNATIVE_EXPERIENCE.ALKA
+
     openpilot_enabled_toggle = self.params.get_bool("OpenpilotEnabledToggle")
     controller_available = self.CI.CC is not None and openpilot_enabled_toggle and not self.CP.dashcamOnly
     self.CP.passive = not controller_available or self.CP.dashcamOnly

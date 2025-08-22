@@ -48,6 +48,11 @@ void ModelRenderer::draw(QPainter &painter, const QRect &surface_rect) {
     }
   }
 
+  if (s->scene.dp_ui_radar_tracks) {
+    const auto &live_tracks = sm["liveTracks"].getLiveTracks();
+    drawLiveTracks(painter, live_tracks, model, surface_rect);
+  }
+
   painter.restore();
 }
 
@@ -107,7 +112,39 @@ void ModelRenderer::drawLaneLines(QPainter &painter) {
 
 void ModelRenderer::drawPath(QPainter &painter, const cereal::ModelDataV2::Reader &model, int height) {
   QLinearGradient bg(0, height, 0, 0);
-  if (experimental_mode) {
+
+  auto *s = uiState();
+  if (s->scene.dp_ui_rainbow) {
+    constexpr int NUM_COLORS = 25;
+    constexpr int ALPHA = 128;
+
+    float v_ego = (*uiState()->sm)["carState"].getCarState().getVEgo();
+
+    if (!dp_rainbow_init) {
+      dp_rainbow_color_list.reserve(NUM_COLORS);
+      for (int i = 0; i < NUM_COLORS; ++i) {
+        qreal t = static_cast<qreal>(i) / (NUM_COLORS - 1);
+        dp_rainbow_color_list.append(QColor::fromHsvF(t, 1.0, 1.0, ALPHA / 255.0));
+      }
+      dp_rainbow_init = true;
+    }
+    bg.setSpread(QGradient::RepeatSpread);
+    // bigger = faster, however it is still limited to the global UI_FREQ (refresh rate)
+    // only way to make it move faster is to reduce NUM_COLORS, but that will also reduce the color smoothness.
+    qreal rotation_speed = std::max(0.01f, v_ego) / UI_FREQ;
+    dp_rainbow_rotation -= rotation_speed;
+
+    if (dp_rainbow_rotation < 0.0) {
+      dp_rainbow_rotation += 1.0;
+      dp_rainbow_color_list.append(dp_rainbow_color_list.takeFirst());
+    }
+    // fill color
+    const qreal step = 1.0 / (NUM_COLORS - 1);
+    for (int i = 0; i < NUM_COLORS; ++i) {
+      bg.setColorAt(i * step, dp_rainbow_color_list.at(i));
+    }
+
+  } else if (experimental_mode) {
     // The first half of track_vertices are the points for the right side of the path
     const auto &acceleration = model.getAcceleration().getX();
     const int max_len = std::min<int>(track_vertices.length() / 2, acceleration.size());
@@ -184,6 +221,56 @@ QColor ModelRenderer::blendColors(const QColor &start, const QColor &end, float 
       (1 - t) * start.greenF() + t * end.greenF(),
       (1 - t) * start.blueF() + t * end.blueF(),
       (1 - t) * start.alphaF() + t * end.alphaF());
+}
+
+void ModelRenderer::drawLiveTracks(QPainter &painter,
+  const cereal::RadarData::Reader &live_tracks,
+  const cereal::ModelDataV2::Reader &model_data,
+  const QRect &surface_rect) {
+
+  // Get the model's predicted path for Z-coordinate calculation
+  const auto& model_path_position = model_data.getPosition();
+
+  // Set text properties
+  painter.setPen(Qt::white);
+  painter.setFont(QFont("Inter", 24, QFont::Bold));
+
+  // Iterate through each radar point from live_tracks
+  for (const auto& point : live_tracks.getPoints()) {
+    float dRel = point.getDRel();
+    float yRel = point.getYRel();
+    float yvRel = point.getYvRel();
+    float vRel = point.getVRel();
+
+    // Calculate Z-coordinate using the model's path
+    float z_on_path = path_offset_z; // Default base offset
+
+    // Ensure dRel is non-negative for indexing
+    if (dRel >= 0) {
+      z_on_path += model_path_position.getZ()[get_path_length_idx(model_path_position, dRel)];
+    }
+
+    QPointF screen_pos;
+    // mapToScreen projects a point from car space to screen space
+    if (mapToScreen(dRel, -yRel, z_on_path, &screen_pos)) { // yRel is negated as in update_leads
+      // Basic drawing: Draw a small circle for the point
+      painter.setBrush(QColor(255, 0, 0, 200)); // Cyan color for live tracks
+      painter.drawEllipse(screen_pos, 10, 10); // Draw a small circle of radius 5
+
+      // Prepare text to display
+      QString infoText = QString("ID: %1\nd: %2 m\ny: %3 m\ndV: %4 m/s\nyV: %5 m/s")
+                           .arg(point.getTrackId())
+                           .arg(dRel, 0, 'f', 2)
+                           .arg(yRel, 0, 'f', 2)
+                           .arg(vRel, 0, 'f', 2)
+                           .arg(yvRel, 0, 'f', 2);
+
+      // Draw text near the point
+      // Adjust text position for better visibility (e.g., slightly offset from the point)
+      QRectF textRect(screen_pos.x() + 10, screen_pos.y() - 20, 250, 250); // Adjust size as needed
+      painter.drawText(textRect, Qt::AlignLeft, infoText);
+    }
+  }
 }
 
 void ModelRenderer::drawLead(QPainter &painter, const cereal::RadarState::LeadData::Reader &lead_data,

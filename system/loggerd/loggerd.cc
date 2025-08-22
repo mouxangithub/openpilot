@@ -230,8 +230,25 @@ void loggerd_thread() {
   std::unique_ptr<Context> ctx(Context::create());
   std::unique_ptr<Poller> poller(Poller::create());
 
+  const bool lite = getenv("LITE");
+  const std::set<std::string> lite_skip_names = {
+    "driverCameraState",
+    "driverEncodeIdx",
+    "driverStateV2",
+    "driverMonitoringState",
+    "driverEncodeData",
+    "livestreamDriverEncodeIdx",
+    "livestreamDriverEncodeData",
+    // audio logs
+    "userBookmark",
+    "soundPressure",
+    "rawAudioData",
+    "audioFeedback",
+  };
+
   // subscribe to all socks
   for (const auto& [_, it] : services) {
+    if (lite && lite_skip_names.count(it.name)) continue;
     const bool encoder = util::ends_with(it.name, "EncodeData");
     const bool livestream_encoder = util::starts_with(it.name, "livestream");
     const bool record_audio = (it.name == "rawAudioData") && Params().getBool("RecordAudio");
@@ -261,7 +278,9 @@ void loggerd_thread() {
   std::vector<RemoteEncoder*> encoders_with_audio;
   for (const auto &cam : cameras_logged) {
     for (const auto &encoder_info : cam.encoder_infos) {
-      encoder_infos_dict[encoder_info.publish_name] = encoder_info;
+      const std::string &name = encoder_info.publish_name;
+      if (lite && lite_skip_names.count(name)) continue;
+      encoder_infos_dict[name] = encoder_info;
       s.max_waiting++;
     }
   }

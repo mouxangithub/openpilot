@@ -15,6 +15,7 @@ private:
   bool mapToScreen(float in_x, float in_y, float in_z, QPointF *out);
   void mapLineToPolygon(const cereal::XYZTData::Reader &line, float y_off, float z_off,
                         QPolygonF *pvd, int max_idx, bool allow_invert = true);
+  void drawLiveTracks(QPainter &painter, const cereal::RadarData::Reader &live_tracks, const cereal::ModelDataV2::Reader &model_data, const QRect &surface_rect);
   void drawLead(QPainter &painter, const cereal::RadarState::LeadData::Reader &lead_data, const QPointF &vd, const QRect &surface_rect);
   void update_leads(const cereal::RadarState::Reader &radar_state, const cereal::XYZTData::Reader &line);
   void update_model(const cereal::ModelDataV2::Reader &model, const cereal::RadarState::LeadData::Reader &lead);
@@ -36,4 +37,7 @@ private:
   QPointF lead_vertices[2] = {};
   Eigen::Matrix3f car_space_transform = Eigen::Matrix3f::Zero();
   QRectF clip_region;
+  QVector<QColor> dp_rainbow_color_list;
+  qreal dp_rainbow_rotation = 0;
+  bool dp_rainbow_init = false;
 };

@@ -643,6 +643,9 @@ class Panda:
   def get_type(self):
     ret = self._handle.controlRead(Panda.REQUEST_IN, 0xc1, 0, 0, 0x40)
 
+    # rick - UNO to DOS for lite
+    if ret == bytearray(b'\x05'):
+      ret = bytearray(b'\x06')
     # old bootstubs don't implement this endpoint, see comment in Panda.device
     if self._bcd_hw_type is not None and (ret is None or len(ret) != 1):
       ret = self._bcd_hw_type

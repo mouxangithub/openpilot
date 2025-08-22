@@ -77,6 +77,8 @@ class ToyotaFlags(IntFlag):
   RAISED_ACCEL_LIMIT = 1024
   SECOC = 2048
 
+  ALKA = 2 ** 12
+
 
 def dbc_dict(pt, radar):
   return {Bus.pt: pt, Bus.radar: radar}

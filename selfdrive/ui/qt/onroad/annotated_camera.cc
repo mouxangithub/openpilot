@@ -24,7 +24,9 @@ AnnotatedCameraWidget::AnnotatedCameraWidget(VisionStreamType type, QWidget *par
 void AnnotatedCameraWidget::updateState(const UIState &s) {
   // update engageability/experimental mode button
   experimental_btn->updateState(s);
-  dmon.updateState(s);
+  if (!s.scene.lite) {
+    dmon.updateState(s);
+  }
 }
 
 void AnnotatedCameraWidget::initializeGL() {
@@ -130,9 +132,17 @@ void AnnotatedCameraWidget::paintGL() {
   painter.setPen(Qt::NoPen);
 
   model.draw(painter, rect());
-  dmon.draw(painter, rect());
-  hud.updateState(*s);
-  hud.draw(painter, rect());
+  bool hide_hud = s->scene.dp_ui_hide_hud_speed_kph > 0 && sm["carState"].getCarState().getVEgo() > s->scene.dp_ui_hide_hud_speed_kph * 0.278;
+  if (!hide_hud) {
+    if (!s->scene.lite) {
+      dmon.draw(painter, rect());
+    }
+    hud.updateState(*s);
+    hud.draw(painter, rect());
+    experimental_btn->setVisible(true);
+  } else {
+    experimental_btn->setVisible(false);
+  }
 
   double cur_draw_t = millis_since_boot();
   double dt = cur_draw_t - prev_draw_t;

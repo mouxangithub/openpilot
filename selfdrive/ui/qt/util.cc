@@ -27,7 +27,8 @@ QString getVersion() {
 }
 
 QString getBrand() {
-  return QObject::tr("dragonpilot");
+  const bool lite = getenv("LITE");
+  return QObject::tr("dragonpilot") + (lite ? QString::fromStdString(" - Lite") : QString(""));
 }
 
 QString getUserAgent() {

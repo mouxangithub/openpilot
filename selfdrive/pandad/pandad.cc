@@ -372,6 +372,7 @@ void process_peripheral_state(Panda *panda, PubMaster *pm, bool no_fan_control) 
   static uint16_t prev_fan_speed = 999;
   static int ir_pwr = 0;
   static int prev_ir_pwr = 999;
+  const bool lite = getenv("LITE");
 
   static FirstOrderFilter integ_lines_filter(0, 30.0, 0.05);
 
@@ -386,7 +387,7 @@ void process_peripheral_state(Panda *panda, PubMaster *pm, bool no_fan_control) 
       }
     }
 
-    if (sm.updated("driverCameraState")) {
+    if (!lite && sm.updated("driverCameraState")) {
       auto event = sm["driverCameraState"];
       int cur_integ_lines = event.getDriverCameraState().getIntegLines();
 
@@ -403,14 +404,14 @@ void process_peripheral_state(Panda *panda, PubMaster *pm, bool no_fan_control) 
     }
 
     // Disable IR on input timeout
-    if (nanos_since_boot() - last_driver_camera_t > 1e9) {
+    if (!lite && nanos_since_boot() - last_driver_camera_t > 1e9) {
       ir_pwr = 0;
     }
 
     if (ir_pwr != prev_ir_pwr || sm.frame % 100 == 0) {
-      int16_t ir_panda = util::map_val(ir_pwr, 0, 100, 0, MAX_IR_PANDA_VAL); 
+      int16_t ir_panda = util::map_val(ir_pwr, 0, 100, 0, MAX_IR_PANDA_VAL);
       panda->set_ir_pwr(ir_panda);
-      Hardware::set_ir_power(ir_pwr); 
+      Hardware::set_ir_power(ir_pwr);
       prev_ir_pwr = ir_pwr;
     }
   }

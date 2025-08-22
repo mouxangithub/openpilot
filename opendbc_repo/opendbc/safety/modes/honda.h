@@ -238,7 +238,8 @@ static bool honda_tx_hook(const CANPacket_t *msg) {
 
   // STEER: safety check
   if ((msg->addr == 0xE4U) || (msg->addr == 0x194U)) {
-    if (!controls_allowed) {
+    bool alka = (alternative_experience & ALT_EXP_ALKA) != 0;
+    if (!(controls_allowed || alka)) {
       bool steer_applied = msg->data[0] | msg->data[1];
       if (steer_applied) {
         tx = false;

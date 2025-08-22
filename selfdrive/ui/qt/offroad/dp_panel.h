@@ -18,6 +18,7 @@ private:
   bool is_onroad = false;
   bool vehicle_has_long_ctrl;
   bool vehicle_has_radar_unavailable;
+  bool device_has_ext_radar_serial = false;
 
   void add_toyota_toggles();
   void add_vag_toggles();
@@ -28,4 +29,6 @@ private:
   void add_device_toggles();
   void updateStates();
   void showEvent(QShowEvent *event) override;
+
+  ParamDoubleSpinBoxControl* lca_sec_toggle;
 };

@@ -270,6 +270,7 @@ void camerad_thread() {
   // *** per-cam init ***
   std::vector<std::unique_ptr<CameraState>> cams;
   for (const auto &config : ALL_CAMERA_CONFIGS) {
+    if (!config.enabled) continue;
     auto cam = std::make_unique<CameraState>(&m, config);
     cam->init(&v, device_id, ctx);
     cams.emplace_back(std::move(cam));
