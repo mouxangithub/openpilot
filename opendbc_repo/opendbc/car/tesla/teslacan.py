@@ -1,5 +1,5 @@
 from opendbc.car.common.conversions import Conversions as CV
-from opendbc.car.interfaces import V_CRUISE_MAX
+V_CRUISE_MAX = 145
 from opendbc.car.tesla.values import CANBUS, CarControllerParams
 
 
