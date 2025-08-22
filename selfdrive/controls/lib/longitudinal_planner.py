@@ -61,6 +61,7 @@ class LongitudinalPlanner:
     self.mpc = LongitudinalMpc(dt=dt)
     # TODO remove mpc modes when TR released
     self.mpc.mode = 'acc'
+    self.mode = 'acc'
     self.fcw = False
     self.dt = dt
     self.allow_throttle = True

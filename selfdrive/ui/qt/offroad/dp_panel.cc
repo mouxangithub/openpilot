@@ -7,6 +7,21 @@ void DPPanel::add_toyota_toggles() {
       QString::fromUtf8("🐉 ") + tr("Toyota / Lexus"),
       "",
     },
+    {
+      "dp_toyota_door_auto_lock_unlock",
+      tr("Enable Door Auto Lock/Unlock"),
+      "",
+    },
+    {
+      "dp_toyota_tss1_sng",
+      tr("Enable TSS1 SnG Mod"),
+      "",
+    },
+    {
+      "dp_toyota_stock_lon",
+      tr("Use Stock Longitudinal Control"),
+      "",
+    },
   };
 
   QWidget *label = nullptr;
@@ -38,6 +53,21 @@ void DPPanel::add_vag_toggles() {
     {
       "",
       QString::fromUtf8("🐉 ") + tr("VW / Audi / Skoda"),
+      "",
+    },
+    {
+      "dp_vag_a0_sng",
+      tr("Enable MQB A0 SnG Mod"),
+      "",
+    },
+    {
+      "dp_vag_pq_steering_patch",
+      tr("PQ Steering Patch"),
+      ""
+    },
+    {
+      "dp_vag_avoid_eps_lockout",
+      tr("Avoid EPS Lockout"),
       "",
     },
   };

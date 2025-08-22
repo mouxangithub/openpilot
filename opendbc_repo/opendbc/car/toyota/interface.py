@@ -57,13 +57,22 @@ class CarInterface(CarInterfaceBase):
     if Ecu.hybrid in found_ecus:
       ret.flags |= ToyotaFlags.HYBRID.value
 
+    if 0x23 in fingerprint[0]:
+      print("----------------------------------------------")
+      print("dragonpilot: ZSS detected!")
+      print("----------------------------------------------")
+      ret.flags |= ToyotaFlags.ZSS.value
+
     if candidate == CAR.TOYOTA_PRIUS:
       stop_and_go = True
       # Only give steer angle deadzone to for bad angle sensor prius
       for fw in car_fw:
         if fw.ecu == "eps" and not fw.fwVersion == b'8965B47060\x00\x00\x00\x00\x00\x00':
-          ret.steerActuatorDelay = 0.25
-          CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning, steering_angle_deadzone_deg=0.2)
+          if ret.flags & ToyotaFlags.ZSS.value:
+            CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning)
+          else:
+            ret.steerActuatorDelay = 0.25
+            CarInterfaceBase.configure_torque_tune(candidate, ret.lateralTuning, steering_angle_deadzone_deg=0.2)
 
     elif candidate in (CAR.LEXUS_RX, CAR.LEXUS_RX_TSS2):
       stop_and_go = True
@@ -118,6 +127,30 @@ class CarInterface(CarInterfaceBase):
       if alpha_long and candidate in RADAR_ACC_CAR:
         ret.flags |= ToyotaFlags.DISABLE_RADAR.value
 
+      # RADAR_ACC_CAR = CHR TSS2 / RAV4 TSS2
+      # NO_DSU_CAR = CAMRY / CHR
+      if 0x2FF in fingerprint[0] or 0x2AA in fingerprint[0]:
+        print("----------------------------------------------")
+        print("dragonpilot: RADAR_FILTER detected!")
+        print("----------------------------------------------")
+        ret.safetyConfigs[0].safetyParam |= ToyotaSafetyFlags.LONG_FILTER.value
+        ret.alphaLongitudinalAvailable = False
+        ret.flags |= ToyotaFlags.RADAR_FILTER.value | ToyotaFlags.DISABLE_RADAR.value
+
+    sdsu_active = False
+    if not (candidate in (RADAR_ACC_CAR | NO_DSU_CAR)) and 0x2FF in fingerprint[0]:
+      print("----------------------------------------------")
+      print("dragonpilot: SDSU detected!")
+      print("----------------------------------------------")
+      ret.safetyConfigs[0].safetyParam |= ToyotaSafetyFlags.LONG_FILTER.value
+
+      ret.enableDsu = False
+      sdsu_active = True
+      stop_and_go = True
+
+      ret.flags |= ToyotaFlags.SDSU.value
+      ret.alphaLongitudinalAvailable = False
+
     # openpilot longitudinal enabled by default:
     #  - cars w/ DSU disconnected
     #  - TSS2 cars with camera sending ACC_CONTROL where we can block it
@@ -129,7 +162,12 @@ class CarInterface(CarInterfaceBase):
     else:
       ret.openpilotLongitudinalControl = ret.enableDsu or \
         candidate in (TSS2_CAR - RADAR_ACC_CAR) or \
-        bool(ret.flags & ToyotaFlags.DISABLE_RADAR.value)
+        bool(ret.flags & ToyotaFlags.DISABLE_RADAR.value) or \
+        sdsu_active
+
+    if dp_params & structs.DPFlags.ToyotaStockLon:
+      ret.openpilotLongitudinalControl = False
+      ret.alphaLongitudinalAvailable = False
 
     ret.autoResumeSng = ret.openpilotLongitudinalControl and candidate in NO_STOP_TIMER_CAR
 
@@ -151,12 +189,18 @@ class CarInterface(CarInterfaceBase):
       if ret.flags & ToyotaFlags.HYBRID.value:
         ret.longitudinalActuatorDelay = 0.05
 
+    if dp_params & structs.DPFlags.ToyotaDoorAutoLockUnlock:
+      ret.flags |= ToyotaFlags.DOOR_AUTO_LOCK_UNLOCK.value
+
+    if dp_params & structs.DPFlags.ToyotaTSS1SnG:
+      ret.flags |= ToyotaFlags.TSS1_SNG.value
+
     return ret
 
   @staticmethod
   def init(CP, can_recv, can_send, communication_control=None):
     # disable radar if alpha longitudinal toggled on radar-ACC car
-    if CP.flags & ToyotaFlags.DISABLE_RADAR.value:
+    if not CP.flags & ToyotaFlags.RADAR_FILTER.value and CP.flags & ToyotaFlags.DISABLE_RADAR.value:
       if communication_control is None:
         communication_control = bytes([uds.SERVICE_TYPE.COMMUNICATION_CONTROL, uds.CONTROL_TYPE.ENABLE_RX_DISABLE_TX, uds.MESSAGE_TYPE.NORMAL])
       disable_ecu(can_recv, can_send, bus=0, addr=0x750, sub_addr=0xf, com_cont_req=communication_control)
