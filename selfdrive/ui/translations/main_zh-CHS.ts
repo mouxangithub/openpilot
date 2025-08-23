@@ -135,7 +135,7 @@
     </message>
     <message>
         <source>Button: Cruise Speed Unit</source>
-        <translation>按钮：巡航速度单位</translation>
+        <translation type="vanished">按钮：巡航速度单位</translation>
     </message>
     <message>
         <source>CRUISE: Eco control(4km/h)</source>
@@ -387,15 +387,15 @@
     </message>
     <message>
         <source>DISP:Debug Info</source>
-        <translation>显示：调试信息</translation>
+        <translation type="vanished">显示：调试信息</translation>
     </message>
     <message>
         <source>DISP:Tpms Info</source>
-        <translation>显示：胎压监测信息</translation>
+        <translation type="vanished">显示：胎压监测信息</translation>
     </message>
     <message>
         <source>DISP:Time Info</source>
-        <translation>显示：时间信息</translation>
+        <translation type="vanished">显示：时间信息</translation>
     </message>
     <message>
         <source>0:None,1:Time/Date,2:Time,3:Date</source>
@@ -403,7 +403,7 @@
     </message>
     <message>
         <source>DISP:Path End</source>
-        <translation>显示：路径终点</translation>
+        <translation type="vanished">显示：路径终点</translation>
     </message>
     <message>
         <source>0:None,1:Display</source>
@@ -411,11 +411,11 @@
     </message>
     <message>
         <source>DISP:Device State</source>
-        <translation>显示：设备状态</translation>
+        <translation type="vanished">显示：设备状态</translation>
     </message>
     <message>
         <source>DISP:Lane Info</source>
-        <translation>显示：车道信息</translation>
+        <translation type="vanished">显示：车道信息</translation>
     </message>
     <message>
         <source>-1:None, 0:Path, 1:Path+Lane, 2: Path+Lane+RoadEdge</source>
@@ -423,7 +423,7 @@
     </message>
     <message>
         <source>DISP:Radar Info</source>
-        <translation>显示：雷达信息</translation>
+        <translation type="vanished">显示：雷达信息</translation>
     </message>
     <message>
         <source>0:None,1:Display,2:RelPos,3:Stopped Car</source>
@@ -431,11 +431,11 @@
     </message>
     <message>
         <source>DISP:Route Info</source>
-        <translation>显示：路线信息</translation>
+        <translation type="vanished">显示：路线信息</translation>
     </message>
     <message>
         <source>DISP:Debug plot</source>
-        <translation>0:无,1:显示</translation>
+        <translation type="vanished">0:无,1:显示</translation>
     </message>
     <message>
         <source>Brightness ratio</source>
@@ -443,7 +443,7 @@
     </message>
     <message>
         <source>DISP: Path Mode: Cruise OFF</source>
-        <translation>显示：路径模式：巡航关闭</translation>
+        <translation type="vanished">显示：路径模式：巡航关闭</translation>
     </message>
     <message>
         <source>0:Normal,1,2:Rec,3,4:^^,5,6:Rec,7,8:^^,9,10,11,12:Smooth^^</source>
@@ -451,7 +451,7 @@
     </message>
     <message>
         <source>DISP: Path Color: Cruise OFF</source>
-        <translation>显示：路径颜色：巡航关闭</translation>
+        <translation type="vanished">显示：路径颜色：巡航关闭</translation>
     </message>
     <message>
         <source>(+10:Stroke)0:Red,1:Orange,2:Yellow,3:Green,4:Blue,5:Indigo,6:Violet,7:Brown,8:White,9:Black</source>
@@ -459,27 +459,27 @@
     </message>
     <message>
         <source>DISP:Path Mode: Laneless</source>
-        <translation>显示：路径模式：无车道</translation>
+        <translation type="vanished">显示：路径模式：无车道</translation>
     </message>
     <message>
         <source>DISP:Path Color: Laneless</source>
-        <translation>显示：路径颜色：无车道</translation>
+        <translation type="vanished">显示：路径颜色：无车道</translation>
     </message>
     <message>
         <source>DISP:Path Mode: LaneMode</source>
-        <translation>显示：路径模式：车道模式</translation>
+        <translation type="vanished">显示：路径模式：车道模式</translation>
     </message>
     <message>
         <source>DISP:Path Color: LaneMode</source>
-        <translation>显示：路径颜色：车道模式</translation>
+        <translation type="vanished">显示：路径颜色：车道模式</translation>
     </message>
     <message>
         <source>DISP:Path Width ratio(100%)</source>
-        <translation>显示：路径宽度比例(100%)</translation>
+        <translation type="vanished">显示：路径宽度比例(100%)</translation>
     </message>
     <message>
         <source>HYUNDAI: CAMERA SCC</source>
-        <translation>现代：摄像头SCC</translation>
+        <translation>现代：相机SCC</translation>
     </message>
     <message>
         <source>1:Connect the SCC&apos;s CAN line to CAM, 2:Sync Cruise state, 3:StockLong</source>
@@ -531,7 +531,7 @@
     </message>
     <message>
         <source>Disable Min.SteerSpeed (Eg. SMDPS</source>
-        <translation>禁用最小转向速度(如SMDPS</translation>
+        <translation type="vanished">禁用最小转向速度(如SMDPS</translation>
     </message>
     <message>
         <source>Auto AccelTok speed</source>
@@ -639,7 +639,7 @@
     </message>
     <message>
         <source>SpeedCameraDecelEnd(6s)</source>
-        <translation>测速摄像头减速结束(6秒)</translation>
+        <translation type="vanished">测速摄像头减速结束(6秒)</translation>
     </message>
     <message>
         <source>Sets the deceleration completion point. A larger value completes deceleration farther away from the camera.</source>
@@ -655,7 +655,7 @@
     </message>
     <message>
         <source>SpeedCameraDecelRatex0.01m/s^2(80)</source>
-        <translation>测速摄像头减速率x0.01m/s^2(80)</translation>
+        <translation type="vanished">测速摄像头减速率x0.01m/s^2(80)</translation>
     </message>
     <message>
         <source>Lower number, slows down from a greater distance</source>
@@ -663,7 +663,7 @@
     </message>
     <message>
         <source>SpeedCameraSafetyFactor(105%)</source>
-        <translation>测速摄像头安全系数(105%)</translation>
+        <translation type="vanished">测速摄像头安全系数(105%)</translation>
     </message>
     <message>
         <source>SpeedBumpTimeDistance(1s)</source>
@@ -732,6 +732,106 @@
     <message>
         <source>ATC Auto Map Change(0)</source>
         <translation>ATC自动地图切换(0)</translation>
+    </message>
+    <message>
+        <source>Button: Cancel Button Mode</source>
+        <translation>按钮：取消按钮模式</translation>
+    </message>
+    <message>
+        <source>Button: Cruise Speed Unit(Basic)</source>
+        <translation>按钮：巡航速度单位（基础版）</translation>
+    </message>
+    <message>
+        <source>Button: Cruise Speed Unit(Extra)</source>
+        <translation>按钮：巡航速度单位（额外）</translation>
+    </message>
+    <message>
+        <source>0:Long,1:Long+Lat</source>
+        <translation>0：经度，1：经度+纬度</translation>
+    </message>
+    <message>
+        <source>Debug Info</source>
+        <translation>调试信息</translation>
+    </message>
+    <message>
+        <source>Tpms Info</source>
+        <translation>胎压信息</translation>
+    </message>
+    <message>
+        <source>Time Info</source>
+        <translation>时间信息</translation>
+    </message>
+    <message>
+        <source>Path End</source>
+        <translation>路径边缘</translation>
+    </message>
+    <message>
+        <source>Device State</source>
+        <translation>设备状态</translation>
+    </message>
+    <message>
+        <source>Lane Info</source>
+        <translation>车道信息</translation>
+    </message>
+    <message>
+        <source>Radar Info</source>
+        <translation>雷达信息</translation>
+    </message>
+    <message>
+        <source>Route Info</source>
+        <translation>路由信息</translation>
+    </message>
+    <message>
+        <source>Debug plot</source>
+        <translation>调试图</translation>
+    </message>
+    <message>
+        <source>Path Color: Cruise OFF</source>
+        <translation>路径颜色：巡航关闭</translation>
+    </message>
+    <message>
+        <source>Path Mode: Laneless</source>
+        <translation>路径模式：无车道</translation>
+    </message>
+    <message>
+        <source>Path Color: Laneless</source>
+        <translation>路径颜色：无车道</translation>
+    </message>
+    <message>
+        <source>Path Mode: LaneMode</source>
+        <translation>路径模式：车道模式</translation>
+    </message>
+    <message>
+        <source>Path Color: LaneMode</source>
+        <translation>路径颜色：车道模式</translation>
+    </message>
+    <message>
+        <source>Path Width ratio(100%)</source>
+        <translation>路径宽度比（100%）</translation>
+    </message>
+    <message>
+        <source>Disable Min.SteerSpeed</source>
+        <translation>禁用最小转速</translation>
+    </message>
+    <message>
+        <source>SpeedCamDecelEnd(6s)</source>
+        <translation>​​限速摄像头减速结束（6秒）​​</translation>
+    </message>
+    <message>
+        <source>SpeedCamDecelRatex0.01m/s^2(80)</source>
+        <translation>​​限速摄像头减速率系数 0.01米/秒²（80）​​</translation>
+    </message>
+    <message>
+        <source>SpeedCamSafetyFactor(105%)</source>
+        <translation>​​限速摄像头安全冗余系数（105%）​​</translation>
+    </message>
+    <message>
+        <source>Select Manufacturer</source>
+        <translation>选择制造商</translation>
+    </message>
+    <message>
+        <source>Select your car</source>
+        <translation>选择您的汽车</translation>
     </message>
 </context>
 <context>
@@ -1064,27 +1164,29 @@
         <source>openpilot learns to drive by watching humans, like you, drive.
 
 Firehose Mode allows you to maximize your training data uploads to improve openpilot&apos;s driving models. More data means bigger models, which means better Experimental Mode.</source>
-        <translation type="unfinished"></translation>
+        <translation>openpilot通过观察像你一样的人类驾驶员来学习驾驶。
+
+Firehose模式允许你最大化上传训练数据以改进openpilot的驾驶模型。更多数据意味着更大的模型，进而意味着更优的实验模式。</translation>
     </message>
     <message>
         <source>Firehose Mode: ACTIVE</source>
-        <translation type="unfinished"></translation>
+        <translation>Firehose模式：激活中</translation>
     </message>
     <message>
         <source>For maximum effectiveness, bring your device inside and connect to a good USB-C adapter and Wi-Fi weekly.&lt;br&gt;&lt;br&gt;Firehose Mode can also work while you&apos;re driving if connected to a hotspot or unlimited SIM card.&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Frequently Asked Questions&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter how or where I drive?&lt;/i&gt; Nope, just drive as you normally would.&lt;br&gt;&lt;br&gt;&lt;i&gt;What&apos;s a good USB-C adapter?&lt;/i&gt; Any fast phone or laptop charger should be fine.&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter which software I run?&lt;/i&gt; Yes, only upstream openpilot (and particular forks) are able to be used for training.</source>
-        <translation type="unfinished"></translation>
+        <translation>为了达到最佳效果，请将设备带入车内并每周连接至优质USB-C适配器和Wi-Fi。&lt;br&gt;&lt;br&gt;如果连接热点或无限流量SIM卡，Firehose模式也可在驾驶时使用。&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;常见问题解答&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;驾驶方式或地点有影响吗？&lt;/i&gt; 没有，只需正常驾驶即可。&lt;br&gt;&lt;br&gt;&lt;i&gt;什么是好的USB-C适配器？&lt;/i&gt; 任何快速手机或笔记本充电器都可以。&lt;br&gt;&lt;br&gt;&lt;i&gt;使用的软件有要求吗？&lt;/i&gt; 是的，仅上游openpilot（及特定分支）可用于训练。</translation>
     </message>
     <message>
         <source>&lt;b&gt;%1 %2&lt;/b&gt; of your driving are in the training dataset so far.</source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;b&gt;%1 %2&lt;/b&gt; 的您驾驶数据已包含在训练数据集中。</translation>
     </message>
     <message>
         <source>ACTIVE</source>
-        <translation type="unfinished"></translation>
+        <translation>激活中</translation>
     </message>
     <message>
         <source>&lt;span stylesheet=&apos;font-size: 60px; font-weight: bold; color: #e74c3c;&apos;&gt;INACTIVE&lt;/span&gt;: connect to unmetered network</source>
-        <translation type="unfinished"></translation>
+        <translation>&lt;span stylesheet=&apos;font-size: 60px; font-weight: bold; color: #e74c3c;&apos;&gt;未激活&lt;/span&gt;: 连接至未计费网络</translation>
     </message>
 </context>
 <context>
@@ -1227,7 +1329,7 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>NVMe drive not mounted.</source>
-        <translation type="vanished">NVMe固态硬盘未被挂载。</translation>
+        <translation>NVMe固态硬盘未被挂载。</translation>
     </message>
     <message>
         <source>Unsupported NVMe drive detected. Device may draw significantly more power and overheat due to the unsupported NVMe.</source>
@@ -1247,7 +1349,7 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>CarrotAmap 是将高德导航数据传输到C3，实现控制车速和变道，并不能完全自主驾驶！请注意安全驾驶.</source>
-        <translation type="unfinished"></translation>
+        <translation type="vanished">CarrotAmap 是将高德导航数据传输到C3，实现控制车速和变道，并不能完全自主驾驶！请注意安全驾驶.</translation>
     </message>
 </context>
 <context>
@@ -1376,7 +1478,7 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>comma prime</source>
-        <translation>comma prime</translation>
+        <translation>Comma 高级会员</translation>
     </message>
 </context>
 <context>
@@ -1626,7 +1728,7 @@ This may take up to a minute.</source>
     <name>Sidebar</name>
     <message>
         <source>CONNECT</source>
-        <translation>CONNECT</translation>
+        <translation>服务</translation>
     </message>
     <message>
         <source>OFFLINE</source>
@@ -1638,27 +1740,27 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>ERROR</source>
-        <translation>连接出错</translation>
+        <translation>错误</translation>
     </message>
     <message>
         <source>TEMP</source>
-        <translation>设备温度</translation>
+        <translation>温度</translation>
     </message>
     <message>
         <source>HIGH</source>
-        <translation>过热</translation>
+        <translation type="vanished">过热</translation>
     </message>
     <message>
         <source>GOOD</source>
-        <translation>良好</translation>
+        <translation type="vanished">良好</translation>
     </message>
     <message>
         <source>OK</source>
-        <translation>一般</translation>
+        <translation type="vanished">一般</translation>
     </message>
     <message>
         <source>VEHICLE</source>
-        <translation>车辆连接</translation>
+        <translation>车辆</translation>
     </message>
     <message>
         <source>NO</source>
@@ -1666,7 +1768,7 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>PANDA</source>
-        <translation>黑熊</translation>
+        <translation>熊猫</translation>
     </message>
     <message>
         <source>CPU</source>
@@ -1832,6 +1934,39 @@ This may take up to a minute.</source>
     <message>
         <source>Enable SSH</source>
         <translation>启用SSH</translation>
+    </message>
+</context>
+<context>
+    <name>TSKKeyboard</name>
+    <message>
+        <source>SecOCKey Install</source>
+        <translation>汽车安全密钥</translation>
+    </message>
+    <message>
+        <source>INSTALL</source>
+        <translation>安装</translation>
+    </message>
+    <message>
+        <source>Not Installed</source>
+        <translation>未安装</translation>
+    </message>
+    <message>
+        <source>Archived key: </source>
+        <translation>存储密钥: </translation>
+    </message>
+    <message>
+        <source>Enter your Car Security Key</source>
+        <translation>请输入您的汽车安全钥匙</translation>
+    </message>
+    <message>
+        <source>Success!
+Restart comma to have openpilot use the key</source>
+        <translation>安装成功！
+重启您的设备让openpilot使用该密钥</translation>
+    </message>
+    <message>
+        <source>Invalid key: %1</source>
+        <translation>无效密钥: %1</translation>
     </message>
 </context>
 <context>
@@ -2047,39 +2182,6 @@ This may take up to a minute.</source>
     <message>
         <source>Forget</source>
         <translation>忽略</translation>
-    </message>
-</context>
-<context>
-    <name>TSKKeyboard</name>
-    <message>
-        <source>SecOCKey Install</source>
-        <translation>汽车安全密钥</translation>
-    </message>
-    <message>
-        <source>INSTALL</source>
-        <translation>安装</translation>
-    </message>
-    <message>
-        <source>Not Installed</source>
-        <translation>未安装</translation>
-    </message>
-    <message>
-        <source>Archived key: </source>
-        <translation>存储密钥: </translation>
-    </message>
-    <message>
-        <source>Enter your Car Security Key</source>
-        <translation>请输入您的汽车安全钥匙</translation>
-    </message>
-    <message>
-        <source>Success!
-Restart comma to have openpilot use the key</source>
-        <translation>安装成功！
-重启您的设备让openpilot使用该密钥</translation>
-    </message>
-    <message>
-        <source>Invalid key: %1</source>
-        <translation>无效密钥: %1</translation>
     </message>
 </context>
 </TS>

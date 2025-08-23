@@ -144,9 +144,9 @@ void Sidebar::updateState(const UIState &s) {
   int free_space = deviceState.getFreeSpacePercent();
   QString free_spaces = QString::number(free_space) + "%";
   ItemStatus freeStatus = {{tr("Free Space"), free_spaces}, good_color};
-  if (free_space >= 80) {
+  if (free_space <= 20) {
     freeStatus = {{tr("Free Space"), free_spaces}, danger_color};
-  } else if (free_space >= 50) {
+  } else if (free_space <= 60) {
     freeStatus = {{tr("Free Space"), free_spaces}, warning_color};
   }
   setProperty("freeStatus", QVariant::fromValue(freeStatus));
@@ -194,10 +194,10 @@ void Sidebar::paintEvent(QPaintEvent *event) {
   // drawMetric(p, panda_status.first, panda_status.second, 496);
   // drawMetric(p, connect_status.first, connect_status.second, 654);
 
-  // drawMetric(p, temp_status.first, temp_status.second, 338);
-  drawMetric(p, panda_status.first, panda_status.second, 310);
-  drawMetric(p, cpu_status.first, cpu_status.second, 440);
-  drawMetric(p, memory_status.first, memory_status.second, 570);
-  drawMetric(p, free_status.first, free_status.second, 700);
+  drawMetric(p, temp_status.first, temp_status.second, 310);
+  drawMetric(p, panda_status.first, panda_status.second, 440);
+  drawMetric(p, cpu_status.first, cpu_status.second, 570);
+  drawMetric(p, memory_status.first, memory_status.second, 700);
+  // drawMetric(p, free_status.first, free_status.second, 700);
   // drawMetric(p, gpu_status.first, gpu_status.second, 700);
 }
