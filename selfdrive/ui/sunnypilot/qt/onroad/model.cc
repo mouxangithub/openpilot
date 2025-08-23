@@ -140,83 +140,88 @@ void ModelRendererSP::drawLeadStatusAtPosition(QPainter &painter,
     bool is_metric = s->scene.is_metric;
     QStringList text_lines;
 
-    const int chevron_types = 3;
-    const int chevron_all = chevron_types + 1;
-    QStringList chevron_text[chevron_types];
-    int position;
-    float val;
+    const int chevron_all = 4;
+    QStringList chevron_text[3];
 
-    // Distance display (chevron_data == 1 or all)
+    // Distance display
     if (chevron_data == 1 || chevron_data == chevron_all) {
-        position = 0;
-        val = std::max(0.0f, d_rel);
-        QString distance_unit = is_metric ? "m" : "ft";
-        if (!is_metric) {
-            val *= 3.28084f; // Convert meters to feet
-        }
-        chevron_text[position].append(QString::number(val, 'f', 0) + " " + distance_unit);
+        int pos = 0;
+        float val = std::max(0.0f, d_rel);
+        QString unit = is_metric ? "m" : "ft";
+        if (!is_metric) val *= 3.28084f;
+        chevron_text[pos].append(QString::number(val, 'f', 0) + " " + unit);
     }
 
-    // Absolute velocity display (chevron_data == 2 or all)
+    // Speed display
     if (chevron_data == 2 || chevron_data == chevron_all) {
-        position = (chevron_data == 2) ? 0 : 1;
-        val = std::max(0.0f, (v_rel + v_ego) * (is_metric ? static_cast<float>(MS_TO_KPH) : static_cast<float>(MS_TO_MPH)));
-        chevron_text[position].append(QString::number(val, 'f', 0) + " " + (is_metric ? "km/h" : "mph"));
+        int pos = (chevron_data == 2) ? 0 : 1;
+        float multiplier = is_metric ? static_cast<float>(MS_TO_KPH) : static_cast<float>(MS_TO_MPH);
+        float val = std::max(0.0f, (v_rel + v_ego) * multiplier);
+        QString unit = is_metric ? "km/h" : "mph";
+        chevron_text[pos].append(QString::number(val, 'f', 0) + " " + unit);
     }
 
-    // Time-to-contact display (chevron_data == 3 or all)
+    // Time to contact
     if (chevron_data == 3 || chevron_data == chevron_all) {
-        position = (chevron_data == 3) ? 0 : 2;
-        val = (d_rel > 0 && v_ego > 0) ? std::max(0.0f, d_rel / v_ego) : 0.0f;
-        QString ttc_str = (val > 0 && val < 200) ? QString::number(val, 'f', 1) + "s" : "---";
-        chevron_text[position].append(ttc_str);
+        int pos = (chevron_data == 3) ? 0 : 2;
+        float val = (d_rel > 0 && v_ego > 0) ? std::max(0.0f, d_rel / v_ego) : 0.0f;
+        QString ttc = (val > 0 && val < 200) ? QString::number(val, 'f', 1) + "s" : "---";
+        chevron_text[pos].append(ttc);
     }
 
-    for (int i = 0; i < chevron_types; ++i) {
+    for (int i = 0; i < 3; ++i) {
         if (!chevron_text[i].isEmpty()) {
             text_lines.append(chevron_text[i]);
         }
     }
 
-    if (text_lines.isEmpty()) {
-        return;
+    if (text_lines.isEmpty()) return;
+
+    QFontMetrics fm(content_font);
+    float text_width = 120.0f;
+    for (const QString &line : text_lines) {
+        text_width = std::max(text_width, fm.horizontalAdvance(line) + 20.0f);
+    }
+    text_width = std::min(text_width, 250.0f);
+
+    float line_height = 45.0f;
+    float total_height = text_lines.size() * line_height;
+    float margin = 20.0f;
+
+    float text_y = chevron_pos.y() + sz + 15;
+    if (text_y + total_height > height - margin) {
+        text_y = chevron_pos.y() - sz - 15 - total_height;
+        text_y = std::max(margin, text_y);
     }
 
-    float str_w = 150;
-    float str_h = 45;
-    float text_x = chevron_pos.x() - str_w / 2;
-    float text_y = chevron_pos.y() + sz + 15;
-    float total_text_height = text_lines.size() * str_h;
-
-    text_x = std::clamp(text_x, 10.0f, (float)width - str_w - 10);
-    text_y = std::min(text_y, (float)height - total_text_height - 10);
+    float text_x = chevron_pos.x() - text_width / 2;
+    text_x = std::clamp(text_x, margin, (float)width - text_width - margin);
 
     QPoint shadow_offset(2, 2);
 
     for (int i = 0; i < text_lines.size(); ++i) {
-        if (!text_lines[i].isEmpty()) {
-            QRect textRect(text_x, text_y + (i * str_h), str_w, str_h);
+        float y = text_y + (i * line_height);
+        if (y + line_height > height - margin) break;
 
-            painter.setPen(QColor(0x0, 0x0, 0x0, (int)(200 * lead_status_alpha)));
-            painter.drawText(textRect.translated(shadow_offset.x(), shadow_offset.y()),
-                           Qt::AlignBottom | Qt::AlignHCenter, text_lines[i]);
+        QRect rect(text_x, y, text_width, line_height);
 
-            QColor text_color;
-            if (text_lines[i].contains("m") || text_lines[i].contains("ft")) {
-                if (d_rel < 20.0f) {
-                    text_color = QColor(255, 80, 80, (int)(255 * lead_status_alpha)); // Red - danger
-                } else if (d_rel < 40.0f) {
-                    text_color = QColor(255, 200, 80, (int)(255 * lead_status_alpha)); // Yellow - caution
-                } else {
-                    text_color = QColor(80, 255, 120, (int)(255 * lead_status_alpha)); // Green - safe
-                }
+        // Draw shadow
+        painter.setPen(QColor(0, 0, 0, (int)(200 * lead_status_alpha)));
+        painter.drawText(rect.translated(shadow_offset), Qt::AlignCenter, text_lines[i]);
+
+        QColor text_color = QColor(255, 255, 255, (int)(255 * lead_status_alpha));
+        if (text_lines[i].contains("m") || text_lines[i].contains("ft")) {
+            if (d_rel < 20.0f) {
+                text_color = QColor(255, 80, 80, (int)(255 * lead_status_alpha));
+            } else if (d_rel < 40.0f) {
+                text_color = QColor(255, 200, 80, (int)(255 * lead_status_alpha));
             } else {
-                text_color = QColor(0xff, 0xff, 0xff, (int)(255 * lead_status_alpha));
+                text_color = QColor(80, 255, 120, (int)(255 * lead_status_alpha));
             }
-
-            painter.setPen(text_color);
-            painter.drawText(textRect, Qt::AlignBottom | Qt::AlignHCenter, text_lines[i]);
         }
+
+        painter.setPen(text_color);
+        painter.drawText(rect, Qt::AlignCenter, text_lines[i]);
     }
 
     painter.setPen(Qt::NoPen);
