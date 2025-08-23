@@ -1363,6 +1363,38 @@ The default software delay value is 0.2</source>
         <source>This will delete ALL downloaded models from the cache&lt;br/&gt;&lt;u&gt;except the currently active model&lt;/u&gt;.&lt;br/&gt;&lt;br/&gt;Are you sure you want to continue?</source>
         <translation>这将删除缓存中所有下载的模型&lt;br/&gt;&lt;u&gt;除了当前正在使用的模型&lt;/u&gt;。&lt;br/&gt;&lt;br/&gt;是否确定继续？</translation>
     </message>
+    <message>
+        <source>Refresh Model List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>REFRESH</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fetching Latest Models</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. Keeping this on provides the stock openpilot experience.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Live Steer Delay:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Actuator Delay:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Software Delay:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Total Delay:</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>MultiOptionDialog</name>
@@ -2721,6 +2753,14 @@ Data</source>
     <message>
         <source>[Don&apos;t use] Enable sunnylink uploader</source>
         <translation>[请勿使用]启用sunnylink上传器</translation>
+    </message>
+    <message>
+        <source>Enable sunnylink uploader to allow sunnypilot to upload your driving data to sunnypilot servers. (only for highest tiers, and does NOT bring ANY benefit to you. We are just testing data volume.)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>[Don&apos;t use] Enable sunnylink uploader</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
