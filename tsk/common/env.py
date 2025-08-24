@@ -3,8 +3,8 @@ import os
 import time
 
 
-RECOMMENDED_OP_USER = "commaai"
-RECOMMENDED_OP_BRANCH = "nightly-dev"
+RECOMMENDED_OP_USER = "mouxangithub"
+RECOMMENDED_OP_BRANCH = "C3"
 RECOMMENDED_OP_DIR = "/data/tsk-recommended"
 ALTERNATE_OP_USER = "sunnypilot"
 ALTERNATE_OP_BRANCH = "staging-c3-new"
