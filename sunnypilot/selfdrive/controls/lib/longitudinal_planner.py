@@ -8,6 +8,7 @@ import math
 
 from cereal import messaging, custom
 from opendbc.car import structs
+from opendbc.car.interfaces import ACCEL_MIN
 from openpilot.selfdrive.car.cruise import V_CRUISE_UNSET
 from opendbc.car.interfaces import ACCEL_MIN
 from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
