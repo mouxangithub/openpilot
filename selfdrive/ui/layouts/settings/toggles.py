@@ -102,12 +102,6 @@ class TogglesLayout(Widget):
         icon="microphone.png",
       ),
       toggle_item(
-        "Record Audio Feedback with LKAS button",
-        DESCRIPTIONS["RecordAudioFeedback"],
-        self._params.get_bool("RecordAudioFeedback"),
-        icon="microphone.png",
-      ),
-      toggle_item(
         "Use Metric System", DESCRIPTIONS["IsMetric"], self._params.get_bool("IsMetric"), icon="metric.png"
       ),
     ]
