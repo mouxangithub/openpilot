@@ -1,1 +1,1 @@
-#define DEFAULT_MODEL "Kumars Vibe (Default)"
+#define DEFAULT_MODEL "Steam Powered (Default)"
