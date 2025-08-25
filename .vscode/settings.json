@@ -4,12 +4,6 @@
   "editor.renderWhitespace": "trailing",
   "files.trimTrailingWhitespace": true,
   "terminal.integrated.defaultProfile.linux": "dragonpilot",
-  "terminal.integrated.profiles.linux": {
-    "dragonpilot": {
-      "path": "bash",
-      "args": ["-c", "distrobox enter dp"]
-    }
-  },
   "search.exclude": {
     "**/.git": true,
     "**/.venv": true,
