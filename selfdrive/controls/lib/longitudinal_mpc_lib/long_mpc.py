@@ -341,6 +341,7 @@ class LongitudinalMpc:
         t_follow = get_T_FOLLOW(personality)
     else:
       t_follow = get_T_FOLLOW(personality)
+    print(f"DEBUG: vibe_follow_enabled={self.vibe_controller.is_follow_enabled()}, t_follow={t_follow:.3f}, v_ego={v_ego:.1f}")
 
     self.status = radarstate.leadOne.status or radarstate.leadTwo.status
 
@@ -349,10 +350,13 @@ class LongitudinalMpc:
       accel_limits = self.vibe_controller.get_accel_limits(v_ego)
       if accel_limits is not None:
         min_accel = accel_limits[0]
+        print(f"DEBUG: vibe_accel_enabled=True, min_accel={min_accel:.3f}")
       else:
         min_accel = CRUISE_MIN_ACCEL
+        print(f"DEBUG: vibe_accel_enabled=True but accel_limits=None, using default={min_accel}")
     else:
       min_accel = CRUISE_MIN_ACCEL
+      print(f"DEBUG: vibe_accel_enabled=False, using default={min_accel}")
 
     a_cruise_min = min_accel
 
