@@ -29,30 +29,22 @@ MIN_ACCEL_PROFILES = {
 }
 MIN_ACCEL_BREAKPOINTS =       [0.,  5.,  50.]
 
-# Following Distance Profiles mapped to LongPersonality (relaxed/standard/aggressive)
-FOLLOW_DISTANCE_PROFILES = {
-  LongPersonality.relaxed: {
-    'x_vel':  [0.,   22.,  25.,  40.],
-    'y_dist': [1.45, 1.45, 1.75, 1.75]  # longer following distance
-  },
-  # 'x_vel':  [0.,  5.5,   8.3,  13.9, 16.4, 22.2, 25., 40.],
-  #'y_dist': [1.15, 1.15, 1.30, 1.30, 1.50, 1.50, 1.75, 1.75]  # longer following distance
-  # },
-  LongPersonality.standard: {
-    'x_vel':  [0.,   22.,  25.,  40.],
-    'y_dist': [1.30, 1.30, 1.50, 1.50]  # longer following distance
-  },
-  #'x_vel':  [0.,   16.4, 22.2, 40.],
-  #'y_dist': [1.03, 1.03, 1.50, 1.50]  # normal following distance
-  # },
-  LongPersonality.aggressive: {
-    'x_vel':  [0.,  4.,  5.,  27.,  28.,  40.],
-    'y_dist': [1.1, 1.1, 1.1, 1.1,  1.2, 1.2]  # longer following distance
-  },
-  #'x_vel':  [0.,   16.4, 22.2, 40.],
-  #'y_dist': [0.90, 0.90, 1.30, 1.30]  # shorter following distance
-  # }
-}
+def get_T_FOLLOW_vibe(personality):
+  """Get base T_FOLLOW value for each personality"""
+  if personality == LongPersonality.relaxed:
+    return 1.75
+  elif personality == LongPersonality.standard:
+    return 1.45
+  elif personality == LongPersonality.aggressive:
+    return 1.25
+  else:
+    return 1.45  # default to standard
+
+def get_dynamic_personality(v_ego, personality):
+  """Adjust T_FOLLOW based on vehicle speed (scales 0.75-1.0 from 0-36 m/s)."""
+  scale_factor = np.clip(np.interp(v_ego, [0, 36], [0.75, 1.0]), 0.75, 1.0)
+  return get_T_FOLLOW_vibe(personality) * scale_factor
+
 class VibePersonalityController:
   """
   Controller for managing separated acceleration and distance controls:
@@ -204,15 +196,13 @@ class VibePersonalityController:
       return None
 
   def get_follow_distance_multiplier(self, v_ego: float) -> float | None:
-    """Get following distance multiplier based on LongPersonality only"""
+    """Get dynamic following distance based on speed and personality"""
     self._update_from_params()
     if not self.is_follow_enabled():
       return None
 
     try:
-      profile = FOLLOW_DISTANCE_PROFILES[self.long_personality]
-      multiplier = float(np.interp(v_ego, profile['x_vel'], profile['y_dist']))
-      return multiplier
+      return get_dynamic_personality(v_ego, self.long_personality)
     except (KeyError, IndexError):
       return None
 
