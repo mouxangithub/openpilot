@@ -14,8 +14,8 @@ TRAJECTORY_SIZE = 33
 
 _MIN_V = 20 * CV.KPH_TO_MS  # Do not operate under 20 km/h
 
-_ENTERING_PRED_LAT_ACC_TH = 1.2  # Predicted Lat Acc threshold to trigger entering turn state.
-_ABORT_ENTERING_PRED_LAT_ACC_TH = 1.0  # Predicted Lat Acc threshold to abort entering state if speed drops.
+_ENTERING_PRED_LAT_ACC_TH = 1.3  # Predicted Lat Acc threshold to trigger entering turn state.
+_ABORT_ENTERING_PRED_LAT_ACC_TH = 1.1  # Predicted Lat Acc threshold to abort entering state if speed drops.
 
 _TURNING_LAT_ACC_TH = 1.6  # Lat Acc threshold to trigger turning state.
 
@@ -27,7 +27,7 @@ _EVAL_START = 20.  # mts. Distance ahead where to start evaluating vision curvat
 _EVAL_LENGTH = 150.  # mts. Distance ahead where to stop evaluating vision curvature.
 _EVAL_RANGE = np.arange(_EVAL_START, _EVAL_LENGTH, _EVAL_STEP)
 
-_A_LAT_REG_MAX = 2.2  # Maximum lateral acceleration
+_A_LAT_REG_MAX = 2.  # Maximum lateral acceleration
 
 _NO_OVERSHOOT_TIME_HORIZON = 4.  # s. Time to use for velocity desired based on a_target when not overshooting.
 
@@ -38,8 +38,8 @@ _ENTERING_SMOOTH_DECEL_BP = [1.3, 3.]  # absolute value of lat acc ahead
 
 # Lookup table for the acceleration for the TURNING state
 # depending on the current lateral acceleration of the vehicle.
-_TURNING_ACC_V = [1.4, 1.0, 0.9, 0.5, 0.09, 0.08]  # acc value
-_TURNING_ACC_BP = [1.5, 10, 12, 14, 16, 18]  # absolute value of current lat acc
+_TURNING_ACC_V = [0.5, 0., -0.4]  # acc value
+_TURNING_ACC_BP = [1.5, 2.3, 3.]  # absolute value of current lat acc
 
 _LEAVING_ACC = 0.5  # Conformable acceleration to regain speed while leaving a turn.
 
@@ -198,7 +198,7 @@ class VisionTurnController:
 
     # 2. If not polynomially derived from lanes, then derive it from a driving path as provided by `lateralPlanner`.
     if path_poly is None and lat_planner_data is not None and len(lat_planner_data.psis) == CONTROL_N \
-          and lat_planner_data.dPathPoints[0] > 0:
+       and lat_planner_data.dPathPoints[0] > 0:
       yData = list(lat_planner_data.dPathPoints)
       path_poly = np.polyfit(lat_planner_data.psis, yData[0:CONTROL_N], 3)
 
@@ -210,7 +210,7 @@ class VisionTurnController:
       sm['carState'].steeringAngleDeg * CV.DEG_TO_RAD / (self._CP.steerRatio * self._CP.wheelbase))
     self._current_lat_acc = current_curvature * self._v_ego ** 2
     self._max_v_for_current_curvature = math.sqrt(_A_LAT_REG_MAX / current_curvature) if current_curvature > 0 \
-      else V_CRUISE_MAX * CV.KPH_TO_MS
+        else V_CRUISE_MAX * CV.KPH_TO_MS
 
     pred_curvatures = eval_curvature(path_poly, _EVAL_RANGE)
     max_pred_curvature = np.amax(pred_curvatures)
