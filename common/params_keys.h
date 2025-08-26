@@ -244,4 +244,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"SpeedLimitWarningType", {PERSISTENT | BACKUP, INT, "0"}},
     {"SpeedLimitWarningOffsetType", {PERSISTENT | BACKUP, INT, "0"}},
     {"SpeedLimitWarningValueOffset", {PERSISTENT | BACKUP, INT, "0"}},
+
+    {"dashy", {PERSISTENT, INT, "2"}},
 };

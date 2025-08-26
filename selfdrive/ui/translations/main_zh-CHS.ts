@@ -1815,18 +1815,6 @@ Warning: You are on a metered connection!</source>
         <translation>温度</translation>
     </message>
     <message>
-        <source>HIGH</source>
-        <translation type="vanished">过热</translation>
-    </message>
-    <message>
-        <source>GOOD</source>
-        <translation type="vanished">良好</translation>
-    </message>
-    <message>
-        <source>OK</source>
-        <translation type="vanished">一般</translation>
-    </message>
-    <message>
         <source>VEHICLE</source>
         <translation>车辆连接</translation>
     </message>
@@ -2625,6 +2613,38 @@ Restart comma to have openpilot use the key</source>
     <message>
         <source>Normal is recommended. In sport mode, sunnypilot will provide aggressive acceleration for a dynamic driving experience. In eco mode, sunnypilot will apply smoother and more relaxed acceleration. On supported cars, you can cycle through these acceleration personality within Onroad Settings on the driving screen.</source>
         <translation>建议使用正常模式。在运动模式下，sunnypilot将提供更积极的加速，以带来动感的驾驶体验。在经济模式下，sunnypilot将应用更平稳、更放松的加速。在支持的汽车上，您可以在驾驶屏幕的Onroad设置中切换这些加速模式。</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation>关闭</translation>
+    </message>
+    <message>
+        <source>Lite</source>
+        <translation>简易</translation>
+    </message>
+    <message>
+        <source>Full</source>
+        <translation>完整</translation>
+    </message>
+    <message>
+        <source>dashy</source>
+        <translation>局域传输</translation>
+    </message>
+    <message>
+        <source>dashy - dragonpilot&apos;s all-in-one system hub for you.
+
+Visit http://&lt;device_ip&gt;:5088 to access.
+
+Off - Turn off dashy completely.
+Lite: File Manager only.
+Full: File Manager + Live Stream.</source>
+        <translation>dashy - dragonpilot 的一站式系统枢纽。
+
+访问 http://&lt;device_ip&gt;:5088 进入。
+
+关闭 - 完全关闭 dashy。
+轻量版：仅文件管理器。
+完整版：文件管理器 + 实时流媒体。</translation>
     </message>
 </context>
 <context>

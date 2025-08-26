@@ -2618,6 +2618,32 @@ Restart comma to have openpilot use the key</source>
         <source>Normal is recommended. In sport mode, sunnypilot will provide aggressive acceleration for a dynamic driving experience. In eco mode, sunnypilot will apply smoother and more relaxed acceleration. On supported cars, you can cycle through these acceleration personality within Onroad Settings on the driving screen.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Lite</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Full</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>dashy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>dashy - dragonpilot&apos;s all-in-one system hub for you.
+
+Visit http://&lt;device_ip&gt;:5088 to access.
+
+Off - Turn off dashy completely.
+Lite: File Manager only.
+Full: File Manager + Live Stream.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>TreeOptionDialog</name>

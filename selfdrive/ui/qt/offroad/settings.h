@@ -89,6 +89,7 @@ protected:
   std::map<std::string, ParamControl*> toggles;
   ButtonParamControl *long_personality_setting;
   ButtonParamControl *accel_personality_setting;
+  ButtonParamControl *dashy_mode_settings;
 
   virtual void updateToggles();
 };

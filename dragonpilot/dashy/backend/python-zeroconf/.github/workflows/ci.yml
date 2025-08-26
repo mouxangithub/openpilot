@@ -1,0 +1,300 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+concurrency:
+  group: ${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - uses: pre-commit/action@2c7b3805fd2a0fd8c1884dcaebf91fc102a13ecd # v3.0.1
+
+  # Make sure commit messages follow the conventional commits convention:
+  # https://www.conventionalcommits.org
+  commitlint:
+    name: Lint Commit Messages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0
+      - uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "pypy-3.9"
+          - "pypy-3.10"
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+        extension:
+          - "skip_cython"
+          - "use_cython"
+        exclude:
+          - os: macos-latest
+            extension: use_cython
+          - os: windows-latest
+            extension: use_cython
+          - os: windows-latest
+            python-version: "pypy-3.9"
+          - os: windows-latest
+            python-version: "pypy-3.10"
+          - os: macos-latest
+            python-version: "pypy-3.9"
+          - os: macos-latest
+            python-version: "pypy-3.10"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Install poetry
+        run: pipx install poetry
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "poetry"
+          allow-prereleases: true
+      - name: Install Dependencies no cython
+        if: ${{ matrix.extension == 'skip_cython' }}
+        env:
+          SKIP_CYTHON: 1
+        run: poetry install --only=main,dev
+      - name: Install Dependencies with cython
+        if: ${{ matrix.extension != 'skip_cython' }}
+        env:
+          REQUIRE_CYTHON: 1
+        run: poetry install --only=main,dev
+      - name: Test with Pytest
+        run: poetry run pytest --durations=20 --timeout=60 -v --cov=zeroconf --cov-branch --cov-report xml --cov-report html --cov-report term-missing tests
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@ad3126e916f78f00edff4ed0317cf185271ccc2d # v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Setup Python 3.13
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: 3.13
+      - uses: snok/install-poetry@76e04a911780d5b312d89783f7b1cd627778900a # v1.4.1
+      - name: Install Dependencies
+        run: |
+          REQUIRE_CYTHON=1 poetry install --only=main,dev
+        shell: bash
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@0010eb0ca6e89b80c88e8edaaa07cfe5f3e6664d # v3
+        with:
+          token: ${{ secrets.CODSPEED_TOKEN }}
+          run: poetry run pytest --no-cov -vvvvv --codspeed tests/benchmarks
+
+  release:
+    needs:
+      - test
+      - lint
+      - commitlint
+    if: ${{ github.repository_owner }} == "python-zeroconf"
+
+    runs-on: ubuntu-latest
+    environment: release
+    concurrency: release
+    permissions:
+      id-token: write
+      contents: write
+    outputs:
+      released: ${{ steps.release.outputs.released }}
+      newest_release_tag: ${{ steps.release.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      # Do a dry run of PSR
+      - name: Test release
+        uses: python-semantic-release/python-semantic-release@26bb37cfab71a5a372e3db0f48a6eac57519a4a6 # v9.21.0
+        if: github.ref_name != 'master'
+        with:
+          root_options: --noop
+
+      # On main branch: actual PSR + upload to PyPI & GitHub
+      - name: Release
+        uses: python-semantic-release/python-semantic-release@26bb37cfab71a5a372e3db0f48a6eac57519a4a6 # v9.21.0
+        id: release
+        if: github.ref_name == 'master'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # release/v1
+        if: steps.release.outputs.released == 'true'
+
+      - name: Publish package distributions to GitHub Releases
+        uses: python-semantic-release/upload-to-gh-release@0a92b5d7ebfc15a84f9801ebd1bf706343d43711 # main
+        if: steps.release.outputs.released == 'true'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  build_wheels:
+    needs: [release]
+    if: needs.release.outputs.released == 'true'
+
+    name: Wheels for ${{ matrix.os }} (${{ matrix.musl == 'musllinux' && 'musllinux' || 'manylinux' }}) ${{ matrix.qemu }} ${{ matrix.pyver }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          [
+            ubuntu-24.04-arm,
+            ubuntu-latest,
+            windows-2019,
+            macos-13,
+            macos-latest,
+          ]
+        qemu: [""]
+        musl: [""]
+        pyver: [""]
+        include:
+          - os: ubuntu-latest
+            musl: "musllinux"
+          - os: ubuntu-24.04-arm
+            musl: "musllinux"
+          # qemu is slow, make a single
+          # runner per Python version
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: "musllinux"
+            pyver: cp39
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: "musllinux"
+            pyver: cp310
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: "musllinux"
+            pyver: cp311
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: "musllinux"
+            pyver: cp312
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: "musllinux"
+            pyver: cp313
+          # qemu is slow, make a single
+          # runner per Python version
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: ""
+            pyver: cp39
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: ""
+            pyver: cp310
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: ""
+            pyver: cp311
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: ""
+            pyver: cp312
+          - os: ubuntu-latest
+            qemu: armv7l
+            musl: ""
+            pyver: cp313
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0
+          ref: "master"
+      # Used to host cibuildwheel
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Set up QEMU
+        if: ${{ matrix.qemu }}
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3
+        with:
+          platforms: all
+          # This should be temporary
+          # xref https://github.com/docker/setup-qemu-action/issues/188
+          # xref https://github.com/tonistiigi/binfmt/issues/215
+          image: tonistiigi/binfmt:qemu-v8.1.5
+        id: qemu
+      - name: Prepare emulation
+        if: ${{ matrix.qemu }}
+        run: |
+          if [[ -n "${{ matrix.qemu }}" ]]; then
+            # Build emulated architectures only if QEMU is set,
+            # use default "auto" otherwise
+            echo "CIBW_ARCHS_LINUX=${{ matrix.qemu }}" >> $GITHUB_ENV
+          fi
+      - name: Limit to a specific Python version on slow QEMU
+        if: ${{ matrix.pyver }}
+        run: |
+          if [[ -n "${{ matrix.pyver }}" ]]; then
+            echo "CIBW_BUILD=${{ matrix.pyver }}*" >> $GITHUB_ENV
+          fi
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          ref: ${{ needs.release.outputs.newest_release_tag }}
+          fetch-depth: 0
+
+      - name: Build wheels ${{ matrix.musl }} (${{ matrix.qemu }})
+        uses: pypa/cibuildwheel@faf86a6ed7efa889faf6996aa23820831055001a # v2.23.3
+        # to supply options, put them in 'env', like:
+        env:
+          CIBW_SKIP: cp36-* cp37-* pp36-* pp37-* pp38-* cp38-* ${{ matrix.musl == 'musllinux' && '*manylinux*' || '*musllinux*' }}
+          CIBW_BEFORE_ALL_LINUX: apt install -y gcc || yum install -y gcc || apk add gcc
+          REQUIRE_CYTHON: 1
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          path: ./wheelhouse/*.whl
+          name: wheels-${{ matrix.os }}-${{ matrix.musl }}-${{ matrix.qemu }}-${{ matrix.pyver }}
+
+  upload_pypi:
+    needs: [build_wheels]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
+
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          # unpacks default artifact into dist/
+          # if `name: artifact` is omitted, the action will create extra parent dir
+          path: dist
+          pattern: wheels-*
+          merge-multiple: true
+
+      - uses:
+          pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # v1.12.4

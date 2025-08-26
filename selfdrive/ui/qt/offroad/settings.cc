@@ -121,6 +121,11 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
     },
   };
 
+  std::vector<QString> dashy_mode_texts{tr("Off"), tr("Lite"), tr("Full")};
+  dashy_mode_settings = new ButtonParamControl("dp_dev_dashy", tr("dashy"),
+                                          tr("dashy - dragonpilot's all-in-one system hub for you.\n\nVisit http://<device_ip>:5088 to access.\n\nOff - Turn off dashy completely.\nLite: File Manager only.\nFull: File Manager + Live Stream."),
+                                          "",
+                                          dashy_mode_texts);
 
   std::vector<QString> longi_button_texts{tr("Aggressive"), tr("Standard"), tr("Relaxed")};
   long_personality_setting = new ButtonParamControl("LongitudinalPersonality", tr("Driving Personality"),
@@ -167,6 +172,8 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
       addItem(long_personality_setting);
       addItem(accel_personality_setting);
     }
+
+    addItem(dashy_mode_settings);
   }
 
   // Toggles with confirmation dialogs
