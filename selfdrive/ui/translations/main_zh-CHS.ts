@@ -2344,22 +2344,6 @@ Warning: You are on a metered connection!</source>
         <source>Click the sponsor button for more details</source>
         <translation>点击赞助按钮了解更多详情</translation>
     </message>
-    <message>
-        <source>🚀 sunnylink 🚀</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>For secure backup, restore, and remote configuration</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Sponsorship isn&apos;t required for basic backup/restore</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <source>Click the sponsor button for more details</source>
-        <translation type="unfinished"></translation>
-    </message>
 </context>
 <context>
     <name>SunnylinkSponsorPopup</name>
@@ -2398,6 +2382,39 @@ Warning: You are on a metered connection!</source>
     <message>
         <source>Early Access: Become a sunnypilot Sponsor</source>
         <translation>早期访问：成为sunnypilot赞助商</translation>
+    </message>
+</context>
+<context>
+    <name>TSKKeyboard</name>
+    <message>
+        <source>SecOCKey Install</source>
+        <translation>汽车安全密钥</translation>
+    </message>
+    <message>
+        <source>INSTALL</source>
+        <translation>安装</translation>
+    </message>
+    <message>
+        <source>Archived key: </source>
+        <translation>存储密钥: </translation>
+    </message>
+    <message>
+        <source>Enter your Car Security Key</source>
+        <translation>请输入汽车安全钥匙</translation>
+    </message>
+    <message>
+        <source>Success!
+Restart comma to have openpilot use the key</source>
+        <translation>安装成功！
+重启comma以让openpilot使用密钥</translation>
+    </message>
+    <message>
+        <source>Invalid key: %1</source>
+        <translation>无效的密钥：%1</translation>
+    </message>
+    <message>
+        <source>Not Installed</source>
+        <translation>未安装</translation>
     </message>
 </context>
 <context>

@@ -2396,6 +2396,38 @@ Warning: You are on a metered connection!</source>
     </message>
 </context>
 <context>
+    <name>TSKKeyboard</name>
+    <message>
+        <source>SecOCKey Install</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>INSTALL</source>
+        <translation type="unfinished">تثبيت</translation>
+    </message>
+    <message>
+        <source>Archived key: </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enter your Car Security Key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Success!
+Restart comma to have openpilot use the key</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Invalid key: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Not Installed</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>TermsPage</name>
     <message>
         <source>Decline</source>
