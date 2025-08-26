@@ -38,4 +38,5 @@ private:
   ParamControlSP *vibePersonalityControl;
   ParamControlSP *vibeAccelPersonalityControl;
   ParamControlSP *vibeFollowPersonalityControl;
+  ParamControlSP *visionTurnSpeedControl = nullptr;
 };

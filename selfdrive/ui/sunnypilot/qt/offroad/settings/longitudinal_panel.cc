@@ -86,6 +86,13 @@ LongitudinalPanel::LongitudinalPanel(QWidget *parent) : QWidget(parent) {
     "../assets/offroad/icon_shell.png");
   list->addItem(vibeFollowPersonalityControl);
 
+
+  visionTurnSpeedControl = new ParamControlSP("VisionTurnSpeedControl",
+    tr("Vision Turn Speed Controller"),
+    tr("Also known as V-TSC, this controller automatically slows down for curvature while OP longitudinal is engaged."),
+    "../assets/offroad/icon_shell.png");
+  list->addItem(visionTurnSpeedControl);
+
   main_layout->addWidget(cruisePanelScreen);
   main_layout->addWidget(slcScreen);
   main_layout->setCurrentWidget(cruisePanelScreen);
