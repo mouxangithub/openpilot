@@ -19,7 +19,7 @@ EVENT_NAME_SP = {v: k for k, v in EventNameSP.schema.enumerants.items()}
 def speed_limit_adjust_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
   speedLimit = sm['longitudinalPlanSP'].slc.speedLimit
   speed = round(speedLimit * (CV.MS_TO_KPH if metric else CV.MS_TO_MPH))
-  message = f'Adjusting to {speed} {"km/h" if metric else "mph"} speed limit'
+  message = f'速度限制调整到 {speed} {"km/h" if metric else "mph"}'
   return Alert(
     message,
     "",
@@ -54,16 +54,16 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventNameSP.manualSteeringRequired: {
     ET.USER_DISABLE: Alert(
-      "Automatic Lane Centering is OFF",
-      "Manual Steering Required",
+      "自动车道居中功能已关闭",
+      "需要手动转向",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.disengage, 1.),
   },
 
   EventNameSP.manualLongitudinalRequired: {
     ET.WARNING: Alert(
-      "Smart/Adaptive Cruise Control: OFF",
-      "Manual Speed Control Required",
+      "智能/自适应巡航控制：关闭",
+      "需要手动速度控制",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1.),
   },
@@ -78,7 +78,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventNameSP.silentBrakeHold: {
     ET.WARNING: EngagementAlert(AudibleAlert.none),
-    ET.NO_ENTRY: NoEntryAlert("Brake Hold Active"),
+    ET.NO_ENTRY: NoEntryAlert("刹车保持激活"),
   },
 
   EventNameSP.silentWrongGear: {
@@ -88,19 +88,19 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       AlertStatus.normal, AlertSize.none,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0.),
     ET.NO_ENTRY: Alert(
-      "Gear not D",
-      "openpilot Unavailable",
+      "档位不在D档",
+      "openpilot不可用",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 0.),
   },
 
   EventNameSP.silentReverseGear: {
     ET.PERMANENT: Alert(
-      "Reverse\nGear",
+      "倒车中",
       "",
       AlertStatus.normal, AlertSize.full,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .2, creation_delay=0.5),
-    ET.NO_ENTRY: NoEntryAlert("Reverse Gear"),
+    ET.NO_ENTRY: NoEntryAlert("倒车中"),
   },
 
   EventNameSP.silentDoorOpen: {
@@ -109,7 +109,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       "",
       AlertStatus.normal, AlertSize.none,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0.),
-    ET.NO_ENTRY: NoEntryAlert("Door Open"),
+    ET.NO_ENTRY: NoEntryAlert("车门已打开"),
   },
 
   EventNameSP.silentSeatbeltNotLatched: {
@@ -118,7 +118,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       "",
       AlertStatus.normal, AlertSize.none,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0.),
-    ET.NO_ENTRY: NoEntryAlert("Seatbelt Unlatched"),
+    ET.NO_ENTRY: NoEntryAlert("请系好安全带"),
   },
 
   EventNameSP.silentParkBrake: {
@@ -127,16 +127,16 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       "",
       AlertStatus.normal, AlertSize.none,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0.),
-    ET.NO_ENTRY: NoEntryAlert("Parking Brake Engaged"),
+    ET.NO_ENTRY: NoEntryAlert("手刹已启用"),
   },
 
   EventNameSP.controlsMismatchLateral: {
-    ET.IMMEDIATE_DISABLE: ImmediateDisableAlert("Controls Mismatch: Lateral"),
-    ET.NO_ENTRY: NoEntryAlert("Controls Mismatch: Lateral"),
+    ET.IMMEDIATE_DISABLE: ImmediateDisableAlert("控制装置不匹配：横向"),
+    ET.NO_ENTRY: NoEntryAlert("控制装置不匹配：横向"),
   },
 
   EventNameSP.experimentalModeSwitched: {
-    ET.WARNING: NormalPermanentAlert("Experimental Mode Switched", duration=1.5)
+    ET.WARNING: NormalPermanentAlert("实验模式切换", duration=1.5)
   },
 
   EventNameSP.wrongCarModeAlertOnly: {
@@ -144,15 +144,31 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
   },
 
   EventNameSP.pedalPressedAlertOnly: {
-    ET.WARNING: NoEntryAlert("Pedal Pressed")
+    ET.WARNING: NoEntryAlert("踏板被踩下")
+  },
+
+  EventNameSP.speedLimitPreActive: {
+    ET.WARNING: Alert(
+      "",
+      "",
+      AlertStatus.normal, AlertSize.none,
+      Priority.MID, VisualAlert.none, AudibleAlert.none, .45),  # TODO-SP: AudibleAlert.promptSingleLow
   },
 
   EventNameSP.speedLimitActive: {
     ET.WARNING: Alert(
-      "Set speed changed to match posted speed limit",
+      "设定速度已调整以符合限速标志",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 3.),
+  },
+
+  EventNameSP.speedLimitConfirmed: {
+    ET.WARNING: Alert(
+      "",
+      "",
+      AlertStatus.normal, AlertSize.none,
+      Priority.MID, VisualAlert.none, AudibleAlert.none, .45),  # TODO-SP: AudibleAlert.promptSingleHigh
   },
 
   EventNameSP.speedLimitValueChange: {
@@ -161,7 +177,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventNameSP.laneTurnLeft: {
     ET.WARNING: Alert(
-      "Turning Left",
+      "左转",
       "",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1.),
@@ -169,7 +185,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventNameSP.laneTurnRight: {
     ET.WARNING: Alert(
-      "Turning Right",
+      "右转",
       "",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1.),
