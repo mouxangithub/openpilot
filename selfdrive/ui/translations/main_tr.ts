@@ -533,6 +533,14 @@ This is the time after which settings UI closes automatically if user is not int
         <source>Controls state of the device after boot/sleep.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Default</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Offroad</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>DriveStats</name>
@@ -643,6 +651,46 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <source>MAX</source>
         <translation>MAX</translation>
     </message>
+    <message>
+        <source>SPEED</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>LIMIT</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>AHEAD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>IGNORED</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PREPARING</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ADAPTING</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>ACTIVE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>TURN AHEAD</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>TURNING</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>TURN EXIT</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>HyundaiSettings</name>
@@ -714,6 +762,14 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <source>Toggle to enable a delay timer for seamless lane changes when blind spot monitoring (BSM) detects a obstructing vehicle, ensuring safe maneuvering.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Block Lane Change: Road Edge Detection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable this toggle to block lane change when road edge is detected on the stalk actuated side.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>LateralPanel</name>
@@ -778,6 +834,46 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>Start the vehicle to check vehicle compatibility.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vibe Personality Controller</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Advanced driving personality system with separate controls for acceleration behavior (Eco/Normal/Sport) and following distance/braking (Relaxed/Standard/Aggressive). Customize your driving experience with independent acceleration and distance personalities.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acceleration Personality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Controls acceleration behavior: Eco (efficient), Normal (balanced), Sport (responsive). Adjust how aggressively the vehicle accelerates while maintaining smooth operation.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Following Distance Personality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Controls following distance and braking behavior: Relaxed (longer distance, gentler braking), Standard (balanced), Aggressive (shorter distance, firmer braking). Fine-tune your comfort level in traffic situations.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed Limit Control (SLC)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>When you engage ACC, you will be prompted to set the cruising speed to the speed limit of the road adjusted by the Offset and Source Policy specified, or the current driving speed. The maximum cruising speed will always be the MAX set speed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Vision Turn Speed Controller</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Also known as V-TSC, this controller automatically slows down for curvature while OP longitudinal is engaged.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1705,15 +1801,15 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>HIGH</source>
-        <translation>YÜKSEK</translation>
+        <translation type="vanished">YÜKSEK</translation>
     </message>
     <message>
         <source>GOOD</source>
-        <translation>İYİ</translation>
+        <translation type="vanished">İYİ</translation>
     </message>
     <message>
         <source>OK</source>
-        <translation>TAMAM</translation>
+        <translation type="vanished">TAMAM</translation>
     </message>
     <message>
         <source>VEHICLE</source>
@@ -1754,6 +1850,22 @@ Warning: You are on a metered connection!</source>
     <message>
         <source>5G</source>
         <translation>5G</translation>
+    </message>
+    <message>
+        <source>CPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>GPU</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>MEMORY</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Free Space</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1898,6 +2010,130 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>Please enable always offroad mode or turn off vehicle to adjust these toggles</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SpeedLimitControl</name>
+    <message>
+        <source>Customize SLC</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SpeedLimitControlPolicy</name>
+    <message>
+        <source>Back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed Limit Source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Car Only: Use Speed Limit data only from Car</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Map Only: Use Speed Limit data only from OpenStreetMaps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Car First: Use Speed Limit data from Car if available, else use from OpenStreetMaps</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Map First: Use Speed Limit data from OpenStreetMaps if available, else use from Car</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Combined: Use combined Speed Limit data from Car &amp; OpenStreetMaps</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SpeedLimitControlSubpanel</name>
+    <message>
+        <source>Back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Customize Warning</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Customize Source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Engage Mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed Limit Offset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Auto: Automatic speed adjustment based on speed limit data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ User Confirm: Asks driver to confirm speed adjustment based on speed limit data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ None: No Offset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Fixed: Adds a fixed offset [Speed Limit + Offset]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Percent: Adds a percent offset [Speed Limit + (Offset % Speed Limit)]</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>SpeedLimitControlWarning</name>
+    <message>
+        <source>Back</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Speed Limit Warning</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Warning Offset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>N/A</source>
+        <translation type="unfinished">N/A</translation>
+    </message>
+    <message>
+        <source>⦿ Off: No Warning</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Display: Speed Limit Sign will visually alert</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Chime: Speed Limit Sign will visually alert along with an audible chime</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ None: No Offset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Fixed: Adds a fixed offset [Speed Limit + Offset]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>⦿ Percent: Adds a percent offset [Speed Limit + (Offset % Speed Limit)]</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2075,6 +2311,22 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>[Don&apos;t use] Enable sunnylink uploader</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>🚀 sunnylink 🚀</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>For secure backup, restore, and remote configuration</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sponsorship isn&apos;t required for basic backup/restore</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Click the sponsor button for more details</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2266,6 +2518,66 @@ Warning: You are on a metered connection!</source>
         <source>Enable the sunnypilot longitudinal control (alpha) toggle to allow Experimental mode.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Enable drive mode btn link</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Links cars drive mode btn with accel personalities based on personality (i.e., relaxed, standard, sport)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toyota: Auto Brake Hold FOR TSS2 HYBRID CARS</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>As you may auto brake hold currently supported by openpilot, this feature will allow sunnypilot to automatically hold the vehicle at a stop when the lead car is stopped. (TSS2 Hybird only)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toyota: Prius TSS2 BSM and some tssp</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add support for BSM.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toyota: custom tune</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>idk something gas and brake</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Toyota: Stock Toyota Longitudinal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>This feature will allow sunnypilot to use the stock Toyota longitudinal control instead of the sunnypilot longitudinal control. </source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Sport</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Normal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Eco</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Acceleration Personality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Normal is recommended. In sport mode, sunnypilot will provide aggressive acceleration for a dynamic driving experience. In eco mode, sunnypilot will apply smoother and more relaxed acceleration. On supported cars, you can cycle through these acceleration personality within Onroad Settings on the driving screen.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>TreeOptionDialog</name>
@@ -2275,6 +2587,10 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>Cancel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Favorites</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -2318,6 +2634,14 @@ Warning: You are on a metered connection!</source>
     </message>
     <message>
         <source>Display useful metrics below the chevron that tracks the lead car (only applicable to cars with openpilot longitudinal control).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable Tesla Rainbow Mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Enable the rainbow mode, which displays a rainbow effect on the screen.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

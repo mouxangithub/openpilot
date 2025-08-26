@@ -25,6 +25,11 @@ class Sidebar : public QFrame {
   Q_PROPERTY(int netStrength MEMBER net_strength NOTIFY valueChanged);
   Q_PROPERTY(bool recordingAudio MEMBER recording_audio NOTIFY valueChanged);
 
+  Q_PROPERTY(ItemStatus cputatus MEMBER cpu_status NOTIFY valueChanged);
+  Q_PROPERTY(ItemStatus gputatus MEMBER gpu_status NOTIFY valueChanged);
+  Q_PROPERTY(ItemStatus memoryStatus MEMBER memory_status NOTIFY valueChanged);
+  Q_PROPERTY(ItemStatus freeStatus MEMBER free_status NOTIFY valueChanged);
+;
 public:
   explicit Sidebar(QWidget* parent = 0);
 
@@ -62,7 +67,7 @@ protected:
   const QColor warning_color = QColor(218, 202, 37);
   const QColor danger_color = QColor(201, 34, 49);
 
-  ItemStatus connect_status, panda_status, temp_status;
+  ItemStatus connect_status, panda_status, temp_status, cpu_status, gpu_status, memory_status, free_status;
   QString net_type;
   int net_strength = 0;
 

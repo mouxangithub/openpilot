@@ -36,7 +36,7 @@ def get_language_files(languages: list[str] = None) -> dict[str, pathlib.Path]:
 
 def translate_phrase(text: str, language: str) -> str:
   response = requests.post(
-    "https://api.openai.com/v1/chat/completions",
+    "https://api.chatanywhere.tech/v1/chat/completions",
     json={
       "model": OPENAI_MODEL,
       "messages": [

@@ -99,22 +99,65 @@ void Sidebar::updateState(const UIState &s) {
   }
   setProperty("connectStatus", QVariant::fromValue(connectStatus));
 
-  ItemStatus tempStatus = {{tr("TEMP"), tr("HIGH")}, danger_color};
+  int maxTempC = deviceState.getMaxTempC();
+  QString max_temp = QString::number(maxTempC) + "°C";
+  ItemStatus tempStatus = {{tr("TEMP"), max_temp}, danger_color};
   auto ts = deviceState.getThermalStatus();
   if (ts == cereal::DeviceState::ThermalStatus::GREEN) {
-    tempStatus = {{tr("TEMP"), tr("GOOD")}, good_color};
+    tempStatus = {{tr("TEMP"), max_temp}, good_color};
   } else if (ts == cereal::DeviceState::ThermalStatus::YELLOW) {
-    tempStatus = {{tr("TEMP"), tr("OK")}, warning_color};
+    tempStatus = {{tr("TEMP"), max_temp}, warning_color};
   }
   setProperty("tempStatus", QVariant::fromValue(tempStatus));
 
   ItemStatus pandaStatus = {{tr("VEHICLE"), tr("ONLINE")}, good_color};
   if (s.scene.pandaType == cereal::PandaState::PandaType::UNKNOWN) {
-    pandaStatus = {{tr("NO"), tr("PANDA")}, danger_color};
+    pandaStatus = {{tr("PANDA"), tr("NO")}, danger_color};
   }
   setProperty("pandaStatus", QVariant::fromValue(pandaStatus));
 
   setProperty("recordingAudio", s.scene.recording_audio);
+
+  capnp::List<int8_t>::Reader cpu_loads = deviceState.getCpuUsagePercent();
+  int cpu_usage = cpu_loads.size() != 0 ? std::accumulate(cpu_loads.begin(), cpu_loads.end(), 0) / cpu_loads.size() : 0;
+  QString cpu_usages = QString::number(cpu_usage) + "%";
+  ItemStatus cputatus = {{tr("CPU"), cpu_usages}, good_color};
+  if (cpu_usage >= 85) {
+    cputatus = {{tr("CPU"), cpu_usages}, danger_color};
+  } else if (cpu_usage >= 70) {
+    cputatus = {{tr("CPU"), cpu_usages}, warning_color};
+  }
+  setProperty("cputatus", QVariant::fromValue(cputatus));
+
+  int gpu_usage = deviceState.getGpuUsagePercent();
+  QString gpu_usages = QString::number(gpu_usage) + "%";
+  ItemStatus gpuStatus = {{tr("GPU"), gpu_usages}, good_color};
+  if (gpu_usage >= 85) {
+    gpuStatus = {{tr("GPU"), gpu_usages}, danger_color};
+  } else if (gpu_usage >= 70) {
+    gpuStatus = {{tr("GPU"), gpu_usages}, warning_color};
+  }
+  setProperty("gpuStatus", QVariant::fromValue(gpuStatus));
+
+  int memory_usage = deviceState.getMemoryUsagePercent();
+  QString memory = QString::number(memory_usage) + "%";
+  ItemStatus memoryStatus = {{tr("MEMORY"), memory}, good_color};
+  if (memory_usage >= 85) {
+    memoryStatus = {{tr("MEMORY"), memory}, danger_color};
+  } else if (memory_usage >= 70) {
+    memoryStatus = {{tr("MEMORY"), memory}, warning_color};
+  }
+  setProperty("memoryStatus", QVariant::fromValue(memoryStatus));
+
+  int free_space = deviceState.getFreeSpacePercent();
+  QString free_spaces = QString::number(free_space) + "%";
+  ItemStatus freeStatus = {{tr("Free Space"), free_spaces}, good_color};
+  if (free_space >= 80) {
+    freeStatus = {{tr("Free Space"), free_spaces}, danger_color};
+  } else if (free_space >= 50) {
+    freeStatus = {{tr("Free Space"), free_spaces}, warning_color};
+  }
+  setProperty("freeStatus", QVariant::fromValue(freeStatus));
 }
 
 void Sidebar::paintEvent(QPaintEvent *event) {
