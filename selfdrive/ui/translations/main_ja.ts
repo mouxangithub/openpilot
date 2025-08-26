@@ -374,8 +374,8 @@ This only toggles the visibility of the controls; it does not toggle the actual 
         <translation>見る</translation>
     </message>
     <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>デバイスをcommaコネクト(connect.comma.ai)でペアリングしてcommaプライムの特典を受け取ってください。</translation>
+        <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
+        <translation>デバイスをcommaコネクト(stable.konik.ai)でペアリングしてcommaプライムの特典を受け取ってください。</translation>
     </message>
     <message>
         <source>Pair Device</source>
@@ -1389,16 +1389,16 @@ Warning: You are on a metered connection!</source>
         <translation>デバイスとcommaアカウントを連携して下さい</translation>
     </message>
     <message>
-        <source>Go to https://connect.comma.ai on your phone</source>
-        <translation>スマートフォンで https://connect.comma.ai にアクセスしてください</translation>
+        <source>Go to https://stable.konik.ai on your phone</source>
+        <translation>スマートフォンで https://stable.konik.ai にアクセスしてください</translation>
     </message>
     <message>
         <source>Click &quot;add new device&quot; and scan the QR code on the right</source>
         <translation>「add new device」を押して右側のQRコードをスキャンしてください</translation>
     </message>
     <message>
-        <source>Bookmark connect.comma.ai to your home screen to use it like an app</source>
-        <translation>connect.comma.aiのサイトをホーム画面に追加して、アプリのように使うことができます。</translation>
+        <source>Bookmark stable.konik.ai to your home screen to use it like an app</source>
+        <translation>stable.konik.aiのサイトをホーム画面に追加して、アプリのように使うことができます。</translation>
     </message>
     <message>
         <source>Please connect to Wi-Fi to complete initial pairing</source>
@@ -1513,8 +1513,8 @@ Warning: You are on a metered connection!</source>
         <translation>今すぐアップグレード</translation>
     </message>
     <message>
-        <source>Become a comma prime member at connect.comma.ai</source>
-        <translation>connect.comma.ai からプライム会員に登録できます</translation>
+        <source>Become a comma prime member at stable.konik.ai</source>
+        <translation>stable.konik.ai からプライム会員に登録できます</translation>
     </message>
     <message>
         <source>PRIME FEATURES:</source>
@@ -1678,8 +1678,8 @@ Warning: You are on a metered connection!</source>
         <translation>セットアップの完了</translation>
     </message>
     <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>デバイスをcommaコネクト(connect.comma.ai)でペアリングしてcommaプライムの特典を受け取ってください。</translation>
+        <source>Pair your device with comma connect (stable.konik.ai) and claim your comma prime offer.</source>
+        <translation>デバイスをcommaコネクト(stable.konik.ai)でペアリングしてcommaプライムの特典を受け取ってください。</translation>
     </message>
     <message>
         <source>Pair device</source>

@@ -203,7 +203,7 @@ def parse_indirect(identifier: str) -> str:
   if "useradmin.comma.ai" in identifier:
     query = parse_qs(urlparse(identifier).query)
     identifier = query["onebox"][0]
-  elif "connect.comma.ai" in identifier:
+  elif "stable.konik.ai" in identifier:
     path = urlparse(identifier).path.strip("/").split("/")
     path = ['/'.join(path[:2]), *path[2:]]  # recombine log id
 
