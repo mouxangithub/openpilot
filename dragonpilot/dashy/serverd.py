@@ -51,6 +51,14 @@ from openpilot.system.hardware import PC, HARDWARE
 from openpilot.system.ui.lib.multilang import multilang as base_multilang
 from dragonpilot.settings import SETTINGS
 
+# dragonpilot's translation catalog (.mo) is where dashy's JS strings are merged
+# by update_translations.py; used to build the web UI's translation map. Falls
+# back to base multilang if the dragonpilot wrapper isn't importable.
+try:
+    from dragonpilot.system.ui.lib.multilang import multilang as dp_multilang
+except Exception:
+    dp_multilang = base_multilang
+
 try:
     from openpilot.system.version import get_build_metadata as _get_build_metadata
 except Exception:
@@ -60,6 +68,26 @@ except Exception:
 DEFAULT_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), '..') if PC else '/data/media/0/realdata')
 WEB_DIST_PATH = os.path.join(os.path.dirname(__file__), "web", "dist")
 CAR_PARAMS_CACHE_TTL = 30  # seconds
+
+# Accel-EQ contract constants — single source of truth is the planner's
+# accel_eq.py. Served to the web UI so its model can't drift from the
+# planner (a curve the planner would reject must be un-authorable in the editor).
+# Guarded: standalone/dev dashy without the dragonpilot tree falls back to the
+# web model's own built-in defaults (ACCEL_EQ_CONFIG stays None → /api endpoint
+# 404s → JS keeps defaults).
+try:
+    from dragonpilot.selfdrive.controls.lib import accel_eq as _AC
+    # Only the scalar contract constants accel_eq still owns. Turn and the
+    # schema version were dropped; stock is no longer an accel_eq constant —
+    # it's injected into AccelEq from the planner's A_CRUISE_MAX table, so it
+    # isn't served here (the dashy model keeps its built-in stock default,
+    # which matches A_CRUISE_MAX).
+    ACCEL_EQ_CONFIG = {
+        "max_pts": _AC.MAX_PTS, "min_pts": _AC.MIN_PTS, "min_gap": _AC.MIN_GAP,
+        "speed_ceil": _AC.SPEED_CEIL, "max_accel_ceil": _AC.MAX_ACCEL_CEIL,
+    }
+except Exception:
+    ACCEL_EQ_CONFIG = None
 
 logger = logging.getLogger("dashy")
 
@@ -146,6 +174,14 @@ class AppCache:
             return HARDWARE.get_device_type() == "mici"
         except Exception:
             return False
+
+    def lang_switch_available(self):
+        """Whether the dashy language switcher should be offered — always.
+
+        Native language selection isn't device-gated, and the switcher is
+        harmless even where a native one exists, so dashy offers it on every
+        device (previously excluded comma 3/3x)."""
+        return True
 
     def _is_release_channel(self):
         if _get_build_metadata is None:
@@ -279,11 +315,56 @@ _CONTROL_PARAMS = {
     'dp_dev_go_off_road',   # Controls tab: force-offroad toggle
     'DoReboot',             # Controls tab: reboot button
     'ExperimentalMode',     # Tesla HUD: tap set-speed circle to toggle
+    'LanguageSetting',      # Settings tab: language switch (comma-4; "main_<code>")
+    'dp_lon_accel_profiles',  # Accel EQ: profile library (JSON) — includes the active selection
 }
+
+# Control params whose value is a string/JSON, not a bool. The generic
+# control-param GET path reads bools (get_bool); these must be read as
+# their raw string so the web UI gets the actual value back. POST already
+# stores them as strings via _save_param's default branch.
+_RAW_STRING_PARAMS = {
+    'dp_lon_accel_profiles',
+}
+
+assert _RAW_STRING_PARAMS <= _CONTROL_PARAMS, "raw-string params must also be allowlisted in _CONTROL_PARAMS"
 
 
 def _param_allowed(key):
     return key in _PARAM_SETTINGS or key in _CONTROL_PARAMS
+
+
+def _sync_language(params):
+    """Apply the current LanguageSetting param to multilang.
+
+    The language switch only writes the param; this makes the translation
+    catalog reflect it (so served strings / the i18n map use the right language)."""
+    current_lang = params.get("LanguageSetting")
+    if not current_lang:
+        return
+    lang_str = current_lang.decode() if isinstance(current_lang, bytes) else str(current_lang)
+    lang_str = lang_str.removeprefix("main_")
+    if lang_str != base_multilang.language and lang_str in base_multilang.languages.values():
+        base_multilang._language = lang_str
+        base_multilang.setup()
+
+
+def _build_i18n_map():
+    """Translation map {english: translated} for the active language, consumed
+    by the web UI's tr(). Sourced from the dragonpilot .mo catalog, where dashy's
+    JS strings are merged by update_translations.py. Empty for English / when no
+    catalog is loaded → the web tr() falls back to the original English text."""
+    try:
+        dp_multilang._ensure_loaded()
+        catalog = getattr(dp_multilang._dragon_translation, '_catalog', None)
+    except Exception:
+        catalog = None
+    if not catalog:
+        return {}
+    # GNUTranslations._catalog keys are msgid strings; skip the "" header entry
+    # and the '\x00'-joined plural keys, and drop empty translations.
+    return {k: v for k, v in catalog.items()
+            if isinstance(k, str) and k and '\x00' not in k and v}
 
 
 # --- API Endpoints ---
@@ -291,9 +372,13 @@ def _param_allowed(key):
 async def init_api(request):
     """Provide initial data to the client."""
     cache: AppCache = request.app['cache']
+    _sync_language(cache.params)
     return web.json_response({
         'dp_dev_dashy': cache.get_bool_safe("dp_dev_dashy", True),
         'isOffroad': cache.get_bool_safe("IsOffroad", False),
+        # Translation map for the web UI's tr() — shipped at boot so strings are
+        # localized before the settings panel can open.
+        'i18n': _build_i18n_map(),
     })
 
 
@@ -384,14 +469,8 @@ async def get_settings_config_api(request):
 
     params = cache.params
 
-    # Update language if changed
-    current_lang = params.get("LanguageSetting")
-    if current_lang:
-        lang_str = current_lang.decode() if isinstance(current_lang, bytes) else str(current_lang)
-        lang_str = lang_str.removeprefix("main_")
-        if lang_str != base_multilang.language and lang_str in base_multilang.languages.values():
-            base_multilang._language = lang_str
-            base_multilang.setup()
+    # Apply the current LanguageSetting (the switch only writes the param).
+    _sync_language(params)
 
     context = cache.get_settings_context()
     settings_with_values = []
@@ -425,7 +504,24 @@ async def get_settings_config_api(request):
             section_copy['settings'] = settings_list
             settings_with_values.append(section_copy)
 
-    response_data = {'settings': settings_with_values}
+    # Language switcher metadata rides along with the settings (it's settings-
+    # adjacent and the UI already fetches this). The list comes from the device's
+    # translation catalog, not a param; the switch itself writes the
+    # LanguageSetting param via the generic /api/settings/params endpoint.
+    # Offered only where lang_switch_available() (not comma 3/3x).
+    # Labels mirror openpilot's raylib device UI (tr("Change Language") /
+    # tr("Select a language")) and are translated by the same catalog.
+    languages = ({'available': True,
+                  'current': base_multilang.language,
+                  'list': base_multilang.languages,
+                  'title': base_multilang.tr('Change Language'),
+                  'dialog': base_multilang.tr('Select a language')}
+                 if cache.lang_switch_available() else {'available': False})
+
+    # Refresh the web UI's translation map too, so switching language updates
+    # dashy's own strings (not just the SETTINGS labels) without a reload.
+    response_data = {'settings': settings_with_values, 'languages': languages,
+                     'i18n': _build_i18n_map()}
     cache._settings_cache = response_data
     cache._settings_cache_time = now
     return web.json_response(response_data)
@@ -492,7 +588,19 @@ async def save_param_api(request):
     if 'value' not in data:
         return web.json_response({'error': 'value is required in body'}, status=400)
 
-    _save_param(params, param_name, data['value'])
+    try:
+        _save_param(params, param_name, data['value'])
+    except ValueError as e:
+        # malformed JSON / un-coercible INT|FLOAT body — a client error, not a 500
+        return web.json_response({'error': f'Invalid value for {param_name}: {e}'}, status=400)
+
+    # Mirror upstream openpilot's TogglesLayout: a needs_restart param also
+    # requests an onroad cycle so the change takes effect (openpilot restarts
+    # when the car is powered on). The web UI blocks these toggles while engaged
+    # so this can't fire mid-drive.
+    if setting is not None and setting.get('needs_restart'):
+        params.put_bool("OnroadCycleRequested", True)
+
     cache.invalidate()
     logger.info(f"Param saved: {param_name}={data['value']}")
 
@@ -510,6 +618,12 @@ def _save_param(params, key, value):
             params.put(key, int(value))
         elif param_type == 3:  # FLOAT
             params.put(key, float(value))
+        elif param_type == 5:  # JSON
+            # Parse an incoming JSON string to a dict/list so Params.put's
+            # (dict|list, JSON) caster (json.dumps) stores it; put() has no
+            # (str, JSON) caster and would raise. Malformed JSON raises here and
+            # is surfaced to the client. Already-parsed bodies pass through.
+            params.put(key, json.loads(value) if isinstance(value, str) else value)
         elif isinstance(value, bool):
             params.put_bool(key, value)
         else:
@@ -521,12 +635,117 @@ def _save_param(params, key, value):
         raise
 
 
+@api_handler
+async def get_accel_eq_config_api(request):
+    """Serve the planner's accel-eq contract constants (the single source of
+    truth in accel_eq.py) so the web model can't drift from the planner.
+    404 when unavailable — the web UI uses this to gate the whole Accel tab.
+
+    "Available" means BOTH: the planner lib imported (constants known) AND the
+    dp_lon_accel_profiles param is registered on this build (so saves work).
+    Checking the param registration — not just the import — avoids showing a
+    tab whose saves would fail on a build where the planner side isn't deployed.
+    Standalone/dev dashy → 404 → tab hidden, web model keeps built-in defaults."""
+    if ACCEL_EQ_CONFIG is None:
+        return web.json_response({'error': 'accel-eq config unavailable'}, status=404)
+    params = request.app['cache'].params
+    try:
+        params.check_key('dp_lon_accel_profiles')   # raises if not in the params manifest
+    except Exception:
+        return web.json_response({'error': 'accel-eq param unavailable'}, status=404)
+    return web.json_response(ACCEL_EQ_CONFIG)
+
+
+@api_handler
+async def get_accel_eq_habit_api(request):
+    """Serve logged (speed, accel) samples for the Accel-EQ 'habit cloud' overlay.
+
+    Reads accel_log.csv from the data dir (where the planner's AccelLogger writes
+    it) — two columns: speed m/s, accel m/s². Uniform-strided down to ~2000
+    points so the density is preserved without shipping tens of thousands of
+    samples. Missing/empty file → {'points': []} (the overlay just doesn't show)."""
+    import bisect
+    path = os.path.join(DEFAULT_DIR, 'accel_log.csv')
+    samples = []
+    try:
+        with open(path) as f:
+            for line in f:
+                parts = line.split(',')
+                if len(parts) < 2:
+                    continue
+                try:
+                    samples.append((float(parts[0]), float(parts[1])))
+                except ValueError:
+                    continue
+    except FileNotFoundError:
+        pass
+
+    # Reference grid: sliding windows over speed that hold enough samples. Thin
+    # windows are SKIPPED (not bailed on), so a sparse very-low-speed slice (the
+    # log starts at 1 m/s) or a thin high-speed tail doesn't wipe out the whole
+    # reference — it just isn't drawn there.
+    ordered = sorted(samples, key=lambda t: t[0])
+    speeds = [t[0] for t in ordered]
+    accels = [t[1] for t in ordered]
+    STEP, HALF, MIN_W = 0.5, 1.5, 60
+    grid = []                                   # (speed, sorted accel window)
+    s = 0.0
+    while s <= 40.0:
+        lo = bisect.bisect_left(speeds, s - HALF)
+        hi = bisect.bisect_right(speeds, s + HALF)
+        if hi - lo >= MIN_W:
+            grid.append((s, sorted(accels[lo:hi])))
+        s += STEP
+
+    # Availability probe (?meta=1): sample count + how many reference points we
+    # could draw, so the UI offers the overlay only when it's actually useful —
+    # without shipping the dataset.
+    if request.query.get('meta'):
+        return web.json_response({'count': len(samples), 'bands': len(grid)})
+
+    # Cloud: uniform stride to ~2000 samples (preserves the density distribution).
+    stride = max(1, len(samples) // 2000)
+    points = [[round(sp, 2), round(a, 3)] for sp, a in samples[::stride]]
+
+    # Envelope: three smooth reference lines for setting a max-accel ceiling —
+    # usual (p75), brisk (p90) and hardest (p98) of how hard you accelerate at
+    # each speed. All upper-range: most samples are gentle partial throttle, so
+    # low percentiles just hug zero and don't inform a ceiling. Moving-average
+    # smoothed and forced non-increasing (max-accel eases with speed).
+    def _band(pct):
+        raw = [(gs, win[min(len(win) - 1, int(pct * len(win)))]) for gs, win in grid]
+        out, cur = [], float('inf')
+        for i in range(len(raw)):
+            a = max(0, i - 2); b = min(len(raw), i + 3)       # moving average ±2
+            avg = sum(v for _, v in raw[a:b]) / (b - a)
+            cur = min(cur, avg)                               # non-increasing
+            out.append([round(raw[i][0], 1), round(cur, 2)])
+        return out
+
+    envelope = {'lower': _band(0.75), 'mid': _band(0.90), 'upper': _band(0.98)}
+    return web.json_response({'points': points, 'envelope': envelope})
+
+
 def _get_param_value(params, key):
     """Get a single param value via its declared setting type, or as a
     bool for control-only params that have no SETTINGS entry."""
     setting = _PARAM_SETTINGS.get(key)
     if setting is not None:
         return _get_setting_value(params, setting)
+    if key in _RAW_STRING_PARAMS:
+        try:
+            raw = params.get(key)
+            if raw is None:
+                return None
+            # JSON-typed params (e.g. dp_lon_accel_profiles) come back from
+            # Params.get already json.loads'd into a dict/list — re-serialize so
+            # the web gets valid JSON, not Python repr (str(dict) → single quotes,
+            # which JSON.parse can't read → client silently falls back to seed).
+            if isinstance(raw, (dict, list)):
+                return json.dumps(raw)
+            return raw.decode('utf-8', errors='replace') if isinstance(raw, bytes) else str(raw)
+        except Exception:
+            return None
     if key in _CONTROL_PARAMS:
         try:
             return params.get_bool(key)
@@ -822,6 +1041,8 @@ def setup_aiohttp_app(host: str, port: int, debug: bool):
     app.router.add_get("/api/play", serve_player_api)
     app.router.add_get("/api/manifest.m3u8", serve_manifest_api)
     app.router.add_get("/api/settings", get_settings_config_api)
+    app.router.add_get("/api/accel_eq/config", get_accel_eq_config_api)
+    app.router.add_get("/api/accel_eq/habit", get_accel_eq_habit_api)
     app.router.add_get("/api/settings/params/{param_name}", get_param_api)
     app.router.add_post("/api/settings/params/{param_name}", save_param_api)
     app.router.add_get("/api/models", get_model_list_api)

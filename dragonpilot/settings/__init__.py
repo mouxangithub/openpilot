@@ -80,6 +80,10 @@ _KNOWN_ITEM_KEYS = _UI_REQUIRED_KEYS | {
   # text_input_item: text field that POSTs typed value to the named action endpoint.
   # action_item: button that POSTs to the named action endpoint with no payload.
   "action",
+  # Setting a needs_restart param also writes OnroadCycleRequested on save
+  # (dashy), mirroring upstream's TogglesLayout. Behavioral only — ignored by
+  # generate_settings.py (not a param-storage field).
+  "needs_restart",
   # Param-storage fields (consumed by generate_settings.py, ignored by UI)
   "flags", "param_type",
 }
