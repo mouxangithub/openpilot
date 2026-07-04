@@ -26,7 +26,7 @@ def test_each_condition_blocks():
 
 
 DRIVE = car.CarState.GearShifter.drive
-CP = SimpleNamespace(steerRatio=15.0, wheelbase=2.7)
+CP = SimpleNamespace(steerRatio=15.0, wheelbase=2.7, openpilotLongitudinalControl=True)
 
 def _sm(**over):
     cs = dict(vEgo=10.0, aEgo=0.8, gasPressed=True, brakePressed=False,
@@ -49,6 +49,13 @@ def test_gate_blocks_dirty_sample(tmp_path):
     sm = _sm()
     sm['controlsState'] = SimpleNamespace(longControlState=LongCtrlState.pid)  # op long active
     log.update(sm)
+    assert log._buf == []
+
+def test_no_op_long_disables_logging(tmp_path):
+    # stock-long car: accel-eq is inert, so the logger must not run at all
+    stock_cp = SimpleNamespace(steerRatio=15.0, wheelbase=2.7, openpilotLongitudinalControl=False)
+    log = AccelLogger(stock_cp, path=str(tmp_path / "h.csv"))
+    log.update(_sm(vEgo=10.0, aEgo=0.8))  # would be a clean sample under OP long
     assert log._buf == []
 
 def test_in_curve_sample_rejected_end_to_end(tmp_path):

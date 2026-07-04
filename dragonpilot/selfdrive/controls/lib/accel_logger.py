@@ -55,6 +55,7 @@ class AccelLogger:
 
   def __init__(self, CP, path=None):
     self._CP = CP
+    self._enabled = CP.openpilotLongitudinalControl  # accel-eq only applies under OP long
     self._path = path if path is not None else LOG_PATH
     self._buf = []
     self._frames = 0
@@ -71,6 +72,8 @@ class AccelLogger:
       cloudlog.warning(f"AccelLogger: write failed (dropped {len(rows)} rows): {e}")
 
   def update(self, sm):
+    if not self._enabled:
+      return
     try:
       self._frames += 1
       cs = sm['carState']
