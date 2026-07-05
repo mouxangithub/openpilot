@@ -1,7 +1,7 @@
 import os
 import requests
 from requests.adapters import HTTPAdapter, Retry
-API_HOST = os.getenv('API_HOST', 'https://api.commadotai.com')
+API_HOST = os.getenv('API_HOST', 'https://api.konik.ai')
 
 # TODO: this should be merged into common.api
 

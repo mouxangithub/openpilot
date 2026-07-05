@@ -9,7 +9,7 @@ from opendbc.car.common.pid import PIDController
 from opendbc.car.secoc import add_mac, build_sync_mac
 from opendbc.car.interfaces import CarControllerBase
 from opendbc.car.toyota import toyotacan
-from opendbc.car.toyota.values import CAR, TSS2_CAR, UNSUPPORTED_DSU_CAR, CarControllerParams, ToyotaFlags
+from opendbc.car.toyota.values import CanBus, CAR, TSS2_CAR, UNSUPPORTED_DSU_CAR, CarControllerParams, ToyotaFlags
 from opendbc.can import CANPacker
 
 Ecu = structs.CarParams.Ecu
@@ -62,6 +62,7 @@ class CarController(CarControllerBase):
   def __init__(self, dbc_names, CP):
     super().__init__(dbc_names, CP)
     self.params = CarControllerParams(self.CP)
+    self.CAN = CanBus(CP)
     self.last_torque = 0
     self.last_angle = 0
     self.alert_active = False
@@ -145,7 +146,7 @@ class CarController(CarControllerBase):
     # toyota can trace shows STEERING_LKA at 42Hz, with counter adding alternatively 1 and 2;
     # sending it at 100Hz seem to allow a higher rate limit, as the rate limit seems imposed
     # on consecutive messages
-    steer_command = toyotacan.create_steer_command(self.packer, apply_torque, apply_steer_req)
+    steer_command = toyotacan.create_steer_command(self.packer, apply_torque, apply_steer_req, self.CAN.pt)
     if self.CP.flags & ToyotaFlags.SECOC.value:
       # TODO: check if this slow and needs to be done by the CANPacker
       steer_command = add_mac(self.secoc_key,
@@ -167,10 +168,10 @@ class CarController(CarControllerBase):
       # TORQUE_WIND_DOWN at 0 ramps down torque at roughly the max down rate of 1500 units/sec
       torque_wind_down = 100 if lta_active and full_torque_condition else 0
       can_sends.append(toyotacan.create_lta_steer_command(self.packer, self.CP.steerControlType, self.last_angle,
-                                                          lta_active, self.frame // 2, torque_wind_down))
+                                                          lta_active, self.frame // 2, torque_wind_down, self.CAN.pt))
 
       if self.CP.flags & ToyotaFlags.SECOC.value:
-        lta_steer_2 = toyotacan.create_lta_steer_command_2(self.packer, self.frame // 2)
+        lta_steer_2 = toyotacan.create_lta_steer_command_2(self.packer, self.frame // 2, self.CAN.pt)
         lta_steer_2 = add_mac(self.secoc_key,
                               int(CS.secoc_synchronization['TRIP_CNT']),
                               int(CS.secoc_synchronization['RESET_CNT']),
@@ -272,9 +273,9 @@ class CarController(CarControllerBase):
 
         main_accel_cmd = 0. if self.CP.flags & ToyotaFlags.SECOC.value else pcm_accel_cmd
         can_sends.append(toyotacan.create_accel_command(self.packer, main_accel_cmd, pcm_cancel_cmd, self.permit_braking, self.standstill_req, lead,
-                                                        CS.acc_type, fcw_alert, self.distance_button))
+                                                        CS.acc_type, fcw_alert, self.distance_button, self.CAN.pt))
         if self.CP.flags & ToyotaFlags.SECOC.value:
-          acc_cmd_2 = toyotacan.create_accel_command_2(self.packer, pcm_accel_cmd)
+          acc_cmd_2 = toyotacan.create_accel_command_2(self.packer, pcm_accel_cmd, self.CAN.pt)
           acc_cmd_2 = add_mac(self.secoc_key,
                               int(CS.secoc_synchronization['TRIP_CNT']),
                               int(CS.secoc_synchronization['RESET_CNT']),
@@ -289,9 +290,9 @@ class CarController(CarControllerBase):
       # we can spam can to cancel the system even if we are using lat only control
       if pcm_cancel_cmd:
         if self.CP.carFingerprint in UNSUPPORTED_DSU_CAR:
-          can_sends.append(toyotacan.create_acc_cancel_command(self.packer))
+          can_sends.append(toyotacan.create_acc_cancel_command(self.packer, self.CAN.pt))
         else:
-          can_sends.append(toyotacan.create_accel_command(self.packer, 0, pcm_cancel_cmd, True, False, lead, CS.acc_type, False, self.distance_button))
+          can_sends.append(toyotacan.create_accel_command(self.packer, 0, pcm_cancel_cmd, True, False, lead, CS.acc_type, False, self.distance_button, self.CAN.pt))
 
     # *** hud ui ***
     if self.CP.carFingerprint != CAR.TOYOTA_PRIUS_V:
@@ -311,14 +312,14 @@ class CarController(CarControllerBase):
         # dp - ALKA: use lat_active to show HUD when ALKA is active
         can_sends.append(toyotacan.create_ui_command(self.packer, steer_alert, pcm_cancel_cmd, hud_control.leftLaneVisible,
                                                      hud_control.rightLaneVisible, hud_control.leftLaneDepart,
-                                                     hud_control.rightLaneDepart, lat_active, CS.lkas_hud))
+                                                     hud_control.rightLaneDepart, lat_active, CS.lkas_hud, self.CAN.pt))
 
       if (self.frame % 100 == 0 or send_ui) and self.CP.flags & ToyotaFlags.DISABLE_RADAR.value and not self.CP.flags & ToyotaFlags.RADAR_FILTER.value:
-        can_sends.append(toyotacan.create_fcw_command(self.packer, fcw_alert))
+        can_sends.append(toyotacan.create_fcw_command(self.packer, fcw_alert, self.CAN.pt))
 
     # keep radar disabled
     if self.frame % 20 == 0 and self.CP.flags & ToyotaFlags.DISABLE_RADAR.value and not self.CP.flags & ToyotaFlags.RADAR_FILTER.value:
-      can_sends.append(make_tester_present_msg(0x750, 0, 0xF))
+      can_sends.append(make_tester_present_msg(0x750, self.CAN.pt, 0xF))
 
     new_actuators = actuators.as_builder()
     new_actuators.torque = apply_torque / self.params.STEER_MAX
@@ -328,10 +329,10 @@ class CarController(CarControllerBase):
 
     if self.CP.flags & ToyotaFlags.LOCK_CTRL.value:
       if not self.doors_locked and CS.out.gearShifter == DRIVE and CS.out.vEgo >= LOCK_SPEED:
-        can_sends.append(CanData(LOCK_UNLOCK_CAN_ID, LOCK_CMD, 0))
+        can_sends.append(CanData(LOCK_UNLOCK_CAN_ID, LOCK_CMD, self.CAN.pt))
         self.doors_locked = True
       elif self.doors_locked and CS.out.gearShifter == PARK:
-        can_sends.append(CanData(LOCK_UNLOCK_CAN_ID, UNLOCK_CMD, 0))
+        can_sends.append(CanData(LOCK_UNLOCK_CAN_ID, UNLOCK_CMD, self.CAN.pt))
         self.doors_locked = False
 
     self.frame += 1

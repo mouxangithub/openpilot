@@ -3,7 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from enum import Enum, IntFlag
 
-from opendbc.car import Bus, CarSpecs, PlatformConfig, Platforms
+from opendbc.car import Bus, CanBusBase, CarSpecs, PlatformConfig, Platforms
 from opendbc.car.lateral import AngleSteeringLimits
 from opendbc.car.common.conversions import Conversions as CV
 from opendbc.car.structs import CarParams
@@ -89,6 +89,21 @@ class ToyotaFlags(IntFlag):
   RADAR_FILTER = 2 ** 15
   DSU_BYPASS = 2 ** 16
   ZSS = 2 ** 17
+class CanBus(CanBusBase):
+  def __init__(self, CP=None, fingerprint=None) -> None:
+    super().__init__(CP, fingerprint)
+
+  @property
+  def pt(self) -> int:
+    return self.offset
+
+  @property
+  def alt(self) -> int:
+    return self.offset + 1
+
+  @property
+  def cam(self) -> int:
+    return self.offset + 2
 
 def dbc_dict(pt, radar):
   return {Bus.pt: pt, Bus.radar: radar}
@@ -297,6 +312,10 @@ class CAR(Platforms):
   TOYOTA_RAV4_PRIME = ToyotaSecOCPlatformConfig(
     [ToyotaSecOcCarDocs("Toyota RAV4 Prime 2021-23", min_enable_speed=MIN_ACC_SPEED)],
     CarSpecs(mass=4372. * CV.LB_TO_KG, wheelbase=2.68, steerRatio=16.88, tireStiffnessFactor=0.5533),
+  )
+  TOYOTA_WILDLANDER_PHEV = ToyotaSecOCPlatformConfig(
+    [ToyotaCarDocs("Toyota Wildlander PHEV 2021-23", min_enable_speed=MIN_ACC_SPEED)],
+    CarSpecs(mass=4155. * CV.LB_TO_KG, wheelbase=2.69, steerRatio=16.88, tireStiffnessFactor=0.5533),
   )
   TOYOTA_YARIS = ToyotaSecOCPlatformConfig(
     [ToyotaSecOcCarDocs("Toyota Yaris (Non-US only) 2020, 2023", min_enable_speed=MIN_ACC_SPEED)],
@@ -535,12 +554,14 @@ FW_QUERY_CONFIG = FwQueryConfig(
       [StdQueries.SHORT_TESTER_PRESENT_RESPONSE, TOYOTA_VERSION_RESPONSE_KWP],
       whitelist_ecus=[Ecu.fwdCamera, Ecu.fwdRadar, Ecu.dsu, Ecu.abs, Ecu.eps, Ecu.srs, Ecu.transmission, Ecu.hvac],
       bus=0,
+      auxiliary=True,
     ),
     Request(
       [StdQueries.SHORT_TESTER_PRESENT_REQUEST, StdQueries.OBD_VERSION_REQUEST],
       [StdQueries.SHORT_TESTER_PRESENT_RESPONSE, StdQueries.OBD_VERSION_RESPONSE],
       whitelist_ecus=[Ecu.engine, Ecu.hybrid, Ecu.srs, Ecu.transmission, Ecu.hvac],
       bus=0,
+      auxiliary=True,
     ),
     Request(
       [StdQueries.TESTER_PRESENT_REQUEST, StdQueries.DEFAULT_DIAGNOSTIC_REQUEST, StdQueries.EXTENDED_DIAGNOSTIC_REQUEST, StdQueries.UDS_VERSION_REQUEST],
@@ -548,6 +569,7 @@ FW_QUERY_CONFIG = FwQueryConfig(
       whitelist_ecus=[Ecu.engine, Ecu.fwdRadar, Ecu.fwdCamera, Ecu.abs, Ecu.eps,
                       Ecu.hybrid, Ecu.srs, Ecu.transmission, Ecu.hvac],
       bus=0,
+      auxiliary=True,
     ),
   ],
   non_essential_ecus={

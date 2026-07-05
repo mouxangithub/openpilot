@@ -121,7 +121,7 @@ def face_orientation_from_model(orient_model, pos_model, rpy_calib):
 
 
 class DriverMonitoring:
-  def __init__(self, rhd_saved=False, settings=None, always_on=False):
+  def __init__(self, rhd_saved=False, settings=None, always_on=False, distraction_detection_level=None):
     # init policy settings
     self.settings = settings if settings is not None else DRIVER_MONITOR_SETTINGS()
 
@@ -134,6 +134,7 @@ class DriverMonitoring:
 
     self.alert_level = AlertLevel.none
     self.always_on = always_on
+    self.distraction_detection_level = distraction_detection_level
     self.distracted_types = defaultdict(bool)
     self.driver_distracted = False
     self.driver_distraction_filter = FirstOrderFilter(0., self.settings._DISTRACTED_FILTER_TS, DT_DMON)
@@ -433,3 +434,37 @@ class DriverMonitoring:
       standstill=standstill,
       wrong_gear=wrong_gear,
     )
+
+  def set_distract_level_params(self):
+    level = self.distraction_detection_level
+
+    # Level 0: strict, Level 1: moderate, Level 2: lenient, Level 3: disabled
+    if level == 0:
+      self.settings._POSE_PITCH_THRESHOLD = 0.20
+      self.settings._POSE_PITCH_THRESHOLD_SLACK = 0.22
+      self.settings._POSE_YAW_THRESHOLD = 0.28
+      self.settings._POSE_YAW_THRESHOLD_SLACK = 0.38
+      self.settings._BLINK_THRESHOLD = 0.78
+      self.settings._PHONE_THRESH = 0.35
+    elif level == 1:
+      self.settings._POSE_PITCH_THRESHOLD = 0.26
+      self.settings._POSE_PITCH_THRESHOLD_SLACK = 0.28
+      self.settings._POSE_YAW_THRESHOLD = 0.34
+      self.settings._POSE_YAW_THRESHOLD_SLACK = 0.44
+      self.settings._BLINK_THRESHOLD = 0.82
+      self.settings._PHONE_THRESH = 0.4
+    elif level == 2:
+      self.settings._POSE_PITCH_THRESHOLD = 0.3133
+      self.settings._POSE_PITCH_THRESHOLD_SLACK = 0.3237
+      self.settings._POSE_YAW_THRESHOLD = 0.4020
+      self.settings._POSE_YAW_THRESHOLD_SLACK = 0.5042
+      self.settings._BLINK_THRESHOLD = 0.865
+      self.settings._PHONE_THRESH = 0.5
+    else:
+      self.settings._POSE_PITCH_THRESHOLD = float('inf')
+      self.settings._POSE_PITCH_THRESHOLD_SLACK = float('inf')
+      self.settings._POSE_YAW_THRESHOLD = float('inf')
+      self.settings._POSE_YAW_THRESHOLD_SLACK = float('inf')
+      self.settings._BLINK_THRESHOLD = float('inf')
+      self.settings._PHONE_THRESH = float('inf')
+

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-22 13:57+0800\n"
+"POT-Creation-Date: 2026-06-30 17:06+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,135 +17,41 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: dragonpilot/selfdrive/ui/mici/layouts/dashy_qrcode.py:14
+#: dragonpilot/settings/brand-vag-a0-sng.py:8
 #, python-format
-msgid "scan to access"
+msgid "Enable Stop-and-Go on A0 Platform"
 msgstr ""
 
-#: dragonpilot/selfdrive/ui/mici/layouts/dashy_qrcode.py:18
-#, python-format
-msgid "or open browser"
-msgstr ""
-
-#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:59
-#, python-format
-msgid "Reset DP Settings"
-msgstr ""
-
-#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:60
-#, python-format
-msgid "RESET"
-msgstr ""
-
-#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:61
-#, python-format
-msgid "Reset dragonpilot settings to default and restart the device."
-msgstr ""
-
-#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:239
-#, python-format
-msgid "Are you sure you want to reset ALL DP SETTINGS to default?"
-msgstr ""
-
-#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:239
-#, python-format
-msgid "Reset"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.lat.alka-v2.py:8
-#, python-format
-msgid "Always-on Lane Keeping Assist (ALKA)"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.lat.alka-v2.py:9
+#: dragonpilot/settings/brand-vag-a0-sng.py:9
 #, python-format
 msgid ""
-"Enable lateral control even when ACC/cruise is disengaged, using ACC Main or "
-"LKAS button to toggle. Vehicle must be moving."
+"Restores stop-and-go behavior on VAG A0 platform vehicles (Polo, Fabia, "
+"Ibiza, etc.), allowing openpilot to resume from a full stop without driver "
+"intervention."
 msgstr ""
 
-#: dragonpilot/settings/brand.toyota.door-auto-lock-unlock.py:8
+#: dragonpilot/settings/brand-honda-nidec-stock-long.py:8
 #, python-format
-msgid "Door Auto Lock/Unlock"
+msgid "Use Stock Longitudinal (Nidec)"
 msgstr ""
 
-#: dragonpilot/settings/brand.toyota.door-auto-lock-unlock.py:9
-#, python-format
-msgid ""
-"Enable openpilot to auto-lock doors above 20 km/h and auto-unlock when "
-"shifting to Park."
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:29
-#, python-format
-msgid "Enable ADB"
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:35
-#, python-format
-msgid "Enable SSH"
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:40
-#, python-format
-msgid "Joystick Debug Mode"
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:45
-#, python-format
-msgid "Longitudinal Maneuver Mode"
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:50
-#, python-format
-msgid "openpilot Longitudinal Control (Alpha)"
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:56
-#, python-format
-msgid "UI Debug Mode"
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:64
-#, python-format
-msgid "GitHub Username (SSH Keys)"
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:71
-#, python-format
-msgid "Stored SSH Keys"
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:76
-#, python-format
-msgid "Clear SSH Keys"
-msgstr ""
-
-#: dragonpilot/settings/openpilot.developer.py:85
-#, python-format
-msgid "Last Errors"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.opview.py:8
-#, python-format
-msgid "Enable opview"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.opview.py:9
+#: dragonpilot/settings/brand-honda-nidec-stock-long.py:9
 #, python-format
 msgid ""
-"Broadcasts telemetry to the opview App (available on Android). Requires the "
-"companion App to be running on an external display."
+"Let the Honda Nidec ACC handle gas and brake instead of openpilot. Lateral "
+"control (steering) still runs through openpilot."
 msgstr ""
 
-#: dragonpilot/settings/brand-vag-avoid-eps-lockout.py:8
+#: dragonpilot/settings/min-feat.lon.acm.py:8
 #, python-format
-msgid "Avoid EPS Lockout"
+msgid "Enable Adaptive Coasting Mode (ACM)"
 msgstr ""
 
-#: dragonpilot/settings/brand-vag-avoid-eps-lockout.py:9
+#: dragonpilot/settings/min-feat.lon.acm.py:9
 #, python-format
-msgid "Scale steering torque down at low speeds to avoid EPS lockout."
+msgid ""
+"Adaptive Coasting Mode (ACM) reduces braking to allow smoother coasting when "
+"appropriate."
 msgstr ""
 
 #: dragonpilot/settings/min-feat.dev.delay-loggerd.py:8
@@ -168,41 +74,14 @@ msgid "sec"
 msgstr ""
 
 #: dragonpilot/settings/min-feat.dev.delay-loggerd.py:15
-#: dragonpilot/settings/min-feat.dev.auto-shutdown.py:15
 #: dragonpilot/settings/min-feat.dev.alert-mode.py:10
 #: dragonpilot/settings/min-feat.ui.hide-hud.py:15
-#: dragonpilot/settings/min-feat.ui.lead-stats.py:10
+#: dragonpilot/settings/min-feat.dev.auto-shutdown.py:15
 #: dragonpilot/settings/min-feat.lat.lca.py:15
 #: dragonpilot/settings/min-feat.lat.lca.py:30
+#: dragonpilot/settings/min-feat.ui.lead-stats.py:10
 #, python-format
 msgid "Off"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.lon.acm.py:8
-#, python-format
-msgid "Enable Adaptive Coasting Mode (ACM)"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.lon.acm.py:9
-#, python-format
-msgid ""
-"Adaptive Coasting Mode (ACM) reduces braking to allow smoother coasting when "
-"appropriate."
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.auto-shutdown.py:8
-#, python-format
-msgid "Auto Shutdown After"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.auto-shutdown.py:9
-#, python-format
-msgid "0 min = Immediately"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.auto-shutdown.py:14
-#, python-format
-msgid "min"
 msgstr ""
 
 #: dragonpilot/settings/brand-toyota-stock-lon.py:8
@@ -217,51 +96,16 @@ msgid ""
 "Lateral control (steering) still runs through openpilot."
 msgstr ""
 
-#: dragonpilot/settings/brand-vag-a0-sng.py:8
+#: dragonpilot/settings/min-feat.dev.dashy-v2.py:8
 #, python-format
-msgid "Enable Stop-and-Go on A0 Platform"
+msgid "Enable dashy Visual"
 msgstr ""
 
-#: dragonpilot/settings/brand-vag-a0-sng.py:9
+#: dragonpilot/settings/min-feat.dev.dashy-v2.py:9
 #, python-format
 msgid ""
-"Restores stop-and-go behavior on VAG A0 platform vehicles (Polo, Fabia, "
-"Ibiza, etc.), allowing openpilot to resume from a full stop without driver "
-"intervention."
-msgstr ""
-
-#: dragonpilot/settings/min-feat.ui.rainbow-path.py:8
-#, python-format
-msgid "Rainbow Driving Path like Tesla"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.ui.rainbow-path.py:9
-#, python-format
-msgid "Why not?"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.lon.apm.py:8
-#, python-format
-msgid "Adaptive Personality Mode (APM)"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.lon.apm.py:9
-#, python-format
-msgid ""
-"Automatically switches personality to \"Aggressive\" below 30 km/h and "
-"restores your selected personality above 40 km/h."
-msgstr ""
-
-#: dragonpilot/settings/brand-honda-nidec-stock-long.py:8
-#, python-format
-msgid "Use Stock Longitudinal (Nidec)"
-msgstr ""
-
-#: dragonpilot/settings/brand-honda-nidec-stock-long.py:9
-#, python-format
-msgid ""
-"Let the Honda Nidec ACC handle gas and brake instead of openpilot. Lateral "
-"control (steering) still runs through openpilot."
+"dashy - dragonpilot's all-in-one system hub.<br><br>Visit http://&lt;"
+"device_ip&gt;:5088 to access.<br><br>Enable this to use Tesla Visual/HUD."
 msgstr ""
 
 #: dragonpilot/settings/min-feat.lat.lat-offset.py:8
@@ -282,80 +126,6 @@ msgstr ""
 msgid "cm"
 msgstr ""
 
-#: dragonpilot/settings/min-feat.dev.dashy-v2.py:8
-#, python-format
-msgid "Enable dashy Visual"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.dashy-v2.py:9
-#, python-format
-msgid ""
-"dashy - dragonpilot's all-in-one system hub.<br><br>Visit http://&lt;"
-"device_ip&gt;:5088 to access.<br><br>Enable this to use Tesla Visual/HUD."
-msgstr ""
-
-#: dragonpilot/settings/min-feat.lon.aem.py:8
-#, python-format
-msgid "Adaptive Experimental Mode (AEM)"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.lon.aem.py:9
-#, python-format
-msgid ""
-"Adaptive mode switcher between ACC and Blended based on driving context."
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.disable-connect.py:8
-#, python-format
-msgid "Disable Comma Connect"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.disable-connect.py:9
-#, python-format
-msgid ""
-"Disable Comma connect service if you do not wish to upload / being tracked "
-"by the service."
-msgstr ""
-
-#: dragonpilot/settings/min-feat.ui.display-mode.py:8
-#, python-format
-msgid "Display Mode"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.ui.display-mode.py:9
-#, python-format
-msgid ""
-"Std.: Stock behavior.<br>MAIN+: ACC MAIN on = Display ON.<br>OP+: OP enabled "
-"= Display ON.<br>MAIN-: ACC MAIN on = Display OFF<br>OP-: OP enabled = "
-"Display OFF."
-msgstr ""
-
-#: dragonpilot/settings/min-feat.ui.display-mode.py:10
-#: dragonpilot/settings/min-feat.dev.alert-mode.py:10
-#, python-format
-msgid "Std."
-msgstr ""
-
-#: dragonpilot/settings/min-feat.ui.display-mode.py:10
-#, python-format
-msgid "MAIN+"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.ui.display-mode.py:10
-#, python-format
-msgid "OP+"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.ui.display-mode.py:10
-#, python-format
-msgid "MAIN-"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.ui.display-mode.py:10
-#, python-format
-msgid "OP-"
-msgstr ""
-
 #: dragonpilot/settings/min-feat.dev.alert-mode.py:8
 #, python-format
 msgid "Audible Alert"
@@ -369,8 +139,46 @@ msgid ""
 msgstr ""
 
 #: dragonpilot/settings/min-feat.dev.alert-mode.py:10
+#: dragonpilot/settings/min-feat.ui.display-mode.py:10
+#, python-format
+msgid "Std."
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.alert-mode.py:10
 #, python-format
 msgid "Warning"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lon.aem.py:8
+#, python-format
+msgid "Adaptive Experimental Mode (AEM)"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lon.aem.py:9
+#, python-format
+msgid ""
+"Adaptive mode switcher between ACC and Blended based on driving context."
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.o3-v2.py:8
+#, python-format
+msgid "Enable Right-Hand Drive Mode"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.o3-v2.py:9
+#, python-format
+msgid ""
+"Allow openpilot to obey right-hand traffic conventions on right driver seat."
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.o3-v2.py:19
+#, python-format
+msgid "Enable Beep (Warning)"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.o3-v2.py:20
+#, python-format
+msgid "Use Buzzer for audiable alerts."
 msgstr ""
 
 #: dragonpilot/settings/min-feat.ui.hide-hud.py:8
@@ -390,16 +198,29 @@ msgstr ""
 msgid "km/h"
 msgstr ""
 
-#: dragonpilot/settings/brand-toyota-tss1-sng.py:8
+#: dragonpilot/settings/min-feat.dev.auto-shutdown.py:8
 #, python-format
-msgid "Enable Stop-and-Go on TSS1"
+msgid "Auto Shutdown After"
 msgstr ""
 
-#: dragonpilot/settings/brand-toyota-tss1-sng.py:9
+#: dragonpilot/settings/min-feat.dev.auto-shutdown.py:9
 #, python-format
-msgid ""
-"Restores stop-and-go behavior on Toyota Safety Sense 1.0 vehicles, allowing "
-"openpilot to resume from a full stop without driver intervention."
+msgid "0 min = Immediately"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.auto-shutdown.py:14
+#, python-format
+msgid "min"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.ui.rainbow-path.py:8
+#, python-format
+msgid "Rainbow Driving Path like Tesla"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.ui.rainbow-path.py:9
+#, python-format
+msgid "Why not?"
 msgstr ""
 
 #: dragonpilot/settings/openpilot.toggles.py:27
@@ -472,25 +293,36 @@ msgstr ""
 msgid "Relaxed"
 msgstr ""
 
-#: dragonpilot/settings/min-feat.dev.o3-v2.py:8
+#: dragonpilot/settings/openpilot.toggles.py:95
 #, python-format
-msgid "Enable Right-Hand Drive Mode"
+msgid "Distraction Detection Level"
 msgstr ""
 
-#: dragonpilot/settings/min-feat.dev.o3-v2.py:9
+#: dragonpilot/settings/openpilot.toggles.py:96
+#, python-format
+msgid "Strict"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.toggles.py:96
+#, python-format
+msgid "Moderate"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.toggles.py:96
+#, python-format
+msgid "Lenient"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.opview.py:8
+#, python-format
+msgid "Enable opview"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.opview.py:9
 #, python-format
 msgid ""
-"Allow openpilot to obey right-hand traffic conventions on right driver seat."
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.o3-v2.py:19
-#, python-format
-msgid "Enable Beep (Warning)"
-msgstr ""
-
-#: dragonpilot/settings/min-feat.dev.o3-v2.py:20
-#, python-format
-msgid "Use Buzzer for audiable alerts."
+"Broadcasts telemetry to the opview App (available on Android). Requires the "
+"companion App to be running on an external display."
 msgstr ""
 
 #: dragonpilot/settings/min-feat.lon.ext-radar.py:8
@@ -505,6 +337,16 @@ msgid ""
 "information."
 msgstr ""
 
+#: dragonpilot/settings/brand-vag-avoid-eps-lockout.py:8
+#, python-format
+msgid "Avoid EPS Lockout"
+msgstr ""
+
+#: dragonpilot/settings/brand-vag-avoid-eps-lockout.py:9
+#, python-format
+msgid "Scale steering torque down at low speeds to avoid EPS lockout."
+msgstr ""
+
 #: dragonpilot/settings/min-feat.lat.road-edge-detection.py:8
 #, python-format
 msgid "Road Edge Detection (RED)"
@@ -515,6 +357,153 @@ msgstr ""
 msgid ""
 "Block lane change assist when the system detects the road edge.<br>NOTE: "
 "This will show 'Car Detected in Blindspot' warning."
+msgstr ""
+
+#: dragonpilot/settings/brand.toyota.door-auto-lock-unlock.py:8
+#, python-format
+msgid "Door Auto Lock/Unlock"
+msgstr ""
+
+#: dragonpilot/settings/brand.toyota.door-auto-lock-unlock.py:9
+#, python-format
+msgid ""
+"Enable openpilot to auto-lock doors above 20 km/h and auto-unlock when "
+"shifting to Park."
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lat.lca.py:8
+#, python-format
+msgid "Lane Change Assist At:"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lat.lca.py:9
+#, python-format
+msgid "Off = Disable LCA.<br>1 mph = 1.2 km/h."
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lat.lca.py:14
+#, python-format
+msgid "mph"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lat.lca.py:23
+#, python-format
+msgid "+ Auto Lane Change after:"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lat.lca.py:24
+#, python-format
+msgid "Off = Disable Auto Lane Change."
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.disable-connect.py:8
+#, python-format
+msgid "Disable Comma Connect"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.dev.disable-connect.py:9
+#, python-format
+msgid ""
+"Disable Comma connect service if you do not wish to upload / being tracked "
+"by the service."
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:29
+#, python-format
+msgid "Enable ADB"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:35
+#, python-format
+msgid "SecOCKey Install"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:36
+#, python-format
+msgid ""
+"Enter your 32-character hexadecimal SecOC key. Key is read from device "
+"storage if already installed."
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:41
+#, python-format
+msgid "Enable SSH"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:46
+#, python-format
+msgid "Joystick Debug Mode"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:51
+#, python-format
+msgid "Longitudinal Maneuver Mode"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:56
+#, python-format
+msgid "openpilot Longitudinal Control (Alpha)"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:62
+#, python-format
+msgid "UI Debug Mode"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:70
+#, python-format
+msgid "GitHub Username (SSH Keys)"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:77
+#, python-format
+msgid "Stored SSH Keys"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:82
+#, python-format
+msgid "Clear SSH Keys"
+msgstr ""
+
+#: dragonpilot/settings/openpilot.developer.py:91
+#, python-format
+msgid "Last Errors"
+msgstr ""
+
+#: dragonpilot/settings/brand-toyota-tss1-sng.py:8
+#, python-format
+msgid "Enable Stop-and-Go on TSS1"
+msgstr ""
+
+#: dragonpilot/settings/brand-toyota-tss1-sng.py:9
+#, python-format
+msgid ""
+"Restores stop-and-go behavior on Toyota Safety Sense 1.0 vehicles, allowing "
+"openpilot to resume from a full stop without driver intervention."
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lat.alka-v2.py:8
+#, python-format
+msgid "Always-on Lane Keeping Assist (ALKA)"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lat.alka-v2.py:9
+#, python-format
+msgid ""
+"Enable lateral control even when ACC/cruise is disengaged, using ACC Main or "
+"LKAS button to toggle. Vehicle must be moving."
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lon.apm.py:8
+#, python-format
+msgid "Adaptive Personality Mode (APM)"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.lon.apm.py:9
+#, python-format
+msgid ""
+"Automatically switches personality to \"Aggressive\" below 30 km/h and "
+"restores your selected personality above 40 km/h."
 msgstr ""
 
 #: dragonpilot/settings/min-feat.ui.lead-stats.py:8
@@ -545,27 +534,70 @@ msgstr ""
 msgid "All"
 msgstr ""
 
-#: dragonpilot/settings/min-feat.lat.lca.py:8
+#: dragonpilot/settings/min-feat.ui.display-mode.py:8
 #, python-format
-msgid "Lane Change Assist At:"
+msgid "Display Mode"
 msgstr ""
 
-#: dragonpilot/settings/min-feat.lat.lca.py:9
+#: dragonpilot/settings/min-feat.ui.display-mode.py:9
 #, python-format
-msgid "Off = Disable LCA.<br>1 mph = 1.2 km/h."
+msgid ""
+"Std.: Stock behavior.<br>MAIN+: ACC MAIN on = Display ON.<br>OP+: OP enabled "
+"= Display ON.<br>MAIN-: ACC MAIN on = Display OFF<br>OP-: OP enabled = "
+"Display OFF."
 msgstr ""
 
-#: dragonpilot/settings/min-feat.lat.lca.py:14
+#: dragonpilot/settings/min-feat.ui.display-mode.py:10
 #, python-format
-msgid "mph"
+msgid "MAIN+"
 msgstr ""
 
-#: dragonpilot/settings/min-feat.lat.lca.py:23
+#: dragonpilot/settings/min-feat.ui.display-mode.py:10
 #, python-format
-msgid "+ Auto Lane Change after:"
+msgid "OP+"
 msgstr ""
 
-#: dragonpilot/settings/min-feat.lat.lca.py:24
+#: dragonpilot/settings/min-feat.ui.display-mode.py:10
 #, python-format
-msgid "Off = Disable Auto Lane Change."
+msgid "MAIN-"
+msgstr ""
+
+#: dragonpilot/settings/min-feat.ui.display-mode.py:10
+#, python-format
+msgid "OP-"
+msgstr ""
+
+#: dragonpilot/selfdrive/ui/mici/layouts/dashy_qrcode.py:14
+#, python-format
+msgid "scan to access"
+msgstr ""
+
+#: dragonpilot/selfdrive/ui/mici/layouts/dashy_qrcode.py:18
+#, python-format
+msgid "or open browser"
+msgstr ""
+
+#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:59
+#, python-format
+msgid "Reset DP Settings"
+msgstr ""
+
+#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:60
+#, python-format
+msgid "RESET"
+msgstr ""
+
+#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:61
+#, python-format
+msgid "Reset dragonpilot settings to default and restart the device."
+msgstr ""
+
+#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:239
+#, python-format
+msgid "Are you sure you want to reset ALL DP SETTINGS to default?"
+msgstr ""
+
+#: dragonpilot/selfdrive/ui/layouts/settings/dragonpilot.py:239
+#, python-format
+msgid "Reset"
 msgstr ""

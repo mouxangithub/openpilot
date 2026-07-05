@@ -90,4 +90,12 @@ ITEMS = [
     "default": "1",  # Standard
     "condition": _DASHY,
   },
+  {
+    "section": _SEC, "key": "DistractionDetectionLevel", "type": "text_spin_button_item",
+    "title": lambda: tr("Distraction Detection Level"),
+    "options": [lambda: tr("Strict"), lambda: tr("Moderate"), lambda: tr("Lenient")],
+    "default": "2",
+    "description": lambda: tr(_TOGGLES_DESC["DistractionDetectionLevel"]),
+    "condition": _DASHY,
+  },
 ]

@@ -77,6 +77,10 @@ msgid "Always-On Driver Monitoring"
 msgstr "Sürekli Sürücü İzleme"
 
 #: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Archived key: \"{}\""
+msgstr "Arşivlenmiş anahtar: \"{}\""
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
 msgid "Are you sure you want to power off?"
 msgstr "Kapatmak istediğinizden emin misiniz?"
 
@@ -87,6 +91,10 @@ msgstr "Yeniden başlatmak istediğinizden emin misiniz?"
 #: openpilot/selfdrive/ui/layouts/settings/device.py
 msgid "Are you sure you want to reset calibration?"
 msgstr "Kalibrasyonu sıfırlamak istediğinizden emin misiniz?"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Are you sure you want to switch?"
+msgstr "Degistirmek istediginizden emin misiniz?"
 
 #: openpilot/selfdrive/ui/layouts/settings/software.py
 msgid "Are you sure you want to uninstall?"
@@ -117,6 +125,10 @@ msgstr "KONTROL ET"
 msgid "CHILL MODE ON"
 msgstr "CHILL MODU AÇIK"
 
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "CONFIRM"
+msgstr "DOGRULA"
+
 #: openpilot/selfdrive/ui/layouts/sidebar.py
 #: system/ui/widgets/network.py
 msgid "CONNECT"
@@ -125,6 +137,10 @@ msgstr "BAĞLAN"
 #: system/ui/widgets/network.py
 msgid "CONNECTING..."
 msgstr "BAĞLAN"
+
+#: openpilot/selfdrive/ui/layouts/sidebar.py
+msgid "CPU"
+msgstr "CPU"
 
 #: system/ui/widgets/confirm_dialog.py
 #: system/ui/widgets/keyboard.py
@@ -178,6 +194,22 @@ msgid "Device"
 msgstr "Cihaz"
 
 #: openpilot/selfdrive/ui/layouts/settings/toggles.py
+msgid "Disable Logging"
+msgstr "Gunlugu Devre Dışı Bırak"
+
+#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+msgid "Disable Updates"
+msgstr "Guncellemeleri Devre Dışı Bırak"
+
+#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+msgid "Disable logging service"
+msgstr "Gunluk servisini devre dışı bırak"
+
+#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+msgid "Disable update service"
+msgstr "Guncelleme servisini devre dışı bırak"
+
+#: openpilot/selfdrive/ui/layouts/settings/toggles.py
 msgid "Disengage on Accelerator Pedal"
 msgstr "Gaz Pedalında Devreden Çık"
 
@@ -196,6 +228,10 @@ msgstr "Kalibrasyonu Sıfırlamak için Devreden Çıkın"
 #: openpilot/selfdrive/ui/layouts/settings/toggles.py
 msgid "Display speed in km/h instead of mph."
 msgstr "Hızı mph yerine km/h olarak göster."
+
+#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+msgid "Distraction Detection Level"
+msgstr "Dikkat Dagınıklığı Algılama Seviyesi"
 
 #: openpilot/selfdrive/ui/layouts/settings/device.py
 msgid "Dongle ID"
@@ -255,10 +291,6 @@ msgid "Enable Tethering"
 msgstr "İnternet Paylaşımını Etkinleştir"
 
 #: openpilot/selfdrive/ui/layouts/settings/toggles.py
-msgid "Enable driver monitoring even when openpilot is not engaged."
-msgstr "openpilot devrede değilken bile sürücü izlemesini etkinleştir."
-
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
 msgid "Enable openpilot"
 msgstr "openpilot'u etkinleştir"
 
@@ -281,6 +313,10 @@ msgstr "Yeni internet paylaşımı şifresini girin"
 #: system/ui/widgets/network.py
 msgid "Enter password"
 msgstr "Şifre girin"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Enter your Car Security Key"
+msgstr "Arac Guvenlik Anahtarınızı Girin"
 
 #: openpilot/selfdrive/ui/widgets/ssh_key.py
 msgid "Enter your GitHub username"
@@ -306,13 +342,13 @@ msgstr "UNUTULUYOR..."
 msgid "Finish Setup"
 msgstr "Kurulumu Bitir"
 
-#: openpilot/selfdrive/ui/layouts/settings/settings.py
-msgid "Firehose"
-msgstr "Yoğun veri akışı"
-
 #: openpilot/selfdrive/ui/layouts/settings/firehose.py
 msgid "Firehose Mode"
 msgstr "Firehose Modu"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Force openpilot to go into onroad/offroad state.<br>(e.g. for update purpose)"
+msgstr "openpilot'ı onroad/offroad durumuna zorla.<br>(orn. guncelleme amacıyla)"
 
 #: system/ui/widgets/network.py
 msgid "Forget"
@@ -326,18 +362,23 @@ msgstr "\"{}\" Wi‑Fi ağı unutulsun mu?"
 msgid "GOOD"
 msgstr "İYİ"
 
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Go Offroad"
+msgstr "Offroad'a Git"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Go Onroad"
+msgstr "Onroad'a Git"
+
 #: openpilot/selfdrive/ui/widgets/pairing_dialog.py
 msgid "Go to https://connect.comma.ai on your phone"
 msgstr "Telefonunuzda https://connect.comma.ai adresine gidin"
-
-#: openpilot/selfdrive/ui/layouts/sidebar.py
-msgid "HIGH"
-msgstr "YÜKSEK"
 
 #: system/ui/widgets/network.py
 msgid "Hidden Network"
 msgstr "Gizli Ağ"
 
+#: openpilot/selfdrive/ui/layouts/settings/device.py
 #: openpilot/selfdrive/ui/layouts/settings/software.py
 msgid "INSTALL"
 msgstr "YÜKLE"
@@ -350,9 +391,21 @@ msgstr "IP Adresi"
 msgid "Install Update"
 msgstr "Güncellemeyi Yükle"
 
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Invalid key format. Key must contain only hexadecimal characters (0-9, a-f)."
+msgstr "Gecersiz anahtar bicimi. Anahtar yalnızca onaltılık karakterler icermelidir (0-9, a-f)."
+
 #: openpilot/selfdrive/ui/layouts/settings/developer.py
 msgid "Joystick Debug Mode"
 msgstr "Joystick Hata Ayıklama Modu"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Key cannot be empty."
+msgstr "Anahtar bos olamaz."
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Key must be exactly 32 characters long. Current length: {} characters."
+msgstr "Anahtar tam olarak 32 karakter uzunluğunda olmalıdır. Mevcut uzunluk: {} karakter."
 
 #: openpilot/selfdrive/ui/widgets/ssh_key.py
 msgid "LOADING"
@@ -361,6 +414,14 @@ msgstr "YÜKLENİYOR"
 #: openpilot/selfdrive/ui/layouts/sidebar.py
 msgid "LTE"
 msgstr "LTE"
+
+#: openpilot/selfdrive/ui/layouts/settings/developer.py
+msgid "Lateral Maneuver Mode"
+msgstr "Yan Manevra Modu"
+
+#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+msgid "Lenient"
+msgstr "Esnek"
 
 #: openpilot/selfdrive/ui/layouts/settings/developer.py
 msgid "Longitudinal Maneuver Mode"
@@ -373,6 +434,10 @@ msgstr "MAKS"
 #: openpilot/selfdrive/ui/widgets/setup.py
 msgid "Maximize your training data uploads to improve openpilot's driving models."
 msgstr "openpilot'un sürüş modellerini iyileştirmek için eğitim veri yüklemelerinizi en üst düzeye çıkarın."
+
+#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+msgid "Moderate"
+msgstr "Orta"
 
 #: openpilot/selfdrive/ui/layouts/settings/device.py
 msgid "N/A"
@@ -394,11 +459,14 @@ msgstr "'{}' kullanıcısı için SSH anahtarı bulunamadı"
 msgid "No release notes available."
 msgstr "Sürüm notu mevcut değil."
 
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Not Installed"
+msgstr "Kurulu Degil"
+
 #: openpilot/selfdrive/ui/layouts/sidebar.py
 msgid "OFFLINE"
 msgstr "ÇEVRİMDIŞI"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
 #: system/ui/widgets/confirm_dialog.py
 #: system/ui/widgets/html_render.py
 msgid "OK"
@@ -407,6 +475,10 @@ msgstr "OK"
 #: openpilot/selfdrive/ui/layouts/sidebar.py
 msgid "ONLINE"
 msgstr "ÇEVRİMİÇİ"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "On/Off Road"
+msgstr "On/Off Road"
 
 #: openpilot/selfdrive/ui/widgets/setup.py
 msgid "Open"
@@ -541,6 +613,7 @@ msgstr "Eğitim Kılavuzunu İncele"
 msgid "Review the rules, features, and limitations of openpilot"
 msgstr "openpilot'un kurallarını, özelliklerini ve sınırlamalarını gözden geçirin"
 
+#: openpilot/selfdrive/ui/layouts/settings/device.py
 #: openpilot/selfdrive/ui/layouts/settings/software.py
 msgid "SELECT"
 msgstr "SEÇ"
@@ -553,9 +626,21 @@ msgstr "SSH Anahtarları"
 msgid "Scanning Wi-Fi networks..."
 msgstr "Wi‑Fi ağları taranıyor..."
 
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "SecOCKey Install"
+msgstr "SecOCKey Kur"
+
 #: system/ui/widgets/option_dialog.py
 msgid "Select"
 msgstr "Seç"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Select a Make"
+msgstr "Marka Secin"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Select a Model"
+msgstr "Model Secin"
 
 #: openpilot/selfdrive/ui/layouts/settings/software.py
 msgid "Select a branch"
@@ -569,6 +654,14 @@ msgstr "Bir dil seçin"
 msgid "Serial"
 msgstr "Seri"
 
+#: openpilot/selfdrive/ui/layouts/settings/developer.py
+msgid "Show"
+msgstr "Goster"
+
+#: openpilot/selfdrive/ui/layouts/settings/developer.py
+msgid "Show Last Errors"
+msgstr "Son Hataları Goster"
+
 #: openpilot/selfdrive/ui/widgets/offroad_alerts.py
 msgid "Snooze Update"
 msgstr "Güncellemeyi Ertele"
@@ -580,6 +673,18 @@ msgstr "Yazılım"
 #: openpilot/selfdrive/ui/layouts/settings/toggles.py
 msgid "Standard"
 msgstr "Standart"
+
+#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+msgid "Strict"
+msgstr "Katı"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid ""
+"Success!\n"
+"Restart comma to have openpilot use the key"
+msgstr ""
+"Success!\n"
+"Restart comma to have openpilot use the key"
 
 #: openpilot/selfdrive/ui/onroad/alert_renderer.py
 msgid "System Unresponsive"
@@ -600,6 +705,10 @@ msgstr "Hedef Dal"
 #: system/ui/widgets/network.py
 msgid "Tethering Password"
 msgstr "İnternet Paylaşımı Şifresi"
+
+#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+msgid "The driver monitoring system can be toggled on/off, but long-term activation is recommended"
+msgstr "Surucu izleme sistemi acik/kapali yapilabilir ancak uzun vadeli etkinlestirme tavsiye edilir"
 
 #: openpilot/selfdrive/ui/layouts/settings/settings.py
 msgid "Toggles"
@@ -649,6 +758,18 @@ msgstr "ARAÇ"
 msgid "VIEW"
 msgstr "GÖRÜNTÜLE"
 
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Vehicle Model"
+msgstr "Araç Modeli"
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Vehicle Model list is not a valid format."
+msgstr "Araç Modeli listesi gecerli bir bicimde değil."
+
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "Vehicle Model list not found."
+msgstr "Araç Modeli listesi bulunamadı."
+
 #: openpilot/selfdrive/ui/onroad/alert_renderer.py
 msgid "Waiting to start"
 msgstr "Başlatma bekleniyor"
@@ -681,6 +802,10 @@ msgstr "openpilot'u kullanmak için Şartlar ve Koşulları kabul etmelisiniz."
 msgid "You must accept the Terms and Conditions to use openpilot. Read the latest terms at https://comma.ai/terms before continuing."
 msgstr "openpilot'u kullanmak için Şartlar ve Koşulları kabul etmelisiniz. Devam etmeden önce en güncel şartları https://comma.ai/terms adresinde okuyun."
 
+#: openpilot/selfdrive/ui/layouts/settings/device.py
+msgid "[AUTO DETECT]"
+msgstr "[OTOMATIK ALGILA]"
+
 #: openpilot/selfdrive/ui/onroad/driver_camera_dialog.py
 msgid "camera starting"
 msgstr "kamera başlatılıyor"
@@ -704,6 +829,10 @@ msgstr "aşağı"
 #: openpilot/selfdrive/ui/layouts/settings/software.py
 msgid "downloading..."
 msgstr "indiriliyor..."
+
+#: openpilot/selfdrive/ui/layouts/settings/settings.py
+msgid "dp"
+msgstr "dp"
 
 #: openpilot/selfdrive/ui/layouts/settings/software.py
 msgid "failed to check for update"
@@ -808,12 +937,6 @@ msgid "{} minute ago"
 msgid_plural "{} minutes ago"
 msgstr[0] "{} dakika önce"
 msgstr[1] "{} dakika önce"
-
-#: openpilot/selfdrive/ui/layouts/settings/firehose.py
-msgid "{} segment of your driving is in the training dataset so far."
-msgid_plural "{} segments of your driving is in the training dataset so far."
-msgstr[0] "{} segment sürüşünüz eğitim veri setinde."
-msgstr[1] "{} segment sürüşünüz eğitim veri setinde."
 
 #: openpilot/selfdrive/ui/widgets/prime.py
 msgid "✓ SUBSCRIBED"

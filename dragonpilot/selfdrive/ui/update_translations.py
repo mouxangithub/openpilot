@@ -25,7 +25,6 @@ def update_translations():
   # Generate/update translation files for each language
   for name in multilang.languages.values():
     po_file = os.path.join(TRANSLATIONS_DIR, f"dragonpilot_{name}.po")
-    mo_file = os.path.join(TRANSLATIONS_DIR, f"dragonpilot_{name}.mo")
 
     if os.path.exists(po_file):
       cmd = f"msgmerge --update --no-fuzzy-matching --backup=none --sort-output {po_file} {POT_FILE}"
@@ -35,11 +34,6 @@ def update_translations():
       cmd = f"msginit -l {name} --no-translator --input {POT_FILE} --output-file {po_file}"
       ret = os.system(cmd)
       assert ret == 0
-
-    # Compile .po to .mo
-    cmd = f"msgfmt {po_file} -o {mo_file}"
-    ret = os.system(cmd)
-    assert ret == 0
 
 
 if __name__ == "__main__":

@@ -103,7 +103,7 @@ class AugmentedRoadView(CameraView):
     if not hide_hud:
       self._hud_renderer.render(self._content_rect)
     self.alert_renderer.render(self._content_rect)
-    if not hide_hud:
+    if not hide_hud or ui_state.always_on_dm:
       self.driver_state_renderer.render(self._content_rect)
 
     # Custom UI extension point - add custom overlays here

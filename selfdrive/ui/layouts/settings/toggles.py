@@ -30,7 +30,13 @@ DESCRIPTIONS = {
     "Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line " +
     "without a turn signal activated while driving over 31 mph (50 km/h)."
   ),
-  "AlwaysOnDM": tr_noop("Enable driver monitoring even when openpilot is not engaged."),
+  "AlwaysOnDM": tr_noop("The driver monitoring system can be toggled on/off, but long-term activation is recommended"),
+  "DistractionDetectionLevel": tr_noop(
+    "Set how sensitive the driver distraction detection should be. " +
+    "Strict: Very sensitive, warns on minor distractions. " +
+    "Moderate: Balanced between sensitivity and false positives. " +
+    "Lenient: Only alerts on clear distractions. "
+  ),
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
@@ -119,6 +125,16 @@ class TogglesLayout(Widget):
       icon="speed_limit.png"
     )
 
+    self._distraction_detection_level = multiple_button_item(
+      lambda: tr("Distraction Detection Level"),
+      lambda: tr(DESCRIPTIONS["DistractionDetectionLevel"]),
+      buttons=[lambda: tr("Strict"), lambda: tr("Moderate"), lambda: tr("Lenient")],
+      button_width=255,
+      callback=self._set_distraction_detection_level,
+      selected_index=self._params.get("DistractionDetectionLevel", return_default=True),
+      icon="monitoring.png"
+    )
+
     self._toggles = {}
     self._locked_toggles = set()
 
@@ -156,6 +172,12 @@ class TogglesLayout(Widget):
       # insert longitudinal personality after NDOG toggle
       if param == "DisengageOnAccelerator":
         self._toggles["LongitudinalPersonality"] = self._long_personality_setting
+
+      if param == "AlwaysOnDM":
+        # 根据AlwaysOnDM状态动态显示/隐藏分心检测级别
+        self._toggles["DistractionDetectionLevel"] = self._distraction_detection_level
+        # 初始设置可见性
+        self._update_distraction_detection_visibility()
 
     self._update_experimental_mode_icon()
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
@@ -230,6 +252,13 @@ class TogglesLayout(Widget):
   def _render(self, rect):
     self._scroller.render(rect)
 
+  def _update_distraction_detection_visibility(self):
+    """根据AlwaysOnDM状态更新分心检测级别的可见性"""
+    always_on_dm_enabled = self._params.get_bool("AlwaysOnDM")
+    if "DistractionDetectionLevel" in self._toggles:
+      # 设置分心检测级别的可见性
+      self._toggles["DistractionDetectionLevel"].set_visible(always_on_dm_enabled)
+
   def _update_experimental_mode_icon(self):
     icon = "experimental.png" if self._toggles["ExperimentalMode"].action_item.get_state() else "experimental_white.png"
     self._toggles["ExperimentalMode"].set_icon(icon)
@@ -263,5 +292,12 @@ class TogglesLayout(Widget):
     if self._toggle_defs[param][3]:
       self._params.put_bool("OnroadCycleRequested", True, block=True)
 
+    # 如果切换的是AlwaysOnDM，更新分心检测级别的可见性
+    if param == "AlwaysOnDM":
+      self._update_distraction_detection_visibility()
+
   def _set_longitudinal_personality(self, button_index: int):
     self._params.put("LongitudinalPersonality", button_index, block=True)
+
+  def _set_distraction_detection_level(self, button_index: int):
+    self._params.put("DistractionDetectionLevel", button_index)

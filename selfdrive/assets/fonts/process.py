@@ -1,14 +1,24 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import gettext
 import json
 
 import pyray as rl
 
 FONT_DIR = Path(__file__).resolve().parent
 SELFDRIVE_DIR = FONT_DIR.parents[1]
+ROOT_DIR = FONT_DIR.parents[2]
 TRANSLATIONS_DIR = SELFDRIVE_DIR / "ui" / "translations"
 LANGUAGES_FILE = TRANSLATIONS_DIR / "languages.json"
+
+# Python source trees that may contain hardcoded user-facing strings
+# (e.g. alert text in selfdrived/events.py). Their non-ASCII characters
+# must be baked into the CJK-capable OpFont atlases.
+SOURCE_DIRS = [
+  SELFDRIVE_DIR / "selfdrived",
+  SELFDRIVE_DIR / "ui",
+  ROOT_DIR / "system" / "ui",
+  ROOT_DIR / "dragonpilot",
+]
 
 GLYPH_PADDING = 6
 EXTRA_CHARS = "–‑✓×°§•X⚙✕◀▶✔⌫⇧␣○●↳çêüñ–‑✓×°§•€£¥"
@@ -23,27 +33,39 @@ def _languages():
 
 
 def _dragonpilot_chars(code: str) -> set[str]:
-  """Characters used by dragonpilot's own translations (dragonpilot_{code}.mo).
+  """Characters used by dragonpilot's own translations (dragonpilot_{code}.po).
 
   dp settings translate via a separate catalog from openpilot's app_{code}.po,
   so their glyphs must be baked too — otherwise translated dp settings render
-  as '?' (the catalog ships compiled, so we read the .mo, not a .po source)."""
-  mo_path = TRANSLATIONS_DIR / f"dragonpilot_{code}.mo"
-  if not mo_path.exists():
+  as '?'."""
+  po_path = TRANSLATIONS_DIR / f"dragonpilot_{code}.po"
+  try:
+    return set(po_path.read_text(encoding="utf-8"))
+  except FileNotFoundError:
     return set()
-  with mo_path.open("rb") as fh:
-    catalog = gettext.GNUTranslations(fh)._catalog
+
+
+def _source_chars() -> set[str]:
+  """Collect non-ASCII characters from Python source files that contain
+  user-facing strings. These are not captured by .po files but still need
+  glyphs (e.g. alert text hardcoded in selfdrived/events.py)."""
   chars: set[str] = set()
-  for value in catalog.values():
-    if isinstance(value, str):
-      chars |= set(value)
-  return chars
+  for src_dir in SOURCE_DIRS:
+    if not src_dir.exists():
+      continue
+    for py_file in src_dir.rglob("*.py"):
+      try:
+        chars |= set(py_file.read_text(encoding="utf-8"))
+      except (FileNotFoundError, UnicodeDecodeError):
+        continue
+  return {c for c in chars if ord(c) > 127}
 
 
 def _char_sets():
   base = set(map(chr, range(32, 127))) | set(EXTRA_CHARS)
   labels = set(base)
   per_lang: dict[str, tuple[int, ...]] = {}
+  source_chars = _source_chars()
 
   for language, code in _languages().items():
     labels.update(language)
@@ -54,7 +76,8 @@ def _char_sets():
       continue
     chars |= _dragonpilot_chars(code)
     if code in UNIFONT_LANGUAGES:
-      lang_chars = set(base) | chars
+      # Bake .po chars + hardcoded source chars into the CJK-capable atlas
+      lang_chars = set(base) | chars | source_chars
       per_lang[code] = tuple(sorted(ord(c) for c in lang_chars))
     else:
       base.update(chars)

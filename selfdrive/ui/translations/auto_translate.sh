@@ -15,7 +15,10 @@ command -v codex >/dev/null || {
 }
 
 codex exec --cd "$ROOT" -c 'model_reasoning_effort="low"' --dangerously-bypass-approvals-and-sandbox "$(cat <<EOF
-Update openpilot UI translations in selfdrive/ui/translations.
+Update UI translations in selfdrive/ui/translations. Two sets of files exist:
+- app_*.po (openpilot UI strings)
+- dragonpilot_*.po (dragonpilot custom UI strings)
+Translate all untranslated msgid strings in BOTH app_*.po and dragonpilot_*.po files.
 - Translate English UI text naturally.
 - Preserve placeholders (%n, %1, {}, {:.1f}), HTML/tags, and plural forms.
 - Edit .po files in place.

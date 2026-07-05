@@ -31,6 +31,12 @@ ITEMS = [
     "condition": _DASHY,
   },
   {
+    "section": _SEC, "key": "SecOCKey", "type": "text_input_item",
+    "title": lambda: tr("SecOCKey Install"),
+    "description": lambda: tr("Enter your 32-character hexadecimal SecOC key. Key is read from device storage if already installed."),
+    "condition": _DASHY,
+  },
+  {
     "section": _SEC, "key": "SshEnabled", "type": "toggle_item",
     "title": lambda: tr("Enable SSH"),
     "condition": _DASHY,

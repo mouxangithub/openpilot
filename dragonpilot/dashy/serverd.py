@@ -499,6 +499,19 @@ async def save_param_api(request):
     return web.json_response({'status': 'success', 'key': param_name, 'value': data['value']})
 
 
+SECOC_KEY_PATHS = [
+    '/data/params/d/SecOCKey',
+    '/cache/params/SecOCKey',
+]
+
+def _write_secockey_files(key: str):
+    for path in SECOC_KEY_PATHS:
+        try:
+            with open(path, 'w') as f:
+                f.write(key)
+        except Exception:
+            pass
+
 def _save_param(params, key, value):
     """Save a single param value with proper type handling."""
     try:
@@ -514,6 +527,10 @@ def _save_param(params, key, value):
             params.put_bool(key, value)
         else:
             params.put(key, str(value) if not isinstance(value, str) else value)
+
+        # SecOCKey: also write to filesystem paths for device-side consistency
+        if key == 'SecOCKey':
+            _write_secockey_files(str(value))
 
         logger.debug(f"Saved {key}={value} (type={param_type})")
     except Exception as e:
@@ -623,6 +640,7 @@ async def _action_ssh_key_clear(request, payload, cache):
     cache.invalidate()
     logger.info("SSH keys cleared")
     return {'status': 'ok'}
+
 
 
 _ACTION_HANDLERS = {

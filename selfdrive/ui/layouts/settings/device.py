@@ -1,4 +1,5 @@
 import os
+import re
 import math
 import json
 
@@ -18,6 +19,7 @@ from openpilot.system.ui.widgets.html_render import HtmlModal
 from openpilot.system.ui.widgets.list_view import text_item, button_item, dual_button_item
 from openpilot.system.ui.widgets.option_dialog import MultiOptionDialog
 from openpilot.system.ui.widgets.scroller_tici import Scroller
+from openpilot.system.ui.widgets.keyboard import Keyboard
 
 # Description constants
 DESCRIPTIONS = {
@@ -26,6 +28,8 @@ DESCRIPTIONS = {
   'reset_calibration': tr_noop("openpilot requires the device to be mounted within 4° left or right and within 5° up or 9° down."),
   'review_guide': tr_noop("Review the rules, features, and limitations of openpilot"),
 }
+DATA_PARAMS_D_SECOCKEY_PATH = "/data/params/d/SecOCKey"
+CACHE_PARAMS_SECOCKEY_PATH = "/cache/params/SecOCKey"
 
 
 class DeviceLayout(Widget):
@@ -42,6 +46,9 @@ class DeviceLayout(Widget):
     self._dp_vehicle_selector_btn.action_item.set_value(ui_state.params.get("dp_dev_model_selected") or tr("[AUTO DETECT]"))
     self._dp_vehicle_selector_make_dialog: MultiOptionDialog | None = None
     self._dp_vehicle_selector_model_dialog: MultiOptionDialog | None = None
+
+    self._keyboard = Keyboard(max_text_size=64, min_text_size=8, show_password_toggle=True)
+    self._secoc_key = self._params.get("SecOCKey") or self._read_key_from_files()
 
     items = self._initialize_items()
     self._scroller = Scroller(items, line_separator=True, spacing=0)
@@ -69,6 +76,13 @@ class DeviceLayout(Widget):
       text_item(lambda: tr("Dongle ID"), self._params.get("DongleId") or (lambda: tr("N/A"))),
       text_item(lambda: tr("Serial"), self._params.get("HardwareSerial") or (lambda: tr("N/A"))),
       self._pair_device_btn,
+      button_item(
+        lambda: tr("SecOCKey Install"),
+        lambda: tr("INSTALL"),
+        lambda: self._secoc_key or tr("Not Installed"),
+        callback=self._install_secockey,
+        enabled=ui_state.is_offroad,
+      ),
       button_item(lambda: tr("Driver Camera"), lambda: tr("PREVIEW"), lambda: tr(DESCRIPTIONS['driver_camera']),
                   callback=lambda: gui_app.push_widget(DriverCameraDialog()), enabled=ui_state.is_offroad),
       self._reset_calib_btn,
@@ -282,3 +296,88 @@ class DeviceLayout(Widget):
 
     dialog = ConfirmDialog(tr("Are you sure you want to switch?"), tr("CONFIRM"), callback=on_off_road)
     gui_app.push_widget(dialog)
+
+  @staticmethod
+  def _is_key_valid(key: str) -> bool:
+    """Checks if the key is a valid 32-character lowercase hexadecimal string."""
+    if not isinstance(key, str):
+      return False
+
+    if len(key) != 32:
+      return False
+
+    pattern = r"^[0-9a-f]{32}$"
+    return bool(re.match(pattern, key))
+
+  @staticmethod
+  def _write_key_to_file(file_path: str, key: str) -> None:
+    """Writes the key to the specified file path."""
+    try:
+      with open(file_path, "w") as f:
+        f.write(key)
+    except Exception as e:
+      print(f"Error writing key to file {file_path}: {e}")
+
+  def _read_key_from_file(self, file_path: str) -> str | None:
+    if not os.path.exists(file_path):
+      return None
+
+    try:
+      with open(file_path, "r") as f:
+        key = f.read().strip()
+        if self._is_key_valid(key):
+          return key
+        else:
+          # Key is invalid, delete the file
+          try:
+            os.remove(file_path)
+            print(f"Deleted invalid key file: {file_path} which contained {key}")
+          except Exception as e:
+            print(f"Error deleting invalid key file {file_path}: {e}")
+          return None
+    except Exception as e:
+      print(f"Error reading key file {file_path}: {e}")
+      return None  # Return None on any error
+
+  def _read_key_from_files(self) -> str | None:
+    """Reads the key from the appropriate file(s) based on the AGNOS environment."""
+    data_params_d_secockey = self._read_key_from_file(DATA_PARAMS_D_SECOCKEY_PATH)
+    cache_params_secockey = self._read_key_from_file(CACHE_PARAMS_SECOCKEY_PATH)
+    existing_key = cache_params_secockey or data_params_d_secockey
+
+    if not existing_key:
+      return None
+
+    # Write the existing key to missing files
+    if data_params_d_secockey != existing_key:
+      self._write_key_to_file(DATA_PARAMS_D_SECOCKEY_PATH, existing_key)
+    if cache_params_secockey != existing_key:
+      self._write_key_to_file(CACHE_PARAMS_SECOCKEY_PATH, existing_key)
+
+    return existing_key
+
+  def _install_secockey(self):
+    def enter_secoc_key(result):
+      key = self._keyboard.text
+
+      if key == "":
+        gui_app.push_widget(alert_dialog(tr("Key cannot be empty.")))
+        return False
+      if len(key) != 32:
+        gui_app.push_widget(alert_dialog(tr("Key must be exactly 32 characters long. Current length: {} characters.").format(len(key))))
+        return False
+      if not self._is_key_valid(key):
+        gui_app.push_widget(alert_dialog(tr("Invalid key format. Key must contain only hexadecimal characters (0-9, a-f).")))
+        return False
+
+      self._secoc_key = key
+      self._params.put("SecOCKey", key)
+      self._write_key_to_file(DATA_PARAMS_D_SECOCKEY_PATH, key)
+      self._write_key_to_file(CACHE_PARAMS_SECOCKEY_PATH, key)
+      gui_app.push_widget(alert_dialog(tr("Success!\nRestart comma to have openpilot use the key")))
+
+    self._keyboard.reset(min_text_size=0)
+    self._keyboard.set_text(self._secoc_key or "")
+    self._keyboard.set_title(tr("Enter your Car Security Key"), tr("Archived key: \"{}\"").format(self._secoc_key))
+    self._keyboard.set_callback(enter_secoc_key)
+    gui_app.push_widget(self._keyboard)

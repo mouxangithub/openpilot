@@ -3,7 +3,7 @@ from opendbc.car.structs import CarParams
 SteerControlType = CarParams.SteerControlType
 
 
-def create_steer_command(packer, steer, steer_req):
+def create_steer_command(packer, steer, steer_req, bus=0):
   """Creates a CAN message for the Toyota Steer Command."""
 
   values = {
@@ -11,10 +11,10 @@ def create_steer_command(packer, steer, steer_req):
     "STEER_TORQUE_CMD": steer,
     "SET_ME_1": 1,
   }
-  return packer.make_can_msg("STEERING_LKA", 0, values)
+  return packer.make_can_msg("STEERING_LKA", bus, values)
 
 
-def create_lta_steer_command(packer, steer_control_type, steer_angle, steer_req, frame, torque_wind_down):
+def create_lta_steer_command(packer, steer_control_type, steer_angle, steer_req, frame, torque_wind_down, bus=0):
   """Creates a CAN message for the Toyota LTA Steer Command."""
 
   values = {
@@ -30,17 +30,17 @@ def create_lta_steer_command(packer, steer_control_type, steer_angle, steer_req,
     "STEER_REQUEST_2": steer_req,
     "CLEAR_HOLD_STEERING_ALERT": 0,
   }
-  return packer.make_can_msg("STEERING_LTA", 0, values)
+  return packer.make_can_msg("STEERING_LTA", bus, values)
 
 
-def create_lta_steer_command_2(packer, frame):
+def create_lta_steer_command_2(packer, frame, bus=0):
   values = {
     "COUNTER": frame + 128,
   }
-  return packer.make_can_msg("STEERING_LTA_2", 0, values)
+  return packer.make_can_msg("STEERING_LTA_2", bus, values)
 
 
-def create_accel_command(packer, accel, pcm_cancel, permit_braking, standstill_req, lead, acc_type, fcw_alert, distance):
+def create_accel_command(packer, accel, pcm_cancel, permit_braking, standstill_req, lead, acc_type, fcw_alert, distance, bus=0):
   # TODO: find the exact canceling bit that does not create a chime
   values = {
     "ACCEL_CMD": accel,
@@ -53,17 +53,17 @@ def create_accel_command(packer, accel, pcm_cancel, permit_braking, standstill_r
     "ALLOW_LONG_PRESS": 1,
     "ACC_CUT_IN": fcw_alert,  # only shown when ACC enabled
   }
-  return packer.make_can_msg("ACC_CONTROL", 0, values)
+  return packer.make_can_msg("ACC_CONTROL", bus, values)
 
 
-def create_accel_command_2(packer, accel):
+def create_accel_command_2(packer, accel, bus=0):
   values = {
     "ACCEL_CMD": accel,
   }
-  return packer.make_can_msg("ACC_CONTROL_2", 0, values)
+  return packer.make_can_msg("ACC_CONTROL_2", bus, values)
 
 
-def create_pcs_commands(packer, accel, active, mass):
+def create_pcs_commands(packer, accel, active, mass, bus=0):
   values1 = {
     "COUNTER": 0,
     "FORCE": round(min(accel, 0) * mass * 2),
@@ -71,7 +71,7 @@ def create_pcs_commands(packer, accel, active, mass):
     "BRAKE_STATUS": 0,
     "PRECOLLISION_ACTIVE": 1 if active else 0,
   }
-  msg1 = packer.make_can_msg("PRE_COLLISION", 0, values1)
+  msg1 = packer.make_can_msg("PRE_COLLISION", bus, values1)
 
   values2 = {
     "DSS1GDRV": min(accel, 0),     # accel
@@ -81,12 +81,12 @@ def create_pcs_commands(packer, accel, active, mass):
     "PREFILL": 1 if active else 0, # goes on and off before DSS1GDRV
     "AVSTRGR": 1 if active else 0,
   }
-  msg2 = packer.make_can_msg("PRE_COLLISION_2", 0, values2)
+  msg2 = packer.make_can_msg("PRE_COLLISION_2", bus, values2)
 
   return [msg1, msg2]
 
 
-def create_acc_cancel_command(packer):
+def create_acc_cancel_command(packer, bus=0):
   values = {
     "GAS_RELEASED": 0,
     "CRUISE_ACTIVE": 0,
@@ -95,10 +95,10 @@ def create_acc_cancel_command(packer):
     "CRUISE_STATE": 0,
     "CANCEL_REQ": 1,
   }
-  return packer.make_can_msg("PCM_CRUISE", 0, values)
+  return packer.make_can_msg("PCM_CRUISE", bus, values)
 
 
-def create_fcw_command(packer, fcw):
+def create_fcw_command(packer, fcw, bus=0):
   values = {
     "PCS_INDICATOR": 1,  # PCS turned off
     "FCW": fcw,
@@ -107,10 +107,10 @@ def create_fcw_command(packer, fcw):
     "PCS_OFF": 1,
     "PCS_SENSITIVITY": 0,
   }
-  return packer.make_can_msg("PCS_HUD", 0, values)
+  return packer.make_can_msg("PCS_HUD", bus, values)
 
 
-def create_ui_command(packer, steer, chime, left_line, right_line, left_lane_depart, right_lane_depart, enabled, stock_lkas_hud):
+def create_ui_command(packer, steer, chime, left_line, right_line, left_lane_depart, right_lane_depart, enabled, stock_lkas_hud, bus=0):
   values = {
     "TWO_BEEPS": chime,
     "LDA_ALERT": steer,
@@ -152,7 +152,7 @@ def create_ui_command(packer, steer, chime, left_line, right_line, left_lane_dep
       "LANE_SWAY_TOGGLE",
     ]})
 
-  return packer.make_can_msg("LKAS_HUD", 0, values)
+  return packer.make_can_msg("LKAS_HUD", bus, values)
 
 
 def toyota_checksum(address: int, sig, d: bytearray) -> int:
