@@ -43,6 +43,8 @@ def get_max_accel(v_ego):
 def get_coast_accel(pitch):
   return np.sin(pitch) * -5.65 - 0.3  # fitted from data using xx/projects/allow_throttle/compute_coast_accel.py
 
+COAST_FLAT_ACCEL = get_coast_accel(0.0)  # flat-ground coast baseline (-0.3); subtract to isolate the grade term
+
 def limit_accel_in_turns(v_ego, angle_steers, a_target, CP):
   """
   This function returns a limited long acceleration allowed, depending on the existing lateral acceleration
@@ -103,8 +105,10 @@ class LongitudinalPlanner:
   def update(self, sm, dp_flags = 0):
     if len(sm['carControl'].orientationNED) == 3:
       accel_coast = get_coast_accel(sm['carControl'].orientationNED[1])
+      grade_accel = accel_coast - COAST_FLAT_ACCEL   # pitch grade term for the accel logger
     else:
       accel_coast = ACCEL_MAX
+      grade_accel = None                             # no pitch -> logger fails closed
 
     v_ego = sm['carState'].vEgo
     v_cruise_kph = min(sm['carState'].vCruise, V_CRUISE_MAX)
@@ -123,7 +127,7 @@ class LongitudinalPlanner:
     prev_accel_constraint = not (reset_state or sm['carState'].standstill)
 
     self.accel_eq.maybe_refresh(sm['selfdriveState'].personality.raw)
-    self.accel_logger.update(sm)
+    self.accel_logger.update(sm, grade_accel)
     accel_clip = [ACCEL_MIN, self.accel_eq.max_accel(v_ego)]
     steer_angle_without_offset = sm['carState'].steeringAngleDeg - sm['liveParameters'].angleOffsetDeg
     accel_clip = limit_accel_in_turns(v_ego, steer_angle_without_offset, accel_clip, self.CP)
