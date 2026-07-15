@@ -46,7 +46,7 @@ def _read_accel_log(path):
   return samples
 
 
-def _habit_grid(samples, step=0.5, half=1.5, min_w=10):
+def _habit_grid(samples, step=0.5, half=1.5, min_w=60):
   """Sliding windows (±half m/s) over speed, keeping only windows with >= min_w
   samples. Thin windows are skipped (not bailed on) so a sparse very-low-speed
   slice (the log starts at 1 m/s) or a thin high-speed tail doesn't wipe out the
@@ -86,7 +86,7 @@ def _habit_band(grid, pct):
 
 
 def _habit_bands(grid):
-  """The three reference lines for a max-accel ceiling — typical (p50), brisk
-  (p75), hardest comfortable (p90). v2 samples are already deliberate held
-  rates (not zero-dominated), so the median is meaningful."""
-  return {'lower': _habit_band(grid, 0.50), 'mid': _habit_band(grid, 0.75), 'upper': _habit_band(grid, 0.90)}
+  """The three reference lines for a max-accel ceiling — usual (p75), brisk (p90),
+  hardest (p98). Upper-range: dense per-frame data is mostly gentle partial throttle,
+  so low percentiles hug zero and don't inform a ceiling."""
+  return {'lower': _habit_band(grid, 0.75), 'mid': _habit_band(grid, 0.90), 'upper': _habit_band(grid, 0.98)}

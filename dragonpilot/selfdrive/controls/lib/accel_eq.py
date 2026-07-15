@@ -100,6 +100,7 @@ class AccelEq:
     self._personality = -1  # unknown sentinel → the first maybe_refresh() with a real value (0/1/2) forces a resolve
     self._doc = None       # cached parsed profiles JSON (re-read only on mtime change)
     self._max_bp, self._max_v = list(stock_bp), list(stock_v)
+    self._last_logged = None  # last resolved profile name we cloudlog'd (log on change)
     self._reload_doc()
     self._last_mtime = self._mtime(PROFILES_KEY)
 
@@ -135,6 +136,7 @@ class AccelEq:
     # Pick the active profile's curve from the cached doc. Pure in-memory — no
     # param access, so it's cheap to call on every personality change.
     max_bp, max_v = list(self._stock_bp), list(self._stock_v)
+    resolved = STOCK_NAME
     try:
       data = self._doc
       if data:
@@ -149,9 +151,15 @@ class AccelEq:
             mc = _validate_curve(prof.get("max"), MAX_ACCEL_CEIL)
             if mc is not None:
               max_bp, max_v = mc
+              resolved = name
     except Exception as e:  # never let tuning data crash the planner
       cloudlog.warning(f"AccelEq: failed to resolve profile, using stock: {e}")
     self._max_bp, self._max_v = max_bp, max_v
+    # Surface which profile actually took effect (once, on change) so it's clear
+    # from the logs whether the planner is on Stock or a stored curve.
+    if resolved != self._last_logged:
+      self._last_logged = resolved
+      cloudlog.info(f"AccelEq: profile='{resolved}' v0={max_v[0]:.2f} v_top={max_v[-1]:.2f}")
 
   def max_accel(self, v_ego):
     return float(np.interp(v_ego, self._max_bp, self._max_v))
