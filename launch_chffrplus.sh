@@ -236,11 +236,47 @@ function launch {
   # write tmux scrollback to a file
   tmux capture-pane -pq -S-1000 > /tmp/launch_log
 
-  # start manager
+  # TSK: /cache is root-owned but the web server runs as comma, so create the TSK
+  # cache dir privileged and hand it to comma before its jobs write to it. /cache
+  # clears on AGNOS update, so recreate every boot; mkdir -p is idempotent.
+  sudo mkdir -p /cache/tsk
+  sudo chown comma:comma /cache/tsk
+
+  start_op_assistant() {
+    local root="$DIR"
+    local aid_py=python3.12
+    command -v "$aid_py" >/dev/null 2>&1 || aid_py=python3
+    local venv_site="/usr/local/venv/lib/python3.12/site-packages"
+    local py_path="$root"
+    [ -d "$venv_site" ] && py_path="$root:$venv_site"
+    local so="$root/openpilot/common/params_pyx.so"
+    [ -f "$so" ] || so="$root/common/params_pyx.so"
+    if [ ! -f "$so" ]; then
+      echo "[aid] params_pyx.so missing, skip ($(date))" >> /tmp/aid.log
+      return 1
+    fi
+    if pgrep -f "[p]ython.* -m ai\.aid" >/dev/null 2>&1; then
+      return 0
+    fi
+    echo "[aid] starting :5090 ($(date))" >> /tmp/aid.log
+    (cd "$root" && PYTHONPATH="$py_path" "$aid_py" -m ai.aid >> /tmp/aid.log 2>&1 &)
+  }
+
+  # start manager (build native modules first — aid needs params_pyx.so)
   cd system/manager
   if [ ! -f $DIR/prebuilt ]; then
     ./build.py
   fi
+
+  # op 助手（含 TSK）在 manager 之前启动，但必须在 scons 编译完成之后
+  start_op_assistant
+  (
+    while true; do
+      sleep 45
+      start_op_assistant
+    done
+  ) &
+
   ./manager.py
 
   # if broken, keep on screen error

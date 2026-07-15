@@ -39,7 +39,7 @@ class DashyQR:
   @staticmethod
   def get_web_ui_url() -> str:
     ip = DashyQR.get_local_ip()
-    return f"http://{ip if ip else 'localhost'}:5088"
+    return f"http://{ip if ip else 'localhost'}:5090"
 
   def _generate_qr_code(self, url: str) -> None:
     try:

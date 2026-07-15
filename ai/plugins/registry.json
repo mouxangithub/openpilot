@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "core-extensions",
+      "name": "op助手核心扩展",
+      "description": "系统控制、Git、审计、网络诊断等内置扩展工具",
+      "module": "ai.plugins.builtin.core",
+      "enabled": true
+    },
+    {
+      "id": "device-extras",
+      "name": "设备健康插件",
+      "description": "device_health / panda_status 设备与 Panda 诊断",
+      "module": "ai.plugins.builtin.device_extras",
+      "enabled": true
+    }
+  ]
+}
