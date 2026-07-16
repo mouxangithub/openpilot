@@ -22,6 +22,24 @@ def update_translations():
   ret = os.system(cmd)
   assert ret == 0
 
+  # Also extract dashy's web UI strings (JavaScript) into the same template.
+  # dashy is a sibling repo — build_and_deploy.sh copies only the minified dist
+  # into the tree (where tr() calls are renamed and unscannable), so scan its
+  # web/src and append the tr()/tr_noop() literals via --join-existing. Override
+  # the location with DASHY_SRC; skipped quietly if the source isn't present.
+  dashy_src = os.environ.get("DASHY_SRC") or os.path.join(BASEDIR, "..", "dashy", "web", "src")
+  dashy_src = os.path.realpath(dashy_src)
+  if os.path.isdir(dashy_src):
+    js_files = [os.path.relpath(os.path.join(root, fn), dashy_src)
+                for root, _, filenames in os.walk(dashy_src)
+                for fn in filenames if fn.endswith(".js")]
+    if js_files:
+      cmd = ("xgettext -L JavaScript --keyword=tr --keyword=tr_noop --from-code=UTF-8 "
+             "--join-existing "
+             f"-D {dashy_src} -o {POT_FILE} {' '.join(js_files)}")
+      ret = os.system(cmd)
+      assert ret == 0
+
   # Generate/update translation files for each language
   for name in multilang.languages.values():
     po_file = os.path.join(TRANSLATIONS_DIR, f"dragonpilot_{name}.po")

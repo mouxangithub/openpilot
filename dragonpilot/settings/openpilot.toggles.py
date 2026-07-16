@@ -26,6 +26,7 @@ ITEMS = [
     "section": _SEC, "key": "OpenpilotEnabledToggle", "type": "toggle_item",
     "title": lambda: tr("Enable openpilot"),
     "description": lambda: tr(_TOGGLES_DESC["OpenpilotEnabledToggle"]),
+    "needs_restart": True,
     "condition": _DASHY,
   },
   {
@@ -55,12 +56,14 @@ ITEMS = [
     "section": _SEC, "key": "RecordFront", "type": "toggle_item",
     "title": lambda: tr("Record and Upload Driver Camera"),
     "description": lambda: tr(_TOGGLES_DESC["RecordFront"]),
+    "needs_restart": True,
     "condition": _DASHY,
   },
   {
     "section": _SEC, "key": "RecordAudio", "type": "toggle_item",
     "title": lambda: tr("Record and Upload Microphone Audio"),
     "description": lambda: tr(_TOGGLES_DESC["RecordAudio"]),
+    "needs_restart": True,
     "condition": _DASHY,
   },
   {
