@@ -1,0 +1,36 @@
+name: OP Agent Bug（旧入口）
+description: 已合并到「OP Agent Bug」— 请优先选列表中同名主模板
+title: "[bug]: "
+labels: ["bug", "ai-assistant"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **请改用 Issue 选择器中的「OP Agent Bug」**（字段更完整）。
+        若你已在此页，请继续填写下方信息。
+  - type: dropdown
+    id: area
+    attributes:
+      label: 问题区域
+      options:
+        - Web 聊天 / 向导
+        - Web 终端 / op CLI
+        - 调参 / 确认卡
+        - 安装 / 集成
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+  - type: textarea
+    id: extra
+    attributes:
+      label: 日志或截图说明

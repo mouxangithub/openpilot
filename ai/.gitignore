@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+.env
+.env.*
+data/pc_tool_sessions/
+data/fork_drafts/
+data/fork_analysis/
+*.swp
+*~
+.DS_Store
+config.json
+web/static/vendor/office/_staging/
+cabana_cache
+data
+/workspace/
+
+# Panda firmware is built under openpilot/panda/board/obj — never vendor into ai/
+**/*.signed
+**/panda/board/obj/

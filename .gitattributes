@@ -1,0 +1,9 @@
+* text=auto
+
+# to move existing files into LFS:
+# git add --renormalize .
+
+# C3 fork: keep UI fonts/training images in plain git (avoid LFS quota on push)
+openpilot/selfdrive/assets/fonts/OpFont-*.otf -filter -diff -merge
+openpilot/selfdrive/assets/training/*.png -filter -diff -merge
+

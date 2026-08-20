@@ -1,0 +1,5 @@
+{"task_input": "刹车太急，乘客晕车", "expected_behavior": "Target comfort longitudinal params; read before write; explain feel change; suggest route A/B compare_tune_ab after change.", "difficulty": "medium", "category": "comfort", "source": "golden"}
+{"task_input": "跟车距离档位现在是多少？", "expected_behavior": "read_params FollowDistanceGap; consumer label 跟车距离; no write unless user asks to change.", "difficulty": "easy", "category": "read", "source": "golden"}
+{"task_input": "加速太肉，想跟车更积极一点", "expected_behavior": "Balance safety; LongitudinalPersonality or related; warn about traffic; confirm before write.", "difficulty": "medium", "category": "aggressive", "source": "golden"}
+{"task_input": "改完跟车参数怎么验证有没有变好？", "expected_behavior": "post_tune_validation flow: save_tune_snapshot, compare_tune_ab or score_route_tune; rollback path.", "difficulty": "medium", "category": "validation", "source": "golden"}
+{"task_input": "高速跟车画龙是不是纵向问题？", "expected_behavior": "Clarify lateral vs longitudinal; may redirect to alka/mads; read state and routes before blaming lon params.", "difficulty": "hard", "category": "diagnosis", "source": "golden"}

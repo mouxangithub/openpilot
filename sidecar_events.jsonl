@@ -1,0 +1,56 @@
+{"type": "tool_start", "name": "get_full_vehicle_state", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119829973}
+{"type": "tool_done", "name": "get_full_vehicle_state", "agentId": "op", "ok": true, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119829981}
+{"type": "tool_start", "name": "run_shell_command", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119839938}
+{"type": "tool_done", "name": "run_shell_command", "agentId": "op", "ok": false, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119840049}
+{"type": "tool_start", "name": "read_params", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119840056}
+{"type": "tool_done", "name": "read_params", "agentId": "op", "ok": true, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119840060}
+{"type": "tool_start", "name": "run_shell_command", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119849105}
+{"type": "tool_done", "name": "run_shell_command", "agentId": "op", "ok": false, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119849144}
+{"type": "tool_start", "name": "run_shell_command", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119853337}
+{"type": "tool_done", "name": "run_shell_command", "agentId": "op", "ok": true, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119853383}
+{"type": "tool_start", "name": "run_shell_command", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119853392}
+{"type": "tool_done", "name": "run_shell_command", "agentId": "op", "ok": true, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119853434}
+{"type": "tool_start", "name": "run_shell_command", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119853445}
+{"type": "tool_done", "name": "run_shell_command", "agentId": "op", "ok": true, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119853488}
+{"type": "tool_start", "name": "run_shell_command", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119862906}
+{"type": "tool_done", "name": "run_shell_command", "agentId": "op", "ok": true, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119862948}
+{"type": "tool_start", "name": "run_shell_command", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119862958}
+{"type": "tool_done", "name": "run_shell_command", "agentId": "op", "ok": false, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119863041}
+{"type": "tool_start", "name": "run_shell_command", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119873445}
+{"type": "tool_done", "name": "run_shell_command", "agentId": "op", "ok": false, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119874494}
+{"type": "tool_start", "name": "run_shell_command", "agentId": "op", "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119875216}
+{"type": "tool_done", "name": "run_shell_command", "agentId": "op", "ok": false, "sessionId": "s_mszozz1y_rcau1g", "worker_ts": 1787119875455}
+{"type": "tool_start", "name": "search_tools", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120542881}
+{"type": "tool_done", "name": "search_tools", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120542888}
+{"type": "tool_start", "name": "search_tools", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120542893}
+{"type": "tool_done", "name": "search_tools", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120542896}
+{"type": "tool_start", "name": "search_tools", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120547413}
+{"type": "tool_done", "name": "search_tools", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120547421}
+{"type": "tool_start", "name": "search_tools", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120547434}
+{"type": "tool_done", "name": "search_tools", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120547437}
+{"type": "tool_start", "name": "search_tools", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120547450}
+{"type": "tool_done", "name": "search_tools", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120547454}
+{"type": "tool_start", "name": "search_tools", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120547467}
+{"type": "tool_done", "name": "search_tools", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120547472}
+{"type": "tool_start", "name": "search_knowledge_base", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120551582}
+{"type": "tool_done", "name": "search_knowledge_base", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120551673}
+{"type": "tool_start", "name": "get_agent_memory", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120551682}
+{"type": "tool_done", "name": "get_agent_memory", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120551689}
+{"type": "tool_start", "name": "search_knowledge_base", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120556883}
+{"type": "tool_done", "name": "search_knowledge_base", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120556970}
+{"type": "tool_start", "name": "search_knowledge_base", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120557758}
+{"type": "tool_done", "name": "search_knowledge_base", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120557835}
+{"type": "tool_start", "name": "load_tool", "agentId": "cloud", "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120608816}
+{"type": "tool_done", "name": "load_tool", "agentId": "cloud", "ok": true, "sessionId": "s_mszpfbc3_dw328v", "worker_ts": 1787120608826}
+{"type": "tool_start", "name": "snapshot_tune_state", "agentId": "tune", "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122015171}
+{"type": "tool_done", "name": "snapshot_tune_state", "agentId": "tune", "ok": false, "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122015175}
+{"type": "tool_start", "name": "read_params", "agentId": "tune", "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122015188}
+{"type": "tool_done", "name": "read_params", "agentId": "tune", "ok": true, "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122015189}
+{"type": "tool_start", "name": "list_sp_settings", "agentId": "tune", "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122015189}
+{"type": "tool_done", "name": "list_sp_settings", "agentId": "tune", "ok": false, "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122015189}
+{"type": "tool_start", "name": "get_vehicle_state", "agentId": "tune", "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122032560}
+{"type": "tool_done", "name": "get_vehicle_state", "agentId": "tune", "ok": true, "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122032566}
+{"type": "tool_start", "name": "get_agent_memory", "agentId": "tune", "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122032572}
+{"type": "tool_done", "name": "get_agent_memory", "agentId": "tune", "ok": true, "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122032576}
+{"type": "tool_start", "name": "search_knowledge_base", "agentId": "tune", "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122032597}
+{"type": "tool_done", "name": "search_knowledge_base", "agentId": "tune", "ok": true, "sessionId": "s_mszqaqg6_q2utvx", "worker_ts": 1787122032658}

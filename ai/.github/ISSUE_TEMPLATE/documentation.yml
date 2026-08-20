@@ -1,0 +1,22 @@
+name: 文档改进
+description: Wiki、docs/ 或帮助文案缺失/错误
+title: "[docs]: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: 页面 / 文件路径
+      placeholder: "docs/CLI.md 或 Wiki/Quick-Start"
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: 问题或缺失内容
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: 建议补充（可选）
