@@ -1,0 +1,1592 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>OP 助手</title>
+  <link rel="icon" type="image/svg+xml" href="/static/img/favicon.svg">
+  <link rel="stylesheet" href="/static/vendor/markdown-it/highlight-github-dark.min.css">
+  <link rel="stylesheet" href="/static/css/ai.css?v=20260820j">
+  <link rel="stylesheet" href="/static/css/openclaw-chat.css?v=20260820j">
+  <link rel="stylesheet" href="/static/css/office-panel.css?v=20260730s">
+  <link rel="stylesheet" href="/static/css/canvas-panel.css?v=20260723e">
+  <link rel="stylesheet" href="/static/css/composer-context-meter.css?v=20260819b">
+  <link rel="stylesheet" href="/static/css/workbuddy-panel.css?v=20260819e">
+  <link rel="stylesheet" href="/static/css/cabana-panel.css?v=20260730k">
+  <link rel="stylesheet" href="/static/vendor/uplot/uPlot.min.css">
+  <link rel="stylesheet" href="/static/vendor/xterm/xterm.css?v=20260722i">
+</head>
+<body>
+  <div id="appSplash" class="app-splash" role="status" aria-live="polite" aria-busy="true">
+    <div class="app-splash-inner">
+      <div class="app-splash-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M3.2265 42C3.2265 41.0282 3.15054 40.2141 3.26228 39.4294C3.3099 39.0948 3.70043 38.7365 4.01893 38.5344C5.57173 37.5489 7.25857 36.7621 8.70427 35.6319C13.387 31.9708 16.1628 27.1512 16.3145 20.8905C16.3574 19.1128 15.7039 18.6687 14.2108 19.3612C9.90092 21.3604 5.26623 20.1883 2.79277 16.4731C0.0953566 12.421 0.475192 7.0259 3.70716 3.4862C7.83541 -1.03482 14.6281 -1.1701 19.3123 3.14764C22.1182 5.73404 23.4514 9.07362 23.7839 12.8722C24.8985 25.598 18.5156 36.0872 6.89848 40.695C5.74875 41.1508 4.56975 41.5252 3.2265 42Z" fill="currentColor"/>
+        </svg>
+      </div>
+      <p class="app-splash-title">op<span>助手</span></p>
+    </div>
+  </div>
+  <div class="app-shell" id="appShell">
+    <!-- Session list (overlay drawer) -->
+    <aside class="sessions-panel" id="sessionsPanel" aria-hidden="true">
+      <div class="sessions-header">
+        <h3 id="sessionsTitle">会话列表</h3>
+        <div class="sessions-header-actions">
+          <button type="button" id="newSessionBtn" class="btn icon" title="New chat" aria-label="New chat">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button type="button" id="sessionsCloseBtn" class="btn icon" title="Close" aria-label="Close sessions">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <ul class="session-list" id="sessionList"></ul>
+    </aside>
+
+    <!-- Main -->
+    <div class="main-column">
+      <header class="chat-header">
+        <div class="header-zone header-left">
+          <button type="button" id="sessionsToggleBtn" class="btn icon" title="会话" aria-label="Sessions">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+          </button>
+          <div class="chat-header-brand">
+            <div class="brand-mark sm">
+              <svg viewBox="0 0 24 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M3.2265 42C3.2265 41.0282 3.15054 40.2141 3.26228 39.4294C3.3099 39.0948 3.70043 38.7365 4.01893 38.5344C5.57173 37.5489 7.25857 36.7621 8.70427 35.6319C13.387 31.9708 16.1628 27.1512 16.3145 20.8905C16.3574 19.1128 15.7039 18.6687 14.2108 19.3612C9.90092 21.3604 5.26623 20.1883 2.79277 16.4731C0.0953566 12.421 0.475192 7.0259 3.70716 3.4862C7.83541 -1.03482 14.6281 -1.1701 19.3123 3.14764C22.1182 5.73404 23.4514 9.07362 23.7839 12.8722C24.8985 25.598 18.5156 36.0872 6.89848 40.695C5.74875 41.1508 4.56975 41.5252 3.2265 42Z" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="chat-header-titles">
+              <h1 class="chat-title">op<span>助手</span></h1>
+              <span class="model-badge" id="modelBadge">—</span>
+              <span class="active-agent-badge hidden" id="activeAgentBadge"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-zone header-center" id="sessionSearchWrap">
+          <div class="session-search session-search--desktop">
+            <div class="session-search-field">
+              <svg class="session-search-icon icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input type="search" id="sessionSearchInput" class="session-search-input" autocomplete="off" spellcheck="false" enterkeyhint="search" aria-label="Search chats">
+            </div>
+          </div>
+          <div class="session-search-dropdown hidden" id="sessionSearchDropdown" role="listbox"></div>
+        </div>
+
+        <div class="header-zone header-right">
+          <button type="button" id="sessionSearchMobileBtn" class="btn icon session-search-mobile-btn" title="搜索" aria-label="Search chats">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          </button>
+          <button type="button" id="notificationsBtn" class="btn icon notifications-btn header-tool-secondary hidden" title="通知" aria-label="Notifications">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="notifications-badge" id="notificationsBadge" hidden>0</span>
+          </button>
+          <button type="button" id="themeBtn" class="btn icon header-tool-primary" title="Theme" aria-label="Theme">
+            <svg class="icon-svg theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <button type="button" id="terminalToggleBtn" class="btn icon header-tool-secondary" title="Web 终端" aria-label="Terminal">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 17 10 11 4 5"/><path d="M12 19h8"/></svg>
+          </button>
+          <button type="button" id="secocBtn" class="btn icon header-tool-secondary" title="SecOC" aria-label="SecOC" data-i18n-title="tabSecoc">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          </button>
+          <button type="button" id="officeBtn" class="btn icon header-tool-secondary" title="OP 办公室" aria-label="OP Office">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </button>
+          <button type="button" id="cabanaBtn" class="btn icon header-tool-secondary" title="CAN 分析" aria-label="CAN analysis">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 12h2l2-5 4 10 2-5h4"/></svg>
+          </button>
+          <button type="button" id="settingsBtn" class="btn icon header-tool-primary" title="设置" aria-label="Settings">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+          <div class="header-more-wrap">
+            <button type="button" id="headerMoreBtn" class="btn icon header-more-btn" title="更多" aria-label="More" aria-expanded="false" aria-haspopup="menu">
+              <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+            </button>
+            <div class="header-more-menu hidden" id="headerMoreMenu" role="menu">
+              <button type="button" class="header-more-item" data-header-action="notifications" role="menuitem">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span data-i18n="headerMoreNotifications">通知</span>
+              </button>
+              <button type="button" class="header-more-item" data-header-action="terminal" role="menuitem">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M4 17 10 11 4 5"/><path d="M12 19h8"/></svg>
+                <span data-i18n="headerMoreTerminal">终端</span>
+              </button>
+              <button type="button" class="header-more-item" data-header-action="secoc" role="menuitem">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                <span data-i18n="tabSecoc">SecOC</span>
+              </button>
+              <button type="button" class="header-more-item" data-header-action="office" role="menuitem">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                <span data-i18n="headerMoreOffice">办公室</span>
+              </button>
+              <button type="button" class="header-more-item" data-header-action="cabana" role="menuitem">
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M5 12h2l2-5 4 10 2-5h4"/></svg>
+                <span data-i18n="openCabana">CAN 分析</span>
+              </button>
+            </div>
+          </div>
+          <span class="queue-mode-badge hidden" id="queueModeBadge" title="行驶队列模式">抢占</span>
+          <div class="status-pill loading" id="statusPill" aria-live="polite"></div>
+        </div>
+      </header>
+
+      <main class="workspace" id="workspace">
+        <section class="chat-layout" id="chatLayout">
+          <div class="chat-thread">
+          <div class="messages" id="messages"></div>
+          <div class="chat-jump-anchor" aria-hidden="true">
+            <button type="button" id="jumpToBottomBtn" class="btn icon jump-to-bottom hidden" aria-hidden="true">
+              <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+            </button>
+          </div>
+          <div class="composer-wrap">
+            <div class="composer-attachments hidden" id="composerAttachments"></div>
+            <div class="composer-slash-menu hidden" id="composerSlashMenu" role="listbox" aria-label="Slash commands">
+              <p class="composer-slash-label" id="composerSlashLabel" data-i18n="slashMenuPickCommand">斜杠指令</p>
+              <div class="composer-slash-list" id="composerSlashList"></div>
+            </div>
+            <div class="composer-slash-menu composer-mention-menu hidden" id="composerMentionMenu" role="listbox" aria-label="Context search">
+              <p class="composer-slash-label" id="composerMentionLabel" data-i18n="mentionAddContext">添加上下文</p>
+              <div class="composer-slash-list" id="composerMentionList"></div>
+            </div>
+            <form class="composer-card" id="composer">
+              <div class="composer-edit-banner hidden" id="composerEditBanner">
+                <span id="composerEditBannerText" data-i18n="editingMessage">正在编辑消息</span>
+                <button type="button" id="composerEditCancel" class="btn icon composer-edit-cancel" aria-label="取消" title="取消">
+                  <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+              </div>
+              <textarea id="chatInput" rows="1" placeholder="描述问题…"></textarea>
+              <div class="composer-actions">
+                <div class="session-model-picker" id="sessionModelPicker">
+                  <button type="button" class="session-model-picker-btn unset" id="sessionModelPickerBtn" aria-haspopup="listbox" aria-expanded="false">—</button>
+                  <div class="session-model-picker-menu hidden" id="sessionModelPickerMenu" role="listbox"></div>
+                </div>
+                <div class="composer-tier-picker" id="composerTierPicker">
+                  <button type="button" class="composer-tier-btn" id="modelTierBtn" aria-haspopup="listbox" aria-expanded="false" title="模型档位">自动</button>
+                  <div class="composer-tier-menu hidden" id="modelTierMenu" role="listbox" aria-label="模型档位">
+                    <button type="button" class="composer-tier-option" data-tier="auto">自动</button>
+                    <button type="button" class="composer-tier-option" data-tier="lite">轻量</button>
+                    <button type="button" class="composer-tier-option" data-tier="default">标准</button>
+                    <button type="button" class="composer-tier-option" data-tier="craft">深度</button>
+                  </div>
+                </div>
+                <div class="composer-hint-wrap">
+                  <button type="button" id="composerHintBtn" class="btn icon composer-hint-btn" aria-describedby="composerHintTooltip">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>
+                  </button>
+                  <div class="composer-hint-tooltip" id="composerHintTooltip" role="tooltip"></div>
+                </div>
+                <button type="button" id="imageBtn" class="btn icon composer-attach" title="Image" aria-label="Attach image">
+                  <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 17-5.5-5.5L5 19"/></svg>
+                </button>
+                <input type="file" id="imageInput" accept="image/*" multiple hidden>
+                <span class="composer-spacer"></span>
+                <div class="composer-context-meter" id="composerContextMeter">
+                  <button type="button" class="composer-context-meter-btn" id="composerContextMeterBtn" aria-expanded="false" aria-haspopup="dialog">
+                    <svg class="composer-context-ring" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle class="composer-context-ring-bg" cx="12" cy="12" r="9"></circle>
+                      <circle class="composer-context-ring-fg" cx="12" cy="12" r="9"></circle>
+                    </svg>
+                    <span class="composer-context-pct" id="composerContextPct">0%</span>
+                  </button>
+                  <div class="composer-context-panel" id="composerContextMeterPanel" role="dialog" aria-labelledby="composerContextPanelTitle">
+                    <div class="composer-context-panel-head">
+                      <span class="composer-context-panel-title" id="composerContextPanelTitle" data-i18n="contextUsageTitle">上下文用量</span>
+                      <button type="button" class="btn icon composer-context-panel-close" aria-label="Close">
+                        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                      </button>
+                    </div>
+                    <div class="composer-context-panel-summary">
+                      <span class="composer-context-panel-pct" id="composerContextPanelPct">0%</span>
+                      <span class="composer-context-panel-used" id="composerContextPanelUsed">已使用 0 / 0</span>
+                    </div>
+                    <div class="composer-context-bar" id="composerContextBar"></div>
+                    <div class="composer-context-list" id="composerContextList"></div>
+                    <div class="composer-context-panel-actions">
+                      <button type="button" class="btn secondary composer-context-compact-btn" id="composerContextCompactBtn" data-i18n="contextCompactBtn">压缩上下文</button>
+                    </div>
+                    <div class="composer-context-panel-footer hidden" id="composerContextPanelFooter"></div>
+                  </div>
+                </div>
+                <button type="submit" class="btn primary composer-send" id="sendBtn" title="发送" aria-label="发送">
+                  <svg class="icon-svg composer-send-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                  <svg class="icon-svg composer-stop-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+                </button>
+              </div>
+            </form>
+          </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <aside class="notifications-panel" id="notificationsPanel" aria-hidden="true" hidden>
+    <div class="notifications-panel-header">
+      <h3 id="notificationsTitle">通知</h3>
+      <div class="notifications-panel-actions">
+        <button type="button" id="notificationsMarkReadBtn" class="btn ghost small">全部已读</button>
+        <button type="button" id="notificationsCloseBtn" class="btn icon" aria-label="Close">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+    <ul class="notifications-list" id="notificationsList"></ul>
+  </aside>
+  <div id="notificationsBackdrop" class="notifications-backdrop" hidden></div>
+
+  <!-- Cabana modal -->
+  <div id="cabanaModal" class="modal cabana-modal" hidden>
+    <div class="modal-backdrop" id="cabanaBackdrop"></div>
+    <div class="modal-content cabana-modal-content">
+      <div class="modal-header cabana-modal-header">
+        <h2 id="cabanaPanelTitle" data-i18n="cabanaPanelTitle">CAN 总线分析</h2>
+        <div class="cabana-modal-actions">
+          <span id="cabanaStatus" class="cab-status">离线</span>
+          <button type="button" id="cabanaClose" class="btn icon" aria-label="Close">
+            <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body cabana-modal-body" id="cabanaPanelRoot">
+        <div class="cabana-compact-head">
+          <div class="cabana-mode-tabs" role="tablist">
+            <button type="button" class="cabana-mode-tab active" data-mode="live" id="cabanaTabLive">实时</button>
+            <button type="button" class="cabana-mode-tab" data-mode="replay" id="cabanaTabReplay">回放</button>
+          </div>
+          <p class="cabana-meta" id="cabanaMetaBar">加载中…</p>
+          <div class="cabana-head-actions">
+            <span id="cabanaLabelProgress" class="cabana-label-progress" hidden></span>
+            <button type="button" id="cabanaAutoLabelBtn" class="btn small ghost">自动标注</button>
+            <button type="button" id="cabanaSendChatBtn" class="btn small ghost">片段→聊天</button>
+            <button type="button" id="cabanaRouteChatBtn" class="btn small ghost" hidden>分析 route</button>
+            <button type="button" id="cabanaDeepAnalyzeBtn" class="btn small">深度分析</button>
+            <button type="button" id="cabanaConnectBtn" class="btn primary small">连接实时 CAN</button>
+          </div>
+        </div>
+        <div class="cabana-live-toolbar" id="cabanaLiveToolbar">
+          <div class="cabana-dbc-picker-wrap">
+            <div class="cabana-dbc-picker" id="cabanaDbcPicker">
+              <input type="text" id="cabanaDbcSearch" class="cabana-dbc-search toolbar-input" placeholder="模糊搜索 DBC 或车型…" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="cabanaDbcList" aria-autocomplete="list">
+              <ul class="cabana-dbc-list" id="cabanaDbcList" role="listbox" hidden></ul>
+            </div>
+          </div>
+        </div>
+        <div class="cabana-replay-bar" id="cabanaReplayBar" hidden>
+          <select id="cabanaRouteSelect" class="toolbar-select cabana-route-select"></select>
+          <div class="cabana-replay-row">
+            <button type="button" id="cabanaReplayPlayBtn" class="btn small primary">播放</button>
+            <button type="button" id="cabanaReplayPauseBtn" class="btn small">暂停</button>
+            <label class="cabana-replay-full" title="完整 rlog CAN（较慢）">
+              <input type="checkbox" id="cabanaReplayFull">
+              <span data-i18n="cabanaReplayFull">完整 rlog</span>
+            </label>
+            <label class="cabana-replay-video" title="低清 qcamera 缩略图预览（默认关闭）">
+              <input type="checkbox" id="cabanaVideoToggle">
+              <span id="cabanaVideoToggleLabel">路况预览</span>
+            </label>
+            <select id="cabanaReplaySpeed" class="toolbar-select cabana-speed-select" title="CAN 数据回放倍速">
+              <option value="0.5">0.5x</option>
+              <option value="1" selected>1x</option>
+              <option value="2">2x</option>
+              <option value="5">5x</option>
+              <option value="10">10x</option>
+            </select>
+            <input type="range" id="cabanaProgress" class="cabana-progress" min="0" max="1000" value="0" step="1" title="拖动定位 CAN 日志时间">
+            <span id="cabanaProgressLabel" class="cabana-progress-label">日志 0:00</span>
+            <span id="cabanaReplayStats" class="cabana-replay-stats"></span>
+          </div>
+        </div>
+        <div class="cabana-video-preview" id="cabanaVideoPreview" hidden>
+          <img id="cabanaVideoImg" class="cabana-video-img" alt="" hidden>
+          <div id="cabanaVideoPlaceholder" class="cabana-video-placeholder">加载预览…</div>
+        </div>
+        <div class="cabana-replay-loading" id="cabanaReplayLoading" hidden>
+          <span class="cabana-spinner" aria-hidden="true"></span>
+          <span id="cabanaReplayLoadingText">正在索引日志…</span>
+        </div>
+        <div class="cabana-filter-row">
+          <input type="text" id="cabanaFilter" class="cabana-filter toolbar-input" placeholder="搜索报文…">
+          <input type="text" id="cabanaSignalFilter" class="cabana-filter toolbar-input" placeholder="信号/物理值过滤…" title="例如 BRK 或 > 0">
+          <label class="cabana-filter-check" title="隐藏 payload 连续不变的报文">
+            <input type="checkbox" id="cabanaHideUnchanged">
+            <span id="cabanaHideUnchangedLabel">隐藏不变</span>
+          </label>
+          <button type="button" id="cabanaExportCsvBtn" class="btn small ghost">导出表格 CSV</button>
+          <div class="cabana-filter-chips" id="cabanaFilterChips"></div>
+        </div>
+        <div class="cabana-plot-wrap" id="cabanaPlotWrap" hidden>
+          <div class="cabana-plot-toolbar">
+            <span id="cabanaPlotTitle">信号曲线</span>
+            <div class="cabana-plot-actions">
+              <button type="button" id="cabanaPlotClear" class="btn small ghost">清空曲线</button>
+            </div>
+          </div>
+          <div id="cabanaPlotChart" class="cabana-plot-chart"></div>
+          <div id="cabanaPlotEmpty" class="cabana-plot-empty">点击表格行选择报文，播放或连接后将显示信号曲线</div>
+        </div>
+        <div class="cabana-table-wrap" id="cabanaTableWrap">
+          <table id="cabanaTable">
+            <thead>
+              <tr>
+                <th id="cabThTime" data-sort="time">时间</th>
+                <th id="cabThBus" data-sort="bus">总线</th>
+                <th id="cabThName" data-sort="name">报文</th>
+                <th id="cabThValue">当前值</th>
+                <th id="cabThCount" data-sort="count">Count</th>
+                <th id="cabThFreq" data-sort="freq">Hz</th>
+                <th id="cabThExplain" data-sort="label">功能</th>
+              </tr>
+            </thead>
+            <tbody id="cabanaTableBody">
+              <tr class="cab-virtual-spacer cab-virtual-spacer-top" aria-hidden="true"><td colspan="7"></td></tr>
+              <tr class="cab-virtual-spacer cab-virtual-spacer-bottom" aria-hidden="true"><td colspan="7"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="cabana-detail-wrap" id="cabanaDetailWrap" hidden>
+          <div class="cabana-detail-header">
+            <span id="cabanaDetailTitle" class="cabana-detail-title">报文详情</span>
+            <div class="cabana-detail-actions">
+              <span id="cabanaDetailMeta" class="cabana-detail-meta"></span>
+              <button type="button" id="cabanaCopyHexBtn" class="btn small ghost">复制 HEX</button>
+              <button type="button" id="cabanaExportHistCsvBtn" class="btn small ghost">导出历史 CSV</button>
+              <button type="button" id="cabanaDetailClose" class="btn small ghost cab-detail-close" aria-label="Close">×</button>
+            </div>
+          </div>
+          <div id="cabanaDetailBinary" class="cabana-detail-binary" hidden></div>
+          <div id="cabanaDetailSignals" class="cabana-detail-signals"></div>
+          <div class="cabana-detail-history">
+            <div class="cabana-detail-history-head" id="cabanaDetailHistoryHead">最近帧</div>
+            <div class="cabana-detail-history-scroll">
+              <table class="cabana-history-table">
+                <thead>
+                  <tr>
+                    <th id="cabanaHistThTime">时间</th>
+                    <th id="cabanaHistThHex">HEX</th>
+                    <th id="cabanaHistThDec">DEC</th>
+                    <th id="cabanaHistThDecoded">解码</th>
+                    <th id="cabanaHistThCopy">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="cabanaDetailHistoryBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="cabana-ai-result" id="cabanaAiResult" hidden>
+          <div class="cabana-ai-result-header">
+            <span id="cabanaAiResultTitle">深度分析</span>
+            <div class="cabana-ai-result-actions">
+              <button type="button" id="cabanaAiResultToChat" class="btn ghost small">发到聊天</button>
+              <button type="button" id="cabanaAiResultClose" class="btn icon small" aria-label="Close">×</button>
+            </div>
+          </div>
+          <pre id="cabanaAiResultText" class="cabana-ai-result-text"></pre>
+        </div>
+        <p class="cabana-panel-hint" id="cabanaPanelHint"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings drawer (overlay) -->
+  <aside class="settings-sidebar" id="settingsSidebar" aria-hidden="true">
+      <div class="settings-sidebar-header">
+        <h2 id="settingsTitle">设置</h2>
+        <button type="button" id="settingsSidebarClose" class="btn icon" aria-label="Close">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="settings-tabs-scroll">
+        <div class="settings-tabs" id="settingsTabs" role="tablist">
+          <button type="button" class="settings-tab active" data-tab="model" id="tabModel" role="tab">模型</button>
+          <button type="button" class="settings-tab" data-tab="knowledge" id="tabKnowledge" role="tab">知识库</button>
+          <button type="button" class="settings-tab" data-tab="scheduler" id="tabScheduler" role="tab">定时</button>
+          <button type="button" class="settings-tab" data-tab="platform" id="tabPlatform" role="tab">平台</button>
+          <button type="button" class="settings-tab" data-tab="dev" id="tabDev" role="tab">开发</button>
+        </div>
+      </div>
+      <div class="settings-body">
+        <!-- 模型 -->
+        <div class="settings-pane active" id="paneModel" role="tabpanel">
+          <p class="settings-pane-lead" id="modelPaneDesc">配置模型列表与服务商账户；修改后自动保存。</p>
+
+          <section class="settings-card" id="modelHubSection">
+            <header class="settings-card-head">
+              <h3 class="settings-card-title" id="modelHubTitle">模型中心</h3>
+            </header>
+            <div class="settings-card-body" id="modelHubRoot"></div>
+          </section>
+
+          <div class="hidden" id="legacyModelFields" aria-hidden="true">
+            <label class="field"><span class="field-label" id="providerLabel">服务商</span><select id="providerSelect"></select></label>
+            <div id="mainModelCombobox" class="model-combobox-host"></div>
+            <div class="password-field">
+              <input type="password" id="apiKeyInput" autocomplete="off" spellcheck="false">
+              <button type="button" class="password-reveal" data-password-for="apiKeyInput" aria-label="显示" title="显示">
+                <svg class="icon-svg eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="icon-svg eye-open hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+            </div>
+            <label class="field hidden" id="baseUrlField"><input type="text" id="baseUrlInput"></label>
+          </div>
+
+          <section class="settings-card settings-card-compact" id="usageSection">
+            <header class="settings-card-head settings-card-head-row">
+              <div>
+                <h3 class="settings-card-title" id="usageTitle">用量</h3>
+                <p class="settings-card-sub" id="usageModelHint"></p>
+              </div>
+              <button type="button" id="usageDetailBtn" class="btn small ghost" data-i18n="usageDetail">用量详细</button>
+            </header>
+            <div class="settings-card-body usage-grid-wrap">
+              <div class="usage-grid" id="usageGrid"></div>
+            </div>
+          </section>
+
+          <details class="settings-accordion">
+            <summary class="settings-accordion-summary" id="personaSectionTitle">系统人设</summary>
+            <div class="settings-accordion-body">
+              <label class="field"><span class="field-label" id="systemPromptLabel" data-i18n="systemPrompt">系统提示词（人设）</span><textarea id="systemPromptInput" rows="4" data-i18n-placeholder="systemPromptPlaceholder" placeholder="留空将使用默认 op助手 人设"></textarea></label>
+              <p class="field-hint" id="personaGenHint">Temperature、Max Tokens 等生成参数请在上方模型列表的配置弹窗里按模型设置。</p>
+              <details class="settings-sub-accordion" id="contextSettingsBlock">
+                <summary class="settings-sub-summary" id="contextSettingsTitle">上下文与压缩</summary>
+                <div class="settings-sub-body">
+                  <label class="field"><span class="field-label" id="contextWindowLabel">默认上下文窗口 (tokens)</span><input type="number" id="contextWindowInput" min="0" max="2000000" step="1024" value="0" placeholder="0=按模型自动"></label>
+                  <label class="field switch-row"><span id="compactionEnabledLabel">自动压缩会话</span><label class="switch"><input type="checkbox" id="compactionEnabledToggle" checked><span class="slider"></span></label></label>
+                  <div class="field-row">
+                    <label class="field"><span class="field-label" id="compactAfterTurnsLabel">压缩阈值 (轮)</span><input type="number" id="compactAfterTurnsInput" min="4" max="200" step="1" value="24"></label>
+                    <label class="field"><span class="field-label" id="keepRecentTurnsLabel">保留最近 (轮)</span><input type="number" id="keepRecentTurnsInput" min="2" max="100" step="1" value="8"></label>
+                  </div>
+                  <label class="field"><span class="field-label" id="reserveTokensLabel">预留 tokens</span><input type="number" id="reserveTokensInput" min="0" max="500000" step="512" value="8000"></label>
+                  <label class="field switch-row"><span id="compactionTokenTriggerLabel">按 token 数触发压缩</span><label class="switch"><input type="checkbox" id="compactionTokenTriggerToggle" checked><span class="slider"></span></label></label>
+                  <p class="field-hint" id="contextSettingsHint">各模型可在「模型中心」路由里单独设置上下文窗口；此处为全局默认值。长对话自动摘要写入记忆；手动压缩请用 /compact</p>
+                </div>
+              </details>
+              <details class="settings-sub-accordion" id="evolutionSettingsBlock">
+                <summary class="settings-sub-summary" id="evolutionSettingsTitle">助手学习与进化</summary>
+                <div class="settings-sub-body">
+                  <label class="field switch-row"><span id="evolutionEnabledLabel">启用进化管线</span><label class="switch"><input type="checkbox" id="evolutionEnabledToggle" checked><span class="slider"></span></label></label>
+                  <label class="field switch-row"><span id="evolutionAutoWorkspaceLabel">对话后自动补工作区模板</span><label class="switch"><input type="checkbox" id="evolutionAutoWorkspaceToggle" checked><span class="slider"></span></label></label>
+                  <label class="field switch-row"><span id="evolutionAutoMemoryLabel">对话后自动提炼记忆（每日日志 + MEMORY）</span><label class="switch"><input type="checkbox" id="evolutionAutoMemoryToggle" checked><span class="slider"></span></label></label>
+                  <label class="field switch-row"><span id="evolutionLlmReflectLabel">LLM 反思诊断 (GEPA)</span><label class="switch"><input type="checkbox" id="evolutionLlmReflectToggle" checked><span class="slider"></span></label></label>
+                  <label class="field switch-row"><span id="evolutionAutoProposeLabel">自动提案技能（需批准）</span><label class="switch"><input type="checkbox" id="evolutionAutoProposeToggle"><span class="slider"></span></label></label>
+                  <label class="field switch-row"><span id="evolutionGepaEnabledLabel">内置 GEPA 技能进化</span><label class="switch"><input type="checkbox" id="evolutionGepaEnabledToggle" checked><span class="slider"></span></label></label>
+                  <label class="field switch-row"><span id="evolutionUseDspyLabel">使用 DSPy 后端（需 pip install dspy，PC）</span><label class="switch"><input type="checkbox" id="evolutionUseDspyToggle"><span class="slider"></span></label></label>
+                  <div class="field-row">
+                    <label class="field"><span class="field-label" id="skillsDisclosureMaxLabel">按需加载技能数</span><input type="number" id="skillsDisclosureMaxInput" min="3" max="30" step="1" value="10"></label>
+                    <label class="field"><span class="field-label" id="evolutionCandidatesLabel">Pareto 候选数</span><input type="number" id="evolutionCandidatesInput" min="1" max="5" step="1" value="3"></label>
+                  </div>
+                  <p class="field-hint" id="evolutionSettingsHint">三层记忆 + 轨迹反思 + 技能/工具描述进化；详见 设置→平台→技能进化</p>
+                </div>
+              </details>
+              <label class="field switch-row hidden" id="thinkingToggleRow"><span id="thinkingLabel">思考模式</span><label class="switch"><input type="checkbox" id="thinkingToggle" checked><span class="slider"></span></label></label>
+              <div class="persona-save-row">
+                <button type="button" id="personaSaveBtn" class="btn primary">保存人设</button>
+              </div>
+            </div>
+          </details>
+
+          <label class="field settings-lang-field"><span id="langLabel" data-i18n="langLabel">界面语言</span><select id="langSelect" class="toolbar-select"><option value="en">English</option><option value="zh">中文</option><option value="ja">日本語</option><option value="ko">한국어</option></select></label>
+          <label class="field settings-lang-field"><span id="timezoneLabel" data-i18n="timezoneLabel">时区</span><select id="timezoneSelect" class="toolbar-select"></select></label>
+        </div>
+
+        <!-- 知识库 / Embedding -->
+        <div class="settings-pane" id="paneKnowledge" role="tabpanel">
+          <p class="settings-pane-lead" id="embeddingPaneDesc">向量检索与记忆语义搜索；Embedding 路由在「模型」页的模型中心配置。</p>
+          <section class="settings-card">
+            <header class="settings-card-head settings-card-head-row">
+              <h3 class="settings-card-title" id="embeddingSectionTitle">Embedding 路由</h3>
+              <button type="button" id="embeddingGoModelHubBtn" class="btn ghost small">前往模型中心</button>
+            </header>
+            <div class="settings-card-body">
+              <p class="field-hint" id="embeddingRouteSummary">未配置 Embedding 模型</p>
+              <p class="field-hint muted" id="embeddingRouteHint">在模型中心添加 Embedding 路由与备用模型，保存后自动重建索引。</p>
+            </div>
+          </section>
+          <section class="settings-card settings-card-compact" id="knowledgeIndexSection">
+            <header class="settings-card-head settings-card-head-row">
+              <h3 class="settings-card-title" id="knowledgeIndexTitle">索引与检索</h3>
+              <button type="button" id="settingsKnowledgeBtn" class="btn ghost small">管理文档</button>
+            </header>
+            <div class="settings-card-body">
+              <label class="field field-inline">
+                <span class="field-label" id="ragSearchLimitLabel">工具检索默认条数</span>
+                <input type="number" id="ragSearchLimitInput" min="1" max="50" step="1" value="20">
+              </label>
+              <p class="field-hint" id="ragSearchLimitHint">AI 通过 search_knowledge_base 工具自行检索；此为未指定 limit 时的默认值（最大 50）</p>
+            </div>
+            <div class="settings-card-body" id="ragStatusBox">
+              <div class="dev-skeleton dev-skeleton-line"></div>
+            </div>
+          </section>
+          <section class="settings-card settings-card-compact" id="embeddingUsageSection">
+            <header class="settings-card-head settings-card-head-row">
+              <div>
+                <h3 class="settings-card-title" id="embeddingUsageTitle">Embedding 用量</h3>
+                <p class="settings-card-sub" id="embeddingUsageHint"></p>
+              </div>
+              <button type="button" id="embeddingUsageDetailBtn" class="btn small ghost" data-i18n="usageDetail">用量详细</button>
+            </header>
+            <div class="settings-card-body usage-grid-wrap">
+              <div class="usage-grid" id="embeddingUsageGrid"></div>
+            </div>
+          </section>
+        </div>
+
+        <!-- 定时 -->
+        <div class="settings-pane" id="paneScheduler" role="tabpanel">
+          <p class="settings-pane-lead" id="schedulerPaneDesc">定时只读巡检（日志、用量、调优快照）</p>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="schedulerBoardTitle">任务黑板</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="schedulerBoardDesc">定时任务执行状态一览（最近运行结果）。</p>
+              <div id="schedulerTaskBoard" class="scheduler-task-board"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="schedulerListTitle">已添加任务</h3></header>
+            <div class="settings-card-body settings-card-body-flush">
+              <div id="schedulerTaskList" class="scheduler-list"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="schedulerFormTitle">新建任务</h3></header>
+            <div class="settings-card-body scheduler-form">
+              <label class="field"><span class="field-label" id="schedNameLabel">名称</span><input type="text" id="schedName" placeholder="每日用量"></label>
+              <label class="field">
+                <span class="field-label" id="schedActionLabel">动作</span>
+                <div class="model-field">
+                  <select id="schedAction">
+                    <option value="read_usage">读取 AI 用量</option>
+                    <option value="read_last_log">读取最近日志</option>
+                    <option value="read_tune_snapshot">调优项快照</option>
+                    <option value="snapshot_tune">Param 快照</option>
+                    <option value="memory_ping">记忆条数</option>
+                    <option value="trip_review_offroad">行程复盘（offroad）</option>
+                    <option value="reindex_rag_wifi">WiFi 时重建 RAG 索引</option>
+                    <option value="check_critical_events">检查关键事件</option>
+                    <option value="post_drive_review_offroad">停车语音简报（offroad）</option>
+                    <option value="check_param_watchlist_offroad">参数漂移检查（offroad）</option>
+                    <option value="git_fetch_wifi">WiFi 时 Git Fetch</option>
+                    <option value="heartbeat_tick">Heartbeat 巡检</option>
+                    <option value="chat_notify">AI 定时提醒</option>
+                    <option value="__custom__">自定义…</option>
+                  </select>
+                  <input type="text" id="schedActionCustom" class="hidden" placeholder="动作 ID，如 read_usage">
+                  <button type="button" id="schedActionModeBtn" class="btn small">手动</button>
+                </div>
+              </label>
+              <label class="field"><span class="field-label" id="schedTriggerLabel">触发</span>
+                <select id="schedTrigger">
+                  <option value="interval">固定间隔</option>
+                  <option value="on_offroad">停车 offroad 时</option>
+                  <option value="on_ignition">点火时</option>
+                  <option value="on_wifi">连上 WiFi 时</option>
+                  <option value="daily_at">每天固定时刻</option>
+                </select>
+              </label>
+              <label class="field"><span class="field-label" id="schedIntervalLabel">间隔（分钟）</span><input type="number" id="schedInterval" min="5" value="60"></label>
+              <div class="field-row hidden" id="schedDailyFields">
+                <label class="field"><span class="field-label" id="schedHourLabel">每日时刻（时）</span><input type="number" id="schedHour" min="0" max="23" value="9"></label>
+                <label class="field"><span class="field-label" id="schedMinuteLabel">分</span><input type="number" id="schedMinute" min="0" max="59" value="0"></label>
+              </div>
+              <button type="button" id="schedAddBtn" class="btn small primary">添加任务</button>
+              <label class="field" style="margin-top:12px">
+                <span class="field-label" id="schedNlLabel">自然语言添加</span>
+                <input type="text" id="schedNlInput" placeholder="每天9点检查日志">
+                <button type="button" id="schedNlBtn" class="btn small">解析添加</button>
+              </label>
+            </div>
+          </section>
+        </div>
+
+        <!-- 平台 -->
+        <div class="settings-pane" id="panePlatform" role="tabpanel">
+          <p class="settings-pane-lead" id="platformPaneDesc">工作区、记忆、MCP 桥接、已学技能与会话搜索</p>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformWorkspaceTitle">工作区文件</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <div class="platform-toolbar">
+                <label class="field platform-file-field">
+                  <span class="field-label" id="platformWorkspaceFileLabel">文件</span>
+                  <select id="platformWorkspaceKey">
+                    <option value="user">USER.md</option>
+                    <option value="memory">MEMORY.md</option>
+                    <option value="soul">SOUL.md</option>
+                    <option value="heartbeat">HEARTBEAT.md</option>
+                  </select>
+                </label>
+                <div class="platform-toolbar-actions">
+                  <button type="button" id="platformWorkspaceLoad" class="btn small">加载</button>
+                  <button type="button" id="platformWorkspaceSave" class="btn small primary">保存</button>
+                </div>
+              </div>
+              <label class="field platform-editor-field">
+                <span class="field-label" id="platformWorkspaceEditorLabel">内容</span>
+                <textarea id="platformWorkspaceEditor" rows="8" class="platform-editor" placeholder="工作区 Markdown…"></textarea>
+              </label>
+              <div class="platform-toolbar platform-toolbar-secondary">
+                <button type="button" id="platformWorkspaceBootstrap" class="btn small">初始化模板</button>
+                <button type="button" id="platformWorkspaceHealth" class="btn small">健康检查</button>
+                <span id="platformWorkspaceHealthStatus" class="field-hint"></span>
+              </div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformBackupTitle">平台备份</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="platformBackupDesc">打包为 <code>.opbak</code> 压缩包（非 zip），包含模型/Embedding 配置、记忆、会话、技能、MCP、工作区等。Token 默认脱敏，换机恢复请勾选「包含 Token」。</p>
+              <div id="platformBackupManifest" class="platform-list"></div>
+              <div class="platform-toolbar platform-backup-actions">
+                <label class="platform-check-row"><input type="checkbox" id="platformBackupIncludeSecrets"> <span id="platformBackupSecretsLabel">包含 Token（换机恢复时勾选）</span></label>
+                <button type="button" id="platformBackupExport" class="btn small primary">导出 .opbak</button>
+                <a id="platformBackupDownload" class="btn small" href="#" hidden download>下载</a>
+              </div>
+              <div class="platform-restore-upload">
+                <label class="field">
+                  <span class="field-label" id="platformBackupRestoreLabel">从备份恢复</span>
+                  <div class="file-picker">
+                    <input type="file" id="platformBackupRestoreFile" accept=".opbak,application/gzip" class="file-picker-input" hidden>
+                    <button type="button" id="platformBackupRestorePick" class="btn small file-picker-btn">选择 .opbak 文件</button>
+                    <span id="platformBackupRestoreFileName" class="file-picker-name">未选择文件</span>
+                  </div>
+                </label>
+                <div class="platform-toolbar platform-toolbar-secondary">
+                  <select id="platformBackupRestoreMode" class="toolbar-select">
+                    <option value="merge">合并（保留本机已有数据）</option>
+                    <option value="replace">覆盖（以备份为准）</option>
+                  </select>
+                  <button type="button" id="platformBackupRestorePreview" class="btn small">预览</button>
+                  <button type="button" id="platformBackupRestoreApply" class="btn small primary">确认恢复</button>
+                </div>
+              </div>
+              <details class="platform-advanced-restore">
+                <summary class="field-hint" id="platformBackupJsonRestoreSummary">高级：粘贴旧版 JSON 备份</summary>
+                <textarea id="platformBackupRestoreJson" rows="4" class="platform-editor" placeholder='{"version":2,...}'></textarea>
+              </details>
+              <div id="platformBackupRestoreStatus" class="field-hint platform-restore-preview"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformEvolutionTitle">技能进化</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="platformEvolutionDesc">内置技能（<code>ai/skills</code>）不会自动改写。本功能分析对话失败轨迹，为<strong>已学技能</strong>生成改进草案，需在「已学技能」里人工批准后才生效。日常调参/排障请直接用聊天。</p>
+              <p class="field-hint" id="platformEvolutionHow">用法：多聊几轮有问题的场景 → 点「扫描轨迹」→「生成进化提案」→ 到下方「已学技能」批准。</p>
+              <div id="platformEvolutionStatus" class="platform-list"></div>
+              <div class="platform-toolbar platform-toolbar-secondary">
+                <button type="button" id="platformEvolutionScan" class="btn small">扫描轨迹</button>
+                <button type="button" id="platformEvolutionPropose" class="btn small primary">生成进化提案</button>
+              </div>
+              <div id="platformEvolutionTraces" class="platform-list"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformMcpTitle">MCP 服务</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <div id="platformMcpList" class="platform-list"></div>
+              <div class="platform-mcp-form">
+                <label class="field">
+                  <span class="field-label" id="platformMcpIdLabel">服务 ID</span>
+                  <input type="text" id="platformMcpId" placeholder="server-id" autocomplete="off">
+                </label>
+                <label class="field">
+                  <span class="field-label" id="platformMcpCmdLabel">启动命令</span>
+                  <input type="text" id="platformMcpCmd" placeholder="npx -y @modelcontextprotocol/server-…" autocomplete="off">
+                </label>
+                <button type="button" id="platformMcpAdd" class="btn small primary platform-mcp-add-btn">添加</button>
+              </div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformSkillsTitle">已学技能（待批准）</h3></header>
+            <div class="settings-card-body settings-card-body-flush">
+              <div id="platformLearnedList" class="platform-list"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformSearchTitle">历史会话搜索</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <div class="platform-search-row">
+                <label class="field platform-search-field">
+                  <span class="field-label" id="platformSessionQueryLabel">关键词</span>
+                  <input type="search" id="platformSessionQuery" placeholder="搜索历史对话…" autocomplete="off">
+                </label>
+                <button type="button" id="platformSessionSearch" class="btn small platform-search-btn">搜索</button>
+              </div>
+              <div id="platformSessionHits" class="platform-list"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformMemoryTitle">设备记忆</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="platformMemoryDesc">AI 从对话中提炼的长期记忆：车型档案 + 文字备注（非聊天记录全文）。可在聊天中说「记住我喜欢跟车远一点」；也可编辑 设置→平台→工作区 里的 MEMORY.md。</p>
+              <div id="platformMemoryProfile" class="platform-memory-profile"></div>
+              <ul id="platformMemoryNotes" class="dev-item-list platform-memory-notes"></ul>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head">
+              <h3 class="settings-card-title" id="platformPassportTitle">调参护照</h3>
+              <span class="dev-count-badge" id="platformPassportCount">0</span>
+            </header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="platformPassportDesc">每次通过 AI 修改驾驶参数（write_params）的审计记录：时间、改了哪些项、改前改后。用于回溯「上次动了什么」；撤销调参请在聊天中说「撤销上次调参」。</p>
+              <ul class="dev-item-list" id="platformPassportList"></ul>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head">
+              <h3 class="settings-card-title" id="platformTuneCompareTitle">调参 A/B 对比</h3>
+            </header>
+            <div class="settings-card-body platform-pane-body tune-ab-pane">
+              <p class="field-hint" id="platformTuneCompareDesc">高级：对比两条路线的 CAN/驾驶信号差异。日常更推荐在聊天中说「对比 xxx 和 yyy 两趟调参效果」—— AI 会调用同样工具并解释结果。</p>
+              <div class="tune-ab-form">
+                <label class="field">
+                  <span class="field-label" id="platformTuneRouteALabel">路线 A（调参前）</span>
+                  <select id="platformTuneRouteA" class="toolbar-select"></select>
+                </label>
+                <label class="field">
+                  <span class="field-label" id="platformTuneRouteBLabel">路线 B（调参后）</span>
+                  <select id="platformTuneRouteB" class="toolbar-select"></select>
+                </label>
+                <button type="button" id="platformTuneCompareBtn" class="btn small primary tune-ab-run-btn">开始对比</button>
+              </div>
+              <div id="platformTuneCompareStatus" class="field-hint" hidden></div>
+              <div id="platformTuneCompareResult" class="tune-ab-result" hidden></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformWorkflowTitle">工作流编辑器</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="platformWorkflowDesc">自定义工作流步骤与 Prompt，与内置工作流合并使用。</p>
+              <div class="platform-toolbar platform-toolbar-secondary">
+                <button type="button" id="workflowEditorAdd" class="btn small primary">添加工作流</button>
+                <button type="button" id="workflowEditorReload" class="btn small">刷新</button>
+              </div>
+              <div id="workflowEditorList" class="workflow-editor-list"></div>
+              <div id="workflowEditorPane" class="workflow-editor-pane"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformProfileSyncTitle">Profile 同步</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="platformProfileSyncDesc">导出/导入偏好 manifest（Harness、专员、车型档案），用于换机或另一台设备合并。</p>
+              <div id="platformProfileSyncStatus" class="field-hint"></div>
+              <textarea id="platformProfileSyncJson" rows="5" class="platform-editor" placeholder='{"version":1,"sections":{...}}'></textarea>
+              <div class="platform-toolbar platform-toolbar-secondary">
+                <select id="platformProfileSyncMode" class="toolbar-select">
+                  <option value="merge">合并</option>
+                  <option value="replace">覆盖</option>
+                </select>
+                <button type="button" id="platformProfileSyncExport" class="btn small">导出</button>
+                <button type="button" id="platformProfileSyncImport" class="btn small primary">应用</button>
+              </div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformTranscriptTitle">会话 Transcript</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="platformTranscriptDesc">JSONL 事件流，用于崩溃恢复与调试。</p>
+              <div class="platform-toolbar platform-toolbar-secondary">
+                <button type="button" id="platformTranscriptRefresh" class="btn small">刷新</button>
+                <button type="button" id="platformTranscriptRecover" class="btn small primary">恢复当前会话</button>
+              </div>
+              <div id="platformTranscriptList" class="platform-list transcript-list"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformUsageSqlTitle">用量汇总 (SQLite)</h3></header>
+            <div class="settings-card-body platform-pane-body">
+              <div id="platformUsageSummary" class="platform-list"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformHarnessTitle">Harness 引擎</h3></header>
+            <div class="settings-card-body platform-debug-body">
+              <p class="field-hint" id="platformHarnessDesc">WorkBuddy 风格运行时开关：延迟加载工具、大结果外部化、模型档位。</p>
+              <label class="platform-check-row"><input type="checkbox" id="harnessDeferredToggle"> <span id="harnessDeferredLabel">延迟加载工具 (ToolSearch)</span></label>
+              <label class="platform-check-row"><input type="checkbox" id="harnessExternalizeToggle"> <span id="harnessExternalizeLabel">大结果外部化</span></label>
+              <label class="field platform-harness-threshold">
+                <span class="field-label" id="harnessThresholdLabel">外部化阈值 (bytes)</span>
+                <input type="number" id="harnessExternalizeThreshold" min="1024" max="512000" step="1024" value="8192">
+              </label>
+              <label class="field">
+                <span class="field-label" id="harnessModelTierLabel">默认模型档位</span>
+                <select id="harnessModelTier">
+                  <option value="auto">自动</option>
+                  <option value="lite">轻量</option>
+                  <option value="default">标准</option>
+                  <option value="craft">深度</option>
+                </select>
+              </label>
+              <div class="platform-toolbar platform-toolbar-secondary">
+                <button type="button" id="harnessConfigSave" class="btn small primary">保存 Harness 设置</button>
+              </div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head">
+              <h3 class="settings-card-title" id="platformExpertsTitle">专员管理</h3>
+            </header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="platformExpertsDesc">启用或禁用多专员编排中的专家。禁用后 OP 主调度不会委派给该专员。</p>
+              <div id="platformExpertsList" class="platform-list"></div>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head">
+              <h3 class="settings-card-title" id="platformAuditTitle">工具审计链</h3>
+              <span class="dev-count-badge" id="platformAuditChainBadge">—</span>
+            </header>
+            <div class="settings-card-body platform-pane-body">
+              <p class="field-hint" id="platformAuditDesc">SHA256 哈希链审计日志，可验证工具调用未被篡改。</p>
+              <div class="platform-toolbar platform-toolbar-secondary">
+                <button type="button" id="platformAuditRefresh" class="btn small">刷新</button>
+                <button type="button" id="platformAuditVerify" class="btn small">验证链</button>
+              </div>
+              <div id="platformAuditStatus" class="field-hint"></div>
+              <ul class="dev-item-list" id="platformAuditList"></ul>
+            </div>
+          </section>
+          <section class="settings-card">
+            <header class="settings-card-head"><h3 class="settings-card-title" id="platformDebugTitle">调试开关</h3></header>
+            <div class="settings-card-body platform-debug-body">
+              <p class="field-hint" id="platformDebugDesc">仅影响本浏览器：在聊天里显示更详细的工具调用轨迹（Verbose）或轮次跟踪事件（Trace）。正常使用请保持关闭。</p>
+              <label class="platform-check-row"><input type="checkbox" id="chatVerboseToggle"> <span id="platformDebugVerboseLabel">Verbose（工具轨迹详情）</span></label>
+              <label class="platform-check-row"><input type="checkbox" id="chatTraceToggle"> <span id="platformDebugTraceLabel">Trace（轮次跟踪事件）</span></label>
+            </div>
+          </section>
+        </div>
+
+        <!-- 开发 -->
+        <div class="settings-pane" id="paneDev" role="tabpanel">
+          <div class="dev-pane-toolbar">
+            <p class="settings-pane-lead dev-pane-desc" id="devPaneDesc">代码协作与本机运行环境</p>
+            <button type="button" id="devRefreshBtn" class="btn small ghost dev-refresh-btn" aria-label="刷新">
+              <svg class="icon-svg dev-refresh-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+              <span id="devRefreshLabel">刷新</span>
+            </button>
+          </div>
+
+          <div class="dev-pane-segments" role="tablist" aria-label="开发">
+            <button type="button" class="dev-pane-seg-btn is-active" data-dev-pane="collab" role="tab" aria-selected="true" id="devPaneTabCollab">代码协作</button>
+            <button type="button" class="dev-pane-seg-btn" data-dev-pane="cache" role="tab" aria-selected="false" id="devPaneTabCache">本地缓存</button>
+            <button type="button" class="dev-pane-seg-btn" data-dev-pane="runtime" role="tab" aria-selected="false" id="devPaneTabRuntime">运行环境</button>
+          </div>
+
+          <section class="dev-card dev-collab-card dev-pane-section" data-dev-section="collab" id="devCollabCard" aria-labelledby="devCollabTitle">
+            <div class="dev-card-head">
+              <h3 class="dev-card-title" id="devCollabTitle">代码协作</h3>
+              <span class="dev-count-badge" id="devCollabDirtyBadge" title="">—</span>
+            </div>
+
+            <div class="dev-collab-status" id="collabStatusBar">
+              <div class="dev-collab-status-main">
+                <div class="dev-collab-line" id="collabVersionLine">—</div>
+                <div class="dev-collab-line" id="collabRepoLine">—</div>
+                <div class="dev-collab-chips" id="collabAuthLine"></div>
+              </div>
+              <div class="dev-collab-status-actions">
+                <button type="button" id="devPackageCheckBtn" class="btn small ghost">检查更新</button>
+                <button type="button" id="devPackageUpdateBtn" class="btn small primary" hidden>立即更新</button>
+              </div>
+            </div>
+
+            <div class="collab-credentials-wrap" id="collabCredentialsWrap">
+              <h4 class="dev-collab-section-title collab-credentials-title" id="devCollabCredentialsTitle">凭据</h4>
+              <div class="dev-env-body" id="collabCredentialsBox">
+                <div class="dev-skeleton dev-skeleton-line"></div>
+              </div>
+            </div>
+
+            <div class="dev-collab-segments" role="tablist" aria-label="代码协作">
+              <button type="button" class="dev-collab-seg-btn is-active" data-collab-tab="repo" role="tab" aria-selected="true" id="collabTabRepo">仓库</button>
+              <button type="button" class="dev-collab-seg-btn" data-collab-tab="publish" role="tab" aria-selected="false" id="collabTabPublish">发布</button>
+              <button type="button" class="dev-collab-seg-btn" data-collab-tab="issue" role="tab" aria-selected="false" id="collabTabIssue">反馈</button>
+            </div>
+
+            <div class="dev-collab-panel" data-collab-panel="repo" role="tabpanel">
+              <div class="dev-env-body dev-collab-repo-summary" id="forkDetectBox">
+                <div class="dev-skeleton dev-skeleton-line"></div>
+              </div>
+              <details class="dev-collab-details" id="forkDetailsWrap">
+                <summary id="forkDetailsSummary">技术详情</summary>
+                <div class="dev-env-body" id="forkDetailsBox"></div>
+              </details>
+              <details class="dev-collab-details" id="packageDetailsWrap">
+                <summary id="packageDetailsSummary">版本详情</summary>
+                <div class="dev-env-body" id="packageVersionBox">
+                  <div class="dev-skeleton dev-skeleton-line"></div>
+                </div>
+              </details>
+              <div class="fork-progress hidden" id="forkProgressBox" aria-live="polite" aria-busy="false">
+                <div class="fork-progress-head">
+                  <span class="fork-progress-spinner" id="forkProgressSpinner" aria-hidden="true"></span>
+                  <span class="fork-progress-status" id="forkProgressStatus"></span>
+                </div>
+                <ul class="fork-progress-phases" id="forkProgressPhases"></ul>
+                <div class="fork-progress-log" id="forkProgressLog" hidden></div>
+                <details class="fork-progress-details" id="forkProgressThinkingWrap" hidden>
+                  <summary id="forkProgressThinkingSummary">思考过程</summary>
+                  <pre class="fork-progress-pre" id="forkProgressThinking"></pre>
+                </details>
+                <details class="fork-progress-details" id="forkProgressContentWrap" hidden>
+                  <summary id="forkProgressContentSummary">模型输出</summary>
+                  <pre class="fork-progress-pre" id="forkProgressContent"></pre>
+                </details>
+              </div>
+              <div class="dev-package-actions">
+                <button type="button" id="devForkRefreshBtn" class="btn small ghost">扫描仓库</button>
+                <button type="button" id="devForkSyncBtn" class="btn small primary">AI 分析并生成草稿</button>
+              </div>
+            </div>
+
+            <div class="dev-collab-panel hidden" data-collab-panel="publish" role="tabpanel">
+              <div class="dev-collab-section-head">
+                <h4 class="dev-collab-section-title" id="collabPublishConfigTitle">发布策略</h4>
+              </div>
+              <div class="dev-env-body" id="publishSettingsBox">
+                <div class="dev-skeleton dev-skeleton-line short"></div>
+              </div>
+              <div class="dev-collab-section-head">
+                <h4 class="dev-collab-section-title" id="collabPublishUnitsTitle">发布单元</h4>
+              </div>
+              <div class="dev-env-body publish-units-wrap" id="publishUnitsBox">
+                <div class="dev-skeleton dev-skeleton-line short"></div>
+              </div>
+              <div class="dev-package-actions">
+                <button type="button" id="devPublishSaveBtn" class="btn small primary">保存配置</button>
+              </div>
+            </div>
+
+            <div class="dev-collab-panel hidden" data-collab-panel="issue" role="tabpanel">
+              <p class="dev-collab-crosslink">
+                <button type="button" class="btn-link" id="collabGoPublishPrTab">已改代码？去发布 PR</button>
+              </p>
+              <div class="dev-env-body" id="issueSettingsBox">
+                <div class="dev-skeleton dev-skeleton-line"></div>
+              </div>
+              <div class="dev-env-body issue-form-wrap" id="issueFormBox">
+                <div class="dev-skeleton dev-skeleton-line short"></div>
+              </div>
+              <div class="dev-package-actions">
+                <button type="button" id="devIssueSubmitBtn" class="btn small primary">提交 Issue</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="dev-card dev-cache-card dev-pane-section hidden" data-dev-section="cache" id="devCacheCard" aria-labelledby="devCacheTitle">
+            <div class="dev-card-head">
+              <h3 class="dev-card-title" id="devCacheTitle">本地缓存</h3>
+              <span class="dev-count-badge" id="devCacheTotalBadge">—</span>
+            </div>
+            <p class="settings-pane-desc dev-cache-desc" id="devCacheDesc">清理路线回放、TSK 提取等本地缓存，不影响已安装 SecOC 密钥。</p>
+            <div class="dev-cache-controls">
+              <label class="field dev-cache-field">
+                <span class="field-label" id="devCacheDaysLabel">时间范围</span>
+                <select id="devCacheDays">
+                  <option value="1">最近 1 天</option>
+                  <option value="3" selected>最近 3 天</option>
+                  <option value="7">最近 7 天</option>
+                  <option value="30">最近 30 天</option>
+                </select>
+              </label>
+              <label class="field dev-cache-field">
+                <span class="field-label" id="devCacheModeLabel">清理策略</span>
+                <select id="devCacheMode">
+                  <option value="within" selected>仅清理该时间段内</option>
+                  <option value="older">清理早于该时间段</option>
+                  <option value="all">全部清理</option>
+                </select>
+              </label>
+              <button type="button" class="btn small danger" id="devCacheClearBtn">清理全部</button>
+            </div>
+            <p class="field-hint dev-cache-filter-hint" id="devCacheFilterHint"></p>
+            <div class="dev-env-body" id="devCacheStatusBox">
+              <div class="dev-skeleton dev-skeleton-line short"></div>
+            </div>
+          </section>
+
+          <section class="dev-card dev-runtime-card dev-pane-section hidden" data-dev-section="runtime" id="devRuntimeCard" aria-labelledby="devRuntimeTitle">
+            <div class="dev-card-head">
+              <h3 class="dev-card-title" id="devRuntimeTitle">运行环境与输出</h3>
+            </div>
+            <div class="dev-collab-status dev-runtime-summary-wrap" id="devRuntimeSummary">—</div>
+            <div class="dev-collab-segments" role="tablist" aria-label="运行环境">
+              <button type="button" class="dev-collab-seg-btn is-active" data-runtime-tab="env" role="tab" aria-selected="true" id="runtimeTabEnv">环境</button>
+              <button type="button" class="dev-collab-seg-btn" data-runtime-tab="tools" role="tab" aria-selected="false" id="runtimeTabTools">工具</button>
+              <button type="button" class="dev-collab-seg-btn" data-runtime-tab="output" role="tab" aria-selected="false" id="runtimeTabOutput">输出</button>
+            </div>
+
+            <div class="dev-collab-panel" data-runtime-panel="env" role="tabpanel">
+              <div class="dev-env-body" id="hostEnvBox">
+                <div class="dev-skeleton dev-skeleton-block"></div>
+                <div class="dev-skeleton dev-skeleton-line"></div>
+                <div class="dev-skeleton dev-skeleton-line short"></div>
+              </div>
+            </div>
+
+            <div class="dev-collab-panel hidden" data-runtime-panel="tools" role="tabpanel">
+              <div class="dev-runtime-subsection">
+                <div class="dev-runtime-subhead">
+                  <h4 class="dev-runtime-subtitle" id="devSessionsTitle">PC 工具会话</h4>
+                  <span class="dev-count-badge" id="pcSessionsCount">0</span>
+                </div>
+                <ul class="dev-item-list" id="pcSessionsList"></ul>
+              </div>
+              <div class="dev-runtime-subsection">
+                <div class="dev-runtime-subhead">
+                  <h4 class="dev-runtime-subtitle" id="devPassportTitle">调参护照</h4>
+                  <span class="dev-count-badge" id="tunePassportCount">0</span>
+                </div>
+                <ul class="dev-item-list" id="tunePassportList"></ul>
+              </div>
+            </div>
+
+            <div class="dev-collab-panel hidden" data-runtime-panel="output" role="tabpanel">
+              <div class="dev-runtime-subsection">
+                <div class="dev-runtime-subhead">
+                  <h4 class="dev-runtime-subtitle" id="devCanvasTitle">可视化输出</h4>
+                  <span class="dev-count-badge" id="devCanvasCount">0</span>
+                </div>
+                <p class="settings-pane-desc dev-canvas-desc" id="devCanvasDesc">调参报告、图表与结构化结果（随当前会话）</p>
+                <label class="canvas-filter-wrap dev-canvas-filter">
+                  <span id="devCanvasFilterLabel">筛选</span>
+                  <select id="canvasFilter">
+                    <option value="all">全部</option>
+                    <option value="report">报告</option>
+                    <option value="chart">图表</option>
+                    <option value="tune">调参</option>
+                    <option value="markdown">Markdown</option>
+                    <option value="html">HTML</option>
+                  </select>
+                </label>
+                <div class="canvas-list canvas-list-embedded" id="canvasList"></div>
+              </div>
+              <div class="dev-runtime-subsection">
+                <div class="dev-runtime-subhead">
+                  <h4 class="dev-runtime-subtitle" id="devAssetsTitle">报告与导出</h4>
+                  <span class="dev-count-badge" id="devAssetsCount">0</span>
+                </div>
+                <ul class="dev-item-list" id="devAssetsList"></ul>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div class="settings-save-bar" id="settingsSaveBar" hidden>
+        <button type="button" id="saveBtn" class="btn primary block">保存</button>
+      </div>
+    </aside>
+
+  <!-- TSK modal (outside sidebar for correct stacking) -->
+  <div class="tsk-modal hidden" id="tskModal">
+    <div class="tsk-modal-card">
+      <h4 id="tskModalTitle"></h4>
+      <p id="tskModalBody"></p>
+      <div class="tsk-modal-actions" id="tskModalActions"></div>
+      <button type="button" class="btn ghost small" id="tskModalClose">关闭</button>
+    </div>
+  </div>
+
+  <!-- Usage detail modal -->
+  <div id="usageDetailModal" class="modal usage-detail-modal" hidden>
+    <div class="modal-backdrop" id="usageDetailBackdrop"></div>
+    <div class="modal-content usage-detail-content">
+      <div class="modal-header">
+        <h2 id="usageDetailTitle">用量详细</h2>
+        <button type="button" id="usageDetailClose" class="btn icon" aria-label="Close">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body usage-detail-body">
+        <section class="usage-detail-section" id="usageDetailChatSection">
+          <header class="usage-detail-section-head">
+            <h3 class="usage-detail-section-title" id="usageChatSectionTitle">对话模型</h3>
+            <p class="usage-detail-section-desc" id="usageDetailDesc">按服务商与模型统计</p>
+          </header>
+          <div class="usage-detail-totals" id="usageDetailTotals"></div>
+          <div class="usage-detail-seg" role="tablist" aria-label="Chat usage breakdown">
+            <button type="button" class="usage-detail-seg-btn is-active" data-section="chat" data-view="provider" id="usageChatTabProvider" role="tab" aria-selected="true">按服务商</button>
+            <button type="button" class="usage-detail-seg-btn" data-section="chat" data-view="model" id="usageChatTabModel" role="tab" aria-selected="false">按模型</button>
+          </div>
+          <div class="usage-detail-table-wrap" id="usageByProviderTable" role="tabpanel"></div>
+          <div class="usage-detail-table-wrap hidden" id="usageByModelTable" role="tabpanel" hidden></div>
+        </section>
+
+        <section class="usage-detail-section" id="usageDetailEmbeddingSection">
+          <header class="usage-detail-section-head">
+            <h3 class="usage-detail-section-title" id="usageEmbeddingSectionTitle">Embedding</h3>
+            <p class="usage-detail-section-desc" id="usageEmbeddingSectionDesc">知识库向量检索用量</p>
+          </header>
+          <div class="usage-detail-totals" id="usageEmbeddingTotals"></div>
+          <div class="usage-detail-seg" role="tablist" aria-label="Embedding usage breakdown">
+            <button type="button" class="usage-detail-seg-btn is-active" data-section="embedding" data-view="provider" id="usageEmbTabProvider" role="tab" aria-selected="true">按服务商</button>
+            <button type="button" class="usage-detail-seg-btn" data-section="embedding" data-view="model" id="usageEmbTabModel" role="tab" aria-selected="false">按模型</button>
+          </div>
+          <div class="usage-detail-table-wrap" id="usageEmbeddingByProviderTable" role="tabpanel"></div>
+          <div class="usage-detail-table-wrap hidden" id="usageEmbeddingByModelTable" role="tabpanel" hidden></div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Knowledge base modal -->
+  <div id="knowledgeModal" class="modal knowledge-modal" hidden>
+    <div class="modal-backdrop" id="knowledgeBackdrop"></div>
+    <div class="modal-content knowledge-modal-content">
+      <div class="modal-header">
+        <h2 id="knowledgeTitle">知识库</h2>
+        <button type="button" id="knowledgeClose" class="btn icon" aria-label="Close">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body knowledge-modal-body">
+        <div id="onboardingRagSetup" class="onboarding-rag-setup" hidden>
+          <h3 class="onboarding-section-title" id="onboardingRagTitle">设置知识库</h3>
+          <p class="settings-pane-desc" id="onboardingRagDesc">内置 FAQ 与社区 Wiki 可通过向量检索增强对话。首次使用建议完成以下步骤（需要网络）。</p>
+          <fieldset class="onboarding-rag-options">
+            <label class="onboarding-rag-option">
+              <input type="checkbox" id="onboardingRagReindex" checked>
+              <span id="onboardingRagReindexLabel">为已有文档建立向量索引</span>
+            </label>
+            <label class="onboarding-rag-option">
+              <input type="checkbox" id="onboardingRagWiki" checked>
+              <span id="onboardingRagWikiLabel">拉取社区 Wiki 并向量化</span>
+            </label>
+          </fieldset>
+          <p class="field-hint" id="onboardingRagStatus"></p>
+          <div class="actions onboarding-rag-actions">
+            <button type="button" id="onboardingRagSkipBtn" class="btn ghost small">稍后设置</button>
+            <button type="button" id="onboardingRagStartBtn" class="btn primary small">开始设置</button>
+          </div>
+        </div>
+        <div id="knowledgeMainContent">
+        <p class="settings-pane-desc" id="knowledgePaneDesc">对话时通过向量检索引用；内置 FAQ 已预置，可追加个人笔记。</p>
+        <p class="field-hint" id="ragVectorStatus"></p>
+        <div id="ragDocList" class="rag-list"></div>
+        <label class="field"><span class="field-label" id="ragTitleLabel">标题</span><input type="text" id="ragTitle" placeholder="我的调优笔记"></label>
+        <label class="field"><span class="field-label" id="ragTextLabel">内容</span><textarea id="ragText" rows="4" placeholder="粘贴文档内容…"></textarea></label>
+        <div class="actions">
+          <button type="button" id="ragSaveBtn" class="btn primary small">添加文档</button>
+          <button type="button" id="ragSyncWikiBtn" class="btn small">同步社区 Wiki</button>
+          <button type="button" id="ragReindexBtn" class="btn small">重建向量索引</button>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sessionsBackdrop" class="sessions-backdrop" hidden></div>
+
+  <div id="sessionSearchModal" class="session-search-modal" aria-hidden="true">
+    <div class="session-search-modal-backdrop"></div>
+    <div class="session-search-modal-panel" role="dialog" aria-modal="true" aria-labelledby="sessionSearchModalTitle">
+      <div class="session-search-modal-head">
+        <h2 id="sessionSearchModalTitle" data-i18n="sessionSearchTitle">搜索会话</h2>
+        <button type="button" class="btn icon session-search-modal-close" aria-label="Close">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="session-search-modal-input-wrap">
+        <svg class="session-search-icon icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="sessionSearchModalInput" class="session-search-input" autocomplete="off" spellcheck="false" enterkeyhint="search">
+      </div>
+      <div class="session-search-modal-results" id="sessionSearchModalResults" role="listbox"></div>
+    </div>
+  </div>
+
+  <div id="officeModal" class="modal office-modal" hidden>
+    <div class="modal-backdrop" id="officeBackdrop"></div>
+    <div class="modal-content office-modal-content">
+      <div class="modal-header office-modal-header">
+        <div class="office-modal-head-text">
+          <h2 id="officeTitle">OP 办公室</h2>
+          <p class="settings-pane-desc" id="officeDesc">3D 工位 · 车道 · 专员联动</p>
+        </div>
+        <button type="button" id="officeCloseBtn" class="btn icon" aria-label="Close office">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body office-modal-body">
+        <div class="office-stats" id="officeStats"></div>
+        <div class="office-main-row">
+          <div class="office-scene-wrap" id="officeSceneWrap">
+            <div id="officeSceneHost" class="office-scene-canvas" aria-label="OP 办公室 3D 场景"></div>
+          </div>
+          <aside class="office-roster" id="officeRoster" aria-label="专员列表"></aside>
+        </div>
+        <div class="office-agent-detail" id="officeAgentDetail" hidden></div>
+        <div class="office-tasks-wrap">
+          <div class="office-tasks-title" id="officeTasksTitle">任务动态</div>
+          <div id="officeTasks"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SecOC modal -->
+  <div id="secocModal" class="modal secoc-modal" hidden>
+    <div class="modal-backdrop" id="secocBackdrop"></div>
+    <div class="modal-content secoc-modal-content">
+      <div class="modal-header secoc-modal-header">
+        <div class="secoc-modal-head-text">
+          <h2 id="secocModalTitle" data-i18n="tabSecoc">SecOC</h2>
+          <p class="settings-pane-desc" id="secocPaneDesc" data-i18n="secocPaneDesc">丰田 SecOC（offroad）。可手动输入密钥、TSK 一键提取，或 CAN+DataFlash 查找安装。</p>
+        </div>
+        <button type="button" id="secocCloseBtn" class="btn icon" aria-label="Close">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body secoc-modal-body">
+        <div class="tsk-warning-box" id="tskBlackscreenWarning">
+          <strong data-i18n="tskBlackscreenTitle">黑屏提醒：</strong><span data-i18n="tskBlackscreenBody">提取 / 采集 / 导出期间会停止 manager 与 pandad，屏幕可能黑屏数秒到数分钟，属正常现象。</span>
+        </div>
+
+        <div class="tsk-hero-card tsk-status-card">
+          <div class="tsk-status-row">
+            <span class="tsk-status-dot" id="tskKeyLight"></span>
+            <div class="tsk-status-main">
+              <div class="tsk-status-title-row">
+                <div class="tsk-status-title" id="tskKeyTitle" data-i18n="tskKeyNotInstalled">密钥未安装</div>
+                <button type="button" class="btn ghost small danger hidden" id="tskUninstallBtn" data-i18n="tskUninstallBtn">卸载密钥</button>
+              </div>
+              <pre class="tsk-key-detail" id="tskKeyDetail"></pre>
+            </div>
+          </div>
+        </div>
+
+        <details class="settings-accordion">
+          <summary class="settings-accordion-summary" data-i18n="tskManualInstallTitle">手动安装密钥</summary>
+          <div class="settings-accordion-body">
+            <label class="field tsk-manual-field">
+              <span class="field-label" data-i18n="tskManualKeyLabel">SecOC Key（32 位 hex）</span>
+              <input type="text" id="tskManualKeyInput" class="tsk-manual-input" data-i18n-placeholder="tskManualKeyPlaceholder" placeholder="例如 a1b2c3d4… 或带空格分组" autocomplete="off" spellcheck="false">
+            </label>
+            <button type="button" class="btn primary block" id="tskManualInstallBtn" data-i18n="tskManualInstallBtn">安装密钥</button>
+          </div>
+        </details>
+
+        <details class="settings-accordion">
+          <summary class="settings-accordion-summary" data-i18n="tskExtractTitle">TSK 一键提取</summary>
+          <div class="settings-accordion-body">
+            <p class="tsk-section-hint" data-i18n="tskExtractHint">适用于 2021–2023 RAV4 Prime / Sienna 等；offroad 直接 UDS 提取，无需先采 CAN。</p>
+            <button type="button" class="btn block" id="tskExtractBtn" data-i18n="tskExtractBtn">开始 TSK 提取</button>
+          </div>
+        </details>
+
+        <details class="settings-accordion">
+          <summary class="settings-accordion-summary" data-i18n="tskCanDfTitle">CAN + DataFlash 查找</summary>
+          <div class="settings-accordion-body">
+            <div class="tsk-steps">
+              <div class="tsk-step">
+                <span class="tsk-step-dot" id="tskCanDot"></span>
+                <div class="tsk-step-body">
+                  <div class="tsk-step-title" data-i18n="tskStepCan">1. 采集 CAN</div>
+                  <div class="tsk-step-detail" id="tskCanDetail">READY 模式</div>
+                </div>
+                <button type="button" class="btn small" id="tskCanBtn" data-i18n="tskCanBtnStart">开始</button>
+              </div>
+              <div class="tsk-step">
+                <span class="tsk-step-dot" id="tskDfDot"></span>
+                <div class="tsk-step-body">
+                  <div class="tsk-step-title" data-i18n="tskStepDf">2. 导出 DataFlash</div>
+                  <div class="tsk-step-detail" id="tskDfDetail">Not Ready to Drive</div>
+                </div>
+                <button type="button" class="btn small" id="tskDfBtn" data-i18n="tskCanBtnStart">开始</button>
+              </div>
+            </div>
+            <div class="tsk-actions">
+              <button type="button" class="btn primary block" id="tskMatcherBtn" disabled data-i18n="tskMatcherBtn">查找丰田 SecOC 密钥</button>
+              <button type="button" class="btn ghost small block" id="tskCleanerBtn" disabled data-i18n="tskCleanerBtn">清除提取缓存</button>
+            </div>
+          </div>
+        </details>
+
+        <div class="tsk-job-panel hidden" id="tskJobPanel">
+          <div class="tsk-job-head">
+            <div class="tsk-job-title" id="tskJobTitle"></div>
+            <button type="button" class="btn ghost small" id="tskCancelJobBtn" data-i18n="tskCancelJobBtn">取消</button>
+          </div>
+          <div class="tsk-job-log" id="tskJobLog"></div>
+        </div>
+        <div class="tsk-finding hidden" id="tskFinding" data-i18n="tskFinding">正在查找密钥…</div>
+
+        <details class="settings-accordion">
+          <summary class="settings-accordion-summary" data-i18n="tskDeviceTitle">设备与服务</summary>
+          <div class="settings-accordion-body tsk-device-actions">
+            <p class="tsk-section-hint" data-i18n="tskDeviceHint">黑屏或提取结束后，可单独重启服务或整机。</p>
+            <div class="tsk-panda-status" id="tskPandaStatus">
+              <div class="tsk-panda-status-title" data-i18n="pandaStatusTitle">Panda 固件</div>
+              <pre class="tsk-panda-status-detail" id="tskPandaStatusDetail" data-i18n="pandaStatusLoading">正在读取…</pre>
+              <p class="tsk-panda-guidance hidden" id="tskPandaGuidance" aria-live="polite"></p>
+            </div>
+            <button type="button" class="btn block primary" id="tskFlashPandaBtn" data-i18n="pandaFlashBtn">刷写 Panda 固件</button>
+            <button type="button" class="btn block danger" id="tskRebootDeviceBtn" data-i18n="tskRebootDeviceBtn">重启设备</button>
+            <button type="button" class="btn block" id="tskRestartManagerBtn" data-i18n="tskRestartManagerBtn">重启 manager</button>
+            <button type="button" class="btn block" id="tskRestartPandadBtn" data-i18n="tskRestartPandadBtn">重启 pandad</button>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div id="terminalModal" class="modal terminal-modal" hidden>
+    <div class="modal-backdrop" id="terminalBackdrop"></div>
+    <div class="modal-content terminal-modal-content">
+      <div class="modal-header terminal-modal-header">
+        <div class="terminal-modal-head-text">
+          <h2 id="terminalModalTitle">Web 终端</h2>
+          <p class="settings-pane-desc" id="terminalModalDesc">诊断 Shell + AI：自然语言或 ? 前缀调用 op助手</p>
+        </div>
+        <button type="button" id="terminalCloseBtn" class="btn icon" aria-label="Close terminal">
+          <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="modal-body terminal-modal-body">
+        <div class="terminal-body">
+          <div class="terminal-host" id="terminalHost"></div>
+          <aside class="terminal-sidecar" id="terminalSidecar" aria-label="Tool sidecar">
+            <h4 class="terminal-sidecar-title">工具活动</h4>
+            <ul class="terminal-sidecar-list" id="terminalSidecarList"></ul>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsBackdrop" class="settings-backdrop" hidden></div>
+
+  <div class="toast" id="toast" aria-hidden="true" role="status"></div>
+
+  <div id="publishPromptModal" class="modal" hidden>
+    <div class="modal-backdrop" id="publishPromptBackdrop"></div>
+    <div class="modal-panel publish-prompt-panel" role="dialog" aria-labelledby="publishPromptTitle">
+      <header class="modal-head">
+        <h2 id="publishPromptTitle">发布改动</h2>
+        <button type="button" id="publishPromptClose" class="btn icon ghost" aria-label="关闭">×</button>
+      </header>
+      <div class="modal-body">
+        <p class="field-hint" id="publishPromptHint">检测到未提交的代码改动，是否发布 PR/MR？</p>
+        <div id="publishPromptUnits"></div>
+        <label class="field-label" for="publishPromptTitleInput">标题</label>
+        <input type="text" id="publishPromptTitleInput" class="field-input" placeholder="chore(ai): update">
+      </div>
+      <footer class="modal-foot">
+        <button type="button" id="publishPromptCancel" class="btn ghost">稍后</button>
+        <button type="button" id="publishPromptOk" class="btn primary">发布</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="feedbackModal" class="modal feedback-modal" hidden>
+    <div class="modal-backdrop" id="feedbackBackdrop"></div>
+    <div class="modal-content feedback-modal-content">
+      <div class="modal-header">
+        <h2 data-i18n="feedbackTitle">请选择不满意的原因</h2>
+        <button type="button" class="modal-close" id="feedbackClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="feedbackReasons" class="feedback-reason-grid" role="group" aria-label="Feedback reasons"></div>
+        <label class="field feedback-comment-field hidden" id="feedbackCommentWrap">
+          <span class="field-label" data-i18n="feedbackCommentLabel">补充说明</span>
+          <textarea id="feedbackComment" rows="3" maxlength="500" placeholder="请简要说明问题…"></textarea>
+        </label>
+      </div>
+      <footer class="modal-foot feedback-modal-foot">
+        <button type="button" id="feedbackSubmit" class="btn primary feedback-submit-btn" disabled data-i18n="feedbackSubmit">提交反馈</button>
+      </footer>
+    </div>
+  </div>
+
+  <div id="writeConfirmModal" class="modal" hidden>
+    <div class="modal-backdrop" id="writeConfirmBackdrop"></div>
+    <div class="modal-content write-confirm-content">
+      <div class="modal-header"><h2 id="writeConfirmTitle" data-i18n="writeConfirmTitle">确认写入</h2><button type="button" class="modal-close" id="writeConfirmClose">&times;</button></div>
+      <div class="modal-body">
+        <p class="field-hint" id="writeConfirmHint" data-i18n="writeConfirmHint">AI 请求修改以下设置（车辆需静止）：</p>
+        <div id="writeConfirmConsumer" class="write-confirm-consumer hidden"></div>
+        <pre id="writeConfirmPreview" class="memory-pre write-confirm-raw hidden"></pre>
+      </div>
+      <div class="modal-footer actions">
+        <button type="button" id="writeConfirmRollback" class="btn link hidden" data-i18n="writeConfirmRollback">撤销上次调参</button>
+        <span class="composer-spacer"></span>
+        <button type="button" id="writeConfirmCancel" class="btn">取消</button>
+        <button type="button" id="writeConfirmOk" class="btn primary">确认应用</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="onboardingModal" class="modal onboarding-modal" hidden>
+    <div class="modal-backdrop" id="onboardingBackdrop"></div>
+    <div class="modal-content onboarding-content">
+      <div class="modal-header">
+        <h2 id="onboardingTitle">欢迎使用 op助手</h2>
+      </div>
+      <div class="modal-body">
+        <p class="onboarding-lead" id="onboardingDesc">配置一个聊天模型即可开始；更多服务商与备用模型可在设置中添加。</p>
+        <div class="onboarding-form">
+          <section class="onboarding-section onboarding-model-section" aria-labelledby="onboardingModelTitle">
+            <h3 class="onboarding-section-title" id="onboardingModelTitle">聊天模型</h3>
+            <p class="field-hint onboarding-section-hint" id="onboardingModelHint">选择一个服务商，填写 API Key 并选择模型。</p>
+          <label class="field">
+            <span class="field-label" id="onboardingProviderLabel">服务商</span>
+            <select id="onboardingProvider"></select>
+          </label>
+          <label class="field">
+            <span class="field-label" id="onboardingApiKeyLabel">API Key</span>
+            <div class="password-field">
+              <input type="password" id="onboardingApiKey" autocomplete="off" spellcheck="false">
+              <button type="button" class="password-reveal" data-password-for="onboardingApiKey" aria-label="显示" title="显示">
+                <svg class="icon-svg eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg class="icon-svg eye-open hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+            </div>
+          </label>
+          <label class="field">
+            <span class="field-label" id="onboardingModelLabel">模型</span>
+            <div id="onboardingModelCombobox" class="model-combobox-host"></div>
+          </label>
+          </section>
+          <details class="onboarding-section onboarding-embed-details">
+          <summary class="onboarding-section-title" id="onboardingEmbeddingTitle">Embedding（知识库，可选）</summary>
+          <div class="onboarding-embed-body">
+            <p class="field-hint onboarding-section-hint" id="onboardingEmbeddingDesc">用于知识库检索，默认使用聊天账户的 Embedding 模型。</p>
+            <label class="field switch-row">
+              <span class="field-label" id="onboardingEmbeddingSeparateLabel">使用独立 Embedding 服务商</span>
+              <label class="switch">
+                <input type="checkbox" id="onboardingEmbeddingSeparateToggle">
+                <span class="slider"></span>
+              </label>
+            </label>
+            <div id="onboardingEmbeddingSeparateFields" class="hidden onboarding-embed-separate">
+              <label class="field">
+                <span class="field-label" id="onboardingEmbeddingProviderLabel">Embedding 服务商</span>
+                <select id="onboardingEmbeddingProvider"></select>
+              </label>
+              <label class="field">
+                <span class="field-label" id="onboardingEmbeddingApiKeyLabel">Embedding API Key</span>
+                <div class="password-field">
+                  <input type="password" id="onboardingEmbeddingApiKey" autocomplete="off" spellcheck="false" placeholder="留空则使用上方聊天 Key">
+                  <button type="button" class="password-reveal" data-password-for="onboardingEmbeddingApiKey" aria-label="显示" title="显示">
+                    <svg class="icon-svg eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="icon-svg eye-open hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                </div>
+              </label>
+            </div>
+            <label class="field">
+              <span class="field-label" id="onboardingEmbeddingModelLabel">Embedding 模型</span>
+              <div id="onboardingEmbeddingModelCombobox" class="model-combobox-host"></div>
+            </label>
+          </div>
+          </details>
+          <div class="field-row onboarding-optional">
+            <label class="field">
+              <span class="field-label" id="onboardingCarLabel">车型（可选）</span>
+              <input type="text" id="onboardingCar" autocomplete="off" placeholder="例如 RAV4 2023">
+            </label>
+            <label class="field">
+              <span class="field-label" id="onboardingBrandLabel">品牌（可选）</span>
+              <select id="onboardingBrand">
+                <option value="">—</option>
+                <option value="toyota">Toyota / Lexus</option>
+                <option value="honda">Honda / Acura</option>
+                <option value="hyundai">Hyundai / Kia</option>
+                <option value="volkswagen">VAG</option>
+                <option value="gm">GM</option>
+                <option value="ford">Ford</option>
+                <option value="tesla">Tesla</option>
+                <option value="other">其他</option>
+              </select>
+            </label>
+          </div>
+          <fieldset class="onboarding-goals">
+            <legend class="field-label" id="onboardingGoalsLabel">你最需要哪类帮助？</legend>
+            <label class="onboarding-goal-item"><input type="checkbox" name="onboardingGoal" value="tuning"> <span id="onboardingGoalTuning">调参优化</span></label>
+            <label class="onboarding-goal-item"><input type="checkbox" name="onboardingGoal" value="engage"> <span id="onboardingGoalEngage">无法接合</span></label>
+            <label class="onboarding-goal-item"><input type="checkbox" name="onboardingGoal" value="adaptation"> <span id="onboardingGoalAdapt">新车适配</span></label>
+            <label class="onboarding-goal-item"><input type="checkbox" name="onboardingGoal" value="routes"> <span id="onboardingGoalRoutes">路线复盘</span></label>
+          </fieldset>
+          <details class="onboarding-restore-block">
+            <summary class="field-label" id="onboardingRestoreSummary">已有备份？快速恢复</summary>
+            <p class="field-hint" id="onboardingRestoreDesc">选择之前导出的 <code>.opbak</code> 文件，可恢复模型配置、记忆、会话等（换机请用含 Token 的备份）。</p>
+            <div class="file-picker">
+              <input type="file" id="onboardingBackupFile" accept=".opbak,application/gzip" class="file-picker-input" hidden>
+              <button type="button" id="onboardingBackupPick" class="btn small file-picker-btn">选择 .opbak 文件</button>
+              <span id="onboardingBackupFileName" class="file-picker-name">未选择文件</span>
+            </div>
+            <button type="button" id="onboardingRestoreBtn" class="btn small">恢复备份</button>
+            <p class="field-hint" id="onboardingRestoreStatus"></p>
+          </details>
+          <p class="field-hint onboarding-result" id="onboardingResult"></p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="onboardingTestBtn" class="btn ghost">测试连接</button>
+        <button type="button" id="onboardingSaveBtn" class="btn primary">保存并开始</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/i18n.js?v=20260806t"></script>
+  <script src="/static/js/theme.js?v=20260715h"></script>
+  <script src="/static/vendor/markdown-it/markdown-it-tasklists.bundle.js"></script>
+  <script src="/static/vendor/markdown-it/purify.min.js"></script>
+  <script src="/static/vendor/markdown-it/highlight.min.js"></script>
+  <script src="/static/js/markdown.js?v=20260820d"></script>
+  <script src="/static/js/sessions.js?v=20260820k"></script>
+  <script src="/static/vendor/xterm/xterm.js?v=20260722i"></script>
+  <script src="/static/vendor/xterm/addon-fit.js?v=20260722i"></script>
+  <script src="/static/js/session-sync.js?v=20260820k"></script>
+  <script src="/static/js/model-combobox.js?v=20260722j"></script>
+  <script src="/static/js/local-prefs.js?v=20260806b"></script>
+  <script src="/static/js/quick-actions.js?v=20260715h"></script>
+  <script src="/static/js/tsk-panel.js?v=20260804a"></script>
+  <script src="/static/js/session-model-picker.js?v=20260807b"></script>
+  <script src="/static/js/chat/model-tag.js?v=20260807b"></script>
+  <script src="/static/js/app/globals.js?v=20260807b"></script>
+  <script src="/static/js/app/dom.js?v=20260806c"></script>
+  <script src="/static/js/session-search.js?v=20260806j"></script>
+  <script src="/static/js/composer-context-meter.js?v=20260807a"></script>
+  <script src="/static/js/composer-mention.js?v=20260806t"></script>
+  <script src="/static/js/message-feedback.js?v=20260806q"></script>
+  <script src="/static/js/web-chat-jobs.js?v=20260820j"></script>
+  <script src="/static/js/web-api.js?v=20260730t"></script>
+  <script src="/static/js/ui-busy.js?v=20260728a"></script>
+  <script src="/static/js/web-config.js?v=20260722h"></script>
+  <script src="/static/js/password-field.js?v=20260727c"></script>
+  <script src="/static/js/model-hub.js?v=20260806c"></script>
+  <script src="/static/js/fallback-models.js?v=20260727c"></script>
+  <script src="/static/js/web-sync-ws.js?v=20260722h"></script>
+  <script src="/static/js/terminal-sidecar.js?v=20260723b"></script>
+  <script src="/static/js/terminal-ai.js?v=20260730z"></script>
+  <script src="/static/js/agents-panel.js?v=20260723f"></script>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "/static/vendor/three/three.module.js",
+      "three/addons/": "/static/vendor/three/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="/static/js/office-scene-3d.mjs?v=20260730s"></script>
+  <script src="/static/js/platform-panel.js?v=20260727a"></script>
+  <script src="/static/js/office-panel.js?v=20260730s"></script>
+  <script src="/static/js/command-queue.js?v=20260723k"></script>
+  <script src="/static/js/canvas-panel.js?v=20260723a"></script>
+  <script src="/static/js/workbuddy-panel.js?v=20260819e"></script>
+  <script src="/static/js/workflow-editor.js?v=20260819d"></script>
+  <script src="/static/js/transcript-recovery.js?v=20260819g"></script>
+  <script src="/static/js/terminal-panel.js?v=20260723e"></script>
+  <script src="/static/js/ai.js?v=20260820k"></script>
+  <script src="/static/vendor/uplot/uPlot.iife.min.js"></script>
+  <script src="/static/js/cabana-panel.js?v=20260804a"></script>
+</body>
+</html>

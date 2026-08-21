@@ -1,0 +1,159 @@
+/* Composer context usage ring + breakdown popup */
+
+.composer-context-meter {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.composer-context-meter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.15rem 0.25rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted, rgba(255, 255, 255, 0.55));
+  cursor: pointer;
+  line-height: 1;
+}
+
+.composer-context-meter-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text, #e8e8e8);
+}
+
+.composer-context-ring {
+  width: 22px;
+  height: 22px;
+  transform: rotate(-90deg);
+  flex-shrink: 0;
+}
+
+.composer-context-ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 2;
+}
+
+.composer-context-ring-fg {
+  fill: none;
+  stroke: var(--accent, #4ecdc4);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.25s ease;
+}
+
+.composer-context-pct {
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+.composer-context-meter.warn .composer-context-ring-fg {
+  stroke: #e8a44a;
+}
+
+.composer-context-meter.critical .composer-context-ring-fg {
+  stroke: #f87171;
+}
+
+.composer-context-panel {
+  display: none;
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.5rem);
+  width: min(300px, 92vw);
+  max-height: min(420px, 70vh);
+  overflow: auto;
+  padding: 0.65rem 0.7rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--surface-elevated, #1a1f24);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  z-index: 60;
+}
+
+.composer-context-panel.open {
+  display: block;
+}
+
+.composer-context-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+}
+
+.composer-context-panel-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.composer-context-panel-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.75rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.6));
+  margin-bottom: 0.4rem;
+}
+
+.composer-context-panel-pct {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text, #e8e8e8);
+}
+
+.composer-context-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  margin-bottom: 0.55rem;
+}
+
+.composer-context-bar-seg {
+  height: 100%;
+  min-width: 2px;
+}
+
+.composer-context-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+  font-size: 0.72rem;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.composer-context-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.composer-context-row-label {
+  color: var(--text-muted, rgba(255, 255, 255, 0.65));
+}
+
+.composer-context-row-pct {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.8));
+}
+
+.composer-context-compact-btn {
+  width: 100%;
+  margin-top: 0.55rem;
+}
+
+.composer-context-panel-footer {
+  margin-top: 0.45rem;
+  font-size: 0.68rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  line-height: 1.35;
+}

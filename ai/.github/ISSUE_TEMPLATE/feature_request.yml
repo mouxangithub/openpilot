@@ -1,0 +1,35 @@
+name: 功能建议
+description: OP Agent 新功能或体验改进
+title: "[feature]: "
+labels: ["enhancement", "ai-assistant"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        说明**为谁**（普通车主 / 开发者）解决什么问题。可参考 [PRODUCT 定位](https://github.com/mouxangithub/ai/blob/main/docs/PRODUCT.md)。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 问题 / 使用场景
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+    validations:
+      required: true
+  - type: dropdown
+    id: persona
+    attributes:
+      label: 主要受益用户
+      options:
+        - 普通车主（不懂编程）
+        - 调参爱好者
+        - 新车适配 / 指纹
+        - 开发者 / 维护者
+        - 全部
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 考虑过的替代方案

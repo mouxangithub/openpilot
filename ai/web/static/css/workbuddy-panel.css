@@ -1,0 +1,193 @@
+/* WorkBuddy panel + orchestration blackboard */
+
+.platform-expert-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+.platform-harness-threshold input {
+  max-width: 8rem;
+}
+
+#platformAuditList .audit-ok {
+  display: inline-block;
+  width: 1rem;
+  text-align: center;
+}
+
+#platformAuditChainBadge.err {
+  background: #c44;
+  color: #fff;
+}
+
+.scheduler-task-board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.scheduler-board-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  background: var(--surface, rgba(255, 255, 255, 0.03));
+  font-size: 0.85rem;
+}
+
+.scheduler-board-meta {
+  color: var(--text-muted, #8a939e);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+/* Orchestration blackboard */
+.orchestration-blackboard {
+  width: min(calc(100% - 1rem), var(--thread-max));
+  max-width: var(--thread-max);
+  margin: 0.35rem auto 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  border: 1px solid rgba(78, 205, 196, 0.25);
+  background: rgba(78, 205, 196, 0.06);
+  flex-shrink: 0;
+}
+
+.orchestration-blackboard.hidden {
+  display: none;
+}
+
+.orchestration-blackboard-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.orchestration-blackboard-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--accent, #4ecdc4);
+}
+
+.orchestration-blackboard-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.orch-board-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  background: var(--surface, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.orch-board-item.working {
+  border-color: rgba(78, 205, 196, 0.5);
+  animation: orch-pulse 1.2s ease-in-out infinite;
+}
+
+.orch-board-item.done {
+  opacity: 0.65;
+}
+
+.orch-board-tool {
+  font-size: 0.65rem;
+  color: var(--text-muted, #8a939e);
+}
+
+@keyframes orch-pulse {
+  50% { opacity: 0.75; }
+}
+
+/* File card enhancements in artifact drawer */
+.artifact-card.file-card .artifact-card-head strong {
+  word-break: break-all;
+}
+
+.artifact-diff {
+  font-size: 0.72rem;
+  max-height: 12rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.4rem;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.artifact-diff .diff-add { color: #81c784; }
+.artifact-diff .diff-del { color: #e57373; }
+
+.artifact-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.artifact-actions .btn {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.4rem;
+}
+
+.transcript-recovery-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.35rem 0.5rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(255, 193, 7, 0.12);
+  border: 1px solid rgba(255, 193, 7, 0.35);
+  font-size: 0.82rem;
+}
+
+.transcript-recovery-banner.hidden {
+  display: none;
+}
+
+.workflow-editor-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+}
+
+.workflow-editor-item {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, rgba(255,255,255,0.1));
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.workflow-editor-item.is-active {
+  border-color: var(--accent, #4ecdc4);
+  background: rgba(78, 205, 196, 0.1);
+}
+
+.workflow-editor-pane {
+  margin-top: 0.35rem;
+}
+
+.transcript-list {
+  max-height: 12rem;
+  overflow: auto;
+}
+
+.transcript-row {
+  font-size: 0.75rem;
+}

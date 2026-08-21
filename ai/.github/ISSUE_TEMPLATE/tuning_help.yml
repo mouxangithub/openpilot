@@ -1,0 +1,41 @@
+name: 调参 / 驾驶手感
+description: 跟车、变道、加减速等调优问题或建议
+title: "[tune]: "
+labels: ["tuning", "ai-assistant"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请用**感受**描述（跟车太近、变道猛、画龙等），不必记参数名。
+        AI 可通过 `op tune` 或 Web「调驾驶手感」向导协助。
+  - type: input
+    id: vehicle
+    attributes:
+      label: 车型 / 指纹
+      placeholder: "例如 TOYOTA COROLLA 2020"
+    validations:
+      required: true
+  - type: textarea
+    id: feel
+    attributes:
+      label: 当前驾驶感受（哪里不舒服）
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: 希望改成什么样
+  - type: dropdown
+    id: changed_recently
+    attributes:
+      label: 是否最近改过设置
+      options:
+        - 否
+        - 是，改完后变差
+        - 是，改完后变好
+        - 不确定
+  - type: textarea
+    id: route
+    attributes:
+      label: 相关路线名（如有）
+      description: 设置 → 路线 或 `trip_review` 可见

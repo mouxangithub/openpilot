@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# OP Agent CLI wrapper — install as `op` on PATH
+set -euo pipefail
+ROOT="${OPENPILOT_ROOT:-}"
+if [[ -z "$ROOT" ]]; then
+  if [[ -d "/data/openpilot" ]]; then
+    ROOT="/data/openpilot"
+  else
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  fi
+fi
+export PYTHONPATH="${ROOT}${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m ai.cli "$@"

@@ -1,0 +1,5 @@
+{"task_input": "刚买的二手卡罗拉，能适配 openpilot 吗？", "expected_behavior": "get_vehicle_state, compare_fingerprint; explain supported vs dashcam; no promise of unsupported SecOC bypass.", "difficulty": "medium", "category": "feasibility", "source": "golden"}
+{"task_input": "帮我从路线里找 CAN ID 做适配", "expected_behavior": "extract_can_ids_from_route or search_local_routes; suggest_signals_for_adaptation; save_adaptation_draft not direct car code merge.", "difficulty": "hard", "category": "can", "source": "golden"}
+{"task_input": "适配进展保存一下，下次接着做", "expected_behavior": "save_adaptation_draft or append_daily_memory; list_adaptation_projects; structured summary.", "difficulty": "easy", "category": "persistence", "source": "golden"}
+{"task_input": "指纹和 opendbc 平台对不上", "expected_behavior": "compare_fingerprint, list_car_platforms, get_car_platform_bundle; explain mismatch remediation.", "difficulty": "hard", "category": "fingerprint", "source": "golden"}
+{"task_input": "封闭场地试车要注意什么？", "expected_behavior": "Safety disclaimer; low speed; engage steps; what to log; reference vehicle-adaptation skill validation section.", "difficulty": "easy", "category": "safety", "source": "golden"}

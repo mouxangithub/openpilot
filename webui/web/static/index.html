@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>openpilot</title>
+  <link rel="icon" href="/static/favicon.svg?v=2" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/css/opui.css?v=125" />
+</head>
+<body>
+  <div id="bootstrap-banner" class="opui-bootstrap-banner" hidden></div>
+  <div id="system-wait-overlay" class="opui-system-wait" hidden aria-live="polite" aria-busy="true">
+    <div class="opui-system-wait-card">
+      <div class="opui-system-wait-spinner" aria-hidden="true"></div>
+      <h2 id="system-wait-title" class="opui-system-wait-title"></h2>
+      <p id="system-wait-message" class="opui-system-wait-message"></p>
+      <div id="system-wait-progress-wrap" class="opui-system-wait-progress" hidden>
+        <div class="opui-system-wait-progress-head">
+          <span id="system-wait-progress-label" class="opui-system-wait-progress-label">0%</span>
+        </div>
+        <div class="opui-system-wait-progress-track">
+          <div id="system-wait-progress-bar" class="opui-system-wait-progress-bar"></div>
+        </div>
+      </div>
+      <p id="system-wait-hint" class="opui-system-wait-hint"></p>
+      <button type="button" id="system-wait-dismiss" class="opui-btn opui-btn--dialog" hidden>Close</button>
+    </div>
+  </div>
+  <div id="opui-viewport">
+  <div id="app" class="opui" data-screen="home">
+    <!-- Offroad / settings sidebar (left 500px when settings) -->
+    <aside id="settings-sidebar" class="opui-sidebar" hidden>
+      <button type="button" id="btn-close-settings" class="opui-close" aria-label="Close"></button>
+      <nav class="opui-nav" id="nav"></nav>
+    </aside>
+
+    <!-- Metrics sidebar (300px) — offroad home + onroad -->
+    <aside id="metrics-sidebar" class="opui-metrics-sidebar">
+      <button type="button" id="btn-sidebar-settings" class="opui-sidebar-btn opui-sidebar-btn--settings" title="Settings"></button>
+      <div id="sidebar-network" class="opui-sidebar-network">
+        <div class="opui-net-dots" aria-hidden="true"></div>
+        <div class="opui-net-type">Wi-Fi</div>
+      </div>
+      <div id="metrics" class="opui-side-metrics"></div>
+      <button type="button" id="sidebar-mic" class="opui-sidebar-mic" hidden title="Recording"></button>
+      <button type="button" id="btn-sidebar-bottom" class="opui-sidebar-btn opui-sidebar-btn--home" title=""></button>
+    </aside>
+
+    <main id="main" class="opui-main">
+      <!-- HOME (offroad) -->
+      <section id="screen-home" class="opui-screen opui-screen--home">
+        <header class="opui-home-header">
+          <div class="opui-home-pills" id="home-pills" hidden>
+            <button type="button" id="home-pill-update" class="opui-home-pill opui-home-pill--update" hidden></button>
+            <button type="button" id="home-pill-alerts" class="opui-home-pill opui-home-pill--alerts" hidden></button>
+          </div>
+          <div id="home-version" class="opui-home-version">
+            <span id="home-brand" class="opui-home-brand">sunnypilot</span>
+            <span id="home-desc" class="opui-home-desc"></span>
+          </div>
+        </header>
+        <div id="home-overlay" class="opui-home-overlay" hidden>
+          <div class="opui-home-overlay-card">
+            <div id="home-overlay-body" class="opui-home-overlay-body"></div>
+            <div id="home-overlay-actions" class="opui-home-overlay-actions"></div>
+          </div>
+        </div>
+        <div class="opui-home-content">
+          <div class="opui-home-col opui-home-col--left">
+            <div id="home-prime" class="opui-home-prime-wrap"></div>
+            <button type="button" id="btn-home-camera-preview" class="opui-home-camera-preview">
+              <span id="btn-home-camera-preview-label">Driving preview</span>
+            </button>
+          </div>
+          <div class="opui-home-col opui-home-col--right">
+            <button type="button" id="home-exp-banner" class="opui-home-exp" hidden>
+              <span class="opui-home-exp-label"></span>
+              <img class="opui-home-exp-icon" src="" alt="" />
+            </button>
+            <div id="home-setup" class="opui-home-setup-wrap"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="screen-settings" class="opui-screen" hidden>
+        <header class="opui-panel-header">
+          <h2 id="panel-title">Settings</h2>
+        </header>
+        <div id="panel-content" class="opui-panel"></div>
+      </section>
+
+      <!-- ONROAD -->
+      <section id="screen-onroad" class="opui-screen opui-screen--onroad" hidden>
+        <div class="opui-onroad-stage">
+        <div id="camera-wrap" class="opui-camera-wrap">
+          <video id="road-video" class="opui-camera-video" autoplay playsinline muted></video>
+          <div id="model-overlay" class="opui-model-overlay" hidden></div>
+          <div id="confidence-ball" class="opui-confidence-ball" hidden aria-hidden="true"></div>
+          <div id="camera-fallback" class="opui-camera-fallback" hidden>
+            <div class="opui-camera-fallback__spinner" aria-hidden="true"></div>
+            <p id="camera-status-text">Loading camera...</p>
+          </div>
+          <div id="camera-bottom-fade" class="opui-camera-bottom-fade" aria-hidden="true"></div>
+        </div>
+        <canvas id="torque-bar-canvas" class="opui-torque-bar" hidden></canvas>
+        <div id="alert-bar" class="opui-alert" hidden>
+          <div class="opui-alert__inner">
+            <span id="alert-text1" class="opui-alert__t1"></span>
+            <span id="alert-text2" class="opui-alert__t2"></span>
+          </div>
+        </div>
+        </div>
+        <div id="hud" class="opui-hud">
+        <div class="opui-hud-gradient" aria-hidden="true"></div>
+        <div id="hud-set-speed" class="opui-hud-cruise" hidden>
+          <div class="opui-hud-cruise-max">MAX</div>
+          <div id="set-speed-val" class="opui-hud-cruise-val">–</div>
+        </div>
+        <div id="hud-speed-limit-wrap" class="opui-hud-sla" hidden>
+          <div class="opui-hud-sla-mutcd-labels" hidden>
+            <span class="opui-hud-sla-mutcd-speed"></span>
+            <span class="opui-hud-sla-mutcd-limit"></span>
+          </div>
+          <span id="hud-speed-limit"></span>
+        </div>
+        <div id="hud-road-name" class="opui-hud-road" hidden><span class="opui-hud-road__text"></span></div>
+        <div id="hud-blinker-l" class="opui-blinker opui-blinker--l" hidden>◀</div>
+        <div id="hud-blinker-r" class="opui-blinker opui-blinker--r" hidden>▶</div>
+        <div id="hud-bsl" class="opui-bsl opui-bsl--l" hidden></div>
+        <div id="hud-bsr" class="opui-bsl opui-bsl--r" hidden></div>
+        <div id="hud-scc-v" class="opui-hud-scc" hidden>SCC-V</div>
+        <div id="hud-scc-m" class="opui-hud-scc opui-hud-scc--map" hidden>SCC-M</div>
+        <div id="hud-rocket" class="opui-rocket" hidden>
+          <div class="opui-rocket__up"></div>
+          <div class="opui-rocket__down"></div>
+        </div>
+        <div id="dm-arc-wrap" class="opui-dm-wrap" hidden>
+        <svg id="dm-arc" class="opui-dm-arc" viewBox="0 0 192 192">
+          <circle class="dm-arc-bg" cx="96" cy="96" r="96" fill="rgba(0,0,0,0.27)"/>
+          <path class="dm-arc-face" fill="none" stroke="#fff" stroke-width="5.2" stroke-linecap="round" stroke-linejoin="round" d=""/>
+          <path class="dm-arc-h" fill="none" stroke-linecap="round" stroke-linejoin="round" d=""/>
+          <path class="dm-arc-v" fill="none" stroke-linecap="round" stroke-linejoin="round" d=""/>
+        </svg>
+        <img class="opui-dm-face" src="/api/opui/assets/icons/driver_face.png" alt="" />
+        </div>
+        <div id="hud-circular-alert" class="opui-hud-circular" hidden>
+          <div class="opui-hud-circular-ring" aria-hidden="true"></div>
+          <img id="hud-circular-img" class="opui-hud-circular-img" alt="" hidden />
+          <div id="hud-circular-text" class="opui-hud-circular-text" hidden></div>
+          <div id="hud-circular-stopped" class="opui-hud-circular-stopped" hidden>STOPPED</div>
+          <div id="hud-circular-timer" class="opui-hud-circular-timer" hidden>0:00</div>
+        </div>
+        <div class="opui-hud-speed-block">
+          <span id="hud-speed">0</span>
+          <span id="hud-unit" class="opui-hud-unit">km/h</span>
+        </div>
+        <button type="button" id="btn-experimental" class="opui-exp-btn" hidden title="Experimental">
+          <img id="exp-icon" class="opui-exp-icon" src="" alt="" />
+        </button>
+        <div class="opui-hud-bottom-fade" aria-hidden="true"></div>
+        </div>
+        <div id="dev-ui-bottom" class="opui-dev-ui-bottom" hidden></div>
+        <div id="dev-ui-right" class="opui-dev-ui-right" hidden></div>
+        <div id="border" class="opui-border" aria-hidden="true">
+          <div class="opui-border__outer"></div>
+          <div class="opui-border__inner opui-border--disengaged"></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="opui-toast" hidden></div>
+    <dialog id="confirm-dialog" class="opui-dialog">
+      <p id="confirm-msg"></p>
+      <div class="opui-dialog-actions">
+        <button type="button" id="confirm-cancel" class="opui-btn">Cancel</button>
+        <button type="button" id="confirm-ok" class="opui-btn opui-btn--primary">Confirm</button>
+      </div>
+    </dialog>
+
+    <div id="modal-confirm" class="opui-modal" hidden>
+      <div class="opui-modal-card opui-modal-card--confirm opui-modal-card--dialog">
+        <div id="modal-confirm-msg" class="opui-modal-body opui-modal-scroll"></div>
+        <div class="opui-modal-footer opui-modal-actions opui-modal-actions--split">
+          <button type="button" id="modal-confirm-cancel" class="opui-btn opui-btn--dialog">Cancel</button>
+          <button type="button" id="modal-confirm-ok" class="opui-btn opui-btn--dialog opui-btn--primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-qr" class="opui-modal" hidden>
+      <div class="opui-modal-card opui-modal-card--qr">
+        <div id="modal-qr-title" class="opui-modal-title"></div>
+        <img id="modal-qr-img" class="opui-qr-img" alt="" />
+        <p id="modal-qr-hint" class="opui-qr-hint"></p>
+        <div class="opui-modal-footer opui-modal-actions opui-modal-actions--split">
+          <button type="button" id="modal-qr-open" class="opui-btn opui-btn--dialog">Open link</button>
+          <button type="button" id="modal-qr-close" class="opui-btn opui-btn--dialog opui-btn--primary">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-keyboard" class="opui-modal opui-modal--keyboard" hidden>
+      <div class="opui-modal-card opui-modal-card--keyboard">
+        <div id="keyboard-title" class="opui-modal-title"></div>
+        <div id="keyboard-display" class="opui-keyboard-display"></div>
+        <div id="keyboard-grid" class="opui-keyboard-grid"></div>
+        <div class="opui-modal-footer opui-modal-actions opui-modal-actions--split">
+          <button type="button" id="keyboard-cancel" class="opui-btn opui-btn--dialog">Cancel</button>
+          <button type="button" id="keyboard-confirm" class="opui-btn opui-btn--dialog opui-btn--primary">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-tree" class="opui-modal" hidden>
+      <div class="opui-modal-card opui-modal-card--tree">
+        <div class="opui-tree-header">
+          <div id="tree-title" class="opui-modal-title"></div>
+          <div id="tree-search-wrap" class="opui-tree-search-wrap"><input id="tree-search" class="opui-tree-search" type="search" autocomplete="off" /></div>
+        </div>
+        <div id="tree-body" class="opui-tree-body opui-modal-scroll"></div>
+        <div class="opui-modal-footer opui-modal-actions opui-modal-actions--split">
+          <button type="button" id="tree-cancel" class="opui-btn opui-btn--dialog">Cancel</button>
+          <button type="button" id="tree-select" class="opui-btn opui-btn--dialog">Select</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-multi" class="opui-modal" hidden>
+      <div class="opui-modal-card opui-modal-card--multi">
+        <div id="multi-title" class="opui-modal-title"></div>
+        <div id="multi-list" class="opui-multi-list opui-modal-scroll"></div>
+        <div class="opui-modal-footer opui-modal-actions opui-modal-actions--split">
+          <button type="button" id="multi-cancel" class="opui-btn opui-btn--dialog">Cancel</button>
+          <button type="button" id="multi-select" class="opui-btn opui-btn--dialog opui-btn--primary">Select</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-webui-update" class="opui-modal" hidden>
+      <div class="opui-modal-card opui-modal-card--webui-update">
+        <div id="webui-update-title" class="opui-webui-update-title"></div>
+        <div id="webui-update-body" class="opui-webui-update-body"></div>
+        <div class="opui-webui-update-footer opui-modal-actions opui-modal-actions--split">
+          <button type="button" id="webui-update-later" class="opui-btn opui-btn--dialog">Close</button>
+          <button type="button" id="webui-update-check" class="opui-btn opui-btn--dialog">Check again</button>
+          <button type="button" id="webui-update-apply" class="opui-btn opui-btn--dialog opui-btn--primary" hidden>Update now</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-html" class="opui-modal" hidden>
+      <div class="opui-modal-card opui-modal-card--dialog opui-modal-card--html">
+        <div id="html-title" class="opui-modal-title"></div>
+        <div id="html-body" class="opui-modal-scroll opui-html-content"></div>
+        <div class="opui-modal-footer opui-modal-actions opui-modal-actions--end">
+          <button type="button" id="html-ok" class="opui-btn opui-btn--dialog opui-btn--primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <dialog id="driver-camera-dialog" class="opui-dialog opui-driver-cam opui-driver-cam--fullscreen">
+      <header class="opui-driver-cam__header">
+        <h2 id="driver-cam-title" class="opui-driver-cam__title">Driver Camera Preview</h2>
+        <button type="button" id="driver-cam-close" class="opui-close opui-driver-cam__close" aria-label="Close"></button>
+      </header>
+      <div class="opui-driver-cam__viewport">
+        <video id="driver-video" autoplay playsinline muted></video>
+        <div id="driver-cam-loading" class="opui-driver-cam__loading">
+          <div class="opui-driver-cam__spinner" aria-hidden="true"></div>
+          <p id="driver-cam-loading-text">camera starting</p>
+        </div>
+        <div id="driver-face-box" class="opui-driver-cam__face" hidden></div>
+      </div>
+    </dialog>
+
+    <dialog id="onboarding-dialog" class="opui-dialog opui-onboarding" hidden>
+      <div id="onboarding-terms">
+        <h2 class="opui-onboarding-title" id="onboarding-welcome-title">Welcome to sunnypilot</h2>
+        <p class="opui-onboarding-desc" id="onboarding-terms-desc"></p>
+        <div class="opui-dialog-actions">
+          <button type="button" id="onboarding-decline-btn" class="opui-btn">Decline</button>
+          <button type="button" id="onboarding-accept" class="opui-btn opui-btn--primary">Agree</button>
+        </div>
+      </div>
+      <div id="onboarding-sunnylink" hidden>
+        <h2 class="opui-onboarding-title" id="onboarding-sunnylink-title">sunnylink</h2>
+        <div id="onboarding-sunnylink-step0">
+          <p class="opui-onboarding-desc" id="onboarding-sunnylink-desc"></p>
+          <div class="opui-dialog-actions">
+            <button type="button" id="onboarding-sunnylink-decline" class="opui-btn">Disable</button>
+            <button type="button" id="onboarding-sunnylink-accept" class="opui-btn opui-btn--primary">Enable</button>
+          </div>
+        </div>
+        <div id="onboarding-sunnylink-step1" hidden>
+          <p class="opui-onboarding-desc" id="onboarding-sunnylink-warn-desc"></p>
+          <div class="opui-dialog-actions">
+            <button type="button" id="onboarding-sunnylink-back" class="opui-btn">Back</button>
+            <button type="button" id="onboarding-sunnylink-disable-confirm" class="opui-btn opui-btn--danger">Disable</button>
+          </div>
+        </div>
+      </div>
+      <div id="onboarding-training" hidden>
+        <img id="onboarding-training-img" class="opui-onboarding-training-img" alt="" />
+        <div class="opui-onboarding-progress"><div id="onboarding-training-progress"></div></div>
+        <p id="onboarding-training-step" class="opui-muted"></p>
+        <div class="opui-dialog-actions">
+          <button type="button" id="onboarding-training-skip" class="opui-btn">Skip</button>
+          <button type="button" id="onboarding-training-next" class="opui-btn opui-btn--primary">Next</button>
+        </div>
+      </div>
+      <div id="onboarding-decline" hidden>
+        <p id="onboarding-decline-text"></p>
+        <div class="opui-dialog-actions">
+          <button type="button" id="onboarding-decline-back" class="opui-btn">Back</button>
+          <button type="button" id="onboarding-uninstall" class="opui-btn opui-btn--danger">Decline, uninstall sunnypilot</button>
+        </div>
+      </div>
+    </dialog>
+  </div>
+  </div>
+
+  <!-- PC dev simulation — outside scaled viewport -->
+  <aside id="dev-panel" class="opui-dev-panel" hidden>
+    <button type="button" id="dev-panel-toggle" class="opui-dev-header" aria-expanded="true" aria-controls="dev-panel-body">
+      <span id="dev-panel-title" class="opui-dev-title">PC Dev simulation</span>
+      <span class="opui-dev-chevron" aria-hidden="true"></span>
+    </button>
+    <div id="dev-panel-body" class="opui-dev-body">
+    <div class="opui-dev-presets">
+      <button type="button" data-preset="home">Offroad</button>
+      <button type="button" data-preset="onroad_engaged">On road · Engaged</button>
+      <button type="button" data-preset="onroad_disengaged">On road · Disengaged</button>
+      <button type="button" id="dev-preset-override" data-preset="override">Override</button>
+      <button type="button" data-preset="lat_only">Lateral only</button>
+      <button type="button" data-preset="alert_critical">Critical alert</button>
+      <button type="button" data-preset="e2e_green">E2E green</button>
+      <button type="button" data-preset="standstill_timer">Standstill timer</button>
+      <button type="button" data-preset="long_only">Longitudinal only</button>
+      <button type="button" data-preset="alert_full">Full-screen alert</button>
+      <button type="button" data-preset="sound_engage">Sound · engage</button>
+      <button type="button" data-preset="sound_disengage">Sound · disengage</button>
+      <button type="button" data-preset="sound_warning">Sound · warning</button>
+      <button type="button" data-preset="home_update">Home · Update</button>
+      <button type="button" data-preset="home_alerts">Home · Alerts</button>
+      <button type="button" data-preset="confidence_low">Confidence · low</button>
+      <button type="button" data-preset="confidence_high">Confidence · high</button>
+      <button type="button" data-preset="onroad_overlay">On road · overlay</button>
+      <button type="button" data-preset="software_agnos">Software · AGNOS</button>
+    </div>
+    <label class="opui-dev-row"><input type="checkbox" id="dev-headless" /> <span id="dev-label-headless">Headless (no display)</span></label>
+    <label class="opui-dev-row"><input type="checkbox" id="dev-started" /> <span id="dev-label-started">On road</span></label>
+    <label class="opui-dev-row"><input type="checkbox" id="dev-engaged" /> <span id="dev-label-engaged">Engaged</span></label>
+    <label class="opui-dev-row"><input type="checkbox" id="dev-experimental" /> <span id="dev-label-experimental">Experimental</span></label>
+    <label class="opui-dev-row"><input type="checkbox" id="dev-recording" /> <span id="dev-label-recording">Recording microphone</span></label>
+    <label class="opui-dev-row"><input type="checkbox" id="dev-agnos-pending" checked /> <span id="dev-label-agnos">AGNOS update pending</span></label>
+    <label class="opui-dev-row"><span id="dev-label-speed">Speed</span> <input type="range" id="dev-speed" min="0" max="150" value="72" /> <span id="dev-speed-val">72</span></label>
+    </div>
+  </aside>
+  <script type="module" src="/static/js/app.js?v=116"></script>
+</body>
+</html>
