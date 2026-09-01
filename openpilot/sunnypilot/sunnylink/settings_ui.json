@@ -1115,6 +1115,15 @@
           "description": "Screen dimming and sleep behavior while driving",
           "items": [
             {
+              "key": "Brightness",
+              "widget": "option",
+              "title": "Screen Brightness",
+              "description": "Screen brightness when offroad (not driving). 0 uses the device default.",
+              "min": 0,
+              "max": 100,
+              "step": 5
+            },
+            {
               "key": "OnroadScreenOffBrightness",
               "widget": "multiple_button",
               "title": "Onroad Brightness",
@@ -1220,7 +1229,7 @@
               "options": [
                 {
                   "value": 0,
-                  "label": "Always On"
+                  "label": "0s"
                 },
                 {
                   "value": 3,
@@ -1645,7 +1654,34 @@
               "key": "AlwaysOnDM",
               "widget": "toggle",
               "title": "Always-On Driver Monitoring",
-              "description": "Enable driver monitoring even when sunnypilot is not engaged."
+              "description": "The driver monitoring system can be toggled on/off, but long-term activation is recommended."
+            },
+            {
+              "key": "DistractionDetectionLevel",
+              "widget": "multiple_button",
+              "title": "Distraction Detection Level",
+              "description": "Set how sensitive the driver distraction detection should be. Strict warns on minor distractions; Moderate is balanced; Lenient only alerts on clear distractions.",
+              "options": [
+                {
+                  "value": 0,
+                  "label": "Strict"
+                },
+                {
+                  "value": 1,
+                  "label": "Moderate"
+                },
+                {
+                  "value": 2,
+                  "label": "Lenient"
+                }
+              ],
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "AlwaysOnDM",
+                  "equals": true
+                }
+              ]
             },
             {
               "key": "IsMetric",

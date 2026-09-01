@@ -8,6 +8,7 @@ from openpilot.selfdrive.ui.mici.widgets.dialog import BigConfirmationCircleButt
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.selfdrive.ui.layouts.settings.common import restart_needed_callback
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.system.ui.lib.multilang import tr
 
 PERSONALITY_TO_INT = log.LongitudinalPersonality.schema.enumerants
 
@@ -41,17 +42,22 @@ class TogglesLayoutMici(NavScroller):
   def __init__(self):
     super().__init__()
 
-    self._personality_toggle = BigMultiParamToggle("driving personality", "LongitudinalPersonality", ["aggressive", "standard", "relaxed"])
-    self._accel_controller_enabled = BigParamControl("enable accel controller", "AccelPersonalityEnabled")
-    self._accel_personality_toggle = BigMultiParamToggle("acceleration profile", "AccelPersonality", ["eco", "normal", "sport"])
-    self._experimental_btn = BigToggle("experimental mode", initial_state=ui_state.params.get_bool("ExperimentalMode"),
+    self._personality_toggle = BigMultiParamToggle(tr("driving personality"), "LongitudinalPersonality", [tr("aggressive"), tr("standard"), tr("relaxed")])
+    self._accel_controller_enabled = BigParamControl(tr("enable accel controller"), "AccelPersonalityEnabled")
+    self._accel_personality_toggle = BigMultiParamToggle(tr("acceleration profile"), "AccelPersonality", [tr("eco"), tr("normal"), tr("sport")])
+    self._experimental_btn = BigToggle(tr("experimental mode"), initial_state=ui_state.params.get_bool("ExperimentalMode"),
                                        toggle_callback=self._on_experimental_mode)
-    is_metric_toggle = BigParamControl("use metric units", "IsMetric")
-    ldw_toggle = BigParamControl("lane departure warnings", "IsLdwEnabled")
-    always_on_dm_toggle = BigParamControl("always-on driver monitor", "AlwaysOnDM")
-    record_front = BigParamControl("record & upload cabin camera", "RecordFront", toggle_callback=restart_needed_callback)
-    record_mic = BigParamControl("record & upload mic audio", "RecordAudio", toggle_callback=restart_needed_callback)
-    enable_openpilot = BigParamControl("enable sunnypilot", "OpenpilotEnabledToggle", toggle_callback=restart_needed_callback)
+    is_metric_toggle = BigParamControl(tr("use metric units"), "IsMetric")
+    ldw_toggle = BigParamControl(tr("lane departure warnings"), "IsLdwEnabled")
+    always_on_dm_toggle = BigParamControl(tr("always-on driver monitor"), "AlwaysOnDM")
+    distraction_level_toggle = BigMultiParamToggle(
+      tr("distraction detection level"),
+      "DistractionDetectionLevel",
+      ["strict", "moderate", "lenient"],
+    )
+    record_front = BigParamControl(tr("record & upload driver camera"), "RecordFront", toggle_callback=restart_needed_callback)
+    record_mic = BigParamControl(tr("record & upload mic audio"), "RecordAudio", toggle_callback=restart_needed_callback)
+    enable_openpilot = BigParamControl(tr("enable sunnypilot"), "OpenpilotEnabledToggle", toggle_callback=restart_needed_callback)
 
     self._scroller.add_widgets([
       self._personality_toggle,
@@ -61,10 +67,14 @@ class TogglesLayoutMici(NavScroller):
       is_metric_toggle,
       ldw_toggle,
       always_on_dm_toggle,
+      distraction_level_toggle,
       record_front,
       record_mic,
       enable_openpilot,
     ])
+
+    self._always_on_dm_toggle = always_on_dm_toggle
+    self._distraction_level_toggle = distraction_level_toggle
 
     # Toggle lists
     self._refresh_toggles = (
@@ -125,6 +135,11 @@ class TogglesLayoutMici(NavScroller):
       item.set_checked(ui_state.params.get_bool(key))
 
     self._accel_personality_toggle.refresh()
+
+    dm_on = ui_state.params.get_bool("AlwaysOnDM")
+    self._distraction_level_toggle.set_visible(dm_on)
+    if dm_on:
+      self._distraction_level_toggle._load_value()
 
   def _on_experimental_mode(self, state: bool):
     if state and not ui_state.params.get_bool("ExperimentalModeConfirmed"):

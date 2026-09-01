@@ -16,6 +16,23 @@ from openpilot.selfdrive.locationd.helpers import rotate_std
 from openpilot.selfdrive.locationd.models.pose_kf import PoseKalman, States
 from openpilot.selfdrive.locationd.models.constants import ObservationKind, GENERATED_DIR
 
+
+def load_imu_calibration_matrix(params: Params) -> np.ndarray | None:
+  """Load the IMU-to-vehicle rotation matrix from Params if enabled."""
+  if not params.get_bool("ImuCalibrationEnabled"):
+    return None
+  data = params.get("ImuCalibrationMatrix")
+  if data is None or len(data) != 36:
+    return None
+  try:
+    R = np.frombuffer(data, dtype=np.float32).reshape(3, 3)
+    det = float(np.linalg.det(R))
+    if 0.99 < det < 1.01:
+      return R
+  except Exception:
+    pass
+  return None
+
 ACCEL_SANITY_CHECK = 100.0  # m/s^2
 ROTATION_SANITY_CHECK = 10.0  # rad/s
 TRANS_SANITY_CHECK = 200.0  # m/s
@@ -52,7 +69,7 @@ class HandleLogResult(Enum):
 
 
 class LocationEstimator:
-  def __init__(self, debug: bool):
+  def __init__(self, debug: bool, params: Params | None = None):
     self.kf = PoseKalman(GENERATED_DIR, MAX_FILTER_REWIND_TIME)
 
     self.debug = debug
@@ -61,6 +78,10 @@ class LocationEstimator:
     self.car_speed = 0.0
     self.camodo_yawrate_distribution = np.array([0.0, 10.0])  # mean, std
     self.device_from_calib = np.eye(3)
+    self.imu_calib_matrix = load_imu_calibration_matrix(params or Params())
+    self.use_imu_calib = self.imu_calib_matrix is not None
+    if self.use_imu_calib:
+      self.device_from_calib = self.imu_calib_matrix
 
     obs_kinds = [ObservationKind.PHONE_ACCEL, ObservationKind.PHONE_GYRO, ObservationKind.CAMERA_ODO_ROTATION, ObservationKind.CAMERA_ODO_TRANSLATION]
     self.observations = {kind: np.zeros(3, dtype=np.float32) for kind in obs_kinds}
@@ -150,7 +171,16 @@ class LocationEstimator:
 
     elif which == "extrinsicsCalibration":
       # Note that we use this message during calibration
-      if len(msg.rpyCalib) > 0:
+      if len(msg.imuCalibMatrix) == 9:
+        # Full 3x3 IMU-to-vehicle matrix from imu_calibrationd; bypass Euler limits
+        R = np.array(msg.imuCalibMatrix, dtype=np.float64).reshape(3, 3)
+        det = float(np.linalg.det(R))
+        if 0.99 < det < 1.01:
+          self.device_from_calib = R
+          self.use_imu_calib = True
+        else:
+          return HandleLogResult.INPUT_INVALID
+      elif len(msg.rpyCalib) > 0 and not self.use_imu_calib:
         calib = np.array(msg.rpyCalib)
         if calib.min() < -CALIB_RPY_SANITY_CHECK or calib.max() > CALIB_RPY_SANITY_CHECK:
           return HandleLogResult.INPUT_INVALID
@@ -275,7 +305,7 @@ def main():
 
   params = Params()
 
-  estimator = LocationEstimator(DEBUG)
+  estimator = LocationEstimator(DEBUG, params)
 
   filter_initialized = False
   critcal_services = ["accelerometer", "gyroscope", "cameraOdometry"]

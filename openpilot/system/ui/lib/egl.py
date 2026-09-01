@@ -1,4 +1,5 @@
 import os
+import time
 import cffi
 from dataclasses import dataclass
 from typing import Any
@@ -62,7 +63,7 @@ class EGLState:
 _egl = EGLState()
 
 
-def init_egl() -> bool:
+def init_egl(retries: int = 5, delay_s: float = 0.2) -> bool:
   """Initialize EGL and load necessary functions"""
   global _egl
 
@@ -70,6 +71,25 @@ def init_egl() -> bool:
   if _egl.initialized:
     return True
 
+  last_err: Exception | None = None
+  for attempt in range(max(1, retries)):
+    try:
+      if _init_egl_once():
+        return True
+    except Exception as e:
+      last_err = e
+      cloudlog.exception(f"EGL initialization failed (attempt {attempt + 1}/{retries}): {e}")
+    if attempt + 1 < retries:
+      time.sleep(delay_s)
+
+  if last_err:
+    cloudlog.error(f"EGL initialization failed after {retries} attempts: {last_err}")
+  _egl.initialized = False
+  return False
+
+
+def _init_egl_once() -> bool:
+  global _egl
   try:
     _egl.ffi = cffi.FFI()
     _egl.ffi.cdef("""
@@ -120,9 +140,8 @@ def init_egl() -> bool:
     _egl.initialized = True
     return True
   except Exception as e:
-    cloudlog.exception(f"EGL initialization failed: {e}")
     _egl.initialized = False
-    return False
+    raise e
 
 
 def create_egl_image(width: int, height: int, stride: int, fd: int, uv_offset: int) -> EGLImage | None:

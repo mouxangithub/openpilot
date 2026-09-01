@@ -63,6 +63,8 @@ def listdir_by_creation(d: str) -> list[str]:
 def clear_locks(root: str) -> None:
   for logdir in os.listdir(root):
     path = os.path.join(root, logdir)
+    if not os.path.isdir(path):
+      continue
     try:
       for fname in os.listdir(path):
         if fname.endswith(".lock"):

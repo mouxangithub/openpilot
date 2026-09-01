@@ -1,5 +1,6 @@
 venv/
 .venv/
+.pydeps/
 .ci_cache
 .env
 .clang-format
@@ -65,6 +66,15 @@ openpilot/selfdrive/ui/translations/tmp
 openpilot/selfdrive/car/tests/cars_dump
 openpilot/system/camerad/camerad
 openpilot/system/camerad/test/ae_gray_test
+prebuilt
+sidecar_events.jsonl
+ai_audit_trail.jsonl
+ai_tune_passport.jsonl
+workspace/
+osm_cache/
+error.log
+agnos_webui_dev_state.json
+ai_*
 
 .coverage*
 coverage.xml

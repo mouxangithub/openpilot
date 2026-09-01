@@ -1,5 +1,8 @@
 * text=auto
 
+# Boot script must stay LF so bash on AGNOS does not see CRLF syntax errors.
+launch_chffrplus.sh text eol=lf
+
 # to move existing files into LFS:
 # git add --renormalize .
 *.onnx filter=lfs diff=lfs merge=lfs -text
@@ -10,5 +13,16 @@
 *.otf filter=lfs diff=lfs merge=lfs -text
 *.wav filter=lfs diff=lfs merge=lfs -text
 
+# C3 fork: keep UI fonts/training images in plain git (avoid LFS quota on push)
+openpilot/selfdrive/assets/fonts/OpFont-*.otf -filter -diff -merge
+openpilot/selfdrive/assets/training/*.png -filter -diff -merge
+
 openpilot/selfdrive/car/tests/test_models_segs.txt filter=lfs diff=lfs merge=lfs -text
 openpilot/common/hardware/comma/updater filter=lfs diff=lfs merge=lfs -text
+
+# Force CJK SC fonts to be stored as regular git blobs (not LFS),
+# because the upstream GitLab LFS server doesn't accept pushes from this
+# fork and the fork's own GitHub LFS budget is exhausted.
+openpilot/selfdrive/assets/fonts/NotoSansSC-*.otf -filter -diff -merge binary
+openpilot/selfdrive/assets/fonts/HarmonyOS_Sans_SC_*.ttf -filter -diff -merge binary
+openpilot/selfdrive/assets/fonts/NotoColorEmoji.ttf -filter -diff -merge binary

@@ -17,6 +17,13 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 
 UPDATER_TIMEOUT = 10.0  # seconds to wait for updater to respond
 
+# State keys for CheckUpdateButton — raw English used for compares; display goes through tr()
+_STATE_DOWNLOAD_UPDATE = "download update"
+_STATE_FAILED_TO_UPDATE = "failed to update"
+_STATE_UPDATER_FAILED_TO_RESPOND = "updater failed\nto respond"
+_STATE_CHECKING = "checking..."
+_STATE_UP_TO_DATE = "up to date"
+
 
 def _split_description(desc: str) -> tuple[str, str, str, str] | None:
   # UpdaterCurrentDescription/UpdaterNewDescription format: "version / branch / commit / date"
@@ -41,11 +48,11 @@ class SoftwareInfoLayoutMici(Widget):
 
     subheader_color = rl.Color(255, 255, 255, int(255 * 0.9 * 0.65))
     max_width = int(self._rect.width - 20)
-    self._version_label = UnifiedLabel("version", 48, max_width=max_width, font_weight=FontWeight.DISPLAY, wrap_text=False)
+    self._version_label = UnifiedLabel(tr("version"), 48, max_width=max_width, font_weight=FontWeight.DISPLAY, wrap_text=False)
     self._version_text_label = UnifiedLabel("", 32, max_width=max_width, text_color=subheader_color,
                                             font_weight=FontWeight.ROMAN, wrap_text=False)
 
-    self._branch_label = UnifiedLabel("branch", 48, max_width=max_width, font_weight=FontWeight.DISPLAY, wrap_text=False)
+    self._branch_label = UnifiedLabel(tr("branch"), 48, max_width=max_width, font_weight=FontWeight.DISPLAY, wrap_text=False)
     self._branch_text_label = UnifiedLabel("", 32, max_width=max_width, text_color=subheader_color,
                                            font_weight=FontWeight.ROMAN, wrap_text=False, scroll=True)
 
@@ -77,11 +84,12 @@ class CheckUpdateButton(BigButton):
   def __init__(self):
     self._txt_update_icon = gui_app.texture("icons_mici/settings/device/update.png", 64, 75)
     self._txt_up_to_date_icon = gui_app.texture("icons_mici/settings/device/up_to_date.png", 64, 64)
-    super().__init__("check for update", "", self._txt_update_icon)
+    super().__init__(tr("check for update"), "", self._txt_update_icon)
 
     self._waiting_for_updater_t: float | None = None
     self._hide_value_t: float | None = None
     self._state: UpdaterState = UpdaterState.IDLE
+    self._state_key: str = ""
 
     ui_state.add_offroad_transition_callback(self.offroad_transition)
 
@@ -102,7 +110,7 @@ class CheckUpdateButton(BigButton):
     self.set_icon(self._txt_update_icon)
 
     def run():
-      if self.get_value() == "download update":
+      if self._state_key == _STATE_DOWNLOAD_UPDATE:
         subprocess.run("pkill -SIGHUP -f openpilot.system.updated.updated", shell=True)
       else:
         subprocess.run("pkill -SIGUSR1 -f openpilot.system.updated.updated", shell=True)
@@ -110,11 +118,12 @@ class CheckUpdateButton(BigButton):
     threading.Thread(target=run, daemon=True).start()
 
   def set_value(self, value: str):
-    super().set_value(value)
+    self._state_key = value
+    super().set_value(tr(value) if value else "")
     if value:
       self.set_text("")
     else:
-      self.set_text("check for update")
+      self.set_text(tr("check for update"))
 
   def _update_state(self):
     super()._update_state()
@@ -148,24 +157,24 @@ class CheckUpdateButton(BigButton):
         self._state = UpdaterState.IDLE
         self._hide_value_t = rl.get_time()
       else:
-        if self.get_value() != updater_state:
+        if self._state_key != updater_state:
           self.set_value(updater_state)
 
     elif self._state == UpdaterState.IDLE:
       self.set_rotate_icon(False)
       if failed:
         self.set_enabled(True)  # allow retry when failure came from updater param
-        if self.get_value() != "failed to update":
+        if self._state_key != _STATE_FAILED_TO_UPDATE:
           self.set_value("failed to update")
 
       elif ui_state.params.get_bool("UpdaterFetchAvailable"):
         self.set_enabled(True)
-        if self.get_value() != "download update":
+        if self._state_key != _STATE_DOWNLOAD_UPDATE:
           self.set_value("download update")
 
       elif self._hide_value_t is not None:
         self.set_enabled(True)
-        if self.get_value() == "checking...":
+        if self._state_key == _STATE_CHECKING:
           self.set_value("up to date")
           self.set_icon(self._txt_up_to_date_icon)
 
@@ -175,7 +184,7 @@ class CheckUpdateButton(BigButton):
           self.set_value("")
           self.set_icon(self._txt_update_icon)
       else:
-        if self.get_value() != "":
+        if self._state_key != "":
           self.set_value("")
 
     if self._state != UpdaterState.WAITING_FOR_UPDATER:
@@ -184,7 +193,7 @@ class CheckUpdateButton(BigButton):
 
 class InstallUpdateButton(BigButton):
   def __init__(self):
-    super().__init__("install update", "", gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70))
+    super().__init__(tr("install update"), "", gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70))
     self.set_visible(lambda: ui_state.is_offroad() and ui_state.params.get_bool("UpdateAvailable"))
 
   def _update_state(self):
@@ -233,7 +242,7 @@ class BranchSelectPage(NavScroller):
 
 class TargetBranchButton(BigButton):
   def __init__(self):
-    super().__init__("target branch", ui_state.params.get("UpdaterTargetBranch") or "")
+    super().__init__(tr("target branch"), ui_state.params.get("UpdaterTargetBranch") or "")
     self.set_click_callback(self._on_click)
     self.set_visible(not ui_state.params.get_bool("IsTestedBranch"))
     self.set_enabled(lambda: ui_state.is_offroad())
@@ -261,7 +270,7 @@ class SoftwareLayoutMici(NavScroller):
     def uninstall_openpilot_callback():
       ui_state.params.put_bool("DoUninstall", True, block=True)
 
-    uninstall_openpilot_btn = EngagedConfirmationButton("uninstall sunnypilot", "uninstall",
+    uninstall_openpilot_btn = EngagedConfirmationButton(tr("uninstall sunnypilot"), tr("uninstall"),
                                                         gui_app.texture("icons_mici/settings/device/uninstall.png", 64, 64),
                                                         uninstall_openpilot_callback, exit_on_confirm=False)
 

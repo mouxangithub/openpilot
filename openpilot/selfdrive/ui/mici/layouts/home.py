@@ -11,6 +11,7 @@ from openpilot.system.ui.widgets.label import UnifiedLabel, gui_label
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.selfdrive.ui.ui_state import ui_state, ChestnutState
 from openpilot.common.version import RELEASE_BRANCHES
+from openpilot.system.ui.lib.multilang import tr
 
 HEAD_BUTTON_FONT_SIZE = 40
 HOME_PADDING = 8
@@ -19,7 +20,7 @@ ALERTS_ZONE_WIDTH = 180
 NetworkType = log.DeviceState.NetworkType
 
 NETWORK_TYPES = {
-  NetworkType.none: "Offline",
+  NetworkType.none: tr("Offline"),
   NetworkType.wifi: "WiFi",
   NetworkType.cell2G: "2G",
   NetworkType.cell3G: "3G",

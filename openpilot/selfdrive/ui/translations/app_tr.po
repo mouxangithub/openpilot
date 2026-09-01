@@ -4,870 +4,3554 @@ msgstr ""
 "Language: tr\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid " (Default)"
+msgstr "(Varsayılan)"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid " Steering torque response calibration is complete."
 msgstr " Direksiyon tork tepkisi kalibrasyonu tamamlandı."
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid " Steering torque response calibration is {}% complete."
 msgstr " Direksiyon tork tepkisi kalibrasyonu {}% tamamlandı."
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid " Your device is pointed {:.1f}° {} and {:.1f}° {}."
 msgstr " Cihazınız {:.1f}° {} ve {:.1f}° {} yönünde konumlandırılmış."
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "%"
+msgstr "%"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "(Only for highest tiers, and does NOT bring ANY benefit to you yet. We are just testing data volume.)"
+msgstr "(Yalnızca en yüksek katmanlar için ve henüz size HİÇBİR fayda SAĞLAMAZ. Yalnızca veri hacmini test ediyoruz.)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid ", but we'll be here when you're ready to come back."
+msgstr ", ama geri dönmeye hazır olduğunda biz burada olacağız."
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "--"
 msgstr "--"
 
-#: openpilot/selfdrive/ui/widgets/prime.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
+msgid "---"
+msgstr "---"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "0% - Downloading Maps"
+msgstr "%0 - Haritaları İndirme"
+
+#: openpilot\selfdrive\ui\widgets\prime.py
 msgid "1 year of drive storage"
 msgstr "1 yıl sürüş depolaması"
 
-#: openpilot/selfdrive/ui/widgets/prime.py
+#: openpilot\selfdrive\ui\widgets\prime.py
 msgid "24/7 LTE connectivity"
 msgstr "7/24 LTE bağlantısı"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "2G"
 msgstr "2G"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "3-Finger"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "3G"
 msgstr "3G"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "4-Finger"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "5-Finger"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "5G"
 msgstr "5G"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "<b>Unsupported branch detected</b> - The current version of <b><u>%1</u></b> branch is no longer supported on the comma three. Please go to <b>[Device > Software]</b> and install a supported branch with <b><u>-tici</u></b> in the branch name for the comma three."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
+msgid "<b>WARNING: sunnypilot longitudinal control is in alpha for this car and may disable Automatic Emergency Braking (AEB).</b><br><br>On this car, sunnypilot defaults to the car's built-in ACC instead of sunnypilot's longitudinal control. Enable this to switch to sunnypilot longitudinal control. Enabling Experimental mode is recommended when enabling sunnypilot longitudinal control alpha. Changing this setting will restart sunnypilot if the car is powered on."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "<br><br>Steering lag calibration is complete."
 msgstr "<br><br>Direksiyon gecikmesi kalibrasyonu tamamlandı."
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "<br><br>Steering lag calibration is {}% complete."
 msgstr "<br><br>Direksiyon gecikmesi kalibrasyonu %{} tamamlandı."
 
-#: openpilot/selfdrive/ui/widgets/ssh_key.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "A beautiful rainbow effect on the path the model wants to take. It does not affect driving in any way."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "A chime and on-screen alert will play when the traffic light you are waiting for turns green and you have no vehicle in front of you.<br>Note: This chime is only designed as a notification. It is the driver's responsibility to observe their environment and make decisions accordingly."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "A chime and on-screen alert will play when you are stopped, and the vehicle in front of you start moving.<br>Note: This chime is only designed as a notification. It is the driver's responsibility to observe their environment and make decisions accordingly."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "ACC."
+msgstr "ACC."
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "ACTIVE"
+msgstr "AKTİF"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "ACTUAL L.A."
+msgstr "GERÇEK L.A."
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
+msgid "ADB (Android Debug Bridge) allows connecting to your device over USB or over the network. See https://docs.comma.ai/how-to/connect-to-comma for more info."
+msgstr ""
+
+#: openpilot\selfdrive\ui\widgets\ssh_key.py
 msgid "ADD"
 msgstr "EKLE"
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_limit.py
+msgid "AHEAD"
+msgstr "İLERDE"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\trips.py
+msgid "ALL TIME"
+msgstr "TÜM ZAMANLAR"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "ALT."
+msgstr "ALT."
+
+#: openpilot\system\ui\widgets\network.py
 msgid "APN Setting"
 msgstr "APN Ayarı"
 
-#: openpilot/selfdrive/ui/widgets/offroad_alerts.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Acceleration Profile"
+msgstr ""
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
 msgid "Acknowledge Excessive Actuation"
 msgstr "Aşırı Müdahaleyi Onayla"
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Actuator Delay:"
+msgstr "Aktüatör Gecikmesi:"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Adjust Camera Offset"
+msgstr "Kamera Ofsetini Ayarla"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Adjust Lane Turn Speed"
+msgstr "Şerit Dönüş Hızını Ayarlayın"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Adjust Software Delay"
+msgstr "Yazılım Gecikmesini Ayarla"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Adjust the software delay when Live Learning Steer Delay is toggled off. The default software delay value is 0.2"
+msgstr "Canlı Öğrenme Yönlendirme Gecikmesi kapatıldığında yazılım gecikmesini ayarlayın. Varsayılan yazılım gecikme değeri 0,2'dir"
+
+#: openpilot\system\ui\widgets\network.py
 msgid "Advanced"
 msgstr "Gelişmiş"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Aggressive"
 msgstr "Agresif"
 
-#: openpilot/selfdrive/ui/layouts/onboarding.py
+#: openpilot\selfdrive\ui\layouts\onboarding.py
 msgid "Agree"
 msgstr "Kabul et"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "All"
+msgstr "Tüm"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "All states (~6.0 GB)"
+msgstr "Tüm eyaletler (~6,0 GB)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "Allows the driver to provide limited steering input while openpilot is engaged."
+msgstr "openpilot devredeyken sürücünün sınırlı direksiyon girişi sağlamasına olanak tanır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Always On"
+msgstr "Daima Açık"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Always-On Driver Monitoring"
 msgstr "Sürekli Sürücü İzleme"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "An alpha version of sunnypilot longitudinal control can be tested, along with Experimental mode, on non-release branches."
+msgstr ""
+
+#: openpilot\system\ui\tici_updater.py
+msgid "An operating system update is required. Connect your device to Wi-Fi for the fastest update experience. The download size is approximately 1GB."
+msgstr ""
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "An update to your device's operating system is downloading in the background. You will be prompted to update when it's ready to install."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "Any fast phone or laptop charger should be fine."
+msgstr "Herhangi bir hızlı telefon veya dizüstü bilgisayar şarj cihazı iyi olmalıdır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Apply a custom timeout for settings UI.<br>This is the time after which settings UI closes automatically if user is not interacting with the screen."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Are you sure you want to backup your current sunnypilot settings?"
+msgstr "Mevcut sunnypilot ayarlarınızı yedeklemek istediğinizden emin misiniz?"
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Are you sure you want to clear the IMU calibration?"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Are you sure you want to enter Always Offroad mode?"
+msgstr "Daima Offroad moduna girmek istediğinizden emin misiniz?"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Are you sure you want to exit Always Offroad mode?"
+msgstr "Daima Offroad modundan çıkmak istediğinizden emin misiniz?"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Are you sure you want to power off?"
 msgstr "Kapatmak istediğinizden emin misiniz?"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Are you sure you want to reboot?"
 msgstr "Yeniden başlatmak istediğinizden emin misiniz?"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Are you sure you want to reset all sunnypilot settings to default? Once the settings are reset, there is no going back."
+msgstr "Tüm sunnypilot ayarlarını varsayılana sıfırlamak istediğinizden emin misiniz? Ayarlar sıfırlandıktan sonra geri dönüş yoktur."
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Are you sure you want to reset calibration?"
 msgstr "Kalibrasyonu sıfırlamak istediğinizden emin misiniz?"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\system\ui\tici_reset.py
+msgid "Are you sure you want to reset your device?"
+msgstr "Cihazınızı sıfırlamak istediğinizden emin misiniz?"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Are you sure you want to restore the last backed up sunnypilot settings?"
+msgstr "En son yedeklenen sunnypilot ayarlarını geri yüklemek istediğinizden emin misiniz?"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "Are you sure you want to uninstall?"
 msgstr "Kaldırmak istediğinizden emin misiniz?"
 
-#: openpilot/selfdrive/ui/layouts/onboarding.py
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Assist"
+msgstr "Yardım"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Assist: Adjusts the vehicle's cruise speed based on the current road's speed limit when operating the +/- buttons."
+msgstr "Yardım: +/- düğmelerini çalıştırırken aracın seyir hızını mevcut yolun hız sınırına göre ayarlar."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Auto (Dark)"
+msgstr "Otomatik (Koyu)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Auto (Default)"
+msgstr "Otomatik (Varsayılan)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Auto Lane Change by Blinker"
+msgstr "Flaşörle Otomatik Şerit Değiştirme"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Auto Lane Change: Delay with Blind Spot"
+msgstr "Otomatik Şerit Değiştirme: Kör Nokta ile Gecikme"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "B.D."
+msgstr "B.D."
+
+#: openpilot\selfdrive\ui\layouts\onboarding.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\onboarding.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+#: openpilot\system\ui\tici_setup.py
+#: openpilot\system\ui\tici_updater.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Back"
 msgstr "Geri"
 
-#: openpilot/selfdrive/ui/widgets/prime.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Backup"
+msgstr "Yedekleme"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Backup Failed"
+msgstr "Yedekleme Başarısız Oldu"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Backup Settings"
+msgstr "Yedekleme Ayarları"
+
+#: openpilot\selfdrive\ui\widgets\prime.py
 msgid "Become a comma prime member at connect.comma.ai"
 msgstr "connect.comma.ai adresinde comma prime üyesi olun"
 
-#: openpilot/selfdrive/ui/widgets/pairing_dialog.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Become a sponsor of sunnypilot to get early access to sunnylink features when they become available."
+msgstr "sunnylink özelliklerine kullanıma sunulduğunda erken erişim sağlamak için sunnypilot sponsoru olun."
+
+#: openpilot\system\ui\tici_setup.py
+msgid "Before we get on the road, let's finish installation and cover some details."
+msgstr "Yola çıkmadan önce kurulumu bitirelim ve bazı ayrıntılara değinelim."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Big Model"
+msgstr "Büyük Model"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Big model unavailable until the next drive."
+msgstr "Büyük model bir sonraki sürüşe kadar kullanılamaz."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Big model unavailable, {} is driving until the next drive."
+msgstr "Büyük model kullanılamıyor, bir sonraki sürüşe kadar {} sürüyor."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Block Lane Change: Road Edge Detection"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Blocks the lane change if the model sees a road edge on your signaled side."
+msgstr ""
+
+#: openpilot\selfdrive\ui\widgets\pairing_dialog.py
 msgid "Bookmark connect.comma.ai to your home screen to use it like an app"
 msgstr "connect.comma.ai'yi ana ekranınıza ekleyerek bir uygulama gibi kullanın"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Bottom"
+msgstr "Alt"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
 msgid "CHANGE"
 msgstr "DEĞİŞTİR"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\layouts\settings\software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
 msgid "CHECK"
 msgstr "KONTROL ET"
 
-#: openpilot/selfdrive/ui/widgets/exp_mode_button.py
+#: openpilot\selfdrive\ui\widgets\exp_mode_button.py
 msgid "CHILL MODE ON"
 msgstr "CHILL MODU AÇIK"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "CLEAR"
+msgstr "TEMİZLEMEK"
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
+#: openpilot\system\ui\widgets\network.py
 msgid "CONNECT"
 msgstr "BAĞLAN"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "CONNECTING..."
 msgstr "BAĞLAN"
 
-#: system/ui/widgets/confirm_dialog.py
-#: system/ui/widgets/keyboard.py
-#: system/ui/widgets/network.py
-#: system/ui/widgets/option_dialog.py
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Calibration cancelled"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Calibration completed"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Calibration failed"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\system\ui\tici_reset.py
+#: openpilot\system\ui\widgets\confirm_dialog.py
+#: openpilot\system\ui\widgets\keyboard.py
+#: openpilot\system\ui\widgets\network.py
+#: openpilot\system\ui\widgets\option_dialog.py
 msgid "Cancel"
 msgstr "İptal"
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Cancel Download"
+msgstr "İndirmeyi İptal Et"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Cancel Verification"
+msgstr "Doğrulamayı İptal Et"
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Cancelled"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Car First"
+msgstr "Önce Araba"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Car First: Use Speed Limit data from Car if available, else use from OpenStreetMaps"
+msgstr "Önce Araba: Varsa Araba'daki Hız Sınırı verilerini kullanın, yoksa OpenStreetMaps'ten kullanın"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Car Only"
+msgstr "Yalnızca Araba"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Car Only: Use Speed Limit data only from Car"
+msgstr "Yalnızca Araba: Yalnızca Arabadaki Hız Sınırı verilerini kullan"
+
+#: openpilot\system\ui\widgets\network.py
 msgid "Cellular Metered"
 msgstr "Ölçülü Hücresel"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
 msgid "Change Language"
 msgstr "Dili Değiştir"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Changing this setting will restart sunnypilot if the car is powered on."
-msgstr ""
+msgstr "Araç açıksa bu ayarın değiştirilmesi sunnypilot yeniden başlatacaktır."
 
-#: system/ui/sunnypilot/widgets/sunnylink_pairing_dialog.py
+#: openpilot\system\ui\tici_setup.py
+msgid "Choose Software to Use"
+msgstr "Kullanılacak Yazılımı Seçin"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Choose how Automatic Lane Centering (ALC) behaves after the brake pedal is manually pressed in sunnypilot."
+msgstr "sunnypilot'da fren pedalına manuel olarak basıldıktan sonra Otomatik Şerit Ortalamanın (ALC) nasıl davranacağını seçin."
+
+#: openpilot\system\ui\sunnypilot\widgets\sunnylink_pairing_dialog.py
 msgid "Choose your sponsorship tier and confirm your support"
+msgstr "Sponsorluk seviyenizi seçin ve desteğinizi onaylayın"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Clear Cache"
+msgstr "Önbelleği Temizle"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Clear Model Cache"
+msgstr "Model Önbelleğini Temizle"
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Clear the IMU calibration and switch back to stock calibration."
 msgstr ""
 
-#: openpilot/selfdrive/ui/widgets/pairing_dialog.py
+#: openpilot\selfdrive\ui\widgets\pairing_dialog.py
 msgid "Click \"add new device\" and scan the QR code on the right"
 msgstr "\"yeni cihaz ekle\"ye tıklayın ve sağdaki QR kodunu tarayın"
 
-#: openpilot/selfdrive/ui/widgets/offroad_alerts.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Click the Sponsor button for more details"
+msgstr "Daha fazla ayrıntı için Sponsor düğmesine tıklayın"
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
 msgid "Close"
 msgstr "Kapat"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\trips.py
+msgid "Cloud"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Collecting dynamic data — drive straight"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Collecting static data — keep parked"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Colors represent vehicle fingerprint status:"
+msgstr "Renkler aracın parmak izi durumunu temsil eder:"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Combined"
+msgstr "Kombine"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Combined: Use combined Speed Limit data from Car & OpenStreetMaps"
+msgstr "Birleşik: Car ve OpenStreetMaps'ten birleşik Hız Sınırı verilerini kullanın"
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Completed"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Computing calibration..."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Computing..."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+#: openpilot\system\ui\tici_reset.py
+msgid "Confirm"
+msgstr "Onaylamak"
+
+#: openpilot\system\ui\tici_setup.py
+#: openpilot\system\ui\tici_updater.py
+msgid "Connect to Wi-Fi"
+msgstr "Wi-Fi'a bağlan"
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "Connect to internet to check for updates. sunnypilot won't automatically start until it connects to internet to check for updates."
+msgstr ""
+
+#: openpilot\system\ui\tici_setup.py
+msgid "Continue"
+msgstr "Devam etmek"
+
+#: openpilot\system\ui\tici_setup.py
+msgid "Continue without Wi-Fi"
+msgstr "Wi-Fi olmadan devam et"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Controls state of the device after boot/sleep."
+msgstr "Önyükleme/uyku sonrasında cihazın durumunu kontrol eder."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "Cooperative Steering (Beta)"
+msgstr "İşbirliğine Dayalı Yönetim (Beta)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Country"
+msgstr "Ülke"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+msgid "Cruise"
+msgstr "Dolaşmak"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "Current Version"
 msgstr "Geçerli Sürüm"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Custom ACC Speed Increments"
+msgstr "Özel ACC Hız Artışları"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
+msgid "Custom Longitudinal Tuning"
+msgstr "Özel Boyuna Ayarlama"
+
+#: openpilot\system\ui\tici_setup.py
+msgid "Custom Software"
+msgstr "Özel Yazılım"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Customize Lane Change"
+msgstr "Şerit Değişikliğini Özelleştir"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Customize MADS"
+msgstr "MADS'ı özelleştirin"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Customize Source"
+msgstr "Kaynağı Özelleştir"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Customize Torque Params"
+msgstr "Tork Parametrelerini Özelleştirin"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "DELETE"
+msgstr "SİLMEK"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "DESIRED L.A."
+msgstr "İSTENİLEN L.A."
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "DESIRED STEER"
+msgstr "İSTENİLEN YÖNLENDİRME"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\sidebar.py
+msgid "DISABLED"
+msgstr "ENGELLİ"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "DOWNLOAD"
 msgstr "İNDİR"
 
-#: openpilot/selfdrive/ui/layouts/onboarding.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Database Update"
+msgstr "Veritabanı Güncellemesi"
+
+#: openpilot\selfdrive\ui\layouts\onboarding.py
 msgid "Decline"
 msgstr "Reddet"
 
-#: openpilot/selfdrive/ui/layouts/onboarding.py
+#: openpilot\selfdrive\ui\layouts\onboarding.py
 msgid "Decline, uninstall sunnypilot"
-msgstr ""
+msgstr "Reddet, sunnypilot uygulamasını kaldır"
 
-#: openpilot/selfdrive/ui/layouts/settings/settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Default"
+msgstr "Varsayılan"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Default: Device will boot/wake-up normally & will be ready to engage."
+msgstr "Varsayılan: Cihaz normal şekilde başlatılacak/uyanacaktır ve devreye girmeye hazır olacaktır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Delay before lateral control resumes after the turn signal ends."
+msgstr "Dönüş sinyali bittikten sonra yan kontrolün devam etmesinden önceki gecikme."
+
+#: openpilot\selfdrive\ui\layouts\settings\settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "Developer"
 msgstr "Geliştirici"
 
-#: openpilot/selfdrive/ui/layouts/settings/settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Developer UI"
+msgstr "Geliştirici arayüzü"
+
+#: openpilot\selfdrive\ui\layouts\settings\settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "Device"
 msgstr "Cihaz"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
+msgid "Device must be registered with the comma.ai backend to pair."
+msgstr "Eşleştirme için cihazın comma.ai arka ucuna kaydedilmesi gerekir."
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "Device temperature too high. System cooling down before starting. Current internal component temperature: %1"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid ""
+"Device will automatically shutdown after set time once the engine is turned off.\n"
+"(30h is the default)"
+msgstr ""
+"Motor kapatıldıktan sonra cihaz ayarlanan süre sonunda otomatik olarak kapanacaktır.\n"
+"(30 saat varsayılandır)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\onboarding.py
+msgid "Disable"
+msgstr "Devre dışı bırakmak"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Disable Driver Monitoring"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\software.py
+msgid "Disable Updates"
+msgstr "Guncellemeleri Devre Dışı Bırak"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Disable driver monitoring (no cabin camera required). Similar to LITE mode."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Disable the sunnypilot Longitudinal Control (alpha) toggle to allow Intelligent Cruise Button Management."
+msgstr "Akıllı Hız Sabitleme Düğmesi Yönetimine izin vermek için sunnypilot Boyuna Kontrol (alfa) geçişini devre dışı bırakın."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Disengage"
+msgstr "Devre dışı bırak"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Disengage on Accelerator Pedal"
 msgstr "Gaz Pedalında Devreden Çık"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Disengage to Enter Always Offroad Mode"
+msgstr "Daima Offroad Moduna Girmek için Devre Dışı Bırakın"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Disengage to Power Off"
 msgstr "Kapatmak için Devreden Çıkın"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Disengage to Reboot"
 msgstr "Yeniden Başlatmak için Devreden Çıkın"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Disengage to Reset Calibration"
 msgstr "Kalibrasyonu Sıfırlamak için Devreden Çıkın"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Disengage to reset calibration"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Disengage to start calibration"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Disengage: ALC will disengage when the brake pedal is pressed."
+msgstr "Devreden Çıkarma: Fren pedalına basıldığında ALC devreden çıkar."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+msgid "Display"
+msgstr "Görüntülemek"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Display Metrics Below Chevron"
+msgstr "Metrikleri Şerit Altında Görüntüle"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Display Road Name"
+msgstr "Yol Adını Görüntüle"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Display Turn Signals"
+msgstr "Dönüş Sinyallerini Göster"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Display real-time parameters and metrics from various sources."
+msgstr "Çeşitli kaynaklardan gerçek zamanlı parametreleri ve ölçümleri görüntüleyin."
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Display speed in km/h instead of mph."
 msgstr "Hızı mph yerine km/h olarak göster."
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Display steering arc on the driving screen when lateral control is enabled."
+msgstr "Yanal kontrol etkinleştirildiğinde direksiyon açısını sürüş ekranında görüntüleyin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Display useful metrics below the chevron that tracks the lead car only applicable to cars with sunnypilot longitudinal control."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Displays the name of the road the car is traveling on.<br>The OpenStreetMap database of the location must be downloaded from the OSM panel to fetch the road name."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Distance"
+msgstr "Mesafe"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Distraction Detection Level"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "Do all of my segments get pulled in Firehose Mode?"
+msgstr "Firehose Modunda tüm segmentlerim çekiliyor mu?"
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "Does it matter how or where I drive?"
+msgstr "Nasıl ve nereye sürdüğümün önemi var mı?"
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "Does it matter which software I run?"
+msgstr "Hangi yazılımı çalıştırdığımın bir önemi var mı?"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
 msgid "Dongle ID"
 msgstr "Dongle kimliği"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\layouts\settings\software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 msgid "Download"
 msgstr "İndir"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\system\ui\tici_setup.py
+msgid "Download Failed"
+msgstr "İndirme Başarısız Oldu"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Downloaded Maps"
+msgstr "İndirilen Haritalar"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Downloading Map"
+msgstr "Harita İndiriliyor"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Downloading Maps..."
+msgstr "Haritalar indiriliyor..."
+
+#: openpilot\system\ui\tici_setup.py
+#: openpilot\system\ui\tici_updater.py
+msgid "Downloading..."
+msgstr "İndiriliyor..."
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Drive straight"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Driver Camera"
 msgstr "Sürücü Kamerası"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Driver Camera Preview"
+msgstr "Sürücü Kamera Önizlemesi"
+
+#: openpilot\selfdrive\ui\mici\onroad\cabin_camera_dialog.py
+#: openpilot\selfdrive\ui\onroad\cabin_camera_dialog.py
+msgid "Driver camera unavailable"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\trips.py
+msgid "Drives"
+msgstr "Sürücüler"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Driving Personality"
 msgstr "Sürüş Kişiliği"
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
+msgid "Dynamic"
+msgstr "Dinamik"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "E"
+msgstr "e"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "E.T."
+msgstr "E.T."
+
+#: openpilot\system\ui\widgets\network.py
 msgid "EDIT"
 msgstr "DÜZENLE"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\layouts\sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\sidebar.py
 msgid "ERROR"
 msgstr "HATA"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "ETH"
 msgstr "ETH"
 
-#: openpilot/selfdrive/ui/widgets/exp_mode_button.py
+#: openpilot\selfdrive\ui\widgets\exp_mode_button.py
 msgid "EXPERIMENTAL MODE ON"
 msgstr "DENEYSEL MOD AÇIK"
 
-#: system/ui/sunnypilot/widgets/sunnylink_pairing_dialog.py
+#: openpilot\system\ui\sunnypilot\widgets\sunnylink_pairing_dialog.py
 msgid "Early Access: Become a sunnypilot Sponsor"
+msgstr "Erken Erişim: sunnypilot Sponsoru Olun"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Eco"
 msgstr ""
 
-#: openpilot/selfdrive/ui/layouts/settings/developer.py
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Eco is gentlest, Normal balances a prompt start with smooth catch-up, and Sport is more responsive."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\onboarding.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
 msgid "Enable"
 msgstr "Etkinleştir"
 
-#: openpilot/selfdrive/ui/layouts/settings/developer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "Enable \"Always Offroad\" in Device panel, or turn vehicle off to change."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\subaru.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "Enable \"Always Offroad\" in Device panel, or turn vehicle off to toggle."
+msgstr "Cihaz panelinde \"Her Zaman Yol Dışı\" seçeneğini etkinleştirin veya geçiş yapmak için aracı kapatın."
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
 msgid "Enable ADB"
 msgstr "ADB'yi Etkinleştir"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Enable Accel Controller"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Enable Always Offroad"
+msgstr "Her Zaman Offroad'u Etkinleştir"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Enable Custom Tuning"
+msgstr "Özel Ayarlamayı Etkinleştir"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Enable Dynamic Experimental Control"
+msgstr "Dinamik Deneysel Kontrolü Etkinleştir"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Enable Lane Departure Warnings"
 msgstr "Şerit Terk Uyarılarını Etkinleştir"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Enable Roaming"
 msgstr "Dolaşımı Etkinleştir"
 
-#: openpilot/selfdrive/ui/layouts/settings/developer.py
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
 msgid "Enable SSH"
 msgstr "SSH'yi Etkinleştir"
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Enable Standstill Timer"
+msgstr "Durma Zamanlayıcısını Etkinleştir"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Enable Tesla Rainbow Mode"
+msgstr "Tesla Gökkuşağı Modunu Etkinleştir"
+
+#: openpilot\system\ui\widgets\network.py
 msgid "Enable Tethering"
 msgstr "İnternet Paylaşımını Etkinleştir"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
-msgid "Enable driver monitoring even when sunnypilot is not engaged."
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Enable auto-calibration for devices mounted at large or arbitrary angles."
 msgstr ""
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Enable custom Short & Long press increments for cruise speed increase/decrease."
+msgstr "Seyir hızını artırmak/azaltmak için özel Kısa ve Uzun basma artışlarını etkinleştirin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Enable sunnylink"
+msgstr "sunnylink'ı etkinleştir"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Enable sunnylink uploader (infrastructure test)"
+msgstr "sunnylink yükleyiciyi etkinleştirin (altyapı testi)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Enable sunnylink uploader to allow sunnypilot to upload your driving data to sunnypilot servers. "
+msgstr "sunnypilot'nin sürüş verilerinizi sunnypilot sunucularına yüklemesine izin vermek için sunnylink yükleyicisini etkinleştirin."
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Enable sunnypilot"
+msgstr "sunnypilot'ı etkinleştir"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Enable the beloved MADS feature. Disable toggle to revert back to stock sunnypilot engagement/disengagement."
 msgstr ""
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Enable the sunnypilot longitudinal control (alpha) toggle to allow Experimental mode."
+msgstr "Deneysel moda izin vermek için sunnypilot uzunlamasına kontrol (alfa) geçişini etkinleştirin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. Keeping this on provides the stock openpilot experience."
+msgstr "Arabanın direksiyon yanıt süresini öğrenmesi ve uyarlaması için bunu etkinleştirin. Sabit bir direksiyon yanıt süresi kullanmak için devre dışı bırakın. Açık tutmak, standart openpilot deneyimini sağlar."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Enable this to enforce sunnypilot to steer with Torque lateral control."
+msgstr "Tork yanal kontrolüyle yönlendirmek için sunnypilot'ı zorlamak için bunu etkinleştirin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Enable toggle to allow the model to determine when to use sunnypilot ACC or sunnypilot End to End Longitudinal."
+msgstr "Modelin ne zaman sunnypilot ACC veya sunnypilot Uçtan Uca Boyuna kullanılacağını belirlemesine izin vermek için geçişi etkinleştirin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Enables custom tuning for Torque lateral control. Modifying Lateral Acceleration Factor and Friction below will override the offline values indicated in the YAML files within \"opendbc/car/torque_data\". The values will also be used live when \"Manual Real-Time Tuning\" toggle is enabled."
 msgstr ""
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "Enables or disables the GitHub runner service."
+msgstr "GitHub koşucu hizmetini etkinleştirir veya devre dışı bırakır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Enables self-tune for Torque lateral control for platforms that do not use Torque lateral control by default."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Enabling this will display warnings when a vehicle is detected in your blind spot as long as your car has BSM supported."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
+msgid "Enforce Factory Longitudinal Control"
+msgstr "Fabrika Boyuna Kontrolünü Zorunlu Hale Getirin"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Enforce Torque Lateral Control"
+msgstr "Tork Yanal Kontrolünü Zorunlu Hale Getirin"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Enforces the torque lateral controller to use the fixed values instead of the learned values from Self-Tune. Enabling this toggle overrides Self-Tune values."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Engage lateral and longitudinal control with cruise control engagement."
+msgstr "Hız sabitleyicinin devreye girmesiyle yanal ve boylamsal kontrolü devreye alın."
+
+#: openpilot\system\ui\tici_setup.py
+msgid "Ensure the entered URL is valid, and the device's internet connection is good."
+msgstr "Girilen URL'nin geçerli olduğundan ve cihazın internet bağlantısının iyi olduğundan emin olun."
+
+#: openpilot\system\ui\widgets\network.py
 msgid "Enter APN"
 msgstr "APN girin"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Enter SSID"
 msgstr "SSID girin"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\tici_setup.py
+msgid "Enter URL"
+msgstr "URL'yi girin"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Enter model year (e.g., 2021) and model (Toyota Corolla):"
+msgstr "Model yılını (ör. 2021) ve modeli (Toyota Corolla) girin:"
+
+#: openpilot\system\ui\widgets\network.py
 msgid "Enter new tethering password"
 msgstr "Yeni internet paylaşımı şifresini girin"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Enter password"
 msgstr "Şifre girin"
 
-#: system/ui/sunnypilot/widgets/tree_dialog.py
+#: openpilot\system\ui\sunnypilot\widgets\tree_dialog.py
 msgid "Enter search query"
-msgstr ""
+msgstr "Arama sorgusunu girin"
 
-#: openpilot/selfdrive/ui/widgets/ssh_key.py
+#: openpilot\selfdrive\ui\widgets\ssh_key.py
 msgid "Enter your GitHub username"
 msgstr "GitHub kullanıcı adınızı girin"
 
-#: system/ui/widgets/list_view.py
+#: openpilot\system\ui\widgets\list_view.py
 msgid "Error"
 msgstr "Hata"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "Error Log"
+msgstr "Hata Günlüğü"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Error: Invalid download. Retry."
+msgstr "Hata: Geçersiz indirme. Tekrar dene."
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "Excessive %1 actuation detected on your last drive. Please contact support at https://comma.ai/support and share your device's Dongle ID for troubleshooting."
+msgstr ""
+
+#: openpilot\system\ui\text.py
+msgid "Exit"
+msgstr "Çıkış"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Exit Always Offroad"
+msgstr "Daima Offroad'tan Çık"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Experimental Mode"
 msgstr "Deneysel Mod"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\subaru.py
+msgid "Experimental feature to enable auto-resume during stop-and-go for certain supported Subaru platforms."
+msgstr "Desteklenen belirli Subaru platformları için dur-kalk sırasında otomatik devam etmeyi etkinleştiren deneysel özellik."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\subaru.py
+msgid "Experimental feature to enable stop and go for Subaru Global models with manual handbrake. Models with electric parking brake should keep this disabled. Thanks to martinl for this implementation!"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Experimental mode is currently unavailable on this car since the car's stock ACC is used for longitudinal control."
 msgstr "Bu araçta boylamsal kontrol için stok ACC kullanıldığından şu anda Deneysel mod kullanılamıyor."
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\sidebar.py
+msgid "FAULT"
+msgstr "ARIZA"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "FETCHING..."
+msgstr "GETİRİYOR..."
+
+#: openpilot\system\ui\widgets\network.py
 msgid "FORGETTING..."
 msgstr "UNUTULUYOR..."
 
-#: openpilot/selfdrive/ui/widgets/setup.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "FRIC."
+msgstr "FRIC."
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Failed"
+msgstr ""
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "Failed to register with comma.ai backend. It will not connect or upload to comma.ai servers, and receives no support from comma.ai. If this is a device purchased at comma.ai/shop, open a ticket at https://comma.ai/support."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Favorites"
+msgstr "Favoriler"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Fetching Latest Models"
+msgstr "En Son Modeller Getiriliyor"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Fingerprinted automatically"
+msgstr "Otomatik olarak parmak izi alınır"
+
+#: openpilot\selfdrive\ui\widgets\setup.py
 msgid "Finish Setup"
 msgstr "Kurulumu Bitir"
 
-#: openpilot/selfdrive/ui/layouts/settings/settings.py
+#: openpilot\selfdrive\ui\layouts\settings\settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "Firehose"
 msgstr "Yoğun veri akışı"
 
-#: openpilot/selfdrive/ui/layouts/settings/firehose.py
+#: openpilot\selfdrive\ui\layouts\settings\firehose.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+#: openpilot\selfdrive\ui\widgets\setup.py
 msgid "Firehose Mode"
 msgstr "Firehose Modu"
 
-#: system/ui/sunnypilot/widgets/sunnylink_pairing_dialog.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Fixed"
+msgstr "Sabit"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Fixed: Adds a fixed offset [Speed Limit + Offset]"
+msgstr "Sabit: Sabit bir ofset ekler [Hız Sınırı + Ofset]"
+
+#: openpilot\system\ui\sunnypilot\widgets\sunnylink_pairing_dialog.py
 msgid "Follow the prompts to complete the pairing process"
+msgstr "Eşleştirme işlemini tamamlamak için talimatları izleyin"
+
+#: openpilot\system\ui\mici_reset.py
+msgid ""
+"For a deeper reset, go to\n"
+"https://flash.comma.ai"
+msgstr ""
+"Daha ayrıntılı bir sıfırlama için şu adrese gidin:\n"
+"https://flash.comma.ai"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "For applicable vehicles, always display the true vehicle current speed from wheel speed sensors."
+msgstr "Uygulanabilir araçlar için, her zaman tekerlek hız sensörlerinden gerçek araç mevcut hızını görüntüleyin."
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid ""
+"For maximum effectiveness, bring your device inside and connect to a good USB-C adapter and Wi-Fi weekly.\n"
+"\n"
+"Firehose Mode can also work while you're driving if connected to a hotspot or unlimited SIM card."
 msgstr ""
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\layouts\settings\firehose.py
+msgid ""
+"For maximum effectiveness, bring your device inside and connect to a good USB-C adapter and Wi-Fi weekly.\n"
+"\n"
+"Firehose Mode can also work while you're driving if connected to a hotspot or unlimited SIM card.\n"
+"\n"
+"\n"
+"Frequently Asked Questions\n"
+"\n"
+"Does it matter how or where I drive? Nope, just drive as you normally would.\n"
+"\n"
+"Do all of my segments get pulled in Firehose Mode? No, we selectively pull a subset of your segments.\n"
+"\n"
+"What's a good USB-C adapter? Any fast phone or laptop charger should be fine.\n"
+"\n"
+"Does it matter which software I run? Yes, only upstream openpilot (and particular forks) are able to be used for training."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "For secure backup, restore, and remote configuration"
+msgstr "Güvenli yedekleme, geri yükleme ve uzaktan yapılandırma için"
+
+#: openpilot\system\ui\widgets\network.py
 msgid "Forget"
 msgstr "Unut"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Forget Wi-Fi Network \"{}\"?"
 msgstr "\"{}\" Wi‑Fi ağı unutulsun mu?"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "Frequently Asked Questions"
+msgstr "Sıkça Sorulan Sorular"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Friction"
+msgstr "Sürtünme"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "GB"
+msgstr "Büyük Britanya"
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "GOOD"
 msgstr "İYİ"
 
-#: openpilot/selfdrive/ui/widgets/pairing_dialog.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\circular_alerts.py
+msgid ""
+"GREEN\n"
+"LIGHT"
+msgstr ""
+"YEŞİL\n"
+"IŞIK"
+
+#: openpilot\system\ui\tici_setup.py
+msgid "Getting Started"
+msgstr "Başlarken"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Getting the big model ready."
+msgstr "Büyük model hazırlanıyor."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "GitHub Runner Service"
+msgstr "GitHub Koşucu Hizmeti"
+
+#: openpilot\selfdrive\ui\widgets\pairing_dialog.py
 msgid "Go to https://connect.comma.ai on your phone"
 msgstr "Telefonunuzda https://connect.comma.ai adresine gidin"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Green Traffic Light Alert (Beta)"
+msgstr "Yeşil Trafik Işığı Uyarısı (Beta)"
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "HIGH"
 msgstr "YÜKSEK"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Hidden Network"
 msgstr "Gizli Ağ"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\trips.py
+msgid "Hours"
+msgstr "Saat"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "How long the screen saver runs before the screen turns off."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+msgid "IMU Calibration"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "INACTIVE: connect to an unmetered network"
+msgstr "AKTİF DEĞİL: tarifesiz bir ağa bağlanın"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "INSTALL"
 msgstr "YÜKLE"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "IP Address"
 msgstr "IP Adresi"
 
-#: system/ui/sunnypilot/widgets/sunnylink_pairing_dialog.py
-msgid "If sponsorship status was not updated, please contact a moderator on the community forum at https://community.sunnypilot.ai"
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Idle"
 msgstr ""
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\system\ui\sunnypilot\widgets\sunnylink_pairing_dialog.py
+msgid "If sponsorship status was not updated, please contact a moderator on the community forum at https://community.sunnypilot.ai"
+msgstr "Sponsorluk durumu güncellenmediyse lütfen https://community.sunnypilot.ai adresindeki topluluk forumunda bir moderatörle iletişime geçin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "If you're driving at 20 mph (32 km/h) or below and have your blinker on, the car will plan a turn in that direction at the nearest drivable path. This prevents situations (like at red lights) where the car might plan the wrong turn direction."
+msgstr "20 mil/saat (32 km/saat) veya daha düşük hızla gidiyorsanız ve sinyaliniz açıksa, araç en yakın kullanılabilir yolda o yönde bir dönüş planlayacaktır. Bu, aracın yanlış dönüş yönü planlayabileceği durumları (kırmızı ışıklarda olduğu gibi) önler."
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "Immediately connect to the internet to check for updates. If you do not connect to the internet, sunnypilot won't engage in %1"
+msgstr ""
+
+#: openpilot\system\ui\mici_setup.py
+msgid "Incompatible sunnypilot version."
+msgstr "Uyumsuz sunnypilot sürümü."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Info"
+msgstr "Bilgi"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Information: Displays the current road's speed limit."
+msgstr "Bilgi: Geçerli yolun hız sınırını görüntüler."
+
+#: openpilot\system\ui\tici_updater.py
+msgid "Install"
+msgstr "Düzenlemek"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "Install Update"
 msgstr "Güncellemeyi Yükle"
 
-#: system/ui/sunnypilot/widgets/sunnylink_pairing_dialog.py
-msgid "Join our Community Forum at https://community.sunnypilot.ai and reach out to a moderator if you have issues"
-msgstr ""
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Intelligent Cruise Button Management (ICBM) (Alpha)"
+msgstr "Akıllı Hız Sabitleme Düğmesi Yönetimi (ICBM) (Alfa)"
 
-#: openpilot/selfdrive/ui/layouts/settings/developer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Intelligent Cruise Button Management is currently unavailable on this platform."
+msgstr "Akıllı Hız Sabitleme Düğmesi Yönetimi şu anda bu platformda kullanılamıyor."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Interactivity Timeout"
+msgstr "Etkileşim Zaman Aşımı"
+
+#: openpilot\system\ui\mici_setup.py
+msgid "Invalid URL: "
+msgstr "Geçersiz URL:"
+
+#: openpilot\system\ui\sunnypilot\widgets\sunnylink_pairing_dialog.py
+msgid "Join our Community Forum at https://community.sunnypilot.ai and reach out to a moderator if you have issues"
+msgstr "https://community.sunnypilot.ai adresindeki Topluluk Forumumuza katılın ve sorun yaşarsanız bir moderatöre ulaşın"
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
 msgid "Joystick Debug Mode"
 msgstr "Joystick Hata Ayıklama Modu"
 
-#: openpilot/selfdrive/ui/widgets/ssh_key.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\trips.py
+msgid "KM"
+msgstr "km"
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Keep parked"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "L.A.F."
+msgstr "L.A.F."
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "L.S."
+msgstr "L.S."
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\circular_alerts.py
+msgid ""
+"LEAD VEHICLE\n"
+"DEPARTING"
+msgstr ""
+"LİDER ARAÇ\n"
+"KALKIŞ"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_limit.py
+msgid "LIMIT"
+msgstr "SINIR"
+
+#: openpilot\selfdrive\ui\widgets\ssh_key.py
 msgid "LOADING"
 msgstr "YÜKLENİYOR"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "LTE"
 msgstr "LTE"
 
-#: openpilot/selfdrive/ui/layouts/settings/developer.py
-msgid "Lateral Maneuver Mode"
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Last checked {}"
+msgstr "Son kontrol tarihi: {}"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Lateral Acceleration Factor"
+msgstr "Yanal Hızlanma Faktörü"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Lateral Jerk Torque Controller"
 msgstr ""
 
-#: openpilot/selfdrive/ui/layouts/settings/developer.py
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
+msgid "Lateral Maneuver Mode"
+msgstr "Yan Manevra Modu"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Lead Departure Alert (Beta)"
+msgstr "Potansiyel Müşteriden Ayrılma Uyarısı (Beta)"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Lenient"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Less Restrict Settings for Self-Tune (Beta)"
+msgstr "Self-Tune için Daha Az Kısıtlama Ayarları (Beta)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Less strict settings when using Self-Tune. This allows torqued to be more forgiving when learning values."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Lets you choose how sunnypilot starts, catches up, and settles at the cruise speed. Emergency braking and stopping are unchanged."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Live Learning Steer Delay"
+msgstr "Canlı Öğrenme Yönlendirme Gecikmesi"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Live Steer Delay:"
+msgstr "Canlı Yönlendirme Gecikmesi:"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+#: openpilot\system\ui\tici_updater.py
+msgid "Loading..."
+msgstr "Yükleniyor..."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\trips.py
+msgid "Local"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Long Press Increment"
+msgstr "Uzun Basma Artışı"
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
 msgid "Longitudinal Maneuver Mode"
 msgstr "Boylamsal Manevra Modu"
 
-#: openpilot/selfdrive/ui/onroad/hud_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Looks ahead at planned steering to reduce sudden corrections, so the wheel moves more smoothly through turns. Works with Self-Tune and custom tuning. Thanks to @twilsonco for the implementation."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "MADS Screen Activation"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\hud_renderer.py
 msgid "MAX"
 msgstr "MAKS"
 
-#: openpilot/selfdrive/ui/widgets/setup.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "MB"
+msgstr "MB"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+msgid "MPH"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Manual Real-Time Tuning"
+msgstr "Manuel Gerçek Zamanlı Ayarlama"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Manually selected fingerprint"
+msgstr "Manuel olarak seçilen parmak izi"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Map First"
+msgstr "Önce Harita"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Map First: Use Speed Limit data from OpenStreetMaps if available, else use from Car"
+msgstr "Önce Harita: Varsa OpenStreetMaps'teki Hız Limiti verilerini kullanın, yoksa Car'daki verileri kullanın"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Map Only"
+msgstr "Yalnızca Harita"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Map Only: Use Speed Limit data only from OpenStreetMaps"
+msgstr "Yalnızca Harita: Hız Sınırı verilerini yalnızca OpenStreetMaps'ten kullanın"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Mapd Version"
+msgstr "Haritalanmış Sürüm"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Max Time Offroad"
+msgstr "Maksimum Süreli Offroad"
+
+#: openpilot\selfdrive\ui\widgets\setup.py
 msgid "Maximize your training data uploads to improve openpilot's driving models."
 msgstr "openpilot'un sürüş modellerini iyileştirmek için eğitim veri yüklemelerinizi en üst düzeye çıkarın."
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\trips.py
+msgid "Miles"
+msgstr "Mil"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Minimum Speed to Pause Lateral Control"
+msgstr "Yan Kontrolü Duraklatmak için Minimum Hız"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Model Status"
+msgstr "Model Durumu"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+msgid "Models"
+msgstr "Modeller"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Moderate"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Modular Assistive Driving System (MADS)"
+msgstr "Modüler Yardımcı Sürüş Sistemi (MADS)"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "N"
+msgstr "N"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
 msgid "N/A"
 msgstr "Yok"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "NE"
+msgstr "kuzeydoğu"
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "NO"
 msgstr "HAYIR"
 
-#: openpilot/selfdrive/ui/layouts/settings/settings.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "NW"
+msgstr "Kuzeybatı"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_limit.py
+msgid "Near"
+msgstr "Yakın"
+
+#: openpilot\selfdrive\ui\layouts\settings\settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "Network"
 msgstr "Ağ"
 
-#: openpilot/selfdrive/ui/widgets/ssh_key.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Neural Network Lateral Control (NNLC)"
+msgstr "Sinir Ağı Yanal Kontrolü (NNLC)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "No"
+msgstr "HAYIR"
+
+#: openpilot\selfdrive\ui\widgets\ssh_key.py
 msgid "No SSH keys found for user '{}'"
 msgstr "'{}' kullanıcısı için SSH anahtarı bulunamadı"
 
-#: openpilot/selfdrive/ui/widgets/offroad_alerts.py
+#: openpilot\system\ui\tici_setup.py
+msgid "No custom software found at this URL."
+msgstr "Bu URL'de özel yazılım bulunamadı."
+
+#: openpilot\system\ui\mici_setup.py
+msgid "No custom software found at this URL: "
+msgstr "Bu URL'de özel yazılım bulunamadı:"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "No models are available for this hardware yet. Connect to the internet and refresh the model list."
+msgstr "Bu donanım için henüz model yok. İnternete bağlanın ve model listesini yenileyin."
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "No models available"
+msgstr "Model mevcut değil"
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
 msgid "No release notes available."
 msgstr "Sürüm notu mevcut değil."
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "No vehicle selected"
+msgstr "Hiçbir araç seçilmedi"
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "No, we selectively pull a subset of your segments."
+msgstr "Hayır, segmentlerinizin bir alt kümesini seçici olarak çekiyoruz."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "None"
+msgstr "Hiçbiri"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "None: No Offset"
+msgstr "Yok: Ofset Yok"
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "Nope, just drive as you normally would."
+msgstr "Hayır, normalde kullandığınız gibi sürün."
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Normal"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Not Paired"
+msgstr "Eşleştirilmedi"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Not Sponsor"
+msgstr "Sponsor Değil"
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
+msgid "Not calibrated"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Not fingerprinted or manually selected"
+msgstr "Parmak izi alınmamış veya manuel olarak seçilmemiş"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Not going to lie, it's sad to see you disabled sunnylink"
+msgstr "Yalan söylemeyeceğim, engelli olduğunu görmek üzücü sunnylink"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Note: For vehicles without LFA/LKAS button, disabling this will prevent lateral control engagement."
+msgstr "Not: LFA/LKAS düğmesi olmayan araçlarda bunun devre dışı bırakılması yan kontrolün devreye girmesini önleyecektir."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Note: Once lateral control is engaged via UEM, it will remain engaged until it is manually disabled via the MADS button or car shut off."
+msgstr "Not: UEM aracılığıyla yanal kontrol devreye alındığında, MADS düğmesi aracılığıyla manuel olarak devre dışı bırakılana veya kabin kapatılana kadar devrede kalacaktır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "Note: Setting this to Off will reset your MADS settings to default."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Nudge"
+msgstr "Dürtmek"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Nudgeless"
+msgstr "Dürtüsüz"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "N·dm"
+msgstr "N·dm"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "OFF"
+msgstr "KAPALI"
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\sidebar.py
 msgid "OFFLINE"
 msgstr "ÇEVRİMDIŞI"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
-#: system/ui/widgets/confirm_dialog.py
-#: system/ui/widgets/html_render.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+#: openpilot\system\ui\widgets\confirm_dialog.py
+#: openpilot\system\ui\widgets\html_render.py
 msgid "OK"
 msgstr "OK"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\layouts\sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\sidebar.py
 msgid "ONLINE"
 msgstr "ÇEVRİMİÇİ"
 
-#: openpilot/selfdrive/ui/widgets/setup.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+msgid "OSM"
+msgstr "OSM"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Off"
+msgstr "Kapalı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Off: Disables the Speed Limit functions."
+msgstr "Kapalı: Hız Sınırı işlevlerini devre dışı bırakır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Offline Only"
+msgstr "Yalnızca Çevrimdışı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Offroad"
+msgstr "Arazide"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Offroad: Device will be in Always Offroad mode after boot/wake-up."
+msgstr "Offroad: Cihaz, başlatma/uyandırma sonrasında Daima Offroad modunda olacaktır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Only available when vehicle is off, or always offroad mode is on"
+msgstr "Yalnızca araç kapalıyken veya her zaman arazi modu açıkken kullanılabilir"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Onroad Brightness"
+msgstr "Yol Parlaklığı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Onroad Brightness Delay"
+msgstr "Yol Parlaklığı Gecikmesi"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Onroad Preview"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Onroad Uploads"
+msgstr "Karayolu Yüklemeleri"
+
+#: openpilot\selfdrive\ui\widgets\setup.py
 msgid "Open"
 msgstr "Aç"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid ""
+"OpenStreetMap database is out of date. New maps must be downloaded if you wish to continue using OpenStreetMap data for Enhanced Speed Control and road name display.\n"
+"\n"
+"%1"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Orientation"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "PAIR"
 msgstr "EŞLE"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "PANDA"
 msgstr "PANDA"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\trips.py
+msgid "PAST WEEK"
+msgstr "GEÇEN HAFTA"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "PREVIEW"
 msgstr "ÖNİZLEME"
 
-#: openpilot/selfdrive/ui/widgets/prime.py
+#: openpilot\selfdrive\ui\widgets\prime.py
 msgid "PRIME FEATURES:"
 msgstr "PRIME ÖZELLİKLERİ:"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Pair Device"
 msgstr "Cihazı Eşle"
 
-#: openpilot/selfdrive/ui/widgets/setup.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Pair GitHub Account"
+msgstr "GitHub Hesabını Eşleştir"
+
+#: openpilot\selfdrive\ui\widgets\setup.py
 msgid "Pair device"
 msgstr "Cihazı eşle"
 
-#: system/ui/sunnypilot/widgets/sunnylink_pairing_dialog.py
+#: openpilot\system\ui\sunnypilot\widgets\sunnylink_pairing_dialog.py
 msgid "Pair your GitHub account"
-msgstr ""
+msgstr "GitHub hesabınızı eşleştirin"
 
-#: openpilot/selfdrive/ui/widgets/pairing_dialog.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Pair your GitHub account to grant your device sponsor benefits, including API access on sunnylink."
+msgstr "sunnylink üzerinde API erişimi de dahil olmak üzere cihazınıza sponsorluk avantajları sağlamak için GitHub hesabınızı eşleştirin."
+
+#: openpilot\selfdrive\ui\widgets\pairing_dialog.py
 msgid "Pair your device to your comma account"
 msgstr "Cihazınızı comma hesabınızla eşleştirin"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
-#: openpilot/selfdrive/ui/widgets/setup.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\widgets\setup.py
 msgid "Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer."
 msgstr "Cihazınızı comma connect (connect.comma.ai) ile eşleştirin ve comma prime teklifinizi alın."
 
-#: openpilot/selfdrive/ui/widgets/setup.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Paired"
+msgstr "Eşleştirilmiş"
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Park on level ground, then drive straight to calibrate the device orientation."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Pause"
+msgstr "Duraklat"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Pause Lateral Control with Blinker"
+msgstr "Flaşörle Yan Kontrolü Duraklat"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Pause lateral control with blinker when traveling below the desired speed selected."
+msgstr "Seçilen istenen hızın altında seyrederken yan kontrolü yanıp sönerek duraklatın."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Pause: ALC will pause when the brake pedal is pressed."
+msgstr "Duraklatma: Fren pedalına basıldığında ALC duraklayacaktır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Percent: Adds a percent offset [Speed Limit + (Offset % Speed Limit)]"
+msgstr "Yüzde: Yüzde ofset ekler [Hız Limiti + (Ofset % Hız Limiti)]"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Perform a search"
+msgstr "Bir arama gerçekleştirin"
+
+#: openpilot\selfdrive\ui\widgets\setup.py
 msgid "Please connect to Wi-Fi to complete initial pairing"
 msgstr "İlk eşleştirmeyi tamamlamak için lütfen Wi‑Fi'a bağlanın"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
+msgid "Please connect to Wi-Fi to complete initial pairing."
+msgstr "İlk eşleştirmeyi tamamlamak için lütfen Wi-Fi'ye bağlanın."
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\software.py
+msgid "Please connect to Wi-Fi to update."
+msgstr "Güncellemek için lütfen Wi-Fi'a bağlanın."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\software.py
+msgid "Please enable \"Always Offroad\" mode or turn off the vehicle to adjust these toggles."
+msgstr "Bu geçişleri ayarlamak için lütfen \"Her Zaman Offroad\" modunu etkinleştirin veya aracı kapatın."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Please reboot and try again."
+msgstr "Lütfen yeniden başlatıp tekrar deneyin."
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "Poor visibility detected for driver monitoring. Ensure the device has a clear view of the driver. This can be checked in the device settings. Extreme lighting conditions and/or unconventional mounting positions may also trigger this alert."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Post-Blinker Delay"
+msgstr "Flaşör Sonrası Gecikme"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+#: openpilot\system\ui\tici_setup.py
 msgid "Power Off"
 msgstr "Kapat"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\tici_setup.py
+msgid "Power your device in a car with a harness or proceed at your own risk."
+msgstr "Cihazınızı bir arabada bir kablo demeti ile çalıştırın veya riski size ait olmak üzere ilerleyin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
+msgid "Predictive"
+msgstr "Tahmine dayalı"
+
+#: openpilot\system\ui\widgets\network.py
 msgid "Prevent large data uploads when on a metered Wi-Fi connection"
 msgstr "Ölçülü bir Wi‑Fi bağlantısındayken büyük veri yüklemelerini engelle"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Prevent large data uploads when on a metered cellular connection"
 msgstr "Ölçülü bir hücresel bağlantıdayken büyük veri yüklemelerini engelle"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Preview the driver facing camera to ensure that driver monitoring has good visibility. (vehicle must be off)"
 msgstr "Sürücü izleme görünürlüğünün iyi olduğundan emin olmak için sürücüye bakan kamerayı önizleyin. (araç kapalı olmalıdır)"
 
-#: openpilot/selfdrive/ui/widgets/pairing_dialog.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+msgid "Preview the onroad camera view while parked. (vehicle must be off)"
+msgstr ""
+
+#: openpilot\selfdrive\ui\widgets\pairing_dialog.py
 msgid "QR Code Error"
 msgstr "QR Kod Hatası"
 
-#: openpilot/selfdrive/ui/widgets/ssh_key.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "Quickboot Mode"
+msgstr "Hızlı Başlatma Modu"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "Quickboot mode requires updates to be disabled.<br>Enable 'Disable Updates' in the Software panel first."
+msgstr "Hızlı önyükleme modu, güncellemelerin devre dışı bırakılmasını gerektirir.<br>Önce Yazılım panelinde 'Güncellemeleri Devre Dışı Bırak'ı etkinleştirin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Quiet Mode"
+msgstr "Sessiz Mod"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "REAL STEER"
+msgstr "GERÇEK YÖNLENDİRME"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "REFRESH"
+msgstr "YENİLE"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\sidebar.py
+msgid "REGIST..."
+msgstr "KAYIT OLUN..."
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "REL DIST"
+msgstr "REL MESAFE"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "REL SPEED"
+msgstr "REL HIZ"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\__init__.py
+#: openpilot\selfdrive\ui\widgets\ssh_key.py
 msgid "REMOVE"
 msgstr "KALDIR"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
 msgid "RESET"
 msgstr "SIFIRLA"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "REVIEW"
 msgstr "GÖZDEN GEÇİR"
 
-#: system/ui/sunnypilot/widgets/sunnylink_pairing_dialog.py
+#: openpilot\system\ui\sunnypilot\widgets\sunnylink_pairing_dialog.py
 msgid "Re-enter the \"sunnylink\" panel to verify sponsorship status"
-msgstr ""
+msgstr "Sponsorluk durumunu doğrulamak için \"sunnylink\" paneline tekrar girin"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Real-Time & Offline"
+msgstr "Gerçek Zamanlı ve Çevrimdışı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Real-time Acceleration Bar"
+msgstr "Gerçek Zamanlı Hızlanma Çubuğu"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\software.py
+#: openpilot\system\ui\text.py
+#: openpilot\system\ui\tici_reset.py
+#: openpilot\system\ui\tici_updater.py
 msgid "Reboot"
 msgstr "Yeniden Başlat"
 
-#: openpilot/selfdrive/ui/onroad/alert_renderer.py
+#: openpilot\selfdrive\ui\onroad\alert_renderer.py
 msgid "Reboot Device"
 msgstr "Cihazı Yeniden Başlat"
 
-#: openpilot/selfdrive/ui/widgets/offroad_alerts.py
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
 msgid "Reboot and Update"
 msgstr "Yeniden Başlat ve Güncelle"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\system\ui\tici_setup.py
+msgid "Reboot device"
+msgstr "Cihazı yeniden başlat"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line without a turn signal activated while driving over 31 mph (50 km/h)."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Record and Upload Driver Camera"
 msgstr "Sürücü Kamerasını Kaydet ve Yükle"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Record and Upload Microphone Audio"
 msgstr "Mikrofon Sesini Kaydet ve Yükle"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."
 msgstr "Sürüş sırasında mikrofon sesini kaydedip saklayın. Ses, comma connect'teki ön kamera videosuna dahil edilecektir."
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Refresh Model List"
+msgstr "Model Listesini Yenile"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
 msgid "Regulatory"
 msgstr "Mevzuat"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Relaxed"
 msgstr "Rahat"
 
-#: openpilot/selfdrive/ui/widgets/prime.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Remain Active"
+msgstr "Aktif Kal"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Remain Active: ALC will remain active when the brake pedal is pressed."
+msgstr "Aktif Kal: Fren pedalına basıldığında ALC aktif kalacaktır."
+
+#: openpilot\selfdrive\ui\widgets\prime.py
 msgid "Remote access"
 msgstr "Uzaktan erişim"
 
-#: openpilot/selfdrive/ui/widgets/prime.py
+#: openpilot\selfdrive\ui\widgets\prime.py
 msgid "Remote snapshots"
 msgstr "Uzaktan anlık görüntüler"
 
-#: openpilot/selfdrive/ui/widgets/ssh_key.py
+#: openpilot\selfdrive\ui\widgets\ssh_key.py
 msgid "Request timed out"
 msgstr "İstek zaman aşımına uğradı"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
 msgid "Reset"
 msgstr "Sıfırla"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Reset Calibration"
 msgstr "Kalibrasyonu Sıfırla"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Reset IMU Calibration"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Reset Settings"
+msgstr "Ayarları Sıfırla"
+
+#: openpilot\system\ui\tici_reset.py
+msgid "Reset failed. Reboot to try again."
+msgstr "Sıfırlama başarısız oldu. Tekrar denemek için yeniden başlatın."
+
+#: openpilot\system\ui\tici_reset.py
+msgid ""
+"Resetting device...\n"
+"This may take up to a minute."
+msgstr ""
+"Cihaz sıfırlanıyor...\n"
+"Bu bir dakika kadar sürebilir."
+
+#: openpilot\system\ui\mici_reset.py
+msgid "Resetting erases all user content & data."
+msgstr "Sıfırlama tüm kullanıcı içeriğini ve verilerini siler."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Restore"
+msgstr "Eski haline getirmek"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Restore Failed"
+msgstr "Geri Yükleme Başarısız Oldu"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Restore Settings"
+msgstr "Ayarları Geri Yükle"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Review Training Guide"
 msgstr "Eğitim Kılavuzunu İncele"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Review the rules, features, and limitations of sunnypilot"
-msgstr ""
+msgstr "sunnypilot kurallarını, özelliklerini ve sınırlamalarını inceleyin"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Right"
+msgstr "Sağ"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Right & Bottom"
+msgstr "Sağ ve Alt"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "S"
+msgstr "S"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\smart_cruise_control.py
+msgid "SCC-M"
+msgstr "SCC-M"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\smart_cruise_control.py
+msgid "SCC-V"
+msgstr "SCC-V"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "SE"
+msgstr "GD"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\__init__.py
 msgid "SELECT"
 msgstr "SEÇ"
 
-#: openpilot/selfdrive/ui/layouts/settings/developer.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_limit.py
+msgid "SPEED"
+msgstr "HIZ"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "SPONSOR"
+msgstr "SPONSOR"
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
 msgid "SSH Keys"
 msgstr "SSH Anahtarları"
 
-#: system/ui/sunnypilot/widgets/sunnylink_pairing_dialog.py
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "START"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\circular_alerts.py
+msgid "STOPPED"
+msgstr "DURDURULDU"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\sidebar.py
+msgid "SUNNYLINK"
+msgstr "SUNNYLINK"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "SW"
+msgstr "GB"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\network.py
+msgid "Scan"
+msgstr "Tara"
+
+#: openpilot\system\ui\sunnypilot\widgets\sunnylink_pairing_dialog.py
 msgid "Scan the QR code to login to your GitHub account"
-msgstr ""
+msgstr "GitHub hesabınıza giriş yapmak için QR kodunu tarayın"
 
-#: system/ui/sunnypilot/widgets/sunnylink_pairing_dialog.py
+#: openpilot\system\ui\sunnypilot\widgets\sunnylink_pairing_dialog.py
 msgid "Scan the QR code to visit sunnyhaibin's GitHub Sponsors page"
-msgstr ""
+msgstr "sunnyhaibin'ın GitHub Sponsorlar sayfasını ziyaret etmek için QR kodunu tarayın"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Scanning Wi-Fi networks..."
 msgstr "Wi‑Fi ağları taranıyor..."
 
-#: system/ui/sunnypilot/widgets/tree_dialog.py
-msgid "Search"
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\network.py
+msgid "Scanning..."
+msgstr "Tarama..."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Screen Brightness"
 msgstr ""
 
-#: system/ui/widgets/option_dialog.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Screen Off"
+msgstr "Ekran Kapalı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Screen Saver"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Screen Saver Duration"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Screen brightness when offroad. 0 uses the device default."
+msgstr ""
+
+#: openpilot\system\ui\tici_setup.py
+msgid "Scroll to continue"
+msgstr "Devam etmek için kaydırın"
+
+#: openpilot\system\ui\sunnypilot\widgets\tree_dialog.py
+msgid "Search"
+msgstr "Aramak"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Search your vehicle"
+msgstr "Aracınızı arayın"
+
+#: openpilot\system\ui\widgets\option_dialog.py
 msgid "Select"
 msgstr "Seç"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Select Torque Control Tune Version"
+msgstr "Tork Kontrol Ayar Versiyonunu Seçin"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Select a Model"
+msgstr "Model Secin"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "Select a branch"
 msgstr "Bir dal seçin"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "Select a language"
 msgstr "Bir dil seçin"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Select a vehicle"
+msgstr "Bir araç seçin"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Select vehicle to force fingerprint manually."
+msgstr "Parmak izini manuel olarak zorlamak için aracı seçin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "Selecting a higher finger count may reduce accidental activations."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Self-Tune"
+msgstr "Kendi Kendine Ayarlama"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
 msgid "Serial"
 msgstr "Seri"
 
-#: openpilot/selfdrive/ui/widgets/offroad_alerts.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Set a timer to delay the auto lane change operation when the blinker is used. No nudge on the steering wheel is required to auto lane change if a timer is set. Default is Nudge.<br>Please use caution when using this feature. Only use the blinker when traffic and road conditions permit."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Set how sensitive the driver distraction detection should be. Strict: Very sensitive, warns on minor distractions. Moderate: Balanced between sensitivity and false positives. Lenient: Only alerts on clear distractions. "
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Set the maximum speed for lane turn desires. Default is 19 mph."
+msgstr "Şerit dönüş arzuları için maksimum hızı ayarlayın. Varsayılan hız 19 mil/saattir."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Settings backup completed."
+msgstr "Ayarların yedeklenmesi tamamlandı."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Settings restored. Confirm to restart the interface."
+msgstr "Ayarlar geri yüklendi. Arayüzü yeniden başlatmayı onaylayın."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Short Press Increment"
+msgstr "Kısa Basma Artışı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "Show Advanced Controls"
+msgstr "Gelişmiş Kontrolleri Göster"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Show Blind Spot Warnings"
+msgstr "Kör Nokta Uyarılarını Göster"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Show a screen saver when the device is offroad and idle, instead of turning the screen off."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Show a timer on the HUD when the car is at a standstill."
+msgstr "Araç durduğunda HUD'da bir zamanlayıcı gösterin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Show an indicator on the left side of the screen to display real-time vehicle acceleration and deceleration. This displays what the car is currently doing, not what the planner is requesting."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Small Model"
+msgstr "Küçük Model"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Smart Cruise Control - Map"
+msgstr "Akıllı Hız Sabitleyici - Harita"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Smart Cruise Control - Vision"
+msgstr "Akıllı Hız Sabitleyici - Görüş"
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
 msgid "Snooze Update"
 msgstr "Güncellemeyi Ertele"
 
-#: openpilot/selfdrive/ui/layouts/settings/settings.py
+#: openpilot\selfdrive\ui\layouts\settings\settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "Software"
 msgstr "Yazılım"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Software Delay:"
+msgstr "Yazılım Gecikmesi:"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Speed"
+msgstr "Hız"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Speed Limit"
+msgstr "Hız Limiti"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Speed Limit Offset"
+msgstr "Hız Sınırı Ofseti"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
+msgid "Speed Limit Source"
+msgstr "Hız Sınırı Kaynağı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Speedometer: Always Display True Speed"
+msgstr "Hız Göstergesi: Her Zaman Gerçek Hızı Görüntüle"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Speedometer: Hide from Onroad Screen"
+msgstr "Hız Göstergesi: Yol Ekranından Gizle"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Sponsor Status"
+msgstr "Sponsor Durumu"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Sponsorship isn't required for basic backup/restore"
+msgstr "Temel yedekleme/geri yükleme için sponsorluk gerekli değildir"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Sport"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Standard"
 msgstr "Standart"
 
-#: openpilot/selfdrive/ui/onroad/alert_renderer.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Standard is recommended. In aggressive mode, sunnypilot will follow lead cars closer and be more aggressive with the gas and brake. In relaxed mode sunnypilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with your steering wheel distance button."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Start Download"
+msgstr "İndirmeyi Başlat"
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Start IMU Calibration"
+msgstr ""
+
+#: openpilot\system\ui\tici_setup.py
+msgid "Start over"
+msgstr "Yeniden başla"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
+msgid "Start the vehicle to check vehicle compatibility."
+msgstr "Araç uyumluluğunu kontrol etmek için aracı çalıştırın."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "State"
+msgstr "Durum"
+
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Status"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+msgid "Steering"
+msgstr "Direksiyon"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Steering Arc"
+msgstr "Direksiyon Arkı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Steering Mode on Brake Pedal"
+msgstr "Fren Pedalında Direksiyon Modu"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\subaru.py
+msgid "Stop and Go (Beta)"
+msgstr "Dur ve Git (Beta)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
+msgid "Stop and Go Hack (Alpha)"
+msgstr "Dur ve Git Hack (Alfa)"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\subaru.py
+msgid "Stop and Go for Manual Parking Brake (Beta)"
+msgstr "Manuel Park Freni için Dur ve Kalk (Beta)"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Strict"
+msgstr ""
+
+#: openpilot\system\ui\tici_reset.py
+msgid "System Reset"
+msgstr "Sistem Sıfırlama"
+
+#: openpilot\selfdrive\ui\onroad\alert_renderer.py
 msgid "System Unresponsive"
 msgstr "Sistem Yanıt Vermiyor"
 
-#: openpilot/selfdrive/ui/onroad/alert_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\software.py
+msgid "System reboot required for changes to take effect. Reboot now?"
+msgstr "Değişikliklerin etkili olması için sistemin yeniden başlatılması gerekiyor. Şimdi yeniden başlatılsın mı?"
+
+#: openpilot\system\ui\tici_reset.py
+msgid "System reset triggered. Press confirm to erase all content and settings. Press cancel to resume boot."
+msgstr "Sistem sıfırlama tetiklendi. Tüm içeriği ve ayarları silmek için onayla tuşuna basın. Önyüklemeye devam etmek için iptal tuşuna basın."
+
+#: openpilot\selfdrive\ui\onroad\alert_renderer.py
 msgid "TAKE CONTROL IMMEDIATELY"
 msgstr "HEMEN KONTROLÜ DEVRALIN"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "TEMP"
 msgstr "SIC."
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "THANKS ♥"
+msgstr "TEŞEKKÜRLER ♥"
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "Taking camera snapshots. System won't start until finished."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "Target Branch"
 msgstr "Hedef Dal"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Tethering Password"
 msgstr "İnternet Paylaşımı Şifresi"
 
-#: openpilot/selfdrive/ui/layouts/settings/settings.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "The driver monitoring system can be toggled on/off, but long-term activation is recommended"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "The reset cannot be undone. You have been warned."
+msgstr "Sıfırlama geri alınamaz. Uyarıldın."
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "This alert will be cleared when new maps are downloaded."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "This allows the use of full MADS functionality when enabled."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "This feature can only be used with sunnypilot longitudinal control enabled."
+msgstr "Bu özellik yalnızca sunnypilot uzunlamasına kontrol etkinken kullanılabilir."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "This feature defaults to OFF, and does not allow selection due to vehicle limitations."
+msgstr "Bu özellik varsayılan olarak KAPALI'dır ve araç sınırlamaları nedeniyle seçime izin vermez."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "This feature defaults to ON, and does not allow selection due to vehicle limitations."
+msgstr "Bu özellik varsayılan olarak AÇIK durumdadır ve araç sınırlamaları nedeniyle seçime izin vermez."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\subaru.py
+msgid "This feature is currently not available on this platform."
+msgstr "Bu özellik şu anda bu platformda mevcut değildir."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "This feature is not supported on this platform due to vehicle limitations."
+msgstr "Bu özellik, araç sınırlamaları nedeniyle bu platformda desteklenmiyor."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
+msgid "This feature is unavailable because sunnypilot Longitudinal Control (Alpha) is not enabled."
+msgstr "sunnypilot Boyuna Denetim (Alfa) etkinleştirilmediğinden bu özellik kullanılamıyor."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
+msgid "This feature is unavailable while the car is onroad."
+msgstr "Bu özellik araç yoldayken kullanılamaz."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "This feature requires sunnypilot longitudinal control to be available."
+msgstr "Bu özellik, sunnypilot boylamsal kontrolün mevcut olmasını gerektirir."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "This is the master switch, it will allow you to cutoff any sunnylink requests should you want to do that."
+msgstr "Bu ana anahtardır, eğer isterseniz sunnylink isteklerini kesmenize olanak tanır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "This may be due to weak internet connection or sunnylink registration issue. "
+msgstr "Bunun nedeni zayıf internet bağlantısı veya sunnylink kayıt sorunu olabilir."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "This platform only supports Disengage mode due to vehicle limitations."
+msgstr "Bu platform, araç sınırlamaları nedeniyle yalnızca Devreden Çıkarma modunu destekler."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "This platform supports all MADS settings."
+msgstr "Bu platform tüm MADS ayarlarını destekler."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "This platform supports limited MADS settings."
+msgstr "Bu platform sınırlı MADS ayarlarını destekler."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "This setting will take effect immediately."
+msgstr "Bu ayar hemen etkili olacaktır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "This setting will take effect once the device enters offroad state."
+msgstr "Bu ayar, cihaz offroad durumuna girdiğinde etkili olacaktır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid ""
+"This will delete ALL downloaded maps\n"
+"\n"
+"Are you sure you want to delete all maps?"
+msgstr ""
+"Bu, indirilen TÜM haritaları silecektir\n"
+"\n"
+"Tüm haritaları silmek istediğinizden emin misiniz?"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "This will delete ALL downloaded models from the cache except the currently active model. Are you sure?"
+msgstr "Bu, şu anda etkin olan model dışındaki TÜM indirilen modelleri önbellekten silecektir. Emin misin?"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "This will start the download process and it might take a while to complete."
+msgstr "Bu, indirme işlemini başlatacaktır ve tamamlanması biraz zaman alabilir."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Time"
+msgstr "Zaman"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Toggle to enable a delay timer for seamless lane changes when blind spot monitoring (BSM) detects a obstructing vehicle, ensuring safe maneuvering."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "Toggle visibility of advanced sunnypilot controls.<br>This only changes the visibility of the toggles; it does not change the actual enabled/disabled state."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Toggle with Main Cruise"
+msgstr "Ana Yolculuk ile geçiş yap"
+
+#: openpilot\selfdrive\ui\layouts\settings\settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "Toggles"
 msgstr "Seçenekler"
 
-#: openpilot/selfdrive/ui/layouts/settings/developer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Torque Control Tune Version"
+msgstr "Tork Kontrol Ayar Versiyonu"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Total Delay:"
+msgstr "Toplam Gecikme:"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Training Guide"
+msgstr "Eğitim Rehberi"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+msgid "Trips"
+msgstr "Geziler"
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
 msgid "UI Debug Mode"
 msgstr "Arayüz Hata Ayıklama Modu"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "UNINSTALL"
 msgstr "KALDIR"
 
-#: openpilot/selfdrive/ui/layouts/home.py
+#: openpilot\selfdrive\ui\layouts\home.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\home.py
 msgid "UPDATE"
 msgstr "GÜNCELLE"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid ""
+"Unable to download updates\n"
+"%1"
+msgstr ""
+
+#: openpilot\system\ui\tici_reset.py
+msgid "Unable to mount data partition. Partition may be corrupted. Press confirm to erase and reset your device."
+msgstr "Veri bölümü bağlanamıyor. Bölüm bozulmuş olabilir. Cihazınızı silmek ve sıfırlamak için onayla tuşuna basın."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Unable to restore the settings, try again later."
+msgstr "Ayarlar geri yüklenemedi, daha sonra tekrar deneyin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Unified Engagement Mode (UEM)"
+msgstr "Birleşik Etkileşim Modu (UEM)"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "Uninstall"
 msgstr "Kaldır"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "Unknown"
 msgstr "Bilinmiyor"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Unrecognized Vehicle"
+msgstr "Tanınmayan Araç"
+
+#: openpilot\system\ui\tici_updater.py
+msgid "Update Required"
+msgstr "Güncelleme Gerekli"
+
+#: openpilot\system\ui\tici_updater.py
+msgid "Update failed"
+msgstr "Güncelleme başarısız oldu"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "Updates are only downloaded while the car is off."
 msgstr "Güncellemeler yalnızca araç kapalıyken indirilir."
 
-#: openpilot/selfdrive/ui/widgets/prime.py
+#: openpilot\selfdrive\ui\widgets\prime.py
 msgid "Upgrade Now"
 msgstr "Şimdi Yükselt"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Upload data from the driver facing camera and help improve the driver monitoring algorithm."
 msgstr "Sürücüye bakan kameradan veri yükleyin ve sürücü izleme algoritmasını geliştirmeye yardımcı olun."
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
+msgid "Use IMU Calibration"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Use Lane Turn Desires"
+msgstr "Şeritten Dönüş Arzularını Kullan"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Use Metric System"
 msgstr "Metrik Sistemi Kullan"
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\tesla.py
+msgid "Use a multi-finger press on the infotainment screen to toggle MADS."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Use map data to estimate the appropriate speed to drive through turns ahead."
+msgstr "İlerideki dönüşlerden geçmek için uygun hızı tahmin etmek amacıyla harita verilerini kullanın."
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Use the sunnypilot system for adaptive cruise control and lane keep driver assistance. Your attention is required at all times to use this feature."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Use vision path predictions to estimate the appropriate speed to drive through turns ahead."
+msgstr "İlerideki dönüşlerden geçmek için uygun hızı tahmin etmek amacıyla görüş yolu tahminlerini kullanın."
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "VEHICLE"
 msgstr "ARAÇ"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
 msgid "VIEW"
 msgstr "GÖRÜNTÜLE"
 
-#: openpilot/selfdrive/ui/onroad/alert_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
+msgid "Vehicle"
+msgstr "Araç"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "View the error log for sunnypilot crashes."
+msgstr "sunnypilot çökmelerine ilişkin hata günlüğünü görüntüleyin."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Virtually shift camera's perspective to move model's center to Left(+ values) or Right (- values)"
+msgstr "Modelin merkezini Sola (+ değerler) veya Sağa (- değerler) taşımak için kameranın bakış açısını sanal olarak kaydırın."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+msgid "Visuals"
+msgstr "Görseller"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "W"
+msgstr "K"
+
+#: openpilot\system\ui\tici_setup.py
+msgid "WARNING: Custom Software"
+msgstr "UYARI: Özel Yazılım"
+
+#: openpilot\system\ui\tici_setup.py
+msgid "WARNING: Low Voltage"
+msgstr "UYARI: Düşük Gerilim"
+
+#: openpilot\system\ui\tici_setup.py
+msgid "Waiting for internet"
+msgstr "İnterneti bekliyorum"
+
+#: openpilot\selfdrive\ui\onroad\alert_renderer.py
 msgid "Waiting to start"
 msgstr "Başlatma bekleniyor"
 
-#: openpilot/selfdrive/ui/layouts/onboarding.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Wake Up Behavior"
+msgstr "Uyanma Davranışı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Warning"
+msgstr "Uyarı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Warning: Provides a warning when exceeding the current road's speed limit."
+msgstr "Uyarı: Mevcut yolun hız limiti aşıldığında uyarı verir."
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
+msgid "Warning: This grants SSH access to all public keys in your GitHub settings. Never enter a GitHub username other than your own. A comma employee will NEVER ask you to add their GitHub username."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "Welcome back!! We're excited to see you've enabled sunnylink again!"
+msgstr "Tekrar hoşgeldiniz!! sunnylink özelliğini tekrar etkinleştirdiğinizi görmekten heyecan duyuyoruz!"
+
+#: openpilot\selfdrive\ui\layouts\onboarding.py
 msgid "Welcome to sunnypilot"
-msgstr ""
+msgstr "sunnypilot'a hoş geldiniz"
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "What's a good USB-C adapter?"
+msgstr "İyi bir USB-C adaptörü nedir?"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\software.py
+msgid "When enabled, automatic software updates will be off.<br><b>This requires a reboot to take effect.</b>"
+msgstr "Etkinleştirildiğinde, otomatik yazılım güncellemeleri kapalı olacaktır.<br><b>Bunun etkili olması için yeniden başlatma gerekir.</b>"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "When enabled, pressing the accelerator pedal will disengage sunnypilot."
+msgstr "Etkinleştirildiğinde gaz pedalına basıldığında sunnypilot devreden çıkar."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "When enabled, sunnypilot will attempt to manage the built-in cruise control buttons by emulating button presses for limited longitudinal control."
 msgstr ""
 
-#: openpilot/selfdrive/ui/layouts/sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "When enabled, the speedometer on the onroad screen is not displayed."
+msgstr "Etkinleştirildiğinde yol ekranındaki hız göstergesi görüntülenmez."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "When enabled, visual turn indicators are drawn on the HUD."
+msgstr "Etkinleştirildiğinde HUD üzerinde görsel dönüş göstergeleri çizilir."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "When toggled on, this creates a prebuilt file to allow accelerated boot times. When toggled off, it removes the prebuilt file so compilation of locally edited cpp files can be made."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\sidebar.py
 msgid "Wi-Fi"
 msgstr "Wi‑Fi"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "Wi-Fi Network Metered"
 msgstr "Ölçülü Wi‑Fi Ağı"
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "Would you like to delete this log?"
+msgstr "Bu günlüğü silmek ister misiniz?"
+
+#: openpilot\system\ui\widgets\network.py
 msgid "Wrong password"
 msgstr "Yanlış şifre"
 
-#: openpilot/selfdrive/ui/layouts/onboarding.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "Yes"
+msgstr "Evet"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+msgid "Yes, delete all maps"
+msgstr "Evet, tüm haritaları sil"
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid "Yes, only upstream openpilot (and particular forks) are able to be used for training."
+msgstr "Evet, eğitim için yalnızca yukarı akış openpilot (ve belirli çatallar) kullanılabilir."
+
+#: openpilot\selfdrive\ui\layouts\onboarding.py
 msgid "You must accept the Terms of Service in order to use sunnypilot."
-msgstr ""
+msgstr "sunnypilot'ı kullanabilmek için Hizmet Şartlarını kabul etmeniz gerekir."
 
-#: openpilot/selfdrive/ui/layouts/onboarding.py
+#: openpilot\selfdrive\ui\layouts\onboarding.py
 msgid "You must accept the Terms of Service to use sunnypilot. Read the latest terms at https://sunnypilot.ai/terms before continuing."
-msgstr ""
+msgstr "sunnypilot'ı kullanabilmek için Hizmet Şartları'nı kabul etmeniz gerekir. Devam etmeden önce https://sunnypilot.ai/terms adresindeki en son şartları okuyun."
 
-#: openpilot/selfdrive/ui/onroad/driver_camera_dialog.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
+msgid "Your vehicle will use the Default longitudinal tuning."
+msgstr "Aracınız Varsayılan uzunlamasına ayarı kullanacaktır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
+msgid "Your vehicle will use the Dynamic longitudinal tuning."
+msgstr "Aracınız Dinamik uzunlamasına ayarı kullanacaktır."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
+msgid "Your vehicle will use the Predictive longitudinal tuning."
+msgstr "Aracınız Tahmini boylamsal ayarı kullanacaktır."
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "active"
+msgstr "aktif"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "active model"
+msgstr "aktif modeli"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "backing up"
+msgstr "yedekleme"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "backup"
+msgstr "yedekleme"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "backup settings"
+msgstr "yedekleme ayarları"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\widgets\sunnylink_pairing_dialog.py
+msgid "become a sunnypilot sponsor"
+msgstr "sunnypilot sponsoru olun"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "big"
+msgstr "büyük"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "big model"
+msgstr "büyük model"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "big models"
+msgstr "büyük modeller"
+
+#: openpilot\selfdrive\ui\mici\layouts\onboarding.py
+#: openpilot\selfdrive\ui\mici\onroad\cabin_camera_dialog.py
+#: openpilot\selfdrive\ui\onroad\cabin_camera_dialog.py
 msgid "camera starting"
 msgstr "kamera başlatılıyor"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\system\ui\mici_reset.py
+msgid "cancel"
+msgstr "iptal etmek"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "cancel download"
+msgstr "indirmeyi iptal et"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "cancel verification"
+msgstr "doğrulamayı iptal et"
+
+#: openpilot\system\ui\mici_setup.py
+msgid ""
+"caution: installing\n"
+"3rd party software"
+msgstr ""
+"dikkat: yükleme\n"
+"3. parti yazılım"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "checking..."
 msgstr "kontrol ediliyor..."
 
-#: openpilot/selfdrive/ui/widgets/prime.py
+#: openpilot\system\ui\mici_setup.py
+msgid "choose software"
+msgstr "yazılım seç"
+
+#: openpilot\selfdrive\ui\widgets\prime.py
 msgid "comma prime"
 msgstr "comma prime"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\mici_setup.py
+msgid ""
+"connect to\n"
+"continue"
+msgstr ""
+"bağlanmak\n"
+"devam et"
+
+#: openpilot\system\ui\mici_setup.py
+msgid ""
+"connect to\n"
+"internet"
+msgstr ""
+"bağlanmak\n"
+"internet"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "copyparty Service"
+msgstr "kopya partisi Hizmeti"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
+msgid "copyparty is a very capable file server, you can use it to download your routes, view your logs and even make some edits on some files from your browser. Requires you to connect to your comma locally via its IP address."
+msgstr ""
+
+#: openpilot\system\ui\mici_setup.py
+msgid "custom software URL..."
+msgstr "özel yazılım URL'si..."
+
+#: openpilot\system\ui\widgets\network.py
 msgid "default"
 msgstr "varsayılan"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "device id"
+msgstr "cihaz kimliği"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onboarding.py
+msgid ""
+"disable\n"
+"sunnylink"
+msgstr ""
+"devre dışı bırak\n"
+"sunnylink"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
+msgid "disengage to enable always offroad"
+msgstr "her zaman offroad'u etkinleştirmek için devre dışı bırakın"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "down"
 msgstr "aşağı"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\system\ui\mici_updater.py
+msgid ""
+"download\n"
+"& install"
+msgstr ""
+"indir\n"
+"& yükle"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+#: openpilot\system\ui\mici_setup.py
+msgid "download failed"
+msgstr "indirme başarısız oldu"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "downloaded"
+msgstr "indirildi"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+#: openpilot\system\ui\mici_updater.py
+msgid "downloading"
+msgstr "indiriliyor"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
+#: openpilot\system\ui\mici_setup.py
 msgid "downloading..."
 msgstr "indiriliyor..."
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onboarding.py
+msgid ""
+"enable\n"
+"sunnylink"
+msgstr ""
+"etkinleştir\n"
+"sunnylink"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "enable sunnylink"
+msgstr "sunnylink'ı etkinleştir"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "error"
+msgstr "hata"
+
+#: openpilot\selfdrive\ui\mici\onroad\augmented_road_view.py
+#: openpilot\selfdrive\ui\onroad\augmented_road_view.py
+msgid "exit"
+msgstr ""
+
+#: openpilot\system\ui\mici_reset.py
+msgid "factory reset"
+msgstr "fabrika ayarlarına sıfırlama"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "failed"
+msgstr "arızalı"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "failed to check for update"
 msgstr "güncelleme kontrolü başarısız"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "finalizing update..."
 msgstr "güncelleme tamamlanıyor..."
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\widgets\network.py
 msgid "for \"{}\""
 msgstr "\"{}\" için"
 
-#: openpilot/selfdrive/ui/onroad/hud_renderer.py
+#: openpilot\system\ui\tici_setup.py
+msgid "for Custom Software"
+msgstr "Özel Yazılım için"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_limit.py
+msgid "ft"
+msgstr "ft"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "getting ready"
+msgstr "hazırlanıyor"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "h"
+msgstr "H"
+
+#: openpilot\system\ui\mici_setup.py
+msgid ""
+"how to restore to a\n"
+"factory state later"
+msgstr ""
+"nasıl geri yüklenir\n"
+"daha sonra fabrika durumu"
+
+#: openpilot\system\ui\mici_setup.py
+msgid "install openpilot"
+msgstr "openpilot'ı yükle"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_limit.py
+msgid "km"
+msgstr "kilometre"
+
+#: openpilot\selfdrive\ui\mici\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_renderer.py
 msgid "km/h"
 msgstr "km/h"
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "lateral"
+msgstr ""
+
+#: openpilot\system\ui\widgets\network.py
 msgid "leave blank for automatic configuration"
 msgstr "otomatik yapılandırma için boş bırakın"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "left"
 msgstr "sol"
 
-#: system/ui/widgets/network.py
+#: openpilot\system\ui\mici_updater.py
+msgid "loading"
+msgstr "yükleniyor"
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "longitudinal"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_limit.py
+msgid "m"
+msgstr "M"
+
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+msgid "m/s^2"
+msgstr "m/s^2"
+
+#: openpilot\system\ui\widgets\network.py
 msgid "metered"
 msgstr "ölçülü"
 
-#: openpilot/selfdrive/ui/onroad/hud_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_limit.py
+msgid "mi"
+msgstr "mi"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
+msgid "models"
+msgstr "modeller"
+
+#: openpilot\selfdrive\ui\mici\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_renderer.py
 msgid "mph"
 msgstr "mph"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "never"
 msgstr "asla"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\system\ui\mici_setup.py
+#: openpilot\system\ui\mici_updater.py
+msgid "next"
+msgstr "Sonraki"
+
+#: openpilot\selfdrive\ui\mici\layouts\offroad_alerts.py
+msgid "no alerts"
+msgstr "uyarı yok"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "no internet"
+msgstr "internet yok"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "now"
 msgstr "şimdi"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "pair"
+msgstr "çift"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\widgets\sunnylink_pairing_dialog.py
+msgid "pair with sunnylink"
+msgstr "sunnylink ile eşleştir"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "paired"
+msgstr "eşleştirilmiş"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "please connect to WiFi & try again"
+msgstr "lütfen WiFi'a bağlanın ve tekrar deneyin"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "please reboot & try again"
+msgstr "lütfen yeniden başlatıp tekrar deneyin"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "progress"
+msgstr "ilerlemek"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "queued"
+msgstr "kuyrukta"
+
+#: openpilot\system\ui\mici_reset.py
+#: openpilot\system\ui\mici_setup.py
+msgid ""
+"reboot\n"
+"device"
+msgstr ""
+"yeniden başlat\n"
+"cihaz"
+
+#: openpilot\system\ui\mici_reset.py
+msgid "reboot to try again"
+msgstr "tekrar denemek için yeniden başlatın"
+
+#: openpilot\system\ui\mici_reset.py
+msgid ""
+"reset &\n"
+"erase"
+msgstr ""
+"sıfırla &\n"
+"silmek"
+
+#: openpilot\system\ui\mici_reset.py
+msgid "reset failed"
+msgstr "sıfırlama başarısız oldu"
+
+#: openpilot\system\ui\mici_reset.py
+msgid ""
+"reset triggered by\n"
+"tapping the screen"
+msgstr ""
+"tarafından tetiklenen sıfırlama\n"
+"ekrana dokunarak"
+
+#: openpilot\system\ui\mici_reset.py
+msgid "resetting device"
+msgstr "cihazı sıfırlama"
+
+#: openpilot\system\ui\mici_reset.py
+msgid ""
+"resetting erases\n"
+"all user content & data"
+msgstr ""
+"silme işlemleri sıfırlanıyor\n"
+"tüm kullanıcı içeriği ve verileri"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "restore"
+msgstr "eski haline getirmek"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "restore settings"
+msgstr "ayarları geri yükle"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "restoring"
+msgstr "geri yükleme"
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "right"
 msgstr "sağ"
 
-#: openpilot/selfdrive/ui/layouts/settings/developer.py
+#: openpilot\selfdrive\ui\mici\onroad\augmented_road_view.py
+#: openpilot\selfdrive\ui\onroad\augmented_road_view.py
+msgid "road"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
+msgid "s"
+msgstr "S"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onboarding.py
+msgid "scroll to continue"
+msgstr "devam etmek için kaydırın"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "select model"
+msgstr "modeli seç"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "settings backed up"
+msgstr "ayarlar yedeklendi"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "slide to backup"
+msgstr "yedeklemeye kaydırın"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
+msgid "slide to exit always offroad"
+msgstr "her zaman offroad'tan çıkmak için kaydırın"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
+msgid "slide to force offroad"
+msgstr "offroad'u zorlamak için kaydırın"
+
+#: openpilot\system\ui\mici_setup.py
+msgid ""
+"slide to install\n"
+"custom software"
+msgstr ""
+"yüklemek için kaydırın\n"
+"özel yazılım"
+
+#: openpilot\system\ui\mici_setup.py
+msgid ""
+"slide to install\n"
+"openpilot"
+msgstr ""
+"yüklemek için kaydırın\n"
+"openpilot"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "slide to restart"
+msgstr "yeniden başlatmak için kaydırın"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "slide to restore"
+msgstr "geri yüklemek için kaydırın"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "small"
+msgstr "küçük"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "small model"
+msgstr "küçük model"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "small models"
+msgstr "küçük modeller"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "sponsor"
+msgstr "sponsor"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "sponsor tier"
+msgstr "sponsor katmanı"
+
+#: openpilot\system\ui\mici_setup.py
+msgid "start"
+msgstr "başlangıç"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\onboarding.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onboarding.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
+msgid "sunnylink"
+msgstr "sunnylink"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "sunnylink Dongle ID not found. "
+msgstr "sunnylink Dongle kimliği bulunamadı."
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "sunnylink dongle id not found"
+msgstr "sunnylink donanım kilidi kimliği bulunamadı"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\onboarding.py
+msgid "sunnylink enables secured remote access to your comma device from anywhere, including settings management, remote monitoring, real-time dashboard, etc."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onboarding.py
+msgid "sunnylink enables secured remote access to your comma device from anywhere."
+msgstr "sunnylink, comma cihazınıza her yerden güvenli uzaktan erişim sağlar."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\onboarding.py
+msgid "sunnylink is designed to be enabled as part of sunnypilot's core functionality. If sunnylink is disabled, features such as settings management, remote monitoring, real-time dashboards will be unavailable."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "sunnylink uploader"
+msgstr "sunnylink yükleyici"
+
+#: openpilot\selfdrive\ui\layouts\settings\developer.py
 msgid "sunnypilot Longitudinal Control (Alpha)"
-msgstr ""
+msgstr "sunnypilot Boyuna Kontrol (Alfa)"
 
-#: openpilot/selfdrive/ui/onroad/alert_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "sunnypilot Longitudinal Control is the default longitudinal control for this platform."
+msgstr "sunnypilot Boyuna Kontrol, bu platform için varsayılan boylamsal kontroldür."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
+msgid "sunnypilot Longitudinal Control must be available and enabled for your vehicle to use this feature."
+msgstr "sunnypilot Aracınızda bu özelliğin kullanılabilmesi için Boylamsal Kontrolün mevcut ve etkinleştirilmiş olması gerekir."
+
+#: openpilot\selfdrive\ui\onroad\alert_renderer.py
 msgid "sunnypilot Unavailable"
+msgstr "sunnypilot Kullanılamıyor"
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "sunnypilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. Experimental features are listed below:<br><h4>End-to-End Longitudinal Control</h4><br>Let the driving model control the gas and brakes. sunnypilot will drive as it thinks a human would, including stopping for red lights and stop signs. Since the driving model decides the speed to drive, the set speed will only act as an upper bound. This is an alpha quality feature; mistakes should be expected.<br><h4>New Driving Visualization</h4><br>The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. The Experimental mode logo will also be shown in the top right corner."
 msgstr ""
 
-#: openpilot/selfdrive/ui/layouts/settings/toggles.py
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "sunnypilot detected a change in the device's mounting position. Ensure the device is fully seated in the mount and the mount is firmly secured to the windshield."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\device.py
+msgid "sunnypilot is continuously calibrating, resetting is rarely required. Resetting calibration will restart sunnypilot if the car is powered on."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\firehose.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid ""
+"sunnypilot learns to drive by watching humans, like you, drive.\n"
+"\n"
+"Firehose Mode allows you to maximize your training data uploads to improve openpilot's driving models. More data means bigger models, which means better Experimental Mode."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "sunnypilot longitudinal control may come in a future update."
-msgstr ""
+msgstr "sunnypilot boylamsal kontrol gelecekteki bir güncellemeyle gelebilir."
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "sunnypilot requires the device to be mounted within 4° left or right and within 5° up or 9° down."
+msgstr "sunnypilot, cihazın 4° sola veya sağa ve 5° yukarı veya 9° aşağıya monte edilmesini gerektirir."
+
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "sunnypilot was unable to identify your car. Your car is either unsupported or its ECUs are not recognized. Please submit a pull request to add the firmware versions to the proper vehicle. Need help? Join discord.comma.ai."
 msgstr ""
 
-#: system/ui/widgets/network.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
+msgid "sunnypilot will allow some Toyota/Lexus cars to auto resume during stop and go traffic. This feature is only applicable to certain models that are able to use longitudinal control. This is an alpha feature. Use at your own risk."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
+msgid "sunnypilot will not take over control of gas and brakes. Factory Toyota longitudinal control will be used."
+msgstr "sunnypilot gaz ve frenlerin kontrolünü devralmayacaktır. Fabrika Toyota boylamasına kontrolü kullanılacaktır."
+
+#: openpilot\system\ui\mici_setup.py
+msgid ""
+"swipe down to go\n"
+"back and try again"
+msgstr ""
+"gitmek için aşağı kaydırın\n"
+"geri dön ve tekrar dene"
+
+#: openpilot\system\ui\mici_setup.py
+msgid "swipe down to go back"
+msgstr "geri dönmek için aşağı kaydırın"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "thanks"
+msgstr "teşekkürler"
+
+#: openpilot\system\ui\mici_updater.py
+msgid ""
+"the download size\n"
+"is approximately 1 GB"
+msgstr ""
+"indirme boyutu\n"
+"yaklaşık 1 GB"
+
+#: openpilot\system\ui\mici_reset.py
+msgid ""
+"this may take up to\n"
+"a minute"
+msgstr ""
+"bu kadar sürebilir\n"
+"bir dakika"
+
+#: openpilot\system\ui\mici_reset.py
+msgid ""
+"this may take up to\n"
+"a minute..."
+msgstr ""
+"bu kadar sürebilir\n"
+"bir dakika..."
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "try again later."
+msgstr "daha sonra tekrar deneyin."
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "unable to restore"
+msgstr "geri yüklenemiyor"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "unavailable"
+msgstr "kullanılamıyor"
+
+#: openpilot\system\ui\widgets\network.py
 msgid "unmetered"
 msgstr "ölçüsüz"
 
-#: openpilot/selfdrive/ui/layouts/settings/device.py
+#: openpilot\selfdrive\ui\layouts\settings\device.py
 msgid "up"
 msgstr "yukarı"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "up to date, last checked never"
 msgstr "güncel, son kontrol asla"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "up to date, last checked {}"
 msgstr "güncel, son kontrol {}"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "update available"
 msgstr "güncelleme mevcut"
 
-#: openpilot/selfdrive/ui/layouts/home.py
+#: openpilot\system\ui\mici_updater.py
+msgid "update failed"
+msgstr "güncelleme başarısız oldu"
+
+#: openpilot\system\ui\mici_updater.py
+msgid "update required"
+msgstr "güncelleme gerekli"
+
+#: openpilot\system\ui\mici_reset.py
+msgid ""
+"user data partition\n"
+"could not be mounted"
+msgstr ""
+"kullanıcı veri bölümü\n"
+"monte edilemedi"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "verifying"
+msgstr "doğrulanıyor"
+
+#: openpilot\system\ui\mici_setup.py
+msgid ""
+"waiting for\n"
+"internet..."
+msgstr ""
+"beklemek\n"
+"internet..."
+
+#: openpilot\selfdrive\ui\mici\onroad\augmented_road_view.py
+#: openpilot\selfdrive\ui\onroad\augmented_road_view.py
+msgid "wide"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "{} %"
+msgstr "{} %"
+
+#: openpilot\selfdrive\ui\layouts\home.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\home.py
 msgid "{} ALERT"
 msgid_plural "{} ALERTS"
 msgstr[0] "{} UYARI"
 msgstr[1] "{} UYARILAR"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "{} day ago"
 msgid_plural "{} days ago"
 msgstr[0] "{} gün önce"
 msgstr[1] "{} gün önce"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "{} drives until the big model is ready."
+msgstr "{} büyük model hazır olana kadar sürer."
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "{} hour ago"
 msgid_plural "{} hours ago"
 msgstr[0] "{} saat önce"
 msgstr[1] "{} saat önce"
 
-#: openpilot/selfdrive/ui/layouts/settings/software.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "{} m"
+msgstr "{} m"
+
+#: openpilot\selfdrive\ui\layouts\settings\software.py
 msgid "{} minute ago"
 msgid_plural "{} minutes ago"
 msgstr[0] "{} dakika önce"
 msgstr[1] "{} dakika önce"
 
-#: openpilot/selfdrive/ui/layouts/settings/firehose.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "{} s"
+msgstr "{} sn"
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
 msgid "{} segment of your driving is in the training dataset so far."
 msgid_plural "{} segments of your driving is in the training dataset so far."
 msgstr[0] "{} segment sürüşünüz eğitim veri setinde."
 msgstr[1] "{} segment sürüşünüz eğitim veri setinde."
 
-#: openpilot/selfdrive/ui/widgets/prime.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "{} will drive when the chestnut is ready."
+msgstr "{} harici hesaplama kutusu hazır olduğunda sürecek."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "{} will drive. If it fails during a drive, {} takes over until the next drive."
+msgstr "{} sürecek. Bir sürüş sırasında başarısız olursa, bir sonraki sürüşe kadar {} devralacak."
+
+#: openpilot\system\ui\mici_setup.py
+msgid "• It has not been tested by comma."
+msgstr "• comma tarafından test edilmemiştir."
+
+#: openpilot\system\ui\mici_setup.py
+msgid "• It may damage your device and/or vehicle."
+msgstr "• Cihazınıza ve/veya aracınıza zarar verebilir."
+
+#: openpilot\system\ui\mici_setup.py
+msgid "• It may not comply with safety standards."
+msgstr "• Güvenlik standartlarına uygun olmayabilir."
+
+#: openpilot\selfdrive\ui\widgets\prime.py
 msgid "✓ SUBSCRIBED"
 msgstr "✓ ABONE"
 
-#: openpilot/selfdrive/ui/widgets/setup.py
-msgid "🔥 Firehose Mode 🔥"
-msgstr "🔥 Firehose Modu 🔥"
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
+msgid "🚀 sunnylink 🚀"
+msgstr "🚀 sunnylink 🚀"
 

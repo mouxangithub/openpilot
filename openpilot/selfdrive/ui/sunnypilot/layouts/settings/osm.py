@@ -28,6 +28,8 @@ from openpilot.system.ui.sunnypilot.widgets.list_view import ListItemSP
 from openpilot.system.ui.sunnypilot.widgets.tree_dialog import TreeFolder, TreeNode, TreeOptionDialog
 from openpilot.system.ui.sunnypilot.widgets.progress_bar import progress_item
 
+from openpilot.sunnypilot.mapd.china_provinces import CHINA_NATION_REF, CHINA_ALL_REF, CHINA_PROVINCES
+
 MAP_PATH = Path(Paths.mapd_root()) / "offline"
 
 
@@ -37,20 +39,27 @@ class OSMLayout(Widget):
     self._current_percent = 0
     self._last_map_size_update = 0
     self._mem_params = Params("/dev/shm/params") if platform.system() != "Darwin" else ui_state.params
+    # Cached for the row title below: ListItemSP re-reads title for visibility, measurement,
+    # layout and draw, so a Params.get() there is 4 filesystem hits per frame (111 us each on tizi).
+    self._is_china = ui_state.params.get("OsmLocationName") == CHINA_NATION_REF
     self._initialize_items()
     self._update_map_size()
     self._progress.set_visible(False)
     self._state_btn.set_visible(False)
-    self._mapd_version.action_item.set_text(ui_state.params.get("MapdVersion") or "Loading...")
+    self._mapd_version.action_item.set_text(ui_state.params.get("MapdVersion") or tr("Loading..."))
     self._scroller = Scroller(self.items, line_separator=True, spacing=0)
 
   def _initialize_items(self):
-    self._mapd_version = text_item(tr("Mapd Version"), lambda: ui_state.params.get("MapdVersion") or "Loading...")
+    self._mapd_version = text_item(tr("Mapd Version"), lambda: ui_state.params.get("MapdVersion") or tr("Loading..."))
     self._delete_maps_btn = ListItemSP(tr("Downloaded Maps"), action_item=NoElideButtonAction(tr("DELETE"), enabled=True), callback=self._delete_maps)
     self._progress = progress_item(tr("Downloading Map"))
     self._update_btn = ListItemSP(tr("Database Update"), action_item=NoElideButtonAction(tr("CHECK"), enabled=True), callback=self._update_db)
     self._country_btn = ListItemSP(tr("Country"), action_item=NoElideButtonAction(tr("SELECT"), enabled=True), callback=lambda: self._select_region("Country"))
-    self._state_btn = ListItemSP(tr("State"), action_item=NoElideButtonAction(tr("SELECT"), enabled=True), callback=lambda: self._select_region("State"))
+    self._state_btn = ListItemSP(
+      lambda: tr("Province") if self._is_china else tr("State"),
+      action_item=NoElideButtonAction(tr("SELECT"), enabled=True),
+      callback=lambda: self._select_region("State"),
+    )
 
     self.items = [self._mapd_version, self._delete_maps_btn, self._progress, self._update_btn, self._country_btn, self._state_btn]
 
@@ -69,16 +78,33 @@ class OSMLayout(Widget):
             directories_to_scan.append(entry.path)
       except OSError:
         pass
-    self._delete_maps_btn.action_item.set_value(f"{total_size / 1024 ** 2:.2f} MB" if total_size < 1024 ** 3 else f"{total_size / 1024 ** 3:.2f} GB")
+    self._delete_maps_btn.action_item.set_value(
+      f"{total_size / 1024 ** 2:.2f} {tr('MB')}" if total_size < 1024 ** 3 else f"{total_size / 1024 ** 3:.2f} {tr('GB')}"
+    )
 
   def _update_map_size(self):
     threading.Thread(target=self.calculate_size, daemon=True).start()
+
+  def _do_delete_maps(self):
+    if MAP_PATH.exists():
+      shutil.rmtree(MAP_PATH)
+
+    for param in ("OsmDownloadedDate", "OsmLocal", "OsmLocationName", "OsmLocationTitle", "OsmStateName", "OsmStateTitle", "OSMDownloadProgress"):
+      ui_state.params.remove(param)
+    # Also clear mem_params so a half-finished download from a prior session does not
+    # auto-resume after the user explicitly asked to wipe everything.
+    self._mem_params.remove("OSMDownloadLocations")
+    self._mem_params.remove("OSMDownloadBounds")
+    ui_state.params.put_bool("OsmDbUpdatesCheck", False)
+    self._delete_maps_btn.action_item.set_enabled(True)
+    self._delete_maps_btn.action_item.set_text(tr("DELETE"))
+    self._update_map_size()
 
   def _on_confirm_delete_maps(self):
     ui_state.params.put_bool("Mapd_ClearCache", True)
     self._delete_maps_btn.action_item.set_enabled(True)
     self._delete_maps_btn.action_item.set_text(tr("DELETE"))
-    self._update_map_size()
+    threading.Thread(target=self._do_delete_maps).start()
 
   def _delete_maps(self):
     self._show_confirm(tr("This will delete ALL downloaded maps\n\nAre you sure you want to delete all maps?"),
@@ -88,17 +114,17 @@ class OSMLayout(Widget):
     self._show_confirm(tr("This will start the download process and it might take a while to complete."), tr("Start Download"),
                        lambda: ui_state.params.put_bool("OsmDbUpdatesCheck", True))
 
-  def _select_region(self, region_type):
+  def _select_region(self, region_type, country=None):
     is_country = region_type == "Country"
     btn = self._country_btn if is_country else self._state_btn
     btn.action_item.set_enabled(False)
     btn.action_item.set_text(tr("FETCHING..."))
-    threading.Thread(target=self._do_select_region, args=(region_type, btn)).start()
+    threading.Thread(target=self._do_select_region, args=(region_type, btn, country)).start()
 
   def _handle_region_selection(self, region_type, locations, key, res, ref):
     if res != DialogResult.CONFIRM or not ref:
       if region_type == "State" and res == DialogResult.CANCEL:
-        if ui_state.params.get("OsmLocationName") == "US" and not ui_state.params.get("OsmStateName"):
+        if ui_state.params.get("OsmLocationName") in ("US", CHINA_NATION_REF) and not ui_state.params.get("OsmStateName"):
           ui_state.params.remove("OsmLocationName")
           ui_state.params.remove("OsmLocationTitle")
           ui_state.params.remove("OsmLocal")
@@ -114,22 +140,33 @@ class OSMLayout(Widget):
     name = next((n.data['display_name'] for n in locations if n.ref == ref), ref)
     ui_state.params.put(f"{key}Title", name)
 
-    if ref == "US" and region_type == "Country":
-      self._select_region("State")
+    if ref in ("US", CHINA_NATION_REF) and region_type == "Country":
+      self._select_region("State", country=ref)
     else:
       self._update_db()
 
-  def _do_select_region(self, region_type, btn):
-    base_url = "https://raw.githubusercontent.com/pfeiferj/openpilot-mapd/main/"
-    url = base_url + ("nation_bounding_boxes.json" if region_type == "Country" else "us_states_bounding_boxes.json")
-    try:
-      data = requests.get(url, timeout=10).json()
-      locations = sorted([TreeNode(ref=k, data={'display_name': v['full_name']}) for k, v in data.items()], key=lambda n: n.data['display_name'])
-    except Exception:
-      locations = []
+  def _do_select_region(self, region_type, btn, country=None):
+    country = country or ui_state.params.get("OsmLocationName") or ""
 
-    if region_type == "State":
-      locations.insert(0, TreeNode(ref="All", data={'display_name': tr("All states (~6.0 GB)")}))
+    if region_type == "State" and country == CHINA_NATION_REF:
+      # Chinese provinces are not in pfeiferj/mapd's static state list; build the picker
+      # from our embedded table so it works offline and avoids 404s on the upstream JSON.
+      provinces = sorted(
+        [TreeNode(ref=ref, data={'display_name': name}) for ref, name, _ in CHINA_PROVINCES],
+        key=lambda n: n.data['display_name'],
+      )
+      locations = [TreeNode(ref=CHINA_ALL_REF, data={'display_name': tr("All provinces")})] + provinces
+    else:
+      base_url = "https://raw.githubusercontent.com/pfeiferj/openpilot-mapd/main/"
+      url = base_url + ("nation_bounding_boxes.json" if region_type == "Country" else "us_states_bounding_boxes.json")
+      try:
+        data = requests.get(url, timeout=10).json()
+        locations = sorted([TreeNode(ref=k, data={'display_name': v['full_name']}) for k, v in data.items()], key=lambda n: n.data['display_name'])
+      except Exception:
+        locations = []
+
+      if region_type == "State":
+        locations.insert(0, TreeNode(ref="All", data={'display_name': tr("All states (~6.0 GB)")}))
 
     btn.action_item.set_enabled(True)
     btn.action_item.set_text(tr("SELECT"))
@@ -137,16 +174,24 @@ class OSMLayout(Widget):
     key = "OsmLocation" if region_type == "Country" else "OsmState"
     current = ui_state.params.get(f"{key}Name") or ""
 
-    dialog = TreeOptionDialog(tr(f"Select {region_type}"), [TreeFolder(folder="", nodes=locations)], current_ref=current, search_prompt="Perform a search")
+    if region_type == "Country":
+      dialog_title = tr("Select Country")
+    elif country == CHINA_NATION_REF:
+      dialog_title = tr("Select Province")
+    else:
+      dialog_title = tr("Select State")
+    dialog = TreeOptionDialog(dialog_title, [TreeFolder(folder="", nodes=locations)], current_ref=current, search_prompt=tr("Perform a search"))
     dialog.on_exit = lambda res: self._handle_region_selection(region_type, locations, key, res, dialog.selection_ref)
     gui_app.push_widget(dialog)
 
   def _update_labels(self):
-    downloading = bool(self._mem_params.get("OSMDownloadLocations"))
+    downloading = bool(self._mem_params.get("OSMDownloadLocations") or self._mem_params.get("OSMDownloadBounds"))
     self._country_btn.set_enabled(not downloading)
     self._state_btn.set_enabled(not downloading)
-    self._state_btn.set_visible(ui_state.params.get("OsmLocationName") == "US")
-    self._update_btn.set_visible(bool(ui_state.params.get("OsmLocationName")))
+    location = ui_state.params.get("OsmLocationName")
+    self._is_china = location == CHINA_NATION_REF
+    self._state_btn.set_visible(location in ("US", CHINA_NATION_REF))
+    self._update_btn.set_visible(bool(location))
 
     self._country_btn.action_item.set_value(ui_state.params.get("OsmLocationTitle") or "")
     self._state_btn.action_item.set_value(ui_state.params.get("OsmStateTitle") or "")
@@ -168,17 +213,17 @@ class OSMLayout(Widget):
         progress_perc = 0.0
 
       if failed:
-        text = "0% - Downloading Maps"
+        text = tr("{}% - Downloading Maps").format(0)
         btn_text = tr("Error: Invalid download. Retry.")
         self._current_percent = 0.0
       elif total > 0 and downloading:
         self._current_percent = progress_perc
         perc_int = int(progress_perc)
-        text = f"{perc_int}% - Downloading Maps"
+        text = tr("{}% - Downloading Maps").format(perc_int)
         btn_text = f"{done}/{total} ({perc_int}%)"
       else:
         self._current_percent = 0.0
-        text = "0% - Downloading Maps"
+        text = tr("{}% - Downloading Maps").format(0)
         btn_text = tr("Downloading Maps...")
 
       self._progress.action_item.update(self._current_percent, text, show_progress=total > 0 and downloading and not failed)

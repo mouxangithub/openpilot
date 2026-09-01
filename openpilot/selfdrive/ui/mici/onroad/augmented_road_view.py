@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import pyray as rl
 from openpilot.cereal import log
@@ -12,8 +14,10 @@ from openpilot.selfdrive.ui.mici.onroad.model_renderer import ModelRenderer
 from openpilot.selfdrive.ui.mici.onroad.confidence_ball import ConfidenceBall
 from openpilot.selfdrive.ui.mici.onroad.cameraview import CameraView
 from openpilot.system.ui.lib.application import FontWeight, gui_app, MousePos, MouseEvent
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.widgets import Widget
+from openpilot.common.params import Params
 from openpilot.common.filter_simple import BounceFilter
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame
 from openpilot.common.transformations.orientation import rot_from_euler
@@ -39,6 +43,10 @@ WIDE_CAM_MAX_SPEED = 5.0  # m/s (10 mph)
 ROAD_CAM_MIN_SPEED = 10  # m/s (25 mph)
 
 CAM_Y_OFFSET = 20
+
+PREVIEW_BTN_W = 160
+PREVIEW_BTN_H = 70
+PREVIEW_BTN_PAD = 12
 
 
 class BookmarkIcon(Widget):
@@ -163,6 +171,22 @@ class AugmentedRoadView(CameraView):
 
     self._fade_texture = gui_app.texture("icons_mici/onroad/onroad_fade.png")
 
+    # Onroad preview controls
+    self._params = Params()
+    self._preview_button_rects: dict[str, rl.Rectangle] = {}
+    self._preview_label_road = UnifiedLabel(tr("road"), 32, FontWeight.BOLD,
+                                            text_color=rl.Color(255, 255, 255, 230),
+                                            alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
+                                            alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
+    self._preview_label_wide = UnifiedLabel(tr("wide"), 32, FontWeight.BOLD,
+                                            text_color=rl.Color(255, 255, 255, 230),
+                                            alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
+                                            alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
+    self._preview_label_exit = UnifiedLabel(tr("exit"), 32, FontWeight.BOLD,
+                                            text_color=rl.Color(255, 255, 255, 230),
+                                            alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
+                                            alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
+
   def is_swiping_left(self) -> bool:
     """Check if currently swiping left (for scroller to disable)."""
     return self._bookmark_icon.is_swiping_left()
@@ -172,16 +196,36 @@ class AugmentedRoadView(CameraView):
 
     # update offroad label
     if ui_state.panda_type == log.PandaState.PandaType.unknown:
-      self._offroad_label.set_text("system booting")
+      self._offroad_label.set_text(tr("system booting"))
     elif ui_state.ignition and not ui_state.started:
-      self._offroad_label.set_text("openpilot can't start\ncheck alerts")
+      self._offroad_label.set_text(tr("openpilot can't start\ncheck alerts"))
     else:
-      self._offroad_label.set_text("start the car to\nuse sunnypilot")
+      self._offroad_label.set_text(tr("start the car to\nuse sunnypilot"))
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     # Don't trigger click callback if bookmark was triggered
-    if not self._bookmark_icon.interacting():
-      super()._handle_mouse_release(mouse_pos)
+    if self._bookmark_icon.interacting():
+      return
+
+    if self._handle_preview_controls_click(mouse_pos):
+      return
+
+    super()._handle_mouse_release(mouse_pos)
+
+  def _handle_preview_controls_click(self, mouse_pos: MousePos) -> bool:
+    if not self._params.get_bool("IsOnroadPreview"):
+      return False
+    for name, rect in self._preview_button_rects.items():
+      if not rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), rect):
+        continue
+      if name == "road":
+        self.switch_stream(NARROW_ROAD_CAM)
+      elif name == "wide":
+        self.switch_stream(WIDE_CAM)
+      elif name == "exit":
+        self._params.put_bool("IsOnroadPreview", False)
+      return True
+    return False
 
   def _render(self, _):
     # Draw text if not onroad
@@ -248,7 +292,39 @@ class AugmentedRoadView(CameraView):
 
     self._bookmark_icon.render(self.rect)
 
+    if self._params.get_bool("IsOnroadPreview"):
+      self._draw_preview_controls()
+
+  def _draw_preview_controls(self):
+    if not ui_state.started:
+      return
+    total_width = 3 * PREVIEW_BTN_W + 2 * PREVIEW_BTN_PAD
+    base_x = self._content_rect.x + (self._content_rect.width - total_width) / 2
+    base_y = self._content_rect.y + self._content_rect.height - PREVIEW_BTN_H - PREVIEW_BTN_PAD
+    is_road = self.stream_type == NARROW_ROAD_CAM
+
+    wide_rect = rl.Rectangle(base_x, base_y, PREVIEW_BTN_W, PREVIEW_BTN_H)
+    self._preview_button_rects["wide"] = wide_rect
+    self._draw_preview_button(wide_rect, self._preview_label_wide, not is_road)
+
+    road_rect = rl.Rectangle(base_x + PREVIEW_BTN_W + PREVIEW_BTN_PAD, base_y, PREVIEW_BTN_W, PREVIEW_BTN_H)
+    self._preview_button_rects["road"] = road_rect
+    self._draw_preview_button(road_rect, self._preview_label_road, is_road)
+
+    exit_rect = rl.Rectangle(base_x + 2 * (PREVIEW_BTN_W + PREVIEW_BTN_PAD), base_y, PREVIEW_BTN_W, PREVIEW_BTN_H)
+    self._preview_button_rects["exit"] = exit_rect
+    self._draw_preview_button(exit_rect, self._preview_label_exit, False, bg_color=rl.Color(180, 60, 60, 200))
+
+  def _draw_preview_button(self, rect: rl.Rectangle, label: UnifiedLabel, active: bool, bg_color: rl.Color | None = None):
+    bg = bg_color if bg_color is not None else (rl.Color(0, 120, 60, 220) if active else rl.Color(40, 40, 40, 180))
+    rl.draw_rectangle_rounded(rect, 0.25, 8, bg)
+    label.render(rect)
+
   def _switch_stream_if_needed(self, sm):
+    # In onroad preview the user controls the camera manually.
+    if self._params.get_bool("IsOnroadPreview"):
+      return
+
     if sm['selfdriveState'].experimentalMode and WIDE_CAM in self.available_streams:
       v_ego = sm['carState'].vEgo
       if v_ego < WIDE_CAM_MAX_SPEED:
