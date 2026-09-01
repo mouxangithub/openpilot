@@ -7,6 +7,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.lib.prime_state import PrimeType
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network, MeteredType
+from openpilot.system.ui.lib.multilang import tr
 
 
 class NetworkLayoutMici(NavScroller):
@@ -28,7 +29,7 @@ class NetworkLayoutMici(NavScroller):
       self._network_metered_btn.set_enabled(False)
       self._wifi_manager.set_tethering_active(checked)
 
-    self._tethering_toggle_btn = BigToggle("enable tethering", "", toggle_callback=tethering_toggle_callback)
+    self._tethering_toggle_btn = BigToggle(tr("enable tethering"), "", toggle_callback=tethering_toggle_callback)
 
     def tethering_password_callback(password: str):
       if password:
@@ -38,27 +39,27 @@ class NetworkLayoutMici(NavScroller):
 
     def tethering_password_clicked():
       tethering_password = self._wifi_manager.tethering_password
-      dlg = BigInputDialog("enter password...", tethering_password, minimum_length=8,
+      dlg = BigInputDialog(tr("enter password..."), tethering_password, minimum_length=8,
                            confirm_callback=tethering_password_callback)
       gui_app.push_widget(dlg)
 
     txt_tethering = gui_app.texture("icons_mici/settings/network/tethering.png", 64, 54)
-    self._tethering_password_btn = BigButton("tethering password", "", txt_tethering)
+    self._tethering_password_btn = BigButton(tr("tethering password"), "", txt_tethering)
     self._tethering_password_btn.set_click_callback(tethering_password_clicked)
 
     # ******** Network Metered ********
     def network_metered_callback(value: str):
       self._network_metered_btn.set_enabled(False)
       metered = {
-        'default': MeteredType.UNKNOWN,
-        'metered': MeteredType.YES,
-        'unmetered': MeteredType.NO
+        tr('default'): MeteredType.UNKNOWN,
+        tr('metered'): MeteredType.YES,
+        tr('unmetered'): MeteredType.NO
       }.get(value, MeteredType.UNKNOWN)
       self._wifi_manager.set_current_network_metered(metered)
 
     # TODO: signal for current network metered type when changing networks, this is wrong until you press it once
     # TODO: disable when not connected
-    self._network_metered_btn = BigMultiToggle("network usage", ["default", "metered", "unmetered"], select_callback=network_metered_callback)
+    self._network_metered_btn = BigMultiToggle(tr("network usage"), [tr("default"), tr("metered"), tr("unmetered")], select_callback=network_metered_callback)
     self._network_metered_btn.set_enabled(False)
 
     self._wifi_button = WifiNetworkButton(self._wifi_manager)
@@ -66,14 +67,14 @@ class NetworkLayoutMici(NavScroller):
 
     # ******** Advanced settings ********
     # ******** Roaming toggle ********
-    self._roaming_btn = BigParamControl("enable roaming", "GsmRoaming")
+    self._roaming_btn = BigParamControl(tr("enable roaming"), "GsmRoaming")
 
     # ******** APN settings ********
-    self._apn_btn = BigButton("apn settings", "edit")
+    self._apn_btn = BigButton(tr("apn settings"), tr("edit"))
     self._apn_btn.set_click_callback(self._edit_apn)
 
     # ******** Cellular metered toggle ********
-    self._cellular_metered_btn = BigParamControl("cellular metered", "GsmMetered")
+    self._cellular_metered_btn = BigParamControl(tr("cellular metered"), "GsmMetered")
 
     # Main scroller ----------------------------------
     self._scroller.add_widgets([
@@ -120,7 +121,7 @@ class NetworkLayoutMici(NavScroller):
         ui_state.params.put("GsmApn", apn)
 
     current_apn = ui_state.params.get("GsmApn") or ""
-    dlg = BigInputDialog("enter APN...", current_apn, minimum_length=0, confirm_callback=update_apn)
+    dlg = BigInputDialog(tr("enter APN..."), current_apn, minimum_length=0, confirm_callback=update_apn)
     gui_app.push_widget(dlg)
 
   def _on_network_updated(self, networks: list[Network]):
@@ -135,7 +136,7 @@ class NetworkLayoutMici(NavScroller):
     # Update network metered
     self._network_metered_btn.set_value(
       {
-        MeteredType.UNKNOWN: 'default',
-        MeteredType.YES: 'metered',
-        MeteredType.NO: 'unmetered'
-      }.get(self._wifi_manager.current_network_metered, 'default'))
+        MeteredType.UNKNOWN: tr('default'),
+        MeteredType.YES: tr('metered'),
+        MeteredType.NO: tr('unmetered')
+      }.get(self._wifi_manager.current_network_metered, tr('default')))

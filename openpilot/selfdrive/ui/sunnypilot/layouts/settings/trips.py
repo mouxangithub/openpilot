@@ -9,13 +9,10 @@ import threading
 import time
 import pyray as rl
 
-from openpilot.common.api import api_get
 from openpilot.common.constants import CV
 from openpilot.common.params import Params
-from openpilot.common.swaglog import cloudlog
-from openpilot.selfdrive.ui.lib.api_helpers import get_token
+from openpilot.selfdrive.ui.sunnypilot.lib.drive_stats import refresh_local_drive_stats, fetch_cloud_drive_stats
 from openpilot.selfdrive.ui.ui_state import ui_state, device
-from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
 from openpilot.system.ui.lib.application import gui_app, FontWeight, FONT_SCALE
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -23,22 +20,36 @@ from openpilot.system.ui.widgets import Widget
 
 
 class TripsLayout(Widget):
-  PARAM_KEY = "ApiCache_DriveStats"
+  DATA_SOURCE_PARAM = "TripsDataSource"
+  LOCAL_KEY = "LocalDriveStats"
   UPDATE_INTERVAL = 30  # seconds
+
+  TOGGLE_HEIGHT = 80
+  TOGGLE_WIDTH = 400
+  TOGGLE_Y_OFFSET = 30
 
   def __init__(self):
     super().__init__()
     self._params = Params()
     self._session = requests.Session()
-    self._stats = self._get_stats()
+    self._data_source = self._get_data_source()
+    self._stats = self._get_local_stats() if self._data_source == "local" else {}
 
     self._icon_distance = gui_app.texture("icons/road.png", 100, 100, keep_aspect_ratio=True)
     self._icon_drives = gui_app.texture("icons_mici/wheel.png", 80, 80, keep_aspect_ratio=True)
     self._icon_hours = gui_app.texture("../../sunnypilot/selfdrive/assets/icons/clock.png", 80, 80, keep_aspect_ratio=True)
 
+    self._local_btn_rect = rl.Rectangle(0, 0, 0, 0)
+    self._cloud_btn_rect = rl.Rectangle(0, 0, 0, 0)
+
     self._running = True
     self._update_thread = threading.Thread(target=self._update_loop, daemon=True)
     self._update_thread.start()
+
+  def show_event(self):
+    super().show_event()
+    if self._data_source == "cloud" or not self._stats.get("all"):
+      threading.Thread(target=self._refresh_drive_stats, daemon=True).start()
 
   def __del__(self):
     self._running = False
@@ -48,35 +59,41 @@ class TripsLayout(Widget):
     except Exception:
       pass
 
-  def _get_stats(self):
-    stats = self._params.get(self.PARAM_KEY)
+  def _get_data_source(self):
+    return self._params.get(self.DATA_SOURCE_PARAM) or "local"
+
+  def _set_data_source(self, source: str):
+    self._data_source = source
+    self._params.put(self.DATA_SOURCE_PARAM, source)
+    threading.Thread(target=self._refresh_drive_stats, daemon=True).start()
+
+  def _get_local_stats(self):
+    stats = self._params.get(self.LOCAL_KEY)
     if not stats:
       return {}
-    try:
-      return stats
-    except Exception:
-      cloudlog.exception(f"Failed to decode drive stats: {stats}")
-      return {}
+    return stats
 
-  def _fetch_drive_stats(self):
-    try:
-      dongle_id = self._params.get("DongleId")
-      if not dongle_id or dongle_id == UNREGISTERED_DONGLE_ID:
-        return
-      identity_token = get_token(dongle_id)
-      response = api_get(f"v1.1/devices/{dongle_id}/stats", access_token=identity_token, session=self._session)
-      if response.status_code == 200:
-        data = response.json()
-        self._stats = data
-        self._params.put(self.PARAM_KEY, data)
-    except Exception as e:
-      cloudlog.error(f"Failed to fetch drive stats: {e}")
+  def _refresh_drive_stats(self):
+    # Always keep local stats up to date in the background
+    refresh_local_drive_stats(self._params, self.LOCAL_KEY)
+    if self._data_source == "cloud":
+      cloud_stats = fetch_cloud_drive_stats(self._params, self._session)
+      if "error" not in cloud_stats:
+        self._stats = cloud_stats
+    else:
+      self._stats = self._get_local_stats()
 
   def _update_loop(self):
     while self._running:
       if not ui_state.started and device._awake:
-        self._fetch_drive_stats()
+        self._refresh_drive_stats()
       time.sleep(self.UPDATE_INTERVAL)
+
+  def _handle_mouse_release(self, mouse_pos):
+    if rl.check_collision_point_rec(mouse_pos, self._local_btn_rect) and self._data_source != "local":
+      self._set_data_source("local")
+    elif rl.check_collision_point_rec(mouse_pos, self._cloud_btn_rect) and self._data_source != "cloud":
+      self._set_data_source("cloud")
 
   def _render_stat_group(self, x, y, width, height, title, data, is_metric):
     # Card Background
@@ -130,16 +147,61 @@ class TripsLayout(Widget):
 
     return y + height
 
+  def _render_toggle(self, x, y, width):
+    font = gui_app.font(FontWeight.BOLD)
+    text_size = 40 * FONT_SCALE
+    toggle_bg_color = rl.Color(50, 50, 50, 255)
+    toggle_active_color = rl.Color(80, 80, 80, 255)
+    text_color = rl.WHITE
+
+    toggle_x = x + (width - self.TOGGLE_WIDTH) / 2
+    toggle_rect = rl.Rectangle(toggle_x, y, self.TOGGLE_WIDTH, self.TOGGLE_HEIGHT)
+    rl.draw_rectangle_rounded(toggle_rect, 0.5, 10, toggle_bg_color)
+
+    half_w = self.TOGGLE_WIDTH / 2
+    local_rect = rl.Rectangle(toggle_x, y, half_w, self.TOGGLE_HEIGHT)
+    cloud_rect = rl.Rectangle(toggle_x + half_w, y, half_w, self.TOGGLE_HEIGHT)
+
+    # Highlight selected
+    if self._data_source == "local":
+      rl.draw_rectangle_rounded(local_rect, 0.5, 10, toggle_active_color)
+    else:
+      rl.draw_rectangle_rounded(cloud_rect, 0.5, 10, toggle_active_color)
+
+    def draw_centered_text(rect, label):
+      size = measure_text_cached(font, label, int(text_size))
+      pos = rl.Vector2(
+        rect.x + (rect.width - size.x) / 2,
+        rect.y + (rect.height - size.y) / 2
+      )
+      rl.draw_text_ex(font, label, pos, text_size, 0, text_color)
+
+    draw_centered_text(local_rect, tr("Local"))
+    draw_centered_text(cloud_rect, tr("Cloud"))
+
+    self._local_btn_rect = local_rect
+    self._cloud_btn_rect = cloud_rect
+
+    return y + self.TOGGLE_HEIGHT
+
   def _render(self, rect: rl.Rectangle):
     x = rect.x
     y = rect.y
     w = rect.width
 
     spacing = 30
-    available_h = rect.height - 30
+    toggle_area = self.TOGGLE_HEIGHT + self.TOGGLE_Y_OFFSET
+    available_h = rect.height - spacing - toggle_area
     card_height = available_h / 2
 
     is_metric = self._params.get_bool("IsMetric")
+
+    # Refresh data source from param in case it was changed externally
+    self._data_source = self._get_data_source()
+
+    y += self.TOGGLE_Y_OFFSET
+    y = self._render_toggle(x, y, w)
+    y += spacing
 
     all_time = self._stats.get("all", {})
     week = self._stats.get("week", {})

@@ -1,4 +1,5 @@
 import pyray as rl
+import time
 from openpilot.cereal import log, messaging
 from openpilot.cereal.visionipc import VisionStreamType
 from openpilot.selfdrive.ui.mici.onroad.cameraview import CameraView
@@ -26,6 +27,7 @@ class BaseCabinCameraDialog(Widget):
     super().__init__()
     self._camera_view = CabinCameraView("camerad", VisionStreamType.VISION_STREAM_CABIN)
     self.driver_state_renderer = DriverStateRenderer(lines=True)
+    self._opened_at = time.monotonic()
     self.driver_state_renderer.set_rect(rl.Rectangle(0, 0, 200, 200))
     self.driver_state_renderer.load_icons()
     self._pm: messaging.PubMaster | None = None
@@ -75,7 +77,10 @@ class BaseCabinCameraDialog(Widget):
     self._camera_view._render(rect)
 
     if not self._camera_view.frame:
-      gui_label(rect, tr("camera starting"), font_size=54, font_weight=FontWeight.BOLD,
+      msg = tr("camera starting")
+      if time.monotonic() - self._opened_at > 15.0:
+        msg = tr("Driver camera unavailable")
+      gui_label(rect, msg, font_size=54, font_weight=FontWeight.BOLD,
                 alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER)
       rl.end_scissor_mode()
       self._publish_alert_sound(None)

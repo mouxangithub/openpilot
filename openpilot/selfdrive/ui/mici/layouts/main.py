@@ -79,8 +79,12 @@ class MiciMainLayout(Scroller):
       alert_count_callback=self._alerts_layout.active_alerts,
       max_severity_callback=self._alerts_layout.max_severity,
     )
+    self._settings_layout.set_preview_callback(self._enter_onroad_preview)
     for layout in (self._car_onroad_layout, self._body_onroad_layout):
       layout.set_click_callback(lambda: self._scroll_to(self._home_layout))
+
+  def _enter_onroad_preview(self):
+    gui_app.pop_widgets_to(self, lambda: self._scroll_to(self._onroad_layout))
 
     device.add_interactive_timeout_callback(self._on_interactive_timeout)
     ui_state.add_on_body_changed_callbacks(self._on_body_changed)

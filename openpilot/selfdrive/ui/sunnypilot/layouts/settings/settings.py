@@ -10,6 +10,7 @@ from enum import IntEnum
 import pyray as rl
 from openpilot.selfdrive.ui.layouts.settings import settings as OP
 from openpilot.selfdrive.ui.layouts.settings.firehose import FirehoseLayout
+from openpilot.selfdrive.ui.layouts.settings.imu_calibration import ImuCalibrationLayout
 from openpilot.selfdrive.ui.layouts.settings.toggles import TogglesLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise import CruiseLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.developer import DeveloperLayoutSP
@@ -25,7 +26,7 @@ from openpilot.selfdrive.ui.sunnypilot.layouts.settings.trips import TripsLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.vehicle import VehicleLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.visuals import VisualsLayout
 from openpilot.system.ui.lib.application import gui_app, MousePos
-from openpilot.system.ui.lib.multilang import tr_noop
+from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.wifi_manager import WifiManager
 from openpilot.system.ui.sunnypilot.lib.styles import style
@@ -71,7 +72,8 @@ class NavButton(Widget):
     is_selected = self.panel_type == self.parent._current_panel
     text_color = OP.TEXT_SELECTED if is_selected else OP.TEXT_NORMAL
     content_x = rect.x + 90
-    text_size = measure_text_cached(self.parent._font_medium, self.panel_info.name, 65)
+    panel_name = tr(self.panel_info.name)
+    text_size = measure_text_cached(self.parent._font_medium, panel_name, 65)
 
     # Draw background if selected
     if is_selected:
@@ -90,7 +92,7 @@ class NavButton(Widget):
       content_x,
       rect.y + (OP.NAV_BTN_HEIGHT - text_size.y) / 2
     )
-    rl.draw_text_ex(self.parent._font_medium, self.panel_info.name, text_pos, 55, 0, text_color)
+    rl.draw_text_ex(self.parent._font_medium, panel_name, text_pos, 55, 0, text_color)
 
     # Store button rect for click detection
     self.panel_info.button_rect = rect
@@ -124,8 +126,12 @@ class SettingsLayoutSP(OP.SettingsLayout):
       OP.PanelType.TRIPS: PanelInfo(tr_noop("Trips"), TripsLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_trips.png"),
       OP.PanelType.VEHICLE: PanelInfo(tr_noop("Vehicle"), VehicleLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_vehicle.png"),
       OP.PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_firehose.png"),
+      OP.PanelType.IMU_CALIBRATION: PanelInfo(tr_noop("IMU Calibration"), ImuCalibrationLayout(), icon="icons/shell.png"),
       OP.PanelType.DEVELOPER: PanelInfo(tr_noop("Developer"), DeveloperLayoutSP(), icon="icons/shell.png"),
     }
+
+    device_layout = self._panels[OP.PanelType.DEVICE].instance
+    device_layout.set_preview_callback(self._enter_onroad_preview)
 
   def _draw_sidebar(self, rect: rl.Rectangle):
     rl.draw_rectangle_rec(rect, OP.SIDEBAR_COLOR)

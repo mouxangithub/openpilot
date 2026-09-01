@@ -4,11 +4,12 @@ from collections.abc import Callable
 from typing import Union
 import pyray as rl
 
-from openpilot.system.ui.lib.application import gui_app, FontWeight, DEFAULT_TEXT_SIZE, DEFAULT_TEXT_COLOR, FONT_SCALE
+from openpilot.system.ui.lib.application import gui_app, FontWeight, DEFAULT_TEXT_SIZE, DEFAULT_TEXT_COLOR, FONT_SCALE, font_fallback
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.utils import GuiStyleContext
 from openpilot.system.ui.lib.wrap_text import wrap_text
+from openpilot.system.ui.lib.emoji import find_emoji, emoji_tex
 
 ICON_PADDING = 15
 
@@ -71,7 +72,7 @@ def gui_label(
 
   # Draw the text in the specified rectangle
   # TODO: add wrapping and proper centering for multiline text
-  rl.draw_text_ex(font, display_text, rl.Vector2(text_x, text_y), font_size, 0, color)
+  rl.draw_text_ex(font_fallback(font, display_text), display_text, rl.Vector2(text_x, text_y), font_size, 0, color)
 
 
 def gui_text_box(
@@ -92,14 +93,16 @@ def gui_text_box(
     (rl.GuiControl.DEFAULT, rl.GuiDefaultProperty.TEXT_ALIGNMENT_VERTICAL, alignment_vertical),
     (rl.GuiControl.DEFAULT, rl.GuiDefaultProperty.TEXT_WRAP_MODE, rl.GuiTextWrapMode.TEXT_WRAP_WORD)
   ]
-  if font_weight != FontWeight.NORMAL:
-    rl.gui_set_font(gui_app.font(font_weight))
+  # Always route through font_fallback so raygui picks the correct CJK atlas
+  # for the active language (raygui uses the global font set via gui_set_font
+  # — it does NOT call our patched draw_text_ex wrapper).
+  rl.gui_set_font(font_fallback(gui_app.font(font_weight), text))
 
   with GuiStyleContext(styles):
     rl.gui_label(rect, text)
 
-  if font_weight != FontWeight.NORMAL:
-    rl.gui_set_font(gui_app.font(FontWeight.NORMAL))
+  # Restore the default raygui font (also routed through font_fallback).
+  rl.gui_set_font(font_fallback(gui_app.font(FontWeight.NORMAL), ""))
 
 
 # Non-interactive text area. Can render an optional specified icon.
@@ -215,7 +218,7 @@ class Label(Widget):
       elif self._text_alignment == rl.GuiTextAlignment.TEXT_ALIGN_RIGHT:
         line_pos.x += self._rect.width - text_size.x - self._text_padding
 
-      rl.draw_text_ex(self._font, text, line_pos, self._font_size, 0, self._text_color)
+      rl.draw_text_ex(font_fallback(self._font, text), text, line_pos, self._font_size, 0, self._text_color)
       text_pos.y += (text_size.y or self._font_size * FONT_SCALE) * self._line_scale
 
 
@@ -288,6 +291,7 @@ class UnifiedLabel(Widget):
     self._cached_text: str | None = None
     self._cached_wrapped_lines: list[str] = []
     self._cached_line_sizes: list[rl.Vector2] = []
+    self._cached_line_emojis: list[list[tuple[int, int, str]]] = []
     self._cached_total_height: float | None = None
     self._cached_width: int = -1
 
@@ -414,10 +418,14 @@ class UnifiedLabel(Widget):
     if self._scroll:
       self._cached_wrapped_lines = self._cached_wrapped_lines[:1]  # Only first line for scrolling
 
-    # Process each line: measure
+    # Process each line: measure and find emojis
     self._cached_line_sizes = []
+    self._cached_line_emojis = []
 
     for line in self._cached_wrapped_lines:
+      emojis = find_emoji(line)
+      self._cached_line_emojis.append(emojis)
+
       # Empty lines should still have height (use font size as line height)
       if not line:
         size = rl.Vector2(0, self._font_size * FONT_SCALE)
@@ -506,12 +514,14 @@ class UnifiedLabel(Widget):
     # Calculate which lines fit in the available height
     visible_lines: list[str] = []
     visible_sizes: list[rl.Vector2] = []
+    visible_emojis: list[list[tuple[int, int, str]]] = []
 
     current_height = 0.0
     broke_early = False
-    for line, size in zip(
+    for line, size, emojis in zip(
       self._cached_wrapped_lines,
       self._cached_line_sizes,
+      self._cached_line_emojis,
       strict=True):
 
       # Calculate height needed for this line
@@ -532,6 +542,7 @@ class UnifiedLabel(Widget):
 
       visible_lines.append(line)
       visible_sizes.append(size)
+      visible_emojis.append(emojis)
 
       current_height += line_height_needed
 
@@ -547,6 +558,7 @@ class UnifiedLabel(Widget):
       elided = self._elide_line(last_line, content_width, force=True)
       visible_lines[last_line_idx] = elided
       visible_sizes[last_line_idx] = measure_text_cached(self._font, elided, self._font_size, self._spacing_pixels)
+      visible_emojis[last_line_idx] = find_emoji(elided)
 
     if not visible_lines:
       return
@@ -575,7 +587,7 @@ class UnifiedLabel(Widget):
 
     # Render each line
     current_y = start_y
-    for idx, (line, size) in enumerate(zip(visible_lines, visible_sizes, strict=True)):
+    for idx, (line, size, emojis) in enumerate(zip(visible_lines, visible_sizes, visible_emojis, strict=True)):
       if self._needs_scroll:
         if self._scroll_state == ScrollState.STARTING:
           if self._scroll_pause_t is None:
@@ -594,12 +606,12 @@ class UnifiedLabel(Widget):
       else:
         self.reset_scroll()
 
-      self._render_line(line, size, current_y)
+      self._render_line(line, size, emojis, current_y)
 
       # Draw 2nd instance for scrolling
       if self._needs_scroll and self._scroll_state != ScrollState.STARTING:
         text2_scroll_offset = size.x + self._rect.width / 3
-        self._render_line(line, size, current_y, text2_scroll_offset)
+        self._render_line(line, size, emojis, current_y, text2_scroll_offset)
 
       # Move to next line (if not last line)
       if idx < len(visible_lines) - 1:
@@ -638,7 +650,7 @@ class UnifiedLabel(Widget):
     shimmer = math.exp(-0.5 * d * d / (sigma * sigma))
     return self.SHIMMER_LOW_OPACITY + (1.0 - self.SHIMMER_LOW_OPACITY) * shimmer
 
-  def _render_line(self, line, size, current_y, x_offset=0.0):
+  def _render_line(self, line, size, emojis, current_y, x_offset=0.0):
     # Calculate horizontal position
     if self._alignment == rl.GuiTextAlignment.TEXT_ALIGN_LEFT:
       line_x = self._rect.x + self._text_padding
@@ -651,15 +663,15 @@ class UnifiedLabel(Widget):
     line_x += self._scroll_offset + x_offset
 
     if self._shimmer:
-      self._render_line_shimmer(line, line_x, current_y)
+      self._render_line_shimmer(line, emojis, line_x, current_y)
     else:
       self._render_line_normal(line, line_x, current_y)
 
   def _render_line_normal(self, line, line_x, current_y):
     line_pos = rl.Vector2(line_x, current_y)
-    rl.draw_text_ex(self._font, line, line_pos, self._font_size, self._spacing_pixels, self._text_color)
+    rl.draw_text_ex(font_fallback(self._font, line), line, line_pos, self._font_size, self._spacing_pixels, self._text_color)
 
-  def _render_line_shimmer(self, line, line_x, current_y):
+  def _render_line_shimmer(self, line, emojis, line_x, current_y):
     # Shimmer range based on widest line so sweep is even across all lines
     max_width = self.text_width
     if self._alignment == rl.GuiTextAlignment.TEXT_ALIGN_RIGHT:
@@ -671,10 +683,32 @@ class UnifiedLabel(Widget):
 
     base_a = self._text_color.a / 255.0
     cursor_x = line_x
-    for ch in line:
-      char_width = measure_text_cached(self._font, ch, self._font_size, self._spacing_pixels).x
-      char_center_x = cursor_x + char_width / 2.0
-      alpha = int(255 * self._shimmer_alpha(char_center_x, shimmer_left, max_width) * base_a)
-      color = rl.Color(self._text_color.r, self._text_color.g, self._text_color.b, alpha)
-      rl.draw_text_ex(self._font, ch, rl.Vector2(cursor_x, current_y), self._font_size, 0, color)
-      cursor_x += char_width + self._spacing_pixels
+    font = font_fallback(self._font, line)
+
+    prev_index = 0
+    for start, end, emoji in emojis:
+      text_before = line[prev_index:start]
+      if text_before:
+        for ch in text_before:
+          char_width = measure_text_cached(self._font, ch, self._font_size, self._spacing_pixels).x
+          char_center_x = cursor_x + char_width / 2.0
+          alpha = int(255 * self._shimmer_alpha(char_center_x, shimmer_left, max_width) * base_a)
+          color = rl.Color(self._text_color.r, self._text_color.g, self._text_color.b, alpha)
+          rl.draw_text_ex(font, ch, rl.Vector2(cursor_x, current_y), self._font_size, 0, color)
+          cursor_x += char_width + self._spacing_pixels
+
+      tex = emoji_tex(emoji)
+      emoji_scale = self._font_size / tex.height * FONT_SCALE
+      rl.draw_texture_ex(tex, rl.Vector2(cursor_x, current_y), 0.0, emoji_scale, self._text_color)
+      cursor_x += self._font_size * FONT_SCALE
+      prev_index = end
+
+    text_after = line[prev_index:]
+    if text_after:
+      for ch in text_after:
+        char_width = measure_text_cached(self._font, ch, self._font_size, self._spacing_pixels).x
+        char_center_x = cursor_x + char_width / 2.0
+        alpha = int(255 * self._shimmer_alpha(char_center_x, shimmer_left, max_width) * base_a)
+        color = rl.Color(self._text_color.r, self._text_color.g, self._text_color.b, alpha)
+        rl.draw_text_ex(font, ch, rl.Vector2(cursor_x, current_y), self._font_size, 0, color)
+        cursor_x += char_width + self._spacing_pixels

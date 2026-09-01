@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <vector>
 
 using namespace EKFS;
@@ -74,6 +75,19 @@ static VectorXd rotate_std(const MatrixXdr& rot_matrix, const VectorXd& std_in) 
   return rotate_cov(rot_matrix, std_in.array().square().matrix().asDiagonal()).diagonal().array().sqrt();
 }
 
+static Matrix3d parse_imu_calib_matrix(const capnp::List<float, capnp::Kind::PRIMITIVE>::Reader& floatlist) {
+  Matrix3d R = Matrix3d::Zero();
+  if (floatlist.size() != 9) {
+    return R;
+  }
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      R(i, j) = floatlist[i * 3 + j];
+    }
+  }
+  return R;
+}
+
 Localizer::Localizer(LocalizerGnssSource gnss_source) {
   this->kf = std::make_unique<LiveKalman>();
   this->reset_kalman();
@@ -89,6 +103,7 @@ Localizer::Localizer(LocalizerGnssSource gnss_source) {
   VectorXd ecef_pos = this->kf->get_x().segment<STATE_ECEF_POS_LEN>(STATE_ECEF_POS_START);
   this->converter = std::make_unique<LocalCoord>((ECEF) { .x = ecef_pos[0], .y = ecef_pos[1], .z = ecef_pos[2] });
   this->configure_gnss_source(gnss_source);
+  this->load_imu_calibration_params();
 }
 
 void Localizer::build_live_location(cereal::LiveLocationKalman::Builder& fix) {
@@ -498,6 +513,24 @@ void Localizer::handle_live_calib(double current_time, const cereal::ExtrinsicsC
     return;
   }
 
+  // Prefer the full 3x3 IMU-to-vehicle rotation matrix when available.
+  // This bypasses the small-angle rpyCalib sanity check and supports large
+  // or arbitrary device mounting angles.
+  if (log.getImuCalibMatrix().size() == 9) {
+    Matrix3d imu_calib = parse_imu_calib_matrix(log.getImuCalibMatrix());
+    double det = imu_calib.determinant();
+    if ((det > 0.99) && (det < 1.01)) {
+      this->device_from_calib = imu_calib;
+      this->calib_from_device = imu_calib.transpose();
+      this->calibrated = log.getCalStatus() == cereal::ExtrinsicsCalibration::Status::CALIBRATED;
+      this->observation_values_invalid["extrinsicsCalibration"] *= DECAY;
+    } else {
+      LOGE("IMU calibration matrix has invalid determinant: %f", det);
+      this->observation_values_invalid["extrinsicsCalibration"] += 1.0;
+    }
+    return;
+  }
+
   if (log.getRpyCalib().size() > 0) {
     auto live_calib = floatlist2vector(log.getRpyCalib());
     if ((live_calib.minCoeff() < -CALIB_RPY_SANITY_CHECK) || (live_calib.maxCoeff() > CALIB_RPY_SANITY_CHECK)) {
@@ -672,6 +705,45 @@ void Localizer::configure_gnss_source(const LocalizerGnssSource &source) {
     this->gps_variance_factor = 0.0;
     this->gps_vertical_variance_factor = 3.0;
     this->gps_time_offset = GPS_QUECTEL_SENSOR_TIME_OFFSET;
+  }
+}
+
+void Localizer::load_imu_calibration_params() {
+  // Pre-load the IMU calibration matrix so the first cameraOdometry observations
+  // are already rotated correctly. The live extrinsicsCalibration messages will
+  // update this matrix and the calibrated flag as they arrive.
+  Params params;
+  if (!params.getBool("ImuCalibrationEnabled")) {
+    return;
+  }
+
+  std::string imu_calib_data = params.get("ImuCalibrationMatrix");
+  if (imu_calib_data.size() != 36) {
+    return;
+  }
+
+  Matrix3d R = Matrix3d::Zero();
+  bool ok = true;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      float v = 0.0f;
+      std::memcpy(&v, imu_calib_data.data() + (i * 3 + j) * sizeof(float), sizeof(float));
+      if (!std::isfinite(v)) {
+        ok = false;
+        break;
+      }
+      R(i, j) = v;
+    }
+    if (!ok) break;
+  }
+
+  double det = R.determinant();
+  if (ok && (det > 0.99) && (det < 1.01)) {
+    this->device_from_calib = R;
+    this->calib_from_device = R.transpose();
+    LOGD("Loaded ImuCalibrationMatrix from params");
+  } else {
+    LOGE("ImuCalibrationMatrix from params is invalid (det=%f)", det);
   }
 }
 

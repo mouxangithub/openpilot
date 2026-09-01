@@ -163,6 +163,7 @@ class UIStateSP:
     self.chevron_metrics = self.params.get("ChevronInfo")
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
     self.developer_ui = self.params.get("DevUIInfo")
+    self.hide_firehose_prompt = self.params.get_bool("HideFirehosePrompt")
     self.hide_v_ego_ui = self.params.get_bool("HideVEgoUI")
     self.onroad_brightness = int(float(self.params.get("OnroadScreenOffBrightness", return_default=True)))
     self.onroad_brightness_timer_param = self.params.get("OnroadScreenOffTimer", return_default=True)
@@ -274,6 +275,10 @@ class DeviceSP:
   def set_onroad_brightness(_ui_state, awake: bool, cur_brightness: float) -> float:
     if not awake or not _ui_state.started:
       return cur_brightness
+
+    # Keep screen at 100% when onroad brightness is set to maximum (22 -> 100%)
+    if _ui_state.onroad_brightness == 22:
+      return 100.0
 
     if _ui_state.onroad_brightness_timer != 0:
       if _ui_state.onroad_brightness == OnroadBrightness.AUTO_DARK:

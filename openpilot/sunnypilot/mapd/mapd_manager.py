@@ -6,6 +6,7 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 import json
+import math
 import platform
 import os
 import glob
@@ -20,6 +21,7 @@ from openpilot.sunnypilot.mapd.live_map_data.osm_map_data import OsmMapData
 from openpilot.common.hardware.hw import Paths
 from openpilot.sunnypilot.mapd import MAPD_PATH
 from openpilot.sunnypilot.mapd.mapd_installer import VERSION, update_installed_version
+from openpilot.sunnypilot.mapd.china_provinces import CHINA_NATION_REF, get_province_bbox
 
 # PFEIFER - MAPD {{
 params = Params()
@@ -110,13 +112,104 @@ def filter_nations_and_states(nations: list[str], states: list[str] | None = Non
   return nations, states or []
 
 
+# mapd v1.12.0 quantises bboxes to 2 degree tiles. When downloading a CUSTOM
+# bbox (Chinese provinces) it writes per-location totals but leaves the top-level
+# progress.TotalFiles at 0 because CUSTOM is not in STATE_BOXES. Replicate the
+# tile count here so UI progress bars have a meaningful denominator.
+GROUP_AREA_BOX_DEGREES = 2
+
+
+def _count_mapd_tiles(bounds: dict[str, float]) -> int:
+  """Replicate mapd v1.12.0 countFilesForBounds()."""
+  min_lat = int(math.floor(bounds["min_lat"] / GROUP_AREA_BOX_DEGREES)) * GROUP_AREA_BOX_DEGREES
+  min_lon = int(math.floor(bounds["min_lon"] / GROUP_AREA_BOX_DEGREES)) * GROUP_AREA_BOX_DEGREES
+  max_lat = int(math.floor(bounds["max_lat"] / GROUP_AREA_BOX_DEGREES)) * GROUP_AREA_BOX_DEGREES
+  max_lon = int(math.floor(bounds["max_lon"] / GROUP_AREA_BOX_DEGREES)) * GROUP_AREA_BOX_DEGREES
+
+  if bounds["max_lat"] > max_lat:
+    max_lat += GROUP_AREA_BOX_DEGREES
+  if bounds["max_lon"] > max_lon:
+    max_lon += GROUP_AREA_BOX_DEGREES
+
+  lat_tiles = (max_lat - min_lat) // GROUP_AREA_BOX_DEGREES
+  lon_tiles = (max_lon - min_lon) // GROUP_AREA_BOX_DEGREES
+  return max(0, int(lat_tiles * lon_tiles))
+
+
+def _fix_custom_download_progress() -> None:
+  """Backfill total_files for CUSTOM bbox downloads where mapd leaves it at 0."""
+  total_tiles = 0
+  bounds_json = mem_params.get("OSMDownloadBounds")
+  if bounds_json:
+    try:
+      bounds = json.loads(bounds_json)
+      total_tiles = _count_mapd_tiles(bounds)
+    except Exception:
+      pass
+
+  progress = params.get("OSMDownloadProgress")
+  if not isinstance(progress, dict):
+    return
+
+  if total_tiles <= 0:
+    custom_details = progress.get("location_details", {}).get("CUSTOM", {})
+    total_tiles = custom_details.get("location_total_files", 0)
+
+  if total_tiles <= 0:
+    return
+
+  if progress.get("total_files"):
+    return
+
+  progress["total_files"] = total_tiles
+  location_details = progress.setdefault("location_details", {})
+  custom_details = location_details.setdefault("CUSTOM", {})
+  custom_details["location_total_files"] = total_tiles
+  params.put("OSMDownloadProgress", progress, block=True)
+
+
 def update_osm_db() -> None:
   if params.get_bool("OsmDbUpdatesCheck"):
     cleanup_old_osm_data(get_files_for_cleanup())
     country = params.get("OsmLocationName", return_default=True)
     state = params.get("OsmStateName", return_default=True)
-    filtered_nations, filtered_states = filter_nations_and_states([country], [state])
-    request_refresh_osm_location_data(filtered_nations, filtered_states)
+    cn_bbox = get_province_bbox(state) if country == CHINA_NATION_REF else None
+    if cn_bbox is not None:
+      # Chinese provinces are not in mapd v1.12.0's built-in STATE_BOXES, so route the
+      # selection through OSMDownloadBounds (the bbox-based escape hatch in mapd's
+      # download.go). mapd downloads exactly this bbox and labels the job 'CUSTOM'.
+      #
+      # mapd v1.12.0 has a quirk: DownloadIfTriggered() initialises
+      # progress.LocationDetails as an empty map, and DownloadBounds(_, "CUSTOM")
+      # then dereferences progress.LocationDetails["CUSTOM"].TotalFiles unguarded.
+      # If we set OSMDownloadBounds without also seeding a "CUSTOM" entry through
+      # the locations branch, mapd nil-pointer-panics. Seed it via OSMDownloadLocations:
+      # an unknown state code logs a harmless warning, but AddLocationDetailsToProgress
+      # creates the LocationDetails entry the bounds branch needs.
+      params.put("OsmDownloadedDate", str(datetime.now().timestamp()), block=True)
+      params.put_bool("OsmDbUpdatesCheck", False, block=True)
+      mem_params.put("OSMDownloadLocations", {"nations": [], "states": ["CUSTOM"]}, block=True)
+      mem_params.put("OSMDownloadBounds", json.dumps(cn_bbox), block=True)
+
+      # mapd writes OSMDownloadProgress to persistent params but leaves total_files at 0.
+      # Seed the totals now so the UI progress bar works during and after the download.
+      total_tiles = _count_mapd_tiles(cn_bbox)
+      progress = params.get("OSMDownloadProgress") or {}
+      if not isinstance(progress, dict):
+        progress = {}
+      progress["total_files"] = total_tiles
+      progress["downloaded_files"] = progress.get("downloaded_files", 0)
+      progress["locations_to_download"] = ["CUSTOM"]
+      location_details = progress.setdefault("location_details", {})
+      custom_details = location_details.setdefault("CUSTOM", {})
+      custom_details["location_total_files"] = total_tiles
+      custom_details["location_downloaded_files"] = custom_details.get("location_downloaded_files", 0)
+      params.put("OSMDownloadProgress", progress, block=True)
+
+      print(f"Downloading map for CN.{state}: {json.dumps(cn_bbox)}")
+    else:
+      filtered_nations, filtered_states = filter_nations_and_states([country], [state])
+      request_refresh_osm_location_data(filtered_nations, filtered_states)
 
   if not mem_params.get("OSMDownloadBounds"):
     mem_params.put("OSMDownloadBounds", "", block=True)
@@ -149,6 +242,7 @@ def main_thread():
       params.remove("Mapd_ClearCache")
 
     update_osm_db()
+    _fix_custom_download_progress()
     live_map_sp.tick()
     rk.keep_time()
 

@@ -8,7 +8,6 @@ from openpilot.cereal import log, messaging, custom
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.realtime import Ratekeeper
-from openpilot.common.utils import retry
 from openpilot.common.swaglog import cloudlog
 
 from openpilot.system import micd
@@ -22,6 +21,7 @@ MAX_VOLUME = 1.0
 MIN_VOLUME = 0.1
 ALERT_RAMP_TIME = 4 # seconds to ramp to max volume for warningImmediate
 SELFDRIVE_STATE_TIMEOUT = 5 # 5 seconds
+MAX_ENGAGED_OUTAGE = 30  # seconds without audio while engaged before we let manager soft disable
 FILTER_DT = 1. / (micd.SAMPLE_RATE / micd.FFT_SAMPLES)
 
 AMBIENT_DB = 26 # DB where MIN_VOLUME is applied
@@ -30,6 +30,8 @@ DB_SCALE = 30 # AMBIENT_DB + DB_SCALE is where MAX_VOLUME is applied
 VOLUME_BASE = 20
 if HARDWARE.get_device_type() == "tizi":
   AMBIENT_DB = 30
+# rick - for c3
+if HARDWARE.get_device_type() in ("tizi", "tici"):
   VOLUME_BASE = 10
 
 AudibleAlert = log.SelfdriveState.AudibleAlert
@@ -168,7 +170,6 @@ class Soundd(QuietMode):
     volume = ((weighted_db - AMBIENT_DB) / DB_SCALE) * (MAX_VOLUME - MIN_VOLUME) + MIN_VOLUME
     return math.pow(VOLUME_BASE, (np.clip(volume, MIN_VOLUME, MAX_VOLUME) - 1))
 
-  @retry(attempts=10, delay=3)
   def get_stream(self, sd):
     # reload sounddevice to reinitialize portaudio
     sd._terminate()
@@ -182,32 +183,62 @@ class Soundd(QuietMode):
 
     sm = messaging.SubMaster(['selfdriveState', 'selfdriveStateSP', 'soundPressure'])
 
-    with self.get_stream(sd) as stream:
-      rk = Ratekeeper(20)
+    # The audio device can be missing at boot (amp still being configured) or go away mid-drive,
+    # and manager never restarts a crashed process, so a raise here is permanent. Retry instead --
+    # but only fail open while disengaged. Staying alive and silent while engaged would suppress
+    # the processNotRunning SOFT_DISABLE that is the driver's cue to take over.
+    outage_start = None
 
-      cloudlog.info(f"soundd stream started: {stream.samplerate=} {stream.channels=} {stream.dtype=} {stream.device=}, {stream.blocksize=}")
-      while True:
-        sm.update(0)
+    while True:
+      try:
+        with self.get_stream(sd) as stream:
+          outage_start = None
+          rk = Ratekeeper(20)
 
-        self.load_param()
+          # Drop anything buffered before the outage so an engage chime cannot finish
+          # playing after the car has already disengaged.
+          self.current_alert = AudibleAlert.none
+          self.current_sound_frame = 0
+          self.pending_stop = False
 
-        # freeze volume during alerts to avoid mic feedback increasing volume
-        if sm.updated['soundPressure']:
-          self.spl_filter_weighted.update(sm["soundPressure"].soundPressureWeightedDb)
-          if self.current_alert == AudibleAlert.none:
-            self.current_volume = self.calculate_volume(float(self.spl_filter_weighted.x))
+          cloudlog.info(f"soundd stream started: {stream.samplerate=} {stream.channels=} {stream.dtype=} {stream.device=}, {stream.blocksize=}")
+          while stream.active:
+            sm.update(0)
 
-        self.get_audible_alert(sm)
+            self.load_param()
 
-        # Ramp up immediate warning sound over 4s
-        if self.current_alert == AudibleAlert.warningImmediate:
-          elapsed = time.monotonic() - self.ramp_start_time
-          ramp_vol = float(np.interp(elapsed, [0, ALERT_RAMP_TIME], [self.ramp_start_volume, MAX_VOLUME]))
-          self.current_volume = max(self.current_volume, ramp_vol)
+            # freeze volume during alerts to avoid mic feedback increasing volume
+            if sm.updated['soundPressure']:
+              self.spl_filter_weighted.update(sm["soundPressure"].soundPressureWeightedDb)
+              if self.current_alert == AudibleAlert.none:
+                self.current_volume = self.calculate_volume(float(self.spl_filter_weighted.x))
 
-        rk.keep_time()
+            self.get_audible_alert(sm)
 
-        assert stream.active
+            # Ramp up immediate warning sound over 4s
+            if self.current_alert == AudibleAlert.warningImmediate:
+              elapsed = time.monotonic() - self.ramp_start_time
+              ramp_vol = float(np.interp(elapsed, [0, ALERT_RAMP_TIME], [self.ramp_start_volume, MAX_VOLUME]))
+              self.current_volume = max(self.current_volume, ramp_vol)
+
+            rk.keep_time()
+
+        cloudlog.error("soundd stream went inactive, reopening")
+      except Exception:
+        cloudlog.exception("soundd stream failed, reopening")
+
+      if outage_start is None:
+        outage_start = time.monotonic()
+
+      # No stream, so nothing else is reading these: keep polling to decide whether to fail closed.
+      sm.update(0)
+      engaged = sm['selfdriveState'].enabled or sm['selfdriveStateSP'].mads.enabled
+      outage = time.monotonic() - outage_start
+      if engaged and outage > MAX_ENGAGED_OUTAGE:
+        cloudlog.error(f"soundd: no audio for {outage:.0f}s while engaged, exiting so manager soft disables")
+        return
+
+      time.sleep(micd.STREAM_RETRY_DELAY)
 
 
 def main():

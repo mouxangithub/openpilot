@@ -5,8 +5,10 @@ from collections.abc import Callable
 from openpilot.selfdrive.ui.layouts.settings.developer import DeveloperLayout
 from openpilot.selfdrive.ui.layouts.settings.device import DeviceLayout
 from openpilot.selfdrive.ui.layouts.settings.firehose import FirehoseLayout
+from openpilot.selfdrive.ui.layouts.settings.imu_calibration import ImuCalibrationLayout
 from openpilot.selfdrive.ui.layouts.settings.software import SoftwareLayout
 from openpilot.selfdrive.ui.layouts.settings.toggles import TogglesLayout
+from openpilot.common.params import Params
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -37,6 +39,7 @@ class PanelType(IntEnum):
   SOFTWARE = 3
   FIREHOSE = 4
   DEVELOPER = 5
+  IMU_CALIBRATION = 6
 
 
 @dataclass
@@ -55,20 +58,35 @@ class SettingsLayout(Widget):
     wifi_manager = WifiManager()
     wifi_manager.set_active(False)
 
+    self._params = Params()
+    device_layout = DeviceLayout()
+    self._preview_callback: Callable | None = None
+
     self._panels = {
-      PanelType.DEVICE: PanelInfo(tr_noop("Device"), DeviceLayout()),
+      PanelType.DEVICE: PanelInfo(tr_noop("Device"), device_layout),
       PanelType.NETWORK: PanelInfo(tr_noop("Network"), NetworkUI(wifi_manager)),
       PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout()),
       PanelType.SOFTWARE: PanelInfo(tr_noop("Software"), SoftwareLayout()),
       PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout()),
       PanelType.DEVELOPER: PanelInfo(tr_noop("Developer"), DeveloperLayout()),
+      PanelType.IMU_CALIBRATION: PanelInfo(tr_noop("IMU Calibration"), ImuCalibrationLayout()),
     }
+
+    device_layout.set_preview_callback(self._enter_onroad_preview)
 
     self._font_medium = gui_app.font(FontWeight.MEDIUM)
     self._close_icon = gui_app.texture("icons/close2.png", CLOSE_ICON_SIZE, CLOSE_ICON_SIZE)
 
     # Callbacks
     self._close_callback: Callable | None = None
+
+  def set_preview_callback(self, callback: Callable | None) -> None:
+    self._preview_callback = callback
+
+  def _enter_onroad_preview(self) -> None:
+    self._params.put_bool("IsOnroadPreview", True)
+    if self._preview_callback is not None:
+      self._preview_callback()
 
   def set_callbacks(self, on_close: Callable):
     self._close_callback = on_close

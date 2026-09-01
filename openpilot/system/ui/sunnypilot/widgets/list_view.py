@@ -46,7 +46,12 @@ class ButtonSP(Button):
     super()._update_state()
     if self.enabled:
       if self.is_pressed:
-        self._background_color = style.BUTTON_OFF_PRESSED
+        if self._button_style == ButtonStyle.PRIMARY:
+          self._background_color = style.ON_HOVER_BG_COLOR
+        else:
+          self._background_color = style.BUTTON_OFF_PRESSED
+      elif self._button_style == ButtonStyle.PRIMARY:
+        self._background_color = style.BUTTON_PRIMARY_COLOR
       else:
         self._background_color = style.BUTTON_ENABLED_OFF
     else:

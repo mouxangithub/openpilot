@@ -131,10 +131,15 @@ class BigButton(Widget):
                                    text_color=COMPLICATION_GREY, alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_BOTTOM)
     self._update_label_layout()
 
+    self._bg_tint = rl.WHITE
+
     self._load_images()
 
   def set_icon(self, icon: Union[rl.Texture, None]):
     self._txt_icon = icon
+
+  def set_bg_tint(self, tint: rl.Color):
+    self._bg_tint = tint
 
   def set_rotate_icon(self, rotate: bool):
     if rotate and self._rotate_icon_t is not None:
@@ -265,9 +270,9 @@ class BigButton(Widget):
       rl.draw_rectangle_rounded(scaled_rect, 0.4, 7, rl.Color(0, 0, 0, int(255 * 0.5)))
 
       self._draw_content(btn_y)
-      rl.draw_texture_ex(txt_bg, (btn_x, btn_y), 0, scale, rl.WHITE)
+      rl.draw_texture_ex(txt_bg, (btn_x, btn_y), 0, scale, self._bg_tint)
     else:
-      rl.draw_texture_ex(txt_bg, (btn_x, btn_y), 0, scale, rl.WHITE)
+      rl.draw_texture_ex(txt_bg, (btn_x, btn_y), 0, scale, self._bg_tint)
       self._draw_content(btn_y)
 
 

@@ -19,6 +19,7 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.common.time_helpers import system_time_valid
 from openpilot.common.utils import run_cmd
 from openpilot.system.ui.lib.application import gui_app, FontWeight
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, ConnectStatus
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.nav_widget import NavWidget
@@ -104,7 +105,7 @@ class StartPage(Widget):
   def __init__(self):
     super().__init__()
 
-    self._title = UnifiedLabel("start", 64, text_color=rl.Color(255, 255, 255, int(255 * 0.9)),
+    self._title = UnifiedLabel(tr("start"), 64, text_color=rl.Color(255, 255, 255, int(255 * 0.9)),
                                font_weight=FontWeight.DISPLAY, alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
                                alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
 
@@ -130,9 +131,9 @@ class SoftwareSelectionPage(NavWidget):
                use_custom_software_callback: Callable):
     super().__init__()
 
-    self._openpilot_slider = self._child(LargerSlider("slide to install\nopenpilot", use_openpilot_callback))
+    self._openpilot_slider = self._child(LargerSlider(tr("slide to install\nopenpilot"), use_openpilot_callback))
     self._openpilot_slider.set_enabled(lambda: self.enabled and not self.is_dismissing)
-    self._custom_software_slider = self._child(LargerSlider("slide to install\ncustom software", use_custom_software_callback, green=False, shimmer_offset=0.4))
+    self._custom_software_slider = self._child(LargerSlider(tr("slide to install\ncustom software"), use_custom_software_callback, green=False, shimmer_offset=0.4))
     self._custom_software_slider.set_enabled(lambda: self.enabled and not self.is_dismissing)
 
   def show_event(self):
@@ -174,16 +175,16 @@ class CustomSoftwareWarningPage(NavScroller):
     super().__init__()
     self.set_back_callback(back_callback)
 
-    self._continue_button = BigPillButton("next")
+    self._continue_button = BigPillButton(tr("next"))
     self._continue_button.set_click_callback(continue_callback)
 
     self._scroller.add_widgets([
-      GreyBigButton("caution: installing\n3rd party software", "swipe down to go back",
+      GreyBigButton(tr("caution: installing\n3rd party software"), tr("swipe down to go back"),
                     gui_app.texture("icons_mici/setup/warning.png", 64, 58)),
-      GreyBigButton("", "• It has not been tested by comma."),
-      GreyBigButton("", "• It may not comply with safety standards."),
-      GreyBigButton("", "• It may damage your device and/or vehicle."),
-      GreyBigButton("how to restore to a\nfactory state later", "https://flash.comma.ai",
+      GreyBigButton("", tr("• It has not been tested by comma.")),
+      GreyBigButton("", tr("• It may not comply with safety standards.")),
+      GreyBigButton("", tr("• It may damage your device and/or vehicle.")),
+      GreyBigButton(tr("how to restore to a\nfactory state later"), "https://flash.comma.ai",
                     gui_app.texture("icons_mici/setup/restore.png", 64, 64)),
       self._continue_button,
     ])
@@ -194,7 +195,7 @@ class DownloadingPage(NavWidget):
   def __init__(self):
     super().__init__()
 
-    self._title_label = UnifiedLabel("downloading...", 64, text_color=rl.Color(255, 255, 255, int(255 * 0.9)),
+    self._title_label = UnifiedLabel(tr("downloading..."), 64, text_color=rl.Color(255, 255, 255, int(255 * 0.9)),
                                      font_weight=FontWeight.DISPLAY)
     self._progress_label = UnifiedLabel("", 132, text_color=rl.Color(255, 255, 255, int(255 * 0.9 * 0.65)),
                                         font_weight=FontWeight.ROMAN, alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_BOTTOM)
@@ -230,7 +231,7 @@ class DownloadingPage(NavWidget):
 
 
 class FailedPage(NavScroller):
-  def __init__(self, retry_callback: Callable | None, title: str = "download failed",
+  def __init__(self, retry_callback: Callable | None, title: str = tr("download failed"),
                description: str | None = None, icon: str = "icons_mici/setup/warning.png"):
     super().__init__()
     self.set_back_callback(retry_callback)
@@ -239,10 +240,10 @@ class FailedPage(NavScroller):
     self._reason_card.set_visible(False)
 
     self._scroller.add_widgets([
-      GreyBigButton(title, description or "swipe down to go\nback and try again",
+      GreyBigButton(title, description or tr("swipe down to go\nback and try again"),
                     gui_app.texture(icon, 64, 58)),
       self._reason_card,
-      BigConfirmationCircleButton("reboot\ndevice", gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70),
+      BigConfirmationCircleButton(tr("reboot\ndevice"), gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70),
                                   HARDWARE.reboot, exit_on_confirm=False),
     ])
 
@@ -301,7 +302,7 @@ class NetworkSetupPageBase(Scroller):
     self._custom_software = False
     self._wifi_ui = WifiUIMici(self._wifi_manager)
 
-    self._connect_button = GreyBigButton("connect to\ninternet", "swipe down to go back",
+    self._connect_button = GreyBigButton(tr("connect to\ninternet"), tr("swipe down to go back"),
                                          gui_app.texture("icons_mici/setup/small_slider/slider_arrow.png", 64, 56, flip_x=True))
     self._connect_button.set_visible(not disable_connect_hint)
 
@@ -320,9 +321,9 @@ class NetworkSetupPageBase(Scroller):
       # trigger grow when wifi button in view
       self._pending_wifi_grow_animation = True
 
-    self._waiting_button = BigPillButton("connect to\ncontinue", disabled_background=True)
+    self._waiting_button = BigPillButton(tr("connect to\ncontinue"), disabled_background=True)
     self._waiting_button.set_click_callback(on_waiting_click)
-    self._continue_button = BigPillButton("install openpilot", green=True)
+    self._continue_button = BigPillButton(tr("install openpilot"), green=True)
     self._continue_button.set_click_callback(lambda: continue_callback(self._custom_software))
 
     self._scroller.add_widgets([
@@ -375,7 +376,7 @@ class NetworkSetupPageBase(Scroller):
     # TODO: fire show/hide events on visibility changes
     if not has_internet:
       self._pending_continue_grow_animation = False
-      self._waiting_button.set_text("waiting for\ninternet..." if wifi_connected else "connect to\ncontinue")
+      self._waiting_button.set_text(tr("waiting for\ninternet...") if wifi_connected else tr("connect to\ncontinue"))
 
     self._wifi_manager.process_callbacks()
 
@@ -404,7 +405,7 @@ class NetworkSetupPageBase(Scroller):
 
   def set_custom_software(self, custom_software: bool):
     self._custom_software = custom_software
-    self._continue_button.set_text("install openpilot" if not custom_software else "choose software")
+    self._continue_button.set_text(tr("install openpilot") if not custom_software else tr("choose software"))
     self._continue_button.set_green(not custom_software)
 
   def _update_state(self):
@@ -492,7 +493,7 @@ class Setup(Widget):
         if url:
           self._download(url)
 
-      keyboard = BigInputDialog("custom software URL...", confirm_callback=handle_keyboard_result, auto_return_to_letters="./")
+      keyboard = BigInputDialog(tr("custom software URL..."), confirm_callback=handle_keyboard_result, auto_return_to_letters="./")
       gui_app.push_widget(keyboard)
 
   def _download(self, url: str):
@@ -544,7 +545,7 @@ class Setup(Widget):
         is_elf = header == b'\x7fELF'
 
       if not is_elf:
-        self._download_failed_reason = "No custom software found at this URL: " + self.download_url.replace("https://", "", 1)
+        self._download_failed_reason = tr("No custom software found at this URL: {url}").format(url=self.download_url.replace("https://", "", 1))
         return
 
       # NOTE: currently unused, for future logging
@@ -562,9 +563,9 @@ class Setup(Widget):
 
     except urllib.error.HTTPError as e:
       if e.code == 409:
-        self._download_failed_reason = "Incompatible sunnypilot version."
+        self._download_failed_reason = tr("Incompatible sunnypilot version.")
     except Exception:
-      self._download_failed_reason = "Invalid URL: " + self.download_url.replace("https://", "", 1)
+      self._download_failed_reason = tr("Invalid URL: {url}").format(url=self.download_url.replace("https://", "", 1))
 
 
 def main():
