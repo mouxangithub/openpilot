@@ -1,3 +1,4 @@
+import os
 import time
 import pyray as rl
 from collections.abc import Callable
@@ -229,5 +230,12 @@ class HomeLayout(Widget):
 
   def _get_version_text(self) -> str:
     brand = "sunnypilot"
+    if os.getenv("LITE"):
+      if "TICI_TRES" in os.environ:
+        device_type = " - XLite"
+      else:
+        device_type = " - Lite"
+    else:
+      device_type = ""
     description = self.params.get("UpdaterCurrentDescription")
-    return f"{brand} {description}" if description else brand
+    return f"{brand}{device_type} {description}" if description else f"{brand}{device_type}"

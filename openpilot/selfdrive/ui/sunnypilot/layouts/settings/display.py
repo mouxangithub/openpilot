@@ -27,6 +27,16 @@ class DisplayLayout(Widget):
     self._scroller = Scroller(items, line_separator=True, spacing=0)
 
   def _initialize_items(self):
+    self._offroad_brightness = option_item_sp(
+      param="Brightness",
+      title=lambda: tr("Screen Brightness"),
+      description=lambda: tr("Screen brightness when offroad. 0 uses the device default."),
+      min_value=0,
+      max_value=100,
+      value_change_step=5,
+      label_callback=lambda value: tr("Default") if not value else tr("{} %").format(value),
+      inline=True
+    )
     self._onroad_brightness = option_item_sp(
       param="OnroadScreenOffBrightness",
       title=lambda: tr("Onroad Brightness"),
@@ -42,24 +52,29 @@ class DisplayLayout(Widget):
       title=lambda: tr("Onroad Brightness Delay"),
       description="",
       min_value=0,
-      max_value=15,
+      max_value=9,
       value_change_step=1,
       value_map=ONROAD_BRIGHTNESS_TIMER_VALUES,
-      label_callback=lambda value: f"{value} s" if value < 60 else f"{int(value/60)} m",
+      label_callback=lambda value: tr("{} s").format(value) if value < 60 else tr("{} m").format(int(value/60)),
       inline=True
     )
     self._interactivity_timeout = option_item_sp(
       param="InteractivityTimeout",
       title=lambda: tr("Interactivity Timeout"),
-      description=lambda: tr("Apply a custom timeout for settings UI." +
-                             "<br>This is the time after which settings UI closes automatically " +
+      description=lambda: tr("Apply a custom timeout for settings UI."
+                             "<br>This is the time after which settings UI closes automatically "
                              "if user is not interacting with the screen."),
       min_value=0,
       max_value=120,
       value_change_step=10,
       label_callback=lambda value: (tr("Default") if not value or value == 0 else
-                                    f"{value} s" if value < 60 else f"{int(value/60)} m"),
+                                    tr("{} s").format(value) if value < 60 else tr("{} m").format(int(value/60))),
       inline=True
+    )
+    self._hide_firehose_prompt = toggle_item_sp(
+      title=lambda: tr("Hide Firehose Prompt"),
+      description=lambda: tr("Hide the Firehose prompt on the home screen. The prompt will not be rendered when this is enabled."),
+      param="HideFirehosePrompt",
     )
     self._screensaver_toggle = toggle_item_sp(
       param="ScreenSaverEnabled",
@@ -76,9 +91,11 @@ class DisplayLayout(Widget):
       label_callback=lambda value: f"{int(value/60)} m"
     )
     items = [
+      self._offroad_brightness,
       self._onroad_brightness,
       self._onroad_brightness_timer,
       self._interactivity_timeout,
+      self._hide_firehose_prompt,
       self._screensaver_toggle,
       self._screensaver_timeout,
     ]
@@ -95,7 +112,7 @@ class DisplayLayout(Widget):
     if val == OnroadBrightness.SCREEN_OFF:
       return tr("Screen Off")
 
-    return f"{(val - 2) * 5} %"
+    return tr("{} %").format((val - 2) * 5)
 
   def _update_state(self):
     super()._update_state()

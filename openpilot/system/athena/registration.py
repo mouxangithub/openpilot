@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import time
 import json
 import jwt
@@ -16,6 +17,10 @@ from openpilot.common.swaglog import cloudlog
 
 
 UNREGISTERED_DONGLE_ID = "UnregisteredDevice"
+LITE = os.getenv("LITE") is not None
+MAX_IMEI_RETRIES = 10          # ~10s before skipping registration
+MAX_IMEI_WAIT_SEC = 15         # wall-clock cap while waiting for modem IMEI
+MAX_PILOTAUTH_WAIT_SEC = 30    # wall-clock cap for cloud registration retries
 
 def is_registered_device() -> bool:
   dongle = Params().get("DongleId")
@@ -51,27 +56,52 @@ def register(show_spinner=False) -> str | None:
       spinner = Spinner()
       spinner.update("registering device")
 
-    # Block until we get the imei
+    if LITE:
+      params.put("DongleId", UNREGISTERED_DONGLE_ID)
+      return UNREGISTERED_DONGLE_ID
+
+    # Block until we get the imei (ICCID/SIM not required for comma registration)
     serial = HARDWARE.get_serial()
-    start_time = time.monotonic()
+    imei_start = time.monotonic()
     imei: str | None = None
-    while imei is None:
+    skip_imei_count = 0
+    while not imei:
+      if time.monotonic() - imei_start > MAX_IMEI_WAIT_SEC:
+        cloudlog.warning("IMEI unavailable, skipping registration")
+        params.put("DongleId", UNREGISTERED_DONGLE_ID)
+        return UNREGISTERED_DONGLE_ID
+
       try:
-        imei = HARDWARE.get_imei()
+        imei = HARDWARE.get_imei() or None
+        if not imei:
+          raise ValueError("empty IMEI")
       except Exception:
         cloudlog.exception("Error getting imei, trying again...")
+        if show_spinner:
+          spinner.update(
+            f"registering device - serial: {serial}, Error getting IMEI, trying {skip_imei_count}/{MAX_IMEI_RETRIES}",
+          )
+        if skip_imei_count >= MAX_IMEI_RETRIES:
+          cloudlog.warning("no IMEI after retries, skipping registration")
+          params.put("DongleId", UNREGISTERED_DONGLE_ID)
+          return UNREGISTERED_DONGLE_ID
+        skip_imei_count += 1
         time.sleep(1)
 
-      if time.monotonic() - start_time > 60 and show_spinner:
+      if show_spinner and imei:
         spinner.update(f"registering device - serial: {serial}, IMEI: {imei}")
 
     backoff = 0
-    start_time = time.monotonic()
+    auth_start = time.monotonic()
     while True:
+      if time.monotonic() - auth_start > MAX_PILOTAUTH_WAIT_SEC:
+        cloudlog.warning("pilotauth timed out, skipping registration")
+        dongle_id = UNREGISTERED_DONGLE_ID
+        break
+
       try:
         register_token = jwt.encode({'register': True, 'exp': datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1)},
                                     cast(str, private_key), algorithm=jwt_algo)
-        cloudlog.info("getting pilotauth")
         cloudlog.info("getting pilotauth")
         resp = api_get("v2/pilotauth/", method='POST', timeout=15,
                        imei=imei, imei2="", serial=serial, public_key=public_key, register_token=register_token)
@@ -91,16 +121,12 @@ def register(show_spinner=False) -> str | None:
         backoff = min(backoff + 1, 15)
         time.sleep(backoff)
 
-      if time.monotonic() - start_time > 60 and show_spinner:
-        spinner.update(f"registering device - serial: {serial}, IMEI: {imei}")
-        return UNREGISTERED_DONGLE_ID  # hotfix to prevent an infinite wait for registration
-
     if show_spinner:
       spinner.close()
 
   if dongle_id:
     params.put("DongleId", dongle_id, block=True)
-    set_offroad_alert("Offroad_UnregisteredHardware", (dongle_id == UNREGISTERED_DONGLE_ID) and not PC)
+    set_offroad_alert("Offroad_UnregisteredHardware", (dongle_id == UNREGISTERED_DONGLE_ID) and not PC and not os.getenv("LITE"))
   return dongle_id
 
 

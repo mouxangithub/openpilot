@@ -13,7 +13,7 @@ ONROAD_BRIGHTNESS_MIGRATION_VERSION: str = "1.0"
 ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION: str = "1.0"
 
 # index → seconds mapping for OnroadScreenOffTimer (SSoT)
-ONROAD_BRIGHTNESS_TIMER_VALUES = {0: 3, 1: 5, 2: 7, 3: 10, 4: 15, 5: 30, **{i: (i - 5) * 60 for i in range(6, 16)}}
+ONROAD_BRIGHTNESS_TIMER_VALUES = {0: 0, 1: 3, 2: 5, 3: 10, 4: 15, 5: 30, 6: 60, 7: 180, 8: 300, 9: 600}
 VALID_TIMER_VALUES = set(ONROAD_BRIGHTNESS_TIMER_VALUES.values())
 
 

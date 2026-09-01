@@ -16,6 +16,8 @@ from ipaddress import IPv4Address, AddressValueError
 
 from enum import Enum
 
+from openpilot.common.hardware.comma.hardware import is_tici_dos
+
 logging.basicConfig(
   level=logging.INFO,
   format="%(asctime)s.%(msecs)03d %(levelname)-7s modem: %(message)s",
@@ -44,6 +46,56 @@ NETWORK_TYPE = {0: "gsm", 1: "gsm", 3: "gsm", 8: "gsm",
 
 DIAL_CID = 1
 WEBBING_ICCID_PREFIX = "8985235"
+
+
+def parse_imei_value(text: str) -> str:
+  value = (text or "").strip()
+  if value.isdigit() and 14 <= len(value) <= 17:  # 3GPP TS 23.003
+    return value
+  return ""
+
+
+def parse_imei_lines(lines: list[str]) -> str:
+  for line in lines:
+    imei = parse_imei_value(line)
+    if imei:
+      return imei
+  return ""
+
+
+def query_imei_at_port() -> str:
+  """Read IMEI directly from the modem AT port (no SIM / ModemManager required)."""
+  if not os.path.exists(AT_PORT):
+    return ""
+  fd = os.open(AT_LOCK, os.O_CREAT | os.O_RDWR, 0o666)
+  try:
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+  except OSError:
+    os.close(fd)
+    return ""
+  try:
+    with Serial(AT_PORT, baudrate=9600, timeout=5) as ser:
+      ser.reset_input_buffer()
+      ser.write(b"AT+CGSN\r")
+      lines: list[str] = []
+      while True:
+        raw = ser.readline()
+        if not raw:
+          break
+        line = raw.decode(errors="ignore").strip()
+        if not line:
+          continue
+        if line == "OK":
+          break
+        if line == "ERROR" or line.startswith("+CME ERROR"):
+          break
+        lines.append(line)
+      return parse_imei_lines(lines)
+  except (OSError, TimeoutError):
+    return ""
+  finally:
+    fcntl.flock(fd, fcntl.LOCK_UN)
+    os.close(fd)
 
 PPPD_CMD = [
   "sudo", "pppd", PPP_PORT, "460800", "noauth", "nodetach", "noipdefault", "usepeerdns",
@@ -207,6 +259,149 @@ class PPPSession:
     subprocess.run(["sudo", "resolvectl", "revert", "ppp0"], capture_output=True)
 
 
+# ============================================================================
+# dragonpilot: QMI data path for the comma3 (tici) EG25
+#
+# The comma3 EG25 runs in QMI mode (AT+QCFG="usbnet"==0) and does NOT support
+# *99# PPP data: pppd negotiates LCP/PAP then the modem drops at IPCP, so the
+# PPP-only upstream daemon never gets an IP. QMISession is a drop-in for
+# PPPSession (same interface the Modem state machine uses) that brings data up
+# over QMI on wwan0 via qmicli. It is selected automatically in _do_initializing
+# when the modem reports QMI mode; everything else (AT init, registration,
+# polling, /dev/shm/modem) is unchanged. Kept self-contained to ease upstream
+# modem.py merges.
+# ============================================================================
+QMI_DEV = "/dev/cdc-wdm0"
+QMI_IFACE = "wwan0"
+QMI_POLL_INTERVAL = 10.0  # s; how often to actually query the modem while connected (drop detection latency)
+
+
+class QMISession:
+  """Drop-in for PPPSession that connects over QMI/wwan0 instead of *99# PPP."""
+  MAX_FAILS = 3
+  IFACE = QMI_IFACE
+
+  def __init__(self):
+    self._fails = 0
+    self._ip = ""
+    self._last_status_check = 0.0
+
+  @staticmethod
+  def available() -> bool:
+    return os.path.exists(QMI_DEV)
+
+  @staticmethod
+  def _param(key):
+    try:
+      with open(f"/data/params/d/{key}") as f:
+        return f.read().strip()
+    except FileNotFoundError:
+      return ""
+
+  @staticmethod
+  def _qmicli(*args, timeout=30):
+    return subprocess.run(["sudo", "qmicli", "-d", QMI_DEV, "-p", *args],
+                          capture_output=True, text=True, timeout=timeout)
+
+  def start(self):
+    apn = self._param("GsmApn")
+    # qmi_wwan needs raw-ip mode for IPv4; set it while the iface is down
+    subprocess.run(["sudo", "ip", "link", "set", QMI_IFACE, "down"], capture_output=True)
+    subprocess.run(["sudo", "sh", "-c", f"echo Y > /sys/class/net/{QMI_IFACE}/qmi/raw_ip"], capture_output=True)
+    subprocess.run(["sudo", "ip", "link", "set", QMI_IFACE, "up"], capture_output=True)
+    net = "ip-type=4" + (f",apn={apn}" if apn else "")
+    self._qmicli(f"--wds-start-network={net}", "--client-no-release-cid")
+    self._ip = ""
+    self._last_status_check = time.monotonic()  # give the bearer an interval before the first drop check
+    logging.info(f"QMI start-network on {QMI_IFACE} (apn={apn or '(network-provided)'})")
+
+  def kill(self):
+    self.cleanup_routes()
+    subprocess.run(["sudo", "ip", "addr", "flush", "dev", QMI_IFACE], capture_output=True)
+    subprocess.run(["sudo", "ip", "link", "set", QMI_IFACE, "down"], capture_output=True)
+    self._ip = ""
+
+  @staticmethod
+  def reset_data_port():
+    pass  # no DTR/serial data port for QMI
+
+  def has_exited(self) -> bool:
+    # Throttle: querying the modem every loop (1s) is wasteful and the link is stable.
+    # Between checks assume still up -> a drop is detected within QMI_POLL_INTERVAL.
+    now = time.monotonic()
+    if now - self._last_status_check < QMI_POLL_INTERVAL:
+      return False
+    self._last_status_check = now
+    r = self._qmicli("--wds-get-packet-service-status", timeout=10)
+    return "disconnected" in r.stdout.lower()
+
+  def reset_fail_counter(self):
+    self._fails = 0
+
+  def record_fail(self) -> bool:
+    self._fails += 1
+    return self._fails >= self.MAX_FAILS
+
+  @property
+  def fails(self) -> int:
+    return self._fails
+
+  def _settings(self):
+    r = self._qmicli("--wds-get-current-settings", timeout=10)
+    def grab(label):
+      for line in r.stdout.splitlines():
+        if label in line:
+          return line.split(":", 1)[1].strip()
+      return ""
+    dns = [d for d in (grab("IPv4 primary DNS"), grab("IPv4 secondary DNS")) if d]
+    return grab("IPv4 address"), grab("IPv4 gateway address"), grab("IPv4 subnet mask"), dns
+
+  @staticmethod
+  def cleanup_routes():
+    subprocess.run(["sudo", "ip", "route", "del", "default", "dev", QMI_IFACE], capture_output=True)
+    subprocess.run(["sudo", "ip", "route", "flush", "table", "1000"], capture_output=True)
+    while subprocess.run(["sudo", "ip", "rule", "del", "table", "1000"], capture_output=True).returncode == 0:
+      pass
+    subprocess.run(["sudo", "resolvectl", "revert", QMI_IFACE], capture_output=True)
+
+  def poll_iface(self) -> dict:
+    # The IP is stable for the whole session, so configure wwan0 once and then
+    # serve the cached value -- no qmicli per loop. _ip is cleared on (re)start.
+    if self._ip:
+      return {"ip_address": self._ip, "connected": True}
+    ip, gw, mask, dns = self._settings()
+    if not (ip and gw):
+      return {"connected": False, "ip_address": ""}
+    try:
+      IPv4Address(ip)
+      IPv4Address(gw)
+    except AddressValueError:
+      logging.warning(f"refusing route install with non-IPv4 ip={ip!r} gw={gw!r}")
+      return {}
+    prefix = sum(bin(int(o)).count("1") for o in mask.split(".")) if mask.count(".") == 3 else 32
+    self.cleanup_routes()
+    subprocess.run(["sudo", "ip", "addr", "flush", "dev", QMI_IFACE], capture_output=True)
+    cmds = [
+      ["sudo", "ip", "addr", "add", f"{ip}/{prefix}", "dev", QMI_IFACE],
+      ["sudo", "ip", "link", "set", QMI_IFACE, "up"],
+      ["sudo", "ip", "route", "add", "default", "via", gw, "dev", QMI_IFACE, "metric", "1000"],
+      ["sudo", "ip", "route", "add", "default", "via", gw, "dev", QMI_IFACE, "table", "1000"],
+      ["sudo", "ip", "rule", "add", "from", ip, "table", "1000"],
+    ]
+    for cmd in cmds:
+      r = subprocess.run(cmd, capture_output=True, text=True)
+      if r.returncode != 0:
+        logging.warning(f"qmi route install failed ({' '.join(cmd[1:])}): {r.stderr.strip()}")
+        self.cleanup_routes()
+        return {}
+    if dns:
+      subprocess.run(["sudo", "resolvectl", "dns", QMI_IFACE, *dns], capture_output=True)
+      subprocess.run(["sudo", "resolvectl", "default-route", QMI_IFACE, "yes"], capture_output=True)
+    self._ip = ip
+    logging.info(f"QMI {ip}/{prefix} via {gw} on {QMI_IFACE}, dns={dns}")
+    return {"ip_address": ip, "connected": True}
+
+
 class Modem:
   def __init__(self):
     self._ppp = PPPSession()
@@ -302,11 +497,18 @@ class Modem:
     cmds = [
       # clear initial EPS bearer APN (some carriers reject the default)
       'AT+CGDCONT=0,"IP",""',
+    ]
 
-      # SIM hot swap
-      'AT+QSIMDET=1,0',
-      'AT+QSIMSTAT=1',
+    # SIM hot swap: skip on the comma3 (TICI_DOS) - matches openpilot v0.10.0, which
+    # only sent these on tizi (C3X). Enabling SIM-detect on the C3 can cause
+    # spurious SIM-removed events and drop the connection.
+    if not is_tici_dos():
+      cmds += [
+        'AT+QSIMDET=1,0',
+        'AT+QSIMSTAT=1',
+      ]
 
+    cmds += [
       # configure modem as data-centric
       'AT+QNVW=5280,0,"0102000000000000"',
       'AT+QNVFW="/nv/item_files/ims/IMS_enable",00',
@@ -314,6 +516,10 @@ class Modem:
     ]
     for c in cmds:
       self._at(c)
+
+  def _qmi_mode(self) -> bool:
+    # dragonpilot: comma3 (TICI_DOS) EG25 can't do *99# PPP -> use QMI on wwan0
+    return is_tici_dos() and QMISession.available()
 
   def _do_initializing(self):
     if not os.path.exists(AT_PORT):
@@ -327,11 +533,20 @@ class Modem:
       return State.INITIALIZING
 
     identity = self._read_identity()
-    if not identity["iccid"] or not identity["imei"]:
+    if not identity["imei"]:
       logging.warning(f"identity read incomplete: {identity}, retrying")
       return State.INITIALIZING
+    if not identity["iccid"]:
+      logging.warning(f"no ICCID (SIM missing or unreadable), continuing with IMEI={identity['imei']}")
 
     self._configure_modem(identity["modem_version"])
+
+    # dragonpilot: switch the data session to QMI once if the modem is QMI-mode (comma3 EG25)
+    if not isinstance(self._ppp, QMISession) and self._qmi_mode():
+      self._ppp.kill()
+      self._ppp.cleanup_routes()
+      self._ppp = QMISession()
+      logging.info("using QMI data path (wwan0)")
 
     self.S.update(identity)
     self._apn = self._read_param("GsmApn")
@@ -345,22 +560,18 @@ class Modem:
     return State.SEARCHING
 
   def _read_identity(self):
-    def first_line(cmd):
-      r = self._at(cmd)
-      return r[0].strip() if r else ""
-
-    imei = first_line("AT+CGSN")
-    if not (imei.isdigit() and 14 <= len(imei) <= 17):  # 3GPP TS 23.003
-      imei = ""
+    imei = parse_imei_lines(self._at("AT+CGSN"))
 
     iccid = (self._atv("AT+QCCID", "+QCCID:") or "").rstrip("F")
     if not iccid.isdigit():
       iccid = ""
 
-    imsi = first_line("AT+CIMI")
+    imsi_lines = self._at("AT+CIMI")
+    imsi = imsi_lines[0].strip() if imsi_lines else ""
     mcc_mnc = imsi[:6] if imsi.isdigit() and len(imsi) >= 6 else ""
 
-    modem_version = first_line("AT+GMR")
+    gmr_lines = self._at("AT+GMR")
+    modem_version = gmr_lines[0].strip() if gmr_lines else ""
 
     logging.info(f"imei={imei} iccid={iccid} mcc_mnc={mcc_mnc} ver={modem_version}")
     return {"imei": imei, "iccid": iccid, "mcc_mnc": mcc_mnc, "modem_version": modem_version}
@@ -509,6 +720,8 @@ class Modem:
       return {}
 
   def _poll_iface(self) -> dict:
+    if isinstance(self._ppp, QMISession):  # dragonpilot: QMI handles its own iface/routes/dns
+      return self._ppp.poll_iface()
     try:
       r = subprocess.run(["ip", "-4", "addr", "show", "ppp0"], capture_output=True, text=True, timeout=2)
       ip, peer = "", ""
@@ -552,10 +765,11 @@ class Modem:
     return dns_servers
 
   def _poll_byte_counters(self) -> dict:
+    iface = getattr(self._ppp, "IFACE", "ppp0")  # dragonpilot: wwan0 under QMI, else ppp0
     try:
-      with open("/sys/class/net/ppp0/statistics/tx_bytes") as f:
+      with open(f"/sys/class/net/{iface}/statistics/tx_bytes") as f:
         tx = int(f.read().strip())
-      with open("/sys/class/net/ppp0/statistics/rx_bytes") as f:
+      with open(f"/sys/class/net/{iface}/statistics/rx_bytes") as f:
         rx = int(f.read().strip())
     except Exception:
       return {}

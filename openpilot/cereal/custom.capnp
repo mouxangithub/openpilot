@@ -470,7 +470,17 @@ struct ModelDataV2SP @0xa1680744031fdb2d {
   }
 }
 
-struct CustomReserved10 @0xcb9fd56c7057593a {
+struct LongitudinalMpcTuningSP @0xcb9fd56c7057593a {
+  comfortBrake @0 :Float32;
+  stopDistance @1 :Float32;
+  tFollowRelaxed @2 :Float32;
+  tFollowStandard @3 :Float32;
+  tFollowAggressive @4 :Float32;
+  xEgoObstacleCost @5 :Float32;
+  jEgoCost @6 :Float32;
+  aChangeCost @7 :Float32;
+  dangerZoneCost @8 :Float32;
+  leadDangerFactor @9 :Float32;
 }
 
 struct CustomReserved11 @0xc2243c65e0340384 {

@@ -2,10 +2,10 @@
 import numpy as np
 from functools import cache
 import threading
+import time
 
 from openpilot.cereal import messaging
 from openpilot.common.realtime import Ratekeeper
-from openpilot.common.utils import retry
 from openpilot.common.swaglog import cloudlog
 
 RATE = 10
@@ -13,6 +13,7 @@ FFT_SAMPLES = 1600 # 100ms
 REFERENCE_SPL = 2e-5  # newtons/m^2
 SAMPLE_RATE = 16000
 SAMPLE_BUFFER = 800  # 50ms
+STREAM_RETRY_DELAY = 3  # seconds to wait before reopening a dead stream
 
 
 def patch_sounddevice(sd):
@@ -102,7 +103,6 @@ class Mic:
 
         self.measurements = self.measurements[FFT_SAMPLES:]
 
-  @retry(attempts=10, delay=3)
   def get_stream(self, sd):
     # reload sounddevice to reinitialize portaudio
     sd._terminate()
@@ -114,10 +114,23 @@ class Mic:
     import sounddevice as sd
     patch_sounddevice(sd)
 
-    with self.get_stream(sd) as stream:
-      cloudlog.info(f"micd stream started: {stream.samplerate=} {stream.channels=} {stream.dtype=} {stream.device=}, {stream.blocksize=}")
-      while True:
-        self.update()
+    # the audio device can be missing at boot (amp still being configured) or go away mid-drive.
+    # never exit: manager does not restart crashed processes, so a raise here is permanent.
+    while True:
+      try:
+        with self.get_stream(sd) as stream:
+          # a fresh Ratekeeper per stream: the old one would burn through every deadline
+          # missed during the outage back to back, since keep_time() only advances one interval.
+          self.rk = Ratekeeper(RATE)
+          with self.lock:
+            self.measurements = np.empty(0)
+          cloudlog.info(f"micd stream started: {stream.samplerate=} {stream.channels=} {stream.dtype=} {stream.device=}, {stream.blocksize=}")
+          while stream.active:
+            self.update()
+        cloudlog.error("micd stream went inactive, reopening")
+      except Exception:
+        cloudlog.exception("micd stream failed, reopening")
+      time.sleep(STREAM_RETRY_DELAY)
 
 
 def main():

@@ -87,11 +87,11 @@ class ModelsLayout(Widget):
                                                   tr("Set the maximum speed for lane turn desires. Default is 19 mph."),
                                                   int(round(100 / CV.MPH_TO_KPH)), None, True, "", style.BUTTON_ACTION_WIDTH, None, True,
                                                   lambda v: f"{int(round(v / 100 * (CV.MPH_TO_KPH if ui_state.is_metric else 1)))}" +
-                                                            f" {'km/h' if ui_state.is_metric else 'mph'}")
+                                                            f" {tr('km/h') if ui_state.is_metric else tr('mph')}")
 
     self.lane_turn_desire_toggle = toggle_item_sp(tr("Use Lane Turn Desires"),
-                                                  tr("If you're driving at 20 mph (32 km/h) or below and have your blinker on," +
-                                                     " the car will plan a turn in that direction at the nearest drivable path. " +
+                                                  tr("If you're driving at 20 mph (32 km/h) or below and have your blinker on, "
+                                                     "the car will plan a turn in that direction at the nearest drivable path. "
                                                      "This prevents situations (like at red lights) where the car might plan the wrong turn direction."),
                                                   param="LaneTurnDesire")
 
@@ -110,7 +110,7 @@ class ModelsLayout(Widget):
                   self.lane_turn_desire_toggle, self.lane_turn_value_control, self.lagd_toggle, self.delay_control, self.camera_offset]
 
   def _update_lagd_description(self, lagd_toggle: bool):
-    desc = tr("Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. " +
+    desc = tr("Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. "
               "Keeping this on provides the stock openpilot experience.")
     if lagd_toggle:
       desc += f"<br>{tr('Live Steer Delay:')} {ui_state.sm['lateralDelay'].lateralDelay:.3f} s"
@@ -135,7 +135,7 @@ class ModelsLayout(Widget):
     def _callback(response):
       if response == DialogResult.CONFIRM:
         ui_state.params.put_bool("ModelManager_ClearCache", True)
-        self.clear_cache_item.action_item.set_value(f"{self.calculate_cache_size():.2f} MB")
+        self.clear_cache_item.action_item.set_value(f"{self.calculate_cache_size():.2f} {tr('MB')}")
 
     dialog = ConfirmDialog(tr("This will delete ALL downloaded models from the cache except the currently active model. Are you sure?"),
                            tr("Clear Cache"), callback=_callback)
@@ -149,7 +149,7 @@ class ModelsLayout(Widget):
 
     if (current_time := time.monotonic()) - self.last_cache_calc_time > 0.5:
       self.last_cache_calc_time = current_time
-      self.clear_cache_item.action_item.set_value(f"{self.calculate_cache_size():.2f} MB")
+      self.clear_cache_item.action_item.set_value(f"{self.calculate_cache_size():.2f} {tr('MB')}")
 
     bundle = self.model_manager.selectedBundle if self.model_manager else None
     progresses = [model.artifact.downloadProgress for model in bundle.models if model.artifact.fileName] if bundle else []
@@ -281,7 +281,7 @@ class ModelsLayout(Widget):
       folders_list.append(TreeFolder(name, [self._bundle_to_node(bundle) for bundle in folder_bundles]))
 
     if favorites and (fav_bundles := [bundle for bundle in bundles if bundle.ref in favorites]):
-      folders_list.insert(0, TreeFolder("Favorites", [self._bundle_to_node(bundle) for bundle in fav_bundles]))
+      folders_list.insert(0, TreeFolder(tr("Favorites"), [self._bundle_to_node(bundle) for bundle in fav_bundles]))
     return folders_list
 
   def _open_source_dialog(self, source):

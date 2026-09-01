@@ -179,6 +179,13 @@ class PoseCalibrator:
     return Pose(ned_from_calib_euler, velocity_calib, acceleration_calib, angular_velocity_calib)
 
   def feed_extrinsics_calibration(self, extrinsics_calibration: log.ExtrinsicsCalibration):
+    if len(extrinsics_calibration.imuCalibMatrix) == 9:
+      device_from_calib = np.array(extrinsics_calibration.imuCalibMatrix, dtype=np.float64).reshape(3, 3)
+      det = float(np.linalg.det(device_from_calib))
+      if 0.99 < det < 1.01:
+        self.calib_from_device = device_from_calib.T
+        self.calib_valid = extrinsics_calibration.calStatus == log.ExtrinsicsCalibration.Status.calibrated
+        return
     calib_rpy = np.array(extrinsics_calibration.rpyCalib)
     device_from_calib = rot_from_euler(calib_rpy)
     self.calib_from_device = device_from_calib.T

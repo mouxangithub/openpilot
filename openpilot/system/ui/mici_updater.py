@@ -8,6 +8,7 @@ from openpilot.common.realtime import config_realtime_process, set_core_affinity
 from openpilot.common.hardware import HARDWARE, COMMA_HARDWARE
 from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.lib.application import gui_app, FontWeight
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.nav_widget import NavWidget
 from openpilot.system.ui.widgets.scroller import Scroller
 from openpilot.system.ui.widgets.label import UnifiedLabel
@@ -18,7 +19,7 @@ from openpilot.system.ui.mici_setup import (NetworkSetupPage, FailedPage, Networ
 class UpdaterNetworkSetupPage(NetworkSetupPage):
   def __init__(self, network_monitor, continue_callback):
     super().__init__(network_monitor, continue_callback, back_callback=None)
-    self._continue_button.set_text("download\n& install")
+    self._continue_button.set_text(tr("download\n& install"))
     self._continue_button.set_green(False)
 
 
@@ -42,7 +43,7 @@ class ProgressPage(NavWidget):
   def show_event(self):
     super().show_event()
     self._nav_bar._alpha = 0.0  # not dismissable
-    self.set_progress("downloading", 0)
+    self.set_progress(tr("downloading"), 0)
 
   def _render(self, rect: rl.Rectangle):
     rl.draw_rectangle_rec(rect, rl.BLACK)
@@ -68,7 +69,7 @@ class Updater(Scroller):
     self.manifest = manifest_path
 
     self.progress_value = 0
-    self.progress_text = "loading"
+    self.progress_text = tr("loading")
     self.process = None
     self.update_thread = None
     self._update_failed = False
@@ -80,13 +81,13 @@ class Updater(Scroller):
 
     self._progress_page = ProgressPage()
 
-    self._failed_page = FailedPage(self._retry, title="update failed")
+    self._failed_page = FailedPage(self._retry, title=tr("update failed"))
 
-    self._continue_button = BigPillButton("next")
+    self._continue_button = BigPillButton(tr("next"))
     self._continue_button.set_click_callback(lambda: gui_app.push_widget(self._network_setup_page))
 
     self._scroller.add_widgets([
-      GreyBigButton("update required", "the download size\nis approximately 1 GB",
+      GreyBigButton(tr("update required"), tr("the download size\nis approximately 1 GB"),
                     gui_app.texture("icons_mici/offroad_alerts/green_wheel.png", 64, 64)),
       self._continue_button,
     ])
@@ -109,7 +110,7 @@ class Updater(Scroller):
 
   def install_update(self):
     self.progress_value = 0
-    self.progress_text = "downloading"
+    self.progress_text = tr("downloading")
 
     def start_update():
       self.update_thread = threading.Thread(target=self._run_update_process, daemon=True)
@@ -133,7 +134,7 @@ class Updater(Scroller):
       for line in self.process.stdout:
         parts = line.strip().split(":")
         if len(parts) == 2:
-          self.progress_text = parts[0].lower()
+          self.progress_text = tr(parts[0].lower())
           try:
             self.progress_value = int(float(parts[1]))
           except ValueError:

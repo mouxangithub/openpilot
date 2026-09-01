@@ -111,8 +111,10 @@ class AlertRenderer(Widget):
     if recv_frame < ui_state.started_frame:
       return None
 
-    # Return current alert
-    return Alert(text1=ss.alertText1, text2=ss.alertText2, size=ss.alertSize.raw, status=ss.alertStatus.raw)
+    # Return current alert (translate at display time for any remaining English strings)
+    return Alert(text1=tr(ss.alertText1) if ss.alertText1 else "",
+                 text2=tr(ss.alertText2) if ss.alertText2 else "",
+                 size=ss.alertSize.raw, status=ss.alertStatus.raw)
 
   def _render(self, rect: rl.Rectangle):
     alert = self.get_alert(ui_state.sm)
@@ -153,26 +155,27 @@ class AlertRenderer(Widget):
 
   def _draw_text(self, rect: rl.Rectangle, alert: Alert) -> None:
     if alert.size == AlertSize.small:
-      self._draw_centered(alert.text1, rect, self.font_bold, ALERT_FONT_MEDIUM)
+      self._draw_centered(tr(alert.text1), rect, self.font_bold, ALERT_FONT_MEDIUM)
 
     elif alert.size == AlertSize.mid:
-      self._draw_centered(alert.text1, rect, self.font_bold, ALERT_FONT_BIG, center_y=False)
+      self._draw_centered(tr(alert.text1), rect, self.font_bold, ALERT_FONT_BIG, center_y=False)
       rect.y += ALERT_FONT_BIG + ALERT_LINE_SPACING
-      self._draw_centered(alert.text2, rect, self.font_regular, ALERT_FONT_SMALL, center_y=False)
+      self._draw_centered(tr(alert.text2), rect, self.font_regular, ALERT_FONT_SMALL, center_y=False)
 
     else:
-      is_long = len(alert.text1) > 15
+      text1 = tr(alert.text1)
+      is_long = len(text1) > 15
       font_size1 = 132 if is_long else 177
 
-      top_offset = 200 if is_long or '\n' in alert.text1 else 270
+      top_offset = 200 if is_long or '\n' in text1 else 270
       title_rect = rl.Rectangle(rect.x, rect.y + top_offset, rect.width, 600)
       self._full_text1_label.set_font_size(font_size1)
-      self._full_text1_label.set_text(alert.text1)
+      self._full_text1_label.set_text(text1)
       self._full_text1_label.render(title_rect)
 
       bottom_offset = 361 if is_long else 420
       subtitle_rect = rl.Rectangle(rect.x, rect.y + rect.height - bottom_offset, rect.width, 300)
-      self._full_text2_label.set_text(alert.text2)
+      self._full_text2_label.set_text(tr(alert.text2))
       self._full_text2_label.render(subtitle_rect)
 
   def _draw_centered(self, text, rect, font, font_size, center_y=True, color=rl.WHITE) -> None:

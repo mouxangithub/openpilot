@@ -11,6 +11,7 @@ from openpilot.selfdrive.ui import UI_BORDER_SIZE
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.sunnypilot.onroad.developer_ui import DeveloperUiState
 from openpilot.system.ui.lib.application import gui_app, FontWeight, FONT_SCALE
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 
 
@@ -53,10 +54,10 @@ class CircularAlertsRenderer:
       self._e2e_alert_display_timer -= 1
 
       if self._green_light_alert:
-        self._alert_text = "GREEN\nLIGHT"
+        self._alert_text = tr("GREEN\nLIGHT")
         self._alert_img = self._green_light_alert_img
       elif self._lead_depart_alert:
-        self._alert_text = "LEAD VEHICLE\nDEPARTING"
+        self._alert_text = tr("LEAD VEHICLE\nDEPARTING")
         self._alert_img = self._lead_depart_alert_img
 
     elif ui_state.standstill_timer and self._is_standstill:
@@ -121,7 +122,7 @@ class CircularAlertsRenderer:
 
     if self._e2e_alert_display_timer == 0 and ui_state.standstill_timer and self._is_standstill:
       # Standstill Timer Text
-      alert_alt_text = "STOPPED"
+      alert_alt_text = tr("STOPPED")
       top_text_size = 80
       measure_top = measure_text_cached(font, alert_alt_text, top_text_size, spacing)
       top_y = alert_rect.y + alert_rect.height / 3.5

@@ -270,8 +270,8 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
 
     rl.draw_rectangle_rounded_lines_ex(inner, inner_roundness, 10, 4, black)
 
-    self._draw_text_centered(self.font_demi, "SPEED", 40, rl.Vector2(rect.x + rect.width / 2, rect.y + 40), black)
-    self._draw_text_centered(self.font_demi, "LIMIT", 40, rl.Vector2(rect.x + rect.width / 2, rect.y + 80), black)
+    self._draw_text_centered(self.font_demi, tr("SPEED"), 40, rl.Vector2(rect.x + rect.width / 2, rect.y + 40), black)
+    self._draw_text_centered(self.font_demi, tr("LIMIT"), 40, rl.Vector2(rect.x + rect.width / 2, rect.y + 80), black)
     self._draw_text_centered(self.font_bold, val, 90, rl.Vector2(rect.x + rect.width / 2, rect.y + 150), text_color)
 
     if sub and has_limit:
@@ -297,7 +297,7 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
     rl.draw_rectangle_rounded_lines_ex(rect, 0.35, 10, 3, Colors.MUTCD_LINES)
 
     mid_x = rect.x + rect.width / 2
-    self._draw_text_centered(self.font_demi, "AHEAD", 40, rl.Vector2(mid_x, rect.y + 28), Colors.GREY)
+    self._draw_text_centered(self.font_demi, tr("AHEAD"), 40, rl.Vector2(mid_x, rect.y + 28), Colors.GREY)
     self._draw_text_centered(self.font_bold, str(round(self.speed_limit_ahead)), 70, rl.Vector2(mid_x, rect.y + 82), Colors.WHITE)
     self._draw_text_centered(self.font_norm, self._format_dist(self.speed_limit_ahead_dist), 36, rl.Vector2(mid_x, rect.y + 134), Colors.GREY)
 
@@ -309,10 +309,10 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
         return tr("Near")
 
       if d >= 1000:
-        return f"{d / 1000:.1f} km"
+        return f"{d / 1000:.1f} {tr('km')}"
 
       d_rounded = round(d, -1) if d < 200 else round(d, -2)
-      return f"{int(d_rounded)} m"
+      return f"{int(d_rounded)} {tr('m')}"
 
     # imperial
     d_ft = d * METER_TO_FOOT
@@ -320,9 +320,9 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
       return tr("Near")
 
     if d_ft >= 900:
-      return f"{d * METER_TO_MILE:.1f} mi"
+      return f"{d * METER_TO_MILE:.1f} {tr('mi')}"
 
     if d_ft < 500:
-      return f"{int(round(d_ft / 50) * 50)} ft"
+      return f"{int(round(d_ft / 50) * 50)} {tr('ft')}"
 
-    return f"{int(round(d_ft / 100) * 100)} ft"
+    return f"{int(round(d_ft / 100) * 100)} {tr('ft')}"
