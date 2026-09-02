@@ -112,6 +112,43 @@ struct SelfdriveStateSP @0x81c2f05a394cf4af {
 
     promptSingleLow @31;
     promptSingleHigh @32;
+
+    # carrot (phone projection & navigation)
+    audioTurn @33;
+    longEngaged @34;
+    longDisengaged @35;
+    trafficSignGreen @36;
+    trafficSignChanged @37;
+    laneChangeCarrot @38;
+    stopping @39;
+    autoHold @40;
+    engage2 @41;
+    disengage2 @42;
+    trafficError @43;
+    bsdWarning @44;
+    speedDown @45;
+    stopStop @46;
+    reverseGear2 @47;
+    audio1 @48;
+    audio2 @49;
+    audio3 @50;
+    audio4 @51;
+    audio5 @52;
+    audio6 @53;
+    audio7 @54;
+    audio8 @55;
+    audio9 @56;
+    audio10 @57;
+    nnff @58;
+    preLaneChangeCarrot @59;
+    atcCancel @60;
+    atcResume @61;
+    preLaneChangeLeft2 @62;
+    preLaneChangeRight2 @63;
+    laneChangeOk @64;
+    lastLane @65;
+    newLane @66;
+    laneChangeEnd @67;
   }
 }
 
@@ -354,6 +391,11 @@ struct OnroadEventSP @0xda96579883444c35 {
     e2eChime @23;
     laneChangeRoadEdge @24;
     bigModelReady @25;
+
+    # carrot (phone projection & navigation)
+    trafficSignGreen @26;
+    trafficSignChanged @27;
+    trafficStopping @28;
   }
 }
 
@@ -483,16 +525,109 @@ struct LongitudinalMpcTuningSP @0xcb9fd56c7057593a {
   leadDangerFactor @9 :Float32;
 }
 
-struct CustomReserved11 @0xc2243c65e0340384 {
+struct AmapNaviSP @0xc2243c65e0340384 {
+  leftBlind @0 :Int32;
+  rightBlind @1 :Int32;
+  lineValid @2 :Bool;
+  leftLine @3 :Int32;
+  rightLine @4 :Int32;
 }
 
-struct CustomReserved12 @0x9ccdc8676701b412 {
+struct NavInstructionCarrotSP @0x9ccdc8676701b412 {
+  maneuverPrimaryText @0 :Text;
+  maneuverSecondaryText @1 :Text;
+  maneuverDistance @2 :Float32;
+  maneuverType @3 :Text;
+  maneuverModifier @4 :Text;
+  distanceRemaining @5 :Float32;
+  timeRemaining @6 :Float32;
+  timeRemainingTypical @7 :Float32;
+  speedLimit @8 :Float32;
+  allManeuvers @9 :List(Maneuver);
+
+  struct Maneuver {
+    distance @0 :Float32;
+    type @1 :Text;
+    modifier @2 :Text;
+  }
 }
 
-struct CustomReserved13 @0xcd96dafb67a082d0 {
+struct CarrotManSP @0xcd96dafb67a082d0 {
+  activeCarrot @0 :Int32;
+  nRoadLimitSpeed @1 :Int32;
+  remote @2 :Text;
+  xSpdType @3 :Int32;
+  xSpdLimit @4 :Int32;
+  xSpdDist @5 :Int32;
+  xSpdCountDown @6 :Int32;
+  xTurnInfo @7 :Int32;
+  xDistToTurn @8 :Int32;
+  xTurnCountDown @9 :Int32;
+  atcType @10 :Text;
+  vTurnSpeed @11 :Int32;
+  szPosRoadName @12 :Text;
+  szTBTMainText @13 :Text;
+  desiredSpeed @14 :Int32;
+  desiredSource @15 :Text;
+  carrotCmdIndex @16 :Int32;
+  carrotCmd @17 :Text;
+  carrotArg @18 :Text;
+  xPosLat @19 :Float32;
+  xPosLon @20 :Float32;
+  xPosAngle @21 :Float32;
+  xPosSpeed @22 :Float32;
+  trafficState @23 :Int32;
+  nGoPosDist @24 :Int32;
+  nGoPosTime @25 :Int32;
+  szSdiDescr @26 :Text;
+  naviPaths @27 :Text;
+  leftSec @28 :Int32;
+  xDistToTurnNav @29 :Int32;
+  xDistToTurnNavLast @30 :Int32;
+  xDistToTurnMax @31 :Int32;
+  xDistToTurnMaxCnt @32 :Int32;
+  xLeftTurnSec @33 :Int32;
+  roadCate @34 :Int32;
+  extBlinker @35 :Int32;
+  extState @36 :Int32;
+  leftBlind @37 :Int32;
+  rightBlind @38 :Int32;
+  trafficCountdown @39 :Int32;
+  szGoalName @40 :Text;
+  szTBTMainTextNext @41 :Text;
+  szNearDirName @42 :Text;
 }
 
-struct CustomReserved14 @0xb057204d7deadf3f {
+struct ImuCalibrationSP @0xb057204d7deadf3f {
+  status @0 :Status;
+  progress @1 :Int8;
+  error @2 :Error;
+  rpyCalib @3 :List(Float32);
+  imuCalibMatrix @4 :List(Float32);
+  yawStd @5 :Float32;
+  validRatio @6 :Float32;
+
+  enum Status {
+    idle @0;
+    staticCollecting @1;
+    dynamicCollecting @2;
+    computing @3;
+    completed @4;
+    failed @5;
+    cancelled @6;
+  }
+
+  enum Error {
+    none @0;
+    notStationary @1;
+    slopeTooSteep @2;
+    notEnoughStaticSamples @3;
+    noStraightRoad @4;
+    timeout @5;
+    cameraOdometryUnreliable @6;
+    computationFailed @7;
+    matrixInvalid @8;
+  }
 }
 
 struct CustomReserved15 @0xbd443b539493bc68 {

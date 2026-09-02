@@ -315,4 +315,27 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LongitudinalMpcTuningAChangeCost", {PERSISTENT | BACKUP, FLOAT, "200.0"}},
     {"LongitudinalMpcTuningDangerZoneCost", {PERSISTENT | BACKUP, FLOAT, "100.0"}},
     {"LongitudinalMpcTuningLeadDangerFactor", {PERSISTENT | BACKUP, FLOAT, "0.75"}},
+
+    // Amap / Carrot (phone projection & navigation)
+    {"AmapEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"AmapApiKey", {PERSISTENT | DONT_LOG, STRING}},
+    {"AmapNaviUdpPort", {PERSISTENT | BACKUP, INT, "0"}},
+    {"CarrotEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"CarrotManUdpPort", {PERSISTENT | BACKUP, INT, "0"}},
+    {"MyDrivingMode", {PERSISTENT | BACKUP, INT, "1"}},  // 0=eco,1=normal,2=sport,3=safe
+    {"TFollowGap1", {PERSISTENT | BACKUP, FLOAT, "1.8"}},
+    {"TFollowGap2", {PERSISTENT | BACKUP, FLOAT, "1.5"}},
+    {"TFollowGap3", {PERSISTENT | BACKUP, FLOAT, "1.2"}},
+    {"TFollowGap4", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"CruiseMaxVals0", {PERSISTENT | BACKUP, FLOAT, "1.5"}},
+    {"CruiseMaxVals1", {PERSISTENT | BACKUP, FLOAT, "1.8"}},
+    {"CruiseMaxVals2", {PERSISTENT | BACKUP, FLOAT, "2.0"}},
+    {"CruiseMaxVals3", {PERSISTENT | BACKUP, FLOAT, "2.2"}},
+    {"CruiseMaxVals4", {PERSISTENT | BACKUP, FLOAT, "2.4"}},
+    {"CruiseMaxVals5", {PERSISTENT | BACKUP, FLOAT, "2.6"}},
+    {"CruiseMaxVals6", {PERSISTENT | BACKUP, FLOAT, "2.8"}},
+    {"TrafficLightDetectMode", {PERSISTENT | BACKUP, INT, "1"}},  // 0=off,1=red stop,2=red stop + green go
+    {"CarrotCurveSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"CarrotNavCruiseSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"CarrotHudInfoEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
 };

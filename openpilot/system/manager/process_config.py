@@ -110,6 +110,12 @@ def imu_calibration_enabled(started: bool, params: Params, CP: car.CarParams) ->
 def imu_calibration_disabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   return not params.get_bool("ImuCalibrationEnabled")
 
+def amap_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and params.get_bool("AmapEnabled")
+
+def carrot_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and params.get_bool("CarrotEnabled")
+
 def mapd_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
   return bool(os.path.exists(Paths.mapd_root()))
 
@@ -198,6 +204,10 @@ procs += [
   # mapd
   NativeProcess("mapd", Paths.mapd_root(), ["bash", "-c", f"{MAPD_PATH} > /dev/null 2>&1"], mapd_ready),
   PythonProcess("mapd_manager", "openpilot.sunnypilot.mapd.mapd_manager", always_run),
+
+  # Amap / Carrot
+  PythonProcess("mapd_amap", "openpilot.sunnypilot.mapd.amap.mapd_amap", amap_enabled),
+  PythonProcess("carrot_man", "openpilot.sunnypilot.carrot.carrot_man", carrot_enabled),
 
   # locationd
   NativeProcess("locationd_llk", "openpilot/sunnypilot/selfdrive/locationd", ["./locationd"], only_onroad),

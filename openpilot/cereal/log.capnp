@@ -2646,10 +2646,10 @@ struct Event {
     liveMapDataSP @115 :Custom.LiveMapDataSP;
     modelDataV2SP @116 :Custom.ModelDataV2SP;
     longitudinalMpcTuningSP @136 :Custom.LongitudinalMpcTuningSP;
-    customReserved11 @137 :Custom.CustomReserved11;
-    customReserved12 @138 :Custom.CustomReserved12;
-    customReserved13 @139 :Custom.CustomReserved13;
-    customReserved14 @140 :Custom.CustomReserved14;
+    amapNaviSP @137 :Custom.AmapNaviSP;
+    navInstructionCarrotSP @138 :Custom.NavInstructionCarrotSP;
+    carrotManSP @139 :Custom.CarrotManSP;
+    imuCalibrationSP @140 :Custom.ImuCalibrationSP;
     customReserved15 @141 :Custom.CustomReserved15;
     customReserved16 @142 :Custom.CustomReserved16;
     customReserved17 @143 :Custom.CustomReserved17;

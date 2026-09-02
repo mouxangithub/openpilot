@@ -513,16 +513,19 @@ void Localizer::handle_live_calib(double current_time, const cereal::ExtrinsicsC
     return;
   }
 
-  // Prefer the full 3x3 IMU-to-vehicle rotation matrix when available.
-  // This bypasses the small-angle rpyCalib sanity check and supports large
-  // or arbitrary device mounting angles.
-  if (log.getImuCalibMatrix().size() == 9) {
+  // cameraOdometry is published in the calibration frame defined by rpyCalib,
+  // so locationd must follow rpyCalib to correctly transform camera motion into
+  // the device frame. A full 3x3 IMU calibration matrix is only applied when
+  // the calibration is explicitly marked complete; during dynamic collecting
+  // the incremental rpyCalib is used instead.
+  if (log.getImuCalibMatrix().size() == 9 &&
+      log.getCalStatus() == cereal::ExtrinsicsCalibration::Status::CALIBRATED) {
     Matrix3d imu_calib = parse_imu_calib_matrix(log.getImuCalibMatrix());
     double det = imu_calib.determinant();
     if ((det > 0.99) && (det < 1.01)) {
       this->device_from_calib = imu_calib;
       this->calib_from_device = imu_calib.transpose();
-      this->calibrated = log.getCalStatus() == cereal::ExtrinsicsCalibration::Status::CALIBRATED;
+      this->calibrated = true;
       this->observation_values_invalid["extrinsicsCalibration"] *= DECAY;
     } else {
       LOGE("IMU calibration matrix has invalid determinant: %f", det);
@@ -533,7 +536,11 @@ void Localizer::handle_live_calib(double current_time, const cereal::ExtrinsicsC
 
   if (log.getRpyCalib().size() > 0) {
     auto live_calib = floatlist2vector(log.getRpyCalib());
-    if ((live_calib.minCoeff() < -CALIB_RPY_SANITY_CHECK) || (live_calib.maxCoeff() > CALIB_RPY_SANITY_CHECK)) {
+    // When IMU calibration is enabled the device can be mounted at large
+    // angles (e.g. horizontal), so the stock rpyCalib sanity limits do not
+    // apply. Only enforce them in the legacy non-IMU-calibration path.
+    if (!this->imu_calibration_enabled &&
+        ((live_calib.minCoeff() < -CALIB_RPY_SANITY_CHECK) || (live_calib.maxCoeff() > CALIB_RPY_SANITY_CHECK))) {
       this->observation_values_invalid["extrinsicsCalibration"] += 1.0;
       return;
     }
@@ -713,7 +720,8 @@ void Localizer::load_imu_calibration_params() {
   // are already rotated correctly. The live extrinsicsCalibration messages will
   // update this matrix and the calibrated flag as they arrive.
   Params params;
-  if (!params.getBool("ImuCalibrationEnabled")) {
+  this->imu_calibration_enabled = params.getBool("ImuCalibrationEnabled");
+  if (!this->imu_calibration_enabled) {
     return;
   }
 

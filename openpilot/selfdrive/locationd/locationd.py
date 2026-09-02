@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from openpilot.cereal import log, messaging
 from openpilot.cereal.services import SERVICE_LIST
-from openpilot.common.transformations.orientation import rot_from_euler
+from openpilot.common.transformations.orientation import rot_from_euler, sensor_to_device_frame
 from openpilot.common.realtime import config_realtime_process
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
@@ -129,8 +129,7 @@ class LocationEstimator:
       if not self._validate_sensor_source(msg.source):
         return HandleLogResult.SENSOR_SOURCE_INVALID
 
-      v = msg.acceleration.v
-      meas = np.array([-v[2], -v[1], -v[0]])
+      meas = sensor_to_device_frame(msg.acceleration.v)
       if np.linalg.norm(meas) >= ACCEL_SANITY_CHECK:
         return HandleLogResult.INPUT_INVALID
 
@@ -149,8 +148,7 @@ class LocationEstimator:
       if not self._validate_sensor_source(msg.source):
         return HandleLogResult.SENSOR_SOURCE_INVALID
 
-      v = msg.gyroUncalibrated.v
-      meas = np.array([-v[2], -v[1], -v[0]])
+      meas = sensor_to_device_frame(msg.gyroUncalibrated.v)
 
       gyro_bias = self.kf.x[States.GYRO_BIAS]
       gyro_camodo_yawrate_err = np.abs((meas[2] - gyro_bias[2]) - self.camodo_yawrate_distribution[0])
@@ -170,9 +168,12 @@ class LocationEstimator:
       self.car_speed = abs(msg.vEgo)
 
     elif which == "extrinsicsCalibration":
-      # Note that we use this message during calibration
-      if len(msg.imuCalibMatrix) == 9:
-        # Full 3x3 IMU-to-vehicle matrix from imu_calibrationd; bypass Euler limits
+      # cameraOdometry is published in the calibration frame defined by
+      # rpyCalib, so locationd must follow rpyCalib to correctly transform
+      # camera motion into the device frame. A full IMU calibration matrix is
+      # only applied when the calibration is explicitly marked complete; during
+      # dynamic collecting the incremental rpyCalib is used instead.
+      if len(msg.imuCalibMatrix) == 9 and msg.calStatus == log.ExtrinsicsCalibration.Status.calibrated:
         R = np.array(msg.imuCalibMatrix, dtype=np.float64).reshape(3, 3)
         det = float(np.linalg.det(R))
         if 0.99 < det < 1.01:
@@ -180,11 +181,14 @@ class LocationEstimator:
           self.use_imu_calib = True
         else:
           return HandleLogResult.INPUT_INVALID
-      elif len(msg.rpyCalib) > 0 and not self.use_imu_calib:
-        calib = np.array(msg.rpyCalib)
-        if calib.min() < -CALIB_RPY_SANITY_CHECK or calib.max() > CALIB_RPY_SANITY_CHECK:
-          return HandleLogResult.INPUT_INVALID
 
+      if len(msg.rpyCalib) > 0:
+        calib = np.array(msg.rpyCalib)
+        # When IMU calibration is enabled the device can be mounted at large
+        # angles (e.g. horizontal), so the stock rpyCalib sanity limits do not
+        # apply. Only enforce them in the legacy non-IMU-calibration path.
+        if not self.use_imu_calib and (calib.min() < -CALIB_RPY_SANITY_CHECK or calib.max() > CALIB_RPY_SANITY_CHECK):
+          return HandleLogResult.INPUT_INVALID
         self.device_from_calib = rot_from_euler(calib)
 
     elif which == "cameraOdometry":

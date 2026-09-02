@@ -182,9 +182,9 @@ class PoseCalibrator:
     if len(extrinsics_calibration.imuCalibMatrix) == 9:
       device_from_calib = np.array(extrinsics_calibration.imuCalibMatrix, dtype=np.float64).reshape(3, 3)
       det = float(np.linalg.det(device_from_calib))
-      if 0.99 < det < 1.01:
+      if 0.99 < det < 1.01 and extrinsics_calibration.calStatus == log.ExtrinsicsCalibration.Status.calibrated:
         self.calib_from_device = device_from_calib.T
-        self.calib_valid = extrinsics_calibration.calStatus == log.ExtrinsicsCalibration.Status.calibrated
+        self.calib_valid = True
         return
     calib_rpy = np.array(extrinsics_calibration.rpyCalib)
     device_from_calib = rot_from_euler(calib_rpy)
