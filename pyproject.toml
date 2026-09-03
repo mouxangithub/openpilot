@@ -44,6 +44,7 @@ dependencies = [
 
   # these should be removed
   "pyzmq",
+  "shapely>=2.0",  # carrot navigation path resampling
   "sentry-sdk",
   "setproctitle",
   "jeepney",

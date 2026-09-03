@@ -5,76 +5,48 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-import json
 import math
 import socket
 import threading
+from typing import Any
 
 from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper, config_realtime_process
 from openpilot.common.swaglog import cloudlog
 import openpilot.cereal.messaging as messaging
 
+from openpilot.sunnypilot.carrot.amap_navi import AmapNaviServ, parse_packet
+from openpilot.sunnypilot.carrot.carrot_serv import (
+  CarrotServ,
+  TURN_TYPE_MAPPING,
+)
+from openpilot.sunnypilot.carrot.config import UnifiedParams
+
+try:
+  from shapely.geometry import LineString
+  SHAPELY_AVAILABLE = True
+except ImportError:
+  SHAPELY_AVAILABLE = False
+
 
 DEFAULT_RATE = 10.  # Hz
 UDP_BUFFER_SIZE = 4096
 PACKET_TIMEOUT_SEC = 3.0
+AMAP_UDP_PORT_DEFAULT = 0  # 0 == disabled (must be enabled by user)
 
 # Korean TMAP turn-type codes from the CarrotMan app -> (maneuverType, maneuverModifier, xTurnInfo).
 # xTurnInfo semantics used by the sunnypilot UI/planner:
 #   1=left turn, 2=right turn, 3=left lane change, 4=right lane change,
 #   5=rotary, 6=tg, 7=arrive/uturn, 8=straight/arrive.
-TURN_TYPE_MAPPING: dict[int, tuple[str, str, int]] = {
-  12: ("turn", "left", 1),
-  16: ("turn", "sharp left", 1),
-  13: ("turn", "right", 2),
-  19: ("turn", "sharp right", 2),
-  102: ("off ramp", "slight left", 3),
-  105: ("off ramp", "slight left", 3),
-  112: ("off ramp", "slight left", 3),
-  115: ("off ramp", "slight left", 3),
-  101: ("off ramp", "slight right", 4),
-  104: ("off ramp", "slight right", 4),
-  111: ("off ramp", "slight right", 4),
-  114: ("off ramp", "slight right", 4),
-  7: ("fork", "left", 3),
-  44: ("fork", "left", 3),
-  17: ("fork", "left", 3),
-  75: ("fork", "left", 3),
-  76: ("fork", "left", 3),
-  118: ("fork", "left", 3),
-  6: ("fork", "right", 4),
-  43: ("fork", "right", 4),
-  73: ("fork", "right", 4),
-  74: ("fork", "right", 4),
-  123: ("fork", "right", 4),
-  124: ("fork", "right", 4),
-  117: ("fork", "right", 4),
-  131: ("rotary", "slight right", 5),
-  132: ("rotary", "slight right", 5),
-  140: ("rotary", "slight left", 5),
-  141: ("rotary", "slight left", 5),
-  133: ("rotary", "right", 5),
-  134: ("rotary", "sharp right", 5),
-  135: ("rotary", "sharp right", 5),
-  136: ("rotary", "sharp left", 5),
-  137: ("rotary", "sharp left", 5),
-  138: ("rotary", "sharp left", 5),
-  139: ("rotary", "left", 5),
-  142: ("rotary", "straight", 5),
-  14: ("turn", "uturn", 7),
-  201: ("arrive", "straight", 8),
-  51: ("notification", "straight", 0),
-  52: ("notification", "straight", 0),
-  53: ("notification", "straight", 0),
-  54: ("notification", "straight", 0),
-  55: ("notification", "straight", 0),
-  153: ("", "", 6),
-  154: ("", "", 6),
-  249: ("", "", 6),
-}
+TURN_TYPE_MAPPING: dict[int, tuple[str, str, int]] = TURN_TYPE_MAPPING
 
-SDI_SPEED_CAMERA_TYPES = (0, 1, 2, 3, 4, 7, 8, 75, 76)
+# Curve-speed lookup table (reciprocal radius [1/m] -> km/h).
+# Used when the phone navi sends a curvature-aware speed advisory.
+V_CURVE_LOOKUP_BP: tuple[float, ...] = (
+  0.0, 1 / 800, 1 / 670, 1 / 560, 1 / 440, 1 / 360, 1 / 265, 1 / 190, 1 / 135,
+  1 / 85, 1 / 55, 1 / 30, 1 / 25,
+)
+V_CRUVE_LOOKUP_VALS: tuple[float, ...] = (300, 150, 120, 110, 100, 90, 80, 70, 60, 50, 40, 15, 5)
 
 # Approximate curve-speed model: given a turn type and distance, recommend an
 # approach speed.  This is a simplified stand-in for the full polynomial model
@@ -111,13 +83,13 @@ def _interpolate_speed(distance_m: float, table: list[tuple[float, float]]) -> f
 def _safe_int(value, default: int = 0) -> int:
   if isinstance(value, bool):
     return int(value)
-  if isinstance(value, (int, float)) and not math.isnan(value):
+  if isinstance(value, (int, float)) and not (isinstance(value, float) and math.isnan(value)):
     return int(value)
   return default
 
 
 def _safe_float(value, default: float = 0.0) -> float:
-  if isinstance(value, (int, float)) and not math.isnan(value):
+  if isinstance(value, (int, float)) and not (isinstance(value, float) and math.isnan(value)):
     return float(value)
   return default
 
@@ -130,13 +102,157 @@ def _turn_info(turn_type: int) -> tuple[str, str, int]:
   return TURN_TYPE_MAPPING.get(turn_type, ("invalid", "", -1))
 
 
+# --------------------------------------------------------------------------- #
+# Navigation path helpers (ported from CarrotPilot)                            #
+# --------------------------------------------------------------------------- #
+
+
+def haversine(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
+  """Calculate distance between two GPS coordinates in meters."""
+  r = 6371000.0
+  phi1, phi2 = math.radians(lat1), math.radians(lat2)
+  dphi = math.radians(lat2 - lat1)
+  dlambda = math.radians(lon2 - lon1)
+
+  a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+  return 2 * r * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def closest_point_on_segment(p1: tuple[float, float], p2: tuple[float, float], current_position: tuple[float, float]) -> tuple[float, float]:
+  """Get the closest point on a segment between two coordinates."""
+  x1, y1 = p1
+  x2, y2 = p2
+  px, py = current_position
+
+  dx = x2 - x1
+  dy = y2 - y1
+  if dx == 0 and dy == 0:
+    return p1
+
+  t = ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)
+  t = max(0, min(1, t))
+
+  closest_x = x1 + t * dx
+  closest_y = y1 + t * dy
+
+  return (closest_x, closest_y)
+
+
+def get_path_after_distance(start_index: int,
+                            coordinates: list[tuple[float, float]],
+                            current_position: tuple[float, float],
+                            distance_m: float) -> tuple[list[tuple[float, float]], int, tuple[float, float] | None]:
+  """Get path after a certain distance from the current position."""
+  total_distance = 0
+  path_after_distance: list[tuple[float, float]] = []
+  closest_index = -1
+  closest_point: tuple[float, float] | None = None
+  min_distance = float('inf')
+
+  start_index = max(0, start_index - 2)
+
+  for i in range(start_index, len(coordinates) - 1):
+    p1 = coordinates[i]
+    p2 = coordinates[i + 1]
+    candidate_point = closest_point_on_segment(p1, p2, current_position)
+    distance = haversine(current_position[0], current_position[1], candidate_point[0], candidate_point[1])
+
+    if distance < min_distance:
+      min_distance = distance
+      closest_point = candidate_point
+      closest_index = i
+    elif distance > min_distance and min_distance < 10:
+      break
+
+  start_index = closest_index
+  if closest_index != -1:
+    path_after_distance.append(closest_point)
+    path_after_distance.append(coordinates[closest_index + 1])
+    total_distance = haversine(closest_point[0], closest_point[1], coordinates[closest_index + 1][0], coordinates[closest_index + 1][1])
+
+    for i in range(closest_index + 1, len(coordinates) - 1):
+      coord1 = coordinates[i]
+      coord2 = coordinates[i + 1]
+      segment_distance = haversine(coord1[0], coord1[1], coord2[0], coord2[1])
+
+      if total_distance + segment_distance >= distance_m and segment_distance > 0:
+        remaining_distance = distance_m - total_distance
+        ratio = remaining_distance / segment_distance
+        interpolated_lon = coord1[0] + ratio * (coord2[0] - coord1[0])
+        interpolated_lat = coord1[1] + ratio * (coord2[1] - coord1[1])
+        path_after_distance.append((interpolated_lon, interpolated_lat))
+        break
+
+      total_distance += segment_distance
+      path_after_distance.append(coord2)
+
+  return path_after_distance, start_index, closest_point
+
+
+def gps_to_relative_xy(gps_path: list[tuple[float, float]], reference_point: tuple[float, float], heading_deg: float) -> list[tuple[float, float]]:
+  """Convert GPS coordinates to relative x, y coordinates based on a reference point and heading."""
+  ref_lon, ref_lat = reference_point
+  relative_coordinates: list[tuple[float, float]] = []
+
+  heading_rad = math.radians(heading_deg)
+
+  for lon, lat in gps_path:
+    x = (lon - ref_lon) * 40008000 * math.cos(math.radians(ref_lat)) / 360
+    y = (lat - ref_lat) * 40008000 / 360
+
+    x_rot = x * math.cos(heading_rad) - y * math.sin(heading_rad)
+    y_rot = x * math.sin(heading_rad) + y * math.cos(heading_rad)
+
+    relative_coordinates.append((y_rot, x_rot))
+
+  return relative_coordinates
+
+
+def calculate_curvature(p1: tuple[float, float], p2: tuple[float, float], p3: tuple[float, float]) -> float:
+  """Calculate curvature given three points using a faster vector-based method."""
+  v1 = (p2[0] - p1[0], p2[1] - p1[1])
+  v2 = (p3[0] - p2[0], p3[1] - p2[1])
+
+  cross_product = v1[0] * v2[1] - v1[1] * v2[0]
+  len_v1 = math.sqrt(v1[0] ** 2 + v1[1] ** 2)
+  len_v2 = math.sqrt(v2[0] ** 2 + v2[1] ** 2)
+
+  if len_v1 * len_v2 == 0:
+    return 0.0
+
+  return cross_product / (len_v1 * len_v2 * len_v1)
+
+
+def _interp_table(x: float, bp: tuple[float, ...], vals: tuple[float, ...]) -> float:
+  """Plain 1-D table lookup. ``bp`` must be sorted ascending."""
+  if not bp or not vals:
+    return 0.0
+  if x <= bp[0]:
+    return float(vals[0])
+  if x >= bp[-1]:
+    return float(vals[-1])
+  for i in range(len(bp) - 1):
+    if bp[i] <= x <= bp[i + 1]:
+      span = bp[i + 1] - bp[i]
+      if span <= 0:
+        return float(vals[i])
+      ratio = (x - bp[i]) / span
+      return float(vals[i] + ratio * (vals[i + 1] - vals[i]))
+  return float(vals[-1])
+
+
 class CarrotManager:
   """Receive navigation/ADAS data from the CarrotMan phone app over UDP and
-  publish ``carrotManSP`` + ``navInstructionCarrotSP``.
+  publish ``carrotManSP`` + ``navInstructionCarrotSP`` + ``amapNaviSP``.
 
   The daemon also subscribes to the stock ``navInstruction`` and ``carState``
   sockets so it can fall back to the stock route guidance when the CarrotMan app
   is not streaming data.
+
+  Sub-modules wired in:
+    * :class:`CarrotServ` - SDI / TBT / ATC derivation + cruise advisory
+    * :class:`AmapNaviServ` - 4-corner radar + amap blind spot bridge
+    * :class:`WebInterface` - optional HTTP control plane (lazy started)
 
   Wire format (UTF-8 JSON, UDP):
 
@@ -157,11 +273,19 @@ class CarrotManager:
 
   def __init__(self):
     self.params = Params()
-    self.sm = messaging.SubMaster(['deviceState', 'carState', 'navInstruction'])
-    self.pm = messaging.PubMaster(['carrotManSP', 'navInstructionCarrotSP'])
+    self._unified = UnifiedParams()
+    self.sm = messaging.SubMaster(['deviceState', 'carState', 'controlsState', 'navInstruction'])
+    self.pm = messaging.PubMaster(['carrotManSP', 'navInstructionCarrotSP', 'amapNaviSP'])
+
+    # Sub-modules.
+    self._carrot_serv = CarrotServ(self._unified)
+    self._amap_navi = AmapNaviServ()
+    self._web: Any = None  # Lazy import: only used when ``--web`` flag is set.
 
     self._enabled = False
     self._port = 0
+    self._amap_port = AMAP_UDP_PORT_DEFAULT
+    self._start_web = False
 
     self._sock: socket.socket | None = None
     self._lock = threading.Lock()
@@ -169,62 +293,43 @@ class CarrotManager:
     self._last_seq: int | None = None
     self._remote_addr: str = ""
 
-    # Raw state from the phone app.
-    self._raw = {
-      'nRoadLimitSpeed': 0,
-      'nSdiType': -1,
-      'nSdiSpeedLimit': 0,
-      'nSdiDist': 0,
-      'nSdiBlockType': -1,
-      'nSdiBlockSpeed': 0,
-      'nSdiBlockDist': 0,
-      'nSdiPlusType': -1,
-      'nSdiPlusSpeedLimit': 0,
-      'nSdiPlusDist': 0,
-      'nSdiPlusBlockType': -1,
-      'nSdiPlusBlockSpeed': 0,
-      'nSdiPlusBlockDist': 0,
-      'nTBTDist': 0,
-      'nTBTTurnType': -1,
-      'szTBTMainText': "",
-      'szNearDirName': "",
-      'szFarDirName': "",
-      'nTBTDistNext': 0,
-      'nTBTTurnTypeNext': -1,
-      'szTBTMainTextNext': "",
-      'nGoPosDist': 0,
-      'nGoPosTime': 0,
-      'szPosRoadName': "",
-      'vpPosPointLat': 0.0,
-      'vpPosPointLon': 0.0,
-      'nPosAngle': 0.0,
-      'nPosSpeed': 0.0,
-      'carrotCmdIndex': 0,
-      'carrotCmd': "",
-      'carrotArg': "",
-      'roadcate': 0,
-      'leftBlind': 0,
-      'rightBlind': 0,
-    }
+    # Navigation path state (P0-1)
+    self._navi_points: list[tuple[float, float]] = []
+    self._navi_points_start_index = 0
+    self._navi_points_active = False
+    self._navd_active = False
+    self._active_carrot_last = 0
 
-    # Derived state published every tick.
-    self._nav_type = "invalid"
-    self._nav_modifier = ""
-    self._x_turn_info = -1
-    self._x_dist_to_turn = 0
-    self._nav_type_next = "invalid"
-    self._nav_modifier_next = ""
-    self._x_turn_info_next = -1
-    self._x_dist_to_turn_next = 0
-    self._x_spd_type = -1
-    self._x_spd_limit = 0
-    self._x_spd_dist = 0
-    self._v_turn_speed = 0
-    self._desired_speed = 0
-    self._desired_source = ""
-    self._active_carrot = 0
-    self._traffic_state = 0
-    self._sz_sdi_descr = ""
+    # Broadcast state (P1-1)
+    self._broadcast_ip: str | None = None
+    self._broadcast_port = 7705
+    self._carrot_man_port = 7706
+    self._ip_address = "0.0.0.0"
+    self._is_running = False
+    self._broadcast_thread: threading.Thread | None = None
+
+    # ZMQ remote command state (P1-2)
+    self._zmq_thread: threading.Thread | None = None
+    self._zmq_running = False
+    self._is_onroad_count = 0
+    self._is_tmux_sent = False
+    self._show_panda_debug = False
+
+    # Navigation route state (P2-1)
+    self._route_thread: threading.Thread | None = None
+    self._route_running = False
+    self._route_port = 7709
+
+    # Panda debug state (P3-1)
+    self._panda_debug_thread: threading.Thread | None = None
+    self._panda_debug_running = False
+
+    # Kisa app state (P3-2)
+    self._kisa_thread: threading.Thread | None = None
+    self._kisa_running = False
+    self._kisa_port = 12345
+
+  # ---- socket plumbing -------------------------------------------------- #
 
   def _ensure_socket(self, port: int) -> bool:
     with self._lock:
@@ -237,10 +342,11 @@ class CarrotManager:
           pass
         self._sock = None
       try:
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._sock.bind(('0.0.0.0', port))
-        self._sock.setblocking(False)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(('0.0.0.0', port))
+        sock.setblocking(False)
+        self._sock = sock
         self._port = port
         cloudlog.info(f"carrot_man: listening on UDP port {port}")
         return True
@@ -259,195 +365,26 @@ class CarrotManager:
         self._sock = None
         self._port = 0
 
-  def _parse_packet(self, data: bytes) -> dict | None:
-    try:
-      decoded = data.decode('utf-8')
-      msg = json.loads(decoded)
-      return msg if isinstance(msg, dict) else None
-    except Exception:
-      return None
+  def _parse_packet(self, data: bytes) -> dict[str, Any] | None:
+    return parse_packet(data)
 
-  def _update_raw(self, msg: dict, recv_mono: float) -> None:
-    seq = msg.get('carrotIndex')
-    if isinstance(seq, (int, float)) and not math.isnan(seq):
-      seq = int(seq)
-      if self._last_seq is not None and 0 <= seq < self._last_seq:
-        return
-      self._last_seq = seq
+  # ---- ingestion -------------------------------------------------------- #
 
-    r = self._raw
-    r['nRoadLimitSpeed'] = _safe_int(msg.get('nRoadLimitSpeed'), r['nRoadLimitSpeed'])
-    r['nSdiType'] = _safe_int(msg.get('nSdiType'), r['nSdiType'])
-    r['nSdiSpeedLimit'] = _safe_int(msg.get('nSdiSpeedLimit'), r['nSdiSpeedLimit'])
-    r['nSdiDist'] = _safe_int(msg.get('nSdiDist'), r['nSdiDist'])
-    r['nSdiBlockType'] = _safe_int(msg.get('nSdiBlockType'), r['nSdiBlockType'])
-    r['nSdiBlockSpeed'] = _safe_int(msg.get('nSdiBlockSpeed'), r['nSdiBlockSpeed'])
-    r['nSdiBlockDist'] = _safe_int(msg.get('nSdiBlockDist'), r['nSdiBlockDist'])
-    r['nSdiPlusType'] = _safe_int(msg.get('nSdiPlusType'), r['nSdiPlusType'])
-    r['nSdiPlusSpeedLimit'] = _safe_int(msg.get('nSdiPlusSpeedLimit'), r['nSdiPlusSpeedLimit'])
-    r['nSdiPlusDist'] = _safe_int(msg.get('nSdiPlusDist'), r['nSdiPlusDist'])
-    r['nSdiPlusBlockType'] = _safe_int(msg.get('nSdiPlusBlockType'), r['nSdiPlusBlockType'])
-    r['nSdiPlusBlockSpeed'] = _safe_int(msg.get('nSdiPlusBlockSpeed'), r['nSdiPlusBlockSpeed'])
-    r['nSdiPlusBlockDist'] = _safe_int(msg.get('nSdiPlusBlockDist'), r['nSdiPlusBlockDist'])
-    r['nTBTDist'] = _safe_int(msg.get('nTBTDist'), r['nTBTDist'])
-    r['nTBTTurnType'] = _safe_int(msg.get('nTBTTurnType'), r['nTBTTurnType'])
-    r['szTBTMainText'] = _safe_str(msg.get('szTBTMainText'), r['szTBTMainText'])
-    r['szNearDirName'] = _safe_str(msg.get('szNearDirName'), r['szNearDirName'])
-    r['szFarDirName'] = _safe_str(msg.get('szFarDirName'), r['szFarDirName'])
-    r['nTBTDistNext'] = _safe_int(msg.get('nTBTDistNext'), r['nTBTDistNext'])
-    r['nTBTTurnTypeNext'] = _safe_int(msg.get('nTBTTurnTypeNext'), r['nTBTTurnTypeNext'])
-    r['szTBTMainTextNext'] = _safe_str(msg.get('szTBTMainTextNext'), r['szTBTMainTextNext'])
-    r['nGoPosDist'] = _safe_int(msg.get('nGoPosDist'), r['nGoPosDist'])
-    r['nGoPosTime'] = _safe_int(msg.get('nGoPosTime'), r['nGoPosTime'])
-    r['szPosRoadName'] = _safe_str(msg.get('szPosRoadName'), r['szPosRoadName'])
-    if r['szPosRoadName'] == "null":
-      r['szPosRoadName'] = ""
-    r['vpPosPointLat'] = _safe_float(msg.get('vpPosPointLat'), r['vpPosPointLat'])
-    r['vpPosPointLon'] = _safe_float(msg.get('vpPosPointLon'), r['vpPosPointLon'])
-    r['nPosAngle'] = _safe_float(msg.get('nPosAngle'), r['nPosAngle'])
-    r['nPosSpeed'] = _safe_float(msg.get('nPosSpeed'), r['nPosSpeed'])
-    r['roadcate'] = _safe_int(msg.get('roadcate'), r['roadcate'])
-    r['leftBlind'] = _safe_int(msg.get('leftBlind'), r['leftBlind'])
-    r['rightBlind'] = _safe_int(msg.get('rightBlind'), r['rightBlind'])
+  def _update_raw(self, msg: dict[str, Any], recv_mono: float) -> None:
+    seq = _safe_int(msg.get('carrotIndex'), -1)
+    if seq >= 0 and self._last_seq is not None and seq < self._last_seq:
+      return
+    self._last_seq = seq
 
     if 'carrotCmd' in msg:
-      r['carrotCmdIndex'] = self._last_seq or r['carrotCmdIndex']
-      r['carrotCmd'] = _safe_str(msg.get('carrotCmd'))
-      r['carrotArg'] = _safe_str(msg.get('carrotArg'))
-      cloudlog.info(f"carrot_man: remote cmd={r['carrotCmd']} arg={r['carrotArg']}")
+      cloudlog.info(
+        f"carrot_man: remote cmd={msg.get('carrotCmd')} arg={msg.get('carrotArg')}",
+      )
 
-    self._last_packet_mono = recv_mono
-
-  def _derive_state(self) -> None:
-    """Convert raw app fields into the derived CarrotManSP fields."""
-    r = self._raw
-
-    # TBT turn mapping.
-    self._nav_type, self._nav_modifier, self._x_turn_info = _turn_info(r['nTBTTurnType'])
-    self._nav_type_next, self._nav_modifier_next, self._x_turn_info_next = _turn_info(r['nTBTTurnTypeNext'])
-    self._x_dist_to_turn = r['nTBTDist'] if self._x_turn_info > 0 else 0
-    self._x_dist_to_turn_next = 0
-    if self._x_turn_info_next > 0:
-      self._x_dist_to_turn_next = r['nTBTDist'] + r['nTBTDistNext']
-
-    # SDI -> xSpdType/xSpdLimit/xSpdDist.
-    self._sz_sdi_descr = ""
-    if r['nSdiType'] in SDI_SPEED_CAMERA_TYPES and r['nSdiSpeedLimit'] > 0:
-      self._x_spd_limit = r['nSdiSpeedLimit']
-      self._x_spd_dist = r['nSdiDist']
-      self._x_spd_type = r['nSdiType']
-      if r['nSdiBlockType'] in (2, 3):
-        self._x_spd_dist = r['nSdiBlockDist']
-        self._x_spd_type = 4
-    elif (r['nSdiPlusType'] == 22 or r['nSdiType'] == 22) and r['roadcate'] > 1:
-      # Speed bump on non-highway.
-      self._x_spd_limit = 25
-      self._x_spd_dist = r['nSdiPlusDist'] if r['nSdiPlusType'] == 22 else r['nSdiDist']
-      self._x_spd_type = 22
-    else:
-      self._x_spd_limit = 0
-      self._x_spd_type = -1
-      self._x_spd_dist = 0
-
-    if self._x_spd_type >= 0:
-      self._sz_sdi_descr = f"sdi:{self._x_spd_type}"
-
-    # Curve speed for upcoming turn.
-    if self._x_turn_info > 0 and self._x_dist_to_turn > 0:
-      table = TURN_SPEED_TABLE.get(self._x_turn_info, [])
-      self._v_turn_speed = int(_interpolate_speed(self._x_dist_to_turn, table))
-    else:
-      self._v_turn_speed = 0
-
-    # Desired speed: prefer active speed event, then turn speed, then road limit.
-    v_ego_kph = 0.0
-    if self.sm.alive['carState']:
-      v_ego_kph = self.sm['carState'].vEgo * 3.6
-
-    self._desired_speed = 0
-    self._desired_source = ""
-    if self._x_spd_type >= 0 and (self._x_spd_dist > 0 or self._x_spd_type in (100, 101)):
-      self._desired_speed = self._x_spd_limit
-      self._desired_source = "sdi"
-    elif self._v_turn_speed > 0 and self._x_dist_to_turn < 300:
-      self._desired_speed = self._v_turn_speed
-      self._desired_source = "turn"
-    elif r['nRoadLimitSpeed'] >= 30 and v_ego_kph > r['nRoadLimitSpeed'] + 5:
-      self._desired_speed = r['nRoadLimitSpeed']
-      self._desired_source = "limit"
-
-    # activeCarrot mirrors the reference semantics:
-    #   0 = inactive, 1 = enabled but no navi event, 2 = active event.
-    self._active_carrot = 1 if self._enabled else 0
-    if self._x_spd_type >= 0 or self._x_turn_info > 0 or r['nGoPosDist'] > 0:
-      self._active_carrot = 2 if self._enabled else 0
-
-    # trafficState is a placeholder; the reference derives it from signal data.
-    self._traffic_state = 0
-
-  def _maybe_expire_state(self, now_mono: float) -> None:
-    if self._last_packet_mono == 0.0:
-      return
-    if now_mono - self._last_packet_mono > PACKET_TIMEOUT_SEC:
-      self._reset_state()
-      cloudlog.info("carrot_man: state expired due to packet timeout")
-
-  def _reset_state(self) -> None:
-    self._raw = {
-      'nRoadLimitSpeed': 0,
-      'nSdiType': -1,
-      'nSdiSpeedLimit': 0,
-      'nSdiDist': 0,
-      'nSdiBlockType': -1,
-      'nSdiBlockSpeed': 0,
-      'nSdiBlockDist': 0,
-      'nSdiPlusType': -1,
-      'nSdiPlusSpeedLimit': 0,
-      'nSdiPlusDist': 0,
-      'nSdiPlusBlockType': -1,
-      'nSdiPlusBlockSpeed': 0,
-      'nSdiPlusBlockDist': 0,
-      'nTBTDist': 0,
-      'nTBTTurnType': -1,
-      'szTBTMainText': "",
-      'szNearDirName': "",
-      'szFarDirName': "",
-      'nTBTDistNext': 0,
-      'nTBTTurnTypeNext': -1,
-      'szTBTMainTextNext': "",
-      'nGoPosDist': 0,
-      'nGoPosTime': 0,
-      'szPosRoadName': "",
-      'vpPosPointLat': 0.0,
-      'vpPosPointLon': 0.0,
-      'nPosAngle': 0.0,
-      'nPosSpeed': 0.0,
-      'carrotCmdIndex': 0,
-      'carrotCmd': "",
-      'carrotArg': "",
-      'roadcate': 0,
-      'leftBlind': 0,
-      'rightBlind': 0,
-    }
-    self._last_packet_mono = 0.0
-    self._last_seq = None
-    self._nav_type = "invalid"
-    self._nav_modifier = ""
-    self._x_turn_info = -1
-    self._x_dist_to_turn = 0
-    self._nav_type_next = "invalid"
-    self._nav_modifier_next = ""
-    self._x_turn_info_next = -1
-    self._x_dist_to_turn_next = 0
-    self._x_spd_type = -1
-    self._x_spd_limit = 0
-    self._x_spd_dist = 0
-    self._v_turn_speed = 0
-    self._desired_speed = 0
-    self._desired_source = ""
-    self._active_carrot = 0
-    self._traffic_state = 0
-    self._sz_sdi_descr = ""
+    # Fan out to the dedicated service modules.  Each module does its own
+    # field validation / fall-back to defaults.
+    self._carrot_serv.update_raw(msg, recv_mono=recv_mono)
+    self._amap_navi.apply_packet(msg, recv_mono=recv_mono)
 
   def _drain_packets(self) -> None:
     with self._lock:
@@ -469,83 +406,390 @@ class CarrotManager:
         cloudlog.error(f"carrot_man: UDP receive error: {e}")
         break
 
+  def _maybe_expire_state(self, now_mono: float) -> None:
+    if self._carrot_serv.is_stale(now_mono, PACKET_TIMEOUT_SEC):
+      self._carrot_serv.reset()
+    if self._amap_navi.is_stale(now_mono, PACKET_TIMEOUT_SEC):
+      self._amap_navi.reset()
+
+  def _reset_state(self) -> None:
+    self._carrot_serv.reset()
+    self._amap_navi.reset()
+    self._last_packet_mono = 0.0
+    self._last_seq = None
+    self._remote_addr = ""
+    self._navi_points = []
+    self._navi_points_active = False
+    self._navd_active = False
+    self._active_carrot_last = 0
+
+  # ---- navigation path (P0-1) -------------------------------------------- #
+
+  def carrot_navi_route(self) -> tuple[list[tuple[float, float]], list[float], float]:
+    """Calculate navigation route with curvature-aware speed limits.
+
+    Returns:
+      (resampled_points, resampled_distances, out_speed)
+    """
+    # Check if navi is active
+    if not self._navi_points_active or not SHAPELY_AVAILABLE:
+      if self._navi_points_active:
+        self._navi_points = []
+        self._navi_points_active = False
+      self._active_carrot_last = self._carrot_serv.active_carrot
+      return [], [], 300.0
+
+    if self._carrot_serv.active_carrot <= 1 and not self._navd_active:
+      if self._navi_points_active:
+        self._navi_points = []
+        self._navi_points_active = False
+      self._active_carrot_last = self._carrot_serv.active_carrot
+      return [], [], 300.0
+
+    current_position = (self._carrot_serv.vp_pos_point_lon, self._carrot_serv.vp_pos_point_lat)
+    heading_deg = self._carrot_serv.bearing
+
+    distance_interval = 10.0
+    out_speed = 300.0
+
+    path, self._navi_points_start_index, start_point = get_path_after_distance(
+      self._navi_points_start_index, self._navi_points, current_position, 300.0
+    )
+    relative_coords: list[tuple[float, float]] = []
+
+    if path:
+      relative_coords = gps_to_relative_xy(path, start_point, heading_deg)
+
+      # Resample relative_coords at 10m intervals using LineString
+      line = LineString(relative_coords)
+      resampled_points: list[tuple[float, float]] = []
+      resampled_distances: list[float] = []
+      current_distance = 0.0
+      while current_distance <= line.length:
+        point = line.interpolate(current_distance)
+        resampled_points.append((point.x, point.y))
+        resampled_distances.append(current_distance)
+        current_distance += distance_interval
+
+      curvatures: list[float] = []
+      distances: list[float] = []
+      distance = 10.0
+      sample = 4
+
+      if len(resampled_points) >= sample * 2 + 1:
+        speeds: list[float] = []
+        for i in range(len(resampled_points) - sample * 2):
+          distance += distance_interval
+          p1, p2, p3 = resampled_points[i], resampled_points[i + sample], resampled_points[i + sample * 2]
+          curvature = calculate_curvature(p1, p2, p3)
+          curvatures.append(curvature)
+          speed = _interp_table(abs(curvature), V_CURVE_LOOKUP_BP, V_CRUVE_LOOKUP_VALS)
+          if abs(curvature) < 0.02:
+            speed = max(speed, self._carrot_serv.n_road_limit_speed)
+          speeds.append(speed)
+          distances.append(distance)
+
+        # Apply acceleration limits in reverse to adjust speeds
+        accel_limit = self._carrot_serv.auto_navi_speed_decel_rate  # m/s^2
+        accel_limit_kmh = accel_limit * 3.6  # Convert to km/h per second
+        out_speeds = [0.0] * len(speeds)
+        out_speeds[-1] = speeds[-1]
+        v_ego_kph = self.sm['carState'].vEgo * 3.6 if self.sm.alive['carState'] else 0.0
+
+        time_delay = self._carrot_serv.auto_navi_speed_ctrl_end
+        time_wait = 0.0
+        for i in range(len(speeds) - 2, -1, -1):
+          target_speed = speeds[i]
+          next_out_speed = out_speeds[i + 1]
+
+          if target_speed < next_out_speed:
+            time_delay = max(0.0, ((v_ego_kph - target_speed) / accel_limit_kmh))
+            time_wait = -time_delay
+
+          time_interval = distance_interval / (next_out_speed / 3.6) if next_out_speed > 0 else 0.0
+          time_apply = min(time_interval, max(0.0, time_interval + time_wait))
+          max_allowed_speed = next_out_speed + (accel_limit_kmh * time_apply)
+          adjusted_speed = min(target_speed, max_allowed_speed)
+
+          time_wait += min(2.0, time_interval)
+          out_speeds[i] = adjusted_speed
+
+        out_speed = out_speeds[0]
+      else:
+        resampled_points = []
+        resampled_distances = []
+
+      return resampled_points, resampled_distances, out_speed
+
+    return [], [], 300.0
+
+  # ---- publishing ------------------------------------------------------- #
+
+  def _derive_state(self, v_ego_kph: float) -> None:
+    self._carrot_serv.derive(v_ego_kph=v_ego_kph)
+
   def _publish(self) -> None:
-    r = self._raw
+    nav_type = self._carrot_serv.nav_type
+    nav_modifier = self._carrot_serv.nav_modifier
+    x_turn_info = self._carrot_serv.x_turn_info
+    x_dist_to_turn = self._carrot_serv.x_dist_to_turn
+    nav_type_next = self._carrot_serv.nav_type_next
+    nav_modifier_next = self._carrot_serv.nav_modifier_next
+    x_turn_info_next = self._carrot_serv.x_turn_info_next
+    x_dist_to_turn_next = self._carrot_serv.x_dist_to_turn_next
+    x_spd_type = self._carrot_serv.x_spd_type
+    x_spd_limit = self._carrot_serv.x_spd_limit
+    x_spd_dist = self._carrot_serv.x_spd_dist
+    v_turn_speed = self._carrot_serv.v_turn_speed
+    sz_sdi_descr = self._carrot_serv.sz_sdi_descr
+    desired_speed = self._carrot_serv.desired_speed
+    desired_source = self._carrot_serv.desired_source
+    active_carrot = self._carrot_serv.active_carrot
+    atc_type = self._carrot_serv.atc_type
+    roadcate = self._carrot_serv.roadcate
+    raw = self._carrot_serv.raw
 
     carrot_msg = messaging.new_message('carrotManSP')
     carrot_msg.valid = True
     cm = carrot_msg.carrotManSP
-    cm.activeCarrot = self._active_carrot
-    cm.nRoadLimitSpeed = r['nRoadLimitSpeed']
+    cm.activeCarrot = active_carrot
+    cm.nRoadLimitSpeed = _safe_int(raw.get("nRoadLimitSpeed"), 0)
     cm.remote = self._remote_addr
-    cm.xSpdType = self._x_spd_type
-    cm.xSpdLimit = self._x_spd_limit
-    cm.xSpdDist = self._x_spd_dist
+    cm.xSpdType = x_spd_type
+    cm.xSpdLimit = x_spd_limit
+    cm.xSpdDist = x_spd_dist
     cm.xSpdCountDown = 0
-    cm.xTurnInfo = self._x_turn_info
-    cm.xDistToTurn = self._x_dist_to_turn
+    cm.xTurnInfo = x_turn_info
+    cm.xDistToTurn = x_dist_to_turn
     cm.xTurnCountDown = 0
-    cm.atcType = ""
-    cm.vTurnSpeed = self._v_turn_speed
-    cm.szPosRoadName = r['szPosRoadName']
-    cm.szTBTMainText = r['szTBTMainText']
-    cm.desiredSpeed = self._desired_speed
-    cm.desiredSource = self._desired_source
-    cm.carrotCmdIndex = r['carrotCmdIndex']
-    cm.carrotCmd = r['carrotCmd']
-    cm.carrotArg = r['carrotArg']
-    cm.xPosLat = r['vpPosPointLat']
-    cm.xPosLon = r['vpPosPointLon']
-    cm.xPosAngle = r['nPosAngle']
-    cm.xPosSpeed = r['nPosSpeed']
-    cm.trafficState = self._traffic_state
-    cm.nGoPosDist = r['nGoPosDist']
-    cm.nGoPosTime = r['nGoPosTime']
-    cm.szSdiDescr = self._sz_sdi_descr
+    cm.atcType = atc_type
+    cm.vTurnSpeed = v_turn_speed
+    cm.szPosRoadName = _safe_str(raw.get("szPosRoadName"), "")
+    cm.szTBTMainText = _safe_str(raw.get("szTBTMainText"), "")
+    cm.desiredSpeed = desired_speed
+    cm.desiredSource = desired_source
+    cm.carrotCmdIndex = _safe_int(raw.get("carrotCmdIndex"), 0)
+    cm.carrotCmd = _safe_str(raw.get("carrotCmd"), "")
+    cm.carrotArg = _safe_str(raw.get("carrotArg"), "")
+    cm.xPosLat = _safe_float(raw.get("vpPosPointLat"), 0.0)
+    cm.xPosLon = _safe_float(raw.get("vpPosPointLon"), 0.0)
+    cm.xPosAngle = _safe_float(raw.get("nPosAngle"), 0.0)
+    cm.xPosSpeed = _safe_float(raw.get("nPosSpeed"), 0.0)
+    cm.trafficState = 0
+    cm.nGoPosDist = _safe_int(raw.get("nGoPosDist"), 0)
+    cm.nGoPosTime = _safe_int(raw.get("nGoPosTime"), 0)
+    cm.szSdiDescr = sz_sdi_descr
     cm.naviPaths = ""
     cm.leftSec = 0
-    cm.xDistToTurnNav = self._x_dist_to_turn
-    cm.xDistToTurnNavLast = self._x_dist_to_turn_next
-    cm.xDistToTurnMax = self._x_dist_to_turn
+    cm.xDistToTurnNav = x_dist_to_turn
+    cm.xDistToTurnNavLast = x_dist_to_turn_next
+    cm.xDistToTurnMax = x_dist_to_turn
     cm.xDistToTurnMaxCnt = 0
     cm.xLeftTurnSec = 0
-    cm.roadCate = r['roadcate']
-    cm.extBlinker = 0
-    cm.extState = 0
-    cm.leftBlind = r['leftBlind']
-    cm.rightBlind = r['rightBlind']
+    cm.roadCate = roadcate
+    cm.extBlinker = int(self._amap_navi.shared_data.ext_blinker)
+    cm.extState = int(self._amap_navi.shared_data.ext_state)
+    cm.leftBlind = 1 if self._amap_navi.shared_data.left_blind else 0
+    cm.rightBlind = 1 if self._amap_navi.shared_data.right_blind else 0
     cm.trafficCountdown = 0
     cm.szGoalName = ""
-    cm.szTBTMainTextNext = r['szTBTMainTextNext']
-    cm.szNearDirName = r['szNearDirName']
+    cm.szTBTMainTextNext = _safe_str(raw.get("szTBTMainTextNext"), "")
+    cm.szNearDirName = _safe_str(raw.get("szNearDirName"), "")
 
     navi_msg = messaging.new_message('navInstructionCarrotSP')
     navi_msg.valid = True
     ni = navi_msg.navInstructionCarrotSP
-    ni.maneuverPrimaryText = r['szTBTMainText']
+    ni.maneuverPrimaryText = _safe_str(raw.get("szTBTMainText"), "")
     ni.maneuverSecondaryText = ""
-    ni.maneuverDistance = float(self._x_dist_to_turn)
-    ni.maneuverType = self._nav_type
-    ni.maneuverModifier = self._nav_modifier
-    ni.distanceRemaining = float(r['nGoPosDist'])
-    ni.timeRemaining = float(r['nGoPosTime'])
-    ni.timeRemainingTypical = float(r['nGoPosTime'])
-    ni.speedLimit = float(r['nRoadLimitSpeed'] / 3.6) if r['nRoadLimitSpeed'] > 0 else 0.0
+    ni.maneuverDistance = float(x_dist_to_turn)
+    ni.maneuverType = nav_type
+    ni.maneuverModifier = nav_modifier
+    n_road_limit = _safe_int(raw.get("nRoadLimitSpeed"), 0)
+    ni.distanceRemaining = float(_safe_int(raw.get("nGoPosDist"), 0))
+    ni.timeRemaining = float(_safe_int(raw.get("nGoPosTime"), 0))
+    ni.timeRemainingTypical = float(_safe_int(raw.get("nGoPosTime"), 0))
+    ni.speedLimit = float(n_road_limit / 3.6) if n_road_limit > 0 else 0.0
 
-    # Build the allManeuvers list (current + next) when data is available.
-    if self._x_turn_info > 0:
+    if x_turn_info > 0:
       m0 = ni.allManeuvers.add()
-      m0.distance = float(self._x_dist_to_turn)
-      m0.type = self._nav_type
-      m0.modifier = self._nav_modifier
-    if self._x_turn_info_next > 0:
+      m0.distance = float(x_dist_to_turn)
+      m0.type = nav_type
+      m0.modifier = nav_modifier
+    if x_turn_info_next > 0:
       m1 = ni.allManeuvers.add()
-      m1.distance = float(self._x_dist_to_turn_next)
-      m1.type = self._nav_type_next
-      m1.modifier = self._nav_modifier_next
+      m1.distance = float(x_dist_to_turn_next)
+      m1.type = nav_type_next
+      m1.modifier = nav_modifier_next
+
+    amap_msg = self._amap_navi.build_amap_navi_msg(messaging.new_message)
 
     self.pm.send('carrotManSP', carrot_msg)
     self.pm.send('navInstructionCarrotSP', navi_msg)
+    self.pm.send('amapNaviSP', amap_msg)
+
+  # ---- web interface ---------------------------------------------------- #
+
+  def _maybe_start_web(self) -> None:
+    """Spin up the HTTP control plane if the user enabled it."""
+    if not self._start_web or self._web is not None:
+      return
+    try:
+      from openpilot.sunnypilot.carrot.web_interface import WebInterface
+    except ImportError as exc:
+      cloudlog.warning(f"carrot_man: web interface unavailable: {exc}")
+      return
+    self._web = WebInterface(self._amap_navi, params=self._unified)
+    self._web.start()
+
+  def _stop_web(self) -> None:
+    if self._web is None:
+      return
+    try:
+      self._web.stop()
+    except Exception:
+      pass
+    self._web = None
+
+  # ---- broadcast (P1-1) ------------------------------------------------- #
+
+  def get_broadcast_address(self) -> str | None:
+    """Get broadcast address for UDP broadcast."""
+    try:
+      # Try common network interfaces
+      interfaces = ['wlan0', 'eth0', 'enp0s3', 'br0', 'wlp2s0']
+      for iface in interfaces:
+        try:
+          with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            # Use SIOCGIFBRDADDR ioctl to get broadcast address
+            import fcntl
+            import struct
+            ip = fcntl.ioctl(
+              s.fileno(),
+              0x8919,  # SIOCGIFBRDADDR
+              struct.pack('256s', iface.encode('utf-8')[:15])
+            )[20:24]
+            return socket.inet_ntoa(ip)
+        except Exception:
+          continue
+      return "255.255.255.255"  # Fallback address
+    except Exception:
+      return None
+
+  def get_local_ip(self) -> str:
+    """Get local IP address by connecting to external server."""
+    try:
+      with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.connect(("8.8.8.8", 80))  # Google DNS
+        return s.getsockname()[0]
+    except Exception:
+      return "0.0.0.0"
+
+  def broadcast_version_info(self) -> None:
+    """Broadcast version info to phone app via UDP."""
+    if not self._is_running:
+      return
+
+    try:
+      sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+      sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
+      while self._is_running:
+        try:
+          self.sm.update(0)
+
+          # Update amap navi carstate
+          if self.sm.alive['carState']:
+            self._amap_navi.update_navi_carstate(self.sm)
+
+          # Send routes if updated
+          if self.sm.updated['navRoute']:
+            self.send_routes(self.sm['navRoute'].coordinates, True)
+
+          # Get remote address
+          remote_addr = self._remote_addr
+          remote_ip = remote_addr.split(':')[0] if remote_addr else ""
+
+          # Calculate curve speed
+          vturn_speed = 0.0
+          if self.sm.alive['carState'] and self.sm.alive['modelV2']:
+            try:
+              from openpilot.sunnypilot.carrot.carrot_functions import CarrotPlanner
+              planner = CarrotPlanner(self._unified)
+              vturn_speed = planner.carrot_curve_speed(self.sm)
+            except Exception:
+              pass
+
+          # Calculate navigation route
+          coords, distances, route_speed = self.carrot_navi_route()
+
+          # Update navi
+          self._carrot_serv.update_navi(remote_ip, self.sm, self.pm, vturn_speed, coords, distances, route_speed)
+
+          # Broadcast every 2 seconds or when remote addr is set
+          frame = 0
+          if frame % 20 == 0 or remote_addr:
+            try:
+              self._broadcast_ip = self.get_broadcast_address() if not remote_addr else remote_ip
+              if not self._broadcast_ip:
+                self._broadcast_ip = "255.255.255.255"
+
+              # Get local IP
+              ip_address = self.get_local_ip()
+              if ip_address != self._ip_address:
+                self._ip_address = ip_address
+                self._remote_addr = ""
+
+              # Build and send message
+              msg = self.make_send_message()
+              if self._broadcast_ip:
+                data = msg.encode('utf-8')
+                sock.sendto(data, (self._broadcast_ip, self._broadcast_port))
+            except Exception as e:
+              cloudlog.error(f"carrot_man: broadcast error: {e}")
+
+          frame += 1
+          import time
+          time.sleep(0.1)
+        except Exception as e:
+          cloudlog.error(f"carrot_man: broadcast loop error: {e}")
+          import time
+          time.sleep(1)
+    except Exception as e:
+      cloudlog.error(f"carrot_man: broadcast thread error: {e}")
+
+  def make_send_message(self) -> str:
+    """Build broadcast message for phone app."""
+    import json
+
+    msg = {}
+    msg['Carrot2'] = self.params.get("Version", b'').decode() if isinstance(self.params.get("Version"), bytes) else (self.params.get("Version") or '')
+    msg['IsOnroad'] = self.params.get_bool("IsOnroad")
+    msg['CarrotRouteActive'] = self._navi_points_active
+    msg['ip'] = self._ip_address
+    msg['port'] = self._carrot_man_port
+
+    v_ego_kph = 0
+    v_cruise_kph = 0
+    log_carrot = ""
+    if self.sm.alive['carState']:
+      carState = self.sm['carState']
+      v_ego_kph = int(carState.vEgoCluster * 3.6 + 0.5)
+      v_cruise_kph = carState.vCruise
+      log_carrot = getattr(carState, 'logCarrot', '')
+
+    msg['v_ego_kph'] = v_ego_kph
+    msg['v_cruise_kph'] = v_cruise_kph
+    msg['log_carrot'] = log_carrot
+    msg['tbt_dist'] = self._carrot_serv.x_dist_to_turn
+    msg['sdi_dist'] = self._carrot_serv.x_spd_dist
+    msg['nRoadLimitSpeed'] = self._carrot_serv.n_road_limit_speed
+    msg['vTurnSpeed'] = self._carrot_serv.v_turn_speed
+    msg['trafficState'] = self._carrot_serv.traffic_state
+    msg['xState'] = 0
+
+    return json.dumps(msg, ensure_ascii=False)
+
+  # ---- main loop -------------------------------------------------------- #
 
   def _mono_now(self) -> float:
     import time as _time
@@ -554,21 +798,484 @@ class CarrotManager:
   def tick(self) -> None:
     self._enabled = self.params.get_bool("CarrotEnabled")
     self._port = self.params.get("CarrotManUdpPort", return_default=True) or 0
+    self._start_web = self.params.get_bool("CarrotWebEnabled")
 
     self.sm.update(0)
 
     if not self._enabled or self._port <= 0:
       self._close_socket()
+      self._reset_state()
+      self._stop_web()
+      self._is_running = False
       return
 
     if not self._ensure_socket(self._port):
       return
 
+    self._maybe_start_web()
     self._drain_packets()
     now = self._mono_now()
     self._maybe_expire_state(now)
-    self._derive_state()
+
+    v_ego_kph = 0.0
+    if self.sm.alive['carState']:
+      v_ego_kph = self.sm['carState'].vEgo * 3.6
+
+    self._derive_state(v_ego_kph)
     self._publish()
+
+    # Start broadcast thread if not running (P1-1)
+    if not self._is_running:
+      self._is_running = True
+      if self._broadcast_thread is None or not self._broadcast_thread.is_alive():
+        self._broadcast_thread = threading.Thread(
+          target=self.broadcast_version_info,
+          name="carrot-broadcast",
+          daemon=True,
+        )
+        self._broadcast_thread.start()
+        cloudlog.info("carrot_man: broadcast thread started")
+
+    # Start ZMQ thread if not running (P1-2)
+    if not self._zmq_running:
+      self._zmq_running = True
+      if self._zmq_thread is None or not self._zmq_thread.is_alive():
+        self._zmq_thread = threading.Thread(
+          target=self.carrot_cmd_zmq,
+          name="carrot-zmq",
+          daemon=True,
+        )
+        self._zmq_thread.start()
+        cloudlog.info("carrot_man: ZMQ thread started")
+
+    # Start route thread if not running (P2-1)
+    if not self._route_running:
+      self._route_running = True
+      if self._route_thread is None or not self._route_thread.is_alive():
+        self._route_thread = threading.Thread(
+          target=self.carrot_route,
+          name="carrot-route",
+          daemon=True,
+        )
+        self._route_thread.start()
+        cloudlog.info("carrot_man: route thread started")
+
+    # Start panda debug thread if not running (P3-1)
+    if not self._panda_debug_running:
+      self._panda_debug_running = True
+      if self._panda_debug_thread is None or not self._panda_debug_thread.is_alive():
+        self._panda_debug_thread = threading.Thread(
+          target=self.carrot_panda_debug,
+          name="carrot-panda-debug",
+          daemon=True,
+        )
+        self._panda_debug_thread.start()
+        cloudlog.info("carrot_man: panda debug thread started")
+
+    # Start kisa thread if not running (P3-2)
+    if not self._kisa_running:
+      self._kisa_running = True
+      if self._kisa_thread is None or not self._kisa_thread.is_alive():
+        self._kisa_thread = threading.Thread(
+          target=self.kisa_app_thread,
+          name="carrot-kisa",
+          daemon=True,
+        )
+        self._kisa_thread.start()
+        cloudlog.info("carrot_man: kisa thread started")
+
+  # ---- ZMQ remote command (P1-2) ---------------------------------------- #
+
+  def carrot_cmd_zmq(self) -> None:
+    """ZMQ remote command handler for phone app."""
+    import json
+    import subprocess
+    import time
+
+    try:
+      import zmq
+    except ImportError:
+      cloudlog.warning("carrot_man: zmq not available, remote command disabled")
+      return
+
+    context = zmq.Context()
+
+    def setup_socket():
+      socket = context.socket(zmq.REP)
+      socket.bind("tcp://*:7710")
+      poller = zmq.Poller()
+      poller.register(socket, zmq.POLLIN)
+      return socket, poller
+
+    socket, poller = setup_socket()
+    cloudlog.info("carrot_man: ZMQ remote command handler started on port 7710")
+
+    while self._zmq_running:
+      try:
+        socks = dict(poller.poll(100))
+
+        if socket in socks and socks[socket] == zmq.POLLIN:
+          message = socket.recv(zmq.NOBLOCK)
+          cloudlog.info(f"carrot_man: ZMQ received: {message}")
+          try:
+            json_obj = json.loads(message.decode())
+          except json.JSONDecodeError:
+            json_obj = None
+        else:
+          json_obj = None
+
+        if json_obj is None:
+          # No message - check onroad status and send tmux if needed
+          is_onroad = self.params.get_bool("IsOnroad")
+          self._is_onroad_count = self._is_onroad_count + 1 if is_onroad else 0
+
+          if self._is_onroad_count == 0:
+            self._is_tmux_sent = False
+          if self._is_onroad_count == 1:
+            self._show_panda_debug = True
+
+          # Check network connection
+          network_connected = False
+          if self.sm.alive['deviceState']:
+            network_type = self.sm['deviceState'].networkType
+            network_connected = network_type != 0  # NetworkType.none
+
+          # Send tmux data after 50 seconds onroad
+          if self._is_onroad_count == 500:
+            self.make_tmux_data()
+
+          if self._is_onroad_count > 500 and not self._is_tmux_sent and network_connected:
+            self.send_tmux("Ekdrmsvkdlffjt7710", "onroad", send_settings=True)
+            self._is_tmux_sent = True
+
+          # Send exception if CarrotException is set
+          if self.params.get_bool("CarrotException") and network_connected:
+            self.params.put_bool("CarrotException", False)
+            self.make_tmux_data()
+            self.send_tmux("Ekdrmsvkdlffjt7710", "exception")
+
+        elif 'echo_cmd' in json_obj:
+          # Execute remote command
+          try:
+            result = subprocess.run(
+              json_obj['echo_cmd'],
+              shell=True,
+              capture_output=True,
+              text=False,
+              timeout=30,
+            )
+            exit_status = result.returncode
+            try:
+              stdout = result.stdout.decode('utf-8')
+              stderr = result.stderr.decode('utf-8')
+            except UnicodeDecodeError:
+              stdout = result.stdout.decode('euc-kr', 'ignore')
+              stderr = result.stderr.decode('euc-kr', 'ignore')
+
+            echo = json.dumps({
+              "echo_cmd": json_obj['echo_cmd'],
+              "exitStatus": exit_status,
+              "result": stdout,
+              "error": stderr,
+            }, ensure_ascii=False)
+          except Exception as e:
+            echo = json.dumps({
+              "echo_cmd": json_obj['echo_cmd'],
+              "exitStatus": -1,
+              "result": "",
+              "error": f"exception: {str(e)}",
+            }, ensure_ascii=False)
+
+          socket.send(echo.encode())
+
+        elif 'tmux_send' in json_obj:
+          # Send tmux data
+          self.make_tmux_data()
+          self.send_tmux(json_obj['tmux_send'], "tmux_send")
+          echo = json.dumps({
+            "tmux_send": json_obj['tmux_send'],
+            "result": "success",
+          }, ensure_ascii=False)
+          socket.send(echo.encode())
+
+      except Exception as e:
+        cloudlog.error(f"carrot_man: ZMQ error: {e}")
+        try:
+          socket.close()
+        except Exception:
+          pass
+        time.sleep(1)
+        socket, poller = setup_socket()
+
+  # ---- navigation route (P2-1) ------------------------------------------- #
+
+  def recvall(self, sock: socket.socket, n: int) -> bytes | None:
+    """Receive n bytes from socket."""
+    data = bytearray()
+    while len(data) < n:
+      packet = sock.recv(n - len(data))
+      if not packet:
+        return None
+      data.extend(packet)
+    return bytes(data)
+
+  def carrot_route(self) -> None:
+    """Navigation route TCP server for phone app."""
+    import json
+    import struct
+
+    host = '0.0.0.0'
+    port = self._route_port
+
+    try:
+      with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.bind((host, port))
+        s.listen()
+        cloudlog.info(f"carrot_man: route server listening on port {port}")
+
+        while self._route_running:
+          try:
+            cloudlog.debug("carrot_man: waiting for route connection...")
+            conn, addr = s.accept()
+            with conn:
+              cloudlog.info(f"carrot_man: route connected by {addr}")
+
+              # Receive total size (4 bytes)
+              total_size_bytes = self.recvall(conn, 4)
+              if not total_size_bytes:
+                cloudlog.warning("carrot_man: connection closed or error occurred")
+                continue
+
+              total_size = struct.unpack('!I', total_size_bytes)[0]
+
+              # Receive all data
+              all_data = self.recvall(conn, total_size)
+              if all_data is None:
+                cloudlog.warning("carrot_man: connection closed or incomplete data received")
+                continue
+
+              # Parse coordinates (8 bytes per point: 2 x float32)
+              self._navi_points = []
+              points = []
+              for i in range(0, len(all_data), 8):
+                x, y = struct.unpack('!ff', all_data[i:i+8])
+                self._navi_points.append((x, y))
+                # Create coordinate dict for send_routes
+                coord = {'x': x, 'y': y}
+                points.append(coord)
+
+              self._navi_points_start_index = 0
+              self._navi_points_active = True
+              cloudlog.info(f"carrot_man: received {len(self._navi_points)} route points")
+
+              # Send routes
+              self.send_routes(points, from_navd=True)
+
+              # Save destination to params
+              if len(points):
+                dest = points[-1]
+                dest['place_name'] = "External Navi"
+                self.params.put("NavDestination", json.dumps(dest, ensure_ascii=False))
+
+          except Exception as e:
+            cloudlog.error(f"carrot_man: route connection error: {e}")
+            continue
+
+    except Exception as e:
+      cloudlog.error(f"carrot_man: route server error: {e}")
+
+  def send_routes(self, coords: list, from_navd: bool = False) -> None:
+    """Send navigation routes to phone app."""
+    if not coords:
+      return
+    self._navi_points = coords
+    self._navi_points_active = True
+    self._navd_active = from_navd
+
+  # ---- kisa app (P3-2) --------------------------------------------------- #
+
+  def parse_kisa_data(self, data: bytes) -> dict[str, Any]:
+    """Parse kisa data from phone app."""
+    import json
+
+    try:
+      return json.loads(data.decode('utf-8'))
+    except json.JSONDecodeError:
+      # Try to parse as raw bytes
+      try:
+        return {'raw': data.decode('utf-8', errors='ignore')}
+      except Exception:
+        return {'raw': data.hex()}
+
+  def kisa_app_thread(self) -> None:
+    """Kisa app UDP data handler thread."""
+    import socket
+    import time
+
+    while self._kisa_running:
+      try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+          sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+          sock.settimeout(10)
+          sock.bind(('', self._kisa_port))
+          cloudlog.info(f"carrot_man: kisa app thread started on port {self._kisa_port}")
+
+          while self._kisa_running:
+            try:
+              data, remote_addr = sock.recvfrom(4096)
+              if not data:
+                continue
+
+              try:
+                kisa_data = self.parse_kisa_data(data)
+                # Update carrot serv with kisa data
+                if hasattr(self._carrot_serv, 'update_kisa'):
+                  self._carrot_serv.update_kisa(kisa_data)
+                cloudlog.debug(f"carrot_man: kisa data received: {len(data)} bytes")
+              except Exception as e:
+                cloudlog.error(f"carrot_man: kisa data parse error: {e}")
+
+            except TimeoutError:
+              continue
+            except Exception as e:
+              cloudlog.error(f"carrot_man: kisa recv error: {e}")
+              break
+
+          time.sleep(1)
+      except Exception as e:
+        cloudlog.error(f"carrot_man: kisa thread error: {e}")
+        time.sleep(2)
+
+  # ---- panda debug (P3-1) ------------------------------------------------ #
+
+  def carrot_panda_debug(self) -> None:
+    """Panda debug info thread."""
+    import os
+    import subprocess
+    import time
+
+    while self._panda_debug_running:
+      if self._show_panda_debug:
+        self._show_panda_debug = False
+        try:
+          debug_script = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "debug", "debug_console_carrot.py")
+          if os.path.exists(debug_script):
+            subprocess.run([debug_script], shell=True, timeout=30)
+          else:
+            cloudlog.debug("carrot_man: debug_console_carrot.py not found, skipping")
+        except Exception as e:
+          cloudlog.error(f"carrot_man: debug_console error: {e}")
+          time.sleep(2)
+      else:
+        time.sleep(1)
+
+  def save_toggle_values(self) -> None:
+    """Save toggle values to JSON file."""
+    import json
+    import os
+
+    try:
+      toggle_values = {}
+      for key in ["IsMetric", "IsLdw", "OpkrEnableDriverMonitoring"]:
+        try:
+          val = self.params.get(key)
+          if val is not None:
+            toggle_values[key] = val.decode() if isinstance(val, bytes) else val
+        except Exception:
+          pass
+
+      file_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'toggle_values.json')
+      with open(file_path, 'w', encoding='utf-8') as f:
+        json.dump(toggle_values, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+      cloudlog.error(f"carrot_man: save_toggle_values error: {e}")
+
+  # ---- FTP upload (P3-3) ------------------------------------------------- #
+
+  def make_tmux_data(self) -> None:
+    """Prepare tmux data for upload."""
+    import os
+    import subprocess
+
+    try:
+      # Capture tmux log
+      subprocess.run(
+        "tmux capture-pane -pq -S-1000 > /data/media/tmux.log",
+        shell=True,
+        capture_output=True,
+        text=False,
+        timeout=10,
+      )
+      # Run apilot script if available
+      apilot_script = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "apilot.py")
+      if os.path.exists(apilot_script):
+        subprocess.run([apilot_script], shell=True, capture_output=True, text=False, timeout=30)
+    except Exception as e:
+      cloudlog.error(f"carrot_man: make_tmux_data error: {e}")
+
+  def send_tmux(self, ftp_password: str, tmux_why: str, send_settings: bool = False) -> None:
+    """Send tmux data via FTP."""
+    from datetime import datetime
+    from ftplib import FTP
+
+    ftp_server = "shind0.synology.me"
+    ftp_port = 8021
+    ftp_username = "carrotpilot"
+
+    try:
+      ftp = FTP()
+      ftp.connect(ftp_server, ftp_port, timeout=30)
+      ftp.login(ftp_username, ftp_password)
+
+      # Get car name
+      car_selected = self.params.get("CarName")
+      if car_selected is None:
+        car_selected = "none"
+      elif isinstance(car_selected, bytes):
+        car_selected = car_selected.decode('utf-8')
+
+      # Get git branch
+      git_branch = self.params.get("GitBranch") or ''
+      if isinstance(git_branch, bytes):
+        git_branch = git_branch.decode('utf-8')
+
+      # Get dongle ID
+      dongle_id = self.params.get("DongleId") or ''
+      if isinstance(dongle_id, bytes):
+        dongle_id = dongle_id.decode('utf-8')
+
+      # Build directory and filename
+      directory = f"{git_branch} {car_selected} {dongle_id}"
+      current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+      filename = f"{tmux_why}-{current_time}-{git_branch}.txt"
+
+      try:
+        ftp.mkd(directory)
+      except Exception as e:
+        cloudlog.debug(f"carrot_man: directory creation failed: {e}")
+      ftp.cwd(directory)
+
+      # Send tmux log
+      try:
+        with open("/data/media/tmux.log", "rb") as file:
+          ftp.storbinary(f'STOR {filename}', file)
+          cloudlog.info(f"carrot_man: tmux data sent: {filename}")
+      except Exception as e:
+        cloudlog.error(f"carrot_man: ftp sending error: {e}")
+
+      # Send toggle values if requested
+      if send_settings:
+        self.save_toggle_values()
+        try:
+          with open("/data/toggle_values.json", "rb") as file:
+            ftp.storbinary(f'STOR toggles-{current_time}.json', file)
+        except Exception as e:
+          cloudlog.error(f"carrot_man: ftp params sending error: {e}")
+
+      ftp.quit()
+    except Exception as e:
+      cloudlog.error(f"carrot_man: send_tmux error: {e}")
 
 
 def main_thread():

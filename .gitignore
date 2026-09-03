@@ -15,6 +15,9 @@ a.out
 .hypothesis
 .cache/
 bin/
+.workbuddy/
+.codebuddy/
+artifacts/
 
 # created at launch for comma hardware PYTHONPATH (PC uses editable installs via pyproject.toml)
 /msgq

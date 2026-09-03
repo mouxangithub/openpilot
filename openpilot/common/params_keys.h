@@ -338,4 +338,10 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CarrotCurveSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"CarrotNavCruiseSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"CarrotHudInfoEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"CarrotWebEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"JLeadFactor3", {PERSISTENT | BACKUP, FLOAT, "0"}},
+    {"CruiseEcoControl", {PERSISTENT | BACKUP, INT, "0"}},
+    {"MyDrivingModeAuto", {PERSISTENT | BACKUP, INT, "0"}},
+    {"DynamicTFollow", {PERSISTENT | BACKUP, FLOAT, "0"}},
+    {"DynamicTFollowLC", {PERSISTENT | BACKUP, FLOAT, "0"}},
 };

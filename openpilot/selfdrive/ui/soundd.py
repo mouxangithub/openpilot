@@ -60,6 +60,43 @@ sound_list: dict[int, tuple[str, int | None, float]] = {
   AudibleAlert.warningImmediate: ("dm_critical.wav", None, MAX_VOLUME),
 
   **sound_list_sp,
+
+  # CarrotPilot audio alerts
+  AudibleAlertSP.audioTurn: ("audio_turn.wav", None, MAX_VOLUME),
+  AudibleAlertSP.longEngaged: ("tici_engaged.wav", None, MAX_VOLUME),
+  AudibleAlertSP.longDisengaged: ("tici_disengaged.wav", None, MAX_VOLUME),
+  AudibleAlertSP.trafficSignGreen: ("traffic_sign_green.wav", None, MAX_VOLUME),
+  AudibleAlertSP.trafficSignChanged: ("traffic_sign_changed.wav", None, MAX_VOLUME),
+  AudibleAlertSP.laneChangeCarrot: ("audio_lane_change.wav", None, MAX_VOLUME),
+  AudibleAlertSP.stopping: ("audio_stopping.wav", None, MAX_VOLUME),
+  AudibleAlertSP.autoHold: ("audio_auto_hold.wav", None, MAX_VOLUME),
+  AudibleAlertSP.engage2: ("audio_engage.wav", None, MAX_VOLUME),
+  AudibleAlertSP.disengage2: ("audio_disengage.wav", None, MAX_VOLUME),
+  AudibleAlertSP.trafficError: ("audio_traffic_error.wav", None, MAX_VOLUME),
+  AudibleAlertSP.bsdWarning: ("audio_car_watchout.wav", None, MAX_VOLUME),
+  AudibleAlertSP.speedDown: ("audio_speed_down.wav", None, MAX_VOLUME),
+  AudibleAlertSP.stopStop: ("audio_stopstop.wav", None, MAX_VOLUME),
+  AudibleAlertSP.reverseGear2: ("reverse_gear.wav", 1, MAX_VOLUME),
+  AudibleAlertSP.audio1: ("audio_1.wav", None, MAX_VOLUME),
+  AudibleAlertSP.audio2: ("audio_2.wav", None, MAX_VOLUME),
+  AudibleAlertSP.audio3: ("audio_3.wav", None, MAX_VOLUME),
+  AudibleAlertSP.audio4: ("audio_4.wav", None, MAX_VOLUME),
+  AudibleAlertSP.audio5: ("audio_5.wav", None, MAX_VOLUME),
+  AudibleAlertSP.audio6: ("audio_6.wav", None, MAX_VOLUME),
+  AudibleAlertSP.audio7: ("audio_7.wav", None, MAX_VOLUME),
+  AudibleAlertSP.audio8: ("audio_8.wav", None, MAX_VOLUME),
+  AudibleAlertSP.audio9: ("audio_9.wav", None, MAX_VOLUME),
+  AudibleAlertSP.audio10: ("audio_10.wav", None, MAX_VOLUME),
+  AudibleAlertSP.nnff: ("nnff.wav", None, MAX_VOLUME),
+  AudibleAlertSP.preLaneChangeCarrot: ("audio_pre_lane_change.wav", None, MAX_VOLUME),
+  AudibleAlertSP.atcCancel: ("audio_atc_cancel.wav", None, MAX_VOLUME),
+  AudibleAlertSP.atcResume: ("audio_atc_resume.wav", None, MAX_VOLUME),
+  AudibleAlertSP.preLaneChangeLeft2: ("audio_pre_lane_left.wav", None, MAX_VOLUME),
+  AudibleAlertSP.preLaneChangeRight2: ("audio_pre_lane_right.wav", None, MAX_VOLUME),
+  AudibleAlertSP.laneChangeOk: ("audio_lane_change_ok.wav", None, MAX_VOLUME),
+  AudibleAlertSP.lastLane: ("audio_last_lane.wav", None, MAX_VOLUME),
+  AudibleAlertSP.newLane: ("audio_new_lane.wav", None, MAX_VOLUME),
+  AudibleAlertSP.laneChangeEnd: ("audio_lane_change_end.wav", None, MAX_VOLUME),
 }
 
 def check_selfdrive_timeout_alert(sm):
@@ -89,6 +126,11 @@ class Soundd(QuietMode):
     self.pending_stop = False
 
     self.spl_filter_weighted = FirstOrderFilter(0, 2.5, FILTER_DT, initialized=False)
+
+    # CarrotPilot audio state tracking
+    self.carrot_alert_prev = None
+    self.carrot_left_sec_prev = -1
+    self.carrot_atc_type_prev = ""
 
   def load_sounds(self):
     self.loaded_sounds: dict[int, np.ndarray] = {}
@@ -170,6 +212,36 @@ class Soundd(QuietMode):
     volume = ((weighted_db - AMBIENT_DB) / DB_SCALE) * (MAX_VOLUME - MIN_VOLUME) + MIN_VOLUME
     return math.pow(VOLUME_BASE, (np.clip(volume, MIN_VOLUME, MAX_VOLUME) - 1))
 
+  def get_carrot_alert(self, sm):
+    if not sm.alive['carrotMan']:
+      return
+
+    carrot_man = sm['carrotMan']
+
+    if carrot_man.leftSec != self.carrot_left_sec_prev:
+      self.carrot_left_sec_prev = carrot_man.leftSec
+      if 1 <= carrot_man.leftSec <= 10:
+        alert_name = f'audio{carrot_man.leftSec}'
+        if hasattr(AudibleAlertSP, alert_name):
+          self.update_alert(getattr(AudibleAlertSP, alert_name))
+
+    atc_type = carrot_man.atcType if hasattr(carrot_man, 'atcType') else ""
+    if atc_type != self.carrot_atc_type_prev:
+      self.carrot_atc_type_prev = atc_type
+      if atc_type:
+        if "prepare" in atc_type.lower():
+          self.update_alert(AudibleAlertSP.preLaneChangeCarrot)
+        elif "cancel" in atc_type.lower():
+          self.update_alert(AudibleAlertSP.atcCancel)
+        elif "resume" in atc_type.lower():
+          self.update_alert(AudibleAlertSP.atcResume)
+
+    traffic_state = carrot_man.trafficState if hasattr(carrot_man, 'trafficState') else 0
+    if traffic_state == 1:
+      self.update_alert(AudibleAlertSP.trafficSignChanged)
+    elif traffic_state == 2:
+      self.update_alert(AudibleAlertSP.trafficSignGreen)
+
   def get_stream(self, sd):
     # reload sounddevice to reinitialize portaudio
     sd._terminate()
@@ -181,7 +253,7 @@ class Soundd(QuietMode):
     import sounddevice as sd
     micd.patch_sounddevice(sd)
 
-    sm = messaging.SubMaster(['selfdriveState', 'selfdriveStateSP', 'soundPressure'])
+    sm = messaging.SubMaster(['selfdriveState', 'selfdriveStateSP', 'soundPressure', 'carrotMan'])
 
     # The audio device can be missing at boot (amp still being configured) or go away mid-drive,
     # and manager never restarts a crashed process, so a raise here is permanent. Retry instead --
@@ -214,6 +286,7 @@ class Soundd(QuietMode):
                 self.current_volume = self.calculate_volume(float(self.spl_filter_weighted.x))
 
             self.get_audible_alert(sm)
+            self.get_carrot_alert(sm)
 
             # Ramp up immediate warning sound over 4s
             if self.current_alert == AudibleAlert.warningImmediate:

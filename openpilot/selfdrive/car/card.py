@@ -24,6 +24,7 @@ from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_cap
 
 from openpilot.sunnypilot.mads.helpers import set_alternative_experience, set_car_specific_params
 from openpilot.sunnypilot.selfdrive.car import interfaces as sunnypilot_interfaces
+from openpilot.sunnypilot.selfdrive.car.amap_fusion import merge_amap_blindspot, merge_amap_lane_lines
 
 REPLAY = "REPLAY" in os.environ
 
@@ -71,7 +72,7 @@ class Car:
 
   def __init__(self, CI=None, RI=None) -> None:
     self.can_sock = messaging.sub_sock('can', timeout=20)
-    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP'])
+    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP', 'amapNaviSP'])
     self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'radarTracks'] + ['carParamsSP', 'carStateSP'])
 
     self.can_rcv_cum_timeout_counter = 0
@@ -183,6 +184,7 @@ class Car:
 
     self.is_metric = self.params.get_bool("IsMetric")
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
+    self.amap_enabled = self.params.get_bool("AmapEnabled")
 
     # card is driven by can recv, expected at 100Hz
     self.rk = Ratekeeper(100, print_delay_threshold=None)
@@ -204,6 +206,13 @@ class Car:
     RD: structs.RadarDataT | None = self.RI.update(can_list)
 
     self.sm.update(0)
+
+    # Merge Amap phone/app ADAS data into carState/carStateSP so every
+    # downstream consumer (modeld, selfdrived, controlsd, UI) sees it.
+    if self.amap_enabled and self.sm.updated['amapNaviSP'] and self.sm.valid['amapNaviSP']:
+      amap_navi = self.sm['amapNaviSP']
+      merge_amap_blindspot(CS, amap_navi)
+      merge_amap_lane_lines(CS_SP, amap_navi)
 
     can_rcv_valid = len(can_strs) > 0
 
@@ -304,6 +313,7 @@ class Car:
     while not evt.is_set():
       self.is_metric = self.params.get_bool("IsMetric")
       self.experimental_mode = self.params.get_bool("ExperimentalMode") and self.CP.openpilotLongitudinalControl
+      self.amap_enabled = self.params.get_bool("AmapEnabled")
 
       # sunnypilot
       self.dynamic_experimental_control = self.params.get_bool("DynamicExperimentalControl")

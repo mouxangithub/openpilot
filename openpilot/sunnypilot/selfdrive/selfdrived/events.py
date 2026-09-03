@@ -260,4 +260,31 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 2.),
   },
+
+  # Carrot / Amap traffic-light advisories.  Only the SP enum has
+  # trafficSignGreen/trafficSignChanged/trafficStopping; surface them in
+  # the same place the model-based detection would so the HUD can show
+  # a single, consistent prompt regardless of where the signal came
+  # from.  Kept as small / non-blocking so the planner can still react.
+  EventNameSP.trafficSignGreen: {
+    ET.WARNING: Alert(
+      "Carrot：识别到绿灯",
+      "",
+      AlertStatus.normal, AlertSize.small,
+      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 0.5),
+  },
+  EventNameSP.trafficSignChanged: {
+    ET.WARNING: Alert(
+      "Carrot：信号灯状态变化",
+      "",
+      AlertStatus.normal, AlertSize.small,
+      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 0.2),
+  },
+  EventNameSP.trafficStopping: {
+    ET.WARNING: Alert(
+      "Carrot：准备停车",
+      "",
+      AlertStatus.normal, AlertSize.small,
+      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 0.2),
+  },
 }
