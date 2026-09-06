@@ -26,3 +26,8 @@ openpilot/common/hardware/comma/updater filter=lfs diff=lfs merge=lfs -text
 openpilot/selfdrive/assets/fonts/NotoSansSC-*.otf -filter -diff -merge binary
 openpilot/selfdrive/assets/fonts/HarmonyOS_Sans_SC_*.ttf -filter -diff -merge binary
 openpilot/selfdrive/assets/fonts/NotoColorEmoji.ttf -filter -diff -merge binary
+
+# Carrot/Amap assets: keep these imported runtime resources as regular Git blobs.
+# This overrides the global *.wav and *.png LFS rules for these paths only.
+openpilot/selfdrive/assets/sounds/*.wav -filter -diff -merge binary
+openpilot/sunnypilot/selfdrive/assets/images/*.png -filter -diff -merge binary

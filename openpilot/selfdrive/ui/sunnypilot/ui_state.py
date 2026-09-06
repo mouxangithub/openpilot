@@ -36,7 +36,7 @@ class UIStateSP:
     self.sm_services_ext = [
       "modelManagerSP", "selfdriveStateSP", "longitudinalPlanSP", "backupManagerSP",
       "gpsLocation", "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay",
-      "imuCalibrationSP", "carrotMan",
+      "imuCalibrationSP", "carrotManSP",
     ]
 
     self.sunnylink_state = SunnylinkState()

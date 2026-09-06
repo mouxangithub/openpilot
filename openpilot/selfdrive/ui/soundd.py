@@ -138,14 +138,20 @@ class Soundd(QuietMode):
     # Load all sounds
     for sound in sound_list:
       filename, play_count, volume = sound_list[sound]
+      path = BASEDIR + "/openpilot/selfdrive/assets/sounds/" + filename
 
-      with wave.open(BASEDIR + "/openpilot/selfdrive/assets/sounds/" + filename, 'r') as wavefile:
-        assert wavefile.getnchannels() == 1
-        assert wavefile.getsampwidth() == 2
-        assert wavefile.getframerate() == SAMPLE_RATE
+      try:
+        with wave.open(path, 'r') as wavefile:
+          assert wavefile.getnchannels() == 1
+          assert wavefile.getsampwidth() == 2
+          assert wavefile.getframerate() == SAMPLE_RATE
 
-        length = wavefile.getnframes()
-        self.loaded_sounds[sound] = np.frombuffer(wavefile.readframes(length), dtype=np.int16).astype(np.float32) / (2**16/2)
+          length = wavefile.getnframes()
+          self.loaded_sounds[sound] = np.frombuffer(wavefile.readframes(length), dtype=np.int16).astype(np.float32) / (2**16/2)
+      except (FileNotFoundError, wave.Error, AssertionError) as e:
+        # Never take soundd down for a missing/malformed sound asset.
+        cloudlog.error(f"soundd: failed to load sound {filename}: {e}")
+        self.loaded_sounds[sound] = np.zeros(int(SAMPLE_RATE * 0.1), dtype=np.float32)
 
   def get_sound_data(self, frames): # get "frames" worth of data from the current alert sound, looping when required
 
@@ -213,10 +219,10 @@ class Soundd(QuietMode):
     return math.pow(VOLUME_BASE, (np.clip(volume, MIN_VOLUME, MAX_VOLUME) - 1))
 
   def get_carrot_alert(self, sm):
-    if not sm.alive['carrotMan']:
+    if not sm.alive['carrotManSP']:
       return
 
-    carrot_man = sm['carrotMan']
+    carrot_man = sm['carrotManSP']
 
     if carrot_man.leftSec != self.carrot_left_sec_prev:
       self.carrot_left_sec_prev = carrot_man.leftSec
@@ -253,7 +259,7 @@ class Soundd(QuietMode):
     import sounddevice as sd
     micd.patch_sounddevice(sd)
 
-    sm = messaging.SubMaster(['selfdriveState', 'selfdriveStateSP', 'soundPressure', 'carrotMan'])
+    sm = messaging.SubMaster(['selfdriveState', 'selfdriveStateSP', 'soundPressure', 'carrotManSP'])
 
     # The audio device can be missing at boot (amp still being configured) or go away mid-drive,
     # and manager never restarts a crashed process, so a raise here is permanent. Retry instead --

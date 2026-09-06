@@ -385,7 +385,7 @@ def main(demo=False):
   pub_socks = ["modelV2", "drivingModelData", "cameraOdometry", "modelDataV2SP"] + (["chestnutState"] if CHESTNUT else [])
   pm = PubMaster(pub_socks)
   sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration",
-                  "driverMonitoringState", "carControl", "lateralDelay", "carStateSP"])
+                  "driverMonitoringState", "carControl", "lateralDelay", "carStateSP", "carrotManSP"])
 
   publish_state = PublishState()
   chestnut_state = ChestnutState(pm, CHESTNUT) if CHESTNUT else None
@@ -537,9 +537,11 @@ def main(demo=False):
       right_lane_line_blocked = cs_sp.amapLineValid and cs_sp.amapRightLineBlocked
 
       left_edge, right_edge = RELC.update_and_fill(modelv2_send.modelV2, mdv2sp_send.modelDataV2SP, v_ego)
+      carrot_man = sm['carrotManSP'] if sm.alive['carrotManSP'] else None
       DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge,
                 left_lane_line_blocked=left_lane_line_blocked,
-                right_lane_line_blocked=right_lane_line_blocked)
+                right_lane_line_blocked=right_lane_line_blocked,
+                carrot_man=carrot_man)
       modelv2_send.modelV2.meta.laneChangeState = DH.lane_change_state
       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
       mdv2sp_send.modelDataV2SP.laneTurnDirection = DH.lane_turn_direction

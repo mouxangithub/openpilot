@@ -29,7 +29,6 @@ import json
 import time
 import threading
 import socket
-import fcntl
 import struct
 import queue
 from collections import deque
@@ -37,7 +36,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import cereal.messaging as messaging
-from openpilot.system.hardware import PC
 
 lock = threading.Lock()
 data_queue = queue.Queue()
@@ -157,6 +155,14 @@ class SharedData:
   map_traffic_state: int = 0       # 0=none, 1=red, 2=green, 3=left-turn green
   map_traffic_countdown: int = 0
   map_traffic_time: float = 0.0
+
+  # ADAS lane-line data (from the Amap JSON source).  These are the only
+  # producers of lineValid/leftLine/rightLine in ``amapNaviSP`` after the
+  # mapd_amap producer is retired.  See AmapLineType in amap_fusion.py.
+  adas_line_valid: bool = False
+  adas_left_line: int = 0
+  adas_right_line: int = 0
+  adas_last_mono: float = 0.0
 
   # Client tracking.
   ext_state: int = 0
@@ -314,7 +320,7 @@ class AmapNaviServ:
     # Network config.
     self._broadcast_ip: str | None = None
     self._broadcast_port: int = 4210
-    self._listen_port: int = 4211
+    self._listen_port: int = 4211  # historical default; overridden by LiDARUdpPort param in start_navi_comm()
     self._local_ip_address: str = "0.0.0.0"
 
   # ---- packet ingestion ------------------------------------------------- #
@@ -416,10 +422,51 @@ class AmapNaviServ:
     sd.lb_xrel.clear()
     sd.rf_xrel.clear()
     sd.rb_xrel.clear()
+    sd.adas_line_valid = False
+    sd.adas_left_line = 0
+    sd.adas_right_line = 0
+    sd.adas_last_mono = 0.0
     self._seq = None
     self._last_packet_mono = 0.0
 
   # ---- message publishing --------------------------------------------- #
+
+  def update_adas(self, msg: dict[str, Any]) -> None:
+    """Apply ADAS lane-line data (from the Amap JSON source) to the cache.
+
+    This is the single integration point that replaces the retired
+    ``mapd_amap`` lane-line producer.  It should be driven from the same UDP
+    stream that used to feed ``mapd_amap`` (field names match its JSON layout).
+
+    Args:
+      msg: Decoded ADAS JSON packet, e.g.
+        ``{"lineValid": true, "leftLine": 2, "rightLine": 1}``.
+        ``leftBlind``/``rightBlind`` are intentionally *not* consumed here:
+        blind-spot bits come from the Carrot blind/flash data in
+        ``apply_packet``, which is a superset of the ADAS-side bitmask.
+    """
+    if not isinstance(msg, dict):
+      return
+    sd = self.shared_data
+    try:
+      raw_valid = msg.get("lineValid", False)
+      line_valid = bool(raw_valid) if isinstance(raw_valid, (bool, int)) else False
+      if line_valid:
+        left = int(msg.get("leftLine", 0))
+        right = int(msg.get("rightLine", 0))
+        # Clamp to the known AmapLineType range [0,6] (see amap_fusion.py).
+        sd.adas_left_line = left if 0 <= left <= 6 else 0
+        sd.adas_right_line = right if 0 <= right <= 6 else 0
+      else:
+        sd.adas_left_line = 0
+        sd.adas_right_line = 0
+      sd.adas_line_valid = line_valid
+      sd.adas_last_mono = time.monotonic()
+    except (TypeError, ValueError):
+      # Malformed ADAS JSON must never take the daemon down; drop the packet.
+      sd.adas_left_line = 0
+      sd.adas_right_line = 0
+      sd.adas_line_valid = False
 
   def build_amap_navi_msg(self, new_message) -> Any:
     """Populate a new ``amapNaviSP`` message from the current state.
@@ -431,11 +478,26 @@ class AmapNaviServ:
     msg = new_message("amapNaviSP")
     msg.valid = not self.is_stale()
     navi = msg.amapNaviSP
-    navi.leftBlind = 1 if sd.left_blind else 0
-    navi.rightBlind = 1 if sd.right_blind else 0
-    navi.lineValid = bool(sd.lf_xrel or sd.lb_xrel or sd.rf_xrel or sd.rb_xrel)
-    navi.leftLine = 0
-    navi.rightLine = 0
+    # Preserve source bits: 1=LiDAR, 2=camera/app, 4=vehicle-side LiDAR.
+    # card.py consumes these as a combined blind-spot signal.
+    navi.leftBlind = (
+      (4 if sd.lidar_car_left_blind else 0)
+      + (2 if sd.left_blind else 0)
+      + (1 if sd.lidar_left_blind else 0)
+    )
+    navi.rightBlind = (
+      (4 if sd.lidar_car_right_blind else 0)
+      + (2 if sd.right_blind else 0)
+      + (1 if sd.lidar_right_blind else 0)
+    )
+    # Lane-line data comes solely from the ADAS JSON source (was hardcoded 0).
+    # Line type codes follow AmapLineType in amap_fusion.py; blocked mapping
+    # happens in merge_amap_lane_lines().  Fail-safe: if no fresh ADAS data,
+    # publish lineValid=False so callers treat lanes as unblocked explicitly.
+    adas_fresh = sd.adas_last_mono != 0.0 and (time.monotonic() - sd.adas_last_mono) <= 3.0
+    navi.lineValid = sd.adas_line_valid and adas_fresh
+    navi.leftLine = sd.adas_left_line if navi.lineValid else 0
+    navi.rightLine = sd.adas_right_line if navi.lineValid else 0
     return msg
 
   # ---- radar data (P2-2) ------------------------------------------------ #
@@ -467,7 +529,9 @@ class AmapNaviServ:
 
     # Dynamic blind range adjustment
     if self._dynamic_blind_range >= 1:
-      carrot_man = sm['carrotMan']
+      if not sm.alive.get("carrotManSP", False) or not sm.alive.get("modelV2", False):
+        return lf_blind_mask, lb_blind_mask, rf_blind_mask, rb_blind_mask
+      carrot_man = sm['carrotManSP']
       model_v2 = sm['modelV2']
       meta = model_v2.meta
 
@@ -554,22 +618,22 @@ class AmapNaviServ:
   # ---- sunnypilot-cuda multi-client methods -------------------------------- #
 
   def public_amap_navi(self) -> None:
-    """Publish amapNavi message to the cereal bus."""
+    """Publish amapNaviSP message to the cereal bus."""
     try:
-      msg = messaging.new_message('amapNavi')
+      msg = messaging.new_message('amapNaviSP')
       msg.valid = True
       sd = self.shared_data
-      msg.amapNavi.leftBlind = (
+      msg.amapNaviSP.leftBlind = (
         (4 if sd.lidar_car_left_blind else 0) +
         (2 if sd.left_blind else 0) +
         (1 if sd.lidar_left_blind else 0)
       )
-      msg.amapNavi.rightBlind = (
+      msg.amapNaviSP.rightBlind = (
         (4 if sd.lidar_car_right_blind else 0) +
         (2 if sd.right_blind else 0) +
         (1 if sd.lidar_right_blind else 0)
       )
-      messaging.PubMaster(['amapNavi']).send('amapNavi', msg)
+      messaging.PubMaster(['amapNaviSP']).send('amapNaviSP', msg)
     except Exception:
       pass
 
@@ -599,8 +663,34 @@ class AmapNaviServ:
 
   # ---- threads ----------------------------------------------------------- #
 
-  def start_navi_comm(self) -> None:
-    """Start all UDP communication threads."""
+  def _resolve_listen_port(self, listen_port: int | None) -> int:
+    """Resolve the direct-UDP LiDAR/camera listen port.
+
+    Priority: explicit ``listen_port`` argument > ``LiDARUdpPort`` param
+    (registered default 4211) > the instance default (4211).  This removes
+    the former hard-coded-4211 trap where the ``AmapNaviUdpPort`` param
+    name suggested configurability but 4211 was fixed.
+    """
+    if listen_port is None:
+      try:
+        from openpilot.common.params import Params
+        configured = int(Params().get("LiDARUdpPort", return_default=True) or 0)
+      except Exception:
+        configured = 0
+      if configured > 0:
+        return configured
+      return self._listen_port
+    return int(listen_port)
+
+  def start_navi_comm(self, listen_port: int | None = None) -> None:
+    """Start all UDP communication threads.
+
+    NOTE: this method currently has **no call site** in the tree — the
+    direct LiDAR/camera UDP path stays dormant until C3 device validation
+    (2026-09-05 decision).  SP's production blind-spot data arrives via
+    the CarrotMan protocol / ADAS socket instead.
+    """
+    self._listen_port = self._resolve_listen_port(listen_port)
     threading.Thread(target=self._udp_recv_thread, daemon=True).start()
     threading.Thread(target=self._clean_clients_thread, daemon=True).start()
     threading.Thread(target=self._data_deal_thread, daemon=True).start()
@@ -1435,8 +1525,9 @@ class AmapNaviServ:
 
   def navi_get_broadcast_address(self) -> str | None:
     """Get broadcast address for the primary network interface."""
-    if PC:
-      interfaces = ['wlan0', 'eth0', 'enp0s3', 'br0']
+    interfaces = ['wlan0', 'eth0', 'enp0s3', 'br0']
+    try:
+      import fcntl
       for iface in interfaces:
         try:
           with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -1449,16 +1540,6 @@ class AmapNaviServ:
         except Exception:
           continue
       return "255.255.255.255"
-    else:
-      iface = b'wlan0'
-    try:
-      with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        ip = fcntl.ioctl(
-          s.fileno(),
-          0x8919,
-          struct.pack('256s', iface)
-        )[20:24]
-        return socket.inet_ntoa(ip)
     except (OSError, Exception):
       return None
 

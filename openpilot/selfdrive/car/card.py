@@ -185,6 +185,9 @@ class Car:
     self.is_metric = self.params.get_bool("IsMetric")
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
     self.amap_enabled = self.params.get_bool("AmapEnabled")
+    self.carrot_enabled = self.params.get_bool("CarrotEnabled")
+    self._amap_navi_cache = None
+    self._amap_navi_cache_mono = 0.0
 
     # card is driven by can recv, expected at 100Hz
     self.rk = Ratekeeper(100, print_delay_threshold=None)
@@ -209,8 +212,11 @@ class Car:
 
     # Merge Amap phone/app ADAS data into carState/carStateSP so every
     # downstream consumer (modeld, selfdrived, controlsd, UI) sees it.
-    if self.amap_enabled and self.sm.updated['amapNaviSP'] and self.sm.valid['amapNaviSP']:
-      amap_navi = self.sm['amapNaviSP']
+    if self.sm.updated['amapNaviSP'] and self.sm.valid['amapNaviSP']:
+      self._amap_navi_cache = self.sm['amapNaviSP']
+      self._amap_navi_cache_mono = time.monotonic()
+    amap_navi = self._amap_navi_cache
+    if (self.amap_enabled or self.carrot_enabled) and amap_navi is not None and time.monotonic() - self._amap_navi_cache_mono <= 0.5:
       merge_amap_blindspot(CS, amap_navi)
       merge_amap_lane_lines(CS_SP, amap_navi)
 
@@ -314,6 +320,7 @@ class Car:
       self.is_metric = self.params.get_bool("IsMetric")
       self.experimental_mode = self.params.get_bool("ExperimentalMode") and self.CP.openpilotLongitudinalControl
       self.amap_enabled = self.params.get_bool("AmapEnabled")
+      self.carrot_enabled = self.params.get_bool("CarrotEnabled")
 
       # sunnypilot
       self.dynamic_experimental_control = self.params.get_bool("DynamicExperimentalControl")

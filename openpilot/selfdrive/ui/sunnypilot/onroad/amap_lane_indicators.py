@@ -158,7 +158,7 @@ class CarrotNavigationPanel:
   def _load_turn_icons(self) -> None:
     """Load turn-by-turn navigation icons."""
     icon_size = 128
-    icon_dir = "../../sunnypilot/selfdrive/assets/img_"
+    icon_dir = "../../sunnypilot/selfdrive/assets/images/"
     try:
       self.turn_icons[1] = gui_app.texture(icon_dir + "turn_l.png", icon_size, icon_size)
       self.turn_icons[2] = gui_app.texture(icon_dir + "turn_r.png", icon_size, icon_size)
@@ -172,11 +172,11 @@ class CarrotNavigationPanel:
     """Update navigation data from carrotMan."""
     sm = ui_state.sm
 
-    # Check if carrotMan is alive and updated
-    carrot_alive = sm.alive("carrotMan")
+    # Check if carrotManSP is alive and updated
+    carrot_alive = sm.alive("carrotManSP")
     self._cache["carrotManAlive"] = carrot_alive
 
-    if not carrot_alive or sm.recv_frame["carrotMan"] < ui_state.started_frame:
+    if not carrot_alive or sm.recv_frame["carrotManSP"] < ui_state.started_frame:
       self._alpha_filter.update(0.0)
       return
 
@@ -184,11 +184,11 @@ class CarrotNavigationPanel:
     self._panel_side = int(self.params.get("CarrotPanelSide") or b"0")
     self._panel_opacity = int(self.params.get("CarrotPanelOpacity") or b"100")
 
-    if not sm.updated["carrotMan"]:
+    if not sm.updated["carrotManSP"]:
       return
 
     try:
-      cm = sm["carrotMan"]
+      cm = sm["carrotManSP"]
       self._cache["activeCarrot"] = cm.activeCarrot
       self._cache["nRoadLimitSpeed"] = cm.nRoadLimitSpeed
       self._cache["xSpdType"] = cm.xSpdType

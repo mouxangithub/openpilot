@@ -34,14 +34,14 @@ class DesireHelper:
     self.carrot_virtual_blinker = 0  # 0=none, 1=left, 2=right
 
   def get_lane_change_direction(self, CS):
-    if self.carrot_virtual_blinker == 1:
+    if self.carrot_virtual_blinker == 1 and CS.leftBlinker:
       return LaneChangeDirection.left
-    elif self.carrot_virtual_blinker == 2:
+    elif self.carrot_virtual_blinker == 2 and CS.rightBlinker:
       return LaneChangeDirection.right
     return LaneChangeDirection.left if CS.leftBlinker else LaneChangeDirection.right
 
   def update(self, carstate, lateral_active, lane_change_prob, left_edge_detected=False, right_edge_detected=False,
-             left_lane_line_blocked=False, right_lane_line_blocked=False, carrot_man=None, amap_navi=None):
+             left_lane_line_blocked=False, right_lane_line_blocked=False, carrot_man=None):
     self.alc.update_params()
     self.lane_turn_controller.update_params()
     v_ego = carstate.vEgo
@@ -72,6 +72,13 @@ class DesireHelper:
             self.carrot_virtual_blinker = 1
           elif carrot_man.carrotArg == "RIGHT":
             self.carrot_virtual_blinker = 2
+    else:
+      self.carrot_atc_active = False
+      self.carrot_virtual_blinker = 0
+
+    virtual_blinker_matches = ((self.carrot_virtual_blinker == 1 and carstate.leftBlinker) or
+                               (self.carrot_virtual_blinker == 2 and carstate.rightBlinker))
+    one_blinker = one_blinker or virtual_blinker_matches
 
     # Lane turn controller update
     self.lane_turn_controller.update_lane_turn(blindspot_left=carstate.leftBlindspot, blindspot_right=carstate.rightBlindspot,

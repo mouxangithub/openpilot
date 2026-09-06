@@ -24,9 +24,11 @@ without a live cereal stream.
 """
 
 import math
+import time
 from collections import deque
 from enum import IntEnum
 
+from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot.carrot.config import UnifiedParams
 
 
@@ -189,6 +191,15 @@ class CarrotServ:
     self.atc_type: str = ""
     self.roadcate: int = 8
 
+    # Road / position state (read back by carrot_man and the UI).
+    self.n_road_limit_speed: int = 0
+    self.vp_pos_point_lat: float = 0.0
+    self.vp_pos_point_lon: float = 0.0
+
+    # Navi speed-control tuning (from UnifiedParams; safe defaults).
+    self.auto_navi_speed_decel_rate: float = 0.8
+    self.auto_navi_speed_ctrl_end: float = 7.0
+
     # Path tracking (used by callers that need curvature / bearing).
     self._path: deque[tuple[float, float]] = deque(maxlen=512)
     self._bearing: float = 0.0
@@ -197,6 +208,72 @@ class CarrotServ:
     # Traffic light history (2 seconds at 10 Hz).
     self._traffic_history: deque[int] = deque(maxlen=20)
     self._traffic_state: int = 0
+
+    # --- CarrotPilot feature state (ported) ------------------------------- #
+    # Traffic-light DETECT state machine (phone app sends camera detections).
+    self._traffic_light_q: deque[tuple[float, float, str, float]] = deque(maxlen=20)
+    self._traffic_light_count: int = -1
+    # Map-based traffic light (from the nav app, takes priority when fresh).
+    self.map_traffic_state: int = 0
+    self.map_traffic_countdown: int = 0
+    self.map_traffic_time: float = 0.0
+
+    # ATC (auto turn control) state.
+    self.atc_paused: bool = False
+    self.atc_activate_count: int = 0
+    self.atc_speed_decal: float = 0.0
+    self.fork_speed_keep_time: int = -1
+    self.gas_override_speed: int = 0
+    self.gas_pressed_state: bool = False
+    self.source_last: str = "none"
+
+    # Countdown state.
+    self.left_spd_sec: int = 100
+    self.left_tbt_sec: int = 100
+    self.left_sec: int = 100
+    self.max_left_sec: int = 100
+    self.carrot_left_sec: int = 100
+    self.sdi_inform: bool = False
+
+    # Kisa (crowdsourced nav data) activity counter.
+    self.active_kisa_count: int = 0
+    self._param_frame: int = 0
+    self._last_cmd_index: int = -1
+    self.navi_paths: str = ""
+
+    # Tuning cache (refreshed by update_params(); safe defaults here so the
+    # class never crashes even if update_params() has not run yet).
+    self.auto_navi_speed_safety_factor: float = 1.05
+    self.auto_navi_speed_bump_speed: float = 35.0
+    self.auto_navi_speed_bump_time: float = 1.0
+    self.auto_navi_count_down_mode: int = 0
+    self.turn_speed_control_mode: int = 1
+    self.map_turn_speed_factor: float = 1.0
+    self.auto_turn_control: int = 2
+    self.auto_turn_control_speed_turn: int = 20
+    self.auto_turn_control_turn_end: int = 6
+    self.auto_turn_map_change: int = 0
+    self.auto_curve_speed_lower_limit: int = 30
+    self.auto_road_speed_limit_offset: int = -1
+    self.auto_turn_dist_offset: int = 0
+    self.auto_fork_dist_offset: int = 30
+    self.auto_fork_dist_offset_h: int = 1000
+    self.auto_do_fork_blinker_dist: int = 15
+    self.auto_do_fork_nav_dist: int = 15
+    self.auto_do_fork_blinker_dist_h: int = 30
+    self.auto_do_fork_nav_dist_h: int = 50
+    self.auto_do_fork_decal_dist: int = 20
+    self.auto_do_fork_decal_dist_h: int = 50
+    self.auto_fork_decal_rate: float = 0.8
+    self.auto_fork_decal_rate_h: float = 0.8
+    self.auto_fork_speed_min: int = 45
+    self.auto_fork_speed_min_h: int = 60
+    self.auto_keep_fork_speed: int = 5
+    self.auto_keep_fork_speed_h: int = 5
+    self.auto_up_road_limit: int = 0
+    self.auto_up_highway_road_limit: int = 0
+    self.show_debug_log: int = 0
+    self.is_metric: bool = True
 
   # ---- packet ingestion -------------------------------------------------- #
 
@@ -264,6 +341,39 @@ class CarrotServ:
   def last_packet_mono(self) -> float:
     return self._last_packet_mono
 
+  @property
+  def traffic_state(self) -> int:
+    """Current traffic-light state: 0=none, 1=red, 2=green, 3=left-turn."""
+    return self._traffic_state
+
+  def reset(self) -> None:
+    """Reset all cached + derived state (e.g. after a packet timeout)."""
+    self._raw = {}
+    self._last_packet_mono = 0.0
+    self._last_seq = None
+    self._reset_derived()
+    self._traffic_history.clear()
+    self._traffic_state = 0
+    self._traffic_light_q.clear()
+    self._traffic_light_count = -1
+    self.map_traffic_state = 0
+    self.map_traffic_countdown = 0
+    self.map_traffic_time = 0.0
+    self.atc_paused = False
+    self.atc_activate_count = 0
+    self.atc_speed_decal = 0.0
+    self.fork_speed_keep_time = -1
+    self.gas_override_speed = 0
+    self.gas_pressed_state = False
+    self.source_last = "none"
+    self.left_spd_sec = 100
+    self.left_tbt_sec = 100
+    self.left_sec = 100
+    self.max_left_sec = 100
+    self.carrot_left_sec = 100
+    self.sdi_inform = False
+    self.active_kisa_count = 0
+
   # ---- derived state ----------------------------------------------------- #
 
   def derive(self, v_ego_kph: float = 0.0) -> None:
@@ -325,8 +435,13 @@ class CarrotServ:
     else:
       self.v_turn_speed = 0
 
+    # --- Road limit / phone position --------------------------------------
+    self.n_road_limit_speed = _safe_int(r.get("nRoadLimitSpeed"), 0)
+    self.vp_pos_point_lat = _safe_float(r.get("vpPosPointLat"), 0.0)
+    self.vp_pos_point_lon = _safe_float(r.get("vpPosPointLon"), 0.0)
+
     # --- Cruise advisory -------------------------------------------------
-    n_road_limit = _safe_int(r.get("nRoadLimitSpeed"), 0)
+    n_road_limit = self.n_road_limit_speed
     self.desired_speed = 0
     self.desired_source = ""
     if self.x_spd_type >= 0 and (self.x_spd_dist > 0 or self.x_spd_type in (100, 101)):
@@ -373,6 +488,423 @@ class CarrotServ:
     self.desired_source = ""
     self.atc_type = ""
     self.roadcate = 8
+    self.n_road_limit_speed = 0
+    self.vp_pos_point_lat = 0.0
+    self.vp_pos_point_lon = 0.0
+
+  # ---- parameter refresh -------------------------------------------------- #
+
+  def update_params(self) -> None:
+    """Refresh tuning parameters from UnifiedParams (throttled to 10 Hz)."""
+    if (self._param_frame % 10) != 0:
+      self._param_frame += 1
+      return
+    self._param_frame += 1
+
+    p = self._params
+    self.auto_navi_speed_decel_rate = float(p.get_int("AutoNaviSpeedDecelRate", 150)) * 0.01
+    self.auto_navi_speed_ctrl_end = float(p.get_int("AutoNaviSpeedCtrlEnd", 7))
+    self.auto_navi_speed_safety_factor = float(p.get_int("AutoNaviSpeedSafetyFactor", 100)) * 0.01
+    self.auto_navi_speed_bump_speed = float(p.get_int("AutoNaviSpeedBumpSpeed", 35))
+    self.auto_navi_speed_bump_time = float(p.get_int("AutoNaviSpeedBumpTime", 1))
+    self.auto_navi_count_down_mode = p.get_int("AutoNaviCountDownMode", 0)
+    self.turn_speed_control_mode = p.get_int("TurnSpeedControlMode", 1)
+    self.map_turn_speed_factor = float(p.get_int("MapTurnSpeedFactor", 100)) * 0.01
+    self.auto_turn_control = p.get_int("AutoTurnControl", 2)
+    self.auto_turn_control_speed_turn = p.get_int("AutoTurnControlSpeedTurn", 20)
+    self.auto_turn_control_turn_end = p.get_int("AutoTurnControlTurnEnd", 6)
+    self.auto_turn_map_change = p.get_int("AutoTurnMapChange", 0)
+    self.auto_curve_speed_lower_limit = p.get_int("AutoCurveSpeedLowerLimit", 30)
+    self.auto_road_speed_limit_offset = p.get_int("AutoRoadSpeedLimitOffset", -1)
+    self.auto_turn_dist_offset = p.get_int("AutoTurnDistOffset", 0)
+    self.auto_fork_dist_offset = p.get_int("AutoForkDistOffset", 30)
+    self.auto_fork_dist_offset_h = p.get_int("AutoForkDistOffsetH", 1000)
+    self.auto_do_fork_blinker_dist = p.get_int("AutoDoForkBlinkerDist", 15)
+    self.auto_do_fork_nav_dist = p.get_int("AutoDoForkNavDist", 15)
+    self.auto_do_fork_blinker_dist_h = p.get_int("AutoDoForkBlinkerDistH", 30)
+    self.auto_do_fork_nav_dist_h = p.get_int("AutoDoForkNavDistH", 50)
+    self.auto_do_fork_decal_dist = p.get_int("AutoDoForkDecalDist", 20)
+    self.auto_do_fork_decal_dist_h = p.get_int("AutoDoForkDecalDistH", 50)
+    self.auto_fork_decal_rate = float(p.get_int("AutoForkDecalRate", 80)) * 0.01
+    self.auto_fork_decal_rate_h = float(p.get_int("AutoForkDecalRateH", 80)) * 0.01
+    self.auto_fork_speed_min = p.get_int("AutoForkSpeedMin", 45)
+    self.auto_fork_speed_min_h = p.get_int("AutoForkSpeedMinH", 60)
+    self.auto_keep_fork_speed = p.get_int("AutoKeepForkSpeed", 5)
+    self.auto_keep_fork_speed_h = p.get_int("AutoKeepForkSpeedH", 5)
+    self.auto_up_road_limit = p.get_int("AutoUpRoadLimit", 0)
+    self.auto_up_highway_road_limit = p.get_int("AutoUpHighwayRoadLimit", 0)
+    self.show_debug_log = p.get_int("ShowDebugLog", 0)
+    self.is_metric = p.get_bool("IsMetric", True)
+
+  def calculate_current_speed(self, left_dist: float, safe_speed_kph: float,
+                              safe_time: float, safe_decel_rate: float) -> float:
+    """Deceleration-aware speed target (km/h)."""
+    safe_speed = safe_speed_kph / 3.6
+    safe_dist = safe_speed * safe_time
+    decel_dist = left_dist - safe_dist
+    if decel_dist <= 0:
+      return safe_speed_kph
+    temp = safe_speed ** 2 + 2 * safe_decel_rate * decel_dist
+    if temp < 0:
+      return safe_speed_kph
+    speed_mps = math.sqrt(temp)
+    return max(safe_speed_kph, min(250.0, speed_mps * 3.6))
+
+  # ---- traffic light DETECT state machine -------------------------------- #
+
+  def _update_cmd(self) -> None:
+    """Handle remote commands (e.g. DETECT) and decay the traffic-light state."""
+    carrot_cmd = _safe_str(self._raw.get("carrotCmd"), "")
+    carrot_arg = _safe_str(self._raw.get("carrotArg"), "")
+    cmd_index = _safe_int(self._raw.get("carrotCmdIndex"), 0)
+    if cmd_index != self._last_cmd_index:
+      self._last_cmd_index = cmd_index
+      if carrot_cmd == "DETECT":
+        self._handle_detect_command(carrot_arg)
+
+    self._traffic_light_q.append((-1.0, -1.0, "none", 0.0))
+    self._traffic_light_count -= 1
+    if self._traffic_light_count < 0:
+      self._traffic_light_count = -1
+      self._traffic_state = 0
+
+  def _handle_detect_command(self, x_arg: str) -> None:
+    elements = [e.strip() for e in x_arg.split(",")]
+    if len(elements) >= 4:
+      try:
+        state = elements[0]
+        value1 = float(elements[1])
+        value2 = float(elements[2])
+        value3 = float(elements[3])
+        self.traffic_light(value1, value2, state, value3)
+        self._traffic_light_count = int(0.5 / 0.1)
+      except ValueError:
+        pass
+
+  def traffic_light(self, x: float, y: float, color: str, cnf: float) -> None:
+    """Incremental traffic-light detection: accumulate confidence per color."""
+    traffic_red = traffic_green = traffic_left = 0.0
+    traffic_red_trig = traffic_green_trig = traffic_left_trig = 0.0
+    for px, py, pcolor, pcnf in self._traffic_light_q:
+      if abs(x - px) < 0.2 and abs(y - py) < 0.2:
+        if pcolor in ("Green Light", "Left turn"):
+          if color in ("Red Light", "Yellow Light"):
+            traffic_red_trig += cnf
+            traffic_red += cnf
+          elif color in ("Green Light", "Left turn"):
+            traffic_green += cnf
+        elif pcolor in ("Red Light", "Yellow Light"):
+          if color == "Green Light":
+            traffic_green_trig += cnf
+            traffic_green += cnf
+          elif color == "Left turn":
+            traffic_left_trig += cnf
+            traffic_left += cnf
+          elif color in ("Red Light", "Yellow Light"):
+            traffic_red += cnf
+
+    if traffic_red_trig > 0:
+      self._traffic_state = 1
+    elif traffic_green_trig > 0 and traffic_green > traffic_red:
+      self._traffic_state = 2
+    elif traffic_left_trig > 0:
+      self._traffic_state = 3
+    elif traffic_red > 0:
+      self._traffic_state = 1
+    elif traffic_green > 0:
+      self._traffic_state = 2
+    else:
+      self._traffic_state = 0
+
+    self._traffic_light_q.append((x, y, color, cnf))
+
+  # ---- ATC (auto turn control) ------------------------------------------- #
+
+  def update_auto_turn(self, v_ego_kph: float, sm, x_turn_info: int, x_dist_to_turn: float,
+                       check_steer: bool = False) -> tuple[float, str, float, float]:
+    """Decide the auto-turn action (type / target speed / decel distance).
+
+    Returns:
+      (desired_speed_kmh, atc_type, atc_speed, atc_dist)
+    """
+    turn_speed = float(self.auto_turn_control_speed_turn)
+    fork_speed = float(self.n_road_limit_speed)
+    stop_speed = 1.0
+    turn_dist_for_speed = self.auto_turn_control_turn_end * turn_speed / 3.6
+    fork_dist_for_speed = self.auto_turn_control_turn_end * fork_speed / 3.6
+    stop_dist_for_speed = 5.0
+
+    if self.roadcate > 1:
+      fork_dist_offset = float(self.auto_fork_dist_offset)
+      start_fork_dist = _interp_table(self.n_road_limit_speed, (30, 50, 100), (160, 200, 350)) + fork_dist_offset
+      do_fork_dist = fork_dist_for_speed + self.auto_do_fork_blinker_dist
+      do_speed_decal_dist = fork_dist_for_speed + self.auto_do_fork_decal_dist
+      auto_decel_rate = self.auto_fork_decal_rate
+      decel_speed_min = float(self.auto_fork_speed_min)
+      do_fork_nav_dist = float(self.auto_do_fork_nav_dist)
+      fork_speed_keep_time = float(self.auto_keep_fork_speed)
+    else:
+      fork_dist_offset = float(self.auto_fork_dist_offset_h)
+      start_fork_dist = _interp_table(self.n_road_limit_speed, (30, 50, 100), (160, 200, 350)) + fork_dist_offset
+      do_fork_dist = fork_dist_for_speed + self.auto_do_fork_blinker_dist_h
+      do_speed_decal_dist = fork_dist_for_speed + self.auto_do_fork_decal_dist_h
+      auto_decel_rate = self.auto_fork_decal_rate_h
+      decel_speed_min = float(self.auto_fork_speed_min_h)
+      do_fork_nav_dist = float(self.auto_do_fork_nav_dist_h)
+      fork_speed_keep_time = float(self.auto_keep_fork_speed_h)
+
+    if do_fork_nav_dist > 0:
+      do_fork_dist = max(do_fork_dist, do_fork_nav_dist)
+
+    max_dist = float(self.x_dist_to_turn) * 0.8
+    if do_fork_dist > max_dist:
+      do_fork_dist = max_dist
+    if start_fork_dist > max_dist:
+      start_fork_dist = max_dist
+
+    start_turn_dist = _interp_table(7.5, (5, 10), (43, 60)) + self.auto_turn_dist_offset
+    turn_info_mapping: dict[int, dict[str, object]] = {
+      1: {"type": "turn left", "speed": turn_speed, "dist": turn_dist_for_speed, "start": start_fork_dist},
+      2: {"type": "turn right", "speed": turn_speed, "dist": turn_dist_for_speed, "start": start_fork_dist},
+      5: {"type": "straight", "speed": turn_speed, "dist": turn_dist_for_speed, "start": start_turn_dist},
+      3: {"type": "fork left", "speed": fork_speed, "dist": do_fork_dist, "start": start_fork_dist},
+      4: {"type": "fork right", "speed": fork_speed, "dist": do_fork_dist, "start": start_fork_dist},
+      6: {"type": "straight", "speed": fork_speed, "dist": fork_dist_for_speed, "start": start_fork_dist},
+      7: {"type": "straight", "speed": stop_speed, "dist": stop_dist_for_speed, "start": 1000.0},
+      8: {"type": "straight", "speed": stop_speed, "dist": stop_dist_for_speed, "start": 1000.0},
+    }
+    default_mapping = {"type": "none", "speed": 0.0, "dist": 0.0, "start": 1000.0}
+    mapping = turn_info_mapping.get(x_turn_info, default_mapping)
+
+    atc_type = str(mapping["type"])
+    atc_speed = float(mapping["speed"])
+    atc_dist = float(mapping["dist"])
+    atc_start_dist = float(mapping["start"])
+    atc_type_org = atc_type
+    atc_speed_org = atc_speed
+
+    if x_dist_to_turn > atc_start_dist:
+      atc_type += " prepare"
+      if check_steer:
+        self.atc_activate_count = min(0, self.atc_activate_count - 1)
+    else:
+      if check_steer:
+        self.atc_activate_count = max(0, self.atc_activate_count + 1)
+
+      if atc_type in ("turn left", "turn right") and x_dist_to_turn > start_turn_dist:
+        atc_type = "atc left" if "left" in atc_type else "atc right"
+      elif atc_type in ("fork left", "fork right"):
+        if fork_dist_offset > 0 and x_dist_to_turn > do_fork_dist:
+          atc_type = "atc left" if "left" in atc_type else "atc right"
+        elif do_fork_nav_dist > 0 and x_dist_to_turn <= do_fork_nav_dist:
+          atc_type += " now"
+        if x_dist_to_turn < do_speed_decal_dist:
+          if auto_decel_rate > 0:
+            if atc_speed > decel_speed_min:
+              atc_speed = max(decel_speed_min, atc_speed * auto_decel_rate)
+          if check_steer:
+            self.atc_speed_decal = atc_speed
+            self.fork_speed_keep_time = int(fork_speed_keep_time / DT_MDL)
+
+    if check_steer:
+      if atc_type_org in ("fork left", "fork right") and self.atc_speed_decal > 0:
+        self.fork_speed_keep_time = min(-1, self.fork_speed_keep_time - 1)
+        if self.fork_speed_keep_time > 0:
+          atc_speed = min(atc_speed, self.atc_speed_decal)
+        if self.fork_speed_keep_time == 0:
+          self.atc_speed_decal = 0.0
+      else:
+        self.fork_speed_keep_time = -1
+        self.atc_speed_decal = 0.0
+
+    if self.auto_turn_map_change > 0 and check_steer:
+      if self.atc_activate_count == 2:
+        self._raw["carrotCmdIndex"] = _safe_int(self._raw.get("carrotCmdIndex"), 0) + 100
+        self._raw["carrotCmd"] = "DISPLAY"
+        self._raw["carrotArg"] = "MAP"
+      elif self.atc_activate_count == -50:
+        self._raw["carrotCmdIndex"] = _safe_int(self._raw.get("carrotCmdIndex"), 0) + 100
+        self._raw["carrotCmd"] = "DISPLAY"
+        self._raw["carrotArg"] = "ROAD"
+
+    if check_steer:
+      if 0 <= x_dist_to_turn < atc_start_dist and atc_type in ("fork left", "fork right"):
+        if not self.atc_paused:
+          try:
+            steering_pressed = sm["carState"].steeringPressed
+            steering_torque = sm["carState"].steeringTorque
+            if steering_pressed and steering_torque < 0 and atc_type in ("fork left", "atc left"):
+              self.atc_paused = True
+            elif steering_pressed and steering_torque > 0 and atc_type in ("fork right", "atc right"):
+              self.atc_paused = True
+          except (KeyError, AttributeError):
+            pass
+      else:
+        self.atc_paused = False
+
+      if self.atc_paused:
+        atc_type += " canceled"
+
+    atc_desired = 250.0
+    if atc_speed > 0 and x_dist_to_turn > 0:
+      decel = self.auto_navi_speed_decel_rate
+      atc_desired = min(atc_desired, self.calculate_current_speed(x_dist_to_turn - atc_dist, atc_speed, 2.0, decel))
+
+    return atc_desired, atc_type, atc_speed, atc_dist
+
+  # ---- main per-packet navigation update ---------------------------------- #
+
+  def update_navi(self, remote_ip: str, sm, pm, vturn_speed: float,
+                  coords: list, distances: list, route_speed: float) -> None:
+    """Full navigation update (reference-carrot semantics, no publish).
+
+    ``pm`` is accepted for API compatibility; the caller owns publishing.
+    """
+    self.update_params()
+    if sm.alive["carState"]:
+      v_ego = sm["carState"].vEgo
+      v_ego_kph = v_ego * 3.6
+    else:
+      v_ego = 0.0
+      v_ego_kph = 0.0
+
+    # Re-derive TBT/SDI from the cached packet, then apply time-based decay.
+    self.derive(v_ego_kph)
+    delta_dist = v_ego * DT_MDL
+    self.x_spd_dist = max(self.x_spd_dist - int(delta_dist), -1000)
+    self.x_dist_to_turn = int(self.x_dist_to_turn - delta_dist)
+    self.x_dist_to_turn_next = int(self.x_dist_to_turn_next - delta_dist)
+    self.active_kisa_count = max(self.active_kisa_count - 1, 0)
+
+    if self.x_spd_type < 0 or (self.x_spd_type not in (100, 101) and self.x_spd_dist <= 0) or \
+       (self.x_spd_type in (100, 101) and self.x_spd_dist < -250):
+      self.x_spd_type = -1
+      self.x_spd_dist = self.x_spd_limit = 0
+    if self.x_turn_info < 0 or self.x_dist_to_turn < -50:
+      if self.x_dist_to_turn > 0:
+        self.x_dist_to_turn = 0
+      self.x_turn_info = -1
+      self.x_dist_to_turn_next = 0
+      self.x_turn_info_next = -1
+
+    # ATC decision.
+    atc_desired, self.atc_type, _atc_speed, _atc_dist = self.update_auto_turn(
+      v_ego_kph, sm, self.x_turn_info, float(self.x_dist_to_turn), True)
+    if self.auto_turn_control not in (2, 3):
+      atc_desired = 250.0
+    if self.auto_turn_control not in (1, 2):
+      self.atc_type = "none"
+
+    # Speed-source synthesis (turn / SDI / road / curve).
+    sdi_speed = 250.0
+    if (self.x_spd_dist > 0 or self.x_spd_type in (100, 101)) and self.active_carrot > 0:
+      safe_sec = self.auto_navi_speed_bump_time if self.x_spd_type == 22 else self.auto_navi_speed_ctrl_end
+      sdi_speed = min(sdi_speed, self.calculate_current_speed(self.x_spd_dist, self.x_spd_limit,
+                                                              safe_sec, self.auto_navi_speed_decel_rate))
+    limit_speed = 200.0
+    if self.auto_road_speed_limit_offset >= 0 and self.active_carrot >= 2:
+      if self.n_road_limit_speed >= 30:
+        limit_speed = self.n_road_limit_speed + self.auto_road_speed_limit_offset
+      elif self.n_road_limit_speed > 0:
+        limit_speed = 30.0
+
+    speed_n_sources = [
+      (atc_desired, "atc"),
+      (sdi_speed, "sdi"),
+      (limit_speed, "road"),
+    ]
+    if self.turn_speed_control_mode in (1, 2):
+      speed_n_sources.append((max(abs(vturn_speed), self.auto_curve_speed_lower_limit), "vturn"))
+
+    if self.turn_speed_control_mode == 2 and -500 < self.x_dist_to_turn < 500:
+      speed_n_sources.append((max(route_speed * self.map_turn_speed_factor,
+                                  self.auto_curve_speed_lower_limit), "route"))
+    elif self.turn_speed_control_mode == 3:
+      speed_n_sources.append((max(route_speed * self.map_turn_speed_factor,
+                                  self.auto_curve_speed_lower_limit), "route"))
+
+    desired_speed, source = min(speed_n_sources, key=lambda x: x[0])
+    self.desired_speed = int(desired_speed)
+    self.desired_source = source
+
+    # Countdowns.
+    if self.x_dist_to_turn > 0:
+      left_turn_sec = min(1000, int(min(200000, max(self.x_dist_to_turn - v_ego, 1)) / max(1, v_ego) + 0.5))
+    else:
+      left_turn_sec = 0
+    left_spd_sec = 100
+    left_tbt_sec = 100
+    if self.auto_navi_count_down_mode > 0:
+      if self.x_spd_dist > 0:
+        left_spd_sec = min(self.left_spd_sec, int(max(self.x_spd_dist - v_ego, 1) / max(1, v_ego) + 0.5))
+      if self.x_dist_to_turn > 0:
+        left_tbt_sec = min(self.left_tbt_sec, int(max(self.x_dist_to_turn - v_ego, 1) / max(1, v_ego) + 0.5))
+    self.left_spd_sec = left_spd_sec
+    self.left_tbt_sec = left_tbt_sec
+
+    left_sec = min(left_spd_sec, left_tbt_sec)
+    if left_sec > 11:
+      self.left_sec = 100
+      self.max_left_sec = 100
+    else:
+      self.sdi_inform = source in ("sdi", "hda")
+      self.max_left_sec = min(11, max(6, int(v_ego_kph / 10) + 1))
+
+    if left_sec != self.left_sec:
+      if left_sec == self.max_left_sec and self.sdi_inform:
+        self.carrot_left_sec = 11
+      elif 1 <= left_sec < self.max_left_sec:
+        self.carrot_left_sec = left_sec
+      elif left_sec == 0 and self.left_sec == 1:
+        self.carrot_left_sec = left_sec
+      self.left_sec = left_sec
+
+    # Traffic light state machine.
+    self._update_cmd()
+    if self.map_traffic_state > 0 and time.time() - self.map_traffic_time < 5.0:
+      self._traffic_state = self.map_traffic_state
+
+    # Store navi path for the publisher.
+    if coords and distances:
+      self.navi_paths = ";".join(
+        f"{x:.2f},{y:.2f},{d:.2f}" for (x, y), d in zip(coords, distances, strict=False)
+      )
+    else:
+      self.navi_paths = ""
+
+  # ---- Kisa (crowdsourced nav data) -------------------------------------- #
+
+  def update_kisa(self, data: dict) -> None:
+    """Apply Kisa (waze-like) crowdsourced data from the phone app."""
+    self.active_kisa_count = 100
+    if "kisawazeroadspdlimit" in data:
+      road_limit_speed = _safe_int(data["kisawazeroadspdlimit"], 0)
+      if road_limit_speed > 0:
+        if not self.is_metric:
+          road_limit_speed = int(road_limit_speed * 1.609344)
+        self.n_road_limit_speed = road_limit_speed
+        self._raw["nRoadLimitSpeed"] = road_limit_speed
+    if "kisawazeroadname" in data:
+      self._raw["szPosRoadName"] = _safe_str(data["kisawazeroadname"], "")
+
+    report_id = data.get("kisawazereportid")
+    alert_dist = data.get("kisawazealertdist")
+    if report_id is not None and alert_dist is not None:
+      import re
+      match = re.search(r"(\d+)", str(alert_dist).lower())
+      distance = int(match.group(1)) if match else 0
+      if not self.is_metric:
+        distance = int(distance * 0.3048)
+      x_spd_type = -1
+      if "camera" in str(report_id):
+        x_spd_type = 101
+      elif "police" in str(report_id):
+        x_spd_type = 100
+      if x_spd_type >= 0:
+        self.x_spd_type = x_spd_type
+        self.x_spd_limit = self.n_road_limit_speed + 5
+        self.x_spd_dist = distance
+        self.active_carrot = 2
 
   # ---- path / curvature helpers ------------------------------------------ #
 

@@ -206,7 +206,8 @@ procs += [
   PythonProcess("mapd_manager", "openpilot.sunnypilot.mapd.mapd_manager", always_run),
 
   # Amap / Carrot
-  PythonProcess("mapd_amap", "openpilot.sunnypilot.mapd.amap.mapd_amap", amap_enabled),
+  # Kept registered for rollback, but disabled while carrot_man owns amapNaviSP.
+  PythonProcess("mapd_amap", "openpilot.sunnypilot.mapd.amap.mapd_amap", lambda *_: False),
   PythonProcess("carrot_man", "openpilot.sunnypilot.carrot.carrot_man", carrot_enabled),
 
   # locationd
