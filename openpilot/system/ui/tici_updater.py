@@ -10,9 +10,8 @@ from openpilot.system.ui.lib.application import gui_app, FontWeight, FONT_SCALE
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager
 from openpilot.system.ui.widgets import Widget
-from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.button import Button, ButtonStyle
-from openpilot.system.ui.widgets.label import gui_text_box, gui_label
+from openpilot.system.ui.widgets.label import UnifiedLabel, gui_label
 from openpilot.system.ui.widgets.network import WifiManagerUI
 
 # Constants
@@ -52,6 +51,8 @@ class Updater(Widget):
     self._install_button = Button(tr("Install"), click_callback=self.install_update, button_style=ButtonStyle.PRIMARY)
     self._back_button = Button(tr("Back"), click_callback=lambda: self.set_current_screen(Screen.PROMPT))
     self._reboot_button = Button(tr("Reboot"), click_callback=lambda: HARDWARE.reboot())
+    self._desc_label = UnifiedLabel(tr("An operating system update is required. Connect your device to Wi-Fi for the fastest update experience. "
+                                        "The download size is approximately 1GB."), BODY_FONT_SIZE, line_height=1 / 0.9)
 
   def set_current_screen(self, screen: Screen):
     self.current_screen = screen
@@ -101,11 +102,8 @@ class Updater(Widget):
     gui_label(title_rect, tr("Update Required"), TITLE_FONT_SIZE, font_weight=FontWeight.BOLD)
 
     # Description
-    desc_text = tr("An operating system update is required. Connect your device to Wi-Fi for the fastest update experience. "
-                   "The download size is approximately 1GB.")
-
     desc_rect = rl.Rectangle(MARGIN + 50, 250 + TITLE_FONT_SIZE * FONT_SCALE + 75, rect.width - MARGIN * 2 - 100, BODY_FONT_SIZE * FONT_SCALE * 4)
-    gui_text_box(desc_rect, desc_text, BODY_FONT_SIZE)
+    self._desc_label.render(desc_rect)
 
     # Buttons at the bottom
     button_y = rect.height - MARGIN - BUTTON_HEIGHT

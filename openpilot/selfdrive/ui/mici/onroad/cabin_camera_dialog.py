@@ -5,7 +5,7 @@ from openpilot.cereal.visionipc import VisionStreamType
 from openpilot.selfdrive.ui.mici.onroad.cameraview import CameraView
 from openpilot.selfdrive.ui.mici.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.ui_state import ui_state, device
-from openpilot.system.ui.lib.application import gui_app, FontWeight
+from openpilot.system.ui.lib.application import gui_app, FontWeight, TextAlignment, TextAlignmentVertical
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.nav_widget import NavWidget
@@ -81,7 +81,7 @@ class BaseCabinCameraDialog(Widget):
       if time.monotonic() - self._opened_at > 15.0:
         msg = tr("Driver camera unavailable")
       gui_label(rect, msg, font_size=54, font_weight=FontWeight.BOLD,
-                alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER)
+                alignment=TextAlignment.CENTER)
       rl.end_scissor_mode()
       self._publish_alert_sound(None)
       return
@@ -129,12 +129,12 @@ class BaseCabinCameraDialog(Widget):
     awareness_pct = dm_state.visionPolicyState.awarenessPercent if is_vision else dm_state.wheeltouchPolicyState.awarenessPercent
     gui_label(rl.Rectangle(rect.x + 2, rect.y + 2, rect.width, rect.height),
               f"Awareness: {awareness_pct:.0f}%", font_size=44, font_weight=FontWeight.MEDIUM,
-              alignment=rl.GuiTextAlignment.TEXT_ALIGN_RIGHT,
-              alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_TOP,
+              alignment=TextAlignment.RIGHT,
+              alignment_vertical=TextAlignmentVertical.TOP,
               color=rl.Color(0, 0, 0, 180))
     gui_label(rect, f"Awareness: {awareness_pct:.0f}%", font_size=44, font_weight=FontWeight.MEDIUM,
-              alignment=rl.GuiTextAlignment.TEXT_ALIGN_RIGHT,
-              alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_TOP,
+              alignment=TextAlignment.RIGHT,
+              alignment_vertical=TextAlignmentVertical.TOP,
               color=rl.Color(255, 255, 255, int(255 * 0.9)))
 
     if dm_state.alertLevel == log.DriverMonitoringState.AlertLevel.none:
@@ -142,16 +142,16 @@ class BaseCabinCameraDialog(Widget):
 
     # Show alert level
     alert_level_str = f"{'Pay Attention' if is_vision else 'Touch Wheel'} - level {dm_state.alertLevel}"
-    alignment = rl.GuiTextAlignment.TEXT_ALIGN_RIGHT if self.driver_state_renderer.is_rhd else rl.GuiTextAlignment.TEXT_ALIGN_LEFT
+    alignment = TextAlignment.RIGHT if self.driver_state_renderer.is_rhd else TextAlignment.LEFT
 
     shadow_rect = rl.Rectangle(rect.x + 2, rect.y + 2, rect.width, rect.height)
     gui_label(shadow_rect, alert_level_str, font_size=40, font_weight=FontWeight.BOLD,
               alignment=alignment,
-              alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_BOTTOM,
+              alignment_vertical=TextAlignmentVertical.BOTTOM,
               color=rl.Color(0, 0, 0, 180))
     gui_label(rect, alert_level_str, font_size=40, font_weight=FontWeight.BOLD,
               alignment=alignment,
-              alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_BOTTOM,
+              alignment_vertical=TextAlignmentVertical.BOTTOM,
               color=rl.Color(255, 255, 255, int(255 * 0.9)))
 
   def _load_eye_textures(self):

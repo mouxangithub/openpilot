@@ -14,7 +14,7 @@ import subprocess
 from contextlib import contextmanager
 from collections.abc import Callable
 from collections import deque
-from enum import StrEnum
+from enum import IntEnum, StrEnum
 from pathlib import Path
 from typing import NamedTuple
 from importlib.resources import as_file, files
@@ -155,6 +155,18 @@ def font_fallback(font: rl.Font, text: str = "") -> rl.Font:
   returned so pure-ASCII strings (numbers, English labels) keep Inter's crisp
   scaling instead of being downgraded to the 48 px fallback atlas.
   """
+class TextAlignment(IntEnum):
+  LEFT = 0
+  CENTER = 1
+  RIGHT = 2
+
+
+class TextAlignmentVertical(IntEnum):
+  TOP = 0
+  MIDDLE = 1
+  BOTTOM = 2
+
+
   if multilang.requires_font_fallback():
     if text and not _NON_LATIN_RE.search(text):
       return font
@@ -376,7 +388,6 @@ class GuiApplication(GuiApplicationExt):
       rl.set_target_fps(0 if OFFSCREEN or vblank_control else fps)
 
       self._target_fps = fps
-      self._set_styles()
       self._load_fonts()
       self._patch_text_functions()
       self._patch_scissor_mode()

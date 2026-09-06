@@ -3347,6 +3347,10 @@ msgstr "安装 openpilot"
 msgid "install update"
 msgstr "安装更新"
 
+#: openpilot\selfdrive\ui\mici\layouts\settings\software.py
+msgid "install now"
+msgstr "立即安装"
+
 #: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
 msgid "joystick debug mode"
 msgstr "摇杆调试模式"
