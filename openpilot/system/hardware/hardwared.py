@@ -377,8 +377,11 @@ def hardware_thread(end_event, hw_queue) -> None:
     # only allow going onroad when:
     # - TIZI, or
     # - TICI and channel_type is "tici"
+    # - our own fork (mouxangithub/openpilot): we run a custom branch on our tici device
     build_metadata = get_build_metadata()
-    is_unsupported_combo = COMMA_HARDWARE and HARDWARE.get_device_type() == "tici" and build_metadata.channel_type != "tici"
+    is_own_fork = build_metadata.openpilot.git_normalized_origin.endswith("mouxangithub/openpilot")
+    is_unsupported_combo = (COMMA_HARDWARE and HARDWARE.get_device_type() == "tici"
+                            and build_metadata.channel_type != "tici" and not is_own_fork)
     startup_conditions["not_tici"] = not is_unsupported_combo
     onroad_conditions["not_tici"] = not is_unsupported_combo
     set_offroad_alert("Offroad_TiciSupport", is_unsupported_combo, extra_text=build_metadata.channel)
