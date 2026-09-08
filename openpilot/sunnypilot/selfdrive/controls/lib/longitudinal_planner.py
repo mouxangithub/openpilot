@@ -51,24 +51,13 @@ class LongitudinalPlannerSP:
     if not self.dec.active() or self.dec.mode() == "blended":
       return True
 
-    # hold a brake the model already owns rather than release it mid-brake; min() means this can only ever
-    # add deceleration, and never one that was not already the selected source
     if self.mpc.source == MpcPlanSource.e2e and sm['modelV2'].action.desiredAcceleration < E2E_BRAKE_HOLD_ACCEL:
       return True
 
     return False
 
-  def get_max_accel_override(self, v_ego: float) -> float | None:
-    if not self.accel_controller.is_enabled():
-      return None
-
-    return self.accel_controller.get_max_accel(v_ego)
-
-  def is_accel_controller_active(self, force_decel: bool, accel_target: float | None = None) -> bool:
-    # The profile ceiling is applied after arbitration, so a lead/model/SCC winner can still be profile-controlled.
-    # Braking remains owned by the selected safety source and is not reported as profile activity.
-    return bool(self.accel_controller.is_enabled() and not force_decel and
-                (accel_target is None or accel_target >= 0.0))
+  def is_accel_controller_active(self, force_decel: bool, accel_target: float) -> bool:
+    return bool(self.accel_controller.is_enabled() and not force_decel and accel_target >= 0.0)
 
   def _has_valid_selected_lead(self, sm: messaging.SubMaster, source: MpcPlanSource) -> bool:
     radar_valid = sm.valid.get('radarState', False) and getattr(sm, 'alive', {}).get('radarState', False)

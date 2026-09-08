@@ -39,3 +39,8 @@ class AccelController:
 
   def get_max_accel(self, v_ego: float) -> float:
     return float(np.interp(max(0.0, v_ego), MAX_ACCEL_BREAKPOINTS, MAX_ACCEL_PROFILES[self._profile]))
+
+  def limit_accel(self, accel: float, v_ego: float) -> float:
+    if not self.is_enabled() or accel <= 0.0:
+      return accel
+    return min(accel, self.get_max_accel(v_ego))
