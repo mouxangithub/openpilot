@@ -158,6 +158,35 @@ class PoseCalibrator:
   def __init__(self):
     self.calib_valid = False
     self.calib_from_device = np.eye(3)
+    # Two daemons publish extrinsicsCalibration: calibrationd (camera mounting
+    # rpyCalib) and imu_calibrationd (device mounting imuCalibMatrix). The two
+    # rotations disagree on large-angle mounts, so letting camera frames
+    # overwrite the IMU matrix made every consumer (paramsd, controlsd,
+    # torqued, lagd, selfdrived) flip its pose transform between frames and
+    # diverged paramsd's fast angle offset -> "paramsd 临时错误".
+    # Once the IMU source is seen it becomes sticky: only IMU frames may
+    # update the calibration state.
+    self._imu_source_seen = False
+
+  def feed_extrinsics_calibration(self, extrinsics_calibration: log.ExtrinsicsCalibration):
+    if len(extrinsics_calibration.imuCalibMatrix) == 9:
+      self._imu_source_seen = True
+      device_from_calib = np.array(extrinsics_calibration.imuCalibMatrix, dtype=np.float64).reshape(3, 3)
+      det = float(np.linalg.det(device_from_calib))
+      if 0.99 < det < 1.01 and extrinsics_calibration.calStatus == log.ExtrinsicsCalibration.Status.calibrated:
+        self.calib_from_device = device_from_calib.T
+        self.calib_valid = True
+      else:
+        # IMU calibration active but not complete: keep consumers frozen
+        # (raw device pose) instead of falling back to the camera mounting.
+        self.calib_valid = False
+      return
+    if self._imu_source_seen:
+      return  # camera frames must not clobber the IMU calibration state
+    calib_rpy = np.array(extrinsics_calibration.rpyCalib)
+    device_from_calib = rot_from_euler(calib_rpy)
+    self.calib_from_device = device_from_calib.T
+    self.calib_valid = extrinsics_calibration.calStatus == log.ExtrinsicsCalibration.Status.calibrated
 
   def _transform_calib_from_device(self, meas: Measurement):
     new_xyz = self.calib_from_device @ meas.xyz

@@ -82,6 +82,10 @@ class LocationEstimator:
     self.use_imu_calib = self.imu_calib_matrix is not None
     if self.use_imu_calib:
       self.device_from_calib = self.imu_calib_matrix
+    # Set once the calibrated IMU matrix takes over; afterwards camera rpyCalib
+    # frames must not flip device_from_calib back to the camera mounting
+    # (same dual-publisher issue as PoseCalibrator).
+    self._imu_calibrated = self.use_imu_calib
 
     obs_kinds = [ObservationKind.PHONE_ACCEL, ObservationKind.PHONE_GYRO, ObservationKind.CAMERA_ODO_ROTATION, ObservationKind.CAMERA_ODO_TRANSLATION]
     self.observations = {kind: np.zeros(3, dtype=np.float32) for kind in obs_kinds}
@@ -179,10 +183,11 @@ class LocationEstimator:
         if 0.99 < det < 1.01:
           self.device_from_calib = R
           self.use_imu_calib = True
+          self._imu_calibrated = True
         else:
           return HandleLogResult.INPUT_INVALID
 
-      if len(msg.rpyCalib) > 0:
+      if len(msg.rpyCalib) > 0 and not self._imu_calibrated:
         calib = np.array(msg.rpyCalib)
         # When IMU calibration is enabled the device can be mounted at large
         # angles (e.g. horizontal), so the stock rpyCalib sanity limits do not

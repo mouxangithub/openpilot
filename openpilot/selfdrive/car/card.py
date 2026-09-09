@@ -72,7 +72,7 @@ class Car:
 
   def __init__(self, CI=None, RI=None) -> None:
     self.can_sock = messaging.sub_sock('can', timeout=20)
-    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP', 'amapNaviSP'])
+    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP', 'amapNaviSP', 'carrotManSP'])
     self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'radarTracks'] + ['carParamsSP', 'carStateSP'])
 
     self.can_rcv_cum_timeout_counter = 0
@@ -228,6 +228,13 @@ class Car:
 
     if can_rcv_valid and REPLAY:
       self.can_log_mono_time = messaging.log_from_bytes(can_strs[0]).logMonoTime
+
+    # remote SPEED commands from the carrot phone app (Navipilot-style set speed)
+    if self.carrot_enabled and self.sm.updated['carrotManSP']:
+      try:
+        self.v_cruise_helper.process_carrot_speed_cmd(self.sm['carrotManSP'], self.sm['carControl'].enabled)
+      except Exception:
+        cloudlog.exception("card: failed to process carrot speed command")
 
     self.v_cruise_helper.update_speed_limit_assist(self.is_metric, self.sm['longitudinalPlanSP'])
     self.v_cruise_helper.update_v_cruise(CS, self.sm['carControl'].enabled, self.is_metric)

@@ -18,7 +18,10 @@ from typing import Any, Optional
 from openpilot.common.params import Params
 
 try:
-  from openpilot.common.params_pyx import UnknownKeyName
+  # UnknownKeyName lives in common.params (params_pyx was merged into it);
+  # importing it here is what lets _read_from_system/_write_to_system swallow
+  # the "key not registered" error for carrot-only tuning keys.
+  from openpilot.common.params import UnknownKeyName
 except ImportError:
   UnknownKeyName = KeyError  # type: ignore[misc,assignment]
 

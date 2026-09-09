@@ -458,6 +458,10 @@ msgstr "车辆优先"
 msgid "Car First: Use Speed Limit data from Car if available, else use from OpenStreetMaps"
 msgstr "车辆优先：优先使用车辆限速数据，否则使用 OpenStreetMaps 数据。"
 
+#: webui\server\bridge\panel_catalog.py
+msgid "Car Name"
+msgstr "车辆名称"
+
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
 msgid "Car Only"
 msgstr "仅车辆"
@@ -465,6 +469,18 @@ msgstr "仅车辆"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_policy.py
 msgid "Car Only: Use Speed Limit data only from Car"
 msgstr "仅车辆：只使用车辆限速数据。"
+
+#: webui\server\bridge\panel_catalog.py
+msgid "Carrot Nav Panel On Right"
+msgstr "Carrot 导航面板靠右显示"
+
+#: webui\server\bridge\panel_catalog.py
+msgid "Carrot Nav Panel Opacity"
+msgstr "Carrot 导航面板不透明度"
+
+#: webui\server\bridge\panel_catalog.py
+msgid "Carrot Tuning"
+msgstr "Carrot 调校"
 
 #: openpilot\system\ui\widgets\network.py
 msgid "Cellular Metered"
@@ -605,6 +621,10 @@ msgstr "自定义 ACC 速度增量"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
 msgid "Custom Longitudinal Tuning"
 msgstr "自定义纵向调校"
+
+#: webui\server\bridge\panel_catalog.py
+msgid "Custom name for this car. Sent with Carrot FTP uploads and shown in the companion app."
+msgstr "自定义车辆名称。随 Carrot FTP 上传一并发送，并显示在配套 App 中。"
 
 #: openpilot\system\ui\tici_setup.py
 msgid "Custom Software"
@@ -1784,6 +1804,10 @@ msgstr "确定"
 msgid "ONLINE"
 msgstr "在线"
 
+#: webui\server\bridge\panel_catalog.py
+msgid "Opacity of the onroad Carrot navigation panel, in percent. Default 100."
+msgstr "行车时 Carrot 导航面板的不透明度（百分比），默认 100。"
+
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "OSM"
 msgstr "OSM"
@@ -1939,6 +1963,10 @@ msgstr "百分比：添加百分比偏移量 [限速 + (偏移% × 限速)]"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
 msgid "Perform a search"
 msgstr "输入搜索"
+
+#: webui\server\bridge\panel_catalog.py
+msgid "Place the onroad Carrot navigation panel on the right side of the screen (default: left)."
+msgstr "将行车时的 Carrot 导航面板放置在屏幕右侧（默认在左侧）。"
 
 #: openpilot\selfdrive\ui\widgets\setup.py
 msgid "Please connect to Wi-Fi to complete initial pairing"

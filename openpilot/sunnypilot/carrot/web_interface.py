@@ -95,8 +95,21 @@ _HTML_RADAR_TAIL = """</div>
 """
 
 
+class _CarrotHTTPServer(ThreadingHTTPServer):
+  """ThreadingHTTPServer that carries the WebInterface instance.
+
+  ``BaseRequestHandler.__init__`` assigns ``self.server = <raw server>``
+  on every handler instance, shadowing any class attribute, so the
+  interface must be exposed through a dedicated attribute.
+  """
+
+  def __init__(self, address: tuple[str, int], handler_cls, interface: "WebInterface") -> None:
+    super().__init__(address, handler_cls)
+    self.interface = interface
+
+
 class _CarrotWebHandler(BaseHTTPRequestHandler):
-  server: WebInterface
+  interface: "WebInterface"
 
   # Quieter access log.
   def log_message(self, format, *args):  # noqa: A002 - signature is fixed
@@ -126,14 +139,14 @@ class _CarrotWebHandler(BaseHTTPRequestHandler):
     path = parsed.path
 
     if path == "/" or path == "/nav_params":
-      self._write(self.server.render_nav_params_page())
+      self._write(self.server.interface.render_nav_params_page())
     elif path == "/radar":
-      self._write(self.server.render_radar_page())
+      self._write(self.server.interface.render_radar_page())
     elif path == "/radar_data":
-      body = json.dumps(self.server.snapshot_radar_data()).encode("utf-8")
+      body = json.dumps(self.server.interface.snapshot_radar_data()).encode("utf-8")
       self._write(body, content_type="application/json; charset=utf-8")
     elif path == "/nav_params_data":
-      body = json.dumps(self.server.snapshot_nav_params()).encode("utf-8")
+      body = json.dumps(self.server.interface.snapshot_nav_params()).encode("utf-8")
       self._write(body, content_type="application/json; charset=utf-8")
     elif path == "/health":
       self._write(b"ok", content_type="text/plain; charset=utf-8")
@@ -145,7 +158,7 @@ class _CarrotWebHandler(BaseHTTPRequestHandler):
     if parsed.path == "/nav_params_save":
       length = int(self.headers.get("Content-Length", "0") or "0")
       body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
-      self.server.apply_form_update(parse_qs(body))
+      self.server.interface.apply_form_update(parse_qs(body))
       self._redirect("/nav_params")
       return
     self._write(b"<h1>404</h1>", status=404)
@@ -178,12 +191,7 @@ class WebInterface:
       if self._server is not None:
         return
       try:
-        handler_cls = type(
-          "_BoundCarrotWebHandler",
-          (_CarrotWebHandler,),
-          {"server": self},
-        )
-        server = ThreadingHTTPServer(("0.0.0.0", self._port), handler_cls)
+        server = _CarrotHTTPServer(("0.0.0.0", self._port), _CarrotWebHandler, self)
       except OSError as exc:
         _LOG.warning("web interface failed to bind port %s: %s", self._port, exc)
         return

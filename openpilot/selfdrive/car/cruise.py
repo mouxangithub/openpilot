@@ -36,12 +36,49 @@ class VCruiseHelper(VCruiseHelperSP):
     self.v_cruise_kph = V_CRUISE_UNSET
     self.v_cruise_cluster_kph = V_CRUISE_UNSET
     self.v_cruise_kph_last = 0
+    self.carrot_speed_cmd_index_last = 0
     self.button_timers = {ButtonType.decelCruise: 0, ButtonType.accelCruise: 0}
     self.button_change_states = {btn: {"standstill": False, "enabled": False} for btn in self.button_timers}
 
   @property
   def v_cruise_initialized(self):
     return self.v_cruise_kph != V_CRUISE_UNSET
+
+  def process_carrot_speed_cmd(self, carrot_man_msg, enabled: bool) -> None:
+    """Handle remote SPEED commands from the carrot phone app (e.g. Navipilot).
+
+    carrotCmd = "SPEED", carrotArg = "UP" | "DOWN" (±1 km/h, same increment as
+    the stalk buttons) or "SET <kph>" for an absolute set speed. The command is
+    edge-detected via carrotCmdIndex, mirroring DesireHelper's LANECHANGE
+    handling. Applies to openpilot's managed set speed; with stock PCM cruise
+    the car's own set speed wins on the next frame (see update_v_cruise), so
+    the remote speed control is fully effective only when openpilot manages
+    the set speed (non-PCM / openpilot longitudinal).
+    """
+    cmd_index = int(carrot_man_msg.carrotCmdIndex)
+    if cmd_index == self.carrot_speed_cmd_index_last:
+      return
+    self.carrot_speed_cmd_index_last = cmd_index
+
+    cmd = str(carrot_man_msg.carrotCmd)
+    arg = str(carrot_man_msg.carrotArg)
+    if cmd != "SPEED" or not enabled or not self.v_cruise_initialized:
+      return
+
+    v_min = getattr(self, "v_cruise_min", V_CRUISE_MIN)
+    if arg == "UP":
+      self.v_cruise_kph = min(V_CRUISE_MAX, round(self.v_cruise_kph) + 1)
+    elif arg == "DOWN":
+      self.v_cruise_kph = max(v_min, round(self.v_cruise_kph) - 1)
+    elif arg.startswith("SET"):
+      try:
+        target = float(arg.split()[1])
+      except (IndexError, ValueError):
+        return
+      self.v_cruise_kph = float(np.clip(target, v_min, V_CRUISE_MAX))
+    else:
+      return
+    self.v_cruise_cluster_kph = self.v_cruise_kph
 
   def update_v_cruise(self, CS, enabled, is_metric):
     self.v_cruise_kph_last = self.v_cruise_kph

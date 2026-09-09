@@ -279,8 +279,9 @@ class CarrotManager:
   def __init__(self):
     self.params = Params()
     self._unified = UnifiedParams()
-    self.sm = messaging.SubMaster(['deviceState', 'carState', 'controlsState', 'modelV2'])
+    self.sm = messaging.SubMaster(['deviceState', 'carState', 'controlsState', 'modelV2', 'carParams'])
     self.pm = messaging.PubMaster(['carrotManSP', 'navInstructionCarrotSP', 'amapNaviSP'])
+    self._car_name_synced = None
 
     # Sub-modules.
     self._carrot_serv = CarrotServ(self._unified)
@@ -691,16 +692,23 @@ class CarrotManager:
     ni.timeRemainingTypical = float(_safe_int(raw.get("nGoPosTime"), 0))
     ni.speedLimit = float(n_road_limit / 3.6) if n_road_limit > 0 else 0.0
 
-    if x_turn_info > 0:
-      m0 = ni.allManeuvers.add()
-      m0.distance = float(x_dist_to_turn)
-      m0.type = nav_type
-      m0.modifier = nav_modifier
-    if x_turn_info_next > 0:
-      m1 = ni.allManeuvers.add()
-      m1.distance = float(x_dist_to_turn_next)
-      m1.type = nav_type_next
-      m1.modifier = nav_modifier_next
+    # pycapnp 2.x removed List.add(); size must be set via the struct-level
+    # init(field, n) (verified on-device with pycapnp 2.1.0)
+    n_maneuvers = (1 if x_turn_info > 0 else 0) + (1 if x_turn_info_next > 0 else 0)
+    if n_maneuvers > 0:
+      maneuvers = ni.init('allManeuvers', n_maneuvers)
+      idx = 0
+      if x_turn_info > 0:
+        m0 = maneuvers[idx]
+        idx += 1
+        m0.distance = float(x_dist_to_turn)
+        m0.type = nav_type
+        m0.modifier = nav_modifier
+      if x_turn_info_next > 0:
+        m1 = maneuvers[idx]
+        m1.distance = float(x_dist_to_turn_next)
+        m1.type = nav_type_next
+        m1.modifier = nav_modifier_next
 
     amap_msg = self._amap_navi.build_amap_navi_msg(messaging.new_message)
 
@@ -891,6 +899,13 @@ class CarrotManager:
     self._start_web = self.params.get_bool("CarrotWebEnabled")
 
     self.sm.update(0)
+
+    # Keep CarName in sync with the identified car fingerprint
+    if self.sm.alive['carParams']:
+      fingerprint = self.sm['carParams'].carFingerprint or ""
+      if fingerprint and fingerprint != self._car_name_synced:
+        self.params.put("CarName", fingerprint)
+        self._car_name_synced = fingerprint
 
     if not self._enabled or self._port <= 0:
       self._close_socket()
@@ -1327,12 +1342,14 @@ class CarrotManager:
       ftp.connect(ftp_server, ftp_port, timeout=30)
       ftp.login(ftp_username, ftp_password)
 
-      # Get car name
+      # Get car name: identified fingerprint preferred, CarName param as fallback
       car_selected = self.params.get("CarName")
-      if car_selected is None:
-        car_selected = "none"
-      elif isinstance(car_selected, bytes):
+      if isinstance(car_selected, bytes):
         car_selected = car_selected.decode('utf-8')
+      if not car_selected and self.sm.alive['carParams']:
+        car_selected = self.sm['carParams'].carFingerprint or ""
+      if not car_selected:
+        car_selected = "none"
 
       # Get git branch
       git_branch = self.params.get("GitBranch") or ''

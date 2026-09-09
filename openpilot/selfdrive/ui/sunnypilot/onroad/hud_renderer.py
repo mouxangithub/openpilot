@@ -16,7 +16,7 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.smart_cruise_control import SmartC
 from openpilot.selfdrive.ui.sunnypilot.onroad.turn_signal import TurnSignalController
 from openpilot.selfdrive.ui.sunnypilot.onroad.circular_alerts import CircularAlertsRenderer
 from openpilot.selfdrive.ui.sunnypilot.onroad.speed_renderer import SpeedRenderer
-from openpilot.selfdrive.ui.sunnypilot.onroad.amap_lane_indicators import AmapLaneIndicators, CarrotNavigationPanel
+from openpilot.selfdrive.ui.sunnypilot.onroad.amap_lane_indicators import AmapLaneIndicators
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer, UI_CONFIG, FONT_SIZES, COLORS, CRUISE_DISABLED_CHAR
 from openpilot.system.ui.lib.application import gui_app
@@ -39,7 +39,7 @@ class HudRendererSP(HudRenderer):
     self.speed_renderer = SpeedRenderer()
     self._torque_bar = TorqueBar(scale=3.0, always=True)
     self.amap_lane_indicators = AmapLaneIndicators()
-    self.carrot_navigation_panel = CarrotNavigationPanel()
+    self.carrot_navigation_panel = AmapLaneIndicators()
 
     self.pcm_cruise_speed: bool = True
     self.show_icbm_status: bool = False
