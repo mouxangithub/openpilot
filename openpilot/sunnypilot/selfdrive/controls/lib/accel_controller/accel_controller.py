@@ -13,11 +13,11 @@ from openpilot.sunnypilot import get_sanitize_int_param
 
 AccelProfile = custom.LongitudinalPlanSP.AccelController.Profile
 
-MAX_ACCEL_BREAKPOINTS = [0., 3., 5., 10., 20., 25., 40.]  # m/s
+MAX_ACCEL_BREAKPOINTS = [0., 3., 12,  24., 36.]  # m/s
 MAX_ACCEL_PROFILES = {
-  AccelProfile.eco:    [1.60, 1.48, 1.22, 0.86, 0.66, 0.52, 0.40],
-  AccelProfile.normal: [1.90, 1.70, 1.42, 0.99, 0.80, 0.66, 0.52],
-  AccelProfile.sport:  [2.00, 2.00, 1.86, 1.30, 1.02, 0.86, 0.72],
+  AccelProfile.eco:    [1.75, 1.38, 0.30, 0.11, 0.10],
+  AccelProfile.normal: [1.85, 1.60, 0.50, 0.20, 0.15],
+  AccelProfile.sport:  [2.00, 2.00, 1.20, 0.50, 0.30],
 }
 
 
