@@ -103,7 +103,7 @@ class TestTrafficLightFusionUpdate(OpenpilotTestCase):
       x = [0.0] * 32 + [300.0]
       v = [0.0] * 32 + [20.0]
     model = SimpleNamespace(position=SimpleNamespace(x=x), velocity=SimpleNamespace(x=v))
-    return {"carrotManSP": carrot, "carrotNaviSP": None, "amapNaviSP": None, "modelV2": model}
+    return {"carrotManSP": carrot, "carrotNaviSP": None, "modelV2": model}
 
   def test_update_detects_vision_red(self) -> None:
     fusion = TrafficLightFusion()

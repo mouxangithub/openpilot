@@ -242,7 +242,7 @@ def _interp_table(x: float, bp: tuple[float, ...], vals: tuple[float, ...]) -> f
 
 class CarrotManager:
   """Receive navigation/ADAS data from the CarrotMan phone app over UDP and
-  publish ``carrotManSP`` + ``navInstructionCarrotSP`` + ``amapNaviSP``.
+  publish ``carrotManSP`` + ``navInstructionCarrotSP``.
 
   The daemon also subscribes to ``carState`` / ``modelV2`` so it can compute
   curve-speed advisories; the stock ``navInstruction``/``navRoute`` services
@@ -275,7 +275,7 @@ class CarrotManager:
     self.params = Params()
     self._unified = UnifiedParams()
     self.sm = messaging.SubMaster(['deviceState', 'carState', 'controlsState', 'modelV2', 'carParams'])
-    self.pm = messaging.PubMaster(['carrotManSP', 'navInstructionCarrotSP', 'amapNaviSP'])
+    self.pm = messaging.PubMaster(['carrotManSP', 'navInstructionCarrotSP'])
     self._car_name_synced = None
 
     # Sub-modules.
@@ -634,11 +634,8 @@ class CarrotManager:
         m1.type = nav_type_next
         m1.modifier = nav_modifier_next
 
-    amap_msg = self._amap_navi.build_amap_navi_msg(messaging.new_message)
-
     self.pm.send('carrotManSP', carrot_msg)
     self.pm.send('navInstructionCarrotSP', navi_msg)
-    self.pm.send('amapNaviSP', amap_msg)
 
   # ---- web interface ---------------------------------------------------- #
 
@@ -710,10 +707,6 @@ class CarrotManager:
       while self._is_running:
         try:
           self.sm.update(0)
-
-          # Update amap navi carstate
-          if self.sm.alive['carState']:
-            self._amap_navi.update_navi_carstate(self.sm)
 
           # Get remote address
           remote_addr = self._remote_addr

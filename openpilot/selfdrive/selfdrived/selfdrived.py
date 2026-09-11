@@ -356,15 +356,15 @@ class SelfdriveD(CruiseHelper):
       direction = self.sm['modelV2'].meta.laneChangeDirection
       mdv2sp = self.sm['modelDataV2SP']
       cs_sp = self.sm['carStateSP']
-      amap_left_blocked = cs_sp.amapLineValid and cs_sp.amapLeftLineBlocked
-      amap_right_blocked = cs_sp.amapLineValid and cs_sp.amapRightLineBlocked
+      carrot_left_blocked = cs_sp.carrotLaneValid and cs_sp.carrotLeftLineBlocked
+      carrot_right_blocked = cs_sp.carrotLaneValid and cs_sp.carrotRightLineBlocked
 
       if (CS.leftBlindspot and direction == LaneChangeDirection.left) or \
          (CS.rightBlindspot and direction == LaneChangeDirection.right):
         self.events.add(EventName.laneChangeBlocked)
 
-      elif (amap_left_blocked and direction == LaneChangeDirection.left) or \
-           (amap_right_blocked and direction == LaneChangeDirection.right):
+      elif (carrot_left_blocked and direction == LaneChangeDirection.left) or \
+           (carrot_right_blocked and direction == LaneChangeDirection.right):
         self.events.add(EventName.laneChangeBlocked)
 
       elif (mdv2sp.leftLaneChangeEdgeBlock and direction == LaneChangeDirection.left) or \

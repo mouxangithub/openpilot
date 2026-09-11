@@ -9,8 +9,9 @@ See the LICENSE.md file in the root directory for more details.
 Three-source traffic-light fusion.
 
 Fuses the carrot phone navigation signal (``carrotManSP`` 7706 /
-``carrotNaviSP`` 7714), the Amap Web navigation hint (``amapNaviSP``) and the
-openpilot vision stop-line detection (``modelV2``) into a single fused state.
+``carrotNaviSP`` 7714), the Amap Web navigation hint (legacy ``amapNaviSP``,
+now removed), and the openpilot vision stop-line detection (``modelV2``) into
+a single fused state.
 
 Safety model (see traffic_fusion_safety_design_2026-09-11.md and the safety
 review):
@@ -131,21 +132,12 @@ class TrafficLightFusion:
   def _read_amap(self, sm: Any) -> tuple[RawLight, float]:
     """Return (raw_state, distance_m) from the Amap Web navi.
 
-    ``AmapNaviSP`` currently exposes no traffic-light fields (the data-path gap
-    documented in the safety review). If a future field is added it will be read
-    here via getattr, keeping this forward-compatible without a schema change.
+    The ``amapNaviSP`` cereal service has been removed.  Map-based traffic-light
+    hints now flow through ``carrotManSP`` (``trafficState`` / ``trafficCountdown``
+    from the 7706 packet) or ``liveMapDataSP``.  This integration point is kept
+    for symmetry but currently always returns OFF.
     """
-    state = RawLight.OFF
-    distance = 0.0
-    try:
-      amap = sm["amapNaviSP"]
-    except Exception:
-      amap = None
-    if amap is not None:
-      ts = int(getattr(amap, "trafficState", 0) or 0)
-      if ts in (1, 2, 3):
-        state = RawLight(ts)
-    return state, distance
+    return RawLight.OFF, 0.0
 
   def _detect_vision(self, sm: Any, v_ego: float) -> tuple[bool, bool, float]:
     """Lightweight vision stop-line detection from ``modelV2``.

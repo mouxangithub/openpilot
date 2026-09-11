@@ -2648,7 +2648,7 @@ struct Event {
     liveMapDataSP @115 :Custom.LiveMapDataSP;
     modelDataV2SP @116 :Custom.ModelDataV2SP;
     longitudinalMpcTuningSP @136 :Custom.LongitudinalMpcTuningSP;
-    amapNaviSP @137 :Custom.AmapNaviSP;
+    amapNaviSPDEPRECATED @137 :Void;  # AmapNaviSP removed; kept for ordinal stability
     navInstructionCarrotSP @138 :Custom.NavInstructionCarrotSP;
     carrotManSP @139 :Custom.CarrotManSP;
     imuCalibrationSP @140 :Custom.ImuCalibrationSP;
@@ -2657,10 +2657,10 @@ struct Event {
     customReserved17 @143 :Custom.CustomReserved17;
     customReserved18 @144 :Custom.CustomReserved18;
     customReserved19 @145 :Custom.CustomReserved19;
+    audioFeedbackDEPRECATED @149 :Deprecated.AudioFeedbackDEPRECATED;
 
     # *********** legacy + deprecated ***********
     model @9 :Deprecated.ModelData; # TODO: rename modelV2 and mark this as deprecated
-    audioFeedbackDEPRECATED @149 :Deprecated.AudioFeedbackDEPRECATED;
     liveMpcDEPRECATED @36 :Deprecated.LiveMpcData;
     liveLongitudinalMpcDEPRECATED @37 :Deprecated.LiveLongitudinalMpcData;
     liveLocationKalmanDeprecatedDEPRECATED @51 :Deprecated.LiveLocationData;

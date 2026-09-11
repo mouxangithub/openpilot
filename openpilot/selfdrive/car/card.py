@@ -24,7 +24,7 @@ from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_cap
 
 from openpilot.sunnypilot.mads.helpers import set_alternative_experience, set_car_specific_params
 from openpilot.sunnypilot.selfdrive.car import interfaces as sunnypilot_interfaces
-from openpilot.sunnypilot.selfdrive.car.amap_fusion import merge_amap_blindspot, merge_amap_lane_lines
+from openpilot.sunnypilot.carrot.carrot_navi_fusion import merge_carrot_navi_lanes
 
 REPLAY = "REPLAY" in os.environ
 
@@ -72,7 +72,7 @@ class Car:
 
   def __init__(self, CI=None, RI=None) -> None:
     self.can_sock = messaging.sub_sock('can', timeout=20)
-    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP', 'amapNaviSP', 'carrotManSP'])
+    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP', 'carrotManSP', 'carrotNaviSP'])
     self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'radarTracks'] + ['carParamsSP', 'carStateSP'])
 
     self.can_rcv_cum_timeout_counter = 0
@@ -189,8 +189,11 @@ class Car:
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
     self.amap_enabled = self.params.get_bool("AmapEnabled")
     self.carrot_enabled = self.params.get_bool("CarrotEnabled")
+    self.carrot_navi_v2_enabled = self.params.get_bool("CarrotNaviV2Enabled")
     self._amap_navi_cache = None
     self._amap_navi_cache_mono = 0.0
+    self._carrot_navi_cache = None
+    self._carrot_navi_cache_mono = 0.0
 
     # card is driven by can recv, expected at 100Hz
     self.rk = Ratekeeper(100, print_delay_threshold=None)
@@ -213,15 +216,13 @@ class Car:
 
     self.sm.update(0)
 
-    # Merge Amap phone/app ADAS data into carState/carStateSP so every
-    # downstream consumer (modeld, selfdrived, controlsd, UI) sees it.
-    if self.sm.updated['amapNaviSP'] and self.sm.valid['amapNaviSP']:
-      self._amap_navi_cache = self.sm['amapNaviSP']
-      self._amap_navi_cache_mono = time.monotonic()
-    amap_navi = self._amap_navi_cache
-    if (self.amap_enabled or self.carrot_enabled) and amap_navi is not None and time.monotonic() - self._amap_navi_cache_mono <= 0.5:
-      merge_amap_blindspot(CS, amap_navi)
-      merge_amap_lane_lines(CS_SP, amap_navi)
+    # Merge Carrot 7714 v2 navigation lane hints into carState/carStateSP.
+    if self.sm.updated['carrotNaviSP'] and self.sm.valid['carrotNaviSP']:
+      self._carrot_navi_cache = self.sm['carrotNaviSP']
+      self._carrot_navi_cache_mono = time.monotonic()
+    carrot_navi = self._carrot_navi_cache
+    if self.carrot_enabled and self.carrot_navi_v2_enabled and carrot_navi is not None and time.monotonic() - self._carrot_navi_cache_mono <= 0.5:
+      merge_carrot_navi_lanes(CS_SP, carrot_navi)
 
     can_rcv_valid = len(can_strs) > 0
 
@@ -329,7 +330,6 @@ class Car:
     while not evt.is_set():
       self.is_metric = self.params.get_bool("IsMetric")
       self.experimental_mode = self.params.get_bool("ExperimentalMode") and self.CP.openpilotLongitudinalControl
-      self.amap_enabled = self.params.get_bool("AmapEnabled")
       self.carrot_enabled = self.params.get_bool("CarrotEnabled")
 
       # sunnypilot

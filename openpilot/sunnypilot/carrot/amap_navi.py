@@ -15,14 +15,13 @@ data path** that:
 
 * parses the small JSON payload the phone app sends (see
   :func:`parse_packet`);
-* keeps a :class:`SharedData` snapshot used by ``desire_helper``,
-  ``carState``-fusing code, and the HUD; and
-* publishes an ``amapNaviSP`` message every tick.
+* keeps a :class:`SharedData` snapshot used by ``desire_helper`` and the HUD;
+* provides a LiDAR/camera direct-UDP receiver (``start_navi_comm``), currently
+  dormant, that updates blind-spot state used by the broadcast/web display.
 
-This module is the smaller, lower-latency bridge that only touches
-``AmapNaviSP``/``carState``-side state.  Lane-line
-(``lineValid``/``leftLine``/``rightLine``) data is no longer produced
-here; consumers treat the lane-line fields as permanently invalid.
+The legacy ``amapNaviSP`` cereal service has been removed; the 7706 phone
+packet is now consumed directly by ``CarrotManager`` and all navigation hints
+are carried by ``carrotManSP`` / ``carrotNaviSP``.
 """
 
 import json
@@ -35,7 +34,6 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-import openpilot.cereal.messaging as messaging
 
 lock = threading.Lock()
 data_queue = queue.Queue()
@@ -242,11 +240,10 @@ def parse_packet(raw: bytes | str) -> dict[str, Any] | None:
 class AmapNaviServ:
   """In-process Amap data bridge.
 
-  Holds the :class:`SharedData` snapshot and emits ``amapNaviSP`` messages.
-  No sockets are owned here: the actual UDP listener lives in
-  ``CarrotManager`` so that a single process can be the source of truth for
-  Carrot/Amap/Phone packets without the threading complexity of the original
-  CarrotPilot design.
+  Holds the :class:`SharedData` snapshot used by ``CarrotManager`` for
+  broadcast/web display and provides the dormant LiDAR/camera direct-UDP
+  receiver.  No cereal messages are published by this class; the legacy
+  ``amapNaviSP`` service has been removed.
   """
 
   def __init__(self) -> None:
@@ -416,39 +413,6 @@ class AmapNaviServ:
     self._seq = None
     self._last_packet_mono = 0.0
 
-  # ---- message publishing --------------------------------------------- #
-
-  def build_amap_navi_msg(self, new_message) -> Any:
-    """Populate a new ``amapNaviSP`` message from the current state.
-
-    The function takes a ``messaging.new_message`` callable so that the
-    unit tests can pass a fake without importing the cereal module.
-    """
-    sd = self.shared_data
-    msg = new_message("amapNaviSP")
-    msg.valid = not self.is_stale()
-    navi = msg.amapNaviSP
-    # Preserve source bits: 1=LiDAR, 2=camera/app, 4=vehicle-side LiDAR.
-    # card.py consumes these as a combined blind-spot signal.
-    navi.leftBlind = (
-      (4 if sd.lidar_car_left_blind else 0)
-      + (2 if sd.left_blind else 0)
-      + (1 if sd.lidar_left_blind else 0)
-    )
-    navi.rightBlind = (
-      (4 if sd.lidar_car_right_blind else 0)
-      + (2 if sd.right_blind else 0)
-      + (1 if sd.lidar_right_blind else 0)
-    )
-    # Lane-line data is permanently retired: the Amap ADAS JSON source that
-    # used to populate lineValid/leftLine/rightLine no longer exists, so we
-    # always publish them as invalid/0.  Consumers (e.g. amap_fusion.py)
-    # already fall back to "unblocked" when lineValid is False.
-    navi.lineValid = False
-    navi.leftLine = 0
-    navi.rightLine = 0
-    return msg
-
   # ---- radar data (P2-2) ------------------------------------------------ #
 
   def update_param(self, params: Any) -> None:
@@ -563,28 +527,6 @@ class AmapNaviServ:
       'rf_vrel': sd.rf_vrel,
       'rb_vrel': sd.rb_vrel,
     }
-
-  # ---- sunnypilot-cuda multi-client methods -------------------------------- #
-
-  def public_amap_navi(self) -> None:
-    """Publish amapNaviSP message to the cereal bus."""
-    try:
-      msg = messaging.new_message('amapNaviSP')
-      msg.valid = True
-      sd = self.shared_data
-      msg.amapNaviSP.leftBlind = (
-        (4 if sd.lidar_car_left_blind else 0) +
-        (2 if sd.left_blind else 0) +
-        (1 if sd.lidar_left_blind else 0)
-      )
-      msg.amapNaviSP.rightBlind = (
-        (4 if sd.lidar_car_right_blind else 0) +
-        (2 if sd.right_blind else 0) +
-        (1 if sd.lidar_right_blind else 0)
-      )
-      messaging.PubMaster(['amapNaviSP']).send('amapNaviSP', msg)
-    except Exception:
-      pass
 
   def left_blindspot(self) -> bool:
     return self.shared_data.left_blind or self.shared_data.lidar_left_blind
@@ -793,7 +735,6 @@ class AmapNaviServ:
         sd.camera_l = camera_l
         sd.camera_r = camera_r
 
-        self.public_amap_navi()
         rk.keep_time()
 
       except Exception:

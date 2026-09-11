@@ -541,11 +541,13 @@ struct BackupManagerSP @0xf98d843bfd7004a3 {
 
 struct CarStateSP @0xb86e6369214c01c8 {
   speedLimit @0 :Float32;
-  amapLineValid @1 :Bool;
-  amapLeftLineType @2 :Int32;
-  amapRightLineType @3 :Int32;
-  amapLeftLineBlocked @4 :Bool;
-  amapRightLineBlocked @5 :Bool;
+
+  # Carrot 7714 WebSocket v2 navigation lane hints (from phone app).
+  # These are derived from carrotNaviSP.laneCurrent and merged into
+  # carStateSP so selfdrived can use them for lane-change decisions.
+  carrotLaneValid @1 :Bool;
+  carrotLeftLineBlocked @2 :Bool;
+  carrotRightLineBlocked @3 :Bool;
 }
 
 struct LiveMapDataSP @0xf416ec09499d9d19 {
@@ -585,14 +587,6 @@ struct LongitudinalMpcTuningSP @0xcb9fd56c7057593a {
   aChangeCost @7 :Float32;
   dangerZoneCost @8 :Float32;
   leadDangerFactor @9 :Float32;
-}
-
-struct AmapNaviSP @0xc2243c65e0340384 {
-  leftBlind @0 :Int32;
-  rightBlind @1 :Int32;
-  lineValid @2 :Bool;
-  leftLine @3 :Int32;
-  rightLine @4 :Int32;
 }
 
 struct NavInstructionCarrotSP @0x9ccdc8676701b412 {

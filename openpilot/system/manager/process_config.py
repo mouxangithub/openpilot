@@ -215,8 +215,9 @@ procs += [
   PythonProcess("mapd_manager", "openpilot.sunnypilot.mapd.mapd_manager", always_run),
 
   # Amap / Carrot
-  # mapd_amap removed: carrot_man owns amapNaviSP production. AmapApiKey is
-  # still used by AmapMapData (Web API fallback for speed limits / road names).
+  # amapNaviSP removed: carrot_man now only produces carrotManSP /
+  # navInstructionCarrotSP. AmapApiKey is still used by AmapMapData (Web API
+  # fallback for speed limits / road names).
   PythonProcess("carrot_man", "openpilot.sunnypilot.carrot.carrot_man", carrot_enabled),
   PythonProcess("carrot_navi", "openpilot.sunnypilot.carrot.carrot_navi", carrot_navi_v2_enabled, restart_if_crash=True),
 

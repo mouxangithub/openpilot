@@ -473,8 +473,8 @@ def main(demo=False):
       r_lane_change_prob = desire_state[log.Desire.laneChangeRight]
       lane_change_prob = l_lane_change_prob + r_lane_change_prob
       cs_sp = sm['carStateSP']
-      left_lane_line_blocked = cs_sp.amapLineValid and cs_sp.amapLeftLineBlocked
-      right_lane_line_blocked = cs_sp.amapRightLineBlocked
+      left_lane_line_blocked = cs_sp.carrotLaneValid and cs_sp.carrotLeftLineBlocked
+      right_lane_line_blocked = cs_sp.carrotLaneValid and cs_sp.carrotRightLineBlocked
 
       mdv2sp_send = messaging.new_message('modelDataV2SP')
       left_edge, right_edge = RELC.update_and_fill(modelv2_send.modelV2, mdv2sp_send.modelDataV2SP, v_ego)
