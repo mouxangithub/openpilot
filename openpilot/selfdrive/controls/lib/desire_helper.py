@@ -3,6 +3,7 @@ from openpilot.common.constants import CV
 from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot.selfdrive.controls.lib.auto_lane_change import AutoLaneChangeController, AutoLaneChangeMode
 from openpilot.sunnypilot.selfdrive.controls.lib.lane_turn_desire import LaneTurnController
+from openpilot.sunnypilot.selfdrive.controls.lib.desire_arbiter import DesireArbiter
 
 LaneChangeState = log.LaneChangeState
 LaneChangeDirection = log.LaneChangeDirection
@@ -32,6 +33,9 @@ class DesireHelper:
     self.carrot_atc_active = False
     self.carrot_cmd_index_last = 0
     self.carrot_virtual_blinker = 0  # 0=none, 1=left, 2=right
+
+    # Unified lateral arbiter (default OFF; preserves historical behavior when disabled).
+    self.desire_arbiter = DesireArbiter()
 
   def get_lane_change_direction(self, CS):
     if self.carrot_virtual_blinker == 1 and CS.leftBlinker:
@@ -142,5 +146,25 @@ class DesireHelper:
           self.desire = log.Desire.laneChangeLeft
         elif self.lane_change_direction == LaneChangeDirection.right:
           self.desire = log.Desire.laneChangeRight
+
+    # Optional unified arbiter. When enabled it overrides the historical desire
+    # selection with a single converged source, gated by multi-frame confirmation.
+    # Default OFF so existing behavior is preserved unless the user opts in.
+    if self.desire_arbiter.enabled:
+      carrot_turn_left = self.carrot_atc_active and self.carrot_virtual_blinker == 1
+      carrot_turn_right = self.carrot_atc_active and self.carrot_virtual_blinker == 2
+      lane_turn_left = self.lane_turn_direction == TurnDirection.turnLeft
+      lane_turn_right = self.lane_turn_direction == TurnDirection.turnRight
+      alc_left = self.lane_change_state == LaneChangeState.laneChangeStarting and self.lane_change_direction == LaneChangeDirection.left
+      alc_right = self.lane_change_state == LaneChangeState.laneChangeStarting and self.lane_change_direction == LaneChangeDirection.right
+      safety_veto = not lateral_active
+      self.desire = self.desire_arbiter.resolve(
+        carrot_turn_left, carrot_turn_right,
+        False, False,  # Amap turn hints are not yet populated; reserved for Phase 2 follow-up.
+        lane_turn_left, lane_turn_right,
+        alc_left, alc_right,
+        safety_veto=safety_veto,
+        log_desire=log.Desire,
+      )
 
     self.alc.update_state()
