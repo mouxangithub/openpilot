@@ -76,9 +76,25 @@ class TrafficState(Enum):
   off = 0
   red = 1
   green = 2
+  left = 3   # left-turn green (carrot / amap only; vision cannot confirm it)
 
   def __str__(self) -> str:
     return self.name
+
+
+# Traffic-light confirmation thresholds (frames @ ~20 Hz model ticks). Vision
+# red/green must be sustained before CarrotPlanner trusts them so a single
+# misdetected frame (oncoming green, shadow, billboard) cannot trigger a stop or
+# a false start. These are intentionally NOT params: they are safety-critical and
+# the killswitch params registered in params_keys.h stay off-by-default.
+_TRAFFIC_RED_CONFIRM_FRAMES = 5
+_TRAFFIC_GREEN_CONFIRM_FRAMES = 8
+
+# Above this speed (km/h) a phone-navigation-only red light is no longer allowed
+# to command a stop or slam the target speed down; only a vision-confirmed stop
+# line may. This prevents high-speed false braking on a single nav source.
+_HIGH_SPEED_KPH = 60.0
+_HIGH_SPEED_FLOOR_RATIO = 0.9  # keep at least 90% of set speed from a nav-only red
 
 
 # Cruise acceleration breakpoints (m/s) for the per-mode envelope.
@@ -201,6 +217,11 @@ class CarrotPlanner:
     self._traffic_light_detect_mode = 2
     self._traffic_state = TrafficState.off
     self._traffic_state_carrot = 0
+    # Multi-frame confirmation counters (vision red/green must be sustained).
+    self._stop_frames = 0
+    self._start_frames = 0
+    self._red_lost_frames = 0
+    self._green_lost_frames = 0
     self._carrot_stay_stop = False
     self._x_stop_filter = _MovingAverage(3)
     self._x_stop_filter2 = _MovingAverage(15)
@@ -248,6 +269,7 @@ class CarrotPlanner:
     self._v_cruise_kph = 0.0
     self._v_cruise = 0.0
     self._stop_dist = 0.0
+    self._v_ego = 0.0
     self._mode: str = "acc"
 
   # ---- accessors --------------------------------------------------------- #
@@ -287,6 +309,35 @@ class CarrotPlanner:
   @property
   def mode(self) -> str:
     return self._mode
+
+  @property
+  def comfort_a_target(self) -> float:
+    """Comfortable deceleration the planner would command right now.
+
+    Returns a non-positive acceleration: a smooth brake toward the configured
+    stop distance when the planner is in a stopping state, otherwise 0. This is
+    computed inside the planner (not approximated by the adapter) so the
+    longitudinal source exposes a physically meaningful target.
+    """
+    if self._x_state in (XState.e2eStop, XState.e2eStopped):
+      stop_dist = max(self._stop_dist, 1.0)
+      # Kinematic decel needed to stop within stop_dist, capped by comfort brake.
+      a = -(self._v_ego ** 2) / (2.0 * stop_dist)
+      return -min(abs(self._comfort_brake), abs(a))
+    return 0.0
+
+  @property
+  def active(self) -> bool:
+    """True when the planner has a non-trivial (carrot-connected) output.
+
+    Reflects that the carrot phone projection is feeding data. Freshness /
+    timeout gating is applied one layer up in ``CarrotLongitudinalSource``.
+    """
+    return self._active_carrot > 0
+
+  @property
+  def driving_mode(self) -> DrivingMode:
+    return self._my_driving_mode
 
   # ---- parameter refresh ------------------------------------------------- #
 
@@ -437,12 +488,46 @@ class CarrotPlanner:
     self._stop_sign_count = self._stop_sign_count + 1 if stop_sign else 0
     self._start_sign_count = self._start_sign_count + 1 if (start_sign and not stop_sign) else 0
 
-    if self._stop_sign_count * DT_MDL > 0.0:
-      self._traffic_state = TrafficState.red
-    elif self._start_sign_count * DT_MDL > 0.2:
-      self._traffic_state = TrafficState.green
+    # Multi-frame confirmation: a single misdetected frame must not flip the
+    # traffic state. Red needs _TRAFFIC_RED_CONFIRM_FRAMES of sustained vision
+    # stop evidence; green needs _TRAFFIC_GREEN_CONFIRM_FRAMES. Once a state is
+    # confirmed it is held until the opposite is confirmed, or the signal is lost
+    # for a matching number of frames, which suppresses rapid red<->green chatter.
+    if stop_sign:
+      self._stop_frames += 1
+      self._start_frames = 0
+    elif start_sign:
+      self._start_frames += 1
+      self._stop_frames = 0
     else:
-      self._traffic_state = TrafficState.off
+      self._stop_frames = 0
+      self._start_frames = 0
+
+    if self._traffic_state == TrafficState.red:
+      if self._start_frames >= _TRAFFIC_GREEN_CONFIRM_FRAMES:
+        self._traffic_state = TrafficState.green
+        self._red_lost_frames = 0
+      elif not stop_sign:
+        self._red_lost_frames += 1
+        if self._red_lost_frames >= _TRAFFIC_RED_CONFIRM_FRAMES:
+          self._traffic_state = TrafficState.off
+      else:
+        self._red_lost_frames = 0
+    elif self._traffic_state == TrafficState.green:
+      if self._stop_frames >= _TRAFFIC_RED_CONFIRM_FRAMES:
+        self._traffic_state = TrafficState.red
+        self._green_lost_frames = 0
+      elif not start_sign:
+        self._green_lost_frames += 1
+        if self._green_lost_frames >= _TRAFFIC_GREEN_CONFIRM_FRAMES:
+          self._traffic_state = TrafficState.off
+      else:
+        self._green_lost_frames = 0
+    else:  # off
+      if self._stop_frames >= _TRAFFIC_RED_CONFIRM_FRAMES:
+        self._traffic_state = TrafficState.red
+      elif self._start_frames >= _TRAFFIC_GREEN_CONFIRM_FRAMES:
+        self._traffic_state = TrafficState.green
 
   def _update_x_state(self, sm: Any, v_ego: float, v_ego_kph: float,
                      a_ego: float, x_last: float) -> None:
@@ -466,7 +551,12 @@ class CarrotPlanner:
       elif lead_detected and (lead_one.dRel - x_last) < 2.0:
         self._x_state = XState.lead
       elif self._stopping_count == 0:
-        if (self._traffic_state == TrafficState.green
+        # Carrot left-turn green (3) is only detectable by the phone navi, so we
+        # trust it to release a stopped state; straight green (2) must be
+        # confirmed by the vision model before we start, to avoid running a red
+        # on a misread phone signal.
+        can_go = self._traffic_state == TrafficState.green or self._traffic_state_carrot == 3
+        if (can_go
                 and not self._carrot_stay_stop
                 and not cs.leftBlinker
                 and self._traffic_light_detect_mode != 1):
@@ -481,7 +571,8 @@ class CarrotPlanner:
       elif lead_detected and (lead_one.dRel - x_last) < 2.0:
         self._x_state = XState.lead
       else:
-        if self._traffic_state == TrafficState.green:
+        can_go = self._traffic_state == TrafficState.green or self._traffic_state_carrot == 3
+        if can_go:
           self._x_state = XState.e2eCruise
         else:
           self._comfort_brake = 2.4 * 0.9
@@ -597,6 +688,7 @@ class CarrotPlanner:
     v_ego = float(cs.vEgo)
     a_ego = float(cs.aEgo)
     v_ego_kph = v_ego * CV.MS_TO_KPH
+    self._v_ego = v_ego
     v_ego_cluster_kph = float(getattr(cs, "vEgoCluster", v_ego)) * CV.MS_TO_KPH
 
     # Driving mode-aware safety factor.
@@ -662,8 +754,26 @@ class CarrotPlanner:
     stop_dist = stop_model_x + self._actual_stop_distance
     stop_dist = max(stop_dist, v_ego ** 2 / (self._comfort_brake * 2))
 
+    # High-speed protection: a phone-navigation-only red light must not command a
+    # stop by itself at speed. Only a vision-confirmed stop line may. This
+    # satisfies the safety review's "high-speed single-source nav red must not
+    # enter e2eStop" rule.
+    if v_ego_kph > _HIGH_SPEED_KPH:
+      vision_red = self._traffic_state == TrafficState.red
+      carrot_only_red = (self._traffic_state_carrot == 1) and not vision_red
+      if carrot_only_red and self._x_state in (XState.e2eStop, XState.e2eStopped):
+        self._x_state = XState.e2eCruise
+
     self._v_cruise_kph = v_cruise_kph
     self._v_cruise = v_cruise
     self._stop_dist = stop_dist
     self._mode = mode
+
+    # High-speed floor (m/s): a nav-only red may not drop the target below a safe
+    # fraction of the set speed. Vision-confirmed stops are exempt.
+    if v_ego_kph > _HIGH_SPEED_KPH:
+      vision_red = self._traffic_state == TrafficState.red
+      carrot_only_red = (self._traffic_state_carrot == 1) and not vision_red
+      if carrot_only_red:
+        self._v_cruise = max(self._v_cruise, v_cruise * _HIGH_SPEED_FLOOR_RATIO)
     return v_cruise_kph

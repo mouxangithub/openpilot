@@ -7,6 +7,7 @@ See the LICENSE.md file in the root directory for more details.
 import random
 import time
 
+from openpilot.common.constants import CV
 from openpilot.common.parameterized import parameterized
 
 from openpilot.cereal import custom
@@ -145,3 +146,126 @@ class TestSpeedLimitResolverValidation(OpenpilotTestCase):
     resolver._get_from_map_data(sm_mock)
     assert resolver.limit_solutions[SpeedLimitSource.map] == 0.
     assert resolver.distance_solutions[SpeedLimitSource.map] == 0.
+
+
+def carrot_sm(mocker, map_limit: float = 0., **carrot_fields):
+  """SubMaster stub exposing carrotManSP plus an (optionally empty) live map."""
+  carrot = create_mock({
+    'activeCarrot': 1,
+    'nRoadLimitSpeed': 0,
+    'xSpdLimit': 0,
+    'xSpdDist': 0.,
+  } | carrot_fields, mocker)
+  live_map_data = create_mock({
+    'speedLimit': map_limit,
+    'speedLimitValid': map_limit > 0.,
+    'speedLimitAhead': 0.,
+    'speedLimitAheadValid': False,
+    'speedLimitAheadDistance': 0.,
+  }, mocker)
+  gps_data = create_mock({'unixTimestampMillis': time.monotonic() * 1e3}, mocker)
+  sm = mocker.MagicMock()
+  sm.__getitem__.side_effect = lambda key: {
+    'liveMapDataSP': live_map_data,
+    'gpsLocation': gps_data,
+    'carrotManSP': carrot,
+  }[key]
+  sm.valid.get = lambda key: key == 'carrotManSP'
+  sm.recv_time = {'carrotManSP': time.monotonic()}
+  return sm
+
+
+class TestCarrotSpeedLimitMerge(OpenpilotTestCase):
+  """carrot phone-navigation limits are folded into the `map` source so the SLA
+  widget and Speed Limit Assist both see them, without touching the cereal
+  schema. See SpeedLimitResolver._merge_carrot_speed_limit."""
+
+  @staticmethod
+  def _resolver():
+    resolver = SpeedLimitResolver()
+    resolver.policy = Policy.map_data_only
+    resolver.use_carrot_limits = True
+    return resolver
+
+  def test_road_limit_used_when_map_is_empty(self, mocker):
+    resolver = self._resolver()
+    resolver._get_from_map_data(carrot_sm(mocker, nRoadLimitSpeed=60))
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 60 * CV.KPH_TO_MS) < 1e-6
+    assert resolver.distance_solutions[SpeedLimitSource.map] == 0.
+
+  def test_sdi_limit_ignored_until_braking_distance(self, mocker):
+    """SDI camera limit only takes effect once the car is close enough to
+    start braking with LIMIT_ADAPT_ACC."""
+    resolver = self._resolver()
+    # 70 kph ≈ 19.44 m/s; 40 kph ≈ 11.11 m/s; delta v = -8.33 m/s.
+    # adapt_time = -8.33 / LIMIT_ADAPT_ACC; adapt_distance ≈ 23.1 m.
+    resolver.v_ego = 70 * CV.KPH_TO_MS
+    sm = carrot_sm(mocker, xSpdLimit=40, xSpdDist=300.)
+    resolver._get_from_map_data(sm)
+    # 300 m is far beyond the adapt distance → keep the road limit at zero.
+    assert resolver.limit_solutions[SpeedLimitSource.map] == 0.
+    assert resolver.distance_solutions[SpeedLimitSource.map] == 0.
+
+    # Now place the camera inside the adapt distance → SDI becomes active.
+    sm = carrot_sm(mocker, xSpdLimit=40, xSpdDist=20.)
+    resolver._get_from_map_data(sm)
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 40 * CV.KPH_TO_MS) < 1e-6
+    assert abs(resolver.distance_solutions[SpeedLimitSource.map] - 20.) < 1e-6
+
+    # A camera limit with no distance means the camera is not ahead → ignored.
+    resolver = self._resolver()
+    resolver._merge_carrot_speed_limit(carrot_sm(mocker, xSpdLimit=50, xSpdDist=0.))
+    assert resolver.limit_solutions[SpeedLimitSource.map] == 0.
+
+  def test_sdi_limit_stricter_than_road_limit(self, mocker):
+    resolver = self._resolver()
+    resolver.v_ego = 90 * CV.KPH_TO_MS
+    sm = carrot_sm(mocker, nRoadLimitSpeed=80, xSpdLimit=60, xSpdDist=15.)
+    resolver._get_from_map_data(sm)
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 60 * CV.KPH_TO_MS) < 1e-6
+    assert abs(resolver.distance_solutions[SpeedLimitSource.map] - 15.) < 1e-6
+
+  def test_sdi_limit_does_not_raise_above_road_limit(self, mocker):
+    """If the SDI camera limit is *above* the road-class limit, the road-class
+    limit remains effective immediately."""
+    resolver = self._resolver()
+    resolver.v_ego = 70 * CV.KPH_TO_MS
+    sm = carrot_sm(mocker, nRoadLimitSpeed=60, xSpdLimit=80, xSpdDist=20.)
+    resolver._get_from_map_data(sm)
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 60 * CV.KPH_TO_MS) < 1e-6
+    assert resolver.distance_solutions[SpeedLimitSource.map] == 0.
+
+  def test_carrot_cannot_raise_an_existing_map_limit(self, mocker):
+    resolver = self._resolver()
+    resolver.limit_solutions[SpeedLimitSource.map] = 40 * CV.KPH_TO_MS
+    resolver._merge_carrot_speed_limit(carrot_sm(mocker, nRoadLimitSpeed=80))
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 40 * CV.KPH_TO_MS) < 1e-6
+
+  def test_carrot_out_of_range_is_rejected(self, mocker):
+    resolver = self._resolver()
+    for bad in [0, 400, -5, "abc"]:
+      resolver._merge_carrot_speed_limit(carrot_sm(mocker, nRoadLimitSpeed=bad))
+      assert resolver.limit_solutions[SpeedLimitSource.map] == 0.
+
+  def test_disabled_param_ignores_carrot(self, mocker):
+    resolver = self._resolver()
+    resolver.use_carrot_limits = False
+    resolver._get_from_map_data(carrot_sm(mocker, nRoadLimitSpeed=60))
+    assert resolver.limit_solutions[SpeedLimitSource.map] == 0.
+
+  def test_inactive_or_absent_carrot_is_ignored(self, mocker):
+    resolver = self._resolver()
+    resolver._merge_carrot_speed_limit(carrot_sm(mocker, activeCarrot=0, nRoadLimitSpeed=60))
+    assert resolver.limit_solutions[SpeedLimitSource.map] == 0.
+
+    no_carrot = mocker.MagicMock()
+    no_carrot.valid.get = lambda key: False
+    resolver._merge_carrot_speed_limit(no_carrot)
+    assert resolver.limit_solutions[SpeedLimitSource.map] == 0.
+
+  def test_stale_carrot_packet_is_ignored(self, mocker):
+    resolver = self._resolver()
+    sm = carrot_sm(mocker, nRoadLimitSpeed=60)
+    sm.recv_time['carrotManSP'] = time.monotonic() - LIMIT_MAX_MAP_DATA_AGE - 1.
+    resolver._merge_carrot_speed_limit(sm)
+    assert resolver.limit_solutions[SpeedLimitSource.map] == 0.

@@ -19,10 +19,32 @@ from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_assist 
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_resolver import SpeedLimitResolver
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.models.helpers import get_active_bundle
+from openpilot.sunnypilot.selfdrive.controls.lib.carrot_longitudinal_source import CarrotLongitudinalSource
+from openpilot.sunnypilot.selfdrive.controls.lib.traffic_light_fusion import (
+  TrafficLightFusion, FusedState, FusedSource,
+)
+from openpilot.sunnypilot.carrot.config import UnifiedParams
 
 DecState = custom.LongitudinalPlanSP.DynamicExperimentalControl.DynamicExperimentalControlState
 LongitudinalPlanSource = custom.LongitudinalPlanSP.LongitudinalPlanSource
 MpcPlanSource = log.LongitudinalPlan.LongitudinalPlanSource
+TrafficLightState = custom.LongitudinalPlanSP.TrafficLightState
+
+# Map the fusion module's internal enums onto the cereal TrafficLightState enum.
+_TRAFFIC_LIGHT_STATE_MAP = {
+  FusedState.UNKNOWN: TrafficLightState.State.unknown,
+  FusedState.RED: TrafficLightState.State.red,
+  FusedState.GREEN: TrafficLightState.State.green,
+  FusedState.RED_CONFIRMED: TrafficLightState.State.redConfirmed,
+  FusedState.GREEN_CONFIRMED: TrafficLightState.State.greenConfirmed,
+}
+_TRAFFIC_LIGHT_SOURCE_MAP = {
+  FusedSource.NONE: TrafficLightState.Source.none,
+  FusedSource.CARROT: TrafficLightState.Source.carrot,
+  FusedSource.AMAP: TrafficLightState.Source.amap,
+  FusedSource.VISION: TrafficLightState.Source.vision,
+  FusedSource.FUSED: TrafficLightState.Source.fused,
+}
 
 E2E_BRAKE_HOLD_ACCEL = -0.2  # m/s^2
 
@@ -42,6 +64,16 @@ class LongitudinalPlannerSP:
 
     self.output_v_target = 0.
     self.output_a_target = 0.
+
+    # Carrot longitudinal source + traffic-light fusion (gated by killswitches;
+    # both default OFF so stock behavior is untouched unless explicitly enabled).
+    self._params = UnifiedParams()
+    self.carrot_source = CarrotLongitudinalSource()
+    self.traffic_fusion = TrafficLightFusion()
+    self._carrot_enabled = self._params.get_bool("CarrotLongitudinalSourceEnabled")
+    self._fusion_enabled = self._params.get_bool("CarrotTrafficLightFusionEnabled")
+    self._param_count = 0
+    self.carrot_should_stop = False
 
   def is_e2e(self, sm: messaging.SubMaster) -> bool:
     experimental_mode = sm['selfdriveState'].experimentalMode
@@ -83,6 +115,12 @@ class LongitudinalPlannerSP:
     long_enabled = sm['carControl'].enabled
     long_override = sm['carControl'].cruiseControl.override
 
+    # Staggered killswitch refresh so enable/disable takes effect within ~5 s.
+    self._param_count += 1
+    if self._param_count % 100 == 0:
+      self._carrot_enabled = self._params.get_bool("CarrotLongitudinalSourceEnabled")
+      self._fusion_enabled = self._params.get_bool("CarrotTrafficLightFusionEnabled")
+
     # Smart Cruise Control
     self.scc.update(sm, long_enabled, long_override, v_ego, a_ego, v_cruise)
 
@@ -101,8 +139,26 @@ class LongitudinalPlannerSP:
       LongitudinalPlanSource.speedLimitAssist: (self.sla.output_v_target, self.sla.output_a_target),
     }
 
+    # Carrot longitudinal source (gated by CarrotLongitudinalSourceEnabled; default OFF).
+    self.carrot_should_stop = False
+    if self._carrot_enabled:
+      mpc_mode = self.dec.mode() if self.dec.active() else "acc"
+      self.carrot_source.update(sm, v_cruise * CV.MS_TO_KPH, mpc_mode)
+      if self.carrot_source.active:
+        targets[LongitudinalPlanSource.carrot] = (self.carrot_source.v_target, self.carrot_source.a_target)
+
     self.source = min(targets, key=lambda k: targets[k][0])
     self.output_v_target, self.output_a_target = targets[self.source]
+
+    # When the carrot source wins and is commanding a stop, flag it for MPC
+    # stop-line handling (consumed downstream / by the subclass).
+    if self.source == LongitudinalPlanSource.carrot and self.carrot_source.should_stop:
+      self.carrot_should_stop = True
+
+    # Traffic-light fusion (gated by CarrotTrafficLightFusionEnabled; default OFF).
+    if self._fusion_enabled:
+      self.traffic_fusion.update(sm, v_ego)
+
     return self.output_v_target, self.output_a_target
 
   def update(self, sm: messaging.SubMaster) -> None:
@@ -181,5 +237,25 @@ class LongitudinalPlannerSP:
     e2eAlerts = longitudinalPlanSP.e2eAlerts
     e2eAlerts.greenLightAlert = self.e2e_alerts_helper.green_light_alert
     e2eAlerts.leadDepartAlert = self.e2e_alerts_helper.lead_depart_alert
+
+    # Carrot longitudinal source (gated; default OFF). Reflect the planner's
+    # raw outputs for shadow-mode logging / debugging.
+    if self._carrot_enabled:
+      carrot_plan = longitudinalPlanSP.carrot
+      carrot_plan.xState = str(self.carrot_source.carrot.x_state)
+      carrot_plan.drivingMode = str(self.carrot_source.carrot.driving_mode)
+      carrot_plan.vTarget = float(self.carrot_source.v_target)
+      carrot_plan.aTarget = float(self.carrot_source.a_target)
+      carrot_plan.stopDist = float(self.carrot_source.stop_dist)
+      carrot_plan.active = bool(self.carrot_source.active)
+
+    # Traffic-light fusion (gated; default OFF).
+    if self._fusion_enabled:
+      tl = longitudinalPlanSP.trafficLight
+      fused = self.traffic_fusion
+      tl.lightState = _TRAFFIC_LIGHT_STATE_MAP[fused.state]
+      tl.source = _TRAFFIC_LIGHT_SOURCE_MAP[fused.source]
+      tl.confidence = float(fused.confidence)
+      tl.distance = float(fused.distance)
 
     pm.send('longitudinalPlanSP', plan_sp_send)
