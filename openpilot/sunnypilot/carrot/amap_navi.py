@@ -35,7 +35,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-import cereal.messaging as messaging
+import openpilot.cereal.messaging as messaging
 
 lock = threading.Lock()
 data_queue = queue.Queue()

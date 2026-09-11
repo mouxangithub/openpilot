@@ -155,6 +155,13 @@ def font_fallback(font: rl.Font, text: str = "") -> rl.Font:
   returned so pure-ASCII strings (numbers, English labels) keep Inter's crisp
   scaling instead of being downgraded to the 48 px fallback atlas.
   """
+  if multilang.requires_font_fallback():
+    if text and not _NON_LATIN_RE.search(text):
+      return font
+    return gui_app.fallback_font(text)
+  return font
+
+
 class TextAlignment(IntEnum):
   LEFT = 0
   CENTER = 1
@@ -165,13 +172,6 @@ class TextAlignmentVertical(IntEnum):
   TOP = 0
   MIDDLE = 1
   BOTTOM = 2
-
-
-  if multilang.requires_font_fallback():
-    if text and not _NON_LATIN_RE.search(text):
-      return font
-    return gui_app.fallback_font(text)
-  return font
 
 
 class MousePos(NamedTuple):

@@ -77,7 +77,13 @@ start_service() {
   module="${module//\//.}"
   pgrep -f "[p]ython.*$module" >/dev/null 2>&1 && return 0
   echo "[$name] starting $(date)" >> "$logfile"
-  (cd "$root" && PYTHONPATH="$py_path" WEBUI_TLS=1 "$py" -m "$module" >> "$logfile" 2>&1 &)
+  # WEBUI_TLS 默认关闭（HTTP），避免自签名证书导致浏览器 ERR_SSL_PROTOCOL_ERROR；
+  # 需要 HTTPS 时手动 export WEBUI_TLS=1。
+  local tls_env=""
+  if [ "${WEBUI_TLS:-0}" = "1" ]; then
+    tls_env="WEBUI_TLS=1"
+  fi
+  (cd "$root" && PYTHONPATH="$py_path" $tls_env "$py" -m "$module" >> "$logfile" 2>&1 &)
 }
 
 # Background keep-alive for a service. Starts immediately, then restarts every
@@ -151,7 +157,8 @@ set_tici_hw() {
     done
 
     if [ -z "$mcu" ]; then
-      echo "TICI (UNKNOWN) detected after $attempts attempts"; exit 1
+      echo "[warn] TICI (UNKNOWN) detected after $attempts attempts, continuing without panda MCU detection"
+      # 不退出：允许 panda 未连接/固件不兼容的设备继续启动 webui/manager，便于调试和首次安装
     fi
 
     # Persist to /persist (read-only partition — remount rw for one write)
@@ -250,7 +257,9 @@ ensure_params_build() {
   [ -f "$so" ] && return 0
   local jobs=$(nproc 2>/dev/null || echo 2)
   echo "[ensure_params_build] building libparams_c.so ($jobs jobs)..."
-  (cd "$DIR" && PYTHONPATH="$PY_PATH" scons -j"$jobs" openpilot/common/libparams_c.so >> /tmp/params_build.log 2>&1) || true
+  if ! (cd "$DIR" && PYTHONPATH="$PY_PATH" scons -j"$jobs" openpilot/common/libparams_c.so >> /tmp/params_build.log 2>&1); then
+    echo "[warn] ensure_params_build failed, webui may fall back to dev/mock mode"
+  fi
 }
 
 launch() {
@@ -311,7 +320,13 @@ launch() {
   tmux capture-pane -pq -S-1000 > /tmp/launch_log
 
   cd openpilot/system/manager
-  [ ! -f "$DIR/prebuilt" ] && ./build.py
+  if [ ! -f "$DIR/prebuilt" ]; then
+    if ! ./build.py; then
+      echo "[warn] build.py failed, UI resources may be missing"
+    else
+      touch "$DIR/prebuilt"
+    fi
+  fi
   ./manager.py
 
   while true; do sleep 1; done

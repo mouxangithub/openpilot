@@ -31,7 +31,7 @@ from typing import NoReturn
 
 import numpy as np
 
-from openpilot.cereal import log, messaging
+from openpilot.cereal import custom, log, messaging
 from openpilot.common.params import Params
 from openpilot.common.realtime import config_realtime_process, Ratekeeper
 from openpilot.common.swaglog import cloudlog
@@ -625,32 +625,32 @@ class ImuCalibrator:
     return msg
 
   @staticmethod
-  def _to_sp_status(state: CalibrationState) -> log.ImuCalibrationSP.Status:
+  def _to_sp_status(state: CalibrationState) -> custom.ImuCalibrationSP.Status:
     mapping = {
-      CalibrationState.IDLE: log.ImuCalibrationSP.Status.idle,
-      CalibrationState.STATIC_COLLECTING: log.ImuCalibrationSP.Status.staticCollecting,
-      CalibrationState.DYNAMIC_COLLECTING: log.ImuCalibrationSP.Status.dynamicCollecting,
-      CalibrationState.COMPUTING: log.ImuCalibrationSP.Status.computing,
-      CalibrationState.COMPLETED: log.ImuCalibrationSP.Status.completed,
-      CalibrationState.FAILED: log.ImuCalibrationSP.Status.failed,
-      CalibrationState.CANCELLED: log.ImuCalibrationSP.Status.cancelled,
+      CalibrationState.IDLE: custom.ImuCalibrationSP.Status.idle,
+      CalibrationState.STATIC_COLLECTING: custom.ImuCalibrationSP.Status.staticCollecting,
+      CalibrationState.DYNAMIC_COLLECTING: custom.ImuCalibrationSP.Status.dynamicCollecting,
+      CalibrationState.COMPUTING: custom.ImuCalibrationSP.Status.computing,
+      CalibrationState.COMPLETED: custom.ImuCalibrationSP.Status.completed,
+      CalibrationState.FAILED: custom.ImuCalibrationSP.Status.failed,
+      CalibrationState.CANCELLED: custom.ImuCalibrationSP.Status.cancelled,
     }
-    return mapping.get(state, log.ImuCalibrationSP.Status.idle)
+    return mapping.get(state, custom.ImuCalibrationSP.Status.idle)
 
   @staticmethod
-  def _to_sp_error(error_code: CalibrationError) -> log.ImuCalibrationSP.Error:
+  def _to_sp_error(error_code: CalibrationError) -> custom.ImuCalibrationSP.Error:
     mapping = {
-      CalibrationError.NONE: log.ImuCalibrationSP.Error.none,
-      CalibrationError.NOT_STATIONARY: log.ImuCalibrationSP.Error.notStationary,
-      CalibrationError.SLOPE_TOO_STEEP: log.ImuCalibrationSP.Error.slopeTooSteep,
-      CalibrationError.NOT_ENOUGH_STATIC_SAMPLES: log.ImuCalibrationSP.Error.notEnoughStaticSamples,
-      CalibrationError.NO_STRAIGHT_ROAD: log.ImuCalibrationSP.Error.noStraightRoad,
-      CalibrationError.TIMEOUT: log.ImuCalibrationSP.Error.timeout,
-      CalibrationError.CAMERA_ODOMETRY_UNRELIABLE: log.ImuCalibrationSP.Error.cameraOdometryUnreliable,
-      CalibrationError.COMPUTATION_FAILED: log.ImuCalibrationSP.Error.computationFailed,
-      CalibrationError.MATRIX_INVALID: log.ImuCalibrationSP.Error.matrixInvalid,
+      CalibrationError.NONE: custom.ImuCalibrationSP.Error.none,
+      CalibrationError.NOT_STATIONARY: custom.ImuCalibrationSP.Error.notStationary,
+      CalibrationError.SLOPE_TOO_STEEP: custom.ImuCalibrationSP.Error.slopeTooSteep,
+      CalibrationError.NOT_ENOUGH_STATIC_SAMPLES: custom.ImuCalibrationSP.Error.notEnoughStaticSamples,
+      CalibrationError.NO_STRAIGHT_ROAD: custom.ImuCalibrationSP.Error.noStraightRoad,
+      CalibrationError.TIMEOUT: custom.ImuCalibrationSP.Error.timeout,
+      CalibrationError.CAMERA_ODOMETRY_UNRELIABLE: custom.ImuCalibrationSP.Error.cameraOdometryUnreliable,
+      CalibrationError.COMPUTATION_FAILED: custom.ImuCalibrationSP.Error.computationFailed,
+      CalibrationError.MATRIX_INVALID: custom.ImuCalibrationSP.Error.matrixInvalid,
     }
-    return mapping.get(error_code, log.ImuCalibrationSP.Error.none)
+    return mapping.get(error_code, custom.ImuCalibrationSP.Error.none)
 
   @staticmethod
   def _to_device_frame(v: list[float] | np.ndarray) -> np.ndarray:

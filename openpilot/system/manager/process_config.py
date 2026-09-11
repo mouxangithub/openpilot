@@ -114,7 +114,9 @@ def amap_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   return started and params.get_bool("AmapEnabled")
 
 def carrot_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
-  return started and params.get_bool("CarrotEnabled")
+  # run even offroad: web panel (8088) / UDP / FTP must work while parked;
+  # carrot_man gates its own behaviour with the IsOnroad param
+  return params.get_bool("CarrotEnabled")
 
 def mapd_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
   return bool(os.path.exists(Paths.mapd_root()))

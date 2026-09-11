@@ -3,7 +3,7 @@ import math
 
 import pyray as rl
 
-from openpilot.cereal import log
+from openpilot.cereal import custom, log
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl
@@ -176,7 +176,7 @@ class ImuCalibrationLayoutMici(NavScroller):
     if not sm.updated.get("imuCalibrationSP"):
       return
     msg = sm["imuCalibrationSP"]
-    if msg.status not in (log.ImuCalibrationSP.Status.dynamicCollecting, log.ImuCalibrationSP.Status.computing):
+    if msg.status not in (custom.ImuCalibrationSP.Status.dynamicCollecting, custom.ImuCalibrationSP.Status.computing):
       return
     rpy = msg.rpyCalib
     if len(rpy) < 3:
