@@ -328,8 +328,6 @@ class CarrotServ:
       "carrotCmd": _safe_str(msg.get("carrotCmd"), ""),
       "carrotArg": _safe_str(msg.get("carrotArg"), ""),
       "roadcate": _safe_int(msg.get("roadcate"), 0),
-      "leftBlind": _safe_int(msg.get("leftBlind"), 0),
-      "rightBlind": _safe_int(msg.get("rightBlind"), 0),
       "nSdiSection": _safe_int(msg.get("nSdiSection"), -1),
       "gpsSpeed": _safe_float(msg.get("gpsSpeed"), 0.0),
       "epochTime": _safe_int(msg.get("epochTime"), 0),

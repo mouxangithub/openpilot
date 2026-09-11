@@ -329,12 +329,11 @@ class AmapNaviServ:
     self._last_packet_mono = recv_mono
 
     sd = self.shared_data
-    sd.left_blind = bool(_safe_int(packet.get("leftBlind"), 0))
-    sd.right_blind = bool(_safe_int(packet.get("rightBlind"), 0))
-    sd.lidar_left_blind = bool(_safe_int(packet.get("lidarLBlind"), 0))
-    sd.lidar_right_blind = bool(_safe_int(packet.get("lidarRBlind"), 0))
-    sd.lidar_car_left_blind = bool(_safe_int(packet.get("lidarCarLBlind"), 0))
-    sd.lidar_car_right_blind = bool(_safe_int(packet.get("lidarCarRBlind"), 0))
+    # Blind-spot fields (left_blind/right_blind/lidar_*_blind/lidar_car_*_blind)
+    # are populated by the LiDAR/camera direct-UDP path (port 4211) via the
+    # aggregation thread and the blindspot/cam_blind JSON handlers -- NOT by the
+    # 7706 phone packet (navipilot's build7706Payload() never sends those keys).
+    # Reading them here would be dead code, so they are intentionally skipped.
     sd.camera_left = bool(_safe_int(packet.get("cameraL"), 0))
     sd.camera_right = bool(_safe_int(packet.get("cameraR"), 0))
     sd.lidar_left = bool(_safe_int(packet.get("lidarL"), 0))
