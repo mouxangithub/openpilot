@@ -11,7 +11,7 @@ import threading
 from typing import Any
 
 from openpilot.common.params import Params
-from openpilot.common.realtime import Ratekeeper, config_realtime_process
+from openpilot.common.realtime import Ratekeeper, config_realtime_process, set_core_affinity
 from openpilot.common.swaglog import cloudlog
 import openpilot.cereal.messaging as messaging
 
@@ -1395,7 +1395,9 @@ class CarrotManager:
 
 
 def main_thread():
-  config_realtime_process([0, 1, 2, 3], 5)
+  # config_realtime_process([0, 1, 2, 3], 5)  # disabled: SCHED_FIFO can starve locationd; use background scheduling below
+  set_core_affinity([0, 1, 2, 3])
+  os.nice(5)
 
   manager = CarrotManager()
   rk = Ratekeeper(DEFAULT_RATE, print_delay_threshold=None)

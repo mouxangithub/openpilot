@@ -14,7 +14,7 @@ import shutil
 from datetime import datetime
 
 from openpilot.common.params import Params
-from openpilot.common.realtime import Ratekeeper, config_realtime_process
+from openpilot.common.realtime import Ratekeeper, config_realtime_process, set_core_affinity
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.sunnypilot.mapd.live_map_data.base_map_data import BaseMapData
@@ -237,7 +237,9 @@ def _select_map_provider() -> BaseMapData:
 
 def main_thread():
   update_installed_version(VERSION, params)
-  config_realtime_process([0, 1, 2, 3], 5)
+  # config_realtime_process([0, 1, 2, 3], 5)  # disabled: SCHED_FIFO can starve locationd; use background scheduling below
+  set_core_affinity([0, 1, 2, 3])
+  os.nice(5)
 
   rk = Ratekeeper(1, print_delay_threshold=None)
   live_map_sp = _select_map_provider()
