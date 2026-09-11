@@ -2652,8 +2652,8 @@ struct Event {
     navInstructionCarrotSP @138 :Custom.NavInstructionCarrotSP;
     carrotManSP @139 :Custom.CarrotManSP;
     imuCalibrationSP @140 :Custom.ImuCalibrationSP;
-    customReserved15 @141 :Custom.CustomReserved15;
-    customReserved16 @142 :Custom.CustomReserved16;
+    carrotNaviSP @141 :Custom.CarrotNaviStateSP;
+    carrotNaviMediaSP @142 :Custom.CarrotNaviMediaSP;
     customReserved17 @143 :Custom.CustomReserved17;
     customReserved18 @144 :Custom.CustomReserved18;
     customReserved19 @145 :Custom.CustomReserved19;

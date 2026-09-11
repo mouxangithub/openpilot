@@ -24,6 +24,7 @@ class _FakeCarrotManSP:
       "xDistToTurnNavLast", "xDistToTurnMax", "xDistToTurnMaxCnt", "xLeftTurnSec",
       "roadCate", "extBlinker", "extState", "leftBlind", "rightBlind",
       "trafficCountdown", "szGoalName", "szTBTMainTextNext", "szNearDirName",
+      "nSdiSection", "gpsSpeed", "epochTime", "timezone", "nTBTNextRoadWidth",
     ]:
       setattr(self, attr, None)
 

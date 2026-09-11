@@ -6,6 +6,7 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 import math
+import os
 import socket
 import threading
 from typing import Any
@@ -677,6 +678,11 @@ class CarrotManager:
     cm.szGoalName = ""
     cm.szTBTMainTextNext = _safe_str(raw.get("szTBTMainTextNext"), "")
     cm.szNearDirName = _safe_str(raw.get("szNearDirName"), "")
+    cm.nSdiSection = _safe_int(raw.get("nSdiSection"), -1)
+    cm.gpsSpeed = _safe_float(raw.get("gpsSpeed"), 0.0)
+    cm.epochTime = _safe_int(raw.get("epochTime"), 0)
+    cm.timezone = _safe_str(raw.get("timezone"), "Asia/Seoul")
+    cm.nTBTNextRoadWidth = _safe_int(raw.get("nTBTNextRoadWidth"), 0)
 
     navi_msg = messaging.new_message('navInstructionCarrotSP')
     navi_msg.valid = True

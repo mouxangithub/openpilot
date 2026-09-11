@@ -196,6 +196,13 @@ class CarrotServ:
     self.vp_pos_point_lat: float = 0.0
     self.vp_pos_point_lon: float = 0.0
 
+    # Extended 7706 phone-packet fields (carrot > Amap > OSM arbitration).
+    self.n_sdi_section: int = -1
+    self.gps_speed: float = 0.0
+    self.epoch_time: int = 0
+    self.timezone: str = "Asia/Seoul"
+    self.n_tbt_next_road_width: int = 0
+
     # Navi speed-control tuning (from UnifiedParams; safe defaults).
     self.auto_navi_speed_decel_rate: float = 0.8
     self.auto_navi_speed_ctrl_end: float = 7.0
@@ -323,6 +330,11 @@ class CarrotServ:
       "roadcate": _safe_int(msg.get("roadcate"), 0),
       "leftBlind": _safe_int(msg.get("leftBlind"), 0),
       "rightBlind": _safe_int(msg.get("rightBlind"), 0),
+      "nSdiSection": _safe_int(msg.get("nSdiSection"), -1),
+      "gpsSpeed": _safe_float(msg.get("gpsSpeed"), 0.0),
+      "epochTime": _safe_int(msg.get("epochTime"), 0),
+      "timezone": _safe_str(msg.get("timezone"), "Asia/Seoul"),
+      "nTBTNextRoadWidth": _safe_int(msg.get("nTBTNextRoadWidth"), 0),
     }
 
     if "carrotCmd" in msg:
@@ -373,6 +385,11 @@ class CarrotServ:
     self.carrot_left_sec = 100
     self.sdi_inform = False
     self.active_kisa_count = 0
+    self.n_sdi_section = -1
+    self.gps_speed = 0.0
+    self.epoch_time = 0
+    self.timezone = "Asia/Seoul"
+    self.n_tbt_next_road_width = 0
 
   # ---- derived state ----------------------------------------------------- #
 
@@ -440,6 +457,13 @@ class CarrotServ:
     self.vp_pos_point_lat = _safe_float(r.get("vpPosPointLat"), 0.0)
     self.vp_pos_point_lon = _safe_float(r.get("vpPosPointLon"), 0.0)
 
+    # --- Extended 7706 fields (exported to cereal for control/UI) ----------
+    self.n_sdi_section = _safe_int(r.get("nSdiSection"), -1)
+    self.gps_speed = _safe_float(r.get("gpsSpeed"), 0.0)
+    self.epoch_time = _safe_int(r.get("epochTime"), 0)
+    self.timezone = _safe_str(r.get("timezone"), "Asia/Seoul")
+    self.n_tbt_next_road_width = _safe_int(r.get("nTBTNextRoadWidth"), 0)
+
     # --- Cruise advisory -------------------------------------------------
     n_road_limit = self.n_road_limit_speed
     self.desired_speed = 0
@@ -491,6 +515,11 @@ class CarrotServ:
     self.n_road_limit_speed = 0
     self.vp_pos_point_lat = 0.0
     self.vp_pos_point_lon = 0.0
+    self.n_sdi_section = -1
+    self.gps_speed = 0.0
+    self.epoch_time = 0
+    self.timezone = "Asia/Seoul"
+    self.n_tbt_next_road_width = 0
 
   # ---- parameter refresh -------------------------------------------------- #
 

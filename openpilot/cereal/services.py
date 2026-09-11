@@ -99,6 +99,8 @@ _services: dict[str, tuple] = {
   "carrotManSP": (False, 10., 1),
   "amapNaviSP": (False, 10., 1),
   "navInstructionCarrotSP": (False, 1., 10),
+  "carrotNaviSP": (True, 2.),
+  "carrotNaviMediaSP": (False, 20., None, QueueSize.BIG),
 
   # debug
   "uiDebug": (True, 0., 1),

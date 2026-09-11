@@ -342,6 +342,39 @@ struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
     sccVision @1;
     sccMap @2;
     speedLimitAssist @3;
+    carrot @4;
+  }
+
+  struct TrafficLightState {
+    lightState @0 :State;
+    source @1 :Source;
+    confidence @2 :Float32;
+    distance @3 :Float32;
+
+    enum State {
+      unknown @0;
+      red @1;
+      green @2;
+      redConfirmed @3;
+      greenConfirmed @4;
+    }
+
+    enum Source {
+      none @0;
+      carrot @1;
+      amap @2;
+      vision @3;
+      fused @4;
+    }
+  }
+
+  struct CarrotPlan {
+    xState @0 :Text;
+    drivingMode @1 :Text;
+    vTarget @2 :Float32;
+    aTarget @3 :Float32;
+    stopDist @4 :Float32;
+    active @5 :Bool;
   }
 
   struct E2eAlerts {
@@ -359,6 +392,9 @@ struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
       sport @2;
     }
   }
+
+  trafficLight @9 :TrafficLightState;
+  carrot @10 :CarrotPlan;
 }
 
 struct OnroadEventSP @0xda96579883444c35 {
@@ -519,6 +555,11 @@ struct LiveMapDataSP @0xf416ec09499d9d19 {
   speedLimitAhead @3 :Float32;
   speedLimitAheadDistance @4 :Float32;
   roadName @5 :Text;
+  curveSpeedAheadValid @6 :Bool;
+  curveSpeedAhead @7 :Float32;
+  curveSpeedAheadDistance @8 :Float32;
+  trafficLightAheadValid @9 :Bool;
+  trafficLightAheadDistance @10 :Float32;
 }
 
 struct ModelDataV2SP @0xa1680744031fdb2d {
@@ -617,6 +658,11 @@ struct CarrotManSP @0xcd96dafb67a082d0 {
   szGoalName @40 :Text;
   szTBTMainTextNext @41 :Text;
   szNearDirName @42 :Text;
+  nSdiSection @43 :Int32 = -1;
+  gpsSpeed @44 :Float32 = 0.0;
+  epochTime @45 :Int64 = 0;
+  timezone @46 :Text = "Asia/Seoul";
+  nTBTNextRoadWidth @47 :Int32 = 0;
 }
 
 struct ImuCalibrationSP @0xb057204d7deadf3f {
@@ -651,10 +697,176 @@ struct ImuCalibrationSP @0xb057204d7deadf3f {
   }
 }
 
-struct CustomReserved15 @0xbd443b539493bc68 {
+struct CarrotNaviStateSP @0xbd443b539493bc68 {
+  schemaVersion @0 :UInt16;
+  generation @1 :UInt64;
+  sessionId @2 :Text;
+  publishMonoTimeNanos @3 :UInt64;
+  connected @4 :Bool;
+  vehicle @5 :Vehicle;
+  guidanceCurrent @6 :Guidance;
+  guidanceNext @7 :Guidance;
+  laneCurrent @8 :Lane;
+  laneAhead @9 :List(Lane);
+  speed @10 :Speed;
+  trafficSignal @11 :TrafficSignal;
+  crossroad @12 :Crossroad;
+  route @13 :Route;
+  navigationStatus @14 :NavigationStatus;
+
+  struct ItemMeta {
+    present @0 :Bool;
+    sequence @1 :UInt64;
+    sourceTimestampMillis @2 :UInt64;
+    receivedMonoTimeNanos @3 :UInt64;
+  }
+
+  struct Vehicle {
+    meta @0 :ItemMeta;
+    latitude @1 :Float64;
+    longitude @2 :Float64;
+    headingDeg @3 :Float32;
+    speedKph @4 :Float32;
+    roadName @5 :Text;
+    virtualGps @6 :Bool;
+  }
+
+  struct Guidance {
+    meta @0 :ItemMeta;
+    distanceM @1 :Int32;
+    timeSec @2 :Int32;
+    turnType @3 :Int32;
+    roadName @4 :Text;
+    mainText @5 :Text;
+    nearDirection @6 :Text;
+    midDirection @7 :Text;
+    farDirection @8 :Text;
+    pointValid @9 :Bool;
+    latitude @10 :Float64;
+    longitude @11 :Float64;
+  }
+
+  struct Lane {
+    meta @0 :ItemMeta;
+    count @1 :Int16;
+    distanceM @2 :Int32;
+    visible @3 :Bool;
+    lanePlay @4 :Bool;
+    currentLane @5 :Int16;
+    turnCode @6 :Int32;
+    turnInfo @7 :List(Int16);
+    etcInfo @8 :List(Int16);
+    available @9 :List(Int16);
+    guideLineColor @10 :Int16;
+    roadCategory @11 :Int16;
+    voiceCode @12 :Int16;
+  }
+
+  struct Speed {
+    meta @0 :ItemMeta;
+    currentKph @1 :Float32;
+    roadLimitValid @2 :Bool;
+    roadLimitKph @3 :Int16;
+    sdiPresent @4 :Bool;
+    sdiType @5 :Int32;
+    sdiDistanceM @6 :Int32;
+    sdiSpeedLimitKph @7 :Int16;
+    sectionPresent @8 :Bool;
+    sectionActive @9 :Bool;
+    sectionSpeedLimitKph @10 :Int16;
+    sectionAverageKph @11 :Float32;
+    sectionOverallAverageKph @12 :Float32;
+    sectionRemainingDistanceM @13 :Float32;
+    sectionRemainingTimeSec @14 :Int32;
+    sectionProgress @15 :Float32;
+    sectionSuspended @16 :Bool;
+    sectionOffRoute @17 :Bool;
+    sdiSectionType @18 :Int32;
+    sdiBlockType @19 :Int32;
+    sdiBlockSpeedKph @20 :Int16;
+    sdiBlockDistanceM @21 :Int32;
+    secondarySdiPresent @22 :Bool;
+    secondarySdiType @23 :Int32;
+    secondarySdiDistanceM @24 :Int32;
+    secondarySdiSpeedLimitKph @25 :Int16;
+    secondarySdiSectionType @26 :Int32;
+    secondarySdiBlockType @27 :Int32;
+    secondarySdiBlockSpeedKph @28 :Int16;
+    secondarySdiBlockDistanceM @29 :Int32;
+  }
+
+  struct TrafficSignal {
+    meta @0 :ItemMeta;
+    visible @1 :Bool;
+    distanceM @2 :Int32;
+    source @3 :Text;
+    redValid @4 :Bool;
+    redOn @5 :Bool;
+    redRemainSec @6 :Int16;
+    leftValid @7 :Bool;
+    leftOn @8 :Bool;
+    leftRemainSec @9 :Int16;
+    greenValid @10 :Bool;
+    greenOn @11 :Bool;
+    greenRemainSec @12 :Int16;
+    rightValid @13 :Bool;
+    rightOn @14 :Bool;
+    rightRemainSec @15 :Int16;
+    uturnValid @16 :Bool;
+    uturnOn @17 :Bool;
+    uturnRemainSec @18 :Int16;
+    uiCounterValid @19 :Bool;
+    uiCounterRemainSec @20 :Int16;
+  }
+
+  struct Crossroad {
+    meta @0 :ItemMeta;
+    visible @1 :Bool;
+    distanceM @2 :Int32;
+    imageCode @3 :Int32;
+    imageUrl @4 :Text;
+  }
+
+  struct Coordinate {
+    latitude @0 :Float64;
+    longitude @1 :Float64;
+  }
+
+  struct Route {
+    meta @0 :ItemMeta;
+    remainingDistanceM @1 :Int32;
+    remainingTimeSec @2 :Int32;
+    movedDistanceM @3 :Int32;
+    movedTimeSec @4 :Int32;
+    totalDistanceM @5 :Int32;
+    polyline @6 :List(Coordinate);
+  }
+
+  struct NavigationStatus {
+    meta @0 :ItemMeta;
+    mode @1 :Text;
+    guidanceActive @2 :Bool;
+    offRoute @3 :Bool;
+    routePresent @4 :Bool;
+  }
 }
 
-struct CustomReserved16 @0xfc6241ed8877b611 {
+struct CarrotNaviMediaSP @0xfc6241ed8877b611 {
+  schemaVersion @0 :UInt16;
+  sessionId @1 :Text;
+  kind @2 :Text;
+  name @3 :Text;
+  sequence @4 :UInt64;
+  sourceTimestampMillis @5 :UInt64;
+  receivedMonoTimeNanos @6 :UInt64;
+  present @7 :Bool;
+  messageType @8 :UInt8;
+  formatOrReason @9 :UInt8;
+  flags @10 :UInt16;
+  width @11 :UInt16;
+  height @12 :UInt16;
+  reason @13 :Text;
+  payload @14 :Data;
 }
 
 struct CustomReserved17 @0xa30662f84033036c {
