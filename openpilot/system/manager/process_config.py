@@ -118,6 +118,13 @@ def carrot_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   # carrot_man gates its own behaviour with the IsOnroad param
   return params.get_bool("CarrotEnabled")
 
+def carrot_navi_v2_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # 7714 WebSocket v2 navi link. Gated by the master CarrotEnabled switch AND
+  # the dedicated killswitch CarrotNaviV2Enabled (default off). The WebSocket
+  # receiver depends on the phone app, so it auto-restarts on crash rather
+  # than taking down the 7706 carrot_man path.
+  return params.get_bool("CarrotEnabled") and params.get_bool("CarrotNaviV2Enabled")
+
 def mapd_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
   return bool(os.path.exists(Paths.mapd_root()))
 
@@ -211,6 +218,7 @@ procs += [
   # Kept registered for rollback, but disabled while carrot_man owns amapNaviSP.
   PythonProcess("mapd_amap", "openpilot.sunnypilot.mapd.amap.mapd_amap", lambda *_: False),
   PythonProcess("carrot_man", "openpilot.sunnypilot.carrot.carrot_man", carrot_enabled),
+  PythonProcess("carrot_navi", "openpilot.sunnypilot.carrot.carrot_navi", carrot_navi_v2_enabled, restart_if_crash=True),
 
   # locationd
   NativeProcess("locationd_llk", "openpilot/sunnypilot/selfdrive/locationd", ["./locationd"], only_onroad),

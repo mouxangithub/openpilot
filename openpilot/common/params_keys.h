@@ -340,6 +340,10 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AmapApiKey", {PERSISTENT | DONT_LOG, STRING}},
     {"AmapNaviUdpPort", {PERSISTENT | BACKUP, INT, "0"}},
     {"CarrotEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    // 7714 WebSocket v2 navi link killswitch. Default off so the new
+    // carrotNavi process never starts unless explicitly enabled. Requires
+    // CarrotEnabled as the master switch (see process_config.py).
+    {"CarrotNaviV2Enabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CarrotManUdpPort", {PERSISTENT | BACKUP, INT, "0"}},
     {"CarrotPanelSide", {PERSISTENT | BACKUP, INT, "0"}},  // carrot nav HUD panel side: 0=left, 1=right
     {"CarrotPanelOpacity", {PERSISTENT | BACKUP, INT, "100"}},  // carrot nav HUD panel opacity percent 0-100
