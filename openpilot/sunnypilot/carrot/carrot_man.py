@@ -31,7 +31,6 @@ except ImportError:
 DEFAULT_RATE = 10.  # Hz
 UDP_BUFFER_SIZE = 4096
 PACKET_TIMEOUT_SEC = 3.0
-AMAP_UDP_PORT_DEFAULT = 0  # 0 == disabled (must be enabled by user)
 
 # Korean TMAP turn-type codes from the CarrotMan app -> (maneuverType, maneuverModifier, xTurnInfo).
 # xTurnInfo semantics used by the sunnypilot UI/planner:
@@ -269,11 +268,6 @@ class CarrotManager:
   - ``carrotCmd``/``carrotArg``/``carrotIndex``: remote commands.
   - ``roadcate``: road category.
 
-  A second UDP socket (``AmapNaviUdpPort``, default 0 = disabled) receives
-  Amap ADAS JSON packets (``lineValid``/``leftLine``/``rightLine``) and feeds
-  them to :meth:`AmapNaviServ.update_adas`; that socket is the sole lane-line
-  data source for ``amapNaviSP`` now that the mapd_amap producer is disabled.
-
   Unknown fields are ignored so the protocol remains forward-compatible.
   """
 
@@ -291,11 +285,9 @@ class CarrotManager:
 
     self._enabled = False
     self._port = 0
-    self._amap_port = AMAP_UDP_PORT_DEFAULT
     self._start_web = False
 
     self._sock: socket.socket | None = None
-    self._amap_sock: socket.socket | None = None  # Amap ADAS JSON listener (AmapNaviUdpPort)
     self._lock = threading.Lock()
     self._last_packet_mono = 0.0
     self._last_seq: int | None = None
@@ -374,48 +366,6 @@ class CarrotManager:
         self._sock = None
         self._port = 0
 
-  def _ensure_amap_socket(self, port: int) -> bool:
-    """Bind the second UDP socket for Amap ADAS lane-line JSON packets.
-
-    This replaces the retired mapd_amap producer's listener: carrot_man is
-    now the single process owning BOTH data sources, so ``amapNaviSP`` has
-    exactly one publisher.  Port 0 keeps the listener disabled (default).
-    """
-    with self._lock:
-      if self._amap_sock is not None and self._amap_port == port:
-        return True
-      if self._amap_sock is not None:
-        try:
-          self._amap_sock.close()
-        except Exception:
-          pass
-        self._amap_sock = None
-    if port <= 0:
-      return False
-    try:
-      sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-      sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-      sock.bind(('0.0.0.0', port))
-      sock.setblocking(False)
-      with self._lock:
-        self._amap_sock = sock
-        self._amap_port = port
-      cloudlog.info(f"carrot_man: ADAS listener on UDP port {port}")
-      return True
-    except Exception as e:
-      cloudlog.error(f"carrot_man: failed to bind ADAS UDP port {port}: {e}")
-      return False
-
-  def _close_amap_socket(self) -> None:
-    with self._lock:
-      if self._amap_sock is not None:
-        try:
-          self._amap_sock.close()
-        except Exception:
-          pass
-        self._amap_sock = None
-      self._amap_port = 0
-
   def _parse_packet(self, data: bytes) -> dict[str, Any] | None:
     return parse_packet(data)
 
@@ -434,11 +384,6 @@ class CarrotManager:
 
     # Fan out to the dedicated service modules.  Each module does its own
     # field validation / fall-back to defaults.
-    #
-    # NOTE: CarrotMan's own UDP stream (CarrotManUdpPort) uses the closed
-    # CarrotMan protocol and never carries Amap ADAS lane-line keys
-    # (lineValid/leftLine/rightLine). Those arrive on a SEPARATE socket
-    # (AmapNaviUdpPort) drained by _drain_adas_packets() below.
     self._carrot_serv.update_raw(msg, recv_mono=recv_mono)
     self._amap_navi.apply_packet(msg, recv_mono=recv_mono)
 
@@ -460,33 +405,6 @@ class CarrotManager:
         break
       except Exception as e:
         cloudlog.error(f"carrot_man: UDP receive error: {e}")
-        break
-
-  def _drain_adas_packets(self) -> None:
-    """Drain the Amap ADAS JSON socket (AmapNaviUdpPort) into update_adas().
-
-    Wire format: UTF-8 JSON dicts with lineValid/leftLine/rightLine keys
-    (same layout mapd_amap used to parse).  update_adas() owns validation,
-    clamping and the 3 s freshness fail-safe, so malformed packets are
-    dropped here without touching blind-spot state.
-    """
-    with self._lock:
-      sock = self._amap_sock
-    if sock is None:
-      return
-    while True:
-      try:
-        with self._lock:
-          if self._amap_sock is None:
-            break
-          data, _addr = self._amap_sock.recvfrom(UDP_BUFFER_SIZE)
-        msg = self._parse_packet(data)
-        if msg is not None:
-          self._amap_navi.update_adas(msg)
-      except BlockingIOError:
-        break
-      except Exception as e:
-        cloudlog.error(f"carrot_man: ADAS UDP receive error: {e}")
         break
 
   def _maybe_expire_state(self, now_mono: float) -> None:
@@ -901,7 +819,6 @@ class CarrotManager:
   def tick(self) -> None:
     self._enabled = self.params.get_bool("CarrotEnabled")
     self._port = self.params.get("CarrotManUdpPort", return_default=True) or 0
-    self._amap_port = self.params.get("AmapNaviUdpPort", return_default=True) or 0
     self._start_web = self.params.get_bool("CarrotWebEnabled")
 
     self.sm.update(0)
@@ -915,7 +832,6 @@ class CarrotManager:
 
     if not self._enabled or self._port <= 0:
       self._close_socket()
-      self._close_amap_socket()
       self._reset_state()
       self._stop_web()
       self._is_running = False
@@ -924,16 +840,8 @@ class CarrotManager:
     if not self._ensure_socket(self._port):
       return
 
-    # Second listener for Amap ADAS lane-line JSON (single-producer model:
-    # carrot_man owns both data sources; mapd_amap stays disabled).
-    if self._amap_port > 0:
-      self._ensure_amap_socket(self._amap_port)
-    else:
-      self._close_amap_socket()
-
     self._maybe_start_web()
     self._drain_packets()
-    self._drain_adas_packets()
     now = self._mono_now()
     self._maybe_expire_state(now)
 

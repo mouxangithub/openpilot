@@ -338,7 +338,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // Amap / Carrot (phone projection & navigation)
     {"AmapEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"AmapApiKey", {PERSISTENT | DONT_LOG, STRING}},
-    {"AmapNaviUdpPort", {PERSISTENT | BACKUP, INT, "0"}},
     {"CarrotEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     // 7714 WebSocket v2 navi link killswitch. Default off so the new
     // carrotNavi process never starts unless explicitly enabled. Requires

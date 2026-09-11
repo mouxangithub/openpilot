@@ -299,17 +299,6 @@ sections:
     widget: toggle
     title: Enable Amap Map Data
     description: Use Amap (Gaode) online map data for speed limits and road names in China.
-  - key: AmapNaviUdpPort
-    widget: option
-    title: Phone Navi UDP Port
-    description: UDP port to receive navigation data from a phone app. 0 disables.
-    min: 0
-    max: 65535
-    step: 1
-    visibility:
-    - type: param
-      key: AmapEnabled
-      equals: true
   - key: CarrotEnabled
     widget: toggle
     title: Enable Carrot Planner

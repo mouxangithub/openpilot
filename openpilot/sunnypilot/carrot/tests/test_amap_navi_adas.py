@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
 """
-Offline unit tests for the ADAS lane-line integration in
-``sunnypilot/carrot/amap_navi.py`` introduced during the carrot/mapd merge
-(Commit C of the migration plan).
+Offline unit tests for ``sunnypilot/carrot/amap_navi.py``.
 
 These tests run WITHOUT building cereal/gen (they stub ``cereal.messaging``
 before importing the module), so they can be executed on a stock Windows
 workstation where scons / pycapnp are unavailable.  They verify:
 
-  * SharedData exposes adas_* fields and reset() clears them;
-  * update_adas() ingests + clamps lane-line types and rejects malformed data;
-  * build_amap_navi_msg() sources lineValid/leftLine/rightLine from ADAS
-    instead of the old hardcoded 0, and fail-safes to lineValid=False when
-    ADAS data is stale/absent;
-  * the 3-bit blind-spot mask is preserved through the ADAS path.
+  * ``build_amap_navi_msg()`` keeps the 3-bit blind-spot mask correct and
+    now publishes lane-line fields as permanently invalid (the Amap ADAS
+    JSON lane-line source was retired);
+  * the LiDAR/camera direct-UDP listen port resolution logic (used by the
+    dormant ``start_navi_comm`` path).
 """
 import importlib.util
 import pathlib
@@ -23,7 +20,22 @@ import unittest
 from types import ModuleType
 from unittest import mock
 
-# Stub cereal so this file can import amap_navi without pycapnp / cereal/gen.
+# Stub the openpilot / cereal trees so this file can import amap_navi without
+# pycapnp / cereal/gen (which cannot be built on a stock Windows workstation).
+_op = ModuleType("openpilot")
+_op.__path__ = []
+sys.modules["openpilot"] = _op
+
+_oc = ModuleType("openpilot.cereal")
+_oc.__path__ = []
+sys.modules["openpilot.cereal"] = _oc
+
+_ocm = ModuleType("openpilot.cereal.messaging")
+_ocm.new_message = lambda name: None
+_ocm.SubMaster = lambda services: None
+_ocm.PubMaster = lambda socks: None
+sys.modules["openpilot.cereal.messaging"] = _ocm
+
 _cereal = ModuleType("cereal")
 _cereal.messaging = ModuleType("cereal.messaging")
 _cereal.messaging.new_message = lambda name: None
@@ -59,88 +71,28 @@ def _fake_new_message(_name):
   return _FakeMsg()
 
 
-class TestAmapNaviAdas(unittest.TestCase):
+class TestAmapNaviBlindSpotMask(unittest.TestCase):
+  """build_amap_navi_msg must preserve the 3-bit blind-spot mask and now
+  publish lane-line fields as permanently invalid (no ADAS JSON source)."""
+
   def _serv(self):
     return amap_navi.AmapNaviServ()
 
-  def test_shared_data_exposes_adas_fields(self):
-    sd = self._serv().shared_data
-    self.assertTrue(hasattr(sd, "adas_line_valid"))
-    self.assertTrue(hasattr(sd, "adas_left_line"))
-    self.assertTrue(hasattr(sd, "adas_right_line"))
-    self.assertTrue(hasattr(sd, "adas_last_mono"))
-
-  def test_reset_clears_adas_fields(self):
-    serv = self._serv()
-    sd = serv.shared_data
-    sd.adas_line_valid = True
-    sd.adas_left_line = 5
-    sd.adas_right_line = 2
-    sd.adas_last_mono = time.monotonic()
-    serv.reset()
-    self.assertFalse(sd.adas_line_valid)
-    self.assertEqual(sd.adas_left_line, 0)
-    self.assertEqual(sd.adas_right_line, 0)
-    self.assertEqual(sd.adas_last_mono, 0.0)
-
-  def test_update_adas_ingests_valid(self):
-    serv = self._serv()
-    serv.update_adas({"lineValid": True, "leftLine": 2, "rightLine": 1})
-    self.assertTrue(serv.shared_data.adas_line_valid)
-    self.assertEqual(serv.shared_data.adas_left_line, 2)
-    self.assertEqual(serv.shared_data.adas_right_line, 1)
-
-  def test_update_adas_clamps_out_of_range(self):
-    serv = self._serv()
-    serv.update_adas({"lineValid": True, "leftLine": 99, "rightLine": -3})
-    self.assertEqual(serv.shared_data.adas_left_line, 0)
-    self.assertEqual(serv.shared_data.adas_right_line, 0)
-    self.assertTrue(serv.shared_data.adas_line_valid)
-
-  def test_update_adas_line_invalid_zeroes(self):
-    serv = self._serv()
-    serv.update_adas({"lineValid": False, "leftLine": 2, "rightLine": 1})
-    self.assertFalse(serv.shared_data.adas_line_valid)
-    self.assertEqual(serv.shared_data.adas_left_line, 0)
-    self.assertEqual(serv.shared_data.adas_right_line, 0)
-
-  def test_update_adas_rejects_malformed(self):
-    serv = self._serv()
-    serv.update_adas(None)
-    serv.update_adas("not a dict")
-    serv.update_adas({"lineValid": True, "leftLine": "boom", "rightLine": "x"})
-    self.assertFalse(serv.shared_data.adas_line_valid)
-
-  def test_build_msg_uses_adas_when_fresh(self):
-    serv = self._serv()
-    serv.update_adas({"lineValid": True, "leftLine": 5, "rightLine": 2})
-    serv._last_packet_mono = time.monotonic()
-    msg = serv.build_amap_navi_msg(_fake_new_message)
-    self.assertTrue(msg.amapNaviSP.lineValid)
-    self.assertEqual(msg.amapNaviSP.leftLine, 5)
-    self.assertEqual(msg.amapNaviSP.rightLine, 2)
-
-  def test_build_msg_fail_safe_when_adas_expired(self):
-    serv = self._serv()
-    serv.update_adas({"lineValid": True, "leftLine": 5, "rightLine": 2})
-    serv.shared_data.adas_last_mono = 0.0  # simulate expiry
-    serv._last_packet_mono = time.monotonic()
-    msg = serv.build_amap_navi_msg(_fake_new_message)
-    self.assertFalse(msg.amapNaviSP.lineValid)
-    self.assertEqual(msg.amapNaviSP.leftLine, 0)
-    self.assertEqual(msg.amapNaviSP.rightLine, 0)
-
-  def test_build_msg_preserves_blind_mask(self):
+  def test_build_msg_preserves_blind_mask_and_invalidates_lanes(self):
     serv = self._serv()
     sd = serv.shared_data
     sd.left_blind = True
     sd.lidar_car_left_blind = True
     sd.right_blind = True
-    serv.update_adas({"lineValid": True, "leftLine": 1, "rightLine": 1})
     serv._last_packet_mono = time.monotonic()
     msg = serv.build_amap_navi_msg(_fake_new_message)
-    self.assertEqual(msg.amapNaviSP.leftBlind, 6)   # bit4 + bit2
-    self.assertEqual(msg.amapNaviSP.rightBlind, 2)  # bit2
+    # bit4 (lidar-car) + bit2 (Carrot) => 6 ; bit2 => 2
+    self.assertEqual(msg.amapNaviSP.leftBlind, 6)
+    self.assertEqual(msg.amapNaviSP.rightBlind, 2)
+    # Lane-line source retired: always invalid/zero now.
+    self.assertFalse(msg.amapNaviSP.lineValid)
+    self.assertEqual(msg.amapNaviSP.leftLine, 0)
+    self.assertEqual(msg.amapNaviSP.rightLine, 0)
 
 
 def _params_stub(return_value=None, raise_on_init=False):

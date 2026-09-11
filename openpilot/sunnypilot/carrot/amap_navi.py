@@ -9,10 +9,9 @@ See the LICENSE.md file in the root directory for more details.
 """
 AmapNaviServ - high-level adapter for the Amap / CarrotMan phone app.
 
-The real CarrotPilot implementation owns a UDP server bound on
-``AmapNaviUdpPort`` (default 4211) and a TCP channel on the broadcast
-address.  In sunnypilot the UDP listener is owned by ``CarrotManager``;
-this module is the **pure data path** that:
+In sunnypilot the UDP listener is owned by ``CarrotManager`` which feeds
+decoded packets through :meth:`apply_packet`; this module is the **pure
+data path** that:
 
 * parses the small JSON payload the phone app sends (see
   :func:`parse_packet`);
@@ -20,9 +19,10 @@ this module is the **pure data path** that:
   ``carState``-fusing code, and the HUD; and
 * publishes an ``amapNaviSP`` message every tick.
 
-A separate file (``mapd/amap/mapd_amap.py``) already handles the MAPD
-side of amap data; this module is the smaller, lower-latency bridge that
-only touches ``AmapNaviSP``/``carState``-side state.
+This module is the smaller, lower-latency bridge that only touches
+``AmapNaviSP``/``carState``-side state.  Lane-line
+(``lineValid``/``leftLine``/``rightLine``) data is no longer produced
+here; consumers treat the lane-line fields as permanently invalid.
 """
 
 import json
@@ -155,14 +155,6 @@ class SharedData:
   map_traffic_state: int = 0       # 0=none, 1=red, 2=green, 3=left-turn green
   map_traffic_countdown: int = 0
   map_traffic_time: float = 0.0
-
-  # ADAS lane-line data (from the Amap JSON source).  These are the only
-  # producers of lineValid/leftLine/rightLine in ``amapNaviSP`` after the
-  # mapd_amap producer is retired.  See AmapLineType in amap_fusion.py.
-  adas_line_valid: bool = False
-  adas_left_line: int = 0
-  adas_right_line: int = 0
-  adas_last_mono: float = 0.0
 
   # Client tracking.
   ext_state: int = 0
@@ -422,51 +414,10 @@ class AmapNaviServ:
     sd.lb_xrel.clear()
     sd.rf_xrel.clear()
     sd.rb_xrel.clear()
-    sd.adas_line_valid = False
-    sd.adas_left_line = 0
-    sd.adas_right_line = 0
-    sd.adas_last_mono = 0.0
     self._seq = None
     self._last_packet_mono = 0.0
 
   # ---- message publishing --------------------------------------------- #
-
-  def update_adas(self, msg: dict[str, Any]) -> None:
-    """Apply ADAS lane-line data (from the Amap JSON source) to the cache.
-
-    This is the single integration point that replaces the retired
-    ``mapd_amap`` lane-line producer.  It should be driven from the same UDP
-    stream that used to feed ``mapd_amap`` (field names match its JSON layout).
-
-    Args:
-      msg: Decoded ADAS JSON packet, e.g.
-        ``{"lineValid": true, "leftLine": 2, "rightLine": 1}``.
-        ``leftBlind``/``rightBlind`` are intentionally *not* consumed here:
-        blind-spot bits come from the Carrot blind/flash data in
-        ``apply_packet``, which is a superset of the ADAS-side bitmask.
-    """
-    if not isinstance(msg, dict):
-      return
-    sd = self.shared_data
-    try:
-      raw_valid = msg.get("lineValid", False)
-      line_valid = bool(raw_valid) if isinstance(raw_valid, (bool, int)) else False
-      if line_valid:
-        left = int(msg.get("leftLine", 0))
-        right = int(msg.get("rightLine", 0))
-        # Clamp to the known AmapLineType range [0,6] (see amap_fusion.py).
-        sd.adas_left_line = left if 0 <= left <= 6 else 0
-        sd.adas_right_line = right if 0 <= right <= 6 else 0
-      else:
-        sd.adas_left_line = 0
-        sd.adas_right_line = 0
-      sd.adas_line_valid = line_valid
-      sd.adas_last_mono = time.monotonic()
-    except (TypeError, ValueError):
-      # Malformed ADAS JSON must never take the daemon down; drop the packet.
-      sd.adas_left_line = 0
-      sd.adas_right_line = 0
-      sd.adas_line_valid = False
 
   def build_amap_navi_msg(self, new_message) -> Any:
     """Populate a new ``amapNaviSP`` message from the current state.
@@ -490,14 +441,13 @@ class AmapNaviServ:
       + (2 if sd.right_blind else 0)
       + (1 if sd.lidar_right_blind else 0)
     )
-    # Lane-line data comes solely from the ADAS JSON source (was hardcoded 0).
-    # Line type codes follow AmapLineType in amap_fusion.py; blocked mapping
-    # happens in merge_amap_lane_lines().  Fail-safe: if no fresh ADAS data,
-    # publish lineValid=False so callers treat lanes as unblocked explicitly.
-    adas_fresh = sd.adas_last_mono != 0.0 and (time.monotonic() - sd.adas_last_mono) <= 3.0
-    navi.lineValid = sd.adas_line_valid and adas_fresh
-    navi.leftLine = sd.adas_left_line if navi.lineValid else 0
-    navi.rightLine = sd.adas_right_line if navi.lineValid else 0
+    # Lane-line data is permanently retired: the Amap ADAS JSON source that
+    # used to populate lineValid/leftLine/rightLine no longer exists, so we
+    # always publish them as invalid/0.  Consumers (e.g. amap_fusion.py)
+    # already fall back to "unblocked" when lineValid is False.
+    navi.lineValid = False
+    navi.leftLine = 0
+    navi.rightLine = 0
     return msg
 
   # ---- radar data (P2-2) ------------------------------------------------ #
@@ -667,9 +617,7 @@ class AmapNaviServ:
     """Resolve the direct-UDP LiDAR/camera listen port.
 
     Priority: explicit ``listen_port`` argument > ``LiDARUdpPort`` param
-    (registered default 4211) > the instance default (4211).  This removes
-    the former hard-coded-4211 trap where the ``AmapNaviUdpPort`` param
-    name suggested configurability but 4211 was fixed.
+    (registered default 4211) > the instance default (4211).
     """
     if listen_port is None:
       try:

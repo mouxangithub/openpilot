@@ -34,14 +34,6 @@ class NavigationLayout(Widget):
       param="CarrotEnabled",
     )
 
-    self._amap_udp_port = option_item_sp(
-      title=tr("Amap Navi UDP Port"),
-      param="AmapNaviUdpPort",
-      min_value=1024, max_value=65535, value_change_step=1,
-      description=tr("UDP port used to receive Amap navigation instructions."),
-      inline=True,
-    )
-
     self._amap_api_key = button_item_sp(
       title=tr("Amap API Key"),
       button_text=tr("EDIT"),
@@ -52,7 +44,6 @@ class NavigationLayout(Widget):
     items = [
       self._amap_enabled,
       self._carrot_enabled,
-      self._amap_udp_port,
       self._amap_api_key,
     ]
     return items
@@ -63,7 +54,6 @@ class NavigationLayout(Widget):
     offroad = ui_state.is_offroad()
     self._amap_enabled.action_item.set_enabled(offroad)
     self._carrot_enabled.action_item.set_enabled(offroad)
-    self._amap_udp_port.action_item.set_enabled(offroad)
     self._amap_api_key.action_item.set_enabled(offroad)
 
     current_key = self._params.get("AmapApiKey") or ""
