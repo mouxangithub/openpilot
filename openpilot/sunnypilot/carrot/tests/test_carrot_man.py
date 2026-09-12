@@ -5,6 +5,7 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
+import json
 import sys
 import time
 import types
@@ -386,6 +387,110 @@ class TestCarrotManager(unittest.TestCase):
     assert len(self.mgr._navi_points) == 1
     assert self.mgr._navi_points[0] == (128.0, 38.0)
     assert self.mgr._navi_points_active
+
+  # ---- 7714 v2 laneAhead / crossroad / offRoute tests -------------------- #
+
+  def _make_navi_base(self):
+    navi = MagicMock()
+    navi.generation = 2
+    navi.sessionId = "session-1"
+    navi.connected = True
+    navi.trafficSignal = None
+    navi.speed = None
+    navi.guidanceCurrent = None
+    navi.guidanceNext = None
+    navi.route = None
+    navi.laneCurrent = None
+    navi.laneAhead = []
+    navi.crossroad = None
+    navi.navigationStatus = None
+    return navi
+
+  def _make_lane(self, available, current_lane):
+    lane = MagicMock()
+    lane.available = available
+    lane.currentLane = current_lane
+    return lane
+
+  def test_apply_carrot_navi_sp_lane_current_blocked(self):
+    navi = self._make_navi_base()
+    navi.laneCurrent = self._make_lane([1, 0, 1], 1)
+
+    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr._apply_carrot_navi_sp()
+
+    assert self.mgr._carrot_serv.raw["carrotLeftLineBlocked"] is True
+    assert self.mgr._carrot_serv.raw["carrotRightLineBlocked"] is False
+
+  def test_apply_carrot_navi_sp_lane_ahead_fallback(self):
+    navi = self._make_navi_base()
+    navi.laneCurrent = None
+    navi.laneAhead = [self._make_lane([1, 1, 0], 1)]
+
+    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr._apply_carrot_navi_sp()
+
+    assert self.mgr._carrot_serv.raw["carrotLeftLineBlocked"] is False
+    assert self.mgr._carrot_serv.raw["carrotRightLineBlocked"] is True
+
+  def test_apply_carrot_navi_sp_lane_ahead_fallback_when_current_incomplete(self):
+    navi = self._make_navi_base()
+    navi.laneCurrent = self._make_lane([1, 0], 1)  # available too short
+    navi.laneAhead = [self._make_lane([1, 0, 1], 1)]
+
+    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr._apply_carrot_navi_sp()
+
+    assert self.mgr._carrot_serv.raw["carrotLeftLineBlocked"] is True
+    assert self.mgr._carrot_serv.raw["carrotRightLineBlocked"] is False
+
+  def test_apply_carrot_navi_sp_crossroad_writes_param(self):
+    navi = self._make_navi_base()
+    crossroad = MagicMock()
+    crossroad.visible = True
+    crossroad.distanceM = 350
+    crossroad.imageCode = 42
+    crossroad.imageUrl = "https://example.com/cross.png"
+    navi.crossroad = crossroad
+
+    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr._apply_carrot_navi_sp()
+
+    stored = self.mgr.params._store.get("CarrotNaviCrossroad")
+    assert stored is not None
+    parsed = json.loads(stored)
+    assert parsed["distanceM"] == 350
+    assert parsed["imageCode"] == 42
+    assert parsed["imageUrl"] == "https://example.com/cross.png"
+
+  def test_apply_carrot_navi_sp_crossroad_zero_distance_ignored(self):
+    navi = self._make_navi_base()
+    crossroad = MagicMock()
+    crossroad.visible = True
+    crossroad.distanceM = 0
+    crossroad.imageCode = 7
+    crossroad.imageUrl = "https://example.com/none.png"
+    navi.crossroad = crossroad
+
+    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr._apply_carrot_navi_sp()
+
+    assert "CarrotNaviCrossroad" not in self.mgr.params._store
+
+  def test_apply_carrot_navi_sp_off_route_resets_carrot_serv(self):
+    # Seed some state so we can verify reset clears it.
+    self.mgr._carrot_serv.raw_update("nRoadLimitSpeed", 80)
+    assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
+
+    navi = self._make_navi_base()
+    status = MagicMock()
+    status.offRoute = True
+    navi.navigationStatus = status
+
+    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr._apply_carrot_navi_sp()
+
+    assert self.mgr._carrot_serv.raw.get("nRoadLimitSpeed", 0) == 0
 
 
 if __name__ == "__main__":

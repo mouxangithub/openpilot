@@ -1385,17 +1385,46 @@ class CarrotManager:
           self._navd_active = True
 
     # Lane hints: line blocked state for sunnypilot lateral arbitration.
-    lane = getattr(navi, "laneCurrent", None)
-    if lane is not None:
+    def _apply_lane_blocked(lane: Any) -> bool:
       available = list(getattr(lane, "available", []) or [])
-      if len(available) >= 3:
-        center_idx = int(getattr(lane, "currentLane", -1) or -1)
-        if center_idx >= 0 and center_idx + 1 < len(available):
-          left_blocked = int(available[center_idx]) == 0
-          right_blocked = int(available[center_idx + 1]) == 0
-          # Persist into CarrotServ raw so other consumers can read it.
-          self._carrot_serv.raw_update("carrotLeftLineBlocked", left_blocked)
-          self._carrot_serv.raw_update("carrotRightLineBlocked", right_blocked)
+      if len(available) < 3:
+        return False
+      center_idx = int(getattr(lane, "currentLane", -1) or -1)
+      if center_idx < 0 or center_idx + 1 >= len(available):
+        return False
+      left_blocked = int(available[center_idx]) == 0
+      right_blocked = int(available[center_idx + 1]) == 0
+      # Persist into CarrotServ raw so other consumers can read it.
+      self._carrot_serv.raw_update("carrotLeftLineBlocked", left_blocked)
+      self._carrot_serv.raw_update("carrotRightLineBlocked", right_blocked)
+      return True
+
+    lane = getattr(navi, "laneCurrent", None)
+    applied = lane is not None and _apply_lane_blocked(lane)
+    if not applied:
+      for ahead_lane in list(getattr(navi, "laneAhead", []) or []):
+        if _apply_lane_blocked(ahead_lane):
+          break
+
+    # Complex crossroad hint from 7714 v2 (visible interchanges / junctions).
+    crossroad = getattr(navi, "crossroad", None)
+    if crossroad is not None and getattr(crossroad, "visible", False):
+      distance_m = int(getattr(crossroad, "distanceM", 0) or 0)
+      if distance_m > 0:
+        payload = {
+          "distanceM": distance_m,
+          "imageCode": int(getattr(crossroad, "imageCode", 0) or 0),
+          "imageUrl": str(getattr(crossroad, "imageUrl", "") or ""),
+        }
+        try:
+          self.params.put("CarrotNaviCrossroad", json.dumps(payload))
+        except Exception as e:
+          cloudlog.error(f"carrot_man: failed to write CarrotNaviCrossroad param: {e}")
+
+    # Reset stale guidance when the phone reports the vehicle is off-route.
+    nav_status = getattr(navi, "navigationStatus", None)
+    if nav_status is not None and getattr(nav_status, "offRoute", False):
+      self._carrot_serv.reset()
 
   def _handle_navi_traffic(self, sinf: dict[str, Any]) -> None:
     """Apply navipilot sinf traffic-light payload to CarrotServ and Params."""
