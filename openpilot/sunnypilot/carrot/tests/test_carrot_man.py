@@ -161,6 +161,9 @@ class TestCarrotManager(unittest.TestCase):
       "nGoPosDist": 12000,
       "szPosRoadName": "Gangnam-daero",
     }
+    # Road limit has a 2-frame confirmation filter.
+    self.mgr._update_raw(packet, time.monotonic())
+    self.mgr._update_raw(packet, time.monotonic())
     self.mgr._update_raw(packet, time.monotonic())
     raw = self.mgr._carrot_serv.raw
     assert raw["nRoadLimitSpeed"] == 80
@@ -176,7 +179,8 @@ class TestCarrotManager(unittest.TestCase):
     assert self.mgr._carrot_serv.raw["gpsSpeed"] == 33.3
 
   def test_heartbeat_keeps_link_alive_without_overwrite(self):
-    self.mgr._update_raw({"nRoadLimitSpeed": 80}, time.monotonic())
+    for _ in range(3):
+      self.mgr._update_raw({"nRoadLimitSpeed": 80}, time.monotonic())
     assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
     self.mgr._update_raw({"carrotCmd": "heartbeat"}, time.monotonic())
     assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
@@ -227,10 +231,11 @@ class TestCarrotManager(unittest.TestCase):
     assert self.mgr._carrot_serv.x_spd_dist == 300
 
   def test_publish_outputs_carrotman_and_navi(self):
-    self.mgr._update_raw(
-      {"nRoadLimitSpeed": 80, "szTBTMainText": "Turn left", "nGoPosDist": 5000},
-      time.monotonic(),
-    )
+    for _ in range(3):
+      self.mgr._update_raw(
+        {"nRoadLimitSpeed": 80, "szTBTMainText": "Turn left", "nGoPosDist": 5000},
+        time.monotonic(),
+      )
     self.mgr._derive_state(0.0)
     self.mgr._publish()
 
@@ -244,7 +249,8 @@ class TestCarrotManager(unittest.TestCase):
 
   def test_state_expires_after_timeout(self):
     now = time.monotonic()
-    self.mgr._update_raw({"nRoadLimitSpeed": 80}, now)
+    for _ in range(3):
+      self.mgr._update_raw({"nRoadLimitSpeed": 80}, now)
     assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
     self.mgr._maybe_expire_state(now + 10.0)
     assert self.mgr._carrot_serv.raw.get("nRoadLimitSpeed", 0) == 0
@@ -259,14 +265,15 @@ class TestCarrotManager(unittest.TestCase):
   # ---- navipilot 7712/7713 dispatch tests -------------------------------- #
 
   def test_dispatch_navi_rgdata(self):
-    self.mgr._dispatch_navi_obj({
-      "rgdata": {
-        "nRoadLimitSpeed": 90,
-        "nTBTDist": 300,
-        "nTBTTurnType": 13,
-        "guidance": {"szTBTMainText": "Turn right"},
-      },
-    })
+    for _ in range(3):
+      self.mgr._dispatch_navi_obj({
+        "rgdata": {
+          "nRoadLimitSpeed": 90,
+          "nTBTDist": 300,
+          "nTBTTurnType": 13,
+          "guidance": {"szTBTMainText": "Turn right"},
+        },
+      })
     raw = self.mgr._carrot_serv.raw
     assert raw["nRoadLimitSpeed"] == 90
     assert raw["nTBTDist"] == 300
