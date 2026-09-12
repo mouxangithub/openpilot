@@ -359,6 +359,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CruiseMaxVals4", {PERSISTENT | BACKUP, FLOAT, "2.4"}},
     {"CruiseMaxVals5", {PERSISTENT | BACKUP, FLOAT, "2.6"}},
     {"CruiseMaxVals6", {PERSISTENT | BACKUP, FLOAT, "2.8"}},
+    {"TrafficLight", {CLEAR_ON_MANAGER_START, JSON, "{}"}},  // fused/carrot navi traffic-light state
     {"TrafficLightDetectMode", {PERSISTENT | BACKUP, INT, "1"}},  // 0=off,1=red stop,2=red stop + green go
     {"CarrotCurveSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"CarrotNavCruiseSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},

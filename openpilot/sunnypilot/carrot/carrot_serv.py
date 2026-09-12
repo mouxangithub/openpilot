@@ -351,6 +351,10 @@ class CarrotServ:
   def is_stale(self, now_mono: float, timeout: float = 3.0) -> bool:
     return self._last_packet_mono > 0.0 and (now_mono - self._last_packet_mono) > timeout
 
+  def raw_update(self, key: str, value: Any) -> None:
+    """Update a single key in the cached raw packet (used by 7714 v2 merges)."""
+    self._raw[key] = value
+
   @property
   def raw(self) -> dict:
     return dict(self._raw)
@@ -807,8 +811,9 @@ class CarrotServ:
     ``pm`` is accepted for API compatibility; the caller owns publishing.
     """
     self.update_params()
-    if sm.alive["carState"]:
-      v_ego = sm["carState"].vEgo
+    cs = sm["carState"] if sm.alive["carState"] else None
+    if cs is not None:
+      v_ego = cs.vEgo
       v_ego_kph = v_ego * 3.6
     else:
       v_ego = 0.0
@@ -854,9 +859,36 @@ class CarrotServ:
       elif self.n_road_limit_speed > 0:
         limit_speed = 30.0
 
+    # Vehicle CAN speed sources (school zone / speed bump / section speed).
+    vehicle_bump_speed = 250.0
+    vehicle_school_speed = 250.0
+    vehicle_section_speed = 250.0
+    if cs is not None:
+      school_zone_active = bool(getattr(cs, "schoolZoneActive", False))
+      speed_bump_distance = float(getattr(cs, "speedBumpDistance", 0.0) or 0.0)
+      vehicle_navi_section_active = bool(getattr(cs, "vehicleNaviSectionActive", False))
+      vehicle_navi_speed = float(getattr(cs, "vehicleNaviSpeed", 0.0) or 0.0)
+      car_speed_limit = float(getattr(cs, "speedLimit", 0.0) or 0.0)
+
+      if school_zone_active:
+        vehicle_school_speed = 30.0
+      if speed_bump_distance > 0.0:
+        vehicle_bump_speed = self.calculate_current_speed(
+          speed_bump_distance, self.auto_navi_speed_bump_speed,
+          self.auto_navi_speed_bump_time, self.auto_navi_speed_decel_rate,
+        )
+      if vehicle_navi_section_active and vehicle_navi_speed > 0.0:
+        vehicle_section_speed = vehicle_navi_speed * self.auto_navi_speed_safety_factor
+      # If no phone navi road limit is active, mirror the car's own speed limit.
+      if car_speed_limit > 0.0 and self.n_road_limit_speed <= 0:
+        self.n_road_limit_speed = int(car_speed_limit * 3.6 + 0.5)
+
     speed_n_sources = [
       (atc_desired, "atc"),
       (sdi_speed, "sdi"),
+      (vehicle_bump_speed, "hda_bump"),
+      (vehicle_school_speed, "school"),
+      (vehicle_section_speed, "hda_section"),
       (limit_speed, "road"),
     ]
     if self.turn_speed_control_mode in (1, 2):

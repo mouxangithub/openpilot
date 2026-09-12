@@ -11,6 +11,7 @@ import math
 import os
 import socket
 import threading
+import time
 from typing import Any
 
 from openpilot.common.params import Params
@@ -289,7 +290,7 @@ class CarrotManager:
   def __init__(self):
     self.params = Params()
     self._unified = UnifiedParams()
-    self.sm = messaging.SubMaster(['deviceState', 'carState', 'controlsState', 'modelV2', 'carParams'])
+    self.sm = messaging.SubMaster(['deviceState', 'carState', 'controlsState', 'modelV2', 'carParams', 'carrotNaviSP'])
     self.pm = messaging.PubMaster(['carrotManSP', 'navInstructionCarrotSP'])
     self._car_name_synced = None
 
@@ -598,10 +599,10 @@ class CarrotManager:
     cm.xSpdType = x_spd_type
     cm.xSpdLimit = x_spd_limit
     cm.xSpdDist = x_spd_dist
-    cm.xSpdCountDown = 0
+    cm.xSpdCountDown = self._carrot_serv.left_spd_sec
     cm.xTurnInfo = x_turn_info
     cm.xDistToTurn = x_dist_to_turn
-    cm.xTurnCountDown = 0
+    cm.xTurnCountDown = self._carrot_serv.left_tbt_sec
     cm.atcType = atc_type
     cm.vTurnSpeed = v_turn_speed
     cm.szPosRoadName = _safe_str(raw.get("szPosRoadName"), "")
@@ -615,12 +616,12 @@ class CarrotManager:
     cm.xPosLon = _safe_float(raw.get("vpPosPointLon"), 0.0)
     cm.xPosAngle = _safe_float(raw.get("nPosAngle"), 0.0)
     cm.xPosSpeed = _safe_float(raw.get("nPosSpeed"), 0.0)
-    cm.trafficState = 0
+    cm.trafficState = self._carrot_serv.traffic_state
     cm.nGoPosDist = _safe_int(raw.get("nGoPosDist"), 0)
     cm.nGoPosTime = _safe_int(raw.get("nGoPosTime"), 0)
     cm.szSdiDescr = sz_sdi_descr
-    cm.naviPaths = ""
-    cm.leftSec = 0
+    cm.naviPaths = self._carrot_serv.navi_paths
+    cm.leftSec = self._carrot_serv.left_sec
     cm.xDistToTurnNav = x_dist_to_turn
     cm.xDistToTurnNavLast = x_dist_to_turn_next
     cm.xDistToTurnMax = x_dist_to_turn
@@ -631,7 +632,7 @@ class CarrotManager:
     cm.extState = int(self._amap_navi.shared_data.ext_state)
     cm.leftBlind = 1 if self._amap_navi.shared_data.left_blind else 0
     cm.rightBlind = 1 if self._amap_navi.shared_data.right_blind else 0
-    cm.trafficCountdown = 0
+    cm.trafficCountdown = self._carrot_serv.map_traffic_countdown
     cm.szGoalName = ""
     cm.szTBTMainTextNext = _safe_str(raw.get("szTBTMainTextNext"), "")
     cm.szNearDirName = _safe_str(raw.get("szNearDirName"), "")
@@ -835,6 +836,7 @@ class CarrotManager:
     msg['log_carrot'] = log_carrot
     msg['tbt_dist'] = self._carrot_serv.x_dist_to_turn
     msg['sdi_dist'] = self._carrot_serv.x_spd_dist
+    msg['navi_http_port'] = self._navi_http_port
     msg['nRoadLimitSpeed'] = self._carrot_serv.n_road_limit_speed
     msg['vTurnSpeed'] = self._carrot_serv.v_turn_speed
     msg['trafficState'] = self._carrot_serv.traffic_state
@@ -876,6 +878,9 @@ class CarrotManager:
     self._drain_packets()
     now = self._mono_now()
     self._maybe_expire_state(now)
+
+    # Merge rich 7714 v2 navi state into CarrotServ when available.
+    self._apply_carrot_navi_sp()
 
     v_ego_kph = 0.0
     if self.sm.alive['carState']:
@@ -1245,31 +1250,170 @@ class CarrotManager:
     self._carrot_serv.update_raw(merged, recv_mono=self._mono_now())
     self._amap_navi.apply_packet(merged, recv_mono=self._mono_now())
 
+  def _apply_carrot_navi_sp(self) -> None:
+    """Merge 7714 v2 navi traffic/lane/speed hints into CarrotServ state.
+
+    This lets the phone's WebSocket v2 stream (carrotNaviSP) override or
+    enrich the legacy 7706 UDP fields.  Only fields that are present and
+    semantically compatible are merged so the UDP path keeps working alone.
+    """
+    if not self.sm.alive["carrotNaviSP"]:
+      return
+    try:
+      navi = self.sm["carrotNaviSP"]
+    except (KeyError, AttributeError):
+      return
+
+    # Traffic signal overrides UDP trafficState when visible.
+    sig = getattr(navi, "trafficSignal", None)
+    if sig is not None and getattr(sig, "visible", False):
+      state = 0
+      countdown = 0
+      if getattr(sig, "redOn", False):
+        state = 1
+        countdown = int(getattr(sig, "redRemainSec", 0) or 0)
+      elif getattr(sig, "leftOn", False):
+        state = 3
+        countdown = int(getattr(sig, "leftRemainSec", 0) or 0)
+      elif getattr(sig, "greenOn", False):
+        state = 2
+        countdown = int(getattr(sig, "greenRemainSec", 0) or 0)
+      elif getattr(sig, "rightOn", False):
+        state = 2
+        countdown = int(getattr(sig, "rightRemainSec", 0) or 0)
+      elif getattr(sig, "uturnOn", False):
+        state = 3
+        countdown = int(getattr(sig, "uturnRemainSec", 0) or 0)
+      if state > 0:
+        self._carrot_serv.update_map_traffic(state, countdown)
+
+    # SDI / road limit from v2 speed item.
+    speed = getattr(navi, "speed", None)
+    if speed is not None:
+      if getattr(speed, "roadLimitValid", False):
+        road_limit = int(getattr(speed, "roadLimitKph", 0) or 0)
+        if road_limit > 0:
+          self._carrot_serv.raw_update("nRoadLimitSpeed", road_limit)
+      sdi_type = int(getattr(speed, "sdiType", -1) or -1)
+      if sdi_type >= 0:
+        self._carrot_serv.raw_update("nSdiType", sdi_type)
+        self._carrot_serv.raw_update("nSdiSpeedLimit", int(getattr(speed, "sdiSpeedLimitKph", 0) or 0))
+        self._carrot_serv.raw_update("nSdiDist", int(getattr(speed, "sdiDistanceM", 0) or 0))
+        self._carrot_serv.raw_update("nSdiBlockType", int(getattr(speed, "sdiBlockType", -1) or -1))
+        self._carrot_serv.raw_update("nSdiBlockSpeed", int(getattr(speed, "sdiBlockSpeedKph", 0) or 0))
+        self._carrot_serv.raw_update("nSdiBlockDist", int(getattr(speed, "sdiBlockDistanceM", 0) or 0))
+      sec = getattr(speed, "section", None)
+      if sec is not None and getattr(sec, "active", False):
+        sec_speed = int(getattr(sec, "speedLimitKph", 0) or 0)
+        if sec_speed > 0:
+          self._carrot_serv.raw_update("nSdiPlusType", 4)
+          self._carrot_serv.raw_update("nSdiPlusSpeedLimit", sec_speed)
+          self._carrot_serv.raw_update("nSdiPlusDist", int(getattr(sec, "remainingDistanceM", 0) or 0))
+
+    # Guidance current/next enriches TBT fields.
+    g_cur = getattr(navi, "guidanceCurrent", None)
+    if g_cur is not None and getattr(g_cur, "pointValid", False):
+      self._carrot_serv.raw_update("nTBTDist", int(getattr(g_cur, "distanceM", 0) or 0))
+      self._carrot_serv.raw_update("nTBTTurnType", int(getattr(g_cur, "turnType", -1) or -1))
+      self._carrot_serv.raw_update("szTBTMainText", str(getattr(g_cur, "mainText", "") or ""))
+      self._carrot_serv.raw_update("szNearDirName", str(getattr(g_cur, "nearDirection", "") or ""))
+    g_next = getattr(navi, "guidanceNext", None)
+    if g_next is not None and getattr(g_next, "pointValid", False):
+      self._carrot_serv.raw_update("nTBTDistNext", int(getattr(g_next, "distanceM", 0) or 0))
+      self._carrot_serv.raw_update("nTBTTurnTypeNext", int(getattr(g_next, "turnType", -1) or -1))
+      self._carrot_serv.raw_update("szTBTMainTextNext", str(getattr(g_next, "mainText", "") or ""))
+
+    # Route remaining distance/time.
+    route = getattr(navi, "route", None)
+    if route is not None:
+      self._carrot_serv.raw_update("nGoPosDist", int(getattr(route, "remainingDistanceM", 0) or 0))
+      self._carrot_serv.raw_update("nGoPosTime", int(getattr(route, "remainingTimeSec", 0) or 0))
+
+    # Lane hints: line blocked state for sunnypilot lateral arbitration.
+    lane = getattr(navi, "laneCurrent", None)
+    if lane is not None:
+      available = list(getattr(lane, "available", []) or [])
+      if len(available) >= 3:
+        center_idx = int(getattr(lane, "currentLane", -1) or -1)
+        if center_idx >= 0 and center_idx + 1 < len(available):
+          left_blocked = int(available[center_idx]) == 0
+          right_blocked = int(available[center_idx + 1]) == 0
+          # Persist into CarrotServ raw so other consumers can read it.
+          self._carrot_serv.raw_update("carrotLeftLineBlocked", left_blocked)
+          self._carrot_serv.raw_update("carrotRightLineBlocked", right_blocked)
+
   def _handle_navi_traffic(self, sinf: dict[str, Any]) -> None:
-    """Apply navipilot sinf traffic-light payload to CarrotServ."""
+    """Apply navipilot sinf traffic-light payload to CarrotServ and Params."""
     if not isinstance(sinf, dict):
       return
     # Lamp priority: red > left > green > right > uturn.
+    lamp: str | None = None
     state = 0
     countdown = 0
     if sinf.get("redLightOn"):
+      lamp = "red"
       state = 1
       countdown = _safe_int(sinf.get("redLightRemainTime"), 0)
     elif sinf.get("leftLightOn"):
+      lamp = "left"
       state = 3
       countdown = _safe_int(sinf.get("leftLightRemainTime"), 0)
     elif sinf.get("greenLightOn"):
+      lamp = "green"
       state = 2
       countdown = _safe_int(sinf.get("greenLightRemainTime"), 0)
     elif sinf.get("rightLightOn"):
+      lamp = "right"
       state = 2
       countdown = _safe_int(sinf.get("rightLightRemainTime"), 0)
     elif sinf.get("uturnLightOn"):
+      lamp = "uturn"
       state = 3
       countdown = _safe_int(sinf.get("uturnLightRemainTime"), 0)
 
     if state > 0:
       self._carrot_serv.update_map_traffic(state, countdown)
+      self._put_navi_traffic_light(lamp, countdown, sinf.get("distance", 0), sinf.get("location"))
+
+  def _put_navi_traffic_light(self, lamp: str | None, remain: Any, distance: Any,
+                              location: Any = None) -> None:
+    """Persist the latest navi traffic-light hint to the TrafficLight param.
+
+    Mirrors the reference implementation's behaviour but writes to the default
+    Params store (sunnypilot uses ctypes Params; put(block=False) is non-blocking).
+    """
+    if lamp is None:
+      return
+    try:
+      remain_int = int(float(remain or 0))
+    except Exception:
+      remain_int = 0
+    if remain_int <= 0:
+      return
+    try:
+      distance_int = int(float(distance or 0))
+    except Exception:
+      distance_int = 0
+
+    payload = {
+      "distance": distance_int,
+      "lamp": lamp,
+      "remain": remain_int,
+      "ts": time.monotonic(),
+    }
+    try:
+      loc = location if isinstance(location, dict) else {}
+      if loc.get("latitude") is not None:
+        payload["lat"] = float(loc["latitude"])
+      if loc.get("longitude") is not None:
+        payload["lon"] = float(loc["longitude"])
+    except Exception:
+      pass
+
+    try:
+      self.params.put("TrafficLight", json.dumps(payload))
+    except Exception as e:
+      cloudlog.error(f"carrot_man: failed to write TrafficLight param: {e}")
 
   def _detect_navi_event_type(self, obj: Any) -> str:
     if not isinstance(obj, dict):
