@@ -295,8 +295,14 @@ class CarrotServ:
       return  # ignore out-of-order packets
     self._last_seq = seq
 
+    raw_limit = _safe_int(msg.get("nRoadLimitSpeed"), 0)
+    if raw_limit > 0:
+      if raw_limit > 200:
+        raw_limit = int((raw_limit - 20) / 10)
+      elif raw_limit == 120:
+        raw_limit = 115
     self._raw = {
-      "nRoadLimitSpeed": _safe_int(msg.get("nRoadLimitSpeed"), 0),
+      "nRoadLimitSpeed": raw_limit,
       "nSdiType": _safe_int(msg.get("nSdiType"), -1),
       "nSdiSpeedLimit": _safe_int(msg.get("nSdiSpeedLimit"), 0),
       "nSdiDist": _safe_int(msg.get("nSdiDist"), 0),

@@ -100,8 +100,8 @@ class _FakeParams:
   def __init__(self):
     self._store = {"CarrotEnabled": b"1", "CarrotManUdpPort": b"7708"}
 
-  def get_bool(self, key):
-    return self._store.get(key, b"0") == b"1"
+  def get_bool(self, key, default=False):
+    return self._store.get(key, b"1" if default else b"0") == b"1"
 
   def get(self, key, return_default=False):
     return self._store.get(key, b"")

@@ -297,6 +297,12 @@ class CarrotManager:
     # Sub-modules.
     self._carrot_serv = CarrotServ(self._unified)
     self._amap_navi = AmapNaviServ()
+    # Start the direct Amap LiDAR/camera UDP receiver (4211) if enabled.
+    if self.params.get_bool("AmapEnabled", False):
+      try:
+        self._amap_navi.start_navi_comm()
+      except Exception as e:
+        cloudlog.error(f"carrot_man: failed to start AmapNavi direct comm: {e}")
     self._web: Any = None  # Lazy import: only used when ``--web`` flag is set.
 
     self._enabled = False
@@ -882,6 +888,9 @@ class CarrotManager:
     # Merge rich 7714 v2 navi state into CarrotServ when available.
     self._apply_carrot_navi_sp()
 
+    # Merge Amap direct LiDAR/camera blind-spot data into carState.
+    self._amap_navi.update_navi_carstate(self.sm)
+
     v_ego_kph = 0.0
     if self.sm.alive['carState']:
       v_ego_kph = self.sm['carState'].vEgo * 3.6
@@ -1263,6 +1272,20 @@ class CarrotManager:
       navi = self.sm["carrotNaviSP"]
     except (KeyError, AttributeError):
       return
+
+    # Structured lifecycle: ignore stale/clear packets and reset on session change.
+    navi_generation = int(getattr(navi, "generation", 0) or 0)
+    navi_session = str(getattr(navi, "sessionId", "") or "")
+    navi_connected = bool(getattr(navi, "connected", False))
+    if not navi_connected or navi_session == "":
+      return
+    if navi_session != getattr(self, "_carrot_navi_session", ""):
+      self._carrot_navi_session = navi_session
+      self._carrot_navi_generation = navi_generation
+      cloudlog.info(f"carrot_man: new carrotNaviSP session {navi_session}")
+    if navi_generation < getattr(self, "_carrot_navi_generation", 0):
+      return
+    self._carrot_navi_generation = navi_generation
 
     # Traffic signal overrides UDP trafficState when visible.
     sig = getattr(navi, "trafficSignal", None)
