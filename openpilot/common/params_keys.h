@@ -378,6 +378,26 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CarrotSectionSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},        // section/avg-SDI speed enforcement
     {"CarrotRoadWidthTurnEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},       // use nTBTNextRoadWidth for fork turn logic
     {"CarrotTimeSyncEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},            // sync device clock to carrot epochTime
+    // Carrot speed/turn/navi tuning surface. Defaults mirror cp/fp behavior where applicable;
+    // keys are registered so UnifiedParams writes land in the cross-process Params store.
+    {"AutoCurveSpeedLowerLimit", {PERSISTENT | BACKUP, INT, "30"}},
+    {"AutoCurveSpeedFactor", {PERSISTENT | BACKUP, INT, "120"}},
+    {"AutoTurnControl", {PERSISTENT | BACKUP, INT, "0"}},
+    {"AutoTurnControlSpeedTurn", {PERSISTENT | BACKUP, INT, "20"}},
+    {"AutoTurnControlTurnEnd", {PERSISTENT | BACKUP, INT, "6"}},
+    {"AutoTurnMapChange", {PERSISTENT | BACKUP, INT, "0"}},
+    {"AutoNaviSpeedCtrlEnd", {PERSISTENT | BACKUP, INT, "7"}},
+    {"VehicleNaviCanControl", {PERSISTENT | BACKUP, INT, "0"}},
+    {"VehicleNaviSchoolZoneControl", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"VehicleSpeedCameraControlMode", {PERSISTENT | BACKUP, INT, "1"}},
+    {"VehicleSpeedCameraDistanceTime", {PERSISTENT | BACKUP, INT, "60"}},
+    {"AutoRoadSpeedLimitOffset", {PERSISTENT | BACKUP, INT, "-1"}},
+    {"AutoNaviSpeedBumpTime", {PERSISTENT | BACKUP, INT, "1"}},
+    {"AutoNaviSpeedBumpSpeed", {PERSISTENT | BACKUP, INT, "35"}},
+    {"AutoNaviSpeedBumpEndDistance", {PERSISTENT | BACKUP, INT, "200"}},
+    {"AutoNaviCountDownMode", {PERSISTENT | BACKUP, INT, "2"}},
+    {"TurnSpeedControlMode", {PERSISTENT | BACKUP, INT, "1"}},
+    {"MapTurnSpeedFactor", {PERSISTENT | BACKUP, INT, "90"}},
     // Carrot tuning surface (mirrors _DEFAULT_NAV_PARAMS in sunnypilot/carrot/config.py).
     // Registered so UnifiedParams writes land in the cross-process Params store;
     // nav_params.json remains a read fallback for values tuned before registration.
