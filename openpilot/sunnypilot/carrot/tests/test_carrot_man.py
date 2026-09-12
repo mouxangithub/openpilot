@@ -336,25 +336,37 @@ class TestCarrotManager(unittest.TestCase):
     # Should not raise.
     self.mgr._dispatch_navi_obj({"foo": "bar"})
 
+  def _make_route_navi(self, polyline, session="session-1", generation=2):
+    navi = MagicMock()
+    navi.generation = generation
+    navi.sessionId = session
+    navi.connected = True
+    navi.schemaVersion = 1
+    navi.trafficSignal = None
+    navi.speed = None
+    navi.guidanceCurrent = None
+    navi.guidanceNext = None
+    navi.laneCurrent = None
+    navi.laneAhead = []
+    navi.crossroad = None
+    navi.navigationStatus = None
+    navi.vehicle = None
+    navi.route = MagicMock()
+    navi.route.meta = MagicMock(present=True, sequence=1)
+    navi.route.remainingDistanceM = 1000
+    navi.route.remainingTimeSec = 120
+    navi.route.polyline = polyline
+    return navi
+
   def test_apply_carrot_navi_sp_route_polyline(self):
-    self.mgr._carrot_navi_session = "session-1"
-    self.mgr._carrot_navi_generation = 1
+    self.mgr._reset_carrot_navi_sequences("session-1")
 
     route_polyline = [
       {"latitude": 37.5, "longitude": 127.0},
       {"latitude": 37.6, "longitude": 127.1},
       {"latitude": 37.7, "longitude": 127.2},
     ]
-    navi = MagicMock()
-    navi.generation = 2
-    navi.sessionId = "session-1"
-    navi.connected = True
-    navi.route = MagicMock()
-    navi.route.remainingDistanceM = 1000
-    navi.route.remainingTimeSec = 120
-    navi.route.polyline = route_polyline
-
-    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr.sm["carrotNaviSP"] = self._make_route_navi(route_polyline)
     self.mgr._apply_carrot_navi_sp()
 
     assert self.mgr._navi_points_active
@@ -369,18 +381,11 @@ class TestCarrotManager(unittest.TestCase):
     self.mgr._navi_points = [(126.0, 36.0), (126.1, 36.1)]
     self.mgr._navi_points_active = True
     self.mgr._navd_active = True
-    self.mgr._carrot_navi_session = "session-1"
-    self.mgr._carrot_navi_generation = 1
+    self.mgr._reset_carrot_navi_sequences("session-1")
 
-    navi = MagicMock()
-    navi.generation = 2
-    navi.sessionId = "session-1"
-    navi.connected = True
-    navi.route = MagicMock()
+    navi = self._make_route_navi([{"latitude": 38.0, "longitude": 128.0}])
     navi.route.remainingDistanceM = 500
     navi.route.remainingTimeSec = 60
-    navi.route.polyline = [{"latitude": 38.0, "longitude": 128.0}]
-
     self.mgr.sm["carrotNaviSP"] = navi
     self.mgr._apply_carrot_navi_sp()
 

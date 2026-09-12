@@ -37,6 +37,174 @@ except ImportError:
   SHAPELY_AVAILABLE = False
 
 
+# ---- 7714 WebSocket v2 parsed control structures ------------------------- #
+
+class _NaviControlBase:
+  def __init__(self, present: bool, sequence: int):
+    self.present = present
+    self.sequence = sequence
+
+
+class _NaviVehicleControl(_NaviControlBase):
+  def __init__(self, item: Any):
+    present, sequence = _navi_meta(item)
+    lat = _navi_float(item, "latitude", math.nan)
+    lon = _navi_float(item, "longitude", math.nan)
+    present = present and -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0
+    super().__init__(present, sequence)
+    self.latitude = lat if present else 0.0
+    self.longitude = lon if present else 0.0
+    self.heading_deg = _navi_float(item, "headingDeg", 0.0) % 360.0 if present else 0.0
+    self.speed_kph = max(0.0, _navi_float(item, "speedKph", 0.0)) if present else 0.0
+    self.road_name = _navi_text(item, "roadName") if present else ""
+
+
+class _NaviGuidanceControl(_NaviControlBase):
+  def __init__(self, item: Any, enabled: bool):
+    present, sequence = _navi_meta(item)
+    present = present and enabled
+    super().__init__(present, sequence)
+    self.distance_m = max(0, _navi_int(item, "distanceM")) if present else 0
+    self.turn_type = _navi_int(item, "turnType", -1) if present else -1
+    self.main_text = _navi_text(item, "mainText") if present else ""
+    self.near_direction = _navi_text(item, "nearDirection") if present else ""
+    self.far_direction = _navi_text(item, "farDirection") if present else ""
+
+
+class _NaviSpeedControl(_NaviControlBase):
+  def __init__(self, item: Any, off_route: bool):
+    present, sequence = _navi_meta(item)
+    super().__init__(present, sequence)
+    self.road_limit_kph = None
+    if present and _navi_bool(item, "roadLimitValid"):
+      limit = _navi_int(item, "roadLimitKph")
+      if 0 < limit <= 200 and limit % 10 == 0:
+        self.road_limit_kph = limit
+    self.sdi_present = present and _navi_bool(item, "sdiPresent") and not off_route
+    self.sdi_type = _navi_int(item, "sdiType", -1) if self.sdi_present else -1
+    self.sdi_distance_m = max(0, _navi_int(item, "sdiDistanceM")) if self.sdi_present else 0
+    self.sdi_speed_limit_kph = max(0, _navi_int(item, "sdiSpeedLimitKph")) if self.sdi_present else 0
+    self.sdi_section_type = _navi_int(item, "sdiSectionType", -1) if self.sdi_present else -1
+    self.sdi_block_type = _navi_int(item, "sdiBlockType", -1) if self.sdi_present else -1
+    self.sdi_block_speed_kph = max(0, _navi_int(item, "sdiBlockSpeedKph")) if self.sdi_present else 0
+    self.sdi_block_distance_m = max(0, _navi_int(item, "sdiBlockDistanceM")) if self.sdi_present else 0
+
+    sec_present = present and _navi_bool(item, "sectionPresent")
+    sec_active = (
+      sec_present and
+      _navi_bool(item, "sectionActive") and
+      not _navi_bool(item, "sectionSuspended") and
+      not _navi_bool(item, "sectionOffRoute") and
+      not off_route
+    )
+    sec_limit = max(0, _navi_int(item, "sectionSpeedLimitKph")) if sec_active else 0
+    sec_distance = max(0, round(_navi_float(item, "sectionRemainingDistanceM", 0.0))) if sec_active else 0
+    self.section_active = sec_active and sec_limit > 0
+    self.section_speed_limit_kph = sec_limit if self.section_active else 0
+    self.section_remaining_distance_m = sec_distance if self.section_active else 0
+
+
+class _NaviRouteControl(_NaviControlBase):
+  def __init__(self, item: Any):
+    present, sequence = _navi_meta(item)
+    super().__init__(present, sequence)
+    self.remaining_distance_m = max(0, _navi_int(item, "remainingDistanceM")) if present else 0
+    self.remaining_time_sec = max(0, _navi_int(item, "remainingTimeSec")) if present else 0
+    self.polyline: list[tuple[float, float]] = []
+    if present:
+      for point in list(_navi_get(item, "polyline") or [])[:256]:
+        lat = _navi_float(point, "latitude", math.nan)
+        lon = _navi_float(point, "longitude", math.nan)
+        if -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0:
+          self.polyline.append((lon, lat))
+
+
+class _NaviTrafficControl(_NaviControlBase):
+  def __init__(self, item: Any):
+    present, sequence = _navi_meta(item)
+    visible = present and _navi_bool(item, "visible")
+    lamp = ""
+    remain_sec = 0
+    ui_remain = max(0, _navi_int(item, "uiCounterRemainSec")) if _navi_bool(item, "uiCounterValid") else 0
+    for name, prefix in (("red", "red"), ("left", "left"), ("green", "green"),
+                         ("right", "right"), ("uturn", "uturn")):
+      if visible and _navi_bool(item, f"{prefix}Valid") and _navi_bool(item, f"{prefix}On"):
+        lamp = name
+        remain_sec = max(0, _navi_int(item, f"{prefix}RemainSec")) or ui_remain
+        break
+    super().__init__(present, sequence)
+    self.visible = visible
+    self.distance_m = max(0, _navi_int(item, "distanceM")) if present else 0
+    self.source = _navi_text(item, "source") if present else ""
+    self.lamp = lamp
+    self.remain_sec = remain_sec
+
+
+class _CarrotNaviControl:
+  def __init__(self, data: Any):
+    self.schema_version = _navi_int(data, "schemaVersion")
+    self.connected = _navi_bool(data, "connected")
+    self.session_id = _navi_text(data, "sessionId")
+    status = _navi_get(data, "navigationStatus")
+    status_present, _ = _navi_meta(status)
+    self.off_route = status_present and _navi_bool(status, "offRoute")
+    self.guidance_active = status_present and _navi_bool(status, "guidanceActive")
+    self.road_category = _navi_int(_navi_get(data, "laneCurrent"), "roadCategory") if _navi_get(data, "laneCurrent") is not None else None
+    self.vehicle = _NaviVehicleControl(_navi_get(data, "vehicle"))
+    self.speed = _NaviSpeedControl(_navi_get(data, "speed"), self.off_route)
+    self.current = _NaviGuidanceControl(_navi_get(data, "guidanceCurrent"), not self.off_route)
+    self.next = _NaviGuidanceControl(_navi_get(data, "guidanceNext"), not self.off_route)
+    self.route = _NaviRouteControl(_navi_get(data, "route"))
+    self.traffic = _NaviTrafficControl(_navi_get(data, "trafficSignal"))
+
+
+def _navi_get(obj: Any, name: str, default: Any = None) -> Any:
+  if isinstance(obj, dict):
+    return obj.get(name, default)
+  try:
+    return getattr(obj, name)
+  except Exception:
+    return default
+
+
+def _navi_int(obj: Any, name: str, default: int = 0) -> int:
+  try:
+    return int(_navi_get(obj, name, default))
+  except (TypeError, ValueError, OverflowError):
+    return default
+
+
+def _navi_float(obj: Any, name: str, default: float = 0.0) -> float:
+  try:
+    value = float(_navi_get(obj, name, default))
+    return value if math.isfinite(value) else default
+  except (TypeError, ValueError, OverflowError):
+    return default
+
+
+def _navi_text(obj: Any, name: str) -> str:
+  try:
+    return str(_navi_get(obj, name, "") or "")
+  except Exception:
+    return ""
+
+
+def _navi_bool(obj: Any, name: str) -> bool:
+  value = _navi_get(obj, name, False)
+  if isinstance(value, bool):
+    return value
+  if isinstance(value, (int, float)):
+    return value != 0
+  if isinstance(value, str):
+    return value.lower() in ("true", "1", "yes", "on")
+  return bool(value)
+
+
+def _navi_meta(item: Any) -> tuple[bool, int]:
+  meta = _navi_get(item, "meta")
+  return bool(_navi_bool(meta, "present")), max(0, _navi_int(meta, "sequence"))
+
+
 DEFAULT_RATE = 10.  # Hz
 UDP_BUFFER_SIZE = 4096
 PACKET_TIMEOUT_SEC = 8.0
@@ -870,7 +1038,11 @@ class CarrotManager:
         self.params.put("CarName", fingerprint)
         self._car_name_synced = fingerprint
 
-    if not self._enabled or self._port <= 0:
+    # Always keep the UDP discovery listener bound when a valid port is
+    # configured, even if CarrotEnabled is temporarily off.  The phone app
+    # probes 7706 during startup / before enabling the feature, and closing
+    # the socket makes the connection look "dropped".
+    if self._port <= 0:
       self._close_socket()
       self._reset_state()
       self._stop_web()
@@ -878,6 +1050,14 @@ class CarrotManager:
       return
 
     if not self._ensure_socket(self._port):
+      return
+
+    # Broadcast / ZMQ threads keep running so the phone can find us; rich
+    # navi processing and web UI only run when the feature is enabled.
+    if not self._enabled:
+      self._drain_packets()
+      self._stop_web()
+      self._is_running = False
       return
 
     self._maybe_start_web()
@@ -1283,106 +1463,79 @@ class CarrotManager:
     self._carrot_serv.update_raw(merged, recv_mono=self._mono_now())
     self._amap_navi.apply_packet(merged, recv_mono=self._mono_now())
 
+  def _reset_carrot_navi_sequences(self, session_id: str) -> None:
+    self._carrot_navi_session = session_id
+    self._carrot_navi_speed_sequence = -1
+    self._carrot_navi_current_sequence = -1
+    self._carrot_navi_next_sequence = -1
+    self._carrot_navi_vehicle_sequence = -1
+    self._carrot_navi_route_sequence = -1
+
   def _apply_carrot_navi_sp(self) -> None:
     """Merge 7714 v2 navi traffic/lane/speed hints into CarrotServ state.
 
-    This lets the phone's WebSocket v2 stream (carrotNaviSP) override or
-    enrich the legacy 7706 UDP fields.  Only fields that are present and
-    semantically compatible are merged so the UDP path keeps working alone.
+    Uses per-sub-message sequence numbers so an old/stale v2 packet cannot
+    overwrite fresher state from 7706 UDP or a newer v2 packet.  Mirrors the
+    semantics of CarrotPilot's _update_carrot_navi().
     """
     if not self.sm.alive["carrotNaviSP"]:
       return
     try:
-      navi = self.sm["carrotNaviSP"]
+      navi_raw = self.sm["carrotNaviSP"]
     except (KeyError, AttributeError):
       return
 
-    # Structured lifecycle: ignore stale/clear packets and reset on session change.
-    navi_generation = int(getattr(navi, "generation", 0) or 0)
-    navi_session = str(getattr(navi, "sessionId", "") or "")
-    navi_connected = bool(getattr(navi, "connected", False))
-    if not navi_connected or navi_session == "":
+    navi = _CarrotNaviControl(navi_raw)
+    if navi.schema_version != 1 or not navi.connected or navi.session_id == "":
+      if getattr(self, "_carrot_navi_active", False):
+        self._carrot_serv.reset()
+        self._reset_carrot_navi_sequences("")
+        self._carrot_navi_active = False
       return
-    if navi_session != getattr(self, "_carrot_navi_session", ""):
-      self._carrot_navi_session = navi_session
-      self._carrot_navi_generation = navi_generation
-      cloudlog.info(f"carrot_man: new carrotNaviSP session {navi_session}")
-    if navi_generation < getattr(self, "_carrot_navi_generation", 0):
+
+    new_session = navi.session_id != getattr(self, "_carrot_navi_session", "")
+    if new_session:
+      self._reset_carrot_navi_sequences(navi.session_id)
+      cloudlog.info(f"carrot_man: new carrotNaviSP session {navi.session_id}")
+
+    off_route_changed = navi.off_route != getattr(self, "_carrot_navi_off_route", False)
+    self._carrot_navi_off_route = navi.off_route
+    self._carrot_navi_active = True
+    self._carrot_navi_has_control = bool(
+      navi.speed.present or navi.current.present or navi.next.present or
+      navi.guidance_active or navi.route.present
+    )
+
+    if navi.off_route:
+      self._carrot_serv.reset()
       return
-    self._carrot_navi_generation = navi_generation
 
-    # Traffic signal overrides UDP trafficState when visible.
-    sig = getattr(navi, "trafficSignal", None)
-    if sig is not None and getattr(sig, "visible", False):
-      state = 0
-      countdown = 0
-      if getattr(sig, "redOn", False):
-        state = 1
-        countdown = int(getattr(sig, "redRemainSec", 0) or 0)
-      elif getattr(sig, "leftOn", False):
-        state = 3
-        countdown = int(getattr(sig, "leftRemainSec", 0) or 0)
-      elif getattr(sig, "greenOn", False):
-        state = 2
-        countdown = int(getattr(sig, "greenRemainSec", 0) or 0)
-      elif getattr(sig, "rightOn", False):
-        state = 2
-        countdown = int(getattr(sig, "rightRemainSec", 0) or 0)
-      elif getattr(sig, "uturnOn", False):
-        state = 3
-        countdown = int(getattr(sig, "uturnRemainSec", 0) or 0)
-      if state > 0:
-        self._carrot_serv.update_map_traffic(state, countdown)
+    # Speed (road limit + SDI): only apply when the sequence advances.
+    if (
+      new_session or
+      off_route_changed or
+      navi.speed.sequence != getattr(self, "_carrot_navi_speed_sequence", -1)
+    ):
+      self._carrot_navi_speed_sequence = navi.speed.sequence
+      self._apply_carrot_navi_speed(navi.speed)
 
-    # SDI / road limit from v2 speed item.
-    speed = getattr(navi, "speed", None)
-    if speed is not None:
-      if getattr(speed, "roadLimitValid", False):
-        road_limit = int(getattr(speed, "roadLimitKph", 0) or 0)
-        if road_limit > 0:
-          self._carrot_serv.raw_update("nRoadLimitSpeed", road_limit)
-      sdi_type = int(getattr(speed, "sdiType", -1) or -1)
-      if sdi_type >= 0:
-        self._carrot_serv.raw_update("nSdiType", sdi_type)
-        self._carrot_serv.raw_update("nSdiSpeedLimit", int(getattr(speed, "sdiSpeedLimitKph", 0) or 0))
-        self._carrot_serv.raw_update("nSdiDist", int(getattr(speed, "sdiDistanceM", 0) or 0))
-        self._carrot_serv.raw_update("nSdiBlockType", int(getattr(speed, "sdiBlockType", -1) or -1))
-        self._carrot_serv.raw_update("nSdiBlockSpeed", int(getattr(speed, "sdiBlockSpeedKph", 0) or 0))
-        self._carrot_serv.raw_update("nSdiBlockDist", int(getattr(speed, "sdiBlockDistanceM", 0) or 0))
-      sec = getattr(speed, "section", None)
-      if sec is not None and getattr(sec, "active", False):
-        sec_speed = int(getattr(sec, "speedLimitKph", 0) or 0)
-        if sec_speed > 0:
-          self._carrot_serv.raw_update("nSdiPlusType", 4)
-          self._carrot_serv.raw_update("nSdiPlusSpeedLimit", sec_speed)
-          self._carrot_serv.raw_update("nSdiPlusDist", int(getattr(sec, "remainingDistanceM", 0) or 0))
+    # Vehicle / GPS: always refresh so the position stays fresh (2 Hz heartbeat).
+    self._apply_carrot_navi_vehicle(navi.vehicle)
 
-    # Guidance current/next enriches TBT fields.
-    g_cur = getattr(navi, "guidanceCurrent", None)
-    if g_cur is not None and getattr(g_cur, "pointValid", False):
-      self._carrot_serv.raw_update("nTBTDist", int(getattr(g_cur, "distanceM", 0) or 0))
-      self._carrot_serv.raw_update("nTBTTurnType", int(getattr(g_cur, "turnType", -1) or -1))
-      self._carrot_serv.raw_update("szTBTMainText", str(getattr(g_cur, "mainText", "") or ""))
-      self._carrot_serv.raw_update("szNearDirName", str(getattr(g_cur, "nearDirection", "") or ""))
-    g_next = getattr(navi, "guidanceNext", None)
-    if g_next is not None and getattr(g_next, "pointValid", False):
-      self._carrot_serv.raw_update("nTBTDistNext", int(getattr(g_next, "distanceM", 0) or 0))
-      self._carrot_serv.raw_update("nTBTTurnTypeNext", int(getattr(g_next, "turnType", -1) or -1))
-      self._carrot_serv.raw_update("szTBTMainTextNext", str(getattr(g_next, "mainText", "") or ""))
+    # Traffic light: parsed with cp priorities and source.
+    self._apply_carrot_navi_traffic(navi.traffic)
 
-    # Route remaining distance/time and polyline (from 7714 v2).
-    route = getattr(navi, "route", None)
-    if route is not None:
-      self._carrot_serv.raw_update("nGoPosDist", int(getattr(route, "remainingDistanceM", 0) or 0))
-      self._carrot_serv.raw_update("nGoPosTime", int(getattr(route, "remainingTimeSec", 0) or 0))
-      polyline = getattr(route, "polyline", None)
-      if polyline is not None:
-        points = self._extract_route_points_from_polyline(polyline)
-        if points:
-          self._navi_points = self._limited_route_points(points)
-          self._navi_points_start_index = 0
-          self._navi_points_active = True
-          self._navd_active = True
+    # Route: only apply on sequence change.
+    if new_session or navi.route.sequence != getattr(self, "_carrot_navi_route_sequence", -1):
+      self._carrot_navi_route_sequence = navi.route.sequence
+      self._apply_carrot_navi_route(navi.route)
+
+    # Guidance current/next: apply on sequence change or forced events.
+    self._apply_carrot_navi_guidance(navi, force=new_session or off_route_changed)
+
+    # Road category from laneCurrent.
+    if navi.road_category is not None:
+      self._carrot_serv.raw_update("roadcate", navi.road_category)
 
     # Lane hints: line blocked state for sunnypilot lateral arbitration.
     def _apply_lane_blocked(lane: Any) -> bool:
@@ -1394,37 +1547,104 @@ class CarrotManager:
         return False
       left_blocked = int(available[center_idx]) == 0
       right_blocked = int(available[center_idx + 1]) == 0
-      # Persist into CarrotServ raw so other consumers can read it.
       self._carrot_serv.raw_update("carrotLeftLineBlocked", left_blocked)
       self._carrot_serv.raw_update("carrotRightLineBlocked", right_blocked)
       return True
 
-    lane = getattr(navi, "laneCurrent", None)
+    lane = _navi_get(navi_raw, "laneCurrent")
     applied = lane is not None and _apply_lane_blocked(lane)
     if not applied:
-      for ahead_lane in list(getattr(navi, "laneAhead", []) or []):
+      for ahead_lane in list(_navi_get(navi_raw, "laneAhead") or []):
         if _apply_lane_blocked(ahead_lane):
           break
 
     # Complex crossroad hint from 7714 v2 (visible interchanges / junctions).
-    crossroad = getattr(navi, "crossroad", None)
-    if crossroad is not None and getattr(crossroad, "visible", False):
-      distance_m = int(getattr(crossroad, "distanceM", 0) or 0)
+    crossroad = _navi_get(navi_raw, "crossroad")
+    if crossroad is not None and _navi_bool(crossroad, "visible"):
+      distance_m = _navi_int(crossroad, "distanceM")
       if distance_m > 0:
         payload = {
           "distanceM": distance_m,
-          "imageCode": int(getattr(crossroad, "imageCode", 0) or 0),
-          "imageUrl": str(getattr(crossroad, "imageUrl", "") or ""),
+          "imageCode": _navi_int(crossroad, "imageCode"),
+          "imageUrl": _navi_text(crossroad, "imageUrl"),
         }
         try:
           self.params.put("CarrotNaviCrossroad", json.dumps(payload))
         except Exception as e:
           cloudlog.error(f"carrot_man: failed to write CarrotNaviCrossroad param: {e}")
 
-    # Reset stale guidance when the phone reports the vehicle is off-route.
-    nav_status = getattr(navi, "navigationStatus", None)
-    if nav_status is not None and getattr(nav_status, "offRoute", False):
-      self._carrot_serv.reset()
+  def _apply_carrot_navi_speed(self, speed: _NaviSpeedControl) -> None:
+    if speed.road_limit_kph is not None:
+      self._carrot_serv.raw_update("nRoadLimitSpeed", speed.road_limit_kph)
+    if speed.section_active:
+      self._carrot_serv.raw_update("nSdiType", 4)
+      self._carrot_serv.raw_update("nSdiSpeedLimit", speed.section_speed_limit_kph)
+      self._carrot_serv.raw_update("nSdiDist", speed.section_remaining_distance_m)
+      self._carrot_serv.raw_update("nSdiSection", 1)
+      self._carrot_serv.raw_update("nSdiBlockType", 2)
+      self._carrot_serv.raw_update("nSdiBlockSpeed", speed.section_speed_limit_kph)
+      self._carrot_serv.raw_update("nSdiBlockDist", speed.section_remaining_distance_m)
+    elif speed.sdi_present:
+      self._carrot_serv.raw_update("nSdiType", speed.sdi_type)
+      self._carrot_serv.raw_update("nSdiSpeedLimit", speed.sdi_speed_limit_kph)
+      self._carrot_serv.raw_update("nSdiDist", speed.sdi_distance_m)
+      self._carrot_serv.raw_update("nSdiSection", speed.sdi_section_type)
+      self._carrot_serv.raw_update("nSdiBlockType", speed.sdi_block_type)
+      self._carrot_serv.raw_update("nSdiBlockSpeed", speed.sdi_block_speed_kph)
+      self._carrot_serv.raw_update("nSdiBlockDist", speed.sdi_block_distance_m)
+    else:
+      self._carrot_serv.raw_update("nSdiType", -1)
+      self._carrot_serv.raw_update("nSdiSpeedLimit", 0)
+      self._carrot_serv.raw_update("nSdiDist", 0)
+
+  def _apply_carrot_navi_vehicle(self, vehicle: _NaviVehicleControl) -> None:
+    self._carrot_navi_vehicle_sequence = vehicle.sequence
+    if not vehicle.present:
+      return
+    self._carrot_serv.raw_update("vpPosPointLat", vehicle.latitude)
+    self._carrot_serv.raw_update("vpPosPointLon", vehicle.longitude)
+    self._carrot_serv.raw_update("nPosAngle", vehicle.heading_deg)
+    self._carrot_serv.raw_update("nPosSpeed", vehicle.speed_kph)
+    if vehicle.road_name:
+      self._carrot_serv.raw_update("szPosRoadName", vehicle.road_name)
+
+  def _apply_carrot_navi_traffic(self, traffic: _NaviTrafficControl) -> None:
+    if not traffic.present or not traffic.visible or not traffic.lamp or traffic.remain_sec <= 0:
+      return
+    state = {"red": 1, "left": 3, "green": 2, "right": 2, "uturn": 3}.get(traffic.lamp, 0)
+    if state <= 0:
+      return
+    self._carrot_serv.update_map_traffic(state, traffic.remain_sec)
+    self._put_navi_traffic_light(traffic.lamp, traffic.remain_sec, traffic.distance_m, None)
+
+  def _apply_carrot_navi_route(self, route: _NaviRouteControl) -> None:
+    self._carrot_serv.raw_update("nGoPosDist", route.remaining_distance_m)
+    self._carrot_serv.raw_update("nGoPosTime", route.remaining_time_sec)
+    if route.polyline:
+      self._navi_points = self._limited_route_points(route.polyline)
+      self._navi_points_start_index = 0
+      self._navi_points_active = True
+      self._navd_active = True
+
+  def _apply_carrot_navi_guidance(self, navi: _CarrotNaviControl, *, force: bool = False) -> None:
+    current = navi.current
+    next_guidance = navi.next
+    current_changed = force or current.sequence != getattr(self, "_carrot_navi_current_sequence", -1)
+    next_changed = force or next_guidance.sequence != getattr(self, "_carrot_navi_next_sequence", -1)
+    if not current_changed and not next_changed:
+      return
+    if current_changed:
+      self._carrot_navi_current_sequence = current.sequence
+      self._carrot_serv.raw_update("nTBTDist", current.distance_m if current.present else 0)
+      self._carrot_serv.raw_update("nTBTTurnType", current.turn_type if current.present else -1)
+      self._carrot_serv.raw_update("szTBTMainText", current.main_text if current.present else "")
+      self._carrot_serv.raw_update("szNearDirName", current.near_direction if current.present else "")
+      self._carrot_serv.raw_update("szFarDirName", current.far_direction if current.present else "")
+    if next_changed:
+      self._carrot_navi_next_sequence = next_guidance.sequence
+      self._carrot_serv.raw_update("nTBTDistNext", next_guidance.distance_m if next_guidance.present else 0)
+      self._carrot_serv.raw_update("nTBTTurnTypeNext", next_guidance.turn_type if next_guidance.present else -1)
+      self._carrot_serv.raw_update("szTBTMainTextNext", next_guidance.main_text if next_guidance.present else "")
 
   def _handle_navi_traffic(self, sinf: dict[str, Any]) -> None:
     """Apply navipilot sinf traffic-light payload to CarrotServ and Params."""
