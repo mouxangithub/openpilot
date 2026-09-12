@@ -96,6 +96,11 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "AutoNaviSpeedCtrlMode": 2,
   "AutoNaviSpeedDecelRate": 120,
   "AutoNaviSpeedSafetyFactor": 105,
+  "AutoUpRoadLimit": 0,
+  "AutoUpRoadLimit40KMH": 15,
+  "AutoUpHighwayRoadLimit": 0,
+  "AutoUpHighwayRoadLimit40KMH": 15,
+  "RoadType": -1,
   "SoundVolumeAdjust": 100,
   "SoundVolumeAdjustEngage": 100,
   # Carrot exception message persists across manager start

@@ -324,6 +324,9 @@ class CarrotServ:
     self.auto_keep_fork_speed_h: int = 5
     self.auto_up_road_limit: int = 0
     self.auto_up_highway_road_limit: int = 0
+    self.auto_up_road_limit_40kmh: int = 15
+    self.auto_up_highway_road_limit_40kmh: int = 15
+    self.road_type: int = -1
     self.show_debug_log: int = 0
     self.is_metric: bool = True
 
@@ -347,6 +350,25 @@ class CarrotServ:
       elif raw_limit == 120:
         raw_limit = 115
     raw_limit = self._apply_road_limit_filter(raw_limit)
+
+    # Manual road-type override and low-limit boost (aligned with cuda).
+    roadcate = _safe_int(msg.get("roadcate"), 0)
+    if self.road_type >= 0:
+      roadcate = self.road_type
+    if 0 < raw_limit < 60:
+      if roadcate <= 1 and self.auto_up_highway_road_limit:
+        max_add = self.auto_up_highway_road_limit_40kmh
+      elif roadcate > 1 and self.auto_up_road_limit:
+        max_add = self.auto_up_road_limit_40kmh
+      else:
+        max_add = 0
+      if max_add > 0:
+        if raw_limit <= 40:
+          add_val = float(max_add)
+        else:
+          add_val = float(max_add) * (60 - raw_limit) / 20.0
+        raw_limit = int(min(raw_limit + add_val, 60))
+
     self._raw = {
       "nRoadLimitSpeed": raw_limit,
       "nSdiType": _safe_int(msg.get("nSdiType"), -1),
@@ -379,7 +401,7 @@ class CarrotServ:
       "carrotCmdIndex": seq,
       "carrotCmd": _safe_str(msg.get("carrotCmd"), ""),
       "carrotArg": _safe_str(msg.get("carrotArg"), ""),
-      "roadcate": _safe_int(msg.get("roadcate"), 0),
+      "roadcate": roadcate,
       "nSdiSection": _safe_int(msg.get("nSdiSection"), -1),
       # navipilot sends snake_case "gps_speed"; cp sends camelCase "gpsSpeed".
       "gpsSpeed": _safe_float(msg.get("gpsSpeed") if "gpsSpeed" in msg else msg.get("gps_speed"), 0.0),
@@ -822,9 +844,9 @@ class CarrotServ:
     self._param_frame += 1
 
     p = self._params
-    self.auto_navi_speed_decel_rate = float(p.get_int("AutoNaviSpeedDecelRate", 150)) * 0.01
+    self.auto_navi_speed_decel_rate = float(p.get_int("AutoNaviSpeedDecelRate", 120)) * 0.01
     self.auto_navi_speed_ctrl_end = float(p.get_int("AutoNaviSpeedCtrlEnd", 7))
-    self.auto_navi_speed_safety_factor = float(p.get_int("AutoNaviSpeedSafetyFactor", 100)) * 0.01
+    self.auto_navi_speed_safety_factor = float(p.get_int("AutoNaviSpeedSafetyFactor", 105)) * 0.01
     self.auto_navi_speed_bump_speed = float(p.get_int("AutoNaviSpeedBumpSpeed", 35))
     self.auto_navi_speed_bump_time = float(p.get_int("AutoNaviSpeedBumpTime", 1))
     self.auto_navi_speed_ctrl_mode = p.get_int("AutoNaviSpeedCtrlMode", 0)
@@ -854,6 +876,9 @@ class CarrotServ:
     self.auto_keep_fork_speed_h = p.get_int("AutoKeepForkSpeedH", 5)
     self.auto_up_road_limit = p.get_int("AutoUpRoadLimit", 0)
     self.auto_up_highway_road_limit = p.get_int("AutoUpHighwayRoadLimit", 0)
+    self.auto_up_road_limit_40kmh = p.get_int("AutoUpRoadLimit40KMH", 15)
+    self.auto_up_highway_road_limit_40kmh = p.get_int("AutoUpHighwayRoadLimit40KMH", 15)
+    self.road_type = p.get_int("RoadType", -1)
     self.show_debug_log = p.get_int("ShowDebugLog", 0)
     self.is_metric = p.get_bool("IsMetric", True)
 
