@@ -1332,8 +1332,10 @@ class CarrotServ:
     # ATC decision.
     atc_desired, self.atc_type, _atc_speed, _atc_dist = self.update_auto_turn(
       v_ego_kph, sm, self.x_turn_info, float(self.x_dist_to_turn), True)
+    atc_desired_next, _, _, _ = self.update_auto_turn(
+      v_ego_kph, sm, self.x_turn_info_next, float(self.x_dist_to_turn_next), False)
     if self.auto_turn_control not in (2, 3):
-      atc_desired = 250.0
+      atc_desired = atc_desired_next = 250.0
     if self.auto_turn_control not in (1, 2):
       self.atc_type = "none"
 
