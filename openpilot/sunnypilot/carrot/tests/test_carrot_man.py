@@ -106,6 +106,9 @@ class _FakeParams:
   def get(self, key, return_default=False):
     return self._store.get(key, b"")
 
+  def put(self, key, value):
+    self._store[key] = value
+
 
 _common_pkg = types.ModuleType("openpilot.common")
 _common_pkg.params = MagicMock(Params=_FakeParams)
@@ -143,55 +146,76 @@ class TestCarrotManager(unittest.TestCase):
       "szPosRoadName": "Gangnam-daero",
     }
     self.mgr._update_raw(packet, time.monotonic())
-    assert self.mgr._raw["nRoadLimitSpeed"] == 80
-    assert self.mgr._raw["nTBTDist"] == 500
-    assert self.mgr._raw["nTBTTurnType"] == 12
-    assert self.mgr._raw["szTBTMainText"] == "Turn left"
+    raw = self.mgr._carrot_serv.raw
+    assert raw["nRoadLimitSpeed"] == 80
+    assert raw["nTBTDist"] == 500
+    assert raw["nTBTTurnType"] == 12
+    assert raw["szTBTMainText"] == "Turn left"
+
+  def test_update_raw_gps_speed_key_compat(self):
+    self.mgr._update_raw({"gpsSpeed": 55.5}, time.monotonic())
+    assert self.mgr._carrot_serv.raw["gpsSpeed"] == 55.5
+
+    self.mgr._update_raw({"gps_speed": 33.3}, time.monotonic())
+    assert self.mgr._carrot_serv.raw["gpsSpeed"] == 33.3
+
+  def test_heartbeat_keeps_link_alive_without_overwrite(self):
+    self.mgr._update_raw({"nRoadLimitSpeed": 80}, time.monotonic())
+    assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
+    self.mgr._update_raw({"carrotCmd": "heartbeat"}, time.monotonic())
+    assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
 
   def test_derive_state_maps_turn(self):
-    self.mgr._raw["nTBTDist"] = 250
-    self.mgr._raw["nTBTTurnType"] = 12
-    self.mgr._derive_state()
-    assert self.mgr._nav_type == "turn"
-    assert self.mgr._nav_modifier == "left"
-    assert self.mgr._x_turn_info == 1
-    assert self.mgr._x_dist_to_turn == 250
-    assert self.mgr._v_turn_speed > 0
+    self.mgr._update_raw({"nTBTDist": 50, "nTBTTurnType": 12}, time.monotonic())
+    self.mgr._derive_state(0.0)
+    assert self.mgr._carrot_serv.nav_type == "turn"
+    assert self.mgr._carrot_serv.nav_modifier == "left"
+    assert self.mgr._carrot_serv.x_turn_info == 1
+    assert self.mgr._carrot_serv.x_dist_to_turn == 50
+    assert self.mgr._carrot_serv.v_turn_speed > 0
 
   def test_derive_state_speed_camera(self):
-    self.mgr._raw["nSdiType"] = 1
-    self.mgr._raw["nSdiSpeedLimit"] = 80
-    self.mgr._raw["nSdiDist"] = 600
-    self.mgr._derive_state()
-    assert self.mgr._x_spd_type == 1
-    assert self.mgr._x_spd_limit == 80
-    assert self.mgr._x_spd_dist == 600
-    assert self.mgr._desired_speed == 80
-    assert self.mgr._desired_source == "sdi"
+    self.mgr._update_raw(
+      {"nSdiType": 1, "nSdiSpeedLimit": 80, "nSdiDist": 600},
+      time.monotonic(),
+    )
+    self.mgr._derive_state(0.0)
+    assert self.mgr._carrot_serv.x_spd_type == 1
+    assert self.mgr._carrot_serv.x_spd_limit == 80
+    assert self.mgr._carrot_serv.x_spd_dist == 600
+    assert self.mgr._carrot_serv.desired_speed == 80
+    assert self.mgr._carrot_serv.desired_source == "sdi"
 
   def test_derive_state_speed_bump(self):
-    self.mgr._raw["nSdiPlusType"] = 22
-    self.mgr._raw["nSdiPlusDist"] = 150
-    self.mgr._raw["roadcate"] = 2
-    self.mgr._derive_state()
-    assert self.mgr._x_spd_type == 22
-    assert self.mgr._x_spd_dist == 150
+    self.mgr._update_raw(
+      {"nSdiPlusType": 22, "nSdiPlusDist": 150, "roadcate": 2},
+      time.monotonic(),
+    )
+    self.mgr._derive_state(0.0)
+    assert self.mgr._carrot_serv.x_spd_type == 22
+    assert self.mgr._carrot_serv.x_spd_dist == 150
 
   def test_derive_state_section_speed(self):
-    self.mgr._raw["nSdiType"] = 2
-    self.mgr._raw["nSdiSpeedLimit"] = 90
-    self.mgr._raw["nSdiDist"] = 1000
-    self.mgr._raw["nSdiBlockType"] = 2
-    self.mgr._raw["nSdiBlockDist"] = 300
-    self.mgr._derive_state()
-    assert self.mgr._x_spd_type == 4
-    assert self.mgr._x_spd_dist == 300
+    self.mgr._update_raw(
+      {
+        "nSdiType": 2,
+        "nSdiSpeedLimit": 90,
+        "nSdiDist": 1000,
+        "nSdiBlockType": 2,
+        "nSdiBlockDist": 300,
+      },
+      time.monotonic(),
+    )
+    self.mgr._derive_state(0.0)
+    assert self.mgr._carrot_serv.x_spd_type == 4
+    assert self.mgr._carrot_serv.x_spd_dist == 300
 
   def test_publish_outputs_carrotman_and_navi(self):
-    self.mgr._raw["nRoadLimitSpeed"] = 80
-    self.mgr._raw["szTBTMainText"] = "Turn left"
-    self.mgr._raw["nGoPosDist"] = 5000
-    self.mgr._derive_state()
+    self.mgr._update_raw(
+      {"nRoadLimitSpeed": 80, "szTBTMainText": "Turn left", "nGoPosDist": 5000},
+      time.monotonic(),
+    )
+    self.mgr._derive_state(0.0)
     self.mgr._publish()
 
     services = [s for s, _ in self.mgr.pm.sent]
@@ -205,16 +229,96 @@ class TestCarrotManager(unittest.TestCase):
   def test_state_expires_after_timeout(self):
     now = time.monotonic()
     self.mgr._update_raw({"nRoadLimitSpeed": 80}, now)
-    assert self.mgr._raw["nRoadLimitSpeed"] == 80
+    assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
     self.mgr._maybe_expire_state(now + 10.0)
-    assert self.mgr._raw["nRoadLimitSpeed"] == 0
-    assert self.mgr._x_spd_type == -1
+    assert self.mgr._carrot_serv.raw.get("nRoadLimitSpeed", 0) == 0
+    assert self.mgr._carrot_serv.x_spd_type == -1
 
   def test_remote_command_populates_carrotcmd(self):
     packet = {"carrotCmd": "DISPLAY", "carrotArg": "MAP", "carrotIndex": 42}
     self.mgr._update_raw(packet, time.monotonic())
-    assert self.mgr._raw["carrotCmd"] == "DISPLAY"
-    assert self.mgr._raw["carrotArg"] == "MAP"
+    assert self.mgr._carrot_serv.raw["carrotCmd"] == "DISPLAY"
+    assert self.mgr._carrot_serv.raw["carrotArg"] == "MAP"
+
+  # ---- navipilot 7712/7713 dispatch tests -------------------------------- #
+
+  def test_dispatch_navi_rgdata(self):
+    self.mgr._dispatch_navi_obj({
+      "rgdata": {
+        "nRoadLimitSpeed": 90,
+        "nTBTDist": 300,
+        "nTBTTurnType": 13,
+        "guidance": {"szTBTMainText": "Turn right"},
+      },
+    })
+    raw = self.mgr._carrot_serv.raw
+    assert raw["nRoadLimitSpeed"] == 90
+    assert raw["nTBTDist"] == 300
+    assert raw["nTBTTurnType"] == 13
+    assert raw["szTBTMainText"] == "Turn right"
+
+  def test_dispatch_navi_rgdata_snake_case(self):
+    self.mgr._dispatch_navi_obj({
+      "rgdata": {
+        "gps_speed": 44.4,
+        "n_sdi_section": 3,
+        "epoch_time": 1234567890,
+        "time_zone": "Asia/Seoul",
+        "n_tbt_next_road_width": 7,
+      },
+    })
+    raw = self.mgr._carrot_serv.raw
+    assert raw["gpsSpeed"] == 44.4
+    assert raw["nSdiSection"] == 3
+    assert raw["epochTime"] == 1234567890
+    assert raw["timezone"] == "Asia/Seoul"
+    assert raw["nTBTNextRoadWidth"] == 7
+
+  def test_dispatch_navi_vrtx_sets_route(self):
+    self.mgr._dispatch_navi_obj({
+      "vrtx": [
+        {"x": 127.0, "y": 37.0},
+        {"x": 127.1, "y": 37.1},
+      ],
+    })
+    assert self.mgr._navi_points_active
+    assert len(self.mgr._navi_points) == 2
+    assert self.mgr._navi_points[0] == (127.0, 37.0)
+    assert self.mgr._navi_points[1] == (127.1, 37.1)
+
+  def test_dispatch_navi_route_with_lonlat(self):
+    self.mgr._dispatch_navi_obj({
+      "route": [
+        {"longitude": 128.0, "latitude": 38.0},
+      ],
+    })
+    assert self.mgr._navi_points_active
+    assert self.mgr._navi_points[0] == (128.0, 38.0)
+
+  def test_dispatch_navi_sinf_traffic_red(self):
+    self.mgr._dispatch_navi_obj({
+      "sinf": {
+        "redLightOn": True,
+        "redLightRemainTime": 15,
+        "distance": 120,
+      },
+    })
+    assert self.mgr._carrot_serv.traffic_state == 1
+    assert self.mgr._carrot_serv.map_traffic_countdown == 15
+
+  def test_dispatch_navi_ssinf_traffic_left(self):
+    self.mgr._dispatch_navi_obj({
+      "ssinf": {
+        "leftLightOn": True,
+        "leftLightRemainTime": 8,
+      },
+    })
+    assert self.mgr._carrot_serv.traffic_state == 3
+    assert self.mgr._carrot_serv.map_traffic_countdown == 8
+
+  def test_dispatch_navi_unknown_ignored(self):
+    # Should not raise.
+    self.mgr._dispatch_navi_obj({"foo": "bar"})
 
 
 if __name__ == "__main__":

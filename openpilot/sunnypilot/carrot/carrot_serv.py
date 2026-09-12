@@ -329,7 +329,8 @@ class CarrotServ:
       "carrotArg": _safe_str(msg.get("carrotArg"), ""),
       "roadcate": _safe_int(msg.get("roadcate"), 0),
       "nSdiSection": _safe_int(msg.get("nSdiSection"), -1),
-      "gpsSpeed": _safe_float(msg.get("gpsSpeed"), 0.0),
+      # navipilot sends snake_case "gps_speed"; cp sends camelCase "gpsSpeed".
+      "gpsSpeed": _safe_float(msg.get("gpsSpeed") if "gpsSpeed" in msg else msg.get("gps_speed"), 0.0),
       "epochTime": _safe_int(msg.get("epochTime"), 0),
       "timezone": _safe_str(msg.get("timezone"), "Asia/Seoul"),
       "nTBTNextRoadWidth": _safe_int(msg.get("nTBTNextRoadWidth"), 0),
@@ -339,6 +340,13 @@ class CarrotServ:
       self._raw["carrotCmdIndex"] = seq
       self._raw["carrotCmd"] = _safe_str(msg.get("carrotCmd"), "")
       self._raw["carrotArg"] = _safe_str(msg.get("carrotArg"), "")
+
+  def update_keepalive(self, recv_mono: float = 0.0) -> None:
+    """Refresh the last-seen timestamp without overwriting cached state.
+
+    Used for heartbeat packets that only exist to keep the link alive.
+    """
+    self._last_packet_mono = recv_mono
 
   def is_stale(self, now_mono: float, timeout: float = 3.0) -> bool:
     return self._last_packet_mono > 0.0 and (now_mono - self._last_packet_mono) > timeout
@@ -490,6 +498,17 @@ class CarrotServ:
     # --- Traffic light smoothing ----------------------------------------
     self._traffic_history.append(_safe_int(r.get("trafficState"), 0))
     self._traffic_state = max(set(self._traffic_history), key=self._traffic_history.count) if self._traffic_history else 0
+
+  def update_map_traffic(self, state: int, countdown: int = 0) -> None:
+    """Apply map/app traffic-light state (takes priority over camera detect).
+
+    State: 0=none, 1=red, 2=green, 3=left-turn.
+    """
+    self.map_traffic_state = max(0, _safe_int(state, 0))
+    self.map_traffic_countdown = max(0, _safe_int(countdown, 0))
+    self.map_traffic_time = time.time()
+    # Immediately update the published state while fresh.
+    self._traffic_state = self.map_traffic_state
 
   def _reset_derived(self) -> None:
     self.nav_type = "invalid"

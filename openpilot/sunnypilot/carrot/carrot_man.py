@@ -5,6 +5,8 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
+import asyncio
+import json
 import math
 import os
 import socket
@@ -22,6 +24,12 @@ from openpilot.sunnypilot.carrot.carrot_serv import NAV_TYPE_MAPPING as TURN_TYP
 from openpilot.sunnypilot.carrot.config import UnifiedParams
 
 try:
+  from aiohttp import web
+  AIOHTTP_AVAILABLE = True
+except ImportError:
+  AIOHTTP_AVAILABLE = False
+
+try:
   from shapely.geometry import LineString
   SHAPELY_AVAILABLE = True
 except ImportError:
@@ -30,7 +38,14 @@ except ImportError:
 
 DEFAULT_RATE = 10.  # Hz
 UDP_BUFFER_SIZE = 4096
-PACKET_TIMEOUT_SEC = 3.0
+PACKET_TIMEOUT_SEC = 8.0
+
+# navipilot TMAP app sends rgdata/vrtx/route over TCP 7712 and traffic-light
+# sinf/ssinf over HTTP 7713 (/api/navi/{tmap_version}).
+NAVI_HTTP_PORT = 7713
+NAVI_HTTP_MAX_BODY_SIZE = 16 * 1024 * 1024
+NAVI_EVENT_TYPES = ("complexCrossroad", "rgdata", "vrtx", "ssinf", "sinf", "route")
+NAVI_ROUTE_MAX_POINTS = 4096
 
 # Korean TMAP turn-type codes from the CarrotMan app -> (maneuverType, maneuverModifier, xTurnInfo).
 # xTurnInfo semantics used by the sunnypilot UI/planner:
@@ -330,6 +345,19 @@ class CarrotManager:
     self._kisa_running = False
     self._kisa_port = 12345
 
+    # navipilot 7712 TCP + 7713 HTTP navi state (P4-1)
+    self._navi_tcp_thread: threading.Thread | None = None
+    self._navi_tcp_running = False
+    self._navi_tcp_port = 7712
+    self._navi_http_thread: threading.Thread | None = None
+    self._navi_http_running = False
+    self._navi_http_port = NAVI_HTTP_PORT
+    self._last_navi_event: dict[str, Any] | None = None
+    self._last_navi_event_by_type: dict[str, dict[str, Any]] = {}
+    self._navi_event_lock = threading.Lock()
+    self._last_rgdata_timestamp_ms = 0
+    self._rgdata_ts_lock = threading.Lock()
+
   # ---- socket plumbing -------------------------------------------------- #
 
   def _ensure_socket(self, port: int) -> bool:
@@ -372,19 +400,30 @@ class CarrotManager:
   # ---- ingestion -------------------------------------------------------- #
 
   def _update_raw(self, msg: dict[str, Any], recv_mono: float) -> None:
+    is_heartbeat = msg.get('carrotCmd') == 'heartbeat'
     seq = _safe_int(msg.get('carrotIndex'), -1)
-    if seq >= 0 and self._last_seq is not None and seq < self._last_seq:
-      return
-    self._last_seq = seq
 
-    if 'carrotCmd' in msg:
+    # Heartbeats keep the link alive without advancing sequence state.
+    if not is_heartbeat:
+      if seq >= 0 and self._last_seq is not None and seq < self._last_seq:
+        return
+      self._last_seq = seq
+
+    if 'carrotCmd' in msg and not is_heartbeat:
       cloudlog.info(
         f"carrot_man: remote cmd={msg.get('carrotCmd')} arg={msg.get('carrotArg')}",
       )
 
+    # Refresh the keep-alive timestamp for every packet including heartbeats.
+    self._last_packet_mono = recv_mono
+
     # Fan out to the dedicated service modules.  Each module does its own
-    # field validation / fall-back to defaults.
-    self._carrot_serv.update_raw(msg, recv_mono=recv_mono)
+    # field validation / fall-back to defaults.  Heartbeats only refresh the
+    # keep-alive timestamp so they don't overwrite useful cached state.
+    if is_heartbeat:
+      self._carrot_serv.update_keepalive(recv_mono=recv_mono)
+    else:
+      self._carrot_serv.update_raw(msg, recv_mono=recv_mono)
     self._amap_navi.apply_packet(msg, recv_mono=recv_mono)
 
   def _drain_packets(self) -> None:
@@ -905,6 +944,29 @@ class CarrotManager:
         self._kisa_thread.start()
         cloudlog.info("carrot_man: kisa thread started")
 
+    # Start navipilot 7712 TCP + 7713 HTTP navi threads (P4-1)
+    if not self._navi_tcp_running:
+      self._navi_tcp_running = True
+      if self._navi_tcp_thread is None or not self._navi_tcp_thread.is_alive():
+        self._navi_tcp_thread = threading.Thread(
+          target=self._carrot_navi_tcp_loop,
+          name="carrot-navi-tcp",
+          daemon=True,
+        )
+        self._navi_tcp_thread.start()
+        cloudlog.info("carrot_man: navi TCP thread started")
+
+    if not self._navi_http_running:
+      self._navi_http_running = True
+      if AIOHTTP_AVAILABLE and (self._navi_http_thread is None or not self._navi_http_thread.is_alive()):
+        self._navi_http_thread = threading.Thread(
+          target=self._carrot_navi_http_loop,
+          name="carrot-navi-http",
+          daemon=True,
+        )
+        self._navi_http_thread.start()
+        cloudlog.info("carrot_man: navi HTTP thread started")
+
   # ---- ZMQ remote command (P1-2) ---------------------------------------- #
 
   def carrot_cmd_zmq(self) -> None:
@@ -1105,6 +1167,324 @@ class CarrotManager:
 
     except Exception as e:
       cloudlog.error(f"carrot_man: route server error: {e}")
+
+  # ---- navipilot 7712 TCP + 7713 HTTP navi servers (P4-1) --------------- #
+
+  def _extract_route_points(self, payload: Any) -> list[tuple[float, float]] | None:
+    """Extract (lon, lat) route points from vrtx/route payload."""
+    if not isinstance(payload, list):
+      return None
+    points: list[tuple[float, float]] = []
+    for item in payload:
+      if not isinstance(item, dict):
+        continue
+      x = item.get("x")
+      y = item.get("y")
+      lon = item.get("longitude")
+      lat = item.get("latitude")
+      try:
+        if x is not None and y is not None:
+          points.append((float(x), float(y)))
+        elif lon is not None and lat is not None:
+          points.append((float(lon), float(lat)))
+      except (TypeError, ValueError):
+        continue
+    return points
+
+  def _limited_route_points(self, points: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    if len(points) <= NAVI_ROUTE_MAX_POINTS:
+      return points
+    # Evenly subsample to keep within limit.
+    step = len(points) / NAVI_ROUTE_MAX_POINTS
+    return [points[min(int(i * step), len(points) - 1)] for i in range(NAVI_ROUTE_MAX_POINTS)]
+
+  def _handle_navi_route(self, payload: Any) -> None:
+    points = self._extract_route_points(payload)
+    if points is None:
+      cloudlog.debug(f"carrot_man: navi route unsupported payload type={type(payload).__name__}")
+      return
+    points = self._limited_route_points(points)
+    if not points:
+      self._navi_points = []
+      self._navi_points_active = False
+      self._navd_active = False
+      return
+    self._navi_points = points
+    self._navi_points_start_index = 0
+    self._navi_points_active = True
+    self._navd_active = True
+    if points:
+      try:
+        dest = {"latitude": points[-1][1], "longitude": points[-1][0], "place_name": "External Navi"}
+        self.params.put("NavDestination", json.dumps(dest, ensure_ascii=False))
+      except Exception as e:
+        cloudlog.error(f"carrot_man: NavDestination put error: {e}")
+
+  def _handle_navi_rgdata(self, rgdata: dict[str, Any]) -> None:
+    """Apply navipilot rgdata payload to CarrotServ state."""
+    if not isinstance(rgdata, dict):
+      return
+    # Merge grouped guidance/sdi/lane fields so update_raw sees the flat keys.
+    merged = dict(rgdata)
+    for group_key in ("guidance", "sdi", "lane"):
+      group = rgdata.get(group_key)
+      if isinstance(group, dict):
+        for key, value in group.items():
+          merged.setdefault(key, value)
+    # Convert navipilot-style snake_case variants to the keys CarrotServ expects.
+    key_map = {
+      "gps_speed": "gpsSpeed",
+      "n_sdi_section": "nSdiSection",
+      "n_tbt_next_road_width": "nTBTNextRoadWidth",
+      "epoch_time": "epochTime",
+      "time_zone": "timezone",
+    }
+    for src, dst in key_map.items():
+      if src in merged and dst not in merged:
+        merged[dst] = merged[src]
+    self._carrot_serv.update_raw(merged, recv_mono=self._mono_now())
+    self._amap_navi.apply_packet(merged, recv_mono=self._mono_now())
+
+  def _handle_navi_traffic(self, sinf: dict[str, Any]) -> None:
+    """Apply navipilot sinf traffic-light payload to CarrotServ."""
+    if not isinstance(sinf, dict):
+      return
+    # Lamp priority: red > left > green > right > uturn.
+    state = 0
+    countdown = 0
+    if sinf.get("redLightOn"):
+      state = 1
+      countdown = _safe_int(sinf.get("redLightRemainTime"), 0)
+    elif sinf.get("leftLightOn"):
+      state = 3
+      countdown = _safe_int(sinf.get("leftLightRemainTime"), 0)
+    elif sinf.get("greenLightOn"):
+      state = 2
+      countdown = _safe_int(sinf.get("greenLightRemainTime"), 0)
+    elif sinf.get("rightLightOn"):
+      state = 2
+      countdown = _safe_int(sinf.get("rightLightRemainTime"), 0)
+    elif sinf.get("uturnLightOn"):
+      state = 3
+      countdown = _safe_int(sinf.get("uturnLightRemainTime"), 0)
+
+    if state > 0:
+      self._carrot_serv.update_map_traffic(state, countdown)
+
+  def _detect_navi_event_type(self, obj: Any) -> str:
+    if not isinstance(obj, dict):
+      return "unknown"
+    for key in NAVI_EVENT_TYPES:
+      if obj.get(key) is not None:
+        return key
+    return "unknown"
+
+  def _get_navi_timestamp_ms(self, obj: Any) -> int:
+    if not isinstance(obj, dict):
+      return 0
+    try:
+      return int(obj.get("timestamp_ms") or obj.get("timestamp") or 0)
+    except Exception:
+      return 0
+
+  def _store_navi_event(self, obj: Any, event_type: str, event_time_ms: int) -> None:
+    event = {
+      "receivedAt": time.strftime("%Y-%m-%dT%H:%M:%S"),
+      "eventTimeMs": event_time_ms,
+      "type": event_type,
+      "summary": {"type": event_type, "keys": list(obj.keys())[:10]} if isinstance(obj, dict) else {"type": event_type},
+    }
+    with self._navi_event_lock:
+      self._last_navi_event = event
+      self._last_navi_event_by_type[event_type] = event
+
+  def _is_stale_rgdata(self, timestamp_ms: int) -> tuple[bool, int]:
+    if timestamp_ms <= 0:
+      return False, 0
+    with self._rgdata_ts_lock:
+      last_ts = self._last_rgdata_timestamp_ms
+      if timestamp_ms <= last_ts:
+        return True, last_ts
+      self._last_rgdata_timestamp_ms = timestamp_ms
+      return False, last_ts
+
+  def _dispatch_navi_obj(self, obj: Any) -> None:
+    if obj is None:
+      return
+    if isinstance(obj, str):
+      s = obj.strip()
+      if not s:
+        return
+      try:
+        obj = json.loads(s)
+      except json.JSONDecodeError:
+        cloudlog.debug(f"carrot_man: navi non-JSON line ignored: {s[:200]!r}")
+        return
+    if not isinstance(obj, dict):
+      return
+
+    event_type = self._detect_navi_event_type(obj)
+    event_time_ms = self._get_navi_timestamp_ms(obj)
+    try:
+      self._store_navi_event(obj, event_type, event_time_ms)
+    except Exception as e:
+      cloudlog.error(f"carrot_man: navi event store error: {e}")
+
+    handled = False
+    if "complexCrossroad" in obj:
+      # Visual crossroad image not yet consumed; record event only.
+      handled = True
+
+    if "rgdata" in obj:
+      stale, last_ts = self._is_stale_rgdata(event_time_ms)
+      if stale:
+        cloudlog.debug(f"carrot_man: stale rgdata dropped ts={event_time_ms} <= last={last_ts}")
+      else:
+        self._handle_navi_rgdata(obj["rgdata"])
+      handled = True
+
+    if "vrtx" in obj:
+      self._handle_navi_route(obj["vrtx"])
+      handled = True
+
+    if "ssinf" in obj:
+      self._handle_navi_traffic(obj["ssinf"])
+      handled = True
+
+    if "sinf" in obj:
+      self._handle_navi_traffic(obj["sinf"])
+      handled = True
+
+    if "route" in obj:
+      self._handle_navi_route(obj["route"])
+      handled = True
+
+    if not handled:
+      cloudlog.debug(f"carrot_man: navi unknown keys: {list(obj.keys())[:10]}")
+
+  def _carrot_navi_tcp_loop(self) -> None:
+    """TCP server on 7712 for navipilot rgdata/vrtx/route JSON stream."""
+    import time as _time
+
+    while self._navi_tcp_running:
+      server: socket.socket | None = None
+      try:
+        server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server.bind(("0.0.0.0", self._navi_tcp_port))
+        server.listen(5)
+        server.settimeout(1.0)
+        cloudlog.info(f"carrot_man: navi TCP server listening on port {self._navi_tcp_port}")
+
+        while self._navi_tcp_running:
+          try:
+            conn, addr = server.accept()
+          except socket.timeout:
+            continue
+          self._remote_addr = f"{addr[0]}:{addr[1]}"
+          cloudlog.info(f"carrot_man: navi TCP connection from {self._remote_addr}")
+          try:
+            conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            f = conn.makefile("r", encoding="utf-8", errors="ignore")
+            while self._navi_tcp_running:
+              line = f.readline()
+              if not line:
+                break
+              s = line.strip()
+              if not s:
+                continue
+              try:
+                self._dispatch_navi_obj(json.loads(s))
+              except json.JSONDecodeError:
+                cloudlog.debug(f"carrot_man: navi TCP non-JSON: {s[:200]!r}")
+              except Exception as e:
+                cloudlog.error(f"carrot_man: navi TCP dispatch error: {e}")
+          except Exception as e:
+            cloudlog.error(f"carrot_man: navi TCP connection error: {e}")
+          finally:
+            try:
+              conn.close()
+            except Exception:
+              pass
+            self._remote_addr = ""
+      except Exception as e:
+        cloudlog.error(f"carrot_man: navi TCP server error: {e}")
+      finally:
+        if server is not None:
+          try:
+            server.close()
+          except Exception:
+            pass
+      _time.sleep(2)
+
+  def _carrot_navi_http_loop(self) -> None:
+    """HTTP server on 7713 for navipilot sinf/ssinf traffic-light POSTs."""
+    import time as _time
+
+    async def _http_post(request: web.Request) -> web.Response:
+      tmap_version = request.match_info.get("tmap_version", "")
+      try:
+        peer = request.transport.get_extra_info("peername")
+      except Exception:
+        peer = None
+      try:
+        raw_body = (await request.text()).strip()
+        if not raw_body:
+          raise ValueError("empty body")
+        obj = json.loads(raw_body)
+      except Exception as e:
+        return web.json_response({"ok": False, "error": f"invalid json: {e}"}, status=400)
+
+      if isinstance(obj, dict):
+        obj["_tmap_version"] = tmap_version
+      if isinstance(peer, tuple) and len(peer) >= 1 and peer[0]:
+        self._remote_addr = f"{peer[0]}:{self._carrot_man_port}"
+
+      try:
+        self._dispatch_navi_obj(obj)
+        return web.json_response({"ok": True, "tmap_version": tmap_version})
+      except Exception as e:
+        cloudlog.error(f"carrot_man: navi HTTP dispatch error: {e}")
+        return web.json_response({"ok": False, "error": str(e), "tmap_version": tmap_version}, status=500)
+
+    async def _http_health(request: web.Request) -> web.Response:
+      with self._navi_event_lock:
+        last_event = self._last_navi_event
+        by_type = dict(self._last_navi_event_by_type)
+      return web.json_response({
+        "ok": True,
+        "service": "carrot_navi_http",
+        "lastEvent": last_event,
+        "receivedTypes": sorted(by_type.keys()),
+      })
+
+    while self._navi_http_running:
+      try:
+        app = web.Application(client_max_size=NAVI_HTTP_MAX_BODY_SIZE)
+        app.router.add_post("/api/navi/{tmap_version}", _http_post)
+        app.router.add_get("/health", _http_health)
+        runner = web.AppRunner(app, access_log=None)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(runner.setup())
+        site = web.TCPSite(runner, "0.0.0.0", self._navi_http_port)
+        loop.run_until_complete(site.start())
+        cloudlog.info(f"carrot_man: navi HTTP server listening on port {self._navi_http_port}")
+
+        while self._navi_http_running:
+          loop.run_until_complete(asyncio.sleep(1))
+      except Exception as e:
+        cloudlog.error(f"carrot_man: navi HTTP server error: {e}")
+      finally:
+        try:
+          loop.run_until_complete(runner.cleanup())
+        except Exception:
+          pass
+        try:
+          loop.close()
+        except Exception:
+          pass
+      _time.sleep(2)
 
   def send_routes(self, coords: list, from_navd: bool = False) -> None:
     """Send navigation routes to phone app."""
