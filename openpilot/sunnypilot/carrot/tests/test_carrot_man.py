@@ -26,6 +26,7 @@ class _FakeCarrotManSP:
       "roadCate", "extBlinker", "extState", "leftBlind", "rightBlind",
       "trafficCountdown", "szGoalName", "szTBTMainTextNext", "szNearDirName",
       "nSdiSection", "gpsSpeed", "epochTime", "timezone", "nTBTNextRoadWidth",
+      "goalPosX", "goalPosY",
     ]:
       setattr(self, attr, None)
 
@@ -147,6 +148,14 @@ class TestCarrotManager(unittest.TestCase):
     assert TURN_TYPE_MAPPING[1003] == ("fork", "slight right", 4)
     assert TURN_TYPE_MAPPING[1006] == ("off ramp", "left", 3)
     assert TURN_TYPE_MAPPING[1007] == ("off ramp", "right", 4)
+    # navipilot-audit requested additional TMAP extended codes.
+    assert TURN_TYPE_MAPPING[117] == ("fork", "right", 4)
+    assert TURN_TYPE_MAPPING[118] == ("fork", "left", 3)
+    assert TURN_TYPE_MAPPING[123] == ("fork", "right", 4)
+    assert TURN_TYPE_MAPPING[124] == ("fork", "right", 4)
+    assert TURN_TYPE_MAPPING[140] == ("rotary", "slight left", 5)
+    assert TURN_TYPE_MAPPING[141] == ("rotary", "slight left", 5)
+    assert TURN_TYPE_MAPPING[142] == ("rotary", "straight", 5)
 
   def test_turn_type_mapping_preserves_sp_specific_codes(self):
     assert TURN_TYPE_MAPPING[14] == ("turn", "uturn", 7)
@@ -161,10 +170,9 @@ class TestCarrotManager(unittest.TestCase):
       "nGoPosDist": 12000,
       "szPosRoadName": "Gangnam-daero",
     }
-    # Road limit has a 2-frame confirmation filter.
-    self.mgr._update_raw(packet, time.monotonic())
-    self.mgr._update_raw(packet, time.monotonic())
-    self.mgr._update_raw(packet, time.monotonic())
+    # Road limit has a 5-frame confirmation filter (6 identical frames required).
+    for _ in range(6):
+      self.mgr._update_raw(packet, time.monotonic())
     raw = self.mgr._carrot_serv.raw
     assert raw["nRoadLimitSpeed"] == 80
     assert raw["nTBTDist"] == 500
@@ -178,8 +186,23 @@ class TestCarrotManager(unittest.TestCase):
     self.mgr._update_raw({"gps_speed": 33.3}, time.monotonic())
     assert self.mgr._carrot_serv.raw["gpsSpeed"] == 33.3
 
+  def test_update_raw_goal_fields(self):
+    self.mgr._update_raw({
+      "goalPosX": 127.123,
+      "goalPosY": 37.456,
+      "szGoalName": "Home",
+    }, time.monotonic())
+    self.mgr._derive_state(0.0)
+    raw = self.mgr._carrot_serv.raw
+    assert abs(raw["goalPosX"] - 127.123) < 1e-6
+    assert abs(raw["goalPosY"] - 37.456) < 1e-6
+    assert raw["szGoalName"] == "Home"
+    assert self.mgr._carrot_serv.goal_pos_x == 127.123
+    assert self.mgr._carrot_serv.goal_pos_y == 37.456
+    assert self.mgr._carrot_serv.sz_goal_name == "Home"
+
   def test_heartbeat_keeps_link_alive_without_overwrite(self):
-    for _ in range(3):
+    for _ in range(6):
       self.mgr._update_raw({"nRoadLimitSpeed": 80}, time.monotonic())
     assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
     self.mgr._update_raw({"carrotCmd": "heartbeat"}, time.monotonic())
@@ -232,7 +255,7 @@ class TestCarrotManager(unittest.TestCase):
     assert self.mgr._carrot_serv.x_spd_dist == 300
 
   def test_publish_outputs_carrotman_and_navi(self):
-    for _ in range(3):
+    for _ in range(6):
       self.mgr._update_raw(
         {"nRoadLimitSpeed": 80, "szTBTMainText": "Turn left", "nGoPosDist": 5000},
         time.monotonic(),
@@ -248,9 +271,23 @@ class TestCarrotManager(unittest.TestCase):
     assert navi_msg.navInstructionCarrotSP.maneuverPrimaryText == "Turn left"
     assert navi_msg.navInstructionCarrotSP.speedLimit == 80 / 3.6
 
+  def test_publish_outputs_goal_name(self):
+    self.mgr._update_raw({
+      "szGoalName": "Office",
+      "goalPosX": 126.976,
+      "goalPosY": 37.579,
+    }, time.monotonic())
+    self.mgr._derive_state(0.0)
+    self.mgr._publish()
+    carrot_msg = next(m for s, m in self.mgr.pm.sent if s == "carrotManSP")
+    cm = carrot_msg.carrotManSP
+    assert cm.szGoalName == "Office"
+    assert abs(cm.goalPosX - 126.976) < 1e-6
+    assert abs(cm.goalPosY - 37.579) < 1e-6
+
   def test_state_expires_after_timeout(self):
     now = time.monotonic()
-    for _ in range(3):
+    for _ in range(6):
       self.mgr._update_raw({"nRoadLimitSpeed": 80}, now)
     assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
     self.mgr._maybe_expire_state(now + 10.0)
@@ -266,7 +303,7 @@ class TestCarrotManager(unittest.TestCase):
   # ---- navipilot 7712/7713 dispatch tests -------------------------------- #
 
   def test_dispatch_navi_rgdata(self):
-    for _ in range(3):
+    for _ in range(6):
       self.mgr._dispatch_navi_obj({
         "rgdata": {
           "nRoadLimitSpeed": 90,
@@ -318,6 +355,31 @@ class TestCarrotManager(unittest.TestCase):
     })
     assert self.mgr._navi_points_active
     assert self.mgr._navi_points[0] == (128.0, 38.0)
+
+  def test_dispatch_navi_route_recursive_nested(self):
+    self.mgr._dispatch_navi_obj({
+      "route": {
+        "points": [
+          {"vrtx": [{"x": 127.0, "y": 37.0}]},
+          {"coords": [{"longitude": 127.1, "latitude": 37.1}]},
+          [127.2, 37.2],
+        ],
+      },
+    })
+    assert self.mgr._navi_points_active
+    assert len(self.mgr._navi_points) == 3
+    assert self.mgr._navi_points[0] == (127.0, 37.0)
+    assert self.mgr._navi_points[1] == (127.1, 37.1)
+    assert self.mgr._navi_points[2] == (127.2, 37.2)
+
+  def test_dispatch_navi_route_depth_limit_safe(self):
+    # Deeply nested payload should not recurse beyond depth 5.
+    nested: dict = {"x": 127.0, "y": 37.0}
+    for _ in range(10):
+      nested = {"points": [nested]}
+    self.mgr._dispatch_navi_obj({"route": nested})
+    # Should not crash; may or may not extract a point depending on depth.
+    assert isinstance(self.mgr._navi_points, list)
 
   def test_dispatch_navi_sinf_traffic_red(self):
     self.mgr._dispatch_navi_obj({
@@ -490,6 +552,45 @@ class TestCarrotManager(unittest.TestCase):
 
     assert "CarrotNaviCrossroad" not in self.mgr.params._store
 
+  def test_dispatch_complex_crossroad_metadata(self):
+    self.mgr._dispatch_navi_obj({
+      "complexCrossroad": {
+        "show": True,
+        "totalMeters": 1200.5,
+        "remainRatio": 0.75,
+        "ts": 1234567890,
+      },
+    })
+    stored = self.mgr.params._store.get("CarrotNaviImage")
+    assert stored is not None
+    parsed = json.loads(stored)
+    assert parsed["show"] is True
+    assert parsed["totalMeters"] == 1200.5
+    assert parsed["remainRatio"] == 0.75
+    assert parsed["ts"] == 1234567890
+
+  def test_apply_carrot_navi_sp_crossroad_metadata(self):
+    navi = self._make_navi_base()
+    crossroad = MagicMock()
+    crossroad.visible = True
+    crossroad.distanceM = 350
+    crossroad.imageCode = 42
+    crossroad.imageUrl = "https://example.com/cross.png"
+    crossroad.totalMeters = 1200.5
+    crossroad.remainRatio = 0.75
+    crossroad.ts = 1234567890
+    navi.crossroad = crossroad
+
+    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr._apply_carrot_navi_sp()
+
+    stored = self.mgr.params._store.get("CarrotNaviCrossroad")
+    assert stored is not None
+    parsed = json.loads(stored)
+    assert parsed["totalMeters"] == 1200.5
+    assert parsed["remainRatio"] == 0.75
+    assert parsed["ts"] == 1234567890
+
   def test_apply_carrot_navi_sp_off_route_resets_carrot_serv(self):
     # Seed some state so we can verify reset clears it.
     self.mgr._carrot_serv.raw_update("nRoadLimitSpeed", 80)
@@ -528,6 +629,33 @@ class TestCarrotManager(unittest.TestCase):
     serv = self.mgr._carrot_serv
     assert serv._legacy_sdi_suppressed(22, False, True) is True
     assert serv._legacy_sdi_suppressed(22, False, False) is False
+
+  def test_secondary_sdi_applies_when_primary_inactive(self):
+    serv = self.mgr._carrot_serv
+    serv.update_raw({
+      "nSdiPlusType": 1,
+      "nSdiPlusSpeedLimit": 90,
+      "nSdiPlusDist": 500,
+    })
+    serv.derive()
+    assert serv.x_spd_type == 1
+    assert serv.x_spd_limit == int(round(90 * 1.05))
+    assert serv.x_spd_dist == 500
+
+  def test_secondary_sdi_ignored_when_primary_active(self):
+    serv = self.mgr._carrot_serv
+    serv.update_raw({
+      "nSdiType": 1,
+      "nSdiSpeedLimit": 80,
+      "nSdiDist": 400,
+      "nSdiPlusType": 1,
+      "nSdiPlusSpeedLimit": 90,
+      "nSdiPlusDist": 500,
+    })
+    serv.derive()
+    assert serv.x_spd_type == 1
+    assert serv.x_spd_limit == int(round(80 * 1.05))
+    assert serv.x_spd_dist == 400
 
   def test_school_zone_speed(self):
     serv = self.mgr._carrot_serv

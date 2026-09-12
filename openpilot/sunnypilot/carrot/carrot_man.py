@@ -104,6 +104,16 @@ class _NaviSpeedControl(_NaviControlBase):
     self.section_speed_limit_kph = sec_limit if self.section_active else 0
     self.section_remaining_distance_m = sec_distance if self.section_active else 0
 
+    secondary_sdi_present = present and _navi_bool(item, "secondarySdiPresent") and not off_route
+    self.secondary_sdi_present = secondary_sdi_present
+    self.secondary_sdi_type = _navi_int(item, "secondarySdiType", -1) if secondary_sdi_present else -1
+    self.secondary_sdi_distance_m = max(0, _navi_int(item, "secondarySdiDistanceM")) if secondary_sdi_present else 0
+    self.secondary_sdi_speed_limit_kph = max(0, _navi_int(item, "secondarySdiSpeedLimitKph")) if secondary_sdi_present else 0
+    self.secondary_sdi_section_type = _navi_int(item, "secondarySdiSectionType", -1) if secondary_sdi_present else -1
+    self.secondary_sdi_block_type = _navi_int(item, "secondarySdiBlockType", -1) if secondary_sdi_present else -1
+    self.secondary_sdi_block_speed_kph = max(0, _navi_int(item, "secondarySdiBlockSpeedKph")) if secondary_sdi_present else 0
+    self.secondary_sdi_block_distance_m = max(0, _navi_int(item, "secondarySdiBlockDistanceM")) if secondary_sdi_present else 0
+
 
 class _NaviRouteControl(_NaviControlBase):
   def __init__(self, item: Any):
@@ -811,7 +821,7 @@ class CarrotManager:
     cm.leftBlind = 1 if self._amap_navi.shared_data.left_blind else 0
     cm.rightBlind = 1 if self._amap_navi.shared_data.right_blind else 0
     cm.trafficCountdown = self._carrot_serv.map_traffic_countdown
-    cm.szGoalName = ""
+    cm.szGoalName = _safe_str(raw.get("szGoalName"), "")
     cm.szTBTMainTextNext = _safe_str(raw.get("szTBTMainTextNext"), "")
     cm.szNearDirName = _safe_str(raw.get("szNearDirName"), "")
     cm.nSdiSection = _safe_int(raw.get("nSdiSection"), -1)
@@ -819,6 +829,8 @@ class CarrotManager:
     cm.epochTime = _safe_int(raw.get("epochTime"), 0)
     cm.timezone = _safe_str(raw.get("timezone"), "Asia/Seoul")
     cm.nTBTNextRoadWidth = _safe_int(raw.get("nTBTNextRoadWidth"), 0)
+    cm.goalPosX = _safe_float(raw.get("goalPosX"), 0.0)
+    cm.goalPosY = _safe_float(raw.get("goalPosY"), 0.0)
 
     navi_msg = messaging.new_message('navInstructionCarrotSP')
     navi_msg.valid = True
@@ -1018,6 +1030,9 @@ class CarrotManager:
     msg['nRoadLimitSpeed'] = self._carrot_serv.n_road_limit_speed
     msg['vTurnSpeed'] = self._carrot_serv.v_turn_speed
     msg['trafficState'] = self._carrot_serv.traffic_state
+    msg['goalPosX'] = self._carrot_serv.goal_pos_x
+    msg['goalPosY'] = self._carrot_serv.goal_pos_y
+    msg['szGoalName'] = self._carrot_serv.sz_goal_name
 
     # Control-state fields used by the phone app for diagnostics.
     active = False
@@ -1385,26 +1400,76 @@ class CarrotManager:
 
   # ---- navipilot 7712 TCP + 7713 HTTP navi servers (P4-1) --------------- #
 
-  def _extract_route_points(self, payload: Any) -> list[tuple[float, float]] | None:
-    """Extract (lon, lat) route points from vrtx/route payload."""
-    if not isinstance(payload, list):
+  # Container keys that may hold nested route points, and point keys that
+  # directly encode a coordinate.  TMAP navipilot payloads vary by app version.
+  _ROUTE_CONTAINER_KEYS: tuple[str, ...] = ("vrtx", "route", "points", "coords", "coordinates", "path", "items")
+  _ROUTE_POINT_KEYS: tuple[tuple[str, str], ...] = (
+    ("x", "y"),
+    ("longitude", "latitude"),
+    ("lon", "lat"),
+    ("lng", "lat"),
+  )
+
+  def _extract_route_points(self, payload: Any, depth: int = 0) -> list[tuple[float, float]] | None:
+    """Recursively extract (lon, lat) route points from vrtx/route payload.
+
+    Supports flat lists of dicts, nested dicts containing sub-lists, and
+    multiple (lon, lat) / (x, y) key conventions.  Depth is capped to avoid
+    runaway recursion on malformed payloads.
+    """
+    if depth > 5 or payload is None:
       return None
     points: list[tuple[float, float]] = []
-    for item in payload:
-      if not isinstance(item, dict):
-        continue
-      x = item.get("x")
-      y = item.get("y")
-      lon = item.get("longitude")
-      lat = item.get("latitude")
-      try:
-        if x is not None and y is not None:
-          points.append((float(x), float(y)))
-        elif lon is not None and lat is not None:
-          points.append((float(lon), float(lat)))
-      except (TypeError, ValueError):
-        continue
-    return points
+    if isinstance(payload, dict):
+      # Try point keys directly at this level.
+      for lon_key, lat_key in self._ROUTE_POINT_KEYS:
+        lon = payload.get(lon_key)
+        lat = payload.get(lat_key)
+        if lon is not None and lat is not None:
+          try:
+            points.append((float(lon), float(lat)))
+          except (TypeError, ValueError):
+            continue
+      # Recurse into known container keys.
+      for key in self._ROUTE_CONTAINER_KEYS:
+        child = payload.get(key)
+        if isinstance(child, (list, dict)):
+          child_points = self._extract_route_points(child, depth + 1)
+          if child_points:
+            points.extend(child_points)
+      return points if points else None
+    if isinstance(payload, list):
+      for item in payload:
+        if isinstance(item, dict):
+          # Single point dict.
+          point_found = False
+          for lon_key, lat_key in self._ROUTE_POINT_KEYS:
+            lon = item.get(lon_key)
+            lat = item.get(lat_key)
+            if lon is not None and lat is not None:
+              try:
+                points.append((float(lon), float(lat)))
+                point_found = True
+              except (TypeError, ValueError):
+                continue
+          if point_found:
+            continue
+          # Nested container dict (e.g. {"vrtx": [...]}).
+          for key in self._ROUTE_CONTAINER_KEYS:
+            child = item.get(key)
+            if isinstance(child, (list, dict)):
+              child_points = self._extract_route_points(child, depth + 1)
+              if child_points:
+                points.extend(child_points)
+        elif isinstance(item, (list, tuple)) and len(item) >= 2:
+          try:
+            lon = float(item[0])
+            lat = float(item[1])
+            points.append((lon, lat))
+          except (TypeError, ValueError):
+            continue
+      return points if points else None
+    return None
 
   def _extract_route_points_from_polyline(self, polyline: Any) -> list[tuple[float, float]]:
     """Extract (lon, lat) tuples from a carrotNaviSP.route.polyline list."""
@@ -1588,6 +1653,9 @@ class CarrotManager:
           "distanceM": distance_m,
           "imageCode": _navi_int(crossroad, "imageCode"),
           "imageUrl": _navi_text(crossroad, "imageUrl"),
+          "totalMeters": _navi_float(crossroad, "totalMeters", 0.0),
+          "remainRatio": _navi_float(crossroad, "remainRatio", 0.0),
+          "ts": _navi_int(crossroad, "ts", 0),
         }
         try:
           self.params.put("CarrotNaviCrossroad", json.dumps(payload))
@@ -1617,6 +1685,20 @@ class CarrotManager:
       self._carrot_serv.raw_update("nSdiType", -1)
       self._carrot_serv.raw_update("nSdiSpeedLimit", 0)
       self._carrot_serv.raw_update("nSdiDist", 0)
+
+    # Secondary SDI is always forwarded so CarrotServ can use it when primary is inactive.
+    if speed.secondary_sdi_present:
+      self._carrot_serv.raw_update("nSdiPlusType", speed.secondary_sdi_type)
+      self._carrot_serv.raw_update("nSdiPlusSpeedLimit", speed.secondary_sdi_speed_limit_kph)
+      self._carrot_serv.raw_update("nSdiPlusDist", speed.secondary_sdi_distance_m)
+      self._carrot_serv.raw_update("nSdiPlusSection", speed.secondary_sdi_section_type)
+      self._carrot_serv.raw_update("nSdiPlusBlockType", speed.secondary_sdi_block_type)
+      self._carrot_serv.raw_update("nSdiPlusBlockSpeed", speed.secondary_sdi_block_speed_kph)
+      self._carrot_serv.raw_update("nSdiPlusBlockDist", speed.secondary_sdi_block_distance_m)
+    else:
+      self._carrot_serv.raw_update("nSdiPlusType", -1)
+      self._carrot_serv.raw_update("nSdiPlusSpeedLimit", 0)
+      self._carrot_serv.raw_update("nSdiPlusDist", 0)
 
   def _apply_carrot_navi_vehicle(self, vehicle: _NaviVehicleControl) -> None:
     self._carrot_navi_vehicle_sequence = vehicle.sequence
@@ -1762,6 +1844,9 @@ class CarrotManager:
       "imageHash": image_hash,
       "imageUrl": str(d.get("imageUrl", "")),
       "imageTooLarge": image_too_large,
+      "totalMeters": _safe_float(d.get("totalMeters"), 0.0),
+      "remainRatio": _safe_float(d.get("remainRatio"), 0.0),
+      "ts": _safe_int(d.get("ts"), 0),
     }
     try:
       self.params.put(NAVI_IMAGE_PARAM, json.dumps(payload, ensure_ascii=False))

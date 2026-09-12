@@ -657,6 +657,8 @@ struct CarrotManSP @0xcd96dafb67a082d0 {
   epochTime @45 :Int64 = 0;
   timezone @46 :Text = "Asia/Seoul";
   nTBTNextRoadWidth @47 :Int32 = 0;
+  goalPosX @48 :Float32 = 0.0;
+  goalPosY @49 :Float32 = 0.0;
 }
 
 struct ImuCalibrationSP @0xb057204d7deadf3f {

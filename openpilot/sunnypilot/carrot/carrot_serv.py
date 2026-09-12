@@ -77,9 +77,9 @@ NAV_TYPE_MAPPING: dict[int, tuple[str, str, int]] = {
   43: ("fork", "right", 4),
   73: ("fork", "right", 4),
   74: ("fork", "right", 4),
+  117: ("fork", "right", 4),
   123: ("fork", "right", 4),
   124: ("fork", "right", 4),
-  117: ("fork", "right", 4),
   131: ("rotary", "slight right", 5),
   132: ("rotary", "slight right", 5),
   140: ("rotary", "slight left", 5),
@@ -208,6 +208,9 @@ class CarrotServ:
     self.desired_source: str = ""
     self.atc_type: str = ""
     self.roadcate: int = 8
+    self.goal_pos_x: float = 0.0
+    self.goal_pos_y: float = 0.0
+    self.sz_goal_name: str = ""
 
     # Road / position state (read back by carrot_man and the UI).
     self.n_road_limit_speed: int = 0
@@ -383,6 +386,9 @@ class CarrotServ:
       "epochTime": _safe_int(msg.get("epochTime"), 0),
       "timezone": _safe_str(msg.get("timezone"), "Asia/Seoul"),
       "nTBTNextRoadWidth": _safe_int(msg.get("nTBTNextRoadWidth"), 0),
+      "goalPosX": _safe_float(msg.get("goalPosX"), 0.0),
+      "goalPosY": _safe_float(msg.get("goalPosY"), 0.0),
+      "szGoalName": _safe_str(msg.get("szGoalName"), ""),
     }
 
     if "carrotCmd" in msg:
@@ -406,14 +412,14 @@ class CarrotServ:
                                    _safe_str(msg.get("timezone"), "Asia/Seoul"))
 
   def _apply_road_limit_filter(self, raw_limit: int) -> int:
-    """2-frame confirmation filter to avoid jitter in road limit speed."""
+    """5-frame confirmation filter to avoid jitter in road limit speed."""
     if raw_limit <= 0:
       self._n_road_limit_speed_last = 0
       self._n_road_limit_speed_counter = 0
       return 0
     if raw_limit != self._n_road_limit_speed_last:
       self._n_road_limit_speed_counter += 1
-      if self._n_road_limit_speed_counter > 2:
+      if self._n_road_limit_speed_counter > 5:
         self._n_road_limit_speed_last = raw_limit
         self._n_road_limit_speed_counter = 0
       else:
@@ -623,6 +629,9 @@ class CarrotServ:
     self.epoch_time = 0
     self.timezone = "Asia/Seoul"
     self.n_tbt_next_road_width = 0
+    self.goal_pos_x = 0.0
+    self.goal_pos_y = 0.0
+    self.sz_goal_name = ""
 
     self._navi_gps_lat = 0.0
     self._navi_gps_lon = 0.0
@@ -670,27 +679,39 @@ class CarrotServ:
     sdi_block_dist = _safe_int(r.get("nSdiBlockDist"), 0)
     sdi_plus_type = _safe_int(r.get("nSdiPlusType"), -1)
     sdi_plus_dist = _safe_int(r.get("nSdiPlusDist"), 0)
+    sdi_plus_speed_limit = _safe_int(r.get("nSdiPlusSpeedLimit"), 0)
+    sdi_plus_block_type = _safe_int(r.get("nSdiPlusBlockType"), -1)
+    sdi_plus_block_dist = _safe_int(r.get("nSdiPlusBlockDist"), 0)
     roadcate = _safe_int(r.get("roadcate"), 0)
 
+    # Primary SDI active: a real speed camera/bump alert is in progress.
+    primary_sdi_active = (
+      sdi_type in SDI_SPEED_CAMERA_TYPES and sdi_speed_limit > 0 and
+      not (sdi_type == 7 and self.auto_navi_speed_ctrl_mode < 3)
+    ) or ((sdi_plus_type == 22 or sdi_type == 22) and roadcate > 1)
+
     self.sz_sdi_descr = ""
-    if sdi_type in SDI_SPEED_CAMERA_TYPES and sdi_speed_limit > 0:
-      # Mobile speed camera is ignored unless the user explicitly enabled it.
-      if sdi_type == 7 and self.auto_navi_speed_ctrl_mode < 3:
-        self.x_spd_limit = 0
-        self.x_spd_type = -1
-        self.x_spd_dist = 0
-      else:
+    if primary_sdi_active:
+      if sdi_type in SDI_SPEED_CAMERA_TYPES and sdi_speed_limit > 0:
         self.x_spd_limit = int(round(sdi_speed_limit * self.auto_navi_speed_safety_factor))
         self.x_spd_dist = sdi_dist
         self.x_spd_type = sdi_type
         if sdi_block_type in (2, 3):
           self.x_spd_dist = sdi_block_dist
           self.x_spd_type = 4
-    elif (sdi_plus_type == 22 or sdi_type == 22) and roadcate > 1:
-      # Speed bump on non-highway road.
-      self.x_spd_limit = int(round(self.auto_navi_speed_bump_speed * self.auto_navi_speed_safety_factor))
-      self.x_spd_dist = sdi_plus_dist if sdi_plus_type == 22 else sdi_dist
-      self.x_spd_type = 22
+      elif (sdi_plus_type == 22 or sdi_type == 22) and roadcate > 1:
+        # Speed bump on non-highway road.
+        self.x_spd_limit = int(round(self.auto_navi_speed_bump_speed * self.auto_navi_speed_safety_factor))
+        self.x_spd_dist = sdi_plus_dist if sdi_plus_type == 22 else sdi_dist
+        self.x_spd_type = 22
+    elif sdi_plus_type in SDI_SPEED_CAMERA_TYPES and sdi_plus_speed_limit > 0:
+      # Secondary SDI applies only when primary is absent (cp P1 gap).
+      self.x_spd_limit = int(round(sdi_plus_speed_limit * self.auto_navi_speed_safety_factor))
+      self.x_spd_dist = sdi_plus_dist
+      self.x_spd_type = sdi_plus_type
+      if sdi_plus_block_type in (2, 3):
+        self.x_spd_dist = sdi_plus_block_dist
+        self.x_spd_type = 4
     else:
       self.x_spd_limit = 0
       self.x_spd_type = -1
@@ -716,6 +737,9 @@ class CarrotServ:
     self.epoch_time = _safe_int(r.get("epochTime"), 0)
     self.timezone = _safe_str(r.get("timezone"), "Asia/Seoul")
     self.n_tbt_next_road_width = _safe_int(r.get("nTBTNextRoadWidth"), 0)
+    self.goal_pos_x = _safe_float(r.get("goalPosX"), 0.0)
+    self.goal_pos_y = _safe_float(r.get("goalPosY"), 0.0)
+    self.sz_goal_name = _safe_str(r.get("szGoalName"), "")
 
     # --- Cruise advisory -------------------------------------------------
     n_road_limit = self.n_road_limit_speed
@@ -784,6 +808,9 @@ class CarrotServ:
     self.epoch_time = 0
     self.timezone = "Asia/Seoul"
     self.n_tbt_next_road_width = 0
+    self.goal_pos_x = 0.0
+    self.goal_pos_y = 0.0
+    self.sz_goal_name = ""
 
   # ---- parameter refresh -------------------------------------------------- #
 
