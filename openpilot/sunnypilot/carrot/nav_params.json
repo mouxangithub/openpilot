@@ -45,9 +45,9 @@
   "AutoEnTurnNewLaneTime": 0,
   "NewLaneWidthDiff": 8,
   "StopDistanceCarrot": 550,
-  "AutoNaviSpeedCtrlMode": 0,
-  "AutoNaviSpeedDecelRate": 150,
-  "AutoNaviSpeedSafetyFactor": 100,
+  "AutoNaviSpeedCtrlMode": 2,
+  "AutoNaviSpeedDecelRate": 120,
+  "AutoNaviSpeedSafetyFactor": 105,
   "SoundVolumeAdjust": 100,
   "SoundVolumeAdjustEngage": 100,
   "CarrotException": ""

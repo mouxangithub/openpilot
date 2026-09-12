@@ -93,9 +93,9 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "MapTurnSpeedFactor": 90,
   # Sound / stop behavior
   "StopDistanceCarrot": 550,
-  "AutoNaviSpeedCtrlMode": 0,
-  "AutoNaviSpeedDecelRate": 150,
-  "AutoNaviSpeedSafetyFactor": 100,
+  "AutoNaviSpeedCtrlMode": 2,
+  "AutoNaviSpeedDecelRate": 120,
+  "AutoNaviSpeedSafetyFactor": 105,
   "SoundVolumeAdjust": 100,
   "SoundVolumeAdjustEngage": 100,
   # Carrot exception message persists across manager start

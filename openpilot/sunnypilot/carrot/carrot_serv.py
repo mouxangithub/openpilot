@@ -830,7 +830,7 @@ class CarrotServ:
     self.auto_navi_speed_ctrl_mode = p.get_int("AutoNaviSpeedCtrlMode", 0)
     self.auto_navi_count_down_mode = p.get_int("AutoNaviCountDownMode", 0)
     self.turn_speed_control_mode = p.get_int("TurnSpeedControlMode", 1)
-    self.map_turn_speed_factor = float(p.get_int("MapTurnSpeedFactor", 100)) * 0.01
+    self.map_turn_speed_factor = float(p.get_int("MapTurnSpeedFactor", 90)) * 0.01
     self.auto_turn_control = p.get_int("AutoTurnControl", 2)
     self.auto_turn_control_speed_turn = p.get_int("AutoTurnControlSpeedTurn", 20)
     self.auto_turn_control_turn_end = p.get_int("AutoTurnControlTurnEnd", 6)
@@ -1431,6 +1431,7 @@ class CarrotServ:
 
     speed_n_sources = [
       (atc_desired, "atc"),
+      (atc_desired_next, "atc2"),
       (sdi_speed, "sdi"),
       (vehicle_camera_speed, "hda"),
       (vehicle_bump_speed, "hda_bump"),
