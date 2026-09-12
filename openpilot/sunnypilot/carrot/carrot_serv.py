@@ -27,9 +27,18 @@ import math
 import time
 from collections import deque
 from enum import IntEnum
+from typing import Any
 
 from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot.carrot.config import UnifiedParams
+
+
+# Countdown rearm threshold (meters). A jump larger than this means a new
+# target has appeared and the countdown should reset.
+COUNTDOWN_NEW_TARGET_MIN_JUMP_M = 20.0
+
+# How long the driver can override a school-zone slowdown before it is suppressed.
+SCHOOL_ZONE_GAS_OVERRIDE_TIMEOUT_S = 3.0
 
 
 # Turn type -> (maneuver type, modifier, xTurnInfo). xTurnInfo follows the
@@ -238,7 +247,10 @@ class CarrotServ:
     self.fork_speed_keep_time: int = -1
     self.gas_override_speed: int = 0
     self.gas_pressed_state: bool = False
+    self.speed_event_gas_pressed: bool = False
     self.source_last: str = "none"
+    self.school_zone_gas_override_started_at: float | None = None
+    self.school_zone_suppressed: bool = False
 
     # Countdown state.
     self.left_spd_sec: int = 100
@@ -259,6 +271,7 @@ class CarrotServ:
     self.auto_navi_speed_safety_factor: float = 1.05
     self.auto_navi_speed_bump_speed: float = 35.0
     self.auto_navi_speed_bump_time: float = 1.0
+    self.auto_navi_speed_ctrl_mode: int = 0
     self.auto_navi_count_down_mode: int = 0
     self.turn_speed_control_mode: int = 1
     self.map_turn_speed_factor: float = 1.0
@@ -399,7 +412,11 @@ class CarrotServ:
     self.fork_speed_keep_time = -1
     self.gas_override_speed = 0
     self.gas_pressed_state = False
+    self.speed_event_gas_pressed = False
     self.source_last = "none"
+    self.school_zone_gas_override_started_at = None
+    self.school_zone_suppressed = False
+    self._n_road_limit_speed_last = 0
     self.left_spd_sec = 100
     self.left_tbt_sec = 100
     self.left_sec = 100
@@ -569,6 +586,7 @@ class CarrotServ:
     self.auto_navi_speed_safety_factor = float(p.get_int("AutoNaviSpeedSafetyFactor", 100)) * 0.01
     self.auto_navi_speed_bump_speed = float(p.get_int("AutoNaviSpeedBumpSpeed", 35))
     self.auto_navi_speed_bump_time = float(p.get_int("AutoNaviSpeedBumpTime", 1))
+    self.auto_navi_speed_ctrl_mode = p.get_int("AutoNaviSpeedCtrlMode", 0)
     self.auto_navi_count_down_mode = p.get_int("AutoNaviCountDownMode", 0)
     self.turn_speed_control_mode = p.get_int("TurnSpeedControlMode", 1)
     self.map_turn_speed_factor = float(p.get_int("MapTurnSpeedFactor", 100)) * 0.01
@@ -598,6 +616,12 @@ class CarrotServ:
     self.show_debug_log = p.get_int("ShowDebugLog", 0)
     self.is_metric = p.get_bool("IsMetric", True)
 
+    # Vehicle CAN speed arbitration tuning (safe defaults for unregistered keys).
+    self.vehicle_speed_camera_control_mode = min(3, max(0, p.get_int("VehicleSpeedCameraControlMode", 0)))
+    self.vehicle_navi_can_control = min(3, max(0, p.get_int("VehicleNaviCanControl", 0)))
+    self.vehicle_navi_school_zone_control = p.get_bool("VehicleNaviSchoolZoneControl", False)
+    self.auto_navi_speed_bump_end_distance = float(min(5000, max(0, p.get_int("AutoNaviSpeedBumpEndDistance", 0)))) * 0.01
+
   def calculate_current_speed(self, left_dist: float, safe_speed_kph: float,
                               safe_time: float, safe_decel_rate: float) -> float:
     """Deceleration-aware speed target (km/h)."""
@@ -611,6 +635,166 @@ class CarrotServ:
       return safe_speed_kph
     speed_mps = math.sqrt(temp)
     return max(safe_speed_kph, min(250.0, speed_mps * 3.6))
+
+  # ---- vehicle CAN speed arbitration helpers ----------------------------- #
+
+  def _vehicle_speed_camera_enabled(self, cs: Any) -> bool:
+    """True when the vehicle CAN reports an active speed-limit camera."""
+    return bool(
+      self.vehicle_speed_camera_control_mode > 0 and
+      getattr(cs, "speedLimit", 0.0) > 0 and
+      getattr(cs, "speedLimitDistance", 0.0) > 0 and
+      not (getattr(cs, "schoolZoneActive", False) and self.school_zone_suppressed) and
+      not (self.vehicle_speed_camera_control_mode == 3 and getattr(cs, "gasPressed", False))
+    )
+
+  def _speed_bump_control_active(self, distance: float) -> bool:
+    """True when the phone's speed-bump alert is still inside the configured end zone."""
+    return float(distance) > self.auto_navi_speed_bump_end_distance
+
+  def _vehicle_speed_bump_enabled(self, cs: Any) -> bool:
+    """True when the vehicle CAN reports a speed bump we should slow for."""
+    return bool(
+      self.vehicle_navi_can_control > 0 and
+      self.auto_navi_speed_ctrl_mode >= 2 and
+      self._speed_bump_control_active(getattr(cs, "speedBumpDistance", 0.0))
+    )
+
+  def _vehicle_school_zone_enabled(self, cs: Any) -> bool:
+    """True when the vehicle CAN reports an active school zone and we have not suppressed it."""
+    if not getattr(cs, "schoolZoneActive", False):
+      self.school_zone_gas_override_started_at = None
+      self.school_zone_suppressed = False
+      return False
+    return bool(
+      self.vehicle_navi_school_zone_control and
+      self.vehicle_speed_camera_control_mode > 0 and
+      not self.school_zone_suppressed and
+      not (self.vehicle_speed_camera_control_mode == 3 and getattr(cs, "gasPressed", False))
+    )
+
+  def _vehicle_school_zone_speed(self, cs: Any) -> float:
+    """Target speed (km/h) for an active school zone, or 250 when inactive."""
+    return 30.0 if self._vehicle_school_zone_enabled(cs) else 250.0
+
+  def _vehicle_section_zone_enabled(self, cs: Any) -> bool:
+    """True when the vehicle CAN reports an active section-speed zone."""
+    return bool(
+      self.vehicle_navi_can_control > 0 and
+      self.vehicle_speed_camera_control_mode > 0 and
+      getattr(cs, "vehicleNaviSectionActive", False) and
+      getattr(cs, "vehicleNaviSpeed", 0.0) > 0 and
+      not (self.vehicle_speed_camera_control_mode == 3 and getattr(cs, "gasPressed", False))
+    )
+
+  @staticmethod
+  def _legacy_sdi_suppressed(x_spd_type: int, vehicle_camera_active: bool,
+                              vehicle_bump_active: bool) -> bool:
+    """Suppress phone SDI when the vehicle CAN already reports the same hazard.
+
+    Keeps independent KISA/Waze hazards (100/101); only replaces navigation
+    camera/section candidates that can describe the same physical alert.
+    """
+    same_camera = vehicle_camera_active and x_spd_type in SDI_SPEED_CAMERA_TYPES
+    same_bump = vehicle_bump_active and x_spd_type == 22
+    return same_camera or same_bump
+
+  def _update_school_zone_gas_override(self, override_active: bool) -> None:
+    """Track how long the driver has been overriding a school-zone slowdown."""
+    if not override_active:
+      self.school_zone_gas_override_started_at = None
+      return
+    now = time.monotonic()
+    if self.school_zone_gas_override_started_at is None:
+      self.school_zone_gas_override_started_at = now
+    elif now - self.school_zone_gas_override_started_at >= SCHOOL_ZONE_GAS_OVERRIDE_TIMEOUT_S:
+      self.school_zone_suppressed = True
+
+  def _apply_speed_source_gas_floor(self, cs: Any, desired_speed: float, source: str,
+                                     v_ego_kph: float,
+                                     road_speed_limit_changed: bool) -> tuple[float, str]:
+    """Apply driver accelerator override to the chosen speed source.
+
+    Vehicle CAN sources (hda, hda_section, hda_bump, school) have configurable
+    gas floors.  Other sources preserve the existing override semantics so road
+    limits and curves are not silently disabled by vehicle-camera modes.
+    """
+    speed_event_gas_rising = getattr(cs, "gasPressed", False) and not self.speed_event_gas_pressed
+    self.speed_event_gas_pressed = bool(getattr(cs, "gasPressed", False))
+
+    if source in ("hda", "hda_section", "hda_bump", "school"):
+      # Vehicle speed bumps always allow an intentional accelerator override.
+      # Camera, section, and school sources follow mode 2 only after their
+      # target has fallen below the current speed and actual deceleration is
+      # requested.
+      gas_floor_active = source == "hda_bump" or self.vehicle_speed_camera_control_mode == 2
+      if not gas_floor_active:
+        self.gas_override_speed = 0
+      else:
+        reset_floor = (
+          source != self.source_last or
+          getattr(cs, "vEgo", 0.0) < 0.1 or
+          desired_speed > 150 or
+          getattr(cs, "brakePressed", False) or
+          road_speed_limit_changed
+        )
+        if reset_floor:
+          self.gas_override_speed = 0
+        if self.gas_override_speed <= 0:
+          if (
+            speed_event_gas_rising and
+            not getattr(cs, "brakePressed", False) and
+            getattr(cs, "vEgo", 0.0) >= 0.1 and
+            desired_speed <= 150 and
+            desired_speed < v_ego_kph
+          ):
+            # A new accelerator input during active event deceleration means
+            # the driver wants to ignore the remaining slowdown.
+            self.gas_override_speed = v_ego_kph
+        elif getattr(cs, "gasPressed", False):
+          # Keep the highest speed reached while overriding this event.
+          self.gas_override_speed = max(v_ego_kph, self.gas_override_speed)
+
+      self.source_last = source
+      override_active = gas_floor_active and desired_speed < self.gas_override_speed
+      if source == "school":
+        self._update_school_zone_gas_override(override_active)
+      elif not self.school_zone_suppressed:
+        self.school_zone_gas_override_started_at = None
+      if override_active:
+        return self.gas_override_speed, "gas"
+      return desired_speed, source
+
+    # Vehicle speed-camera modes must not change the existing accelerator
+    # override behavior for road limits, curves, or other navigation sources.
+    if source != self.source_last:
+      self.gas_override_speed = 0
+      self.gas_pressed_state = bool(getattr(cs, "gasPressed", False))
+
+    reset_floor = (
+      getattr(cs, "vEgo", 0.0) < 0.1 or
+      desired_speed > 150 or
+      source in ("cam", "section", "police") or
+      getattr(cs, "brakePressed", False) or
+      road_speed_limit_changed
+    )
+    if reset_floor:
+      self.gas_override_speed = 0
+    elif source == "bump":
+      if self.gas_override_speed <= 0:
+        if speed_event_gas_rising and desired_speed < v_ego_kph:
+          self.gas_override_speed = v_ego_kph
+      elif getattr(cs, "gasPressed", False):
+        self.gas_override_speed = max(v_ego_kph, self.gas_override_speed)
+    elif getattr(cs, "gasPressed", False) and not self.gas_pressed_state:
+      self.gas_override_speed = max(v_ego_kph, self.gas_override_speed)
+    else:
+      self.gas_pressed_state = False
+
+    self.source_last = source
+    if desired_speed < self.gas_override_speed:
+      return self.gas_override_speed, "gas"
+    return desired_speed, source
 
   # ---- traffic light DETECT state machine -------------------------------- #
 
@@ -833,6 +1017,8 @@ class CarrotServ:
 
     # Re-derive TBT/SDI from the cached packet, then apply time-based decay.
     self.derive(v_ego_kph)
+    road_speed_limit_changed = self.n_road_limit_speed != getattr(self, "_n_road_limit_speed_last", 0)
+    self._n_road_limit_speed_last = self.n_road_limit_speed
     delta_dist = v_ego * DT_MDL
     self.x_spd_dist = max(self.x_spd_dist - int(delta_dist), -1000)
     self.x_dist_to_turn = int(self.x_dist_to_turn - delta_dist)
@@ -871,33 +1057,60 @@ class CarrotServ:
       elif self.n_road_limit_speed > 0:
         limit_speed = 30.0
 
-    # Vehicle CAN speed sources (school zone / speed bump / section speed).
+    # Vehicle CAN speed sources (speed camera / school zone / speed bump / section speed).
+    vehicle_camera_speed = 250.0
     vehicle_bump_speed = 250.0
     vehicle_school_speed = 250.0
     vehicle_section_speed = 250.0
+    vehicle_speed_camera_active = cs is not None and self._vehicle_speed_camera_enabled(cs)
+    vehicle_bump_active = cs is not None and self._vehicle_speed_bump_enabled(cs)
     if cs is not None:
-      school_zone_active = bool(getattr(cs, "schoolZoneActive", False))
       speed_bump_distance = float(getattr(cs, "speedBumpDistance", 0.0) or 0.0)
-      vehicle_navi_section_active = bool(getattr(cs, "vehicleNaviSectionActive", False))
-      vehicle_navi_speed = float(getattr(cs, "vehicleNaviSpeed", 0.0) or 0.0)
       car_speed_limit = float(getattr(cs, "speedLimit", 0.0) or 0.0)
 
-      if school_zone_active:
-        vehicle_school_speed = 30.0
-      if speed_bump_distance > 0.0:
+      if vehicle_speed_camera_active:
+        vehicle_camera_speed = self.calculate_current_speed(
+          getattr(cs, "speedLimitDistance", 0.0),
+          car_speed_limit * self.auto_navi_speed_safety_factor,
+          self.auto_navi_speed_ctrl_end,
+          self.auto_navi_speed_decel_rate,
+        )
+      if vehicle_bump_active:
         vehicle_bump_speed = self.calculate_current_speed(
           speed_bump_distance, self.auto_navi_speed_bump_speed,
           self.auto_navi_speed_bump_time, self.auto_navi_speed_decel_rate,
         )
-      if vehicle_navi_section_active and vehicle_navi_speed > 0.0:
-        vehicle_section_speed = vehicle_navi_speed * self.auto_navi_speed_safety_factor
+        self.active_carrot = 5
+
+      vehicle_school_speed = self._vehicle_school_zone_speed(cs)
+      if vehicle_school_speed < 250.0:
+        self.active_carrot = 6
+      if self._vehicle_section_zone_enabled(cs):
+        vehicle_section_speed = float(getattr(cs, "vehicleNaviSpeed", 0.0) or 0.0) * self.auto_navi_speed_safety_factor
+        self.active_carrot = 4
+
       # If no phone navi road limit is active, mirror the car's own speed limit.
       if car_speed_limit > 0.0 and self.n_road_limit_speed <= 0:
         self.n_road_limit_speed = int(car_speed_limit * 3.6 + 0.5)
 
+    # Legacy phone SDI is suppressed when the vehicle CAN already reports the same hazard.
+    legacy_sdi_active = (self.x_spd_limit > 0 and (self.x_spd_dist > 0 or self.x_spd_type in (100, 101)) and
+                         self.active_carrot > 0 and
+                         (self.x_spd_type != 22 or self._speed_bump_control_active(self.x_spd_dist)) and
+                         not self._legacy_sdi_suppressed(self.x_spd_type, vehicle_speed_camera_active, vehicle_bump_active))
+    if legacy_sdi_active:
+      safe_sec = self.auto_navi_speed_bump_time if self.x_spd_type == 22 else self.auto_navi_speed_ctrl_end
+      sdi_speed = min(sdi_speed, self.calculate_current_speed(self.x_spd_dist, self.x_spd_limit, safe_sec,
+                                                              self.auto_navi_speed_decel_rate))
+      self.active_carrot = 5 if self.x_spd_type == 22 else 3
+      if self.x_spd_type == 4 or (self.x_spd_type in (100, 101) and self.x_spd_dist <= 0):
+        sdi_speed = self.x_spd_limit
+        self.active_carrot = 4
+
     speed_n_sources = [
       (atc_desired, "atc"),
       (sdi_speed, "sdi"),
+      (vehicle_camera_speed, "hda"),
       (vehicle_bump_speed, "hda_bump"),
       (vehicle_school_speed, "school"),
       (vehicle_section_speed, "hda_section"),
@@ -914,6 +1127,12 @@ class CarrotServ:
                                   self.auto_curve_speed_lower_limit), "route"))
 
     desired_speed, source = min(speed_n_sources, key=lambda x: x[0])
+
+    if cs is not None:
+      desired_speed, source = self._apply_speed_source_gas_floor(
+        cs, desired_speed, source, v_ego_kph, road_speed_limit_changed,
+      )
+
     self.desired_speed = int(desired_speed)
     self.desired_source = source
 

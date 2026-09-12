@@ -492,6 +492,70 @@ class TestCarrotManager(unittest.TestCase):
 
     assert self.mgr._carrot_serv.raw.get("nRoadLimitSpeed", 0) == 0
 
+  # ---- CarrotServ CAN speed arbitration tests ---------------------------- #
+
+  def test_vehicle_speed_camera_enabled(self):
+    serv = self.mgr._carrot_serv
+    serv.vehicle_speed_camera_control_mode = 1
+    cs = MagicMock(speedLimit=80.0, speedLimitDistance=300.0, schoolZoneActive=False, gasPressed=False)
+    assert serv._vehicle_speed_camera_enabled(cs) is True
+
+  def test_vehicle_speed_camera_disabled_when_mode_zero(self):
+    serv = self.mgr._carrot_serv
+    serv.vehicle_speed_camera_control_mode = 0
+    cs = MagicMock(speedLimit=80.0, speedLimitDistance=300.0, schoolZoneActive=False, gasPressed=False)
+    assert serv._vehicle_speed_camera_enabled(cs) is False
+
+  def test_legacy_sdi_suppressed_for_camera(self):
+    serv = self.mgr._carrot_serv
+    assert serv._legacy_sdi_suppressed(1, True, False) is True
+    assert serv._legacy_sdi_suppressed(100, True, False) is False
+
+  def test_legacy_sdi_suppressed_for_bump(self):
+    serv = self.mgr._carrot_serv
+    assert serv._legacy_sdi_suppressed(22, False, True) is True
+    assert serv._legacy_sdi_suppressed(22, False, False) is False
+
+  def test_school_zone_speed(self):
+    serv = self.mgr._carrot_serv
+    serv.vehicle_speed_camera_control_mode = 1
+    serv.vehicle_navi_school_zone_control = True
+    cs = MagicMock(schoolZoneActive=True, gasPressed=False)
+    assert serv._vehicle_school_zone_speed(cs) == 30.0
+
+  def test_school_zone_suppressed_after_gas_override_timeout(self):
+    serv = self.mgr._carrot_serv
+    serv.vehicle_speed_camera_control_mode = 1
+    serv.vehicle_navi_school_zone_control = True
+    cs = MagicMock(schoolZoneActive=True, gasPressed=False)
+    # Start override timer far in the past.
+    serv.school_zone_gas_override_started_at = time.monotonic() - 10.0
+    serv._update_school_zone_gas_override(True)
+    assert serv.school_zone_suppressed is True
+
+  def test_gas_floor_for_vehicle_bump(self):
+    serv = self.mgr._carrot_serv
+    serv.vehicle_speed_camera_control_mode = 2
+    cs = MagicMock(vEgo=20.0, gasPressed=True, brakePressed=False)
+    desired, source = serv._apply_speed_source_gas_floor(cs, 40.0, "hda_bump", 80.0, False)
+    assert source == "gas"
+    assert desired == 80.0
+
+  def test_gas_floor_resets_when_braking(self):
+    serv = self.mgr._carrot_serv
+    serv.gas_override_speed = 80.0
+    cs = MagicMock(vEgo=20.0, gasPressed=True, brakePressed=True)
+    desired, source = serv._apply_speed_source_gas_floor(cs, 40.0, "hda_bump", 80.0, False)
+    assert source == "hda_bump"
+    assert desired == 40.0
+
+  def test_gas_floor_road_source_untouched(self):
+    serv = self.mgr._carrot_serv
+    cs = MagicMock(vEgo=20.0, gasPressed=True, brakePressed=False)
+    desired, source = serv._apply_speed_source_gas_floor(cs, 60.0, "road", 80.0, False)
+    assert source == "road"
+    assert desired == 60.0
+
 
 if __name__ == "__main__":
   unittest.main()
