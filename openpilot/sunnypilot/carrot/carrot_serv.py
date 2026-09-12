@@ -39,6 +39,12 @@ from openpilot.sunnypilot.carrot.config import UnifiedParams
 NAV_TYPE_MAPPING: dict[int, tuple[str, str, int]] = {
   12: ("turn", "left", 1),
   16: ("turn", "sharp left", 1),
+  1000: ("turn", "slight left", 1),
+  1001: ("turn", "slight right", 2),
+  1002: ("fork", "slight left", 3),
+  1003: ("fork", "slight right", 4),
+  1006: ("off ramp", "left", 3),
+  1007: ("off ramp", "right", 4),
   13: ("turn", "right", 2),
   19: ("turn", "sharp right", 2),
   102: ("off ramp", "slight left", 3),

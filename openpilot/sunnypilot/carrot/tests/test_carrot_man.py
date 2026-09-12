@@ -136,6 +136,18 @@ class TestCarrotManager(unittest.TestCase):
     assert TURN_TYPE_MAPPING[13] == ("turn", "right", 2)
     assert TURN_TYPE_MAPPING[201] == ("arrive", "straight", 8)
 
+  def test_turn_type_mapping_tmap_extended_codes(self):
+    assert TURN_TYPE_MAPPING[1000] == ("turn", "slight left", 1)
+    assert TURN_TYPE_MAPPING[1001] == ("turn", "slight right", 2)
+    assert TURN_TYPE_MAPPING[1002] == ("fork", "slight left", 3)
+    assert TURN_TYPE_MAPPING[1003] == ("fork", "slight right", 4)
+    assert TURN_TYPE_MAPPING[1006] == ("off ramp", "left", 3)
+    assert TURN_TYPE_MAPPING[1007] == ("off ramp", "right", 4)
+
+  def test_turn_type_mapping_preserves_sp_specific_codes(self):
+    assert TURN_TYPE_MAPPING[14] == ("turn", "uturn", 7)
+    assert TURN_TYPE_MAPPING[201] == ("arrive", "straight", 8)
+
   def test_update_raw_populates_navigation(self):
     packet = {
       "nRoadLimitSpeed": 80,
