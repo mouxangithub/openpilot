@@ -286,6 +286,9 @@ class CarrotServ:
     self._last_cmd_index: int = -1
     self.navi_paths: str = ""
 
+    # UI language for SDI descriptions.
+    self.lang: str = "en"
+
     # Tuning cache (refreshed by update_params(); safe defaults here so the
     # class never crashes even if update_params() has not run yet).
     self.auto_navi_speed_safety_factor: float = 1.05
@@ -507,17 +510,18 @@ class CarrotServ:
         if diff > 180.0:
           diff -= 360.0
         self._bearing_offset = self._bearing_offset * 0.9 + diff * 0.1
+      # Navi source is primary: update the fused position directly.
+      self._last_calculate_gps_time = now
+      lat, lon = self._navi_gps_lat, self._navi_gps_lon
+      self.vp_pos_point_lat, self.vp_pos_point_lon = lat, lon
+      return
     else:
       self._diff_angle_count = 0
 
     bearing_calculated = (bearing + self._bearing_offset) % 360.0
 
-    # Choose position source. Navi is primary; if it times out, fall back to
-    # standalone phone GPS. Device GPS is used only when both navi sources die.
-    if navi_valid:
-      self._last_calculate_gps_time = now
-      lat, lon = self._navi_gps_lat, self._navi_gps_lon
-    elif phone_valid:
+    # Navi timed out: try phone GPS, then device GPS, then dead-reckon.
+    if phone_valid:
       self._last_update_gps_time_phone = self._last_calculate_gps_time = now
       lat, lon = self._phone_gps_lat, self._phone_gps_lon
       self._navi_gps_angle = self._phone_gps_heading
@@ -612,6 +616,8 @@ class CarrotServ:
     self.carrot_left_sec = 100
     self.sdi_inform = False
     self.active_kisa_count = 0
+    self._last_x_spd_dist = 0
+    self._last_x_dist_to_turn = 0
     self.n_sdi_section = -1
     self.gps_speed = 0.0
     self.epoch_time = 0
@@ -668,15 +674,21 @@ class CarrotServ:
 
     self.sz_sdi_descr = ""
     if sdi_type in SDI_SPEED_CAMERA_TYPES and sdi_speed_limit > 0:
-      self.x_spd_limit = sdi_speed_limit
-      self.x_spd_dist = sdi_dist
-      self.x_spd_type = sdi_type
-      if sdi_block_type in (2, 3):
-        self.x_spd_dist = sdi_block_dist
-        self.x_spd_type = 4
+      # Mobile speed camera is ignored unless the user explicitly enabled it.
+      if sdi_type == 7 and self.auto_navi_speed_ctrl_mode < 3:
+        self.x_spd_limit = 0
+        self.x_spd_type = -1
+        self.x_spd_dist = 0
+      else:
+        self.x_spd_limit = int(round(sdi_speed_limit * self.auto_navi_speed_safety_factor))
+        self.x_spd_dist = sdi_dist
+        self.x_spd_type = sdi_type
+        if sdi_block_type in (2, 3):
+          self.x_spd_dist = sdi_block_dist
+          self.x_spd_type = 4
     elif (sdi_plus_type == 22 or sdi_type == 22) and roadcate > 1:
       # Speed bump on non-highway road.
-      self.x_spd_limit = 25
+      self.x_spd_limit = int(round(self.auto_navi_speed_bump_speed * self.auto_navi_speed_safety_factor))
       self.x_spd_dist = sdi_plus_dist if sdi_plus_type == 22 else sdi_dist
       self.x_spd_type = 22
     else:
@@ -685,7 +697,7 @@ class CarrotServ:
       self.x_spd_dist = 0
 
     if self.x_spd_type >= 0:
-      self.sz_sdi_descr = f"sdi:{self.x_spd_type}"
+      self.sz_sdi_descr = self._get_sdi_descr(self.x_spd_type)
 
     # --- Curve speed (turn) ---------------------------------------------
     if self.x_turn_info > 0 and self.x_dist_to_turn > 0:
@@ -818,6 +830,9 @@ class CarrotServ:
     self.show_debug_log = p.get_int("ShowDebugLog", 0)
     self.is_metric = p.get_bool("IsMetric", True)
 
+    lang = str(p.get("LanguageSetting") or "en").strip().removeprefix("main_")
+    self.lang = {"ko": "ko", "zh": "zh", "zh-CHS": "zh", "zh-CHT": "zh"}.get(lang, "en")
+
     # Vehicle CAN speed arbitration tuning (safe defaults for unregistered keys).
     self.vehicle_speed_camera_control_mode = min(3, max(0, p.get_int("VehicleSpeedCameraControlMode", 0)))
     self.vehicle_navi_can_control = min(3, max(0, p.get_int("VehicleNaviCanControl", 0)))
@@ -911,6 +926,82 @@ class CarrotServ:
       self.school_zone_gas_override_started_at = now
     elif now - self.school_zone_gas_override_started_at >= SCHOOL_ZONE_GAS_OVERRIDE_TIMEOUT_S:
       self.school_zone_suppressed = True
+
+  def _get_sdi_descr(self, n_sdi_type: int) -> str:
+    """Return a human-readable SDI description in the user's language."""
+    sdi_ko = {
+      0: "신호과속", 1: "과속 (고정식)", 2: "구간단속 시작", 3: "구간단속 끝",
+      4: "구간단속중", 5: "꼬리물기단속칩", 6: "신호 단속", 7: "과속 (이동식)",
+      8: "고정식 과속위험 구간(박스형)", 9: "버스전용차로구간", 10: "가변 차로 단속",
+      11: "갓길 감시 지점", 12: "끼어들기 금지", 13: "교통정보 수집지점",
+      14: "방범용cctv", 15: "과적차량 위험구간", 16: "적재 불량 단속",
+      17: "주차단속 지점", 18: "일방통행도로", 19: "철길 건실목",
+      20: "어린이 보호구역(스쿨존 시작 구간)", 21: "어린이 보호구역(스쿨존 끝 구간)",
+      22: "과속방지턱", 23: "lpg충전소", 24: "터널 구간", 25: "휴게소",
+      26: "톨게이트", 27: "안개주의 지역", 28: "유핍물질 지역", 29: "사고다발",
+      30: "급커브지역", 31: "급커브구간1", 32: "급경사구간",
+      33: "야생동물 교통사고 잦은 구간", 34: "우측시야불량지점", 35: "시야불량지점",
+      36: "좌측시야불량지점", 37: "신호위반다발구간", 38: "과속운행다발구간",
+      39: "교통혼잡지역", 40: "방향별차로선택지점", 41: "무단횡단사고다발지점",
+      42: "갓길 사고 다발 지점", 43: "과속 사발 다발 지점", 44: "졸음 사고 다발 지점",
+      45: "사고다발지점", 46: "보행자 사고다발지점", 47: "차량도난사고 상습발생지점",
+      48: "낙석주의지역", 49: "결빙주의지역", 50: "병목지점", 51: "합류 도로",
+      52: "추락주의지역", 53: "지하차도 구간", 54: "주택밀집지역(교통진정지역)",
+      55: "인터체인지", 56: "분기점", 57: "휴게소(lpg충전가능)", 58: "교량",
+      59: "제동장치사고다발지점", 60: "중앙선침범사고다발지점",
+      61: "통행위반사고다발지점", 62: "목적지 건실편 안내", 63: "졸음 쉼터 안내",
+      64: "노후경유차단속", 65: "터널내 차로변경단속", 66: "",
+    }
+    sdi_en = {
+      0: "Signal speed enforcement", 1: "Speed camera (fixed)", 2: "Section control start",
+      3: "Section control end", 4: "Under section control", 5: "Block-the-box camera",
+      6: "Signal violation enforcement", 7: "Speed camera (mobile)",
+      8: "Fixed speed camera zone (box)", 9: "Bus-only lane zone",
+      10: "Reversible/variable lane enforcement", 11: "Shoulder surveillance point",
+      12: "No cut-in", 13: "Traffic data collection point", 14: "Security CCTV",
+      15: "Overloaded vehicle risk zone", 16: "Improper loading enforcement",
+      17: "Parking enforcement point", 18: "One-way road", 19: "Railroad crossing",
+      20: "School zone start", 21: "School zone end", 22: "Speed bump",
+      23: "LPG station", 24: "Tunnel section", 25: "Rest area", 26: "Toll gate",
+      27: "Fog caution area", 28: "Hazardous materials area", 29: "Accident-prone section",
+      30: "Sharp curve area", 31: "Sharp curve section 1", 32: "Steep slope section",
+      33: "Wild animal crossing area", 34: "Poor visibility (right)", 35: "Poor visibility",
+      36: "Poor visibility (left)", 37: "Frequent signal violations", 38: "Frequent speeding",
+      39: "Traffic congestion area", 40: "Lane selection by direction",
+      41: "Frequent jaywalking accidents", 42: "Frequent shoulder accidents",
+      43: "Frequent speeding accidents", 44: "Frequent drowsy driving accidents",
+      45: "Accident-prone spot", 46: "Frequent pedestrian accidents",
+      47: "Frequent vehicle theft", 48: "Falling rock caution area",
+      49: "Icy road caution area", 50: "Bottleneck point", 51: "Merging road",
+      52: "Cliff/Drop caution area", 53: "Underpass section",
+      54: "Residential area (traffic calming)", 55: "Interchange", 56: "Junction",
+      57: "Rest area (LPG available)", 58: "Bridge", 59: "Frequent brake failure accidents",
+      60: "Center line invasion accidents", 61: "Violation-of-passage accidents",
+      62: "Destination on opposite side", 63: "Drowsy rest area", 64: "Old diesel control",
+      65: "Lane change enforcement in tunnel", 66: "",
+    }
+    sdi_zh = {
+      0: "信号测速/闯灯拍照", 1: "固定测速摄像头", 2: "区间测速开始", 3: "区间测速结束",
+      4: "区间测速中", 5: "路口压线摄像头", 6: "闯红灯拍照", 7: "流动测速摄像头",
+      8: "测速拍照", 9: "公交专用车道区间", 10: "可变/潮汐车道拍照", 11: "应急车道拍照",
+      12: "禁止加塞", 13: "交通信息采集点", 14: "治安监控", 15: "超载车辆风险区",
+      16: "装载不当拍照", 17: "违停拍照点", 18: "单行道", 19: "铁路道口",
+      20: "学校区域开始", 21: "学校区域结束", 22: "减速带", 23: "LPG加气站",
+      24: "隧道区间", 25: "服务区", 26: "ETC计费拍照", 27: "多雾路段",
+      28: "危险品区域", 29: "事故多发路段", 30: "急弯路段", 31: "急弯区段1",
+      32: "陡坡路段", 33: "野生动物出没路段", 34: "右侧视野不良点", 35: "视野不良点",
+      36: "左侧视野不良点", 37: "闯红灯多发", 38: "超速多发", 39: "交通拥堵区域",
+      40: "按方向选择车道点", 41: "行人乱穿马路多发处", 42: "应急车道事故多发",
+      43: "超速事故多发", 44: "疲劳驾驶事故多发", 45: "事故多发点",
+      46: "行人事故多发点", 47: "车辆盗窃多发点", 48: "落石危险路段",
+      49: "路面结冰危险", 50: "瓶颈路段", 51: "汇入道路", 52: "坠落危险路段",
+      53: "地下车道区间", 54: "居民区（交通缓和）", 55: "立交", 56: "分岔点",
+      57: "服务区（可加气）", 58: "桥梁", 59: "制动故障事故多发点",
+      60: "越线事故多发点", 61: "违法通行事故多发点", 62: "目的地在对面",
+      63: "瞌睡停车区", 64: "老旧柴油车管制", 65: "隧道内变道拍照", 66: "",
+    }
+    sdi_map = {"ko": sdi_ko, "zh": sdi_zh}.get(self.lang, sdi_en)
+    return sdi_map.get(n_sdi_type, "")
 
   def _apply_speed_source_gas_floor(self, cs: Any, desired_speed: float, source: str,
                                      v_ego_kph: float,
@@ -1343,6 +1434,23 @@ class CarrotServ:
       left_turn_sec = min(1000, int(min(200000, max(self.x_dist_to_turn - v_ego, 1)) / max(1, v_ego) + 0.5))
     else:
       left_turn_sec = 0
+
+    # Detect a new target (distance jumped up) and rearm the countdown.
+    spd_target_changed = (
+      self.x_spd_dist > 0 and
+      self.x_spd_dist > getattr(self, "_last_x_spd_dist", 0) + COUNTDOWN_NEW_TARGET_MIN_JUMP_M
+    )
+    tbt_target_changed = (
+      self.x_dist_to_turn > 0 and
+      self.x_dist_to_turn > getattr(self, "_last_x_dist_to_turn", 0) + COUNTDOWN_NEW_TARGET_MIN_JUMP_M
+    )
+    if spd_target_changed:
+      self.left_spd_sec = 100
+    if tbt_target_changed:
+      self.left_tbt_sec = 100
+    self._last_x_spd_dist = self.x_spd_dist
+    self._last_x_dist_to_turn = self.x_dist_to_turn
+
     left_spd_sec = 100
     left_tbt_sec = 100
     if self.auto_navi_count_down_mode > 0:
@@ -1386,8 +1494,14 @@ class CarrotServ:
   # ---- Kisa (crowdsourced nav data) -------------------------------------- #
 
   def update_kisa(self, data: dict) -> None:
-    """Apply Kisa (waze-like) crowdsourced data from the phone app."""
+    """Apply Kisa (waze-like) crowdsourced data from the phone app.
+
+    Accepts both JSON objects and the legacy ``key:value/key:value``
+    string produced by older Kisa transmitters.
+    """
     self.active_kisa_count = 100
+    if "kisawazecurrentspd" in data:
+      pass
     if "kisawazeroadspdlimit" in data:
       road_limit_speed = _safe_int(data["kisawazeroadspdlimit"], 0)
       if road_limit_speed > 0:
@@ -1395,6 +1509,8 @@ class CarrotServ:
           road_limit_speed = int(road_limit_speed * 1.609344)
         self.n_road_limit_speed = road_limit_speed
         self._raw["nRoadLimitSpeed"] = road_limit_speed
+    if "kisawazealert" in data or "kisawazeendalert" in data:
+      pass
     if "kisawazeroadname" in data:
       self._raw["szPosRoadName"] = _safe_str(data["kisawazeroadname"], "")
 
@@ -1413,7 +1529,7 @@ class CarrotServ:
         x_spd_type = 100
       if x_spd_type >= 0:
         self.x_spd_type = x_spd_type
-        self.x_spd_limit = self.n_road_limit_speed + 5
+        self.x_spd_limit = int((self.n_road_limit_speed + 5) * self.auto_navi_speed_safety_factor) if self.n_road_limit_speed > 0 else 0
         self.x_spd_dist = distance
         self.active_carrot = 2
 

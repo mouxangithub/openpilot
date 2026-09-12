@@ -6,6 +6,7 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 import asyncio
+import hashlib
 import json
 import math
 import os
@@ -215,6 +216,9 @@ NAVI_HTTP_PORT = 7713
 NAVI_HTTP_MAX_BODY_SIZE = 16 * 1024 * 1024
 NAVI_EVENT_TYPES = ("complexCrossroad", "rgdata", "vrtx", "ssinf", "sinf", "route")
 NAVI_ROUTE_MAX_POINTS = 4096
+NAVI_IMAGE_PARAM = "CarrotNaviImage"
+NAVI_IMAGE_BASE64_MAX_CHARS = 6 * 1024 * 1024
+NAVI_DEBUG_PARAM = "CarrotNaviDebug"
 
 # Korean TMAP turn-type codes from the CarrotMan app -> (maneuverType, maneuverModifier, xTurnInfo).
 # xTurnInfo semantics used by the sunnypilot UI/planner:
@@ -1014,7 +1018,24 @@ class CarrotManager:
     msg['nRoadLimitSpeed'] = self._carrot_serv.n_road_limit_speed
     msg['vTurnSpeed'] = self._carrot_serv.v_turn_speed
     msg['trafficState'] = self._carrot_serv.traffic_state
-    msg['xState'] = 0
+
+    # Control-state fields used by the phone app for diagnostics.
+    active = False
+    x_state = 0
+    car_cruise_speed = 0.0
+    if self.sm.alive['carState']:
+      car_state = self.sm['carState']
+      car_cruise_speed = float(getattr(getattr(car_state, 'cruiseState', None), 'speed', 0.0) or 0.0) * 3.6
+    if self.sm.alive['selfdriveState']:
+      active = bool(self.sm['selfdriveState'].active)
+    if self.sm.alive['longitudinalPlan']:
+      lp = self.sm['longitudinalPlan']
+      x_state = int(getattr(lp, 'xState', 0) or 0)
+      msg['trafficState'] = int(getattr(lp, 'trafficState', msg['trafficState']) or 0)
+    msg['active'] = active
+    msg['xState'] = x_state
+    msg['carcruiseSpeed'] = car_cruise_speed
+    msg['navi_debug'] = 0
 
     return json.dumps(msg, ensure_ascii=False)
 
@@ -1679,6 +1700,87 @@ class CarrotManager:
       self._carrot_serv.update_map_traffic(state, countdown)
       self._put_navi_traffic_light(lamp, countdown, sinf.get("distance", 0), sinf.get("location"))
 
+  def _handle_navi_traffic_detail(self, ssinf: dict[str, Any]) -> None:
+    """Apply navipilot ssinf multi-direction traffic-light payload.
+
+    ssinf carries per-direction states (straight/left/right/uturn) as strings
+    like "GREEN_LIGHT_ON" / "RED_LIGHT_ON".  Green directions have priority in
+    the order left > straight > right > uturn; otherwise we report the maximum
+    red remaining time so the vehicle stops for any red direction.
+    """
+    if not isinstance(ssinf, dict):
+      return
+
+    green_checks = (
+      ("left", "left", "left_remain_time"),
+      ("straight", "green", "straight_remain_time"),
+      ("right", "right", "right_remain_time"),
+      ("uturn", "uturn", "uturn_remain_time"),
+    )
+    for field, lamp, remain_field in green_checks:
+      if str(ssinf.get(field, "")).upper() == "GREEN_LIGHT_ON":
+        remain = _safe_int(ssinf.get(remain_field), 0)
+        if remain > 0:
+          self._carrot_serv.update_map_traffic(
+            {"green": 2, "left": 3, "right": 2, "uturn": 3}[lamp], remain,
+          )
+          self._put_navi_traffic_light(lamp, remain, ssinf.get("distance", 0), None)
+          return
+
+    red_remain = 0
+    for field in ("straight", "left", "right", "uturn"):
+      if str(ssinf.get(field, "")).upper() == "RED_LIGHT_ON":
+        red_remain = max(red_remain, _safe_int(ssinf.get(f"{field}_remain_time"), 0))
+    if red_remain > 0:
+      self._carrot_serv.update_map_traffic(1, red_remain)
+      self._put_navi_traffic_light("red", red_remain, ssinf.get("distance", 0), None)
+
+  def _handle_complex_crossroad(self, d: Any) -> None:
+    """Persist complex-crossroad image metadata + base64 for UI rendering."""
+    if not isinstance(d, dict):
+      return
+    image_base64 = d.get("imageBase64")
+    image_hash = ""
+    if isinstance(image_base64, str) and image_base64:
+      digest = hashlib.sha256()
+      for index in range(0, len(image_base64), 65536):
+        digest.update(image_base64[index:index + 65536].encode("ascii", "ignore"))
+      image_hash = digest.hexdigest()[:16]
+
+    image_too_large = isinstance(image_base64, str) and len(image_base64) > NAVI_IMAGE_BASE64_MAX_CHARS
+    if image_too_large:
+      image_base64 = ""
+
+    payload = {
+      "receivedMono": time.monotonic(),
+      "show": bool(d.get("show", False)),
+      "imageBase64": image_base64 if isinstance(image_base64, str) else "",
+      "imageMime": str(d.get("imageMime", "")),
+      "imageEncoding": str(d.get("imageEncoding", "")),
+      "imageWidth": _safe_int(d.get("imageWidth"), 0),
+      "imageHeight": _safe_int(d.get("imageHeight"), 0),
+      "imageHash": image_hash,
+      "imageUrl": str(d.get("imageUrl", "")),
+      "imageTooLarge": image_too_large,
+    }
+    try:
+      self.params.put(NAVI_IMAGE_PARAM, json.dumps(payload, ensure_ascii=False))
+    except Exception as e:
+      cloudlog.error(f"carrot_man: failed to write {NAVI_IMAGE_PARAM} param: {e}")
+
+  def _write_navi_debug_param(self, obj: Any, event_type: str, event_time_ms: int) -> None:
+    """Persist a lightweight debug summary of the last handled navi event."""
+    try:
+      debug = {
+        "receivedAt": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "eventTimeMs": event_time_ms,
+        "type": event_type,
+        "summary": {"type": event_type, "keys": list(obj.keys())[:10]} if isinstance(obj, dict) else {"type": event_type},
+      }
+      self.params.put(NAVI_DEBUG_PARAM, json.dumps(debug, ensure_ascii=False))
+    except Exception as e:
+      cloudlog.error(f"carrot_man: failed to write {NAVI_DEBUG_PARAM} param: {e}")
+
   def _put_navi_traffic_light(self, lamp: str | None, remain: Any, distance: Any,
                               location: Any = None) -> None:
     """Persist the latest navi traffic-light hint to the TrafficLight param.
@@ -1780,7 +1882,7 @@ class CarrotManager:
 
     handled = False
     if "complexCrossroad" in obj:
-      # Visual crossroad image not yet consumed; record event only.
+      self._handle_complex_crossroad(obj["complexCrossroad"])
       handled = True
 
     if "rgdata" in obj:
@@ -1796,7 +1898,7 @@ class CarrotManager:
       handled = True
 
     if "ssinf" in obj:
-      self._handle_navi_traffic(obj["ssinf"])
+      self._handle_navi_traffic_detail(obj["ssinf"])
       handled = True
 
     if "sinf" in obj:
@@ -1807,7 +1909,9 @@ class CarrotManager:
       self._handle_navi_route(obj["route"])
       handled = True
 
-    if not handled:
+    if handled:
+      self._write_navi_debug_param(obj, event_type, event_time_ms)
+    else:
       cloudlog.debug(f"carrot_man: navi unknown keys: {list(obj.keys())[:10]}")
 
   def _carrot_navi_tcp_loop(self) -> None:
@@ -1945,17 +2049,35 @@ class CarrotManager:
   # ---- kisa app (P3-2) --------------------------------------------------- #
 
   def parse_kisa_data(self, data: bytes) -> dict[str, Any]:
-    """Parse kisa data from phone app."""
+    """Parse kisa data from phone app.
+
+    Handles JSON packets as well as the legacy ``key:value/key:value``
+    format used by some Kisa transmitters.
+    """
     import json
 
     try:
-      return json.loads(data.decode('utf-8'))
+      text = data.decode('utf-8')
+    except UnicodeDecodeError:
+      return {'raw': data.hex()}
+
+    try:
+      return json.loads(text)
     except json.JSONDecodeError:
-      # Try to parse as raw bytes
-      try:
-        return {'raw': data.decode('utf-8', errors='ignore')}
-      except Exception:
-        return {'raw': data.hex()}
+      result: dict[str, Any] = {}
+      for part in text.split('/'):
+        if ':' not in part:
+          continue
+        key, value = part.split(':', 1)
+        key = key.strip()
+        value = value.strip()
+        if not key:
+          continue
+        try:
+          result[key] = int(value)
+        except ValueError:
+          result[key] = value
+      return result
 
   def kisa_app_thread(self) -> None:
     """Kisa app UDP data handler thread."""

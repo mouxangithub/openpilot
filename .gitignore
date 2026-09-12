@@ -15,6 +15,7 @@ a.out
 .hypothesis
 .cache/
 bin/
+.ai/
 .workbuddy/
 .codebuddy/
 artifacts/

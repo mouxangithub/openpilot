@@ -201,9 +201,10 @@ class TestCarrotManager(unittest.TestCase):
     )
     self.mgr._derive_state(0.0)
     assert self.mgr._carrot_serv.x_spd_type == 1
-    assert self.mgr._carrot_serv.x_spd_limit == 80
+    # Default safety factor is 1.05.
+    assert self.mgr._carrot_serv.x_spd_limit == int(round(80 * 1.05))
     assert self.mgr._carrot_serv.x_spd_dist == 600
-    assert self.mgr._carrot_serv.desired_speed == 80
+    assert self.mgr._carrot_serv.desired_speed == int(round(80 * 1.05))
     assert self.mgr._carrot_serv.desired_source == "sdi"
 
   def test_derive_state_speed_bump(self):
@@ -332,8 +333,8 @@ class TestCarrotManager(unittest.TestCase):
   def test_dispatch_navi_ssinf_traffic_left(self):
     self.mgr._dispatch_navi_obj({
       "ssinf": {
-        "leftLightOn": True,
-        "leftLightRemainTime": 8,
+        "left": "GREEN_LIGHT_ON",
+        "left_remain_time": 8,
       },
     })
     assert self.mgr._carrot_serv.traffic_state == 3
