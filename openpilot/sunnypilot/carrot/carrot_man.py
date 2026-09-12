@@ -1205,6 +1205,30 @@ class CarrotManager:
         continue
     return points
 
+  def _extract_route_points_from_polyline(self, polyline: Any) -> list[tuple[float, float]]:
+    """Extract (lon, lat) tuples from a carrotNaviSP.route.polyline list."""
+    points: list[tuple[float, float]] = []
+    if not isinstance(polyline, list):
+      return points
+    for coord in polyline:
+      try:
+        if hasattr(coord, "longitude") and hasattr(coord, "latitude"):
+          lon = float(coord.longitude)
+          lat = float(coord.latitude)
+        elif isinstance(coord, dict):
+          lon = coord.get("longitude")
+          lat = coord.get("latitude")
+          if lon is None or lat is None:
+            continue
+          lon = float(lon)
+          lat = float(lat)
+        else:
+          continue
+        points.append((lon, lat))
+      except (TypeError, ValueError, AttributeError):
+        continue
+    return points
+
   def _limited_route_points(self, points: list[tuple[float, float]]) -> list[tuple[float, float]]:
     if len(points) <= NAVI_ROUTE_MAX_POINTS:
       return points
@@ -1346,11 +1370,19 @@ class CarrotManager:
       self._carrot_serv.raw_update("nTBTTurnTypeNext", int(getattr(g_next, "turnType", -1) or -1))
       self._carrot_serv.raw_update("szTBTMainTextNext", str(getattr(g_next, "mainText", "") or ""))
 
-    # Route remaining distance/time.
+    # Route remaining distance/time and polyline (from 7714 v2).
     route = getattr(navi, "route", None)
     if route is not None:
       self._carrot_serv.raw_update("nGoPosDist", int(getattr(route, "remainingDistanceM", 0) or 0))
       self._carrot_serv.raw_update("nGoPosTime", int(getattr(route, "remainingTimeSec", 0) or 0))
+      polyline = getattr(route, "polyline", None)
+      if polyline is not None:
+        points = self._extract_route_points_from_polyline(polyline)
+        if points:
+          self._navi_points = self._limited_route_points(points)
+          self._navi_points_start_index = 0
+          self._navi_points_active = True
+          self._navd_active = True
 
     # Lane hints: line blocked state for sunnypilot lateral arbitration.
     lane = getattr(navi, "laneCurrent", None)

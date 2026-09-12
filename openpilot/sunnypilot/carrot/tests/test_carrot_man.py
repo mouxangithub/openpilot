@@ -73,6 +73,9 @@ class _FakeSubMaster:
   def __getitem__(self, key):
     return self._data.get(key, MagicMock())
 
+  def __setitem__(self, key, value):
+    self._data[key] = value
+
 
 class _FakePubMaster:
   def __init__(self, services):
@@ -331,6 +334,58 @@ class TestCarrotManager(unittest.TestCase):
   def test_dispatch_navi_unknown_ignored(self):
     # Should not raise.
     self.mgr._dispatch_navi_obj({"foo": "bar"})
+
+  def test_apply_carrot_navi_sp_route_polyline(self):
+    self.mgr._carrot_navi_session = "session-1"
+    self.mgr._carrot_navi_generation = 1
+
+    route_polyline = [
+      {"latitude": 37.5, "longitude": 127.0},
+      {"latitude": 37.6, "longitude": 127.1},
+      {"latitude": 37.7, "longitude": 127.2},
+    ]
+    navi = MagicMock()
+    navi.generation = 2
+    navi.sessionId = "session-1"
+    navi.connected = True
+    navi.route = MagicMock()
+    navi.route.remainingDistanceM = 1000
+    navi.route.remainingTimeSec = 120
+    navi.route.polyline = route_polyline
+
+    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr._apply_carrot_navi_sp()
+
+    assert self.mgr._navi_points_active
+    assert len(self.mgr._navi_points) == 3
+    assert self.mgr._navi_points[0] == (127.0, 37.5)
+    assert self.mgr._navi_points[1] == (127.1, 37.6)
+    assert self.mgr._navi_points[2] == (127.2, 37.7)
+    assert self.mgr._navd_active
+
+  def test_apply_carrot_navi_sp_route_polyline_overwrites_legacy_route(self):
+    # Simulate an older 7712 TCP/7706 route already present.
+    self.mgr._navi_points = [(126.0, 36.0), (126.1, 36.1)]
+    self.mgr._navi_points_active = True
+    self.mgr._navd_active = True
+    self.mgr._carrot_navi_session = "session-1"
+    self.mgr._carrot_navi_generation = 1
+
+    navi = MagicMock()
+    navi.generation = 2
+    navi.sessionId = "session-1"
+    navi.connected = True
+    navi.route = MagicMock()
+    navi.route.remainingDistanceM = 500
+    navi.route.remainingTimeSec = 60
+    navi.route.polyline = [{"latitude": 38.0, "longitude": 128.0}]
+
+    self.mgr.sm["carrotNaviSP"] = navi
+    self.mgr._apply_carrot_navi_sp()
+
+    assert len(self.mgr._navi_points) == 1
+    assert self.mgr._navi_points[0] == (128.0, 38.0)
+    assert self.mgr._navi_points_active
 
 
 if __name__ == "__main__":
