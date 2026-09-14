@@ -66,11 +66,14 @@ class LongControl:
       output_accel = 0.
 
     elif self.long_control_state == LongCtrlState.stopping:
+      # Smoothly move the previous command toward the stationary hold acceleration
+      # in either direction. This prevents a hard PID brake from being carried
+      # unchanged into the terminal stop state or a sudden release at its entry.
       output_accel = self.last_output_accel
       if output_accel > self.CP.stopAccel:
-        output_accel = min(output_accel, 0.0)
-        # TODO: can we just go straight to stopAccel?
-        output_accel -= STOPPING_DECEL_RATE * DT_CTRL
+        output_accel = max(self.CP.stopAccel, min(output_accel, 0.0) - STOPPING_DECEL_RATE * DT_CTRL)
+      elif output_accel < self.CP.stopAccel:
+        output_accel = min(self.CP.stopAccel, output_accel + STOPPING_DECEL_RATE * DT_CTRL)
       self.reset()
 
     else:  # LongCtrlState.pid
