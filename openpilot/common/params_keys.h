@@ -353,17 +353,19 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CarrotPanelOpacity", {PERSISTENT | BACKUP, INT, "100"}},  // carrot nav HUD panel opacity percent 0-100
     {"LiDARUdpPort", {PERSISTENT | BACKUP, INT, "4211"}},  // LiDAR/camera direct-UDP listen port; dormant until start_navi_comm() is wired (C3 decision)
     {"MyDrivingMode", {PERSISTENT | BACKUP, INT, "1"}},  // 0=eco,1=normal,2=sport,3=safe
-    {"TFollowGap1", {PERSISTENT | BACKUP, FLOAT, "1.8"}},
-    {"TFollowGap2", {PERSISTENT | BACKUP, FLOAT, "1.5"}},
-    {"TFollowGap3", {PERSISTENT | BACKUP, FLOAT, "1.2"}},
-    {"TFollowGap4", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
-    {"CruiseMaxVals0", {PERSISTENT | BACKUP, FLOAT, "1.5"}},
-    {"CruiseMaxVals1", {PERSISTENT | BACKUP, FLOAT, "1.8"}},
-    {"CruiseMaxVals2", {PERSISTENT | BACKUP, FLOAT, "2.0"}},
-    {"CruiseMaxVals3", {PERSISTENT | BACKUP, FLOAT, "2.2"}},
-    {"CruiseMaxVals4", {PERSISTENT | BACKUP, FLOAT, "2.4"}},
-    {"CruiseMaxVals5", {PERSISTENT | BACKUP, FLOAT, "2.6"}},
-    {"CruiseMaxVals6", {PERSISTENT | BACKUP, FLOAT, "2.8"}},
+    // TFollowGap/CruiseMaxVals use the CarrotPilot int*100 representation so
+    // that carrot_functions.py can keep dividing by 100.0 (matching cp).
+    {"TFollowGap1", {PERSISTENT | BACKUP, INT, "110"}},
+    {"TFollowGap2", {PERSISTENT | BACKUP, INT, "120"}},
+    {"TFollowGap3", {PERSISTENT | BACKUP, INT, "140"}},
+    {"TFollowGap4", {PERSISTENT | BACKUP, INT, "160"}},
+    {"CruiseMaxVals0", {PERSISTENT | BACKUP, INT, "160"}},
+    {"CruiseMaxVals1", {PERSISTENT | BACKUP, INT, "160"}},
+    {"CruiseMaxVals2", {PERSISTENT | BACKUP, INT, "120"}},
+    {"CruiseMaxVals3", {PERSISTENT | BACKUP, INT, "100"}},
+    {"CruiseMaxVals4", {PERSISTENT | BACKUP, INT, "80"}},
+    {"CruiseMaxVals5", {PERSISTENT | BACKUP, INT, "70"}},
+    {"CruiseMaxVals6", {PERSISTENT | BACKUP, INT, "60"}},
     {"TrafficLight", {CLEAR_ON_MANAGER_START, JSON, "{}"}},  // fused/carrot navi traffic-light state
     {"CarrotNaviCrossroad", {CLEAR_ON_MANAGER_START, JSON, "{}"}},  // visible complex-crossroad hint from 7714 v2
     {"CarrotNaviImage", {CLEAR_ON_MANAGER_START, JSON, "{}"}},  // 7714 v2 complex-crossroad base64 image for HUD overlay
@@ -469,10 +471,10 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"SoundVolumeAdjustEngage", {PERSISTENT | BACKUP, INT, "0"}},
     {"CarrotException", {PERSISTENT | BACKUP, STRING, ""}},
     {"JLeadFactor3", {PERSISTENT | BACKUP, FLOAT, "0"}},
-    {"CruiseEcoControl", {PERSISTENT | BACKUP, INT, "0"}},
+    {"CruiseEcoControl", {PERSISTENT | BACKUP, INT, "2"}},
     {"MyDrivingModeAuto", {PERSISTENT | BACKUP, INT, "0"}},
     {"DynamicTFollow", {PERSISTENT | BACKUP, FLOAT, "0"}},
-    {"DynamicTFollowLC", {PERSISTENT | BACKUP, FLOAT, "0"}},
+    {"DynamicTFollowLC", {PERSISTENT | BACKUP, FLOAT, "100.0"}},
     // Carrot longitudinal / t_follow tuning surface (webui exposure, mirrors config.py).
     {"LeadAccelResponse", {PERSISTENT | BACKUP, INT, "0"}},
     {"LongActuatorDelay", {PERSISTENT | BACKUP, INT, "20"}},
