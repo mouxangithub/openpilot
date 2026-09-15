@@ -2856,7 +2856,13 @@ def main_thread():
   rk = Ratekeeper(DEFAULT_RATE, print_delay_threshold=None)
 
   while True:
-    manager.tick()
+    try:
+      manager.tick()
+    except Exception as e:
+      # Never let a single tick() exception kill the daemon; log it and keep
+      # the main loop alive so threads (UDP listener, broadcast, ZMQ, navi
+      # servers) stay bound and manager does not mark carrot_man as dead.
+      cloudlog.exception(f"carrot_man: tick() error: {e}")
     rk.keep_time()
 
 
