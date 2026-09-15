@@ -71,6 +71,7 @@ private:
   MatrixXdr device_from_calib;
   MatrixXdr calib_from_device;
   bool calibrated = false;
+  bool imu_calibration_enabled = false;
 
   double car_speed = 0.0;
   double last_reset_time = NAN;
@@ -97,4 +98,5 @@ private:
   Eigen::VectorXd camodo_yawrate_distribution = Eigen::Vector2d(0.0, 10.0); // mean, std
 
   void configure_gnss_source(const LocalizerGnssSource &source);
+  void load_imu_calibration_params();
 };

@@ -35,7 +35,8 @@ class UIStateSP:
     self.is_sp_release: bool = self.params.get_bool("IsReleaseSpBranch")
     self.sm_services_ext = [
       "modelManagerSP", "selfdriveStateSP", "longitudinalPlanSP", "backupManagerSP",
-      "gpsLocation", "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay"
+      "gpsLocation", "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay",
+      "imuCalibrationSP", "carrotManSP",
     ]
 
     self.sunnylink_state = SunnylinkState()
@@ -63,6 +64,7 @@ class UIStateSP:
     self.enforce_torque_control: bool = False
     self.custom_torque_params: bool = False
     self.torque_override_enabled: bool = False
+    self.amap_enabled: bool = False
     self._sp_initialized: bool = False
 
   def update(self) -> None:
@@ -163,6 +165,7 @@ class UIStateSP:
     self.chevron_metrics = self.params.get("ChevronInfo")
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
     self.developer_ui = self.params.get("DevUIInfo")
+    self.hide_firehose_prompt = self.params.get_bool("HideFirehosePrompt")
     self.hide_v_ego_ui = self.params.get_bool("HideVEgoUI")
     self.onroad_brightness = int(float(self.params.get("OnroadScreenOffBrightness", return_default=True)))
     self.onroad_brightness_timer_param = self.params.get("OnroadScreenOffTimer", return_default=True)
@@ -183,6 +186,7 @@ class UIStateSP:
     self.boot_offroad_mode = self.params.get("DeviceBootMode", return_default=True)
     self.always_offroad = self.params.get_bool("OffroadMode")
     self.screensaver_enabled = self.params.get_bool("ScreenSaverEnabled")
+    self.amap_enabled = self.params.get_bool("AmapEnabled")
 
     if not self._sp_initialized:
       self._sp_initialized = True
@@ -274,6 +278,10 @@ class DeviceSP:
   def set_onroad_brightness(_ui_state, awake: bool, cur_brightness: float) -> float:
     if not awake or not _ui_state.started:
       return cur_brightness
+
+    # Keep screen at 100% when onroad brightness is set to maximum (22 -> 100%)
+    if _ui_state.onroad_brightness == 22:
+      return 100.0
 
     if _ui_state.onroad_brightness_timer != 0:
       if _ui_state.onroad_brightness == OnroadBrightness.AUTO_DARK:

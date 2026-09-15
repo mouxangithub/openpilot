@@ -12,7 +12,7 @@ import openpilot.system.sentry as sentry
 from openpilot.common.utils import atomic_write
 from openpilot.common.params import Params, ParamKeyFlag
 from openpilot.common.text_window import TextWindow
-from openpilot.common.hardware import HARDWARE, PC
+from openpilot.common.hardware import HARDWARE, PC, COMMA_HARDWARE
 from openpilot.system.manager.helpers import unblock_stdout, save_bootlog
 from openpilot.system.manager.process import ensure_running
 from openpilot.system.manager.process_config import managed_processes
@@ -52,6 +52,31 @@ def manager_init() -> None:
 
   if not PC:
     run_migration(params)
+
+  if COMMA_HARDWARE:
+    headless_override = os.getenv("OPENPILOT_HEADLESS", "").strip().lower()
+    if headless_override in ("1", "true", "yes"):
+      try:
+        from openpilot.common.hardware.comma.hardware import invalidate_display_probe_cache
+        invalidate_display_probe_cache()
+      except Exception:
+        pass
+    if headless_override in ("0", "false", "no"):
+      try:
+        from openpilot.common.hardware.comma.hardware import probe_builtin_display
+        if not probe_builtin_display():
+          cloudlog.warning(
+            "OPENPILOT_HEADLESS=0 but no builtin panel detected — native ui may fail; use WebUI or unset override"
+          )
+      except Exception:
+        pass
+    if HARDWARE.has_builtin_display():
+      cloudlog.info("Display detected — native ui enabled")
+    else:
+      cloudlog.warning("Headless mode — no builtin display; native ui disabled (use WebUI)")
+      if params.get_bool("IsDriverViewEnabled"):
+        params.put_bool("IsDriverViewEnabled", False, block=True)
+        cloudlog.warning("Headless mode: cleared IsDriverViewEnabled (blocks onroad)")
 
   # set unset params to their default value
   for k in params.all_keys():
@@ -239,8 +264,15 @@ if __name__ == "__main__":
     # Show last 3 lines of traceback
     error = traceback.format_exc(-3)
     error = "Manager failed to start\n\n" + error
-    with TextWindow(error) as t:
-      t.wait_for_exit()
+    if COMMA_HARDWARE and not HARDWARE.has_builtin_display():
+      try:
+        with open("/tmp/manager_last_error.txt", "w", encoding="utf-8") as f:
+          f.write(error)
+      except Exception:
+        pass
+    else:
+      with TextWindow(error) as t:
+        t.wait_for_exit()
 
     raise
 

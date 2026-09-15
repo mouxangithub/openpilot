@@ -27,6 +27,15 @@ FONT_FALLBACK_LANGUAGES = [
   "ja",
 ]
 
+# Languages that require unifont/OpFont instead of Inter for proper glyph rendering
+UNIFONT_LANGUAGES = [
+  "th",
+  "zh-CHT",
+  "zh-CHS",
+  "ko",
+  "ja",
+]
+
 # Plural form selectors for supported languages
 PLURAL_SELECTORS = {
   'en': lambda n: 0 if n == 1 else 1,
@@ -167,6 +176,10 @@ class Multilang:
 
   def requires_font_fallback(self) -> bool:
     return self._language in FONT_FALLBACK_LANGUAGES
+
+  def requires_unifont(self) -> bool:
+    """Certain languages require unifont/OpFont to render their glyphs properly."""
+    return self._language in UNIFONT_LANGUAGES
 
   def setup(self):
     try:

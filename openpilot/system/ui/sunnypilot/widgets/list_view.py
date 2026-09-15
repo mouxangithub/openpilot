@@ -16,7 +16,7 @@ from openpilot.system.ui.widgets.button import Button, ButtonStyle
 from openpilot.system.ui.widgets.label import gui_label
 from openpilot.system.ui.widgets.list_view import ListItem, ToggleAction, ItemAction, MultipleButtonAction, ButtonAction, \
                                                   _resolve_value, BUTTON_WIDTH, BUTTON_HEIGHT, TEXT_PADDING, DualButtonAction
-from openpilot.system.ui.widgets.scroller_tici import LineSeparator, LINE_COLOR, LINE_PADDING
+from openpilot.system.ui.widgets.scroller_tici import LineSeparator, LINE_COLOR, LINE_PADDING, Scroller
 from openpilot.system.ui.sunnypilot.lib.styles import style
 from openpilot.system.ui.sunnypilot.widgets.option_control import OptionControlSP, LABEL_WIDTH
 
@@ -46,7 +46,12 @@ class ButtonSP(Button):
     super()._update_state()
     if self.enabled:
       if self.is_pressed:
-        self._background_color = style.BUTTON_OFF_PRESSED
+        if self._button_style == ButtonStyle.PRIMARY:
+          self._background_color = style.ON_HOVER_BG_COLOR
+        else:
+          self._background_color = style.BUTTON_OFF_PRESSED
+      elif self._button_style == ButtonStyle.PRIMARY:
+        self._background_color = style.BUTTON_PRIMARY_COLOR
       else:
         self._background_color = style.BUTTON_ENABLED_OFF
     else:

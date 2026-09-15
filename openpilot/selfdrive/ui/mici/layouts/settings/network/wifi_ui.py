@@ -10,6 +10,7 @@ from openpilot.system.ui.lib.application import gui_app, MousePos, FontWeight
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller import NavScroller
 from openpilot.system.ui.lib.wifi_manager import WifiManager, Network, SecurityType, normalize_ssid
+from openpilot.system.ui.lib.multilang import tr
 
 
 class LoadingAnimation(Widget):
@@ -214,19 +215,19 @@ class WifiButton(BigButton):
       self._sub_label.set_font_weight(FontWeight.ROMAN)
 
       if self._network_forgetting:
-        self.set_value("forgetting...")
+        self.set_value(tr("forgetting..."))
       elif self._is_connecting:
-        self.set_value("starting..." if self._network.is_tethering else "connecting...")
+        self.set_value(tr("starting...") if self._network.is_tethering else tr("connecting..."))
       elif self._is_connected:
-        self.set_value("tethering" if self._network.is_tethering else "connected")
+        self.set_value(tr("tethering") if self._network.is_tethering else tr("connected"))
       elif self._network_missing:
         # after connecting/connected since NM will still attempt to connect/stay connected for a while
-        self.set_value("not in range")
+        self.set_value(tr("not in range"))
       else:
-        self.set_value("unsupported")
+        self.set_value(tr("unsupported"))
 
     else:  # saved, wrong password, or unknown
-      self.set_value("wrong password" if self._wrong_password else "connect")
+      self.set_value(tr("wrong password") if self._wrong_password else tr("connect"))
       self.set_enabled(True)
       self._sub_label.set_color(rl.Color(255, 255, 255, int(255 * 0.9)))
       self._sub_label.set_font_weight(FontWeight.SEMI_BOLD)
@@ -246,7 +247,7 @@ class ForgetButton(Widget):
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     super()._handle_mouse_release(mouse_pos)
-    dlg = BigConfirmationDialog("slide to forget", gui_app.texture("icons_mici/settings/network/new/trash.png", 54, 64), self._forget_network, red=True)
+    dlg = BigConfirmationDialog(tr("slide to forget"), gui_app.texture("icons_mici/settings/network/new/trash.png", 54, 64), self._forget_network, red=True)
     gui_app.push_widget(dlg)
 
   def _render(self, _):
@@ -261,7 +262,7 @@ class ForgetButton(Widget):
 
 class ScanningButton(BigButton):
   def __init__(self):
-    super().__init__("", "searching for networks")
+    super().__init__("", tr("searching for networks"))
     self.set_enabled(False)
     self._loading_animation = LoadingAnimation()
 
@@ -362,7 +363,7 @@ class WifiUIMici(NavScroller):
           break
       return
 
-    dlg = BigInputDialog("enter password...", "", minimum_length=8,
+    dlg = BigInputDialog(tr("enter password..."), "", minimum_length=8,
                          confirm_callback=lambda _password: self._connect_with_password(ssid, _password))
     gui_app.push_widget(dlg)
 

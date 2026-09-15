@@ -20,6 +20,23 @@ SpeedLimitSource = custom.LongitudinalPlanSP.SpeedLimit.Source
 
 ALL_SOURCES = tuple(SpeedLimitSource.schema.enumerants.values())
 
+# carrot reports its limits as kph integers over the phone link. Anything
+# outside this range is a parse error or a stale/garbage packet, and clamping it
+# would silently turn 400 into 250 and still be wrong — so it is rejected.
+CARROT_LIMIT_MIN_KPH = 1
+CARROT_LIMIT_MAX_KPH = 250
+
+
+def _carrot_limit_ms(kph) -> float:
+  """carrot limit (kph) → m/s, or 0.0 when it is not a plausible value."""
+  try:
+    value = int(kph)
+  except (TypeError, ValueError):
+    return 0.
+  if CARROT_LIMIT_MIN_KPH <= value <= CARROT_LIMIT_MAX_KPH:
+    return float(value) * CV.KPH_TO_MS
+  return 0.
+
 
 class SpeedLimitResolver:
   limit_solutions: dict[custom.LongitudinalPlanSP.SpeedLimit.Source, float]
@@ -68,6 +85,14 @@ class SpeedLimitResolver:
     )
     self.offset_value = self.params.get("SpeedLimitValueOffset", return_default=True)
 
+    # carrot phone-navigation limit: folded into the `map` source so it is both
+    # displayed by the SLA widget and available to Speed Limit Assist. Opt-out
+    # via CarrotNavCruiseSpeedEnabled; the actual speed control still requires
+    # SpeedLimitMode == assist, so this alone never changes vehicle behaviour.
+    self.use_carrot_limits = self.params.get_bool("CarrotNavCruiseSpeedEnabled")
+
+    self.v_ego = 0.
+    self.distance = 0.
     self.speed_limit = 0.
     self.speed_limit_last = 0.
     self.speed_limit_final = 0.
@@ -95,6 +120,7 @@ class SpeedLimitResolver:
       self.is_metric = self.params.get_bool("IsMetric")
       self.offset_type = self.params.get("SpeedLimitOffsetType", return_default=True)
       self.offset_value = self.params.get("SpeedLimitValueOffset", return_default=True)
+      self.use_carrot_limits = self.params.get_bool("CarrotNavCruiseSpeedEnabled")
 
   def _get_speed_limit_offset(self) -> float:
     if self.offset_type == OffsetType.off:
@@ -118,6 +144,72 @@ class SpeedLimitResolver:
   def _get_from_map_data(self, sm: messaging.SubMaster) -> None:
     self._reset_limit_sources(SpeedLimitSource.map)
     self._process_map_data(sm)
+    self._merge_carrot_speed_limit(sm)
+
+  def _merge_carrot_speed_limit(self, sm: messaging.SubMaster) -> None:
+    """Fold the carrot phone-navigation limit into the `map` source.
+
+    carrot receives two speed limits from the phone over carrotManSP:
+      * ``nRoadLimitSpeed`` — the road-class limit of the road being driven
+      * ``xSpdLimit``       — the SDI speed-camera limit (only meaningful while
+                              ``xSpdDist`` > 0, i.e. the camera is ahead)
+
+    carrot is a navigation/map provider and supplies its own phone GPS fix, so
+    it is merged into the existing ``map`` source instead of adding a new
+    enumerant to ``LongitudinalPlanSP.SpeedLimit.Source`` (which would change the
+    cereal schema and invalidate route logs). The merged value can only *lower*
+    the map solution, never raise it, so it stays conservative. Controlled by
+    ``CarrotNavCruiseSpeedEnabled``.
+    """
+    if not self.use_carrot_limits:
+      return
+    try:
+      if not sm.valid.get('carrotManSP'):
+        return
+      # Bail out if the packet is stale: SubMaster.recv_time is the wall clock
+      # at which this service last received a packet.
+      if time.monotonic() - sm.recv_time['carrotManSP'] > LIMIT_MAX_MAP_DATA_AGE:
+        return
+      carrot = sm['carrotManSP']
+      if int(carrot.activeCarrot) <= 0:
+        return
+
+      road_limit_ms = _carrot_limit_ms(carrot.nRoadLimitSpeed)
+      sdi_limit_ms = _carrot_limit_ms(carrot.xSpdLimit)
+      sdi_dist = float(carrot.xSpdDist)
+
+      # Start from the current map-data solution; the road-class limit takes
+      # effect immediately. The SDI camera limit only takes effect once the
+      # vehicle is close enough to start braking with LIMIT_ADAPT_ACC.
+      limit_ms = 0.
+      distance = 0.
+      if road_limit_ms > 0.:
+        limit_ms = road_limit_ms
+
+      if sdi_limit_ms > 0. and sdi_dist > 0. and self.v_ego >= sdi_limit_ms:
+        adapt_time = (sdi_limit_ms - self.v_ego) / LIMIT_ADAPT_ACC
+        adapt_distance = self.v_ego * adapt_time + 0.5 * LIMIT_ADAPT_ACC * adapt_time ** 2
+        if sdi_dist <= adapt_distance:
+          # SDI is stricter; replace/lower the road-class limit.
+          if limit_ms <= 0. or sdi_limit_ms < limit_ms:
+            limit_ms = sdi_limit_ms
+            distance = sdi_dist
+
+      # If both limits are absent, do nothing.
+      if limit_ms <= 0.:
+        return
+
+      # If a road-class limit is already active from map data, only allow carrot
+      # to *lower* it. This prevents a navigation glitch from raising the limit
+      # above what the car's own map source says.
+      current = self.limit_solutions[SpeedLimitSource.map]
+      if current > 0. and limit_ms >= current:
+        return
+
+      self.limit_solutions[SpeedLimitSource.map] = limit_ms
+      self.distance_solutions[SpeedLimitSource.map] = distance
+    except Exception:
+      return
 
   def _process_map_data(self, sm: messaging.SubMaster) -> None:
     gps_data = sm[self._gps_location_service]

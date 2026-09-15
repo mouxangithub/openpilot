@@ -27,7 +27,22 @@ sections:
   - key: AlwaysOnDM
     widget: toggle
     title: Always-On Driver Monitoring
-    description: Enable driver monitoring even when sunnypilot is not engaged.
+    description: The driver monitoring system can be toggled on/off, but long-term activation is recommended.
+  - key: DistractionDetectionLevel
+    widget: multiple_button
+    title: Distraction Detection Level
+    description: Set how sensitive the driver distraction detection should be. Strict warns on minor distractions; Moderate is balanced; Lenient only alerts on clear distractions.
+    options:
+    - value: 0
+      label: Strict
+    - value: 1
+      label: Moderate
+    - value: 2
+      label: Lenient
+    visibility:
+    - type: param
+      key: AlwaysOnDM
+      equals: true
   - key: IsMetric
     widget: toggle
     title: Use Metric System

@@ -36,12 +36,12 @@ class TeslaSettings(BrandSettings):
     display_value_oem = OEM_STEERING_MIN_KMH if is_metric else round(OEM_STEERING_MIN_KMH * KM_TO_MILE)
 
     coop_steering_disabled_msg = tr("Enable \"Always Offroad\" in Device panel, or turn vehicle off to toggle.")
-    coop_steering_warning = tr(f"Warning: May experience steering oscillations below {display_value_oem} {unit} during turns, " +
-                               "recommend disabling this feature if you experience these.")
+    coop_steering_warning = tr("Warning: May experience steering oscillations below {speed} {unit} during turns, "
+                               "recommend disabling this feature if you experience these.").format(speed=display_value_oem, unit=unit)
     coop_steering_desc = (
       f"<b>{coop_steering_warning}</b><br><br>" +
       f"{tr('Allows the driver to provide limited steering input while openpilot is engaged.')}<br>" +
-      f"{tr(f'Only works above {display_value_coop} {unit}.')}"
+      f"{tr('Only works above {speed} {unit}.').format(speed=display_value_coop, unit=unit)}"
     )
 
     if not ui_state.is_offroad():

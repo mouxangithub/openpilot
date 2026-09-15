@@ -45,7 +45,7 @@ class SubaruSettings(BrandSettings):
     disabled_msg = self.stop_and_go_disabled_msg()
     descriptions = [
       tr("Experimental feature to enable auto-resume during stop-and-go for certain supported Subaru platforms."),
-      tr("Experimental feature to enable stop and go for Subaru Global models with manual handbrake. " +
+      tr("Experimental feature to enable stop and go for Subaru Global models with manual handbrake. "
          "Models with electric parking brake should keep this disabled. Thanks to martinl for this implementation!")
     ]
 

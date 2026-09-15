@@ -26,13 +26,16 @@ def crc16_x25(data: bytes) -> int:
     crc = _CRC16_X25_TABLE[(crc ^ b) & 0xFF] ^ (crc >> 8)
   return crc ^ 0xFFFF
 
+DIAG_PORT = "/dev/ttyUSB0"
+
+
 class ModemDiag:
   def __init__(self):
     self.serial = self.open_serial()
     self.pend = b''
 
   def open_serial(self):
-    serial = Serial("/dev/ttyUSB0", baudrate=115200, rtscts=True, dsrdtr=True, timeout=0, exclusive=True)
+    serial = Serial(DIAG_PORT, baudrate=115200, rtscts=True, dsrdtr=True, timeout=0, exclusive=True)
     serial.flush()
     serial.reset_input_buffer()
     serial.reset_output_buffer()

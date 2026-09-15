@@ -8,6 +8,7 @@ import pyray as rl
 from openpilot.selfdrive.ui.onroad.alert_renderer import AlertRenderer, AlertSize, ALERT_FONT_MEDIUM, ALERT_FONT_BIG, \
   ALERT_FONT_SMALL, ALERT_MARGIN, ALERT_HEIGHTS, ALERT_PADDING, Alert
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.wrap_text import wrap_text
 
@@ -20,12 +21,14 @@ class AlertRendererSP(AlertRenderer):
 
   def _draw_text(self, rect: rl.Rectangle, alert: Alert) -> None:
     if alert.size == AlertSize.small:
-      self._draw_multiline_centered(alert.text1, rect, self.font_bold, ALERT_FONT_MEDIUM)
+      self._draw_multiline_centered(tr(alert.text1), rect, self.font_bold, ALERT_FONT_MEDIUM)
 
     elif alert.size == AlertSize.mid:
+      text1 = tr(alert.text1)
+      text2 = tr(alert.text2) if alert.text2 else ""
       wrap_width = int(rect.width)
-      lines1 = wrap_text(self.font_bold, alert.text1, ALERT_FONT_BIG, wrap_width)
-      lines2 = wrap_text(self.font_regular, alert.text2, ALERT_FONT_SMALL, wrap_width) if alert.text2 else []
+      lines1 = wrap_text(self.font_bold, text1, ALERT_FONT_BIG, wrap_width)
+      lines2 = wrap_text(self.font_regular, text2, ALERT_FONT_SMALL, wrap_width) if text2 else []
 
       total_text_height = len(lines1) * measure_text_cached(self.font_bold, "A", ALERT_FONT_BIG).y
       if lines2:
@@ -34,14 +37,14 @@ class AlertRendererSP(AlertRenderer):
       curr_y = rect.y + (rect.height - total_text_height) / 2
 
       for line in lines1:
-        line_height = measure_text_cached(self.font_bold, alert.text1, ALERT_FONT_BIG).y
+        line_height = measure_text_cached(self.font_bold, line, ALERT_FONT_BIG).y
         self._draw_line_centered(line, rl.Rectangle(rect.x, curr_y, rect.width, line_height), self.font_bold, ALERT_FONT_BIG)
         curr_y += line_height
 
       if lines2:
         curr_y += ALERT_LINE_SPACING
         for line in lines2:
-          line_height = measure_text_cached(self.font_regular, alert.text2, ALERT_FONT_SMALL).y
+          line_height = measure_text_cached(self.font_regular, line, ALERT_FONT_SMALL).y
           self._draw_line_centered(line, rl.Rectangle(rect.x, curr_y, rect.width, line_height), self.font_regular, ALERT_FONT_SMALL)
           curr_y += line_height
 
