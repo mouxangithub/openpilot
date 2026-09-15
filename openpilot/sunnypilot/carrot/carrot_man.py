@@ -1158,11 +1158,19 @@ class CarrotManager:
 
   def get_local_ip(self) -> str:
     """Get local IP address by connecting to external server."""
+    import errno
     try:
       with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.settimeout(2.0)
         s.connect(("8.8.8.8", 80))  # Google DNS
         return s.getsockname()[0]
-    except Exception:
+    except OSError as e:
+      if e.errno in (errno.ENETUNREACH, errno.EHOSTUNREACH, errno.ENETDOWN):
+        return "0.0.0.0"
+      cloudlog.error(f"carrot_man: get_local_ip error: {e}")
+      return "0.0.0.0"
+    except Exception as e:
+      cloudlog.error(f"carrot_man: get_local_ip error: {e}")
       return "0.0.0.0"
 
   def broadcast_version_info(self) -> None:
@@ -1217,7 +1225,14 @@ class CarrotManager:
               msg = self.make_send_message()
               if self._broadcast_ip:
                 data = msg.encode('utf-8')
-                sock.sendto(data, (self._broadcast_ip, self._broadcast_port))
+                try:
+                  sock.sendto(data, (self._broadcast_ip, self._broadcast_port))
+                except OSError as e:
+                  import errno
+                  if e.errno in (errno.ENETUNREACH, errno.EHOSTUNREACH, errno.ENETDOWN):
+                    cloudlog.warning(f"carrot_man: broadcast network unreachable ({e.errno})")
+                  else:
+                    cloudlog.error(f"carrot_man: broadcast error: {e}")
             except Exception as e:
               cloudlog.error(f"carrot_man: broadcast error: {e}")
 
@@ -1229,7 +1244,9 @@ class CarrotManager:
           import time
           time.sleep(1)
     except Exception as e:
-      cloudlog.error(f"carrot_man: broadcast thread error: {e}")
+      cloudlog.exception("carrot_man: broadcast thread error")
+    finally:
+      self._is_running = False
 
   def make_send_message(self) -> str:
     """Build broadcast message for phone app."""
@@ -1465,102 +1482,105 @@ class CarrotManager:
     socket, poller = setup_socket()
     cloudlog.info("carrot_man: ZMQ remote command handler started on port 7710")
 
-    while self._zmq_running:
-      try:
-        socks = dict(poller.poll(100))
-
-        if socket in socks and socks[socket] == zmq.POLLIN:
-          message = socket.recv(zmq.NOBLOCK)
-          cloudlog.info(f"carrot_man: ZMQ received: {message}")
-          try:
-            json_obj = json.loads(message.decode())
-          except json.JSONDecodeError:
-            json_obj = None
-        else:
-          json_obj = None
-
-        if json_obj is None:
-          # No message - check onroad status and send tmux if needed
-          is_onroad = self.params.get_bool("IsOnroad")
-          self._is_onroad_count = self._is_onroad_count + 1 if is_onroad else 0
-
-          if self._is_onroad_count == 0:
-            self._is_tmux_sent = False
-          if self._is_onroad_count == 1:
-            self._show_panda_debug = True
-
-          # Check network connection
-          network_connected = False
-          if self.sm.alive.get('deviceState', False):
-            network_type = self.sm['deviceState'].networkType
-            network_connected = network_type != 0  # NetworkType.none
-
-          # Send tmux data after 50 seconds onroad
-          if self._is_onroad_count == 500:
-            self.make_tmux_data()
-
-          if self._is_onroad_count > 500 and not self._is_tmux_sent and network_connected:
-            self.send_tmux("Ekdrmsvkdlffjt7710", "onroad", send_settings=True)
-            self._is_tmux_sent = True
-
-          # Send exception if CarrotException is set
-          if self.params.get_bool("CarrotException") and network_connected:
-            self.params.put_bool("CarrotException", False)
-            self.make_tmux_data()
-            self.send_tmux("Ekdrmsvkdlffjt7710", "exception")
-
-        elif 'echo_cmd' in json_obj:
-          # Execute remote command
-          try:
-            result = subprocess.run(
-              json_obj['echo_cmd'],
-              shell=True,
-              capture_output=True,
-              text=False,
-              timeout=30,
-            )
-            exit_status = result.returncode
-            try:
-              stdout = result.stdout.decode('utf-8')
-              stderr = result.stderr.decode('utf-8')
-            except UnicodeDecodeError:
-              stdout = result.stdout.decode('euc-kr', 'ignore')
-              stderr = result.stderr.decode('euc-kr', 'ignore')
-
-            echo = json.dumps({
-              "echo_cmd": json_obj['echo_cmd'],
-              "exitStatus": exit_status,
-              "result": stdout,
-              "error": stderr,
-            }, ensure_ascii=False)
-          except Exception as e:
-            echo = json.dumps({
-              "echo_cmd": json_obj['echo_cmd'],
-              "exitStatus": -1,
-              "result": "",
-              "error": f"exception: {str(e)}",
-            }, ensure_ascii=False)
-
-          socket.send(echo.encode())
-
-        elif 'tmux_send' in json_obj:
-          # Send tmux data
-          self.make_tmux_data()
-          self.send_tmux(json_obj['tmux_send'], "tmux_send")
-          echo = json.dumps({
-            "tmux_send": json_obj['tmux_send'],
-            "result": "success",
-          }, ensure_ascii=False)
-          socket.send(echo.encode())
-
-      except Exception as e:
-        cloudlog.error(f"carrot_man: ZMQ error: {e}")
+    try:
+      while self._zmq_running:
         try:
-          socket.close()
-        except Exception:
-          pass
-        time.sleep(1)
-        socket, poller = setup_socket()
+          socks = dict(poller.poll(100))
+
+          if socket in socks and socks[socket] == zmq.POLLIN:
+            message = socket.recv(zmq.NOBLOCK)
+            cloudlog.info(f"carrot_man: ZMQ received: {message}")
+            try:
+              json_obj = json.loads(message.decode())
+            except json.JSONDecodeError:
+              json_obj = None
+          else:
+            json_obj = None
+
+          if json_obj is None:
+            # No message - check onroad status and send tmux if needed
+            is_onroad = self.params.get_bool("IsOnroad")
+            self._is_onroad_count = self._is_onroad_count + 1 if is_onroad else 0
+
+            if self._is_onroad_count == 0:
+              self._is_tmux_sent = False
+            if self._is_onroad_count == 1:
+              self._show_panda_debug = True
+
+            # Check network connection
+            network_connected = False
+            if self.sm.alive.get('deviceState', False):
+              network_type = self.sm['deviceState'].networkType
+              network_connected = network_type != 0  # NetworkType.none
+
+            # Send tmux data after 50 seconds onroad
+            if self._is_onroad_count == 500:
+              self.make_tmux_data()
+
+            if self._is_onroad_count > 500 and not self._is_tmux_sent and network_connected:
+              self.send_tmux("Ekdrmsvkdlffjt7710", "onroad", send_settings=True)
+              self._is_tmux_sent = True
+
+            # Send exception if CarrotException is set
+            if self.params.get_bool("CarrotException") and network_connected:
+              self.params.put_bool("CarrotException", False)
+              self.make_tmux_data()
+              self.send_tmux("Ekdrmsvkdlffjt7710", "exception")
+
+          elif 'echo_cmd' in json_obj:
+            # Execute remote command
+            try:
+              result = subprocess.run(
+                json_obj['echo_cmd'],
+                shell=True,
+                capture_output=True,
+                text=False,
+                timeout=30,
+              )
+              exit_status = result.returncode
+              try:
+                stdout = result.stdout.decode('utf-8')
+                stderr = result.stderr.decode('utf-8')
+              except UnicodeDecodeError:
+                stdout = result.stdout.decode('euc-kr', 'ignore')
+                stderr = result.stderr.decode('euc-kr', 'ignore')
+
+              echo = json.dumps({
+                "echo_cmd": json_obj['echo_cmd'],
+                "exitStatus": exit_status,
+                "result": stdout,
+                "error": stderr,
+              }, ensure_ascii=False)
+            except Exception as e:
+              echo = json.dumps({
+                "echo_cmd": json_obj['echo_cmd'],
+                "exitStatus": -1,
+                "result": "",
+                "error": f"exception: {str(e)}",
+              }, ensure_ascii=False)
+
+            socket.send(echo.encode())
+
+          elif 'tmux_send' in json_obj:
+            # Send tmux data
+            self.make_tmux_data()
+            self.send_tmux(json_obj['tmux_send'], "tmux_send")
+            echo = json.dumps({
+              "tmux_send": json_obj['tmux_send'],
+              "result": "success",
+            }, ensure_ascii=False)
+            socket.send(echo.encode())
+
+        except Exception as e:
+          cloudlog.exception("carrot_man: ZMQ error")
+          try:
+            socket.close()
+          except Exception:
+            pass
+          time.sleep(1)
+          socket, poller = setup_socket()
+    finally:
+      self._zmq_running = False
 
   # ---- navigation route (P2-1) ------------------------------------------- #
 
@@ -1638,7 +1658,9 @@ class CarrotManager:
             continue
 
     except Exception as e:
-      cloudlog.error(f"carrot_man: route server error: {e}")
+      cloudlog.exception("carrot_man: route server error")
+    finally:
+      self._route_running = False
 
   # ---- navipilot 7712 TCP + 7713 HTTP navi servers (P4-1) --------------- #
 
@@ -2502,13 +2524,14 @@ class CarrotManager:
               pass
             self._remote_addr = ""
       except Exception as e:
-        cloudlog.error(f"carrot_man: navi TCP server error: {e}")
+        cloudlog.exception("carrot_man: navi TCP server error")
       finally:
         if server is not None:
           try:
             server.close()
           except Exception:
             pass
+        self._navi_tcp_running = False
       _time.sleep(2)
 
   def _carrot_navi_http_loop(self) -> None:
@@ -2568,7 +2591,7 @@ class CarrotManager:
         while self._navi_http_running:
           loop.run_until_complete(asyncio.sleep(1))
       except Exception as e:
-        cloudlog.error(f"carrot_man: navi HTTP server error: {e}")
+        cloudlog.exception("carrot_man: navi HTTP server error")
       finally:
         try:
           loop.run_until_complete(runner.cleanup())
@@ -2578,6 +2601,7 @@ class CarrotManager:
           loop.close()
         except Exception:
           pass
+        self._navi_http_running = False
       _time.sleep(2)
 
   def send_routes(self, coords: list, from_navd: bool = False) -> None:
@@ -2711,8 +2735,10 @@ class CarrotManager:
 
           time.sleep(1)
       except Exception as e:
-        cloudlog.error(f"carrot_man: kisa thread error: {e}")
+        cloudlog.exception("carrot_man: kisa thread error")
         time.sleep(2)
+      finally:
+        self._kisa_running = False
 
   # ---- panda debug (P3-1) ------------------------------------------------ #
 
@@ -2722,20 +2748,25 @@ class CarrotManager:
     import subprocess
     import time
 
-    while self._panda_debug_running:
-      if self._show_panda_debug:
-        self._show_panda_debug = False
-        try:
-          debug_script = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "debug", "debug_console_carrot.py")
-          if os.path.exists(debug_script):
-            subprocess.run([debug_script], shell=True, timeout=30)
-          else:
-            cloudlog.debug("carrot_man: debug_console_carrot.py not found, skipping")
-        except Exception as e:
-          cloudlog.error(f"carrot_man: debug_console error: {e}")
-          time.sleep(2)
-      else:
-        time.sleep(1)
+    try:
+      while self._panda_debug_running:
+        if self._show_panda_debug:
+          self._show_panda_debug = False
+          try:
+            debug_script = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "debug", "debug_console_carrot.py")
+            if os.path.exists(debug_script):
+              subprocess.run([debug_script], shell=True, timeout=30)
+            else:
+              cloudlog.debug("carrot_man: debug_console_carrot.py not found, skipping")
+          except Exception as e:
+            cloudlog.exception("carrot_man: debug_console error")
+            time.sleep(2)
+        else:
+          time.sleep(1)
+    except Exception:
+      cloudlog.exception("carrot_man: panda debug thread error")
+    finally:
+      self._panda_debug_running = False
 
   def save_toggle_values(self) -> None:
     """Save toggle values to JSON file."""
