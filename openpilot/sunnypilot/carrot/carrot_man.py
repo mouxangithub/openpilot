@@ -578,6 +578,7 @@ class CarrotManager:
     self.params = Params()
     self.params_memory = Params("/dev/shm/params")
     self._unified = UnifiedParams()
+    self._migrate_amap_enabled()
     self.sm = messaging.SubMaster(['deviceState', 'carState', 'controlsState', 'modelV2', 'carParams',
                                    'radarState', 'radarTracks', 'navInstruction', 'carrotNaviSP'])
     self.pm = messaging.PubMaster(['carrotManSP', 'navInstructionCarrotSP', 'navRoute'])
@@ -587,12 +588,24 @@ class CarrotManager:
     self._carrot_serv = CarrotServ(self._unified)
     self._amap_navi = AmapNaviServ()
     # Start the direct Amap LiDAR/camera UDP receiver (4211) if enabled.
-    if self.params.get_bool("AmapEnabled", False):
+    if self._carrot_amap_blind_spot_enabled():
       try:
         self._amap_navi.start_navi_comm()
       except Exception as e:
         cloudlog.error(f"carrot_man: failed to start AmapNavi direct comm: {e}")
     self._web: Any = None  # Lazy import: only used when ``--web`` flag is set.
+
+  def _migrate_amap_enabled(self) -> None:
+    """One-time migration from the legacy AmapEnabled switch.
+
+    ``AmapEnabled`` used to control both Amap Web map data and the 7706
+    blind-spot parser. Split it into the two semantically-correct params.
+    """
+    if self.params.get_bool("AmapEnabled"):
+      if not self.params.get_bool("AmapMapDataEnabled"):
+        self.params.put_bool("AmapMapDataEnabled", True)
+      if not self.params.get_bool("CarrotAmapBlindSpotEnabled"):
+        self.params.put_bool("CarrotAmapBlindSpotEnabled", True)
 
     self._enabled = False
     self._port = 0
@@ -653,6 +666,16 @@ class CarrotManager:
     self._navi_event_lock = threading.Lock()
     self._last_rgdata_timestamp_ms = 0
     self._rgdata_ts_lock = threading.Lock()
+
+  def _carrot_amap_blind_spot_enabled(self) -> bool:
+    """Return True when the 7706 blind-spot/LiDAR parser should run."""
+    if self.params.get_bool("CarrotAmapBlindSpotEnabled"):
+      return True
+    # Legacy fallback: if only the old param is set, migrate and enable.
+    if self.params.get_bool("AmapEnabled"):
+      self.params.put_bool("CarrotAmapBlindSpotEnabled", True)
+      return True
+    return False
 
   # ---- socket plumbing -------------------------------------------------- #
 
@@ -884,6 +907,8 @@ class CarrotManager:
     ni.timeRemaining = float(getattr(stock, "timeRemaining", 0.0) or 0.0)
     ni.timeRemainingTypical = float(getattr(stock, "timeRemainingTypical", 0.0) or 0.0)
     ni.speedLimit = float(getattr(stock, "speedLimit", 0.0) or 0.0)
+    ni.showFull = bool(getattr(stock, "showFull", False))
+    ni.speedLimitSign = _safe_str(getattr(stock, "speedLimitSign", ""), "")
 
     stock_maneuvers = list(getattr(stock, "allManeuvers", []) or [])
     if stock_maneuvers:
@@ -892,6 +917,42 @@ class CarrotManager:
         maneuvers[i].distance = float(getattr(src, "distance", 0.0) or 0.0)
         maneuvers[i].type = _safe_str(getattr(src, "type", ""), "")
         maneuvers[i].modifier = _safe_str(getattr(src, "modifier", ""), "")
+
+    self._copy_lanes(ni, stock)
+
+  @staticmethod
+  def _copy_lanes(ni: Any, src: Any) -> None:
+    """Copy lane guidance from ``src`` (stock navInstruction or 7714 guidance) into ``ni``."""
+    src_lanes = list(getattr(src, "lanes", []) or [])
+    if not src_lanes:
+      return
+    lanes = ni.init('lanes', len(src_lanes))
+    dir_map = {
+      "none": "none",
+      "left": "left",
+      "right": "right",
+      "straight": "straight",
+      "slightLeft": "slightLeft",
+      "slightRight": "slightRight",
+    }
+    for i, lane in enumerate(src_lanes):
+      lanes[i].active = bool(getattr(lane, "active", False))
+      lanes[i].activeDirection = dir_map.get(str(getattr(lane, "activeDirection", "")), "none")
+      directions = list(getattr(lane, "directions", []) or [])
+      if directions:
+        lane_dirs = lanes[i].init('directions', len(directions))
+        for j, d in enumerate(directions):
+          lane_dirs[j] = dir_map.get(str(d), "none")
+
+  @staticmethod
+  def _copy_maneuvers_from_7714(ni: Any, guidance: _NaviGuidanceControl) -> None:
+    """Populate allManeuvers from 7714 v2 guidance when available."""
+    if not guidance.present:
+      return
+    maneuvers = ni.init('allManeuvers', 1)
+    maneuvers[0].distance = float(max(0, guidance.distance_m))
+    maneuvers[0].type = ""
+    maneuvers[0].modifier = ""
 
   def _publish(self) -> None:
     nav_type = self._carrot_serv.nav_type
@@ -1023,6 +1084,15 @@ class CarrotManager:
           m1.distance = float(n_tbt_dist_next)
           m1.type = nav_type_next
           m1.modifier = nav_modifier_next
+
+      # Defaults for optional rich-text fields; HUD/cluster consumers may use
+      # these when 7714 v2 guidance or stock navInstruction carries them.
+      ni.showFull = False
+      ni.speedLimitSign = "mutcd"
+      guidance = getattr(self, "_navi_guidance", None)
+      if guidance is not None and guidance.present:
+        self._copy_maneuvers_from_7714(ni, guidance)
+        self._copy_lanes(ni, guidance)
 
     self.pm.send('carrotManSP', carrot_msg)
     self.pm.send('navInstructionCarrotSP', navi_msg)
@@ -2213,13 +2283,15 @@ class CarrotManager:
       cloudlog.error(f"carrot_man: failed to write {NAVI_IMAGE_PARAM} param: {e}")
 
   def _write_navi_debug_param(self, obj: Any, event_type: str, event_time_ms: int) -> None:
-    """Persist a lightweight debug summary of the last handled navi event.
+    """Persist a debug summary of the last handled navi event.
 
-    Mirrors the reference implementation by exposing `severity`,
-    `speedLimitKph`, and `trafficLight` summary fields for rgdata/sinf/ssinf
-    and complexCrossroad events (consumed by the cluster HUD debug overlay).
+    Mirrors the reference implementation by exposing `title`, `lines`,
+    `severity`, `speedLimitKph`, and `trafficLight` for rgdata/sinf/ssinf and
+    complexCrossroad events (consumed by the cluster HUD debug overlay).
     """
     try:
+      title = event_type
+      lines: list[str] = []
       summary = (
         {"type": event_type, "keys": list(obj.keys())[:10]}
         if isinstance(obj, dict) else {"type": event_type}
@@ -2229,6 +2301,8 @@ class CarrotManager:
         "eventTimeMs": event_time_ms,
         "type": event_type,
         "summary": summary,
+        "title": title,
+        "lines": lines,
       }
       severity = "normal"
       speed_limit_kph: int | None = None
@@ -2244,6 +2318,11 @@ class CarrotManager:
           if sdi_type == 22 or sdi_plus_type == 22:
             severity = "caution"
           speed_limit_kph = _safe_int_or_none(rgdata.get("nRoadLimitSpeed"), minimum=1, maximum=300)
+          title = f"RG {rgdata.get('nSdiType', '?')}"
+          lines = [
+            f"SDI type: {sdi_type}",
+            f"Speed limit: {speed_limit_kph} kph" if speed_limit_kph else "Speed limit: --",
+          ]
 
         elif event_type == "sinf" and isinstance(obj.get("sinf"), dict):
           sinf = obj["sinf"]
@@ -2252,6 +2331,11 @@ class CarrotManager:
             severity = "stop"
           elif sinf.get("leftLightOn") or sinf.get("greenLightOn"):
             severity = "go"
+          title = "Traffic"
+          lines = [f"Distance: {traffic_light.get('distanceM')} m"]
+          for direction in ("red", "straight", "left", "right", "uturn"):
+            if traffic_light.get(f"{direction}On"):
+              lines.append(f"{direction.capitalize()} on ({traffic_light.get(direction + 'S')} s)")
 
         elif event_type == "ssinf" and isinstance(obj.get("ssinf"), dict):
           ssinf = obj["ssinf"]
@@ -2259,6 +2343,11 @@ class CarrotManager:
           red_active = any(str(ssinf.get(key, "")).upper() == "RED_LIGHT_ON" for key in ("straight", "left", "right", "uturn"))
           green_active = any(str(ssinf.get(key, "")).upper() == "GREEN_LIGHT_ON" for key in ("straight", "left", "right", "uturn"))
           severity = "stop" if red_active else "go" if green_active else "normal"
+          title = "Traffic"
+          lines = [f"Distance: {traffic_light.get('distanceM')} m"]
+          for direction in ("red", "straight", "left", "right", "uturn"):
+            if traffic_light.get(f"{direction}On"):
+              lines.append(f"{direction.capitalize()} on ({traffic_light.get(direction + 'S')} s)")
 
         elif event_type == "complexCrossroad" and isinstance(obj.get("complexCrossroad"), dict):
           crossroad = obj["complexCrossroad"]
@@ -2270,7 +2359,13 @@ class CarrotManager:
           speed_limit_kph = _safe_int_or_none(crossroad.get("speedLimitKph"), minimum=1, maximum=300)
           raw_traffic_light = crossroad.get("trafficLight")
           traffic_light = raw_traffic_light if isinstance(raw_traffic_light, dict) else None
+          title = "Crossroad"
+          lines = [f"Speed limit: {speed_limit_kph} kph" if speed_limit_kph else "Speed limit: --"]
+          if traffic_light:
+            lines.append("Traffic light present")
 
+      debug["title"] = title
+      debug["lines"] = lines
       debug["severity"] = severity
       debug["speedLimitKph"] = speed_limit_kph
       debug["trafficLight"] = traffic_light

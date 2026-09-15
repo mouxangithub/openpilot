@@ -1110,10 +1110,16 @@
           ],
           "items": [
             {
-              "key": "AmapEnabled",
+              "key": "AmapMapDataEnabled",
               "widget": "toggle",
               "title": "Enable Amap Map Data",
               "description": "Use Amap (Gaode) online map data for speed limits and road names in China."
+            },
+            {
+              "key": "CarrotAmapBlindSpotEnabled",
+              "widget": "toggle",
+              "title": "Enable Amap Blind Spot Data",
+              "description": "Parse blind-spot / LiDAR / extBlinker fields from the 7706 UDP stream."
             },
             {
               "key": "CarrotEnabled",

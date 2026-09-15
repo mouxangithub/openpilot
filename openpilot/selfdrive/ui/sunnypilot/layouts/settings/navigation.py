@@ -31,10 +31,16 @@ class NavigationLayout(Widget):
     self._scroller = Scroller(items, line_separator=True, spacing=0)
 
   def _initialize_items(self):
-    self._amap_enabled = toggle_item_sp(
-      title=tr("Enable Amap Navigation"),
-      description=tr("Use Amap (Gaode) navigation data for map-based features."),
-      param="AmapEnabled",
+    self._amap_map_data_enabled = toggle_item_sp(
+      title=tr("Enable Amap Map Data"),
+      description=tr("Use Amap (Gaode) online map data for speed limits and road names in China."),
+      param="AmapMapDataEnabled",
+    )
+
+    self._carrot_amap_blind_spot_enabled = toggle_item_sp(
+      title=tr("Enable Amap Blind Spot Data"),
+      description=tr("Parse blind-spot / LiDAR / extBlinker fields from the 7706 UDP stream."),
+      param="CarrotAmapBlindSpotEnabled",
     )
 
     self._carrot_enabled = toggle_item_sp(
@@ -57,7 +63,8 @@ class NavigationLayout(Widget):
     )
 
     items = [
-      self._amap_enabled,
+      self._amap_map_data_enabled,
+      self._carrot_amap_blind_spot_enabled,
       self._carrot_enabled,
       self._amap_api_key,
       self._carrot_tuning_button,
@@ -68,7 +75,8 @@ class NavigationLayout(Widget):
     super()._update_state()
 
     offroad = ui_state.is_offroad()
-    self._amap_enabled.action_item.set_enabled(offroad)
+    self._amap_map_data_enabled.action_item.set_enabled(offroad)
+    self._carrot_amap_blind_spot_enabled.action_item.set_enabled(offroad)
     self._carrot_enabled.action_item.set_enabled(offroad)
     self._amap_api_key.action_item.set_enabled(offroad)
 

@@ -336,8 +336,15 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LongitudinalMpcTuningLeadDangerFactor", {PERSISTENT | BACKUP, FLOAT, "0.75"}},
 
     // Amap / Carrot (phone projection & navigation)
+    // AmapEnabled is deprecated: it historically controlled both Amap Web map
+    // data and the 7706 blind-spot parser. It is kept here only for one-time
+    // migration to AmapMapDataEnabled / CarrotAmapBlindSpotEnabled.
     {"AmapEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"AmapApiKey", {PERSISTENT | DONT_LOG, STRING}},
+    // Use Amap (Gaode) online Web API for speed limits / road names.
+    {"AmapMapDataEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    // Parse 7706 UDP blind-spot / LiDAR / extBlinker fields (AmapNaviServ).
+    {"CarrotAmapBlindSpotEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CarrotEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     // 7714 WebSocket v2 navi link killswitch. Default off so the new
     // carrotNavi process never starts unless explicitly enabled. Requires

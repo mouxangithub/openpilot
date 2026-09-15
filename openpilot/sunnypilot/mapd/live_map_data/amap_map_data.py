@@ -80,7 +80,7 @@ class AmapMapData(BaseMapData):
   """Live map data provider backed by the Amap (Gaode) Web API.
 
   Requires the ``AmapApiKey`` param to be set.  The provider is selected by
-  ``mapd_manager`` when ``AmapEnabled`` is true and a key is present.
+  ``mapd_manager`` when ``AmapMapDataEnabled`` is true and a key is present.
 
   Notes:
     - GPS position from ``liveLocationKalman`` is WGS-84; Amap expects

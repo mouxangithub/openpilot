@@ -557,11 +557,6 @@ struct LiveMapDataSP @0xf416ec09499d9d19 {
   speedLimitAhead @3 :Float32;
   speedLimitAheadDistance @4 :Float32;
   roadName @5 :Text;
-  curveSpeedAheadValid @6 :Bool;
-  curveSpeedAhead @7 :Float32;
-  curveSpeedAheadDistance @8 :Float32;
-  trafficLightAheadValid @9 :Bool;
-  trafficLightAheadDistance @10 :Float32;
 }
 
 struct ModelDataV2SP @0xa1680744031fdb2d {
@@ -600,11 +595,34 @@ struct NavInstructionCarrotSP @0x9ccdc8676701b412 {
   timeRemainingTypical @7 :Float32;
   speedLimit @8 :Float32;
   allManeuvers @9 :List(Maneuver);
+  lanes @10 :List(Lane);
+  showFull @11 :Bool;
+  speedLimitSign @12 :SpeedLimitSign;
 
   struct Maneuver {
     distance @0 :Float32;
     type @1 :Text;
     modifier @2 :Text;
+  }
+
+  struct Lane {
+    directions @0 :List(Direction);
+    active @1 :Bool;
+    activeDirection @2 :Direction;
+  }
+
+  enum Direction {
+    none @0;
+    left @1;
+    right @2;
+    straight @3;
+    slightLeft @4;
+    slightRight @5;
+  }
+
+  enum SpeedLimitSign {
+    mutcd @0; # US Style
+    vienna @1; # EU Style
   }
 }
 

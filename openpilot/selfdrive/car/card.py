@@ -187,11 +187,8 @@ class Car:
 
     self.is_metric = self.params.get_bool("IsMetric")
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
-    self.amap_enabled = self.params.get_bool("AmapEnabled")
     self.carrot_enabled = self.params.get_bool("CarrotEnabled")
     self.carrot_navi_v2_enabled = self.params.get_bool("CarrotNaviV2Enabled")
-    self._amap_navi_cache = None
-    self._amap_navi_cache_mono = 0.0
     self._carrot_navi_cache = None
     self._carrot_navi_cache_mono = 0.0
 

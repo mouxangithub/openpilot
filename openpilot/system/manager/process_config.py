@@ -111,7 +111,9 @@ def imu_calibration_disabled(started: bool, params: Params, CP: car.CarParams) -
   return not params.get_bool("ImuCalibrationEnabled")
 
 def amap_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
-  return started and params.get_bool("AmapEnabled")
+  # Kept for backward compatibility with any external callers; the actual
+  # map-data provider selection now uses AmapMapDataEnabled in mapd_manager.
+  return started and (params.get_bool("AmapMapDataEnabled") or params.get_bool("AmapEnabled"))
 
 def carrot_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   # run even offroad: web panel (8088) / UDP / FTP must work while parked;
