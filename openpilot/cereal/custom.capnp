@@ -112,6 +112,43 @@ struct SelfdriveStateSP @0x81c2f05a394cf4af {
 
     promptSingleLow @31;
     promptSingleHigh @32;
+
+    # carrot (phone projection & navigation)
+    audioTurn @33;
+    longEngaged @34;
+    longDisengaged @35;
+    trafficSignGreen @36;
+    trafficSignChanged @37;
+    laneChangeCarrot @38;
+    stopping @39;
+    autoHold @40;
+    engage2 @41;
+    disengage2 @42;
+    trafficError @43;
+    bsdWarning @44;
+    speedDown @45;
+    stopStop @46;
+    reverseGear2 @47;
+    audio1 @48;
+    audio2 @49;
+    audio3 @50;
+    audio4 @51;
+    audio5 @52;
+    audio6 @53;
+    audio7 @54;
+    audio8 @55;
+    audio9 @56;
+    audio10 @57;
+    nnff @58;
+    preLaneChangeCarrot @59;
+    atcCancel @60;
+    atcResume @61;
+    preLaneChangeLeft2 @62;
+    preLaneChangeRight2 @63;
+    laneChangeOk @64;
+    lastLane @65;
+    newLane @66;
+    laneChangeEnd @67;
   }
 }
 
@@ -305,6 +342,39 @@ struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
     sccVision @1;
     sccMap @2;
     speedLimitAssist @3;
+    carrot @4;
+  }
+
+  struct TrafficLightState {
+    lightState @0 :State;
+    source @1 :Source;
+    confidence @2 :Float32;
+    distance @3 :Float32;
+
+    enum State {
+      unknown @0;
+      red @1;
+      green @2;
+      redConfirmed @3;
+      greenConfirmed @4;
+    }
+
+    enum Source {
+      none @0;
+      carrot @1;
+      amap @2;
+      vision @3;
+      fused @4;
+    }
+  }
+
+  struct CarrotPlan {
+    xState @0 :Text;
+    drivingMode @1 :Text;
+    vTarget @2 :Float32;
+    aTarget @3 :Float32;
+    stopDist @4 :Float32;
+    active @5 :Bool;
   }
 
   struct E2eAlerts {
@@ -322,6 +392,9 @@ struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
       sport @2;
     }
   }
+
+  trafficLight @9 :TrafficLightState;
+  carrot @10 :CarrotPlan;
 }
 
 struct OnroadEventSP @0xda96579883444c35 {
@@ -370,6 +443,11 @@ struct OnroadEventSP @0xda96579883444c35 {
     e2eChime @23;
     laneChangeRoadEdge @24;
     bigModelReady @25;
+
+    # carrot (phone projection & navigation)
+    trafficSignGreen @26;
+    trafficSignChanged @27;
+    trafficStopping @28;
   }
 }
 
@@ -463,6 +541,13 @@ struct BackupManagerSP @0xf98d843bfd7004a3 {
 
 struct CarStateSP @0xb86e6369214c01c8 {
   speedLimit @0 :Float32;
+
+  # Carrot 7714 WebSocket v2 navigation lane hints (from phone app).
+  # These are derived from carrotNaviSP.laneCurrent and merged into
+  # carStateSP so selfdrived can use them for lane-change decisions.
+  carrotLaneValid @1 :Bool;
+  carrotLeftLineBlocked @2 :Bool;
+  carrotRightLineBlocked @3 :Bool;
 }
 
 struct LiveMapDataSP @0xf416ec09499d9d19 {
@@ -486,25 +571,320 @@ struct ModelDataV2SP @0xa1680744031fdb2d {
   }
 }
 
-struct CustomReserved10 @0xcb9fd56c7057593a {
+struct LongitudinalMpcTuningSP @0xcb9fd56c7057593a {
+  comfortBrake @0 :Float32;
+  stopDistance @1 :Float32;
+  tFollowRelaxed @2 :Float32;
+  tFollowStandard @3 :Float32;
+  tFollowAggressive @4 :Float32;
+  xEgoObstacleCost @5 :Float32;
+  jEgoCost @6 :Float32;
+  aChangeCost @7 :Float32;
+  dangerZoneCost @8 :Float32;
+  leadDangerFactor @9 :Float32;
 }
 
-struct CustomReserved11 @0xc2243c65e0340384 {
+struct NavInstructionCarrotSP @0x9ccdc8676701b412 {
+  maneuverPrimaryText @0 :Text;
+  maneuverSecondaryText @1 :Text;
+  maneuverDistance @2 :Float32;
+  maneuverType @3 :Text;
+  maneuverModifier @4 :Text;
+  distanceRemaining @5 :Float32;
+  timeRemaining @6 :Float32;
+  timeRemainingTypical @7 :Float32;
+  speedLimit @8 :Float32;
+  allManeuvers @9 :List(Maneuver);
+  lanes @10 :List(Lane);
+  showFull @11 :Bool;
+  speedLimitSign @12 :SpeedLimitSign;
+
+  struct Maneuver {
+    distance @0 :Float32;
+    type @1 :Text;
+    modifier @2 :Text;
+  }
+
+  struct Lane {
+    directions @0 :List(Direction);
+    active @1 :Bool;
+    activeDirection @2 :Direction;
+  }
+
+  enum Direction {
+    none @0;
+    left @1;
+    right @2;
+    straight @3;
+    slightLeft @4;
+    slightRight @5;
+  }
+
+  enum SpeedLimitSign {
+    mutcd @0; # US Style
+    vienna @1; # EU Style
+  }
 }
 
-struct CustomReserved12 @0x9ccdc8676701b412 {
+struct CarrotManSP @0xcd96dafb67a082d0 {
+  activeCarrot @0 :Int32;
+  nRoadLimitSpeed @1 :Int32;
+  remote @2 :Text;
+  xSpdType @3 :Int32;
+  xSpdLimit @4 :Int32;
+  xSpdDist @5 :Int32;
+  xSpdCountDown @6 :Int32;
+  xTurnInfo @7 :Int32;
+  xDistToTurn @8 :Int32;
+  xTurnCountDown @9 :Int32;
+  atcType @10 :Text;
+  vTurnSpeed @11 :Int32;
+  szPosRoadName @12 :Text;
+  szTBTMainText @13 :Text;
+  desiredSpeed @14 :Int32;
+  desiredSource @15 :Text;
+  carrotCmdIndex @16 :Int32;
+  carrotCmd @17 :Text;
+  carrotArg @18 :Text;
+  xPosLat @19 :Float32;
+  xPosLon @20 :Float32;
+  xPosAngle @21 :Float32;
+  xPosSpeed @22 :Float32;
+  trafficState @23 :Int32;
+  nGoPosDist @24 :Int32;
+  nGoPosTime @25 :Int32;
+  szSdiDescr @26 :Text;
+  naviPaths @27 :Text;
+  leftSec @28 :Int32;
+  xDistToTurnNav @29 :Int32;
+  xDistToTurnNavLast @30 :Int32;
+  xDistToTurnMax @31 :Int32;
+  xDistToTurnMaxCnt @32 :Int32;
+  xLeftTurnSec @33 :Int32;
+  roadCate @34 :Int32;
+  extBlinker @35 :Int32;
+  extState @36 :Int32;
+  leftBlind @37 :Int32;
+  rightBlind @38 :Int32;
+  trafficCountdown @39 :Int32;
+  szGoalName @40 :Text;
+  szTBTMainTextNext @41 :Text;
+  szNearDirName @42 :Text;
+  nSdiSection @43 :Int32 = -1;
+  gpsSpeed @44 :Float32 = 0.0;
+  epochTime @45 :Int64 = 0;
+  timezone @46 :Text = "Asia/Seoul";
+  nTBTNextRoadWidth @47 :Int32 = 0;
+  goalPosX @48 :Float32 = 0.0;
+  goalPosY @49 :Float32 = 0.0;
+  vehicleNaviActive @50 :Bool = false;
+  vehicleNaviSpeed @51 :Int32 = 0;
+  vehicleNaviSectionActive @52 :Bool = false;
+  vehicleNaviAvailable @53 :Bool = false;
 }
 
-struct CustomReserved13 @0xcd96dafb67a082d0 {
+struct ImuCalibrationSP @0xb057204d7deadf3f {
+  status @0 :Status;
+  progress @1 :Int8;
+  error @2 :Error;
+  rpyCalib @3 :List(Float32);
+  imuCalibMatrix @4 :List(Float32);
+  yawStd @5 :Float32;
+  validRatio @6 :Float32;
+
+  enum Status {
+    idle @0;
+    staticCollecting @1;
+    dynamicCollecting @2;
+    computing @3;
+    completed @4;
+    failed @5;
+    cancelled @6;
+  }
+
+  enum Error {
+    none @0;
+    notStationary @1;
+    slopeTooSteep @2;
+    notEnoughStaticSamples @3;
+    noStraightRoad @4;
+    timeout @5;
+    cameraOdometryUnreliable @6;
+    computationFailed @7;
+    matrixInvalid @8;
+  }
 }
 
-struct CustomReserved14 @0xb057204d7deadf3f {
+struct CarrotNaviStateSP @0xbd443b539493bc68 {
+  schemaVersion @0 :UInt16;
+  generation @1 :UInt64;
+  sessionId @2 :Text;
+  publishMonoTimeNanos @3 :UInt64;
+  connected @4 :Bool;
+  vehicle @5 :Vehicle;
+  guidanceCurrent @6 :Guidance;
+  guidanceNext @7 :Guidance;
+  laneCurrent @8 :Lane;
+  laneAhead @9 :List(Lane);
+  speed @10 :Speed;
+  trafficSignal @11 :TrafficSignal;
+  crossroad @12 :Crossroad;
+  route @13 :Route;
+  navigationStatus @14 :NavigationStatus;
+
+  struct ItemMeta {
+    present @0 :Bool;
+    sequence @1 :UInt64;
+    sourceTimestampMillis @2 :UInt64;
+    receivedMonoTimeNanos @3 :UInt64;
+  }
+
+  struct Vehicle {
+    meta @0 :ItemMeta;
+    latitude @1 :Float64;
+    longitude @2 :Float64;
+    headingDeg @3 :Float32;
+    speedKph @4 :Float32;
+    roadName @5 :Text;
+    virtualGps @6 :Bool;
+  }
+
+  struct Guidance {
+    meta @0 :ItemMeta;
+    distanceM @1 :Int32;
+    timeSec @2 :Int32;
+    turnType @3 :Int32;
+    roadName @4 :Text;
+    mainText @5 :Text;
+    nearDirection @6 :Text;
+    midDirection @7 :Text;
+    farDirection @8 :Text;
+    pointValid @9 :Bool;
+    latitude @10 :Float64;
+    longitude @11 :Float64;
+  }
+
+  struct Lane {
+    meta @0 :ItemMeta;
+    count @1 :Int16;
+    distanceM @2 :Int32;
+    visible @3 :Bool;
+    lanePlay @4 :Bool;
+    currentLane @5 :Int16;
+    turnCode @6 :Int32;
+    turnInfo @7 :List(Int16);
+    etcInfo @8 :List(Int16);
+    available @9 :List(Int16);
+    guideLineColor @10 :Int16;
+    roadCategory @11 :Int16;
+    voiceCode @12 :Int16;
+  }
+
+  struct Speed {
+    meta @0 :ItemMeta;
+    currentKph @1 :Float32;
+    roadLimitValid @2 :Bool;
+    roadLimitKph @3 :Int16;
+    sdiPresent @4 :Bool;
+    sdiType @5 :Int32;
+    sdiDistanceM @6 :Int32;
+    sdiSpeedLimitKph @7 :Int16;
+    sectionPresent @8 :Bool;
+    sectionActive @9 :Bool;
+    sectionSpeedLimitKph @10 :Int16;
+    sectionAverageKph @11 :Float32;
+    sectionOverallAverageKph @12 :Float32;
+    sectionRemainingDistanceM @13 :Float32;
+    sectionRemainingTimeSec @14 :Int32;
+    sectionProgress @15 :Float32;
+    sectionSuspended @16 :Bool;
+    sectionOffRoute @17 :Bool;
+    sdiSectionType @18 :Int32;
+    sdiBlockType @19 :Int32;
+    sdiBlockSpeedKph @20 :Int16;
+    sdiBlockDistanceM @21 :Int32;
+    secondarySdiPresent @22 :Bool;
+    secondarySdiType @23 :Int32;
+    secondarySdiDistanceM @24 :Int32;
+    secondarySdiSpeedLimitKph @25 :Int16;
+    secondarySdiSectionType @26 :Int32;
+    secondarySdiBlockType @27 :Int32;
+    secondarySdiBlockSpeedKph @28 :Int16;
+    secondarySdiBlockDistanceM @29 :Int32;
+  }
+
+  struct TrafficSignal {
+    meta @0 :ItemMeta;
+    visible @1 :Bool;
+    distanceM @2 :Int32;
+    source @3 :Text;
+    redValid @4 :Bool;
+    redOn @5 :Bool;
+    redRemainSec @6 :Int16;
+    leftValid @7 :Bool;
+    leftOn @8 :Bool;
+    leftRemainSec @9 :Int16;
+    greenValid @10 :Bool;
+    greenOn @11 :Bool;
+    greenRemainSec @12 :Int16;
+    rightValid @13 :Bool;
+    rightOn @14 :Bool;
+    rightRemainSec @15 :Int16;
+    uturnValid @16 :Bool;
+    uturnOn @17 :Bool;
+    uturnRemainSec @18 :Int16;
+    uiCounterValid @19 :Bool;
+    uiCounterRemainSec @20 :Int16;
+  }
+
+  struct Crossroad {
+    meta @0 :ItemMeta;
+    visible @1 :Bool;
+    distanceM @2 :Int32;
+    imageCode @3 :Int32;
+    imageUrl @4 :Text;
+  }
+
+  struct Coordinate {
+    latitude @0 :Float64;
+    longitude @1 :Float64;
+  }
+
+  struct Route {
+    meta @0 :ItemMeta;
+    remainingDistanceM @1 :Int32;
+    remainingTimeSec @2 :Int32;
+    movedDistanceM @3 :Int32;
+    movedTimeSec @4 :Int32;
+    totalDistanceM @5 :Int32;
+    polyline @6 :List(Coordinate);
+  }
+
+  struct NavigationStatus {
+    meta @0 :ItemMeta;
+    mode @1 :Text;
+    guidanceActive @2 :Bool;
+    offRoute @3 :Bool;
+    routePresent @4 :Bool;
+  }
 }
 
-struct CustomReserved15 @0xbd443b539493bc68 {
-}
-
-struct CustomReserved16 @0xfc6241ed8877b611 {
+struct CarrotNaviMediaSP @0xfc6241ed8877b611 {
+  schemaVersion @0 :UInt16;
+  sessionId @1 :Text;
+  kind @2 :Text;
+  name @3 :Text;
+  sequence @4 :UInt64;
+  sourceTimestampMillis @5 :UInt64;
+  receivedMonoTimeNanos @6 :UInt64;
+  present @7 :Bool;
+  messageType @8 :UInt8;
+  formatOrReason @9 :UInt8;
+  flags @10 :UInt16;
+  width @11 :UInt16;
+  height @12 :UInt16;
+  reason @13 :Text;
+  payload @14 :Data;
 }
 
 struct CustomReserved17 @0xa30662f84033036c {

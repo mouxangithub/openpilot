@@ -22,10 +22,9 @@ BIG_ICON_SIZE = 110
 class SunnylinkBigButton(SettingsBigButton):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-    self._label.set_font_weight(FontWeight.AUDIOWIDE)
+    self._label.set_font_weight(FontWeight.BOLD)
 
   def _get_label_font_size(self):
-    # Audiowide runs wider than Inter: "sunnylink" wraps to two lines at 64
     return 56
 
 
@@ -34,6 +33,7 @@ class SettingsLayoutSP(OP.SettingsLayout):
     OP.SettingsLayout.__init__(self)
 
     device_panel = DeviceLayoutMici()
+    device_panel.set_preview_callback(self._enter_onroad_preview)
     self._scroller._items[2].set_click_callback(lambda: gui_app.push_widget(device_panel))
 
     self.icon_offroad_enable = gui_app.texture("../../sunnypilot/selfdrive/assets/icons_mici/always_offroad.png", BIG_ICON_SIZE,

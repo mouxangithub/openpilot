@@ -1,3 +1,5 @@
+import re
+
 import pyray as rl
 from enum import IntEnum
 from abc import ABC, abstractmethod
@@ -6,13 +8,90 @@ from dataclasses import dataclass
 from openpilot.common.params import Params
 from openpilot.common.hardware import HARDWARE
 from openpilot.system.ui.lib.application import gui_app, FontWeight, FONT_SCALE
-from openpilot.system.ui.lib.multilang import tr
+from openpilot.system.ui.lib.multilang import multilang, tr, tr_noop
 from openpilot.system.ui.lib.scroll_panel import GuiScrollPanel
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.wrap_text import wrap_text
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.html_render import HtmlRenderer
 from openpilot.selfdrive.selfdrived.alertmanager import OFFROAD_ALERTS
+
+# Templates from alerts_offroad.json — registered for translation extraction.
+OFFROAD_ALERT_TEMPLATES = {
+  "Offroad_TemperatureTooHigh": tr_noop(
+    "Device temperature too high. System cooling down before starting. Current internal component temperature: %1"
+  ),
+  "Offroad_ConnectivityNeededPrompt": tr_noop(
+    "Immediately connect to the internet to check for updates. If you do not connect to the internet, sunnypilot won't engage in %1"
+  ),
+  "Offroad_ConnectivityNeeded": tr_noop(
+    "Connect to internet to check for updates. sunnypilot won't automatically start until it connects to internet to check for updates."
+  ),
+  "Offroad_UpdateFailed": tr_noop("Unable to download updates\n%1"),
+  "Offroad_IsTakingSnapshot": tr_noop("Taking camera snapshots. System won't start until finished."),
+  "Offroad_NeosUpdate": tr_noop(
+    "An update to your device's operating system is downloading in the background. You will be prompted to update when it's ready to install."
+  ),
+  "Offroad_UnregisteredHardware": tr_noop(
+    "Failed to register with comma.ai backend. It will not connect or upload to comma.ai servers, and receives no support from comma.ai. If this is a device purchased at comma.ai/shop, open a ticket at https://comma.ai/support."
+  ),
+  "Offroad_CarUnrecognized": tr_noop(
+    "sunnypilot was unable to identify your car. Your car is either unsupported or its ECUs are not recognized. Please submit a pull request to add the firmware versions to the proper vehicle. Need help? Join discord.comma.ai."
+  ),
+  "Offroad_Recalibration": tr_noop(
+    "sunnypilot detected a change in the device's mounting position. Ensure the device is fully seated in the mount and the mount is firmly secured to the windshield."
+  ),
+  "Offroad_OSMUpdateRequired": tr_noop(
+    "OpenStreetMap database is out of date. New maps must be downloaded if you wish to continue using OpenStreetMap data for Enhanced Speed Control and road name display.\n\n%1"
+  ),
+  "Offroad_DriverMonitoringUncertain": tr_noop(
+    "Poor visibility detected for driver monitoring. Ensure the device has a clear view of the driver. This can be checked in the device settings. Extreme lighting conditions and/or unconventional mounting positions may also trigger this alert."
+  ),
+  "Offroad_ExcessiveActuation": tr_noop(
+    "Excessive %1 actuation detected on your last drive. Please contact support at https://comma.ai/support and share your device's Dongle ID for troubleshooting."
+  ),
+  "Offroad_TiciSupport": tr_noop(
+    "<b>Unsupported branch detected</b> - The current version of <b><u>%1</u></b> branch is no longer supported on the comma three. Please go to <b>[Device > Software]</b> and install a supported branch with <b><u>-tici</u></b> in the branch name for the comma three."
+  ),
+}
+
+_OFFROAD_EXTRA_LONGITUDINAL = tr_noop("longitudinal")
+_OFFROAD_EXTRA_LATERAL = tr_noop("lateral")
+_OFFROAD_OSM_EXTRA = tr_noop("This alert will be cleared when new maps are downloaded.")
+
+
+def _localize_offroad_extra(alert_key: str, extra: str) -> str:
+  if not extra:
+    return ""
+
+  if alert_key == "Offroad_ExcessiveActuation":
+    if extra == _OFFROAD_EXTRA_LONGITUDINAL:
+      return tr("longitudinal")
+    if extra == _OFFROAD_EXTRA_LATERAL:
+      return tr("lateral")
+
+  if alert_key == "Offroad_TemperatureTooHigh" and extra.endswith("C"):
+    temp = extra[:-1]
+    if multilang.language.startswith("zh"):
+      return f"{temp}度"
+    return extra
+
+  if alert_key == "Offroad_ConnectivityNeededPrompt":
+    match = re.match(r"^(\d+(?:\.\d+)?) hours?\.$", extra)
+    if match and multilang.language.startswith("zh"):
+      unit = "小時" if multilang.language == "zh-CHT" else "小时"
+      return f"{match.group(1)} {unit}"
+
+  if alert_key == "Offroad_OSMUpdateRequired" and extra == _OFFROAD_OSM_EXTRA:
+    return tr(_OFFROAD_OSM_EXTRA)
+
+  return extra
+
+
+def _format_offroad_alert(alert_key: str, alert_json: dict) -> str:
+  template = OFFROAD_ALERT_TEMPLATES.get(alert_key, alert_json.get("text", ""))
+  extra = _localize_offroad_extra(alert_key, alert_json.get("extra", ""))
+  return tr(template).replace("%1", extra)
 
 
 class AlertColors:
@@ -219,7 +298,7 @@ class OffroadAlert(AbstractAlert):
       alert_json = self.params.get(alert_data.key)
 
       if alert_json:
-        text = alert_json.get("text", "").replace("%1", alert_json.get("extra", ""))
+        text = _format_offroad_alert(alert_data.key, alert_json)
 
       alert_data.text = text
       alert_data.visible = bool(text)

@@ -1,8 +1,18 @@
-name: release
+name: 打包预编译分支
+
 on:
-  schedule:
-    - cron: '0 9 * * *'
+  push:
+    branches: [ master-c3, tn-c3 ]
   workflow_dispatch:
+    inputs:
+      source_branch:
+        description: Source branch to strip and publish
+        required: true
+        type: choice
+        options: [ master-c3, tn-c3 ]
+
+permissions:
+  contents: write
 
 env:
   GIT_CONFIG_COUNT: 1
@@ -10,27 +20,51 @@ env:
   GIT_CONFIG_VALUE_0: openpilot/selfdrive/modeld/models/big_driving_supercombo.onnx
 
 jobs:
-  build___nightly:
-    name: build __nightly
+  plan:
+    name: 规划发布
     runs-on: ubuntu-latest
-    if: github.repository == 'sunnypilot/sunnypilot'
-    permissions:
-      checks: read
-      contents: write
+    outputs:
+      source: ${{ steps.plan.outputs.source }}
+      target: ${{ steps.plan.outputs.target }}
     steps:
-    - name: Wait for green check mark
-      if: ${{ github.event_name == 'schedule' }}
-      uses: lewagon/wait-on-check-action@1d57e2c51a58d812d2765e036a028b6bdb5a6154
-      with:
-        ref: master
-        wait-interval: 30
-        running-workflow-name: 'build __nightly'
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
-        check-regexp: ^((?!.*(build prebuilt|create badges).*).)*$
-    - uses: actions/checkout@v4 # checkout version > v4 breaks nightly release script
-      with:
-        submodules: true
-        fetch-depth: 0
-    - run: ./tools/op.sh setup
-    - name: Push __nightly
-      run: BRANCH=__nightly tools/release/build_stripped.sh
+      - id: plan
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SRC="${{ github.event.inputs.source_branch }}"
+          else
+            SRC="${{ github.ref_name }}"
+          fi
+          case "$SRC" in
+            master-c3) TGT=master-c3-prebuild ;;
+            tn-c3) TGT=tn-c3-prebuild ;;
+            *)
+              echo "Unsupported branch: $SRC"
+              exit 1
+              ;;
+          esac
+          echo "source=$SRC" >> "$GITHUB_OUTPUT"
+          echo "target=$TGT" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: ${{ needs.plan.outputs.source }} → ${{ needs.plan.outputs.target }}
+    needs: plan
+    runs-on: ubuntu-latest
+    concurrency:
+      group: release-${{ needs.plan.outputs.target }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.source }}
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: 配置 Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: 推送精简源码分支
+        env:
+          BRANCH: ${{ needs.plan.outputs.target }}
+        run: ./tools/release/build_stripped.sh

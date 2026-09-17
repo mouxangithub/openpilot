@@ -8,6 +8,7 @@ from teleoprtc.tracks import TiciVideoStreamTrack
 from openpilot.cereal import messaging
 from openpilot.common.realtime import DT_MDL
 from openpilot.common.params import Params
+from openpilot.common.swaglog import cloudlog
 
 
 # v4l2 buffer flag marking an encoded keyframe (linux/videodev2.h)
@@ -40,6 +41,7 @@ class LiveStreamVideoStreamTrack(TiciVideoStreamTrack):
   def __init__(self, camera_type: str, video_enabled: bool = True):
     super().__init__(camera_type, DT_MDL)
 
+    self._camera_type = camera_type
     self._sock = self._make_sock(camera_type)
     self._pts = 0
     self._t0_ns = time.monotonic_ns()
@@ -56,7 +58,20 @@ class LiveStreamVideoStreamTrack(TiciVideoStreamTrack):
     return messaging.sub_sock(self.camera_to_sock_mapping[camera_type], conflate=True)
 
   def switch_camera(self, camera_type: str) -> None:
+    if camera_type not in self.camera_to_sock_mapping:
+      cloudlog.warning(f"LiveStreamVideoStreamTrack: unknown camera type {camera_type}")
+      return
+    cloudlog.warning(f"LiveStreamVideoStreamTrack: switching to {camera_type}")
+    self._camera_type = camera_type
+    try:
+      if self._sock is not None:
+        self._sock.close()
+    except Exception:
+      pass
     self._sock = self._make_sock(camera_type)
+    # Decoder needs a fresh IDR after the source H.264 stream changes.
+    self._seen_keyframe = False
+    self.request_keyframe()
 
   def enable(self, enabled: bool):
     self.video_enabled = enabled
@@ -89,13 +104,27 @@ class LiveStreamVideoStreamTrack(TiciVideoStreamTrack):
 
       msg = messaging.recv_one_or_none(self._sock)
       if msg is not None:
-        if not self._seen_keyframe and (getattr(msg, msg.which()).idx.flags & V4L2_BUF_FLAG_KEYFRAME):
-          self._seen_keyframe = True
-          self.params.put("LivestreamRequestKeyframe", False, block=False)
+        is_keyframe = bool(getattr(msg, msg.which()).idx.flags & V4L2_BUF_FLAG_KEYFRAME)
+        if not self._seen_keyframe:
+          if is_keyframe:
+            self._seen_keyframe = True
+            self.params.put("LivestreamRequestKeyframe", False, block=False)
+          else:
+            # After a camera switch the decoder needs a fresh IDR before we
+            # send frames from the new H.264 stream; drop inter frames until
+            # the requested keyframe arrives.
+            await asyncio.sleep(0.005)
+            continue
         break
       await asyncio.sleep(0.005)
 
     self._pts =  ((time.monotonic_ns() - self._t0_ns) * self._clock_rate) // 1_000_000_000
-    self.log_debug("track sending frame %d", self._pts)
+    encode_data = getattr(msg, msg.which())
+    is_keyframe = bool(encode_data.idx.flags & V4L2_BUF_FLAG_KEYFRAME)
+    cloudlog.warning(
+      f"LiveStreamVideoStreamTrack: sending frame camera={self._camera_type} "
+      f"pts={self._pts} keyframe={is_keyframe} data_len={len(encode_data.data)} "
+      f"header_len={len(encode_data.header)} width={encode_data.width} height={encode_data.height}"
+    )
 
     return EncodedVideoFrame(self._build_frame_data(msg), self._pts)

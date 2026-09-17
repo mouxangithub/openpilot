@@ -12,6 +12,7 @@ from msgq.visionipc import VisionIpcClient
 
 
 from openpilot.common.params import Params
+from openpilot.common.dm import is_dm_disabled
 from openpilot.common.realtime import config_realtime_process, Priority, Ratekeeper, DT_CTRL
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.gps import get_gps_location_service
@@ -35,7 +36,7 @@ from openpilot.sunnypilot.selfdrive.selfdrived.button_state_tracker import Butto
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 
 REPLAY = "REPLAY" in os.environ
-SIMULATION = "SIMULATION" in os.environ
+SIMULATION = "SIMULATION" in os.environ or os.getenv("LITE") is not None
 TESTING_CLOSET = "TESTING_CLOSET" in os.environ
 
 LONGITUDINAL_PERSONALITY_MAP = {v: k for k, v in log.LongitudinalPersonality.schema.enumerants.items()}
@@ -60,7 +61,7 @@ class SelfdriveD(CruiseHelper):
     self.params = Params()
 
     # Ensure the current branch is cached, otherwise the first cycle lags
-    build_metadata = get_build_metadata()
+    get_build_metadata()
 
     if CP is None:
       cloudlog.info("selfdrived is waiting for CarParams")
@@ -98,9 +99,12 @@ class SelfdriveD(CruiseHelper):
     # TODO: de-couple selfdrived with card/conflate on carState without introducing controls mismatches
     self.car_state_sock = messaging.sub_sock('carState', timeout=20)
 
-    ignore = self.sensor_packets + self.gps_packets + ['alertDebug', 'lateralManeuverPlan'] + ['modelDataV2SP', 'longitudinalPlanSP']
-    if SIMULATION:
+    ignore = self.sensor_packets + self.gps_packets + ['alertDebug', 'lateralManeuverPlan'] + ['modelDataV2SP', 'longitudinalPlanSP', 'carStateSP']
+    disable_dm = is_dm_disabled(self.params)
+    if SIMULATION or disable_dm:
       ignore += ['cabinCameraState', 'managerState']
+    if disable_dm:
+      ignore += ['driverMonitoringState', 'driverStateV2']
     if REPLAY:
       # no vipc in replay will make them ignored anyways
       ignore += ['narrowRoadCameraState', 'wideRoadCameraState']
@@ -108,7 +112,7 @@ class SelfdriveD(CruiseHelper):
                                    'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'deviceMotion', 'lateralDelay',
                                    'managerState', 'vehicleParameters', 'radarState', 'lateralTorqueParameters',
                                    'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userBookmark',
-                                   'lateralManeuverPlan', 'modelDataV2SP', 'longitudinalPlanSP'] + \
+                                   'lateralManeuverPlan', 'modelDataV2SP', 'longitudinalPlanSP', 'carStateSP'] + \
                                    self.camera_packets + self.sensor_packets + self.gps_packets,
                                   ignore_alive=ignore, ignore_avg_freq=ignore,
                                   ignore_valid=ignore, frequency=int(1/DT_CTRL))
@@ -157,8 +161,7 @@ class SelfdriveD(CruiseHelper):
     self.ignored_processes = {'mapd', }
 
     # Determine startup event
-    is_remote = build_metadata.openpilot.comma_remote or build_metadata.openpilot.sunnypilot_remote
-    self.startup_event = EventName.startup if is_remote and build_metadata.tested_channel else EventName.startupMaster
+    self.startup_event = EventName.startup
     if HARDWARE.get_device_type() == 'mici':
       self.startup_event = None
     if not car_recognized:
@@ -248,7 +251,7 @@ class SelfdriveD(CruiseHelper):
       self.events.add(EventName.resumeBlocked)
 
     # Handle DM
-    if not self.CP.notCar:
+    if not self.CP.notCar and not is_dm_disabled(self.params):
       # Block engaging until lockout times out or ignition reset
       if self.sm['driverMonitoringState'].lockout and not self.dm_lockout_set:
         self.params.put_bool("DriverTooDistracted", True)
@@ -352,9 +355,16 @@ class SelfdriveD(CruiseHelper):
     if self.sm['modelV2'].meta.laneChangeState == LaneChangeState.preLaneChange:
       direction = self.sm['modelV2'].meta.laneChangeDirection
       mdv2sp = self.sm['modelDataV2SP']
+      cs_sp = self.sm['carStateSP']
+      carrot_left_blocked = cs_sp.carrotLaneValid and cs_sp.carrotLeftLineBlocked
+      carrot_right_blocked = cs_sp.carrotLaneValid and cs_sp.carrotRightLineBlocked
 
       if (CS.leftBlindspot and direction == LaneChangeDirection.left) or \
          (CS.rightBlindspot and direction == LaneChangeDirection.right):
+        self.events.add(EventName.laneChangeBlocked)
+
+      elif (carrot_left_blocked and direction == LaneChangeDirection.left) or \
+           (carrot_right_blocked and direction == LaneChangeDirection.right):
         self.events.add(EventName.laneChangeBlocked)
 
       elif (mdv2sp.leftLaneChangeEdgeBlock and direction == LaneChangeDirection.left) or \

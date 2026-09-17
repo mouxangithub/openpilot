@@ -9,6 +9,7 @@ from openpilot.common.swaglog import cloudlog
 # WARNING: imports outside of constants will not trigger a rebuild
 from openpilot.selfdrive.modeld.constants import index_function
 from openpilot.selfdrive.controls.radard import _LEAD_ACCEL_TAU
+from openpilot.common.params import Params
 
 if __name__ == '__main__':  # generating code
   from acados.acados_template import AcadosModel, AcadosOcp, AcadosOcpSolver
@@ -53,8 +54,21 @@ T_IDXS_LST = [index_function(idx, max_val=MAX_T, max_idx=N) for idx in range(N+1
 T_IDXS = np.array(T_IDXS_LST)
 FCW_IDXS = T_IDXS < 5.0
 T_DIFFS = np.diff(T_IDXS, prepend=[0.])
-COMFORT_BRAKE = 2.5
-STOP_DISTANCE = 6.0
+
+
+def _read_tuning_float(params, key, default):
+  """Best-effort read of a float tuning param; falls back to default (e.g. in tests / no-params env)."""
+  try:
+    val = params.get(key, return_default=True)
+    return float(val) if val is not None else default
+  except Exception:
+    return default
+
+# COMFORT_BRAKE and STOP_DISTANCE are baked into the compiled acados solver (see gen_long_ocp).
+# They are read at module load so a solver rebuild bakes the user's chosen values consistently.
+_TUNING_PARAMS = Params()
+COMFORT_BRAKE = _read_tuning_float(_TUNING_PARAMS, "LongitudinalMpcTuningComfortBrake", 2.5)
+STOP_DISTANCE = _read_tuning_float(_TUNING_PARAMS, "LongitudinalMpcTuningStopDistance", 6.0)
 MIN_X_LEAD_FACTOR = 0.5
 
 def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
@@ -78,11 +92,11 @@ def get_T_FOLLOW(personality=log.LongitudinalPersonality.standard):
   else:
     raise NotImplementedError("Longitudinal personality not supported")
 
-def get_stopped_equivalence_factor(v_lead):
-  return (v_lead**2) / (2 * COMFORT_BRAKE)
+def get_stopped_equivalence_factor(v_lead, comfort_brake=COMFORT_BRAKE):
+  return (v_lead**2) / (2 * comfort_brake)
 
-def get_safe_obstacle_distance(v_ego, t_follow):
-  return (v_ego**2) / (2 * COMFORT_BRAKE) + t_follow * v_ego + STOP_DISTANCE
+def get_safe_obstacle_distance(v_ego, t_follow, comfort_brake=COMFORT_BRAKE, stop_distance=STOP_DISTANCE):
+  return (v_ego**2) / (2 * comfort_brake) + t_follow * v_ego + stop_distance
 
 def gen_long_model():
   model = AcadosModel()
@@ -215,8 +229,36 @@ class LongitudinalMpc:
   def __init__(self, dt=DT_MDL):
     self.dt = dt
     self.solver = AcadosOcpSolverCython(MODEL_NAME, ACADOS_SOLVER_TYPE, N)
+    self._read_live_tuning(Params())
+    # Dynamic comfort-brake / stop-distance overrides (set per-call by the
+    # CarrotPlanner longitudinal source). They default to the module-level
+    # values baked at import, so stock behavior is unchanged unless explicitly
+    # overridden. NOTE: these do NOT change PARAM_DIM or rebuild the solver.
+    self.comfort_brake = COMFORT_BRAKE
+    self.stop_distance = STOP_DISTANCE
     self.reset()
     self.source = LongitudinalPlanSource.cruise
+
+  def _read_live_tuning(self, p: Params):
+    # MPC tuning (no solver rebuild needed): cost weights, follow time and lead danger factor.
+    self.t_follow_relaxed = _read_tuning_float(p, "LongitudinalMpcTuningTFollowRelaxed", 1.75)
+    self.t_follow_standard = _read_tuning_float(p, "LongitudinalMpcTuningTFollowStandard", 1.45)
+    self.t_follow_aggressive = _read_tuning_float(p, "LongitudinalMpcTuningTFollowAggressive", 1.25)
+    self.x_ego_obstacle_cost = _read_tuning_float(p, "LongitudinalMpcTuningXEgoObstacleCost", X_EGO_OBSTACLE_COST)
+    self.j_ego_cost = _read_tuning_float(p, "LongitudinalMpcTuningJEgoCost", J_EGO_COST)
+    self.a_change_cost = _read_tuning_float(p, "LongitudinalMpcTuningAChangeCost", A_CHANGE_COST)
+    self.danger_zone_cost = _read_tuning_float(p, "LongitudinalMpcTuningDangerZoneCost", DANGER_ZONE_COST)
+    self.lead_danger_factor = _read_tuning_float(p, "LongitudinalMpcTuningLeadDangerFactor", LEAD_DANGER_FACTOR)
+
+  def get_t_follow(self, personality=log.LongitudinalPersonality.standard):
+    if personality == log.LongitudinalPersonality.relaxed:
+      return self.t_follow_relaxed
+    elif personality == log.LongitudinalPersonality.standard:
+      return self.t_follow_standard
+    elif personality == log.LongitudinalPersonality.aggressive:
+      return self.t_follow_aggressive
+    else:
+      raise NotImplementedError("Longitudinal personality not supported")
 
   def reset(self):
     self.solver.reset()
@@ -243,6 +285,8 @@ class LongitudinalMpc:
     # timers
     self.solve_time = 0.0
     self.x0 = np.zeros(X_DIM)
+    self.lead_0_obstacle = None
+    self.lead_1_obstacle = None
     self.set_weights()
 
   def set_cost_weights(self, cost_weights, constraint_cost_weights):
@@ -261,11 +305,12 @@ class LongitudinalMpc:
     for i in range(N):
       self.solver.cost_set(i, 'Zl', Zl)
 
-  def set_weights(self, prev_accel_constraint=True, personality=log.LongitudinalPersonality.standard):
-    jerk_factor = get_jerk_factor(personality)
-    a_change_cost = A_CHANGE_COST if prev_accel_constraint else 0
-    cost_weights = [X_EGO_OBSTACLE_COST, X_EGO_COST, V_EGO_COST, A_EGO_COST, jerk_factor * a_change_cost, jerk_factor * J_EGO_COST]
-    constraint_cost_weights = [LIMIT_COST, LIMIT_COST, LIMIT_COST, DANGER_ZONE_COST]
+  def set_weights(self, prev_accel_constraint=True, personality=log.LongitudinalPersonality.standard, jerk_factor=None):
+    if jerk_factor is None:
+      jerk_factor = get_jerk_factor(personality)
+    a_change_cost = self.a_change_cost if prev_accel_constraint else 0
+    cost_weights = [self.x_ego_obstacle_cost, X_EGO_COST, V_EGO_COST, A_EGO_COST, jerk_factor * a_change_cost, jerk_factor * self.j_ego_cost]
+    constraint_cost_weights = [LIMIT_COST, LIMIT_COST, LIMIT_COST, self.danger_zone_cost]
     self.set_cost_weights(cost_weights, constraint_cost_weights)
 
   def set_cur_state(self, v, a):
@@ -307,8 +352,21 @@ class LongitudinalMpc:
     lead_xv = self.extrapolate_lead(x_lead, v_lead, a_lead, a_lead_tau)
     return lead_xv
 
-  def update(self, radarstate, personality=log.LongitudinalPersonality.standard):
-    t_follow = get_T_FOLLOW(personality)
+  def update(self, radarstate, personality=log.LongitudinalPersonality.standard, *, t_follow=None, jerk_factor=None,
+              comfort_brake=None, stop_distance=None, stop_obstacle_distance=0.0, lane_change_credit=None):
+    # Tuning is read once in __init__, never here. Params.get() is a filesystem read that
+    # measures 111 us/key on a tizi, and its tail latency is unbounded when loggerd or the
+    # uploader are busy -- not something to put in the planning loop. plannerd only runs
+    # onroad, so edits made while parked take effect on the next drive.
+    t_follow = self.get_t_follow(personality) if t_follow is None else float(t_follow)
+    if jerk_factor is not None:
+      jerk_factor = float(jerk_factor)
+
+    # Optional dynamic overrides from the CarrotPlanner longitudinal source
+    # (comfort_brake / stop_distance margin). These only change the runtime
+    # obstacle-distance math; they do NOT touch PARAM_DIM or rebuild the solver.
+    self.comfort_brake = float(comfort_brake) if comfort_brake is not None else COMFORT_BRAKE
+    self.stop_distance = float(stop_distance) if stop_distance is not None else STOP_DISTANCE
 
     lead_xv_0 = self.process_lead(radarstate.leadOne)
     lead_xv_1 = self.process_lead(radarstate.leadTwo)
@@ -316,11 +374,31 @@ class LongitudinalMpc:
     # To estimate a safe distance from a moving lead, we calculate how much stopping
     # distance that lead needs as a minimum. We can add that to the current distance
     # and then treat that as a stopped car/obstacle at this new distance.
-    lead_0_obstacle = lead_xv_0[:,0] + get_stopped_equivalence_factor(lead_xv_0[:,1])
-    lead_1_obstacle = lead_xv_1[:,0] + get_stopped_equivalence_factor(lead_xv_1[:,1])
+    lead_0_obstacle = lead_xv_0[:,0] + get_stopped_equivalence_factor(lead_xv_0[:,1], self.comfort_brake)
+    lead_1_obstacle = lead_xv_1[:,0] + get_stopped_equivalence_factor(lead_xv_1[:,1], self.comfort_brake)
 
-    x_obstacles = np.column_stack([lead_0_obstacle, lead_1_obstacle])
-    self.source = MPC_SOURCES[np.argmin(x_obstacles[0])]
+    # Lane-change gap credit: when an active lane change has a confirmed clear gap,
+    # the tracker's credit (meters, per horizon) is added to the primary lead
+    # obstacle so the MPC may permit a bounded ACC departure. Guards inside
+    # LaneChangeGapPlan.credit() already gate on confidence / clearance / speed.
+    if lane_change_credit is not None:
+      lead_0_obstacle = lead_0_obstacle + np.asarray(lane_change_credit, dtype=float)
+
+    # The MPC source is chosen from the real radar leads only.
+    lead_obstacles = np.column_stack([lead_0_obstacle, lead_1_obstacle])
+    self.source = MPC_SOURCES[np.argmin(lead_obstacles[0])]
+
+    # A virtual stop obstacle (planned stop point) may be injected when the
+    # CarrotPlanner is commanding a stop at a known distance. It is folded into
+    # the safety floor via the min() over all obstacles.
+    obstacles = [lead_0_obstacle, lead_1_obstacle]
+    if stop_obstacle_distance and stop_obstacle_distance > 0:
+      obstacles.append(np.full(N + 1, float(stop_obstacle_distance)))
+    x_obstacles = np.column_stack(obstacles)
+
+    # Expose the per-lead obstacles for upstream stop-obstacle blending.
+    self.lead_0_obstacle = lead_0_obstacle
+    self.lead_1_obstacle = lead_1_obstacle
 
     self.yref[:,:] = 0.0
     for i in range(N):
@@ -332,7 +410,7 @@ class LongitudinalMpc:
     self.params[:,2] = np.min(x_obstacles, axis=1)
     self.params[:,3] = np.copy(self.a_prev)
     self.params[:,4] = t_follow
-    self.params[:,5] = LEAD_DANGER_FACTOR
+    self.params[:,5] = self.lead_danger_factor
 
     self.run()
     if (np.any(lead_xv_0[FCW_IDXS,0] - self.x_sol[FCW_IDXS,0] < CRASH_DISTANCE) and

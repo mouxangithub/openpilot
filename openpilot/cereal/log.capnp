@@ -785,6 +785,11 @@ struct ExtrinsicsCalibration @0x96df70754d8390bc {
   rpyCalibSpread @8 :List(Float32);
   wideFromDeviceEuler @10 :List(Float32);
   height @12 :List(Float32);
+  # full 3x3 IMU-to-vehicle rotation matrix (row-major), used when the device
+  # is mounted at a large arbitrary angle and a separate camera provides the
+  # vehicle-frame reference. When present and valid, this matrix supersedes
+  # rpyCalib for the device-to-calibration transformation.
+  imuCalibMatrix @13 :List(Float32);
 
 
   enum Status {
@@ -2642,20 +2647,20 @@ struct Event {
     carStateSP @114 :Custom.CarStateSP;
     liveMapDataSP @115 :Custom.LiveMapDataSP;
     modelDataV2SP @116 :Custom.ModelDataV2SP;
-    customReserved10 @136 :Custom.CustomReserved10;
-    customReserved11 @137 :Custom.CustomReserved11;
-    customReserved12 @138 :Custom.CustomReserved12;
-    customReserved13 @139 :Custom.CustomReserved13;
-    customReserved14 @140 :Custom.CustomReserved14;
-    customReserved15 @141 :Custom.CustomReserved15;
-    customReserved16 @142 :Custom.CustomReserved16;
+    longitudinalMpcTuningSP @136 :Custom.LongitudinalMpcTuningSP;
+    amapNaviSPDEPRECATED @137 :Void;  # AmapNaviSP removed; kept for ordinal stability
+    navInstructionCarrotSP @138 :Custom.NavInstructionCarrotSP;
+    carrotManSP @139 :Custom.CarrotManSP;
+    imuCalibrationSP @140 :Custom.ImuCalibrationSP;
+    carrotNaviSP @141 :Custom.CarrotNaviStateSP;
+    carrotNaviMediaSP @142 :Custom.CarrotNaviMediaSP;
     customReserved17 @143 :Custom.CustomReserved17;
     customReserved18 @144 :Custom.CustomReserved18;
     customReserved19 @145 :Custom.CustomReserved19;
+    audioFeedbackDEPRECATED @149 :Deprecated.AudioFeedbackDEPRECATED;
 
     # *********** legacy + deprecated ***********
     model @9 :Deprecated.ModelData; # TODO: rename modelV2 and mark this as deprecated
-    audioFeedbackDEPRECATED @149 :Deprecated.AudioFeedbackDEPRECATED;
     liveMpcDEPRECATED @36 :Deprecated.LiveMpcData;
     liveLongitudinalMpcDEPRECATED @37 :Deprecated.LiveLongitudinalMpcData;
     liveLocationKalmanDeprecatedDEPRECATED @51 :Deprecated.LiveLocationData;
@@ -2704,7 +2709,7 @@ struct Event {
     driverMonitoringStateDEPRECATED @71 :DriverMonitoringStateDEPRECATED;
     gpsNMEADEPRECATED @3 :GPSNMEAData;
     uploaderStateDEPRECATED @79 :UploaderState;
-    navInstructionDEPRECATED @82 :NavInstruction;
+    navInstruction @82 :NavInstruction;
     navRouteDEPRECATED @83 :NavRoute;
     navThumbnailDEPRECATED @84 :Thumbnail;
     gnssMeasurementsDEPRECATED @91 :GnssMeasurements;

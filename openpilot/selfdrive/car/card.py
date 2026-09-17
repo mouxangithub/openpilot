@@ -24,6 +24,7 @@ from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_cap
 
 from openpilot.sunnypilot.mads.helpers import set_alternative_experience, set_car_specific_params
 from openpilot.sunnypilot.selfdrive.car import interfaces as sunnypilot_interfaces
+from openpilot.sunnypilot.carrot.carrot_navi_fusion import merge_carrot_navi_lanes
 
 REPLAY = "REPLAY" in os.environ
 
@@ -71,7 +72,7 @@ class Car:
 
   def __init__(self, CI=None, RI=None) -> None:
     self.can_sock = messaging.sub_sock('can', timeout=20)
-    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP'])
+    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP', 'carrotManSP', 'carrotNaviSP'])
     self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'radarTracks'] + ['carParamsSP', 'carStateSP'])
 
     self.can_rcv_cum_timeout_counter = 0
@@ -99,6 +100,7 @@ class Car:
           break
 
       alpha_long_allowed = self.params.get_bool("AlphaLongitudinalEnabled")
+      num_pandas = len(messaging.recv_one_retry(self.sm.sock['pandaStates']).pandaStates)
 
       cached_params = None
       cached_params_raw = self.params.get("CarParamsCache")
@@ -109,7 +111,7 @@ class Car:
       fixed_fingerprint = (self.params.get("CarPlatformBundle") or {}).get("platform", None)
       init_params_list_sp = sunnypilot_interfaces.initialize_params(self.params)
 
-      self.CI = get_car(*self.can_callbacks, obd_callback(self.params), alpha_long_allowed, is_release, cached_params,
+      self.CI = get_car(*self.can_callbacks, obd_callback(self.params), alpha_long_allowed, is_release, num_pandas, cached_params,
                         fixed_fingerprint, init_params_list_sp, is_release_sp)
       sunnypilot_interfaces.setup_interfaces(self.CI, self.params)
       self.RI = interfaces[self.CI.CP.carFingerprint].RadarInterface(self.CI.CP, self.CI.CP_SP)
@@ -185,6 +187,10 @@ class Car:
 
     self.is_metric = self.params.get_bool("IsMetric")
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
+    self.carrot_enabled = self.params.get_bool("CarrotEnabled")
+    self.carrot_navi_v2_enabled = self.params.get_bool("CarrotNaviV2Enabled")
+    self._carrot_navi_cache = None
+    self._carrot_navi_cache_mono = 0.0
 
     # card is driven by can recv, expected at 100Hz
     self.rk = Ratekeeper(100, print_delay_threshold=None)
@@ -207,6 +213,14 @@ class Car:
 
     self.sm.update(0)
 
+    # Merge Carrot 7714 v2 navigation lane hints into carState/carStateSP.
+    if self.sm.updated['carrotNaviSP'] and self.sm.valid['carrotNaviSP']:
+      self._carrot_navi_cache = self.sm['carrotNaviSP']
+      self._carrot_navi_cache_mono = time.monotonic()
+    carrot_navi = self._carrot_navi_cache
+    if self.carrot_enabled and self.carrot_navi_v2_enabled and carrot_navi is not None and time.monotonic() - self._carrot_navi_cache_mono <= 0.5:
+      merge_carrot_navi_lanes(CS_SP, carrot_navi)
+
     can_rcv_valid = len(can_strs) > 0
 
     # Check for CAN timeout
@@ -215,6 +229,13 @@ class Car:
 
     if can_rcv_valid and REPLAY:
       self.can_log_mono_time = messaging.log_from_bytes(can_strs[0]).logMonoTime
+
+    # remote SPEED commands from the carrot phone app (Navipilot-style set speed)
+    if self.carrot_enabled and self.sm.updated['carrotManSP']:
+      try:
+        self.v_cruise_helper.process_carrot_speed_cmd(self.sm['carrotManSP'], self.sm['carControl'].enabled)
+      except Exception:
+        cloudlog.exception("card: failed to process carrot speed command")
 
     self.v_cruise_helper.update_speed_limit_assist(self.is_metric, self.sm['longitudinalPlanSP'])
     self.v_cruise_helper.update_v_cruise(CS, self.sm['carControl'].enabled, self.is_metric)
@@ -306,6 +327,7 @@ class Car:
     while not evt.is_set():
       self.is_metric = self.params.get_bool("IsMetric")
       self.experimental_mode = self.params.get_bool("ExperimentalMode") and self.CP.openpilotLongitudinalControl
+      self.carrot_enabled = self.params.get_bool("CarrotEnabled")
 
       # sunnypilot
       self.dynamic_experimental_control = self.params.get_bool("DynamicExperimentalControl")
