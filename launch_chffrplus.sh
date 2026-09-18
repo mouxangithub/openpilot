@@ -57,8 +57,43 @@ ensure_pip_dep() {
         "$py" /tmp/get-pip.py --target="$pydeps" --no-warn-script-location >> /tmp/bootstrap.log 2>&1 || true
     fi
     local index_url="${PIP_INDEX_URL:-https://pypi.org/simple}"
-    PYTHONPATH="$py_path" "$py" -m pip install --index-url="$index_url" --target="$pydeps" "$module" >> /tmp/bootstrap.log 2>&1 || true
+    PYTHONPATH="$py_path" "$py" -m pip install --index-url="$index_url" --target="$pydeps" "$module" >> /tmp/bootstrap.log 2>&1 || return 1
   fi
+}
+
+# Ensures a list of pip packages are importable.
+# More efficient than repeated ensure_pip_dep calls because a single pip
+# invocation resolves the dependency graph once. Failures are propagated so
+# that overlay updates cannot silently leave ai/webui without dependencies.
+ensure_pip_deps() {
+  local pydeps="$PYDEPS_DIR"
+  local py=$(find_python python3.12) || return 1
+  local py_path=$(setup_python_path "$DIR")
+  local lockfile="/tmp/ensure_pip_deps.lock"
+  shift 0
+
+  exec 200>"$lockfile"
+  flock 200 || return 1
+
+  local missing=()
+  for module in "$@"; do
+    if ! PYTHONPATH="$py_path" "$py" -c "import $module" 2>/dev/null; then
+      missing+=("$module")
+    fi
+  done
+
+  if [ ${#missing[@]} -eq 0 ]; then
+    return 0
+  fi
+
+  [ -d "$pydeps" ] || mkdir -p "$pydeps" 2>/dev/null || return 1
+  if ! "$py" -c "import pip" 2>/dev/null; then
+    curl -fsSL "${GET_PIP_URL:-https://mirrors.aliyun.com/pypi/get-pip.py}" -o /tmp/get-pip.py 2>/dev/null && \
+      "$py" /tmp/get-pip.py --target="$pydeps" --no-warn-script-location >> /tmp/bootstrap.log 2>&1 || return 1
+  fi
+
+  local index_url="${PIP_INDEX_URL:-https://pypi.org/simple}"
+  PYTHONPATH="$py_path" "$py" -m pip install --index-url="$index_url" --target="$pydeps" "${missing[@]}" >> /tmp/bootstrap.log 2>&1 || return 1
 }
 
 start_service() {
@@ -269,8 +304,9 @@ link_repos() {
 }
 
 bootstrap_deps() {
-  ensure_pip_dep aiohttp
-  ensure_pip_dep jeepney
+  # Core deps needed by ai/aid.py and webui/webuid.py. Installed together so a
+  # single overlay update does not leave either service unable to import.
+  ensure_pip_deps aiohttp jinja2 pyzmq zstandard numpy requests tqdm jeepney
 }
 
 # Build the minimal Params shared library before starting services that need it.
