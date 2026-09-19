@@ -210,5 +210,13 @@
   "UseLaneLineCurveSpeed": 0,
   "UseLaneLineSpeed": 0,
   "UseWideCamera": 1,
-  "VEgoStopping": 50
+  "VEgoStopping": 50,
+  "CanfdStopRetry": 0,
+  "CruiseGapLevels": 4,
+  "LeadAccelResponseTF1": -1,
+  "LeadAccelResponseTF2": -1,
+  "LeadAccelResponseTF3": -1,
+  "LeadAccelResponseTF4": -1,
+  "SpeedTFFactor": 10,
+  "AutoNaviRearCameraHoldDistance": 100
 }

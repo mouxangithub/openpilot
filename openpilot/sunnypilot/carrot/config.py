@@ -266,6 +266,17 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "UseLaneLineSpeed": 0,
   "UseWideCamera": 1,
   "VEgoStopping": 50,
+  # --- cp tuning alignment (missing params from CarrotPilot 185-key set) ---
+  # Defaults mirror cp/selfdrive/carrot_settings.json so webui read/reset
+  # works even though sp does not yet consume every key in longitudinal control.
+  "CanfdStopRetry": 0,                       # CANFD stop-and-retry fallback (cp default 0)
+  "CruiseGapLevels": 4,                      # number of follow-gap levels (cp default 4)
+  "LeadAccelResponseTF1": -1,                # lead accel response, gap level 1 (cp default -1)
+  "LeadAccelResponseTF2": -1,                # lead accel response, gap level 2 (cp default -1)
+  "LeadAccelResponseTF3": -1,                # lead accel response, gap level 3 (cp default -1)
+  "LeadAccelResponseTF4": -1,                # lead accel response, gap level 4 (cp default -1)
+  "SpeedTFFactor": 10,                       # speed-dependent time-gap factor (cp default 10)
+  "AutoNaviRearCameraHoldDistance": 100,     # navi rear-camera hold distance cm (cp default 100)
 }
 
 

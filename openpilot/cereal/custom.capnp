@@ -681,6 +681,18 @@ struct CarrotManSP @0xcd96dafb67a082d0 {
   vehicleNaviSpeed @51 :Int32 = 0;
   vehicleNaviSectionActive @52 :Bool = false;
   vehicleNaviAvailable @53 :Bool = false;
+  # Service area / toll gate hints (App §2.3 SAPA_* group, KEY_TYPE 10001).
+  sapaName @54 :Text = "";
+  sapaDist @55 :Int32 = 0;      # meters; -1 = invalid
+  sapaType @56 :Int32 = 0;      # 0=service/parking area, 1=toll gate, 2=checkpoint
+  sapaCnt @57 :Int32 = 0;       # SAPA_NUM raw (semantics TBD, observed constant 2)
+  # TMC live traffic congestion (App §2.5, KEY_TYPE 13011).
+  tmcTotalDistance @58 :Int32 = 0;
+  tmcResidualDistance @59 :Int32 = 0;
+  tmcSegmentCount @60 :Int32 = 0;
+  tmcOverallStatus @61 :Int32 = 0;  # 0=unknown,1=free,2=slow,3=congested,4=severe,5=very-free,10=current
+  # Lane guidance arrow codes (App §2.2 navLaneGuide / navLaneGuideCnt).
+  navLaneGuide @62 :Text = "";
 }
 
 struct ImuCalibrationSP @0xb057204d7deadf3f {

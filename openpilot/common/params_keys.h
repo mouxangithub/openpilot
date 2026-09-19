@@ -366,6 +366,16 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"TFollowGap2", {PERSISTENT | BACKUP, INT, "120"}},
     {"TFollowGap3", {PERSISTENT | BACKUP, INT, "140"}},
     {"TFollowGap4", {PERSISTENT | BACKUP, INT, "160"}},
+    // cp tuning alignment: params present in CarrotPilot settings but newly
+    // registered here so webui read/reset works and defaults match cp.
+    {"CruiseGapLevels", {PERSISTENT | BACKUP, INT, "4"}},
+    {"LeadAccelResponseTF1", {PERSISTENT | BACKUP, INT, "-1"}},
+    {"LeadAccelResponseTF2", {PERSISTENT | BACKUP, INT, "-1"}},
+    {"LeadAccelResponseTF3", {PERSISTENT | BACKUP, INT, "-1"}},
+    {"LeadAccelResponseTF4", {PERSISTENT | BACKUP, INT, "-1"}},
+    {"SpeedTFFactor", {PERSISTENT | BACKUP, INT, "10"}},
+    {"AutoNaviRearCameraHoldDistance", {PERSISTENT | BACKUP, INT, "100"}},
+    {"CanfdStopRetry", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CruiseMaxVals0", {PERSISTENT | BACKUP, INT, "160"}},
     {"CruiseMaxVals1", {PERSISTENT | BACKUP, INT, "160"}},
     {"CruiseMaxVals2", {PERSISTENT | BACKUP, INT, "120"}},

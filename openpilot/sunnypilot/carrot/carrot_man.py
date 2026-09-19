@@ -1038,6 +1038,19 @@ class CarrotManager:
     cm.vehicleNaviSectionActive = vehicle_navi_section_active
     cm.vehicleNaviAvailable = vehicle_navi_available
 
+    # Service area / toll gate hints (App §2.3 SAPA_* group).
+    cm.sapaName = _safe_str(raw.get("sapaName"), "")
+    cm.sapaDist = _safe_int(raw.get("sapaDist"), 0)
+    cm.sapaType = _safe_int(raw.get("sapaType"), 0)
+    cm.sapaCnt = _safe_int(raw.get("sapaCnt"), 0)
+    # TMC live traffic congestion (App §2.5). Per-segment arrays ride as JSON.
+    cm.tmcTotalDistance = _safe_int(raw.get("tmcTotalDistance"), 0)
+    cm.tmcResidualDistance = _safe_int(raw.get("tmcResidualDistance"), 0)
+    cm.tmcSegmentCount = _safe_int(raw.get("tmcSegmentCount"), 0)
+    cm.tmcOverallStatus = _safe_int(raw.get("tmcOverallStatus"), 0)
+    # Lane guidance arrow codes (App §2.2 navLaneGuide).
+    cm.navLaneGuide = _safe_str(raw.get("navLaneGuide"), "")
+
     navi_msg = messaging.new_message('navInstructionCarrotSP')
     navi_msg.valid = True
     ni = navi_msg.navInstructionCarrotSP
@@ -2973,10 +2986,28 @@ class CarrotManager:
       cloudlog.error(f"carrot_man: send_tmux error: {e}")
 
 
+def _thread_excepthook(args):
+  # Catch unhandled exceptions in any daemon thread so a crash in the navi
+  # TCP/HTTP, ZMQ, broadcast or route servers is logged to cloudlog instead of
+  # silently killing the thread and leaving carrot_man half-intact.  This does
+  # NOT terminate the process nor the daemon threads -- it only surface the
+  # root cause so the next "exits after CP navigation" report produces a real
+  # traceback instead of silence.
+  cloudlog.error(
+    f"carrot_man: unhandled exception in thread {args.thread.name!r}: "
+    f"{''.join(args.exc_traceback) if args.exc_traceback else args.exc_value}"
+  )
+
+
 def main_thread():
   # config_realtime_process([0, 1, 2, 3], 5)  # disabled: SCHED_FIFO can starve locationd; use background scheduling below
   set_core_affinity([0, 1, 2, 3])
   os.nice(5)
+
+  # Any unhandled exception inside a daemon thread is logged (see above) rather
+  # than silently killing that thread, so navigation-triggered crashes leave an
+  # auditable cloudlog entry.
+  threading.excepthook = _thread_excepthook
 
   manager = CarrotManager()
   rk = Ratekeeper(DEFAULT_RATE, print_delay_threshold=None)
@@ -2984,10 +3015,14 @@ def main_thread():
   while True:
     try:
       manager.tick()
-    except Exception as e:
-      # Never let a single tick() exception kill the daemon; log it and keep
-      # the main loop alive so threads (UDP listener, broadcast, ZMQ, navi
-      # servers) stay bound and manager does not mark carrot_man as dead.
+    except BaseException as e:
+      # Catch BaseException (covers SystemExit / KeyboardInterrupt / GeneratorExit
+      # in addition to Exception) so a single tick() failure can never silently
+      # take down the whole daemon.  Saving a full stack via exception() makes the
+      # root cause greppable in swaglog instead of the process vanishing without
+      # a trace.  The ONLY exit path is an explicit manager shutdown signal.
+      if isinstance(e, (KeyboardInterrupt, SystemExit)):
+        raise
       cloudlog.exception(f"carrot_man: tick() error: {e}")
     rk.keep_time()
 

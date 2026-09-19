@@ -431,6 +431,25 @@ class CarrotServ:
       "goalPosX": _safe_float(msg.get("goalPosX"), 0.0),
       "goalPosY": _safe_float(msg.get("goalPosY"), 0.0),
       "szGoalName": _safe_str(msg.get("szGoalName"), ""),
+      # Service area / toll gate hints (App §2.3 SAPA_* group, KEY_TYPE 10001).
+      # SAPA_TYPE: 0=service/parking area, 1=toll gate, 2=checkpoint.
+      "sapaName": _safe_str(msg.get("sapaName"), ""),
+      "sapaDist": _safe_int(msg.get("sapaDist"), 0),   # -1 = invalid
+      "sapaType": _safe_int(msg.get("sapaType"), 0),
+      "sapaCnt": _safe_int(msg.get("sapaCnt"), 0),
+      # TMC live traffic congestion (App §2.5, KEY_TYPE 13011). Overall status
+      # is a scalar; per-segment statuses/distances are packed into compact
+      # JSON strings so the array survives pycapnp without per-element List
+      # management. Consumers (webui / OP assistant) json.loads() them.
+      "tmcTotalDistance": _safe_int(msg.get("tmcTotalDistance"), 0),
+      "tmcResidualDistance": _safe_int(msg.get("tmcResidualDistance"), 0),
+      "tmcSegmentCount": _safe_int(msg.get("tmcSegmentCount"), 0),
+      "tmcOverallStatus": _safe_int(msg.get("tmcOverallStatus"), 0),
+      "tmcSegmentStatuses": _safe_str(msg.get("tmcSegmentStatuses"), ""),
+      "tmcSegmentDistances": _safe_str(msg.get("tmcSegmentDistances"), ""),
+      # Lane guidance arrow codes (App §2.2 navLaneGuide / navLaneGuideCnt).
+      "navLaneGuide": _safe_str(msg.get("navLaneGuide"), ""),
+      "navLaneGuideCnt": _safe_int(msg.get("navLaneGuideCnt"), 0),
     }
 
     if "carrotCmd" in msg:

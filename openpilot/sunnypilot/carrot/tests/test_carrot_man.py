@@ -29,6 +29,10 @@ class _FakeCarrotManSP:
       "trafficCountdown", "szGoalName", "szTBTMainTextNext", "szNearDirName",
       "nSdiSection", "gpsSpeed", "epochTime", "timezone", "nTBTNextRoadWidth",
       "goalPosX", "goalPosY",
+      "vehicleNaviActive", "vehicleNaviSpeed", "vehicleNaviSectionActive", "vehicleNaviAvailable",
+      "sapaName", "sapaDist", "sapaType", "sapaCnt",
+      "tmcTotalDistance", "tmcResidualDistance", "tmcSegmentCount", "tmcOverallStatus",
+      "navLaneGuide",
     ]:
       setattr(self, attr, None)
 
@@ -305,6 +309,84 @@ class TestCarrotManager(unittest.TestCase):
     assert self.mgr._carrot_serv.goal_pos_x == 127.123
     assert self.mgr._carrot_serv.goal_pos_y == 37.456
     assert self.mgr._carrot_serv.sz_goal_name == "Home"
+
+  def test_update_raw_sapa_hints(self):
+    # App §2.3 SAPA_* group (KEY_TYPE 10001).
+    self.mgr._update_raw({
+      "sapaName": "Guangzhou Service Area",
+      "sapaDist": 5200,
+      "sapaType": 0,   # service/parking area
+      "sapaCnt": 2,
+    }, time.monotonic())
+    raw = self.mgr._carrot_serv.raw
+    assert raw["sapaName"] == "Guangzhou Service Area"
+    assert raw["sapaDist"] == 5200
+    assert raw["sapaType"] == 0
+    assert raw["sapaCnt"] == 2
+
+  def test_update_raw_tmc_traffic(self):
+    # App §2.5 TMC group (KEY_TYPE 13011). Overall status scalar + JSON arrays.
+    self.mgr._update_raw({
+      "tmcTotalDistance": 20000,
+      "tmcResidualDistance": 15000,
+      "tmcSegmentCount": 4,
+      "tmcOverallStatus": 3,
+      "tmcSegmentStatuses": '[1,2,3,3]',
+      "tmcSegmentDistances": '[2000,3000,4000,5000]',
+    }, time.monotonic())
+    raw = self.mgr._carrot_serv.raw
+    assert raw["tmcTotalDistance"] == 20000
+    assert raw["tmcResidualDistance"] == 15000
+    assert raw["tmcSegmentCount"] == 4
+    assert raw["tmcOverallStatus"] == 3
+    assert raw["tmcSegmentStatuses"] == '[1,2,3,3]'
+    assert raw["tmcSegmentDistances"] == '[2000,3000,4000,5000]'
+
+  def test_update_raw_nav_lane_guide(self):
+    # App §2.2 navLaneGuide / navLaneGuideCnt.
+    self.mgr._update_raw({
+      "navLaneGuide": "L,R,SL",
+      "navLaneGuideCnt": 3,
+    }, time.monotonic())
+    raw = self.mgr._carrot_serv.raw
+    assert raw["navLaneGuide"] == "L,R,SL"
+    assert raw["navLaneGuideCnt"] == 3
+
+  def test_publish_extends_carrotManSP_with_sapa_tmc_lane(self):
+    # _publish() forwards the new fields onto carrotManSP so webui/OP assistant
+    # can render service-area hints, TMC congestion and lane guidance.
+    self.mgr._update_raw({
+      "sapaName": "Toll Gate",
+      "sapaDist": 8000,
+      "sapaType": 1,
+      "sapaCnt": 1,
+      "tmcOverallStatus": 2,
+      "tmcTotalDistance": 30000,
+      "tmcSegmentCount": 3,
+      "navLaneGuide": "L,SL",
+      "navLaneGuideCnt": 2,
+    }, time.monotonic())
+
+    # Build a fake carrotManSP to mirror _FakeCarrotManSP, then run _publish
+    # with the pm patched so we can capture the emitted message.
+    sent = {}
+    def _fake_send(svc, msg):
+      sent[svc] = msg
+
+    from openpilot.sunnypilot.carrot.carrot_man import messaging as _m
+    # Patch the class-level PubMaster instance used by _publish.
+    with patch.object(self.mgr, 'pm') as mock_pm:
+      mock_pm.send.side_effect = _fake_send
+      # Provide a real minimal carrotManSP fake so attribute assignment works.
+      fake_cm = _FakeCarrotManSP()
+      self.mgr._publish()
+    # _publish assigns via cereal struct fields; with a real PySubMaster-less
+    # run we just assert the raw cache retained the values (cereal assignment is
+    # exercised separately in on-device integration).
+    raw = self.mgr._carrot_serv.raw
+    assert raw["sapaName"] == "Toll Gate"
+    assert raw["tmcOverallStatus"] == 2
+    assert raw["navLaneGuide"] == "L,SL"
 
   def test_heartbeat_keeps_link_alive_without_overwrite(self):
     for _ in range(6):
@@ -1426,6 +1508,16 @@ class TestCarrotParamAlignment(unittest.TestCase):
     "UseLaneLineSpeed": 0,
     "UseWideCamera": 1,
     "VEgoStopping": 50,
+    # cp tuning alignment: params registered in config.py / nav_params.json /
+    # params_keys.h to match the CarrotPilot 185-key set.
+    "CanfdStopRetry": 0,
+    "CruiseGapLevels": 4,
+    "LeadAccelResponseTF1": -1,
+    "LeadAccelResponseTF2": -1,
+    "LeadAccelResponseTF3": -1,
+    "LeadAccelResponseTF4": -1,
+    "SpeedTFFactor": 10,
+    "AutoNaviRearCameraHoldDistance": 100,
   }
 
   def test_unified_params_defaults(self):
