@@ -480,6 +480,11 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ContinuousLaneChange", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"NewLaneWidthDiff", {PERSISTENT | BACKUP, INT, "8"}},
     {"StopDistanceCarrot", {PERSISTENT | BACKUP, INT, "600"}},
+    // One-shot marker for the StopDistanceCarrot -> LongitudinalMpcTuningStopDistance
+    // merge. It must be registered: reading an unregistered key raises
+    // UnknownKeyName, which the migration's except-block swallows, so the merge
+    // would silently never run and the marker would be re-evaluated forever.
+    {"CarrotStopDistanceMigrated", {PERSISTENT, STRING}},
     {"AutoNaviSpeedCtrlMode", {PERSISTENT | BACKUP, INT, "2"}},
     {"AutoNaviSpeedDecelRate", {PERSISTENT | BACKUP, INT, "200"}},
     {"AutoNaviSpeedSafetyFactor", {PERSISTENT | BACKUP, INT, "105"}},
