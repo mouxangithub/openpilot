@@ -190,6 +190,16 @@ class SmartCruiseControlMap:
     speeds are deliberately not consumed (same double-decel reasoning as
     ``SpeedLimitResolver._merge_carrot_speed_limit``).
 
+    IMPORTANT — this switch alone does not actuate. ``self.v_target`` only
+    reaches the planner through ``get_v_target_from_control()``, which returns
+    ``V_CRUISE_UNSET`` unless ``self.is_active``, which requires the state
+    machine to reach ``MapState.turning``, which requires ``self.enabled``
+    (``SmartCruiseControlMap``). So BOTH ``CarrotTrafficCongestionEnabled`` and
+    ``SmartCruiseControlMap`` must be on for the car to respond. That is
+    intentional: this feature folds into the existing map-deceleration
+    controller rather than creating a second path to the vehicle, so it inherits
+    that controller's master switch.
+
     The cap can only ever *lower* the map controller's target:
       * a stale packet is ignored entirely;
       * a cap that is not meaningfully below the current target is ignored;

@@ -5606,8 +5606,8 @@ msgid "Traffic Congestion Slowdown"
 msgstr "路况拥堵降速"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
-msgid "Fold the phone app traffic congestion report into map-based cruise control. Only ever lowers the target speed."
-msgstr "将手机 App 的路况拥堵数据并入地图巡航控制，只会降低目标车速。"
+msgid "Fold the phone app traffic congestion report into map-based cruise control. Only ever lowers the target speed. Needs Smart Cruise Control - Map to be on as well."
+msgstr "将手机 App 的路况拥堵数据并入地图巡航控制，只会降低目标车速。需同时开启「地图智能巡航」。"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Lane Guide Blocking"
