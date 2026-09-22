@@ -58,6 +58,23 @@ class NavigationLayout(Widget):
       callback=self._on_amap_api_key,
     )
 
+    # Both are optional, both need the Web API key, and neither is a second
+    # speed-limit source: the curve value is advisory map data and the light count is
+    # display-only.
+    self._amap_curve_speed = toggle_item_sp(
+      title=tr("Amap Curve Speed"),
+      description=tr("Derive a curve speed from the Amap route shape. Advisory only; "
+                     "it never overrides the road speed limit."),
+      param="AmapCurveSpeedEnabled",
+    )
+
+    self._amap_traffic_light_hint = toggle_item_sp(
+      title=tr("Amap Traffic Light Hint"),
+      description=tr("Show how many traffic lights are on the route ahead. "
+                     "Display only; it never controls the car."),
+      param="AmapTrafficLightHintEnabled",
+    )
+
     self._carrot_navi_v2_enabled = toggle_item_sp(
       title=tr("Enable Carrot Navi v2 (7714)"),
       description=tr("Use the 7714 WebSocket v2 rich navigation stream (traffic, lanes, crossroad images)."),
@@ -107,6 +124,8 @@ class NavigationLayout(Widget):
       self._carrot_web_enabled,
       self._car_name,
       self._amap_api_key,
+      self._amap_curve_speed,
+      self._amap_traffic_light_hint,
       self._carrot_nav_cruise_speed,
       self._carrot_tuning_button,
     ]

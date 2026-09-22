@@ -5804,3 +5804,19 @@ msgstr "按百分比缩放所有提示音。100 表示保持当前音量。"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Scale the engage / disengage / reverse chimes, in percent."
 msgstr "按百分比缩放接管、退出接管与倒车提示音。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Amap Curve Speed"
+msgstr "高德弯道速度"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Amap Traffic Light Hint"
+msgstr "高德红绿灯提示"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Derive a curve speed from the Amap route shape. Advisory only; it never overrides the road speed limit."
+msgstr "根据高德路线形状推算弯道速度。仅为建议值，不会覆盖道路限速。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Show how many traffic lights are on the route ahead. Display only; it never controls the car."
+msgstr "显示前方路线上的红绿灯数量。仅用于显示，不参与控车。"

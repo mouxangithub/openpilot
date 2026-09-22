@@ -18,12 +18,107 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.mapd.live_map_data.base_map_data import BaseMapData
 
 
+# Amap Web Service API.
+#
+# The v3 endpoints are retained deliberately. Amap shipped 路径规划2.0
+# (``/v5/direction/driving``), but its ``steps`` object documents only
+# instruction / orientation / road_name / step_distance, and the optional
+# ``show_fields`` groups (cost / tmcs / navi / cities / polyline) expose no road
+# speed either. The speed-limit feature therefore has no v5 equivalent and would
+# lose its only data source if migrated. v3 remains documented and supported
+# (last updated 2026-02), so the driving call stays on v3 and only the fields
+# that genuinely exist in the documented v3 response are read here.
+#
+# Everything is wrapped defensively: a malformed or partial response must never
+# take down mapd, it must simply leave the previous values in place.
 AMAP_GEOCODE_URL = "https://restapi.amap.com/v3/geocode/regeo"
 AMAP_DIRECTION_URL = "https://restapi.amap.com/v3/direction/driving"
+
+# Amap reports failures as HTTP 200 with {"status":"0","infocode":"...","info":"..."}.
+# Grouping them by cause lets us stop hammering a key that cannot recover, which the
+# previous "status != 1 -> return" silently did at the full refresh rate forever.
+AMAP_INFO_OK = "10000"
+
+# Permanent for this session: retrying cannot help, so back off hard and say why.
+AMAP_FATAL_INFOCODES: frozenset[str] = frozenset({
+  "10001",  # INVALID_USER_KEY          - key wrong or expired
+  "10002",  # SERVICE_NOT_AVAILABLE     - no permission for this service
+  "10012",  # INSUFFICIENT_PRIVILEGES   - service refused
+  "10013",  # USER_KEY_RECYCLED         - key deleted
+  "10026",  # INVALID_REQUEST           - account banned
+  "10041",  # NO_EFFECTIVE_INTERFACE    - interface permission expired
+  "40000",  # QUOTA_PLAN_RUN_OUT        - balance exhausted
+  "40002",  # SERVICE_EXPIRED           - purchased service expired
+  "40003",  # ABROAD_QUOTA_PLAN_RUN_OUT - overseas balance exhausted
+  "10009",  # USERKEY_PLAT_NOMATCH      - key is for a different platform
+  "10005",  # INVALID_USER_IP           - source IP not whitelisted
+  "10006",  # INVALID_USER_DOMAIN       - bound domain invalid
+})
+
+# Transient: rate limiting. Short backoff so we resume once the window rolls over.
+AMAP_THROTTLE_INFOCODES: frozenset[str] = frozenset({
+  "10003",  # DAILY_QUERY_OVER_LIMIT      - daily quota (reseeds at 00:00)
+  "10004",  # ACCESS_TOO_FREQUENT         - per-minute quota
+  "10010",  # IP_QUERY_OVER_LIMIT
+  "10014",  # QPS_HAS_EXCEEDED_THE_LIMIT
+  "10015",  # GATEWAY_TIMEOUT
+  "10016",  # SERVER_IS_BUSY
+  "10019",  # CQPS_HAS_EXCEEDED_THE_LIMIT
+  "10020",  # CKQPS_HAS_EXCEEDED_THE_LIMIT
+  "10021",  # CUQPS_HAS_EXCEEDED_THE_LIMIT
+  "10029",  # ABROAD_DAILY_QUERY_OVER_LIMIT
+  "10044",  # USER_DAILY_QUERY_OVER_LIMIT
+  "10045",  # USER_ABROAD_DAILY_QUERY_OVER_LIMIT
+})
+
+# Not a fault: the request was fine, there is simply no data for this position.
+# Logging these at warning level every refresh would be noise.
+AMAP_DATA_INFOCODES: frozenset[str] = frozenset({
+  "20011",  # INSUFFICIENT_ABROAD_PRIVILEGES - outside China without overseas rights
+  "20800",  # OUT_OF_SERVICE                 - planning point outside mainland China
+  "20801",  # NO_ROADS_NEARBY                - no road near the planning point
+  "20802",  # ROUTE_FAIL                     - road connectivity failure
+  "20803",  # OVER_DIRECTION_RANGE           - origin/destination too far apart
+})
+
+AMAP_FATAL_BACKOFF_SEC = 600.0    # 10 min: long enough to stop the churn, short
+                                  # enough to pick up a fixed key without a restart
+AMAP_THROTTLE_BACKOFF_SEC = 60.0
+
+# The error strings a user would act on, surfaced through AmapLastError.
+AMAP_INFO_HINTS = {
+  "10001": "Amap API key invalid or expired",
+  "10002": "Amap key has no permission for this service (needs a Web Service key)",
+  "10003": "Amap daily quota exceeded",
+  "10004": "Amap rate limit hit (too many requests per minute)",
+  "10005": "Amap source IP not in the key's whitelist",
+  "10006": "Amap bound domain invalid",
+  "10009": "Amap key is bound to a different platform (needs a Web Service key)",
+  "10012": "Amap key lacks privileges for this service",
+  "10013": "Amap key was deleted",
+  "10026": "Amap account is banned",
+  "10041": "Amap interface permission expired",
+  "40000": "Amap quota balance exhausted",
+  "40002": "Amap purchased service expired",
+}
 
 # Amap Web API uses GCJ-02 coordinates; openpilot GPS is WGS-84.
 WGS84_A = 6378137.0
 WGS84_EE = 0.00669342162296594323
+
+# Curve-speed derivation from the driving polyline.
+#
+# Amap's polyline arrives as "lng,lat;lng,lat;..." in GCJ-02. Only the *shape* is
+# used, and a GCJ-02 offset is a smooth local translation, so it cancels out of a
+# second derivative - no inverse transform is needed to measure curvature. (The
+# repo has no gcj02->wgs84 routine; adding one just for this would be needless.)
+CURVE_LOOKAHEAD_M = 500.0        # only look this far ahead
+CURVE_MIN_SEGMENT_M = 3.0        # ignore polyline vertices closer than this
+CURVE_LAT_ACCEL_MAX = 1.8        # m/s^2 comfortable lateral acceleration
+CURVE_MIN_SPEED_KPH = 20.0       # never plan below this; keeps the result sane
+CURVE_MAX_SPEED_KPH = 130.0      # effectively "no curve constraint"
+CURVE_MIN_VERTICES = 3           # need at least this many usable points
+CURVE_POLYLINE_MAX_POINTS = 2000  # guard against a pathological response
 
 
 def wgs84_to_gcj02(lat: float, lng: float) -> tuple[float, float]:
@@ -66,12 +161,45 @@ def _kph_to_ms(kph: float) -> float:
   return kph / 3.6
 
 
+def _as_float(value, default: float = 0.0) -> float:
+  """Coerce an Amap value (string or number) to float.
+
+  Amap returns numbers as strings, and uses an empty array ``[]`` for "absent"
+  rather than null, so a bare ``float()`` is not safe on any of these fields.
+  """
+  if isinstance(value, bool) or value is None:
+    return default
+  if isinstance(value, (int, float)):
+    return float(value)
+  try:
+    return float(str(value).strip())
+  except (ValueError, TypeError):
+    return default
+
+
+def _as_int(value, default: int = 0) -> int:
+  return int(_as_float(value, float(default)))
+
+
+def _as_text(value, default: str = "") -> str:
+  """Amap returns ``[]`` (an empty list) wherever a string field is absent."""
+  if value is None:
+    return default
+  if isinstance(value, str):
+    return value
+  if isinstance(value, (list, tuple)):
+    # A populated list is Amap's "multiple values" form; join them.
+    return ";".join(str(v) for v in value if isinstance(v, (str, int, float)))
+  return str(value)
+
+
 def _http_get_json(url: str, timeout: float = 5.0) -> dict | None:
   try:
     with urllib.request.urlopen(url, timeout=timeout) as response:
       data = response.read().decode("utf-8")
-      return json.loads(data)
-  except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+      parsed = json.loads(data)
+      return parsed if isinstance(parsed, dict) else None
+  except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as e:
     cloudlog.warning(f"amap_map_data: HTTP request failed: {e}")
     return None
 
@@ -79,7 +207,7 @@ def _http_get_json(url: str, timeout: float = 5.0) -> dict | None:
 class AmapMapData(BaseMapData):
   """Live map data provider backed by the Amap (Gaode) Web API.
 
-  Requires the ``AmapApiKey`` param to be set.  The provider is selected by
+  Requires the ``AmapApiKey`` param to be set. The provider is selected by
   ``mapd_manager`` when ``AmapMapDataEnabled`` is true and a key is present.
 
   Notes:
@@ -88,6 +216,10 @@ class AmapMapData(BaseMapData):
     - Road speed limits returned by Amap are in kph and converted to m/s.
     - Requests are cached for a few seconds to stay within the free-tier
       quota and to avoid blocking the 1 Hz ``mapd_manager`` tick.
+    - Two optional features are gated by their own params and default off:
+      ``AmapCurveSpeedEnabled`` (curve speed from the route polyline) and
+      ``AmapTrafficLightHintEnabled`` (traffic-light count on the route).
+      Both are display/advisory data; neither is a second speed-limit source.
   """
 
   def __init__(self):
@@ -104,18 +236,89 @@ class AmapMapData(BaseMapData):
     self._speed_limit: float = 0.0
     self._next_speed_limit: float = 0.0
     self._next_speed_limit_distance: float = 0.0
+    self._curve_speed_limit: float = 0.0        # m/s, 0 = no constraint
+    self._traffic_light_count: int = -1         # -1 = unknown
 
     self._last_update_mono: float = 0.0
     self._last_refresh_position: tuple[float, float] | None = None
     self._cache_ttl: float = 2.0  # seconds
     self._min_movement_m: float = 20.0  # meters
 
+    # Error handling. ``_backoff_until`` stops the retry loop when a call fails in
+    # a way retrying cannot fix; ``_last_error`` is published so the user can see
+    # why the provider went quiet instead of silently falling back to OSM.
+    self._backoff_until: float = 0.0
+    self._last_error: str = ""
+    self._last_info_code: str = ""
+    self._consecutive_failures: int = 0
+
+    # Feature switches, refreshed with the key.
+    self._curve_speed_enabled = False
+    self._traffic_light_hint_enabled = False
+
+  # ---- configuration ----------------------------------------------------- #
+
   def _refresh_api_key(self) -> str | None:
     now = time.monotonic()
     if self._api_key is None or now - self._last_key_read_mono > 30.0:
       self._api_key = self.params.get("AmapApiKey")
       self._last_key_read_mono = now
+      self._curve_speed_enabled = bool(self.params.get_bool("AmapCurveSpeedEnabled"))
+      self._traffic_light_hint_enabled = bool(self.params.get_bool("AmapTrafficLightHintEnabled"))
     return self._api_key
+
+  def _note_failure(self, what: str, infocode: str, info: str) -> None:
+    """Record an Amap failure and decide whether retrying is worth anything."""
+    self._last_info_code = infocode
+    self._consecutive_failures += 1
+    detail = AMAP_INFO_HINTS.get(infocode, info or "no info")
+    self._last_error = f"{what}: {detail}" + (f" (infocode {infocode})" if infocode else "")
+
+    if infocode in AMAP_FATAL_INFOCODES:
+      # Retrying cannot help - back off hard so we are not sending a doomed
+      # request every couple of seconds for the whole drive.
+      self._backoff_until = time.monotonic() + AMAP_FATAL_BACKOFF_SEC
+      cloudlog.error(f"amap_map_data: {self._last_error}; backing off "
+                     f"{AMAP_FATAL_BACKOFF_SEC:.0f}s")
+    elif infocode in AMAP_THROTTLE_INFOCODES:
+      self._backoff_until = time.monotonic() + AMAP_THROTTLE_BACKOFF_SEC
+      cloudlog.warning(f"amap_map_data: {self._last_error}; backing off "
+                       f"{AMAP_THROTTLE_BACKOFF_SEC:.0f}s")
+    elif infocode in AMAP_DATA_INFOCODES:
+      # Legitimate "no data here" answer, not a fault.
+      pass
+    else:
+      cloudlog.warning(f"amap_map_data: {self._last_error}")
+
+  def _note_success(self) -> None:
+    if self._consecutive_failures or self._last_error:
+      cloudlog.info("amap_map_data: request succeeded again; clearing the error state")
+    self._consecutive_failures = 0
+    self._last_error = ""
+    self._last_info_code = AMAP_INFO_OK
+
+  def _check_response(self, result: dict | None, what: str) -> bool:
+    """True when ``result`` is a usable Amap response; otherwise records why not."""
+    if result is None:
+      self._note_failure(what, "", "no response")
+      return False
+    if str(result.get("status", "")) == "1":
+      return True
+    self._note_failure(what, str(result.get("infocode", "")), str(result.get("info", "")))
+    return False
+
+  def get_diagnostics(self) -> dict[str, object]:
+    """Provider state for the UI: why it stopped working and what it last used."""
+    return {
+      "error": self._last_error,
+      "infocode": self._last_info_code,
+      "failures": self._consecutive_failures,
+      "backoff_s": max(0.0, self._backoff_until - time.monotonic()),
+      "traffic_light_count": self._traffic_light_count,
+      "curve_speed_ms": self._curve_speed_limit,
+    }
+
+  # ---- location / scheduling --------------------------------------------- #
 
   def update_location(self) -> None:
     location = self.sm['liveLocationKalman']
@@ -133,6 +336,9 @@ class AmapMapData(BaseMapData):
       return False
 
     now = time.monotonic()
+    if now < self._backoff_until:
+      return False
+
     if now - self._last_update_mono < self._cache_ttl:
       return False
 
@@ -162,36 +368,120 @@ class AmapMapData(BaseMapData):
     self._update_road_name(api_key, location_str)
     self._update_speed_limits(api_key, location_str)
 
-    self._last_update_mono = time.monotonic()
-    self._last_refresh_position = self._last_position
+    # Only advance the refresh bookkeeping when something actually came back. The
+    # old code wrote these unconditionally, so a permanently failing request was
+    # re-issued at the full rate forever.
+    if self._consecutive_failures == 0:
+      self._last_update_mono = time.monotonic()
+      self._last_refresh_position = self._last_position
+
+  # ---- regeo ------------------------------------------------------------- #
 
   def _update_road_name(self, api_key: str, location_str: str) -> None:
     params = {
       "key": api_key,
       "location": location_str,
       "extensions": "all",
-      "radius": "100",
+      # Documented range is 0-3000 m with a 1000 m default. The old value of 100
+      # was inside the range but below the documented default, which made the
+      # nearby-road lookup needlessly narrow.
+      "radius": "1000",
     }
     url = f"{AMAP_GEOCODE_URL}?{urllib.parse.urlencode(params)}"
     result = _http_get_json(url)
-    if result is None or result.get("status") != "1":
+    if not self._check_response(result, "regeo"):
       return
 
     try:
-      regeocode = result.get("regeocode", {})
-      address = regeocode.get("addressComponent", {})
-      road = address.get("street", {}).get("name", "")
+      regeocode = result.get("regeocode")
+      if not isinstance(regeocode, dict):
+        return
+      address = regeocode.get("addressComponent")
+      if not isinstance(address, dict):
+        return
+
+      # The documented shape of the current road is
+      # addressComponent.streetNumber.street. Older/alternative payloads have also
+      # carried addressComponent.street as an object with a name. Check both, then
+      # fall back to progressively coarser names so a road name is shown when one
+      # of the finer ones is absent.
+      road = ""
+      street_number = address.get("streetNumber")
+      if isinstance(street_number, dict):
+        road = _as_text(street_number.get("street"))
       if not road:
-        road = address.get("township", "")
+        street = address.get("street")
+        if isinstance(street, dict):
+          road = _as_text(street.get("name"))
+        else:
+          road = _as_text(street)
       if not road:
-        road = address.get("district", "")
-      self._road_name = road
+        road = _as_text(address.get("township"))
+      if not road:
+        road = _as_text(address.get("district"))
+
+      if road:
+        self._road_name = road
+        self._note_success()
     except Exception as e:
       cloudlog.warning(f"amap_map_data: failed to parse road name: {e}")
 
+  # ---- direction --------------------------------------------------------- #
+
   def _update_speed_limits(self, api_key: str, location_str: str) -> None:
+    paths = self._request_route(api_key, location_str)
+    if not paths:
+      return
+
+    try:
+      first_path = paths[0]
+      if not isinstance(first_path, dict):
+        return
+      steps = first_path.get("steps")
+      if not isinstance(steps, list) or not steps:
+        return
+
+      # Current road speed limit from the first step.
+      first_step = steps[0] if isinstance(steps[0], dict) else {}
+      current_speed_kph = _as_float(first_step.get("speed"), 0.0)
+      self._speed_limit = _kph_to_ms(current_speed_kph) if current_speed_kph > 0 else 0.0
+
+      # Look for the next step with a different (lower) speed limit.
+      self._next_speed_limit = 0.0
+      self._next_speed_limit_distance = 0.0
+      accumulated = 0.0
+      for step in steps[1:]:
+        if not isinstance(step, dict):
+          continue
+        step_distance = _as_float(step.get("distance"), 0.0)
+        step_speed = _as_float(step.get("speed"), 0.0)
+        accumulated += step_distance
+        if 0 < step_speed < current_speed_kph:
+          self._next_speed_limit = _kph_to_ms(step_speed)
+          self._next_speed_limit_distance = accumulated
+          break
+
+      # Traffic-light count for the whole scheme (path level, not per step).
+      if self._traffic_light_hint_enabled:
+        count = first_path.get("traffic_lights")
+        self._traffic_light_count = _as_int(count, -1) if count not in (None, "") else -1
+      else:
+        self._traffic_light_count = -1
+
+      # Curve speed from the route polyline.
+      if self._curve_speed_enabled:
+        self._curve_speed_limit = self._curve_limit_from_path(first_path)
+      else:
+        self._curve_speed_limit = 0.0
+
+      self._note_success()
+    except Exception as e:
+      cloudlog.warning(f"amap_map_data: failed to parse speed limits: {e}")
+
+  def _request_route(self, api_key: str, location_str: str) -> list:
+    """Fetch a short ahead-route and return its ``paths`` list (possibly empty)."""
     # Destination is a small offset along current bearing so Amap returns a
-    # route starting at the vehicle location.  Without a bearing we go north.
+    # route starting at the vehicle location. Without a bearing we go north.
     bearing = self._last_bearing or 0.0
     dst_lat, dst_lng = self._offset_position(self._last_position[0], self._last_position[1], 500.0, bearing)
     dst_gcj_lat, dst_gcj_lng = wgs84_to_gcj02(dst_lat, dst_lng)
@@ -201,42 +491,65 @@ class AmapMapData(BaseMapData):
       "key": api_key,
       "origin": location_str,
       "destination": destination_str,
+      # `all` is what makes Amap return the step detail (and traffic_lights);
+      # the v3 table marks this parameter required.
       "extensions": "all",
-      "strategy": "2",  # shortest path without traffic
+      # 2 = 常规最快 (distance/duration compromise). Documented as valid; the
+      # 10-20 family is recommended for multi-route results but returns several
+      # paths, and we only ever consume the first.
+      "strategy": "2",
     }
     url = f"{AMAP_DIRECTION_URL}?{urllib.parse.urlencode(params)}"
     result = _http_get_json(url)
-    if result is None or result.get("status") != "1":
-      return
+    if not self._check_response(result, "direction"):
+      return []
 
     try:
-      route = result.get("route", {})
-      paths = route.get("paths", [])
-      if not paths:
-        return
-
-      steps = paths[0].get("steps", [])
-      if not steps:
-        return
-
-      # Current road speed limit from the first step.
-      current_speed_kph = self._parse_speed(steps[0].get("speed", ""))
-      self._speed_limit = _kph_to_ms(current_speed_kph) if current_speed_kph > 0 else 0.0
-
-      # Look for the next step with a different (lower) speed limit.
-      self._next_speed_limit = 0.0
-      self._next_speed_limit_distance = 0.0
-      accumulated = 0.0
-      for step in steps[1:]:
-        step_distance = float(step.get("distance", 0))
-        step_speed = self._parse_speed(step.get("speed", ""))
-        accumulated += step_distance
-        if 0 < step_speed < current_speed_kph:
-          self._next_speed_limit = _kph_to_ms(step_speed)
-          self._next_speed_limit_distance = accumulated
-          break
+      route = result.get("route")
+      if not isinstance(route, dict):
+        return []
+      paths = route.get("paths")
+      return paths if isinstance(paths, list) else []
     except Exception as e:
-      cloudlog.warning(f"amap_map_data: failed to parse speed limits: {e}")
+      cloudlog.warning(f"amap_map_data: failed to read route paths: {e}")
+      return []
+
+  # ---- curve speed ------------------------------------------------------- #
+
+  def _curve_limit_from_path(self, path: dict) -> float:
+    """Lowest safe curve speed (m/s) along the path polyline, 0 when unconstrained.
+
+    The polyline is a "lng,lat;lng,lat;..." string per step. Steps are walked in
+    order until the lookahead distance is covered, each polyline is resampled into
+    local metres, and every triple of consecutive points is fitted to a circle.
+    The minimum speed over the window wins.
+    """
+    try:
+      steps = path.get("steps")
+      if not isinstance(steps, list):
+        return 0.0
+
+      points: list[tuple[float, float]] = []
+      consumed = 0.0
+      for step in steps:
+        if not isinstance(step, dict):
+          continue
+        polyline = _as_text(step.get("polyline"))
+        if polyline:
+          points.extend(_parse_polyline(polyline))
+        consumed += _as_float(step.get("distance"), 0.0)
+        if points and consumed >= CURVE_LOOKAHEAD_M:
+          break
+
+      if len(points) < CURVE_MIN_VERTICES:
+        return 0.0
+
+      return _min_curve_speed_kph(points, CURVE_LOOKAHEAD_M)
+    except Exception as e:
+      cloudlog.warning(f"amap_map_data: failed to derive curve speed: {e}")
+      return 0.0
+
+  # ---- geometry ---------------------------------------------------------- #
 
   def _offset_position(self, lat: float, lng: float, distance_m: float, bearing_deg: float) -> tuple[float, float]:
     """Return a point ``distance_m`` away at ``bearing_deg`` (clockwise from north)."""
@@ -257,12 +570,9 @@ class AmapMapData(BaseMapData):
 
   @staticmethod
   def _parse_speed(value: str | int | float) -> float:
-    if isinstance(value, (int, float)):
-      return float(value)
-    try:
-      return float(value)
-    except (ValueError, TypeError):
-      return 0.0
+    return _as_float(value, 0.0)
+
+  # ---- getters ----------------------------------------------------------- #
 
   def get_current_speed_limit(self) -> float:
     if self._should_refresh():
@@ -278,3 +588,101 @@ class AmapMapData(BaseMapData):
     if self._should_refresh():
       self._update_from_api()
     return self._next_speed_limit, self._next_speed_limit_distance
+
+  # ---- optional outputs (not part of the speed-limit contract) ----------- #
+
+  def get_curve_speed_limit(self) -> float:
+    """Curve speed cap in m/s, or 0.0 when there is none / the feature is off."""
+    if self._should_refresh():
+      self._update_from_api()
+    return self._curve_speed_limit if self._curve_speed_enabled else 0.0
+
+  def get_traffic_light_count(self) -> int:
+    """Traffic lights on the route ahead, or -1 when unknown / the feature is off."""
+    if self._should_refresh():
+      self._update_from_api()
+    return self._traffic_light_count if self._traffic_light_hint_enabled else -1
+
+
+def _parse_polyline(polyline: str) -> list[tuple[float, float]]:
+  """Parse Amap's "lng,lat;lng,lat;..." string into (lat, lng) tuples."""
+  out: list[tuple[float, float]] = []
+  if not polyline:
+    return out
+  for chunk in polyline.split(";"):
+    if not chunk:
+      continue
+    parts = chunk.split(",")
+    if len(parts) < 2:
+      continue
+    lng = _as_float(parts[0], float("nan"))
+    lat = _as_float(parts[1], float("nan"))
+    if math.isnan(lng) or math.isnan(lat):
+      continue
+    out.append((lat, lng))
+    if len(out) >= CURVE_POLYLINE_MAX_POINTS:
+      break
+  return out
+
+
+def _to_local_xy(points: list[tuple[float, float]],
+                 ref_lat: float, ref_lng: float) -> list[tuple[float, float]]:
+  """Project (lat, lng) to metres east/north of a reference point.
+
+  A local tangent-plane approximation is plenty for a few hundred metres, and it
+  keeps the polyline in GCJ-02, where the offset is a smooth translation and so
+  drops out of the curvature.
+  """
+  m_per_deg_lat = 111132.92
+  m_per_deg_lng = 111319.49 * math.cos(math.radians(ref_lat))
+  return [((lng - ref_lng) * m_per_deg_lng, (lat - ref_lat) * m_per_deg_lat) for lat, lng in points]
+
+
+def _min_curve_speed_kph(points: list[tuple[float, float]], lookahead_m: float) -> float:
+  """Lowest safe speed (kph) over the first ``lookahead_m`` of the polyline.
+
+  Returns CURVE_MAX_SPEED_KPH when the road is effectively straight.
+  """
+  if len(points) < CURVE_MIN_VERTICES:
+    return CURVE_MAX_SPEED_KPH
+
+  xy = _to_local_xy(points, points[0][0], points[0][1])
+
+  # Drop near-duplicate vertices; they make the circumcircle degenerate.
+  cleaned: list[tuple[float, float]] = [xy[0]]
+  for x, y in xy[1:]:
+    px, py = cleaned[-1]
+    if math.hypot(x - px, y - py) >= CURVE_MIN_SEGMENT_M:
+      cleaned.append((x, y))
+  if len(cleaned) < CURVE_MIN_VERTICES:
+    return CURVE_MAX_SPEED_KPH
+
+  best_kph = CURVE_MAX_SPEED_KPH
+  travelled = 0.0
+  for i in range(len(cleaned) - 2):
+    ax, ay = cleaned[i]
+    bx, by = cleaned[i + 1]
+    cx, cy = cleaned[i + 2]
+    travelled += math.hypot(bx - ax, by - ay)
+    if travelled > lookahead_m:
+      break
+
+    # Circumradius of the triangle; a straight stretch gives a huge radius.
+    a = math.hypot(cx - bx, cy - by)
+    b = math.hypot(cx - ax, cy - ay)
+    c = math.hypot(bx - ax, by - ay)
+    if a <= 0.0 or b <= 0.0 or c <= 0.0:
+      continue
+    area2 = abs((bx - ax) * (cy - ay) - (by - ay) * (cx - ax))
+    if area2 <= 1e-9:
+      continue  # collinear: no curvature to speak of
+    radius = (a * b * c) / (2.0 * area2)
+    if radius <= 1.0:
+      continue
+
+    # v = sqrt(a_lat * R), clamped into a sane band.
+    kph = math.sqrt(CURVE_LAT_ACCEL_MAX * radius) * 3.6
+    kph = max(CURVE_MIN_SPEED_KPH, min(CURVE_MAX_SPEED_KPH, kph))
+    best_kph = min(best_kph, kph)
+
+  return best_kph

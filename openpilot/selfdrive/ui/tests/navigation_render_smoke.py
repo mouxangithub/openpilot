@@ -114,7 +114,8 @@ def main() -> int:
 
   def exposes_live_params():
     expected = ['AmapMapDataEnabled', 'CarrotAmapBlindSpotEnabled', 'CarrotEnabled',
-                'CarrotNaviV2Enabled', 'CarrotWebEnabled', 'CarrotNavCruiseSpeedEnabled']
+                'CarrotNaviV2Enabled', 'CarrotWebEnabled', 'CarrotNavCruiseSpeedEnabled',
+                'AmapCurveSpeedEnabled', 'AmapTrafficLightHintEnabled']
     missing = [p for p in expected if p not in exposed]
     assert not missing, f'missing nav params: {missing}'
   check('exposes every live navigation param', exposes_live_params)
