@@ -693,6 +693,16 @@ struct CarrotManSP @0xcd96dafb67a082d0 {
   tmcOverallStatus @61 :Int32 = 0;  # 0=unknown,1=free,2=slow,3=congested,4=severe,5=very-free,10=current
   # Lane guidance arrow codes (App §2.2 navLaneGuide / navLaneGuideCnt).
   navLaneGuide @62 :Text = "";
+  # Per-segment TMC arrays, packed as compact JSON strings so the lists survive
+  # pycapnp without per-element List management (same convention as
+  # naviPaths). Consumers json.loads() them.
+  #   tmcSegmentStatuses : int[]  1=free,2=slow,3=congested,4=severe,5=very-free,0/10=unknown
+  #   tmcSegmentDistances: int[]  metres, index-aligned with the statuses
+  tmcSegmentStatuses @63 :Text = "";
+  tmcSegmentDistances @64 :Text = "";
+  # Number of entries the app declared for navLaneGuide; lets consumers detect a
+  # truncated / malformed guidance array (length mismatch => discard).
+  navLaneGuideCnt @65 :Int32 = 0;
 }
 
 struct ImuCalibrationSP @0xb057204d7deadf3f {

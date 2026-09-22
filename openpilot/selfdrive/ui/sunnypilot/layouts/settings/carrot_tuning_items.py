@@ -209,4 +209,14 @@ def build_dev_items():
     section_heading_sp(tr('Hardware / Tests')),
     toggle_item_sp(title=tr('Show Debug Log'), param='ShowDebugLog'),
 
+    # Unified-control killswitches. Both default OFF: they change vehicle
+    # behaviour, so they are grouped here and opt-in.
+    section_heading_sp(tr('Navigation Control (advanced)')),
+    toggle_item_sp(title=tr('Traffic Congestion Slowdown'), param='CarrotTrafficCongestionEnabled',
+                   description=tr('Fold the phone app traffic congestion report into map-based cruise '
+                                   'control. Only ever lowers the target speed.')),
+    toggle_item_sp(title=tr('Lane Guide Blocking'), param='CarrotNavLaneGuideBlockEnabled',
+                   description=tr('Let the phone app guided-lane arrows block lane changes toward '
+                                   'non-guided lanes. Only ever adds blocking.')),
+
   ]

@@ -1048,6 +1048,8 @@ class CarrotManager:
     cm.tmcResidualDistance = _safe_int(raw.get("tmcResidualDistance"), 0)
     cm.tmcSegmentCount = _safe_int(raw.get("tmcSegmentCount"), 0)
     cm.tmcOverallStatus = _safe_int(raw.get("tmcOverallStatus"), 0)
+    cm.tmcSegmentStatuses = _safe_str(raw.get("tmcSegmentStatuses"), "")
+    cm.tmcSegmentDistances = _safe_str(raw.get("tmcSegmentDistances"), "")
     # Lane guidance arrow codes (App §2.2 navLaneGuide / navLaneGuideCnt).
     cm.navLaneGuide = _safe_str(raw.get("navLaneGuide"), "")
     cm.navLaneGuideCnt = _safe_int(raw.get("navLaneGuideCnt"), 0)

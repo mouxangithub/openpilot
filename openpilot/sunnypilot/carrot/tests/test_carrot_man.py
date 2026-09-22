@@ -32,7 +32,8 @@ class _FakeCarrotManSP:
       "vehicleNaviActive", "vehicleNaviSpeed", "vehicleNaviSectionActive", "vehicleNaviAvailable",
       "sapaName", "sapaDist", "sapaType", "sapaCnt",
       "tmcTotalDistance", "tmcResidualDistance", "tmcSegmentCount", "tmcOverallStatus",
-      "navLaneGuide",
+      "tmcSegmentStatuses", "tmcSegmentDistances",
+      "navLaneGuide", "navLaneGuideCnt",
     ]:
       setattr(self, attr, None)
 
@@ -363,6 +364,8 @@ class TestCarrotManager(unittest.TestCase):
       "tmcOverallStatus": 2,
       "tmcTotalDistance": 30000,
       "tmcSegmentCount": 3,
+      "tmcSegmentStatuses": '[1,2,3]',
+      "tmcSegmentDistances": '[100,200,300]',
       "navLaneGuide": "L,SL",
       "navLaneGuideCnt": 2,
     }, time.monotonic())
@@ -373,20 +376,43 @@ class TestCarrotManager(unittest.TestCase):
     def _fake_send(svc, msg):
       sent[svc] = msg
 
-    from openpilot.sunnypilot.carrot.carrot_man import messaging as _m
     # Patch the class-level PubMaster instance used by _publish.
     with patch.object(self.mgr, 'pm') as mock_pm:
       mock_pm.send.side_effect = _fake_send
-      # Provide a real minimal carrotManSP fake so attribute assignment works.
-      fake_cm = _FakeCarrotManSP()
       self.mgr._publish()
-    # _publish assigns via cereal struct fields; with a real PySubMaster-less
-    # run we just assert the raw cache retained the values (cereal assignment is
-    # exercised separately in on-device integration).
+
     raw = self.mgr._carrot_serv.raw
     assert raw["sapaName"] == "Toll Gate"
     assert raw["tmcOverallStatus"] == 2
     assert raw["navLaneGuide"] == "L,SL"
+
+    # The values must actually reach the published message, not just the cache.
+    cm = sent["carrotManSP"].carrotManSP
+    assert cm.sapaName == "Toll Gate"
+    assert cm.sapaDist == 8000
+    assert cm.sapaType == 1
+    assert cm.tmcOverallStatus == 2
+    assert cm.tmcTotalDistance == 30000
+    assert cm.tmcSegmentCount == 3
+    # Per-segment arrays and the lane-guidance count ride on the bus so the
+    # SCC-Map congestion controller and the lane-block fusion can read them.
+    assert cm.tmcSegmentStatuses == '[1,2,3]'
+    assert cm.tmcSegmentDistances == '[100,200,300]'
+    assert cm.navLaneGuide == "L,SL"
+    assert cm.navLaneGuideCnt == 2
+
+  def test_publish_defaults_new_fields_when_packet_omits_them(self):
+    # A packet without the sapa/tmc/lane keys must not leave the new fields
+    # unset on the wire (they default to empty/zero).
+    self.mgr._update_raw({"nRoadLimitSpeed": 80}, time.monotonic())
+    sent = {}
+    with patch.object(self.mgr, 'pm') as mock_pm:
+      mock_pm.send.side_effect = lambda svc, msg: sent.__setitem__(svc, msg)
+      self.mgr._publish()
+    cm = sent["carrotManSP"].carrotManSP
+    assert cm.tmcSegmentStatuses == ""
+    assert cm.tmcSegmentDistances == ""
+    assert cm.navLaneGuideCnt == 0
 
   def test_heartbeat_keeps_link_alive_without_overwrite(self):
     for _ in range(6):

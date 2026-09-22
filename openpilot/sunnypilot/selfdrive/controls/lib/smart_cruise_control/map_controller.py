@@ -1,8 +1,10 @@
 import json
 import math
 import platform
+import time
 
 from openpilot.cereal import custom
+from openpilot.common.constants import CV
 from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 from openpilot.selfdrive.car.cruise import V_CRUISE_UNSET
@@ -27,6 +29,26 @@ TARGET_OFFSET = 1.0  # seconds - This controls how soon before the curve you rea
                      # time than specified depending on how much of a speed differential there is between v_ego and the
                      # target velocity.
 
+# --- Carrot TMC congestion (phone navigation, App field list §2.5) --------- #
+# The phone reports a per-segment traffic status along the route. We fold it
+# into THIS controller rather than adding a second map-deceleration entry point,
+# so "map says slow down ahead" has exactly one implementation.
+#
+# Only statuses that mean "actually slowed down" map to a speed cap. free (1)
+# and very-free (5) must never lower the target; 0/10 mean unknown / current
+# position and are ignored.
+TMC_CONGESTION_SPEED_KPH = {
+  2: 60,  # slow
+  3: 40,  # congested
+  4: 30,  # severe
+}
+# Congestion is advisory: hold it no longer than this after the last update.
+TMC_MAX_AGE_SEC = 10.0
+# Do not act on congestion further ahead than this (metres).
+TMC_LOOKAHEAD_M = 3000.0
+# Ignore caps that are not meaningfully below the current cruise target.
+TMC_MIN_CAP_DELTA_MS = 1.0
+
 
 def velocities_from_param(param: str, params: Params):
   if params is None:
@@ -39,6 +61,65 @@ def velocities_from_param(param: str, params: Params):
   velocities = json.loads(json_str)
 
   return velocities
+
+
+def _parse_int_list(raw) -> list[int]:
+  """Decode a compact JSON int array, tolerating bytes / bad payloads."""
+  if not raw:
+    return []
+  if isinstance(raw, (bytes, bytearray)):
+    try:
+      raw = raw.decode("utf-8", errors="ignore")
+    except Exception:
+      return []
+  if isinstance(raw, (list, tuple)):
+    items = raw
+  else:
+    try:
+      items = json.loads(raw)
+    except (TypeError, ValueError):
+      return []
+  if not isinstance(items, (list, tuple)):
+    return []
+  out: list[int] = []
+  for v in items:
+    try:
+      out.append(int(v))
+    except (TypeError, ValueError):
+      out.append(0)
+  return out
+
+
+def congestion_cap_ms(carrot) -> float:
+  """Speed cap (m/s) implied by the phone's TMC congestion report, else 0.
+
+  Returns 0 when there is nothing actionable: no report, an all-clear route, or
+  congestion that lies beyond ``TMC_LOOKAHEAD_M``.
+
+  The cap is the *worst* status found within the look-ahead window, translated
+  through ``TMC_CONGESTION_SPEED_KPH``. Only statuses in that table produce a
+  cap, so free (1) / very-free (5) / unknown (0, 10) never slow the car.
+  """
+  statuses = _parse_int_list(getattr(carrot, "tmcSegmentStatuses", ""))
+  if not statuses:
+    return 0.
+
+  distances = _parse_int_list(getattr(carrot, "tmcSegmentDistances", ""))
+  # Segments are reported from the current position forward; walk them and stop
+  # once the cumulative distance leaves the look-ahead window.
+  travelled = 0.0
+  worst = 0
+  for i, status in enumerate(statuses):
+    if i < len(distances):
+      travelled += max(0.0, float(distances[i]))
+    if travelled > TMC_LOOKAHEAD_M:
+      break
+    if status in TMC_CONGESTION_SPEED_KPH:
+      worst = max(worst, status)
+
+  if worst == 0:
+    return 0.
+  return float(TMC_CONGESTION_SPEED_KPH[worst]) * CV.KPH_TO_MS
 
 
 def calculate_accel(t, target_jerk, a_ego):
@@ -87,6 +168,11 @@ class SmartCruiseControlMap:
     self.last_position = coordinate_from_param("LastGPSPosition", self.mem_params) or Coordinate(0.0, 0.0)
     self.target_velocities = velocities_from_param("MapTargetVelocities", self.mem_params) or []
 
+    # Carrot TMC congestion (killswitch default OFF, see update_params()).
+    self.use_carrot_congestion = self.params.get_bool("CarrotTrafficCongestionEnabled")
+    self.congestion_cap = 0.0
+    self.congestion_used = False
+
   def get_v_target_from_control(self) -> float:
     if self.is_active:
       return max(self.v_target, MIN_V)
@@ -96,9 +182,49 @@ class SmartCruiseControlMap:
   def get_a_target_from_control(self) -> float:
     return self.a_ego
 
+  def _update_congestion(self, sm) -> None:
+    """Fold the phone's TMC congestion report into ``self.v_target``.
+
+    Gated by ``CarrotTrafficCongestionEnabled`` (default OFF). Reads only the
+    RAW TMC arrays published on ``carrotManSP``; the phone's own synthesized
+    speeds are deliberately not consumed (same double-decel reasoning as
+    ``SpeedLimitResolver._merge_carrot_speed_limit``).
+
+    The cap can only ever *lower* the map controller's target:
+      * a stale packet is ignored entirely;
+      * a cap that is not meaningfully below the current target is ignored;
+      * ``free``/``very-free``/``unknown`` statuses never produce a cap.
+    """
+    self.congestion_cap = 0.0
+    self.congestion_used = False
+    if not self.use_carrot_congestion or sm is None:
+      return
+    try:
+      if not sm.valid.get("carrotManSP", False) or not sm.alive.get("carrotManSP", False):
+        return
+      if time.monotonic() - sm.recv_time["carrotManSP"] > TMC_MAX_AGE_SEC:
+        return
+      carrot = sm["carrotManSP"]
+      if int(getattr(carrot, "activeCarrot", 0) or 0) <= 0:
+        return
+
+      cap = congestion_cap_ms(carrot)
+      if cap <= 0.:
+        return
+      self.congestion_cap = cap
+
+      # Only lower an existing target, and only by a meaningful margin.
+      if self.v_target > 0. and cap >= self.v_target - TMC_MIN_CAP_DELTA_MS:
+        return
+      self.v_target = cap
+      self.congestion_used = True
+    except Exception:
+      return
+
   def update_params(self):
     if self.frame % int(PARAMS_UPDATE_PERIOD / DT_MDL) == 0:
       self.enabled = self.params.get_bool("SmartCruiseControlMap")
+      self.use_carrot_congestion = self.params.get_bool("CarrotTrafficCongestionEnabled")
 
   def update_calculations(self) -> None:
     self.last_position = coordinate_from_param("LastGPSPosition", self.mem_params) or Coordinate(0.0, 0.0)
@@ -243,7 +369,7 @@ class SmartCruiseControlMap:
 
     return enabled, active
 
-  def update(self, long_enabled: bool, long_override: bool, v_ego, a_ego, v_cruise) -> None:
+  def update(self, long_enabled: bool, long_override: bool, v_ego, a_ego, v_cruise, sm=None) -> None:
     self.long_enabled = long_enabled
     self.long_override = long_override
     self.v_ego = v_ego
@@ -252,6 +378,10 @@ class SmartCruiseControlMap:
 
     self.update_params()
     self.update_calculations()
+    # Fold in phone TMC congestion AFTER the map velocities so the cap can only
+    # lower the target, never raise it. `sm` is optional so existing callers
+    # that only exercise the map-velocity path keep working unchanged.
+    self._update_congestion(sm)
 
     self.is_enabled, self.is_active = self._update_state_machine()
 

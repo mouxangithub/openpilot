@@ -457,11 +457,23 @@ class CarrotServ:
     # 7706 navi GPS is authoritative while it is fresh.
     lat = _safe_float(msg.get("vpPosPointLat"), 0.0)
     lon = _safe_float(msg.get("vpPosPointLon"), 0.0)
-    if -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0 and (lat != 0.0 or lon != 0.0):
+    navi_gps_present = -90.0 <= lat <= 90.0 and -180.0 <= lon <= 180.0 and (lat != 0.0 or lon != 0.0)
+    if navi_gps_present:
       self._navi_gps_lat = lat
       self._navi_gps_lon = lon
       self._navi_gps_angle = _safe_float(msg.get("nPosAngle"), 0.0) % 360.0
       self._last_update_gps_time_navi = time.monotonic()
+    # Phone GPS fallback (App field list §1.4): when the navi block has not
+    # refreshed its fix for >3 s, fall back to the standalone phone GPS block so
+    # `vp_pos_point_*` / heading do not go stale. Without this, an app that only
+    # sends `latitude`/`longitude` leaves the route anchored at (0, 0), which
+    # silently degrades the route-curvature speed chain (TurnSpeedControlMode
+    # 2/3) to its fixed default. Purely a data-layer fallback: it fills the same
+    # `_raw` keys the navi block writes, so no new control entry point appears.
+    elif self._phone_gps_is_usable():
+      self._raw["vpPosPointLat"] = self._phone_gps_lat
+      self._raw["vpPosPointLon"] = self._phone_gps_lon
+      self._raw["nPosAngle"] = self._phone_gps_heading
     # Periodic system time sync from the phone's epochTime/timezone.
     if "epochTime" in msg and seq % 60 == 0:
       self._maybe_sync_system_time(_safe_int(msg.get("epochTime"), 0),
@@ -503,6 +515,33 @@ class CarrotServ:
         self._last_update_gps_time_phone = time.monotonic()
         if accuracy < 15.0:
           self._phone_gps_frame += 1
+
+  # The navi GPS block is considered stale after this long without a refresh,
+  # at which point the standalone phone GPS block takes over (App field list
+  # §1.4). Matches the window used by the `gps_source` property.
+  _NAVI_GPS_FRESH_SEC = 3.0
+  # Phone fixes worse than this are not trusted as a fallback.
+  _PHONE_GPS_MAX_ACCURACY_M = 15.0
+
+  def _phone_gps_is_usable(self) -> bool:
+    """True when the standalone phone GPS block can stand in for a stale navi fix.
+
+    Guards (all must hold):
+      * the navi block has not refreshed within ``_NAVI_GPS_FRESH_SEC``;
+      * the phone fix itself is fresh (same window);
+      * the phone fix has a plausible accuracy;
+      * the phone coordinates are non-zero and in range.
+    """
+    now = time.monotonic()
+    if (now - self._last_update_gps_time_navi) <= self._NAVI_GPS_FRESH_SEC:
+      return False
+    if (now - self._last_update_gps_time_phone) > self._NAVI_GPS_FRESH_SEC:
+      return False
+    if self._phone_gps_accuracy >= self._PHONE_GPS_MAX_ACCURACY_M:
+      return False
+    if not (-90.0 <= self._phone_gps_lat <= 90.0 and -180.0 <= self._phone_gps_lon <= 180.0):
+      return False
+    return self._phone_gps_lat != 0.0 or self._phone_gps_lon != 0.0
 
   # System clock is only nudged when drift is within this window and the
   # target year is plausible. Guardrails prevent a malformed phone timestamp

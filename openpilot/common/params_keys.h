@@ -407,6 +407,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"DesireArbiterEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},             // lateral lane-change/fork desire from nav
     {"ATCMaxSpeedKph", {PERSISTENT | BACKUP, FLOAT, "35.0"}},               // auto-turn-control speed floor cap
     {"CarrotSourceTimeoutMs", {PERSISTENT | BACKUP, INT, "2000"}},          // carrot packet timeout [ms]
+    {"CarrotTrafficCongestionEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},   // fold phone TMC congestion into SmartCruiseControlMap (only lowers the target)
+    {"CarrotNavLaneGuideBlockEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},   // let 7706 navLaneGuide block non-guided adjacent lanes
     {"AmapCurveSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},            // use Amap Web polyline for curve speed
     {"AmapTrafficLightHintEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},      // use Amap Web traffic-light hints
     {"CarrotSectionSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},        // section/avg-SDI speed enforcement

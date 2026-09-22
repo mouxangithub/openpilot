@@ -189,6 +189,7 @@ class Car:
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
     self.carrot_enabled = self.params.get_bool("CarrotEnabled")
     self.carrot_navi_v2_enabled = self.params.get_bool("CarrotNaviV2Enabled")
+    self.carrot_nav_lane_guide_block = self.params.get_bool("CarrotNavLaneGuideBlockEnabled")
     self._carrot_navi_cache = None
     self._carrot_navi_cache_mono = 0.0
 
@@ -213,13 +214,25 @@ class Car:
 
     self.sm.update(0)
 
-    # Merge Carrot 7714 v2 navigation lane hints into carState/carStateSP.
+    # Merge Carrot navigation lane hints into carState/carStateSP. Both the 7714
+    # v2 stream and the 7706 navLaneGuide array feed the SAME flags, so there is
+    # only one lane-blocking decision.
     if self.sm.updated['carrotNaviSP'] and self.sm.valid['carrotNaviSP']:
       self._carrot_navi_cache = self.sm['carrotNaviSP']
       self._carrot_navi_cache_mono = time.monotonic()
     carrot_navi = self._carrot_navi_cache
-    if self.carrot_enabled and self.carrot_navi_v2_enabled and carrot_navi is not None and time.monotonic() - self._carrot_navi_cache_mono <= 0.5:
-      merge_carrot_navi_lanes(CS_SP, carrot_navi)
+    navi_fresh = carrot_navi is not None and time.monotonic() - self._carrot_navi_cache_mono <= 0.5
+    carrot_man = self.sm['carrotManSP'] if self.sm.valid.get('carrotManSP', False) else None
+    nav_guide = getattr(carrot_man, 'navLaneGuide', "") if carrot_man is not None else ""
+    nav_guide_cnt = int(getattr(carrot_man, 'navLaneGuideCnt', 0) or 0) if carrot_man is not None else 0
+    if self.carrot_enabled:
+      merge_carrot_navi_lanes(
+        CS_SP,
+        carrot_navi if (self.carrot_navi_v2_enabled and navi_fresh) else None,
+        nav_guide,
+        nav_guide_cnt,
+        self.carrot_nav_lane_guide_block,
+      )
 
     can_rcv_valid = len(can_strs) > 0
 
