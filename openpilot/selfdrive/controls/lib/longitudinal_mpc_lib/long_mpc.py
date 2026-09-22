@@ -71,6 +71,15 @@ COMFORT_BRAKE = _read_tuning_float(_TUNING_PARAMS, "LongitudinalMpcTuningComfort
 STOP_DISTANCE = _read_tuning_float(_TUNING_PARAMS, "LongitudinalMpcTuningStopDistance", 6.0)
 MIN_X_LEAD_FACTOR = 0.5
 
+# Fallbacks for the t-follow tuning params. LongitudinalMpc reads the live values
+# into self.t_follow_*; these are the built-in defaults, used to tell "the user
+# changed the follow time" apart from "the default is in effect".
+T_FOLLOW_DEFAULTS = {
+  log.LongitudinalPersonality.relaxed: 1.75,
+  log.LongitudinalPersonality.standard: 1.45,
+  log.LongitudinalPersonality.aggressive: 1.25,
+}
+
 def get_jerk_factor(personality=log.LongitudinalPersonality.standard):
   if personality==log.LongitudinalPersonality.relaxed:
     return 1.0
@@ -258,6 +267,19 @@ class LongitudinalMpc:
       return self.t_follow_aggressive
     else:
       raise NotImplementedError("Longitudinal personality not supported")
+
+  def t_follow_user_scale(self, personality=log.LongitudinalPersonality.standard) -> float:
+    """How far the user moved the follow time from its default (1.0 = untouched).
+
+    The Carrot longitudinal source multiplies its own modulated follow time by
+    this, so the Longitudinal MPC Tuning entry stays authoritative even while the
+    Carrot source is active - without changing behaviour for anyone who has left
+    the tuning at its default.
+    """
+    default = T_FOLLOW_DEFAULTS.get(personality)
+    if not default:
+      return 1.0
+    return self.get_t_follow(personality) / default
 
   def reset(self):
     self.solver.reset()

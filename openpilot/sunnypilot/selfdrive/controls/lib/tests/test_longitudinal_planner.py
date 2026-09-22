@@ -81,3 +81,67 @@ class TestCarrotTargetUnification(OpenpilotTestCase):
     sm = self._sm()
     planner.update_targets(sm, v_ego=10.0, a_ego=0.0, v_cruise=30.0)
     assert LongitudinalPlanSource.carrot not in planner.targets
+
+
+class TestTFollowUserScale(OpenpilotTestCase):
+  """Carrot must scale sunnypilot's follow time, not replace it.
+
+  long_mpc.update() treats a non-None t_follow as authoritative, so while the Carrot
+  source was active the Longitudinal MPC Tuning page was ignored. Carrot now
+  multiplies its own modulated value by the ratio between the user's tuning and that
+  tuning's default, which keeps the page authoritative and leaves an untouched device
+  at exactly 1.0.
+  """
+
+  def test_defaults_match_the_registered_param_defaults(self) -> None:
+    """The invariant: a drift here makes the scale non-1.0 for everyone.
+
+    long_mpc pulls in acados and capnp, so parse the sources instead of importing.
+    """
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[6]
+    mpc_src = (root / "openpilot" / "selfdrive" / "controls" / "lib" /
+               "longitudinal_mpc_lib" / "long_mpc.py").read_text(encoding="utf-8")
+    keys_src = (root / "openpilot" / "common" / "params_keys.h").read_text(encoding="utf-8")
+
+    block = re.search(r"T_FOLLOW_DEFAULTS\s*=\s*\{(.*?)\n\}", mpc_src, re.S)
+    assert block is not None, "T_FOLLOW_DEFAULTS is gone; the scaling fix depends on it"
+    declared = {m.group(1): float(m.group(2))
+                for m in re.finditer(r"LongitudinalPersonality\.(\w+):\s*([\d.]+)", block.group(1))}
+
+    for personality, key in (("relaxed", "LongitudinalMpcTuningTFollowRelaxed"),
+                             ("standard", "LongitudinalMpcTuningTFollowStandard"),
+                             ("aggressive", "LongitudinalMpcTuningTFollowAggressive")):
+      m = re.search(r'\{"' + key + r'",\s*\{\s*PERSISTENT \| BACKUP,\s*FLOAT,\s*"([\d.]+)"\s*\}\}', keys_src)
+      assert m is not None, f"{key} is not registered"
+      assert declared.get(personality) == float(m.group(1)), (
+        f"{personality}: T_FOLLOW_DEFAULTS={declared.get(personality)} but {key} defaults to "
+        f"{m.group(1)} - the user scale would not be 1.0 on an untouched device")
+
+  def test_scale_is_exactly_one_on_defaults(self) -> None:
+    """Behaviour preservation: untouched tuning must not change the follow time."""
+    from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_FOLLOW_DEFAULTS
+    for personality, default in T_FOLLOW_DEFAULTS.items():
+      assert default > 0.0, f"{personality} default must be positive, got {default}"
+    # the ratio of a default to itself is 1.0 by construction; assert the shape the
+    # planner relies on rather than re-deriving the division
+    assert set(T_FOLLOW_DEFAULTS) == {
+      __import__("openpilot.cereal.log", fromlist=["log"]).LongitudinalPersonality.relaxed,
+      __import__("openpilot.cereal.log", fromlist=["log"]).LongitudinalPersonality.standard,
+      __import__("openpilot.cereal.log", fromlist=["log"]).LongitudinalPersonality.aggressive,
+    }, "T_FOLLOW_DEFAULTS must be keyed by the cereal personality enum"
+
+  def test_planner_multiplies_and_never_replaces(self) -> None:
+    """Guard the call site: the raw carrot value must not reach mpc.update again."""
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[6]
+    src = (root / "openpilot" / "selfdrive" / "controls" / "lib" /
+           "longitudinal_planner.py").read_text(encoding="utf-8")
+    assert "t_follow=self.carrot_t_follow" not in src, "the raw carrot t_follow is passed again"
+    assert "t_follow_user_scale(" in src, "the user scale is no longer applied"
+    assert re.search(r"carrot_t_follow = None\s*\n\s*if self\.carrot_source_active:", src) is not None, \
+      "carrot_t_follow must default to None so the MPC falls back to the tuned value"

@@ -122,6 +122,17 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
                          jerk_factor=self.carrot_jerk_factor if self.carrot_source_active else None)
     self.mpc.set_cur_state(self.v_desired_filter.x, self.output_a_target)
 
+    # The follow time Carrot contributes, scaled by how far the user moved
+    # sunnypilot's Longitudinal MPC Tuning value from its default. Carrot supplies
+    # the dynamics (speed interpolation, driving-mode factor, deceleration boost);
+    # the user's tuning decides the nominal gap. On default params the scale is
+    # exactly 1.0, so this is behaviour-preserving; previously Carrot replaced the
+    # tuned value outright and the tuning page was ignored while it was active.
+    personality = sm['selfdriveState'].personality
+    carrot_t_follow = None
+    if self.carrot_source_active:
+      carrot_t_follow = self.carrot_t_follow * self.mpc.t_follow_user_scale(personality)
+
     # CarrotPlanner longitudinal overrides (Option C). Only applied when the
     # carrot source is active, so stock behavior is untouched otherwise. These
     # never change PARAM_DIM or rebuild the acados solver. Stop distance is not
@@ -148,13 +159,13 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
               and getattr(self.carrot_lane_change_gap, 'active', False):
         credit = self.carrot_lane_change_gap.credit(
           sm['radarState'].leadOne, T_IDXS_MPC, v_ego, ACCEL_MAX,
-          self.carrot_t_follow, self.carrot_stop_distance_margin, self.carrot_dynamic_t_follow_lc,
+          carrot_t_follow, self.carrot_stop_distance_margin, self.carrot_dynamic_t_follow_lc,
         )
         if credit is not None and np.any(credit):
           mpc_carrot_kwargs['lane_change_credit'] = credit
 
-    self.mpc.update(sm['radarState'], personality=sm['selfdriveState'].personality,
-                    t_follow=self.carrot_t_follow if self.carrot_source_active else None,
+    self.mpc.update(sm['radarState'], personality=personality,
+                    t_follow=carrot_t_follow,
                     **mpc_carrot_kwargs)
     self.update_dec(sm)
 
