@@ -284,7 +284,7 @@ V_CURVE_LOOKUP_BP: tuple[float, ...] = (
   0.0, 1 / 800, 1 / 670, 1 / 560, 1 / 440, 1 / 360, 1 / 265, 1 / 190, 1 / 135,
   1 / 85, 1 / 55, 1 / 30, 1 / 25,
 )
-V_CRUVE_LOOKUP_VALS: tuple[float, ...] = (300, 150, 120, 110, 100, 90, 80, 70, 60, 50, 40, 15, 5)
+V_CURVE_LOOKUP_VALS: tuple[float, ...] = (300, 150, 120, 110, 100, 90, 80, 70, 60, 50, 40, 15, 5)
 
 # Approximate curve-speed model: given a turn type and distance, recommend an
 # approach speed.  This is a simplified stand-in for the full polynomial model
@@ -842,7 +842,7 @@ class CarrotManager:
           p1, p2, p3 = resampled_points[i], resampled_points[i + sample], resampled_points[i + sample * 2]
           curvature = calculate_curvature(p1, p2, p3)
           curvatures.append(curvature)
-          speed = _interp_table(abs(curvature), V_CURVE_LOOKUP_BP, V_CRUVE_LOOKUP_VALS)
+          speed = _interp_table(abs(curvature), V_CURVE_LOOKUP_BP, V_CURVE_LOOKUP_VALS)
           if abs(curvature) < 0.02:
             speed = max(speed, self._carrot_serv.n_road_limit_speed)
           speeds.append(speed)

@@ -1067,6 +1067,63 @@ class TestCarrotManager(unittest.TestCase):
     assert serv.raw["nSdiBlockSpeed"] == 40
     assert serv.raw["nSdiBlockDist"] == 250
 
+  def test_gps_breadcrumb_curvature_chain_is_gone(self):
+    """The unused GPS-breadcrumb curvature chain must not come back.
+
+    It was never called (its _path deque was only appended to from inside the dead
+    update_gps), and its curvature formula mixed degree-space coordinates into a
+    1/metre lookup, so re-wiring it would command 5 km/h at every curve.
+    """
+    serv = self.mgr._carrot_serv
+    for name in ("update_gps", "push_position", "_update_bearing", "curvature_at",
+                 "lookup_curve_speed", "_estimate_position"):
+      assert not hasattr(serv, name), f"{name} is back; see the R3 audit before reviving it"
+
+  def test_bearing_reports_the_phone_heading(self):
+    """`bearing` is read by the live route-curvature path, so it must not be stuck at 0.
+
+    It used to return a value that only the removed GPS-fusion step ever wrote,
+    which meant carrot_navi_route() rotated the route by 0 degrees.
+    """
+    serv = self.mgr._carrot_serv
+    serv.update_raw({
+      "vpPosPointLat": 37.5, "vpPosPointLon": 127.0, "nPosAngle": 123.0,
+    }, time.monotonic())
+    assert serv.bearing == 123.0
+
+  def test_raw_mirrors_the_gps_fields_from_the_packet(self):
+    """derive() reads these keys to place the car on the route.
+
+    They used to be hardcoded to 0.0 in the raw dict, so vp_pos_point_* stayed at
+    (0, 0) and the route search anchored on the wrong point.
+    """
+    serv = self.mgr._carrot_serv
+    serv.update_raw({
+      "vpPosPointLat": 37.25, "vpPosPointLon": 127.25, "nPosAngle": 45.0, "nPosSpeed": 88.0,
+    }, time.monotonic())
+    raw = serv.raw
+    assert raw["vpPosPointLat"] == 37.25
+    assert raw["vpPosPointLon"] == 127.25
+    assert raw["nPosAngle"] == 45.0
+    assert raw["nPosSpeed"] == 88.0
+    serv.derive()
+    assert serv.vp_pos_point_lat == 37.25
+    assert serv.vp_pos_point_lon == 127.25
+
+  def test_gps_source_reports_phone_when_fresh(self):
+    """The phone freshness stamp needs a writer that actually runs.
+
+    It was only set by the removed fusion step, so gps_source always said "none".
+    """
+    serv = self.mgr._carrot_serv
+    serv._update_phone_gps_from_packet({"latitude": 37.5, "longitude": 127.0, "heading": 10.0, "accuracy": 5.0})
+    assert serv.gps_source == "phone"
+
+  def test_gps_source_reports_none_when_nothing_is_fresh(self):
+    serv = self.mgr._carrot_serv
+    serv.reset()
+    assert serv.gps_source == "none"
+
   def _make_status_item(self, sequence=1, **values):
     item = MagicMock()
     item.meta = MagicMock(present=True, sequence=sequence)
