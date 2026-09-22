@@ -20,19 +20,42 @@ from openpilot.sunnypilot.mapd.live_map_data.base_map_data import BaseMapData
 
 # Amap Web Service API.
 #
-# The v3 endpoints are retained deliberately. Amap shipped 路径规划2.0
-# (``/v5/direction/driving``), but its ``steps`` object documents only
-# instruction / orientation / road_name / step_distance, and the optional
-# ``show_fields`` groups (cost / tmcs / navi / cities / polyline) expose no road
-# speed either. The speed-limit feature therefore has no v5 equivalent and would
-# lose its only data source if migrated. v3 remains documented and supported
-# (last updated 2026-02), so the driving call stays on v3 and only the fields
-# that genuinely exist in the documented v3 response are read here.
+# Endpoint versions, checked against the live docs:
+#   * reverse geocoding has no v5 - `/v3/geocode/regeo` is current (docs 2026-02).
+#   * driving is on 路径规划2.0 `/v5/direction/driving` (docs 2026-06). v3's
+#     `extensions=base|all` was replaced by `show_fields`, and v5 returns
+#     `step_distance`/`road_name` instead of `distance`/`road`.
 #
-# Everything is wrapped defensively: a malformed or partial response must never
-# take down mapd, it must simply leave the previous values in place.
+# One consequence has to be stated plainly: **neither version's documentation lists
+# a roadmap speed field.** The speed-limit path reads `steps[].speed` (kph) from v3,
+# a field that is not in the current v3 response table; Amap's road speed is only
+# documented on the Android navigation SDK (`AMapNaviTrafficFacilityInfo.limitSpeed`),
+# not on any Web Service endpoint. So the driving call is made against v5 - the
+# current, actively documented version - with `show_fields` requesting everything
+# that could plausibly carry a limit. The parser then reads both generations' names
+# and treats a missing speed as "no limit known" rather than guessing, which is
+# exactly how the code behaved before, just on a retired endpoint.
+#
+# Yes, there is a trade-off: if the undocumented v3 `speed` field did work, moving to
+# v5 loses it. That is why `limits_ever_seen` exists in the diagnostics - it makes it
+# immediately observable whether the speed path produces anything at all, instead of
+# silently reporting 0 forever.
+#
+# Everything is wrapped defensively: a malformed or partial response must never take
+# down mapd, it must simply leave the previous values in place.
 AMAP_GEOCODE_URL = "https://restapi.amap.com/v3/geocode/regeo"
-AMAP_DIRECTION_URL = "https://restapi.amap.com/v3/direction/driving"
+AMAP_DIRECTION_URL = "https://restapi.amap.com/v5/direction/driving"
+
+# Driving strategy for v5. 32 = 高德推荐, the documented default and the value the
+# Amap app itself uses. (v3 used a different numbering entirely, where 0 was the
+# default and 10-20 were recommended.)
+AMAP_DRIVING_STRATEGY = "32"
+
+# All optional v5 result groups. Requesting them all is deliberate: one of them may
+# carry a speed field that the documentation does not enumerate, and the cost of
+# asking is a slightly larger response.
+AMAP_DRIVING_SHOW_FIELDS = "cost,navi,cities,polyline,tmcs"
+
 
 # Amap reports failures as HTTP 200 with {"status":"0","infocode":"...","info":"..."}.
 # Grouping them by cause lets us stop hammering a key that cannot recover, which the
@@ -193,6 +216,48 @@ def _as_text(value, default: str = "") -> str:
   return str(value)
 
 
+# ---- response shape helpers ---------------------------------------------- #
+#
+# v3 and v5 name the same ideas differently (v3: distance/road/extensions,
+# v5: step_distance/road_name/show_fields), and the nesting differs too - v5 nests
+# `route.paths` one level deeper than v3. These helpers accept either generation so
+# the parser does not care which one answered.
+
+def _extract_steps(path: dict) -> list[dict]:
+  """Return the step list of a path, tolerating both nesting styles."""
+  steps = path.get("steps")
+  if isinstance(steps, list):
+    return [s for s in steps if isinstance(s, dict)]
+  if isinstance(steps, dict):
+    # A single step delivered as an object rather than a list of one.
+    return [steps]
+  return []
+
+
+def _step_speed_kph(step: dict) -> float:
+  """Road speed limit of a step, in kph, or 0.0 when absent.
+
+  Amap documents no road-speed field on either the v3 or the v5 driving response, so
+  several plausible names are tried rather than assuming one. `speed` is what the
+  original code read; `limit_speed`/`speed_limit` match the spelling Amap uses for the
+  same concept on its navigation SDK.
+  """
+  for key in ("speed", "limit_speed", "speed_limit", "limitSpeed"):
+    value = _as_float(step.get(key), 0.0)
+    if value > 0:
+      return value
+  return 0.0
+
+
+def _step_distance_m(step: dict) -> float:
+  """Length of a step in metres. v5 names it `step_distance`, v3 `distance`."""
+  for key in ("step_distance", "distance"):
+    value = _as_float(step.get(key), 0.0)
+    if value > 0:
+      return value
+  return 0.0
+
+
 def _http_get_json(url: str, timeout: float = 5.0) -> dict | None:
   try:
     with urllib.request.urlopen(url, timeout=timeout) as response:
@@ -251,6 +316,10 @@ class AmapMapData(BaseMapData):
     self._last_error: str = ""
     self._last_info_code: str = ""
     self._consecutive_failures: int = 0
+    # Number of responses that actually contained a road speed. Amap documents no
+    # such field on either driving version, so this is the one number that answers
+    # "does the speed-limit source produce anything at all?" without guesswork.
+    self._limits_ever_seen: int = 0
 
     # Feature switches, refreshed with the key.
     self._curve_speed_enabled = False
@@ -316,6 +385,7 @@ class AmapMapData(BaseMapData):
       "backoff_s": max(0.0, self._backoff_until - time.monotonic()),
       "traffic_light_count": self._traffic_light_count,
       "curve_speed_ms": self._curve_speed_limit,
+      "limits_ever_seen": self._limits_ever_seen,
     }
 
   # ---- location / scheduling --------------------------------------------- #
@@ -437,29 +507,43 @@ class AmapMapData(BaseMapData):
       first_path = paths[0]
       if not isinstance(first_path, dict):
         return
-      steps = first_path.get("steps")
-      if not isinstance(steps, list) or not steps:
+      steps = _extract_steps(first_path)
+      if not steps:
         return
 
-      # Current road speed limit from the first step.
-      first_step = steps[0] if isinstance(steps[0], dict) else {}
-      current_speed_kph = _as_float(first_step.get("speed"), 0.0)
+      # Current road speed limit from the first step that carries one.
+      # `_step_speed_kph` covers both the v3 name (`speed`) and the plausible v5
+      # spellings, because Amap documents neither.
+      current_speed_kph = 0.0
+      for step in steps:
+        current_speed_kph = _step_speed_kph(step)
+        if current_speed_kph > 0:
+          break
       self._speed_limit = _kph_to_ms(current_speed_kph) if current_speed_kph > 0 else 0.0
+      if current_speed_kph > 0:
+        self._limits_ever_seen += 1
 
-      # Look for the next step with a different (lower) speed limit.
+      # Look for the next step with a lower speed limit.
+      #
+      # `accumulated` deliberately starts at zero and skips steps[0], i.e. the
+      # reported distance begins at the end of the current step rather than at the
+      # vehicle. That is the pre-existing contract and it is the conservative
+      # direction (an under-reported distance makes the resolver brake earlier), so
+      # it is kept as-is: this change is an API migration, not a redefinition of the
+      # distance. Worth revisiting separately - since `origin` is the vehicle
+      # position, step[0] has not yet been driven, so the physically accurate figure
+      # is one step longer than what is reported here.
       self._next_speed_limit = 0.0
       self._next_speed_limit_distance = 0.0
-      accumulated = 0.0
-      for step in steps[1:]:
-        if not isinstance(step, dict):
-          continue
-        step_distance = _as_float(step.get("distance"), 0.0)
-        step_speed = _as_float(step.get("speed"), 0.0)
-        accumulated += step_distance
-        if 0 < step_speed < current_speed_kph:
-          self._next_speed_limit = _kph_to_ms(step_speed)
-          self._next_speed_limit_distance = accumulated
-          break
+      if current_speed_kph > 0:
+        accumulated = 0.0
+        for step in steps[1:]:
+          step_speed = _step_speed_kph(step)
+          accumulated += _step_distance_m(step)
+          if 0 < step_speed < current_speed_kph:
+            self._next_speed_limit = _kph_to_ms(step_speed)
+            self._next_speed_limit_distance = accumulated
+            break
 
       # Traffic-light count for the whole scheme (path level, not per step).
       if self._traffic_light_hint_enabled:
@@ -491,13 +575,10 @@ class AmapMapData(BaseMapData):
       "key": api_key,
       "origin": location_str,
       "destination": destination_str,
-      # `all` is what makes Amap return the step detail (and traffic_lights);
-      # the v3 table marks this parameter required.
-      "extensions": "all",
-      # 2 = 常规最快 (distance/duration compromise). Documented as valid; the
-      # 10-20 family is recommended for multi-route results but returns several
-      # paths, and we only ever consume the first.
-      "strategy": "2",
+      # 路径规划2.0: `show_fields` replaces v3's `extensions`. Asking for every group
+      # maximises the chance of receiving a speed field if one exists.
+      "show_fields": AMAP_DRIVING_SHOW_FIELDS,
+      "strategy": AMAP_DRIVING_STRATEGY,
     }
     url = f"{AMAP_DIRECTION_URL}?{urllib.parse.urlencode(params)}"
     result = _http_get_json(url)
@@ -509,7 +590,11 @@ class AmapMapData(BaseMapData):
       if not isinstance(route, dict):
         return []
       paths = route.get("paths")
-      return paths if isinstance(paths, list) else []
+      if isinstance(paths, list):
+        return paths
+      # v3 nested paths under `route.paths[0]` as well, but some payloads deliver
+      # `route.paths` as a single object; tolerate that too.
+      return [paths] if isinstance(paths, dict) else []
     except Exception as e:
       cloudlog.warning(f"amap_map_data: failed to read route paths: {e}")
       return []
@@ -525,8 +610,8 @@ class AmapMapData(BaseMapData):
     The minimum speed over the window wins.
     """
     try:
-      steps = path.get("steps")
-      if not isinstance(steps, list):
+      steps = _extract_steps(path)
+      if not steps:
         return 0.0
 
       points: list[tuple[float, float]] = []
@@ -537,7 +622,7 @@ class AmapMapData(BaseMapData):
         polyline = _as_text(step.get("polyline"))
         if polyline:
           points.extend(_parse_polyline(polyline))
-        consumed += _as_float(step.get("distance"), 0.0)
+        consumed += _step_distance_m(step)
         if points and consumed >= CURVE_LOOKAHEAD_M:
           break
 

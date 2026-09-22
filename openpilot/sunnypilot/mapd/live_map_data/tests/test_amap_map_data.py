@@ -34,6 +34,7 @@ sys.modules["openpilot.cereal.messaging"] = _cereal_pkg.messaging
 sys.modules["openpilot.cereal.log"] = _cereal_pkg.log
 
 from openpilot.sunnypilot.mapd.live_map_data.amap_map_data import (
+  AMAP_DRIVING_SHOW_FIELDS,
   AMAP_FATAL_INFOCODES,
   AMAP_THROTTLE_INFOCODES,
   CURVE_MAX_SPEED_KPH,
@@ -41,10 +42,13 @@ from openpilot.sunnypilot.mapd.live_map_data.amap_map_data import (
   _as_float,
   _as_int,
   _as_text,
+  _extract_steps,
   _kph_to_ms,
   _min_curve_speed_kph,
   _out_of_china,
   _parse_polyline,
+  _step_distance_m,
+  _step_speed_kph,
   wgs84_to_gcj02,
 )
 
@@ -430,5 +434,103 @@ class TestAmapErrorHandling(unittest.TestCase):
 
 
 
+class TestAmapV5Shape(unittest.TestCase):
+  """The driving call targets 路径规划2.0 (`/v5/direction/driving`).
+
+  v5 renames the field groups (v3's `extensions` becomes `show_fields`, `distance`
+  becomes `step_distance`, `road` becomes `road_name`) and nests `route.paths` one
+  level differently, so the parser has to accept either generation. These tests pin
+  that down without asserting which fields Amap actually returns - the request is
+  made against the documented v5 endpoint, and the response is read either way.
+  """
+
+  def test_extract_steps_accepts_a_list(self):
+    self.assertEqual(_extract_steps({"steps": [{"a": 1}, {"b": 2}]}), [{"a": 1}, {"b": 2}])
+
+  def test_extract_steps_accepts_a_single_object(self):
+    self.assertEqual(_extract_steps({"steps": {"a": 1}}), [{"a": 1}])
+
+  def test_extract_steps_ignores_non_dict_entries(self):
+    self.assertEqual(_extract_steps({"steps": [{"a": 1}, "junk", None]}), [{"a": 1}])
+
+  def test_extract_steps_missing(self):
+    self.assertEqual(_extract_steps({}), [])
+
+  def test_step_speed_reads_v3_name(self):
+    self.assertEqual(_step_speed_kph({"speed": "80"}), 80.0)
+
+  def test_step_speed_reads_limit_speed_aliases(self):
+    # Amap documents road speed as `limitSpeed` on its navigation SDK; if a Web
+    # response ever carries it under that spelling, it must be picked up.
+    self.assertEqual(_step_speed_kph({"limit_speed": "60"}), 60.0)
+    self.assertEqual(_step_speed_kph({"speed_limit": "50"}), 50.0)
+
+  def test_step_speed_absent(self):
+    self.assertEqual(_step_speed_kph({"instruction": "go"}), 0.0)
+
+  def test_step_distance_reads_both_generations(self):
+    self.assertEqual(_step_distance_m({"distance": "100"}), 100.0)
+    self.assertEqual(_step_distance_m({"step_distance": "250"}), 250.0)
+
+  def test_step_distance_absent(self):
+    self.assertEqual(_step_distance_m({}), 0.0)
+
+  def test_v5_request_uses_show_fields_not_extensions(self):
+    provider = _provider()
+    seen = {}
+
+    def capture(url):
+      seen["url"] = url
+      return {"status": "1", "route": {"paths": [{"steps": [{"step_distance": "100"}]}]}}
+
+    with patch("openpilot.sunnypilot.mapd.live_map_data.amap_map_data._http_get_json", side_effect=capture):
+      provider._update_speed_limits("KEY", "116.400000,39.900000")
+
+    url = seen["url"]
+    self.assertIn("/v5/direction/driving", url)
+    self.assertIn("show_fields=", url)
+    self.assertNotIn("extensions=", url)
+    for group in AMAP_DRIVING_SHOW_FIELDS.split(","):
+      self.assertIn(group, url)
+
+  def test_v5_step_distance_is_used_for_the_ahead_distance(self):
+    provider = _provider()
+    payload = {"status": "1", "route": {"paths": [{
+      "steps": [
+        {"step_distance": "100", "speed": "80"},
+        {"step_distance": "200", "speed": "60"},
+      ],
+    }]}}
+    with patch(f"{_MOD}._http_get_json", return_value=payload):
+      provider._update_speed_limits("KEY", "116.400000,39.900000")
+    self.assertAlmostEqual(provider._speed_limit, 80.0 / 3.6, places=6)
+    self.assertAlmostEqual(provider._next_speed_limit, 60.0 / 3.6, places=6)
+    self.assertEqual(provider._next_speed_limit_distance, 200.0)
+
+  def test_paths_delivered_as_a_single_object(self):
+    provider = _provider()
+    payload = {"status": "1", "route": {"paths": {"steps": [{"step_distance": "10", "speed": "70"}]}}}
+    with patch(f"{_MOD}._http_get_json", return_value=payload):
+      provider._update_speed_limits("KEY", "116.400000,39.900000")
+    self.assertAlmostEqual(provider._speed_limit, 70.0 / 3.6, places=6)
+
+  def test_limits_ever_seen_counts_only_real_limits(self):
+    # The counter is the one number that shows whether the speed path produces
+    # anything, since Amap documents no road-speed field on either version.
+    p = _provider()
+    self.assertEqual(p.get_diagnostics()["limits_ever_seen"], 0)
+
+    with patch(f"{_MOD}._http_get_json",
+               return_value={"status": "1", "route": {"paths": [{"steps": [{"step_distance": "10"}]}]}}):
+      p._update_speed_limits("KEY", "116.400000,39.900000")
+    self.assertEqual(p.get_diagnostics()["limits_ever_seen"], 0, "no speed field -> no count")
+
+    with patch(f"{_MOD}._http_get_json",
+               return_value={"status": "1", "route": {"paths": [{"steps": [{"step_distance": "10", "speed": "80"}]}]}}):
+      p._update_speed_limits("KEY", "116.400000,39.900000")
+    self.assertEqual(p.get_diagnostics()["limits_ever_seen"], 1)
+
+
 if __name__ == "__main__":
   unittest.main()
+
