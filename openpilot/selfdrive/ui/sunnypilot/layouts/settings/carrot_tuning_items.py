@@ -19,6 +19,9 @@ from openpilot.system.ui.sunnypilot.widgets.list_view import (
 def build_start_items():
   return [
     section_heading_sp(tr('Auto Start / Cruise')),
+    section_heading_sp(tr('Auto Gas')),
+    option_item_sp(title=tr('Auto Gas Sync Speed'), param='AutoGasSyncSpeed', min_value=0, max_value=200, value_change_step=5,
+                   description=tr('Speed at which cruise set speed is re-synchronized. Tesla BYD only.')),
     option_item_sp(title=tr('Eco Cruise Control'), param='CruiseEcoControl', min_value=0, max_value=3, value_change_step=1),
 
   ]
@@ -85,10 +88,14 @@ def build_navi_items():
     option_item_sp(title=tr('Traffic Light Detect Mode'), param='TrafficLightDetectMode', min_value=0, max_value=2, value_change_step=1),
 
     section_heading_sp(tr('Road Speed Limits')),
+    option_item_sp(title=tr('Speed Source PCM'), param='SpeedFromPCM', min_value=0, max_value=2, value_change_step=1,
+                   description=tr('BYD only: with 1 the car reports its own ACC set speed over CAN.')),
     option_item_sp(title=tr('Road Speed Limit Offset'), param='AutoRoadSpeedLimitOffset', min_value=-20, max_value=20, value_change_step=1),
     option_item_sp(title=tr('Road Type'), param='RoadType', min_value=0, max_value=2, value_change_step=1),
 
     section_heading_sp(tr('Vehicle CAN Speed Arbitration')),
+    option_item_sp(title=tr('Speed Camera Alert Time'), param='VehicleSpeedCameraDistanceTime', min_value=10, max_value=200, value_change_step=1,
+                   description=tr('Synthesises a camera distance when the car sends only an enforcement speed. 0.1 s units; 60 = 6.0 s.')),
     option_item_sp(title=tr('Vehicle Navi CAN Control'), param='VehicleNaviCanControl', min_value=0, max_value=3, value_change_step=1, description=tr('Send navigation-based speed limits to the car over CAN.')),
     toggle_item_sp(title=tr('School Zone CAN Control'), param='VehicleNaviSchoolZoneControl'),
     option_item_sp(title=tr('Speed Camera Control Mode'), param='VehicleSpeedCameraControlMode', min_value=0, max_value=2, value_change_step=1),
@@ -195,6 +202,8 @@ def build_display_items():
 def build_vehicle_items():
   return [
     section_heading_sp(tr('Radar / Tracks')),
+    toggle_item_sp(title=tr('Enable Radar Tracks'), param='EnableRadarTracks',
+                   description=tr('BYD only: feed corner-radar tracks into the radar interface.')),
     toggle_item_sp(title=tr('Enable Speed TF'), param='EnableSpeedTF'),
     section_heading_sp(tr('Driving Mode')),
     option_item_sp(title=tr('My Driving Mode'), param='MyDrivingMode', min_value=0, max_value=5, value_change_step=1),
