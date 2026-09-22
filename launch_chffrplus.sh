@@ -405,9 +405,6 @@ launch() {
   fi
 
   ln -sfn "$(pwd)" /data/pythonpath
-  export PYTHONPATH="$PWD"
-  link_repos
-
   # Resolve Python interpreter and path once, then reuse in service loops.
   # Create .pydeps early so PY_PATH already includes it and does not need
   # to be recomputed after pip install.
@@ -415,6 +412,22 @@ launch() {
   PY=$(find_python python3.12) || PY=python3
   PY_PATH=$(setup_python_path "$DIR")
   export PY PY_PATH
+
+  # PYTHONPATH must be the SAME set as PY_PATH, not just $PWD.
+  #
+  # manager.py is started later with `./manager.py` and inherits PYTHONPATH, and
+  # openpilot/system/manager/process.py launches every daemon via
+  # subprocess.Popen(...) with no env= argument, so every daemon inherits it too.
+  # With PYTHONPATH=$PWD alone, /data/.pydeps was on PY_PATH but NOT on the
+  # environment, so daemons could not import the pip deps that bootstrap_deps()
+  # installs there. The concrete symptom on a C3 was carrot_navi printing
+  # "aiohttp is not installed; 7714 v2 WebSocket receiver cannot start" and then
+  # idling forever, so port 7714 never listened while the process looked healthy.
+  #
+  # aid/webui were unaffected only because keep_alive passes PYTHONPATH="$py_path"
+  # explicitly; manager's children get no such help.
+  export PYTHONPATH="$PY_PATH"
+  link_repos
 
   # Use a PyPI mirror by default; the device's network currently cannot reach
   # pypi.org (it resolves to a placeholder IP), so Aliyun mirror is used.

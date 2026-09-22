@@ -85,7 +85,7 @@ class NavigationLayout(Widget):
       title=tr("Carrot UDP Port"),
       button_text=tr("EDIT"),
       description=tr("UDP port the Carrot companion app sends navigation data to. "
-                      "Must match the app; 0 disables the listener."),
+                      "The phone app connects here. Default 7706; only change it if the app is configured differently. 0 disables the listener."),
       callback=self._on_carrot_udp_port,
     )
 
@@ -170,7 +170,7 @@ class NavigationLayout(Widget):
     current = self._params.get("CarrotManUdpPort", return_default=True) or 0
     dialog = InputDialogSP(
       title=tr("Carrot UDP Port"),
-      sub_title=tr("Enter the UDP port (0-65535). 0 disables the listener."),
+      sub_title=tr("Enter the UDP port (0-65535). Default 7706, which the phone app expects. 0 disables the listener."),
       current_text=str(int(current or 0)),
       callback=self._on_carrot_udp_port_result,
     )

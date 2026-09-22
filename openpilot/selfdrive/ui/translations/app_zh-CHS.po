@@ -5820,3 +5820,15 @@ msgstr "根据高德路线形状推算弯道速度。仅为建议值，不会覆
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "Show how many traffic lights are on the route ahead. Display only; it never controls the car."
 msgstr "显示前方路线上的红绿灯数量。仅用于显示，不参与控车。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "The phone app connects here. Default 7706; only change it if the app is configured differently. 0 disables the listener."
+msgstr "手机应用连接到此处。默认 7706，仅当应用配置不同时才需更改。填 0 将关闭监听。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Enter the UDP port (0-65535). Default 7706, which the phone app expects. 0 disables the listener."
+msgstr "输入 UDP 端口（0-65535）。默认 7706，即手机应用所期望的端口。填 0 将关闭监听。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "UDP port the Carrot companion app sends navigation data to. The phone app connects here. Default 7706; only change it if the app is configured differently. 0 disables the listener."
+msgstr "Carrot 手机应用发送导航数据所用的 UDP 端口，手机应用连接到此处。默认 7706，仅当应用配置不同时才需更改。填 0 将关闭监听。"

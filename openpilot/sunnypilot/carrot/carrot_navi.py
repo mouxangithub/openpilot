@@ -175,9 +175,11 @@ def discovery_targets(advertise_ip: str | None = None) -> tuple[tuple[str, str],
 
 
 class CarrotNaviDiscoveryBeacon:
-  def __init__(self, advertise_ip: str | None = None, interval_s: float = DISCOVERY_INTERVAL_S) -> None:
+  def __init__(self, advertise_ip: str | None = None, interval_s: float = DISCOVERY_INTERVAL_S,
+               port: int = DEFAULT_PORT) -> None:
     self.advertise_ip = advertise_ip
     self.interval_s = max(0.2, float(interval_s))
+    self._port = int(port)
     self._stop = threading.Event()
     self._thread: threading.Thread | None = None
 
@@ -196,7 +198,10 @@ class CarrotNaviDiscoveryBeacon:
 
   def broadcast_once(self) -> None:
     for source_ip, broadcast_ip in discovery_targets(self.advertise_ip):
-      body = json.dumps({"ip": source_ip, "navi_debug": 1}).encode("utf-8")
+      # Include the WebSocket port. Without it a client that discovers us here can
+      # only fall back to the hard-coded 7706, which carrot_man owns - it would
+      # "find" the device and then send its data to the wrong service.
+      body = json.dumps({"ip": source_ip, "navi_debug": 1, "port": self._port}).encode("utf-8")
       sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
       try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
@@ -1289,12 +1294,23 @@ def main() -> None:
   args = parser.parse_args()
 
   if not _AIOHTTP_AVAILABLE:
-    print(
+    # Print for the console AND cloudlog for the log archive: on a C3 this failure
+    # was only visible in the tmux console, so a device that looked healthy had a
+    # dead 7714 with nothing in swaglog. manager's daemons write stdout to
+    # /dev/null (process.py Popen), which is why the console print alone is not
+    # enough to diagnose this from logs.
+    _msg = (
       "[carrot_navi] aiohttp is not installed; 7714 v2 WebSocket receiver cannot start. "
       "Install aiohttp (e.g. pip install --target /data/.pydeps aiohttp) or rebuild the AGNOS image. "
-      "This process will idle to avoid manager restart loops.",
-      flush=True,
+      "This process will idle to avoid manager restart loops."
     )
+    print(_msg, flush=True)
+    try:
+      from openpilot.common.swaglog import cloudlog
+
+      cloudlog.error(_msg)
+    except Exception:
+      pass
     # Keep the process alive so manager does not restart-loop, but do not serve traffic.
     while True:
       time.sleep(3600)
@@ -1321,7 +1337,7 @@ def main() -> None:
     screen_center_y_ratio=screen_center_y_ratio,
   )
   advertise_ip = args.advertise_ip or (args.host if args.host not in ("", "0.0.0.0", "::") else None)
-  beacon = None if args.no_beacon else CarrotNaviDiscoveryBeacon(advertise_ip)
+  beacon = None if args.no_beacon else CarrotNaviDiscoveryBeacon(advertise_ip, port=args.port)
   publisher = None
   if not args.no_cereal:
     try:
