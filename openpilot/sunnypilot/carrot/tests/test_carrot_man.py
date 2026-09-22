@@ -1124,6 +1124,79 @@ class TestCarrotManager(unittest.TestCase):
     serv.reset()
     assert serv.gps_source == "none"
 
+  def test_camera_distance_uses_the_raw_value_when_present(self):
+    serv = self.mgr._carrot_serv
+    cs = MagicMock(speedLimit=50.0, speedLimitDistance=310.0)
+    assert serv._vehicle_speed_camera_distance(cs) == 310.0
+
+  def test_camera_distance_is_synthesised_from_the_speed(self):
+    """A car that sends only the enforcement speed must still get the feature.
+
+    CarrotPilot's rule: distance (m) = enforcement speed (km/h) * configured time (s).
+    At the default 60 (= 6.0 s) a 50 km/h camera yields 300 m.
+    """
+    serv = self.mgr._carrot_serv
+    serv.x_spd_dist = 0
+    serv.vehicle_speed_camera_distance_time = 6.0
+    cs = MagicMock(speedLimit=50.0, speedLimitDistance=0.0)
+    assert serv._vehicle_speed_camera_distance(cs) == 300.0
+
+  def test_camera_distance_time_scales_the_synthesis(self):
+    serv = self.mgr._carrot_serv
+    serv.x_spd_dist = 0
+    serv.vehicle_speed_camera_distance_time = 6.2
+    cs = MagicMock(speedLimit=50.0, speedLimitDistance=0.0)
+    assert serv._vehicle_speed_camera_distance(cs) == 310.0
+
+  def test_camera_distance_not_synthesised_when_phone_nav_has_one(self):
+    """Two sources must not disagree: cp disables the virtual distance under nav."""
+    serv = self.mgr._carrot_serv
+    serv.vehicle_speed_camera_distance_time = 6.0
+    serv.x_spd_dist = 250  # phone navigation is supplying its own distance
+    cs = MagicMock(speedLimit=50.0, speedLimitDistance=0.0)
+    assert serv._vehicle_speed_camera_distance(cs) == 0.0
+
+  def test_camera_distance_zero_without_a_speed(self):
+    serv = self.mgr._carrot_serv
+    serv.x_spd_dist = 0
+    cs = MagicMock(speedLimit=0.0, speedLimitDistance=0.0)
+    assert serv._vehicle_speed_camera_distance(cs) == 0.0
+
+  def test_camera_enabled_via_synthesised_distance(self):
+    """The gate used to require a raw distance, so an omitted one killed the feature."""
+    serv = self.mgr._carrot_serv
+    serv.x_spd_dist = 0
+    serv.vehicle_speed_camera_control_mode = 1
+    serv.vehicle_speed_camera_distance_time = 6.0
+    serv.school_zone_suppressed = False
+    cs = MagicMock(speedLimit=50.0, speedLimitDistance=0.0, schoolZoneActive=False, gasPressed=False)
+    assert serv._vehicle_speed_camera_distance(cs) > 0
+    assert serv._vehicle_speed_camera_enabled(cs) is True
+
+  def test_camera_distance_time_param_is_clamped_and_scaled(self):
+    """The param is stored in 0.1 s units and clamped to its registered range.
+
+    Writes must go to the store UnifiedParams actually reads; carrot_man's own
+    ``params`` handle is a different instance. update_params() is also throttled to
+    10 Hz, so _param_frame is reset to make the read deterministic.
+    """
+    serv = self.mgr._carrot_serv
+    store = serv._params._system_params._store
+    try:
+      def read(raw):
+        store["VehicleSpeedCameraDistanceTime"] = raw
+        serv._param_frame = 0
+        serv.update_params()
+        return serv.vehicle_speed_camera_distance_time
+
+      assert abs(read(62) - 6.2) < 1e-9, "62 must become 6.2 s"
+      assert abs(read(10) - 1.0) < 1e-9, "the registered minimum is 10"
+      assert abs(read(1) - 1.0) < 1e-9, "below-minimum input must clamp up"
+      assert abs(read(200) - 20.0) < 1e-9, "the registered maximum is 200"
+      assert abs(read(9999) - 20.0) < 1e-9, "above-maximum input must clamp down"
+    finally:
+      store.pop("VehicleSpeedCameraDistanceTime", None)
+
   def _make_status_item(self, sequence=1, **values):
     item = MagicMock()
     item.meta = MagicMock(present=True, sequence=sequence)

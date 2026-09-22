@@ -335,6 +335,9 @@ class CarrotServ:
     # Vehicle CAN speed arbitration tuning (safe defaults; update_params()
     # overwrites these from params when it runs).
     self.vehicle_speed_camera_control_mode: int = 0
+    # Seconds used to synthesise a camera distance when the car sends only an
+    # enforcement speed. The param stores 0.1 s units; 6.0 matches its default 60.
+    self.vehicle_speed_camera_distance_time: float = 6.0
     self.vehicle_navi_can_control: int = 0
     self.vehicle_navi_school_zone_control: bool = False
     self.auto_navi_speed_bump_end_distance: float = 0.0
@@ -929,6 +932,9 @@ class CarrotServ:
 
     # Vehicle CAN speed arbitration tuning (safe defaults for unregistered keys).
     self.vehicle_speed_camera_control_mode = min(3, max(0, p.get_int("VehicleSpeedCameraControlMode", 0)))
+    # 0.1 s units, clamped to the registered range (10-200 -> 1.0-20.0 s).
+    self.vehicle_speed_camera_distance_time = float(
+      min(200, max(10, p.get_int("VehicleSpeedCameraDistanceTime", 60)))) * 0.1
     self.vehicle_navi_can_control = min(3, max(0, p.get_int("VehicleNaviCanControl", 0)))
     self.vehicle_navi_school_zone_control = p.get_bool("VehicleNaviSchoolZoneControl", False)
     self.auto_navi_speed_bump_end_distance = float(min(5000, max(0, p.get_int("AutoNaviSpeedBumpEndDistance", 0)))) * 0.01
@@ -949,12 +955,32 @@ class CarrotServ:
 
   # ---- vehicle CAN speed arbitration helpers ----------------------------- #
 
+  def _vehicle_speed_camera_distance(self, cs: Any) -> float:
+    """Distance to the speed camera, synthesising one when the car omits it.
+
+    Some CAN-FD vehicles report only the enforcement speed. The configured
+    ``VehicleSpeedCameraDistanceTime`` (0.1 s units) converts that speed into a
+    virtual distance, matching CarrotPilot:
+
+        distance (m) = enforcement speed (km/h) * configured time (s)
+
+    Skipped while phone navigation supplies its own distance, so the two sources
+    cannot disagree (cp gates the virtual distance the same way).
+    """
+    distance = float(getattr(cs, "speedLimitDistance", 0.0) or 0.0)
+    if distance > 0:
+      return distance
+    speed_kph = float(getattr(cs, "speedLimit", 0.0) or 0.0)
+    if speed_kph <= 0 or self.x_spd_dist > 0:
+      return 0.0
+    return speed_kph * self.vehicle_speed_camera_distance_time
+
   def _vehicle_speed_camera_enabled(self, cs: Any) -> bool:
     """True when the vehicle CAN reports an active speed-limit camera."""
     return bool(
       self.vehicle_speed_camera_control_mode > 0 and
       getattr(cs, "speedLimit", 0.0) > 0 and
-      getattr(cs, "speedLimitDistance", 0.0) > 0 and
+      self._vehicle_speed_camera_distance(cs) > 0 and
       not (getattr(cs, "schoolZoneActive", False) and self.school_zone_suppressed) and
       not (self.vehicle_speed_camera_control_mode == 3 and getattr(cs, "gasPressed", False))
     )
@@ -1535,7 +1561,7 @@ class CarrotServ:
 
       if vehicle_speed_camera_active:
         vehicle_camera_speed = self.calculate_current_speed(
-          getattr(cs, "speedLimitDistance", 0.0),
+          self._vehicle_speed_camera_distance(cs),
           car_speed_limit * self.auto_navi_speed_safety_factor,
           self.auto_navi_speed_ctrl_end,
           self.auto_navi_speed_decel_rate,
