@@ -1861,7 +1861,7 @@ msgstr "现代摄像头自适应巡航"
 #: openpilot\selfdrive\ui\layouts\settings\settings.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "IMU Calibration"
-msgstr "IMU 校准"
+msgstr "IMU"
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
 msgid "INACTIVE: connect to an unmetered network"
@@ -3690,7 +3690,7 @@ msgstr "随主巡航切换"
 #: openpilot\selfdrive\ui\layouts\settings\settings.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "Toggles"
-msgstr "开关项"
+msgstr "切换"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
 msgid "Torque Control Tune Version"
@@ -3726,7 +3726,7 @@ msgstr "训练指南"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "Trips"
-msgstr "行程记录"
+msgstr "行程"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning.py
 msgid "Tuning"

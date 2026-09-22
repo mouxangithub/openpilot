@@ -1842,7 +1842,7 @@ msgstr "現代攝像頭自適應巡航"
 #: openpilot\selfdrive\ui\layouts\settings\settings.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "IMU Calibration"
-msgstr "IMU 校正"
+msgstr "IMU"
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
 msgid "INACTIVE: connect to an unmetered network"
