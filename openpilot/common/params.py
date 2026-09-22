@@ -175,6 +175,10 @@ class Params:
     value = self._put_cast(k, dat)
     params_put(self.p, k, value, len(value), block)
 
+  def put_nonblocking(self, key, dat):
+    """Write a parameter without blocking on persistence (alias for put(block=False))."""
+    return self.put(key, dat, block=False)
+
   def put_bool(self, key, val, block=False):
     params_put_bool(self.p, self.check_key(key), val, block)
 

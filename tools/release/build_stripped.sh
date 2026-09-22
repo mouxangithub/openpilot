@@ -30,6 +30,12 @@ git submodule deinit -f --all
 git rm -rf --cached .
 find . -maxdepth 1 -not -path './.git' -not -name '.' -not -name '..' -exec rm -rf '{}' \;
 
+# cleanup before the copy
+cd $SOURCE_DIR
+git clean -xdff
+git submodule foreach --recursive git clean -xdff
+git lfs pull
+
 # do the files copy
 echo "[-] copying files T=$SECONDS"
 cd $SOURCE_DIR
@@ -38,6 +44,11 @@ cd $SOURCE_DIR
 # in the directory
 cd $TARGET_DIR
 rm -rf .git/modules/
+rm -f panda/board/obj/panda.bin.signed
+rm -f panda/board/obj/panda_h7.bin.signed
+
+# Release branch must not contain LFS pointers; strip LFS tracking and commit files as regular content.
+sed -i '/filter=lfs/d' .gitattributes
 
 find openpilot/selfdrive/modeld/models -name '*.onnx' -size +95M -exec ./openpilot/common/file_chunker.py {} \;
 

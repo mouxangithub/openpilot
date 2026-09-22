@@ -8,6 +8,8 @@ from openpilot.sunnypilot.selfdrive.controls.lib.longcontrol import LongControlS
 
 CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
 
+STOPPING_DECEL_RATE = 0.3  # m/s^2/s while trying to stop
+
 LongCtrlState = car.CarControl.Actuators.LongControlState
 
 

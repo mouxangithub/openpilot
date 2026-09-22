@@ -12,7 +12,41 @@ import requests
 
 SPARSE_CHUNK_FMT = struct.Struct('H2xI4x')
 
-AGNOS_MANIFEST_FILE = "openpilot/system/hardware/comma/agnos.json"
+_COMMA_HW_DIR = os.path.dirname(os.path.abspath(__file__))
+AGNOS_MANIFEST_FILE = os.path.join("openpilot", "common", "hardware", "comma", "agnos.json")
+
+
+def is_tizi_device() -> bool:
+  try:
+    with open("/sys/firmware/devicetree/base/model") as f:
+      return f.read().strip('\x00').split('comma ')[-1] == 'tizi'
+  except OSError:
+    return False
+
+
+def is_mici_device() -> bool:
+  try:
+    with open("/sys/firmware/devicetree/base/model") as f:
+      return f.read().strip('\x00').split('comma ')[-1] == 'mici'
+  except OSError:
+    return False
+
+
+def agnos_tici_manifest_path() -> str:
+  return os.path.join(_COMMA_HW_DIR, "agnos_tici.json")
+
+
+def default_agnos_manifest_path(repo_root: str) -> str:
+  """Resolve agnos.json for monorepo (sp) or flat openpilot installs."""
+  for rel in (
+    os.path.join("openpilot", "common", "hardware", "comma", "agnos.json"),
+    os.path.join("openpilot", "system", "hardware", "comma", "agnos.json"),
+    os.path.join("common", "hardware", "comma", "agnos.json"),
+  ):
+    path = os.path.join(repo_root, rel)
+    if os.path.isfile(path):
+      return path
+  return os.path.join(_COMMA_HW_DIR, "agnos.json")
 
 
 class StreamingDecompressor:
@@ -209,6 +243,7 @@ def flash_partition(target_slot_number: int, partition: dict, cloudlog, standalo
 
 def swap(manifest_path: str, target_slot_number: int, cloudlog) -> None:
   update = json.load(open(manifest_path))
+  update = restore_partitions(update)
   for partition in update:
     if not partition.get('full_check', False):
       clear_partition_hash(target_slot_number, partition)
@@ -224,6 +259,7 @@ def swap(manifest_path: str, target_slot_number: int, cloudlog) -> None:
 
 def flash_agnos_update(manifest_path: str, target_slot_number: int, cloudlog, standalone=False) -> None:
   update = json.load(open(manifest_path))
+  update = restore_partitions(update)
 
   cloudlog.info(f"Target slot {target_slot_number}")
 
@@ -253,8 +289,32 @@ def flash_agnos_update(manifest_path: str, target_slot_number: int, cloudlog, st
 
 def verify_agnos_update(manifest_path: str, target_slot_number: int) -> bool:
   update = json.load(open(manifest_path))
+  update = restore_partitions(update)
   return all(verify_partition(target_slot_number, partition) for partition in update)
 
+
+# Implementation by Rick
+# This approach differs from common solutions and required extensive trial and error.
+# If you reuse or adapt this function, please provide proper credit.
+def restore_partitions(partitions):
+  if is_tizi_device() or is_mici_device():
+    return partitions
+
+  partition_name_to_use = {'abl', 'boot'}
+  partitions_to_keep = {}
+  agnos_tici_path = agnos_tici_manifest_path()
+
+  try:
+    with open(agnos_tici_path, 'r') as f:
+      tici_partitions = json.load(f)
+
+    partitions_to_keep = {p['name']: p for p in tici_partitions if p.get('name') in partition_name_to_use}
+
+  except (OSError, json.JSONDecodeError) as e:
+    print(f"Warning: Could not load TICI partition data from {agnos_tici_path}. Error: {e}")
+    return partitions
+
+  return [partitions_to_keep.get(p.get('name'), p) for p in partitions]
 
 if __name__ == "__main__":
   import argparse

@@ -11,6 +11,13 @@ sections:
   title: Brightness & Timeout
   description: Screen dimming and sleep behavior while driving
   items:
+  - key: Brightness
+    widget: option
+    title: Screen Brightness
+    description: Screen brightness when offroad (not driving). 0 uses the device default.
+    min: 0
+    max: 100
+    step: 5
   - key: OnroadScreenOffBrightness
     widget: multiple_button
     title: Onroad Brightness
@@ -66,7 +73,7 @@ sections:
     title: Onroad Brightness Delay
     options:
     - value: 0
-      label: Always On
+      label: 0s
     - value: 3
       label: 3s
     - value: 5

@@ -190,6 +190,17 @@ def write_po(path: str | Path, header: POEntry | None, entries: list[POEntry]) -
 
 # ──── String extraction (replaces xgettext) ────
 
+def _eval_string_node(node: ast.AST) -> str | None:
+  if isinstance(node, ast.Constant) and isinstance(node.value, str):
+    return node.value
+  if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add):
+    left = _eval_string_node(node.left)
+    right = _eval_string_node(node.right)
+    if left is not None and right is not None:
+      return left + right
+  return None
+
+
 def extract_strings(files: list[str], basedir: str) -> list[POEntry]:
   """Extract tr/trn/tr_noop calls from Python source files."""
   seen: dict[str, POEntry] = {}
@@ -222,9 +233,11 @@ def extract_strings(files: list[str], basedir: str) -> list[POEntry]:
       is_flagged = name in ('tr', 'trn')
 
       if name in ('tr', 'tr_noop'):
-        if not node.args or not isinstance(node.args[0], ast.Constant) or not isinstance(node.args[0].value, str):
+        if not node.args:
           continue
-        msgid = node.args[0].value
+        msgid = _eval_string_node(node.args[0])
+        if msgid is None:
+          continue
         if msgid in seen:
           if ref not in seen[msgid].source_refs:
             seen[msgid].source_refs.append(ref)
@@ -235,12 +248,10 @@ def extract_strings(files: list[str], basedir: str) -> list[POEntry]:
       elif name == 'trn':
         if len(node.args) < 2:
           continue
-        a1, a2 = node.args[0], node.args[1]
-        if not (isinstance(a1, ast.Constant) and isinstance(a1.value, str)):
+        msgid = _eval_string_node(node.args[0])
+        msgid_plural = _eval_string_node(node.args[1])
+        if msgid is None or msgid_plural is None:
           continue
-        if not (isinstance(a2, ast.Constant) and isinstance(a2.value, str)):
-          continue
-        msgid, msgid_plural = a1.value, a2.value
         if msgid in seen:
           if ref not in seen[msgid].source_refs:
             seen[msgid].source_refs.append(ref)

@@ -239,7 +239,7 @@ class OnroadInfoPanel(Widget):
 
     drawn = 0
 
-    for label, active in [("SCC-V", scc.vision.active), ("SCC-M", scc.map.active)]:
+    for label, active in [(tr("SCC-V"), scc.vision.active), (tr("SCC-M"), scc.map.active)]:
       if not active:
         continue
       tag_x = x

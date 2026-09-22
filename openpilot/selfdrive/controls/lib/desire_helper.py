@@ -3,6 +3,7 @@ from openpilot.common.constants import CV
 from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot.selfdrive.controls.lib.auto_lane_change import AutoLaneChangeController, AutoLaneChangeMode
 from openpilot.sunnypilot.selfdrive.controls.lib.lane_turn_desire import LaneTurnController
+from openpilot.sunnypilot.selfdrive.controls.lib.desire_arbiter import DesireArbiter
 
 LaneChangeState = log.LaneChangeState
 LaneChangeDirection = log.LaneChangeDirection
@@ -28,17 +29,60 @@ class DesireHelper:
     self.alc = AutoLaneChangeController(self)
     self.lane_turn_controller = LaneTurnController(self)
     self.lane_turn_direction = TurnDirection.none
+    # CarrotPilot ATC (auto turn control) state
+    self.carrot_atc_active = False
+    self.carrot_cmd_index_last = 0
+    self.carrot_virtual_blinker = 0  # 0=none, 1=left, 2=right
 
-  @staticmethod
-  def get_lane_change_direction(CS):
+    # Unified lateral arbiter (default OFF; preserves historical behavior when disabled).
+    self.desire_arbiter = DesireArbiter()
+
+  def get_lane_change_direction(self, CS):
+    if self.carrot_virtual_blinker == 1 and CS.leftBlinker:
+      return LaneChangeDirection.left
+    elif self.carrot_virtual_blinker == 2 and CS.rightBlinker:
+      return LaneChangeDirection.right
     return LaneChangeDirection.left if CS.leftBlinker else LaneChangeDirection.right
 
-  def update(self, carstate, lateral_active, lane_change_prob, left_edge_detected=False, right_edge_detected=False):
+  def update(self, carstate, lateral_active, lane_change_prob, left_edge_detected=False, right_edge_detected=False,
+             left_lane_line_blocked=False, right_lane_line_blocked=False, carrot_man=None):
     self.alc.update_params()
     self.lane_turn_controller.update_params()
     v_ego = carstate.vEgo
     one_blinker = carstate.leftBlinker != carstate.rightBlinker
     below_lane_change_speed = v_ego < LANE_CHANGE_SPEED_MIN
+
+    # CarrotPilot ATC: process carrotMan commands to inject virtual blinker
+    if carrot_man is not None:
+      atc_type = carrot_man.atcType
+      if atc_type in ["turn left", "turn right", "atc left", "atc right", "fork left", "fork right"]:
+        self.carrot_atc_active = True
+        if "left" in atc_type:
+          self.carrot_virtual_blinker = 1
+        else:
+          self.carrot_virtual_blinker = 2
+        # For turns at low speed, use turn desire directly
+        if atc_type in ["turn left", "turn right"]:
+          below_lane_change_speed = True
+      else:
+        self.carrot_atc_active = False
+        self.carrot_virtual_blinker = 0
+
+      # Process LANECHANGE/OVERTAKE commands
+      if carrot_man.carrotCmdIndex != self.carrot_cmd_index_last:
+        self.carrot_cmd_index_last = carrot_man.carrotCmdIndex
+        if carrot_man.carrotCmd in ["LANECHANGE", "OVERTAKE"]:
+          if carrot_man.carrotArg == "LEFT":
+            self.carrot_virtual_blinker = 1
+          elif carrot_man.carrotArg == "RIGHT":
+            self.carrot_virtual_blinker = 2
+    else:
+      self.carrot_atc_active = False
+      self.carrot_virtual_blinker = 0
+
+    virtual_blinker_matches = ((self.carrot_virtual_blinker == 1 and carstate.leftBlinker) or
+                               (self.carrot_virtual_blinker == 2 and carstate.rightBlinker))
+    one_blinker = one_blinker or virtual_blinker_matches
 
     # Lane turn controller update
     self.lane_turn_controller.update_lane_turn(blindspot_left=carstate.leftBlindspot, blindspot_right=carstate.rightBlindspot,
@@ -64,8 +108,10 @@ class DesireHelper:
                          ((carstate.steeringTorque > 0 and self.lane_change_direction == LaneChangeDirection.left) or
                           (carstate.steeringTorque < 0 and self.lane_change_direction == LaneChangeDirection.right))
 
-        blindspot_detected = (((carstate.leftBlindspot or left_edge_detected) and self.lane_change_direction == LaneChangeDirection.left) or
-                              ((carstate.rightBlindspot or right_edge_detected) and self.lane_change_direction == LaneChangeDirection.right))
+        left_blocked = carstate.leftBlindspot or left_edge_detected or left_lane_line_blocked
+        right_blocked = carstate.rightBlindspot or right_edge_detected or right_lane_line_blocked
+        blindspot_detected = ((left_blocked and self.lane_change_direction == LaneChangeDirection.left) or
+                              (right_blocked and self.lane_change_direction == LaneChangeDirection.right))
 
         self.alc.update_lane_change(blindspot_detected, carstate.brakePressed)
 
@@ -100,5 +146,25 @@ class DesireHelper:
           self.desire = log.Desire.laneChangeLeft
         elif self.lane_change_direction == LaneChangeDirection.right:
           self.desire = log.Desire.laneChangeRight
+
+    # Optional unified arbiter. When enabled it overrides the historical desire
+    # selection with a single converged source, gated by multi-frame confirmation.
+    # Default OFF so existing behavior is preserved unless the user opts in.
+    if self.desire_arbiter.enabled:
+      carrot_turn_left = self.carrot_atc_active and self.carrot_virtual_blinker == 1
+      carrot_turn_right = self.carrot_atc_active and self.carrot_virtual_blinker == 2
+      lane_turn_left = self.lane_turn_direction == TurnDirection.turnLeft
+      lane_turn_right = self.lane_turn_direction == TurnDirection.turnRight
+      alc_left = self.lane_change_state == LaneChangeState.laneChangeStarting and self.lane_change_direction == LaneChangeDirection.left
+      alc_right = self.lane_change_state == LaneChangeState.laneChangeStarting and self.lane_change_direction == LaneChangeDirection.right
+      safety_veto = not lateral_active
+      self.desire = self.desire_arbiter.resolve(
+        carrot_turn_left, carrot_turn_right,
+        False, False,  # Amap turn hints are not yet populated; reserved for Phase 2 follow-up.
+        lane_turn_left, lane_turn_right,
+        alc_left, alc_right,
+        safety_veto=safety_veto,
+        log_desire=log.Desire,
+      )
 
     self.alc.update_state()
