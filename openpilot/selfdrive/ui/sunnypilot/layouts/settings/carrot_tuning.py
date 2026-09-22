@@ -51,9 +51,8 @@ class CarrotGroupKey(IntEnum):
   SPEED = 3
   TUNING = 4
   DISPLAY = 5
-  PATH = 6
-  VEHICLE = 7
-  DEVELOPER = 8
+  VEHICLE = 6
+  DEVELOPER = 7
 
 
 @dataclass(frozen=True)
@@ -96,11 +95,6 @@ CARROT_GROUPS: tuple[CarrotGroup, ...] = (
     title='Display & Sound',
     description='Cluster HUD, on-screen overlays, sound, YouTube and map style.',
     build_items=carrot_items.build_display_items,
-  ),
-  CarrotGroup(
-    title='Path Rendering',
-    description='Colors and display modes for the planned driving path.',
-    build_items=carrot_items.build_path_items,
   ),
   CarrotGroup(
     title='Vehicle',

@@ -587,7 +587,9 @@ def main() -> int:
   # Every user-visible native label, not just the headings: a missing entry makes
   # the Chinese UI fall back to English for that row.
   titles = sorted(set(_re.findall(r"title=tr\('([^']+)'\)", _items_src)))
-  assert len(titles) > 200, f"expected the full carrot label set, got {len(titles)}"
+  # The label set shrank when the params with no consumer were hidden from the UI;
+  # the floor guards against an accidental empty/mis-parsed file rather than a count.
+  assert len(titles) >= 80, f"expected the visible carrot label set, got {len(titles)}"
   new_strings = new_strings + headings + titles
 
   for lang in ("zh-CHS", "zh-CHT"):
