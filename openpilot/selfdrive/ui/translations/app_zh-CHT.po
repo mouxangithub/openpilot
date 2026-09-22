@@ -5593,3 +5593,67 @@ msgstr "需要 TURZX USB 外接副屏，本版本尚未支援。這些設定會�
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Acceleration Limits (not applied yet)"
 msgstr "加速度限制（尚未生效）"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Car Model"
+msgstr "車型"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Carrot UDP Port"
+msgstr "Carrot UDP 連接埠"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Carrot Web Panel"
+msgstr "Carrot 網頁面板"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Disabled"
+msgstr "已停用"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Enable Carrot Navi v2 (7714)"
+msgstr "啟用 Carrot 導航 v2（7714）"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Enter the UDP port (0-65535). 0 disables the listener."
+msgstr "輸入 UDP 連接埠（0-65535）。0 表示關閉監聽。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Identified car model, sent automatically with Carrot FTP uploads and shown in the companion app."
+msgstr "辨識出的車型，會隨 Carrot FTP 上傳自動傳送，並顯示在手機 App 中。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Navigation Cruise Speed"
+msgstr "導航巡航速度"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Serve the carrot tuning page (/nav_params) and four-corner radar visualisation (/radar) on port 8088."
+msgstr "在 8088 連接埠提供 Carrot 調參頁面（/nav_params）與四角雷達視覺化（/radar）。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "UDP port the Carrot companion app sends navigation data to. Must match the app; 0 disables the listener."
+msgstr "Carrot 手機 App 傳送導航資料的 UDP 連接埠。必須與 App 一致；0 表示關閉監聽。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Use navigation desired speed to limit cruise speed."
+msgstr "使用導航建議速度限制巡航速度。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Use the 7714 WebSocket v2 rich navigation stream (traffic, lanes, crossroad images)."
+msgstr "使用 7714 WebSocket v2 豐富導航資料流（紅綠燈、車道、路口影像）。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Enable Amap Map Data"
+msgstr "啟用高德地圖資料"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Enable Amap Blind Spot Data"
+msgstr "啟用高德盲區資料"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Parse blind-spot / LiDAR / extBlinker fields from the 7706 UDP stream."
+msgstr "從 7706 UDP 資料流解析盲區 / LiDAR / extBlinker 欄位。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Use Amap (Gaode) online map data for speed limits and road names in China."
+msgstr "使用高德線上地圖資料取得中國的限速與道路名稱。"

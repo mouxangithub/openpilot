@@ -342,14 +342,20 @@ class UnifiedParams:
       return None
 
   def _write_to_system(self, key: str, value: Any) -> bool:
-    """Attempt to write ``value`` to the system Params. Returns success."""
+    """Attempt to write ``value`` to the system Params. Returns success.
+
+    Params only exposes put / put_bool (there is no put_int or put_float); it casts
+    by the key's registered type. Calling put_int here raised AttributeError, which
+    the handler below swallowed, so every int and float write silently fell through
+    to the nav_params.json cache instead of reaching Params.
+    """
     try:
       if self._is_bool(value):
         self._system_params.put_bool(key, bool(value))
       elif self._is_int(value):
-        self._system_params.put_int(key, int(value))
+        self._system_params.put(key, int(value))
       elif self._is_float(value):
-        self._system_params.put_float(key, float(value))
+        self._system_params.put(key, float(value))
       else:
         self._system_params.put(key, str(value))
       return True

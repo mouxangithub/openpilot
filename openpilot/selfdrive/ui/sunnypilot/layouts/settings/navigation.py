@@ -9,7 +9,9 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets.input_dialog import InputDialogSP
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.carrot_tuning import CarrotTuningLayout
-from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, option_item_sp, button_item_sp, simple_button_item_sp
+from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, button_item_sp, simple_button_item_sp
+from openpilot.system.ui.widgets import DialogResult
+from openpilot.system.ui.widgets.list_view import text_item
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 from enum import IntEnum
@@ -56,6 +58,40 @@ class NavigationLayout(Widget):
       callback=self._on_amap_api_key,
     )
 
+    self._carrot_navi_v2_enabled = toggle_item_sp(
+      title=tr("Enable Carrot Navi v2 (7714)"),
+      description=tr("Use the 7714 WebSocket v2 rich navigation stream (traffic, lanes, crossroad images)."),
+      param="CarrotNaviV2Enabled",
+    )
+
+    self._carrot_udp_port = button_item_sp(
+      title=tr("Carrot UDP Port"),
+      button_text=tr("EDIT"),
+      description=tr("UDP port the Carrot companion app sends navigation data to. "
+                      "Must match the app; 0 disables the listener."),
+      callback=self._on_carrot_udp_port,
+    )
+
+    self._carrot_web_enabled = toggle_item_sp(
+      title=tr("Carrot Web Panel"),
+      description=tr("Serve the carrot tuning page (/nav_params) and four-corner radar "
+                      "visualisation (/radar) on port 8088."),
+      param="CarrotWebEnabled",
+    )
+
+    self._car_name = text_item(
+      lambda: tr("Car Model"),
+      lambda: self._params.get("CarName") or tr("N/A"),
+      description=tr("Identified car model, sent automatically with Carrot FTP uploads "
+                      "and shown in the companion app."),
+    )
+
+    self._carrot_nav_cruise_speed = toggle_item_sp(
+      title=tr("Navigation Cruise Speed"),
+      description=tr("Use navigation desired speed to limit cruise speed."),
+      param="CarrotNavCruiseSpeedEnabled",
+    )
+
     self._carrot_tuning_button = simple_button_item_sp(
       button_text=lambda: tr("Carrot Tuning"),
       button_width=800,
@@ -66,7 +102,12 @@ class NavigationLayout(Widget):
       self._amap_map_data_enabled,
       self._carrot_amap_blind_spot_enabled,
       self._carrot_enabled,
+      self._carrot_navi_v2_enabled,
+      self._carrot_udp_port,
+      self._carrot_web_enabled,
+      self._car_name,
       self._amap_api_key,
+      self._carrot_nav_cruise_speed,
       self._carrot_tuning_button,
     ]
     return items
@@ -79,6 +120,18 @@ class NavigationLayout(Widget):
     self._carrot_amap_blind_spot_enabled.action_item.set_enabled(offroad)
     self._carrot_enabled.action_item.set_enabled(offroad)
     self._amap_api_key.action_item.set_enabled(offroad)
+    self._carrot_web_enabled.action_item.set_enabled(offroad)
+    self._carrot_udp_port.action_item.set_enabled(offroad)
+
+    # The v2 link and the nav-speed limit only mean anything with Carrot on,
+    # matching the webui panel's visible_if conditions. Read the param rather than
+    # the toggle's cached state so an external change is reflected too.
+    carrot_on = self._params.get_bool("CarrotEnabled")
+    self._carrot_navi_v2_enabled.set_visible(carrot_on)
+    self._carrot_nav_cruise_speed.set_visible(carrot_on)
+
+    port = self._params.get("CarrotManUdpPort", return_default=True) or 0
+    self._carrot_udp_port.action_item.set_value(tr("Disabled") if int(port or 0) == 0 else str(port))
 
     current_key = self._params.get("AmapApiKey") or ""
     masked = "" if not current_key else "*" * min(len(current_key), 12)
@@ -93,6 +146,28 @@ class NavigationLayout(Widget):
       param="AmapApiKey",
     )
     dialog.show()
+
+  def _on_carrot_udp_port(self):
+    current = self._params.get("CarrotManUdpPort", return_default=True) or 0
+    dialog = InputDialogSP(
+      title=tr("Carrot UDP Port"),
+      sub_title=tr("Enter the UDP port (0-65535). 0 disables the listener."),
+      current_text=str(int(current or 0)),
+      callback=self._on_carrot_udp_port_result,
+    )
+    dialog.show()
+
+  def _on_carrot_udp_port_result(self, result: DialogResult, text: str):
+    if result != DialogResult.CONFIRM:
+      return
+    striped = str(text).strip()
+    if not striped.isdigit():
+      return
+    port = int(striped)
+    if not 0 <= port <= 65535:
+      return
+    # Params has no put_int; put() casts by the key's registered type.
+    self._params.put("CarrotManUdpPort", port)
 
   def _render(self, rect):
     if self._current_panel == PanelType.CARROT_TUNING:

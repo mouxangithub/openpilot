@@ -5700,3 +5700,51 @@ msgstr "需要 TURZX USB 外接副屏，本版本尚未支持。这些设置会�
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Acceleration Limits (not applied yet)"
 msgstr "加速度限制（尚未生效）"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Car Model"
+msgstr "车型"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Carrot UDP Port"
+msgstr "Carrot UDP 端口"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Carrot Web Panel"
+msgstr "Carrot 网页面板"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Disabled"
+msgstr "已禁用"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Enable Carrot Navi v2 (7714)"
+msgstr "启用 Carrot 导航 v2（7714）"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Enter the UDP port (0-65535). 0 disables the listener."
+msgstr "输入 UDP 端口（0-65535）。0 表示关闭监听。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Identified car model, sent automatically with Carrot FTP uploads and shown in the companion app."
+msgstr "识别出的车型，会随 Carrot FTP 上传自动发送，并显示在手机 App 中。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Navigation Cruise Speed"
+msgstr "导航巡航速度"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Serve the carrot tuning page (/nav_params) and four-corner radar visualisation (/radar) on port 8088."
+msgstr "在 8088 端口提供 Carrot 调参页面（/nav_params）和四角雷达可视化（/radar）。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "UDP port the Carrot companion app sends navigation data to. Must match the app; 0 disables the listener."
+msgstr "Carrot 手机 App 发送导航数据的 UDP 端口。必须与 App 一致；0 表示关闭监听。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Use navigation desired speed to limit cruise speed."
+msgstr "使用导航建议速度限制巡航速度。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Use the 7714 WebSocket v2 rich navigation stream (traffic, lanes, crossroad images)."
+msgstr "使用 7714 WebSocket v2 富导航数据流（红绿灯、车道、路口图像）。"
