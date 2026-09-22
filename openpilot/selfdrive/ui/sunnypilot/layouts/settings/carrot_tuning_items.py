@@ -37,34 +37,14 @@ def build_cruise_items():
                    use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f}s'),
     option_item_sp(title=tr('Follow Time Gap 4'), param='TFollowGap4', min_value=50, max_value=300, value_change_step=5,
                    use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f}s'),
-    option_item_sp(title=tr('Dynamic Follow Time'), param='DynamicTFollow', min_value=0, max_value=200, value_change_step=5,
-                   use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f}s',
-                   description=tr('Extra following distance added based on speed.')),
     option_item_sp(title=tr('Dynamic Follow Time on Lane Change'), param='DynamicTFollowLC', min_value=0, max_value=200, value_change_step=5,
                    use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f}s'),
 
     section_heading_sp(tr('Longitudinal Gains')),
     option_item_sp(title=tr('Lead Acceleration Response'), param='LeadAccelResponse', min_value=-100, max_value=100, value_change_step=5,
                    description=tr('How aggressively the car reacts to lead car acceleration changes.')),
-    option_item_sp(title=tr('Stopping Acceleration'), param='StoppingAccel', min_value=-200, max_value=0, value_change_step=5,
-                   description=tr('Target acceleration when coming to a complete stop.')),
     option_item_sp(title=tr('Follow Deceleration Boost'), param='TFollowDecelBoost', min_value=0, max_value=200, value_change_step=5),
 
-    section_heading_sp(tr('Acceleration Limits (not applied yet)')),
-    option_item_sp(title=tr('Cruise Max Acceleration 0'), param='CruiseMaxVals0', min_value=0, max_value=300, value_change_step=5,
-                   use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f} m/s²'),
-    option_item_sp(title=tr('Cruise Max Acceleration 1'), param='CruiseMaxVals1', min_value=0, max_value=300, value_change_step=5,
-                   use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f} m/s²'),
-    option_item_sp(title=tr('Cruise Max Acceleration 2'), param='CruiseMaxVals2', min_value=0, max_value=300, value_change_step=5,
-                   use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f} m/s²'),
-    option_item_sp(title=tr('Cruise Max Acceleration 3'), param='CruiseMaxVals3', min_value=0, max_value=300, value_change_step=5,
-                   use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f} m/s²'),
-    option_item_sp(title=tr('Cruise Max Acceleration 4'), param='CruiseMaxVals4', min_value=0, max_value=300, value_change_step=5,
-                   use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f} m/s²'),
-    option_item_sp(title=tr('Cruise Max Acceleration 5'), param='CruiseMaxVals5', min_value=0, max_value=300, value_change_step=5,
-                   use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f} m/s²'),
-    option_item_sp(title=tr('Cruise Max Acceleration 6'), param='CruiseMaxVals6', min_value=0, max_value=300, value_change_step=5,
-                   use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f} m/s²'),
 
   ]
 
@@ -80,8 +60,6 @@ def build_navi_items():
                    description=tr('Distance after the speed limit point to resume normal cruise.')),
 
     section_heading_sp(tr('Stop / Speed Camera')),
-    option_item_sp(title=tr('Stop Target Distance'), param='StopDistanceCarrot', min_value=0, max_value=2000, value_change_step=10,
-                   description=tr('Target stopping distance from stop line or traffic light (cm).')),
     toggle_item_sp(title=tr('Same Direction Speed Cam Filter'), param='SameSpiCamFilter'),
     option_item_sp(title=tr('Traffic Stop Distance Adjust'), param='TrafficStopDistanceAdjust', min_value=-500, max_value=500, value_change_step=10,
                    description=tr('Fine-tune stop distance for traffic lights (cm).')),
@@ -142,6 +120,9 @@ def build_speed_items():
     option_item_sp(title=tr('Turn Speed Control Mode'), param='TurnSpeedControlMode', min_value=0, max_value=2, value_change_step=1),
     section_heading_sp(tr('Curve Speed')),
     option_item_sp(title=tr('Curve Speed Factor'), param='AutoCurveSpeedFactor', min_value=50, max_value=200, value_change_step=5),
+    option_item_sp(title=tr('Normal Road Curve Aggressiveness'), param='AutoCurveSpeedAggressiveness', min_value=0, max_value=200, value_change_step=5,
+                   description=tr('How aggressively curve speed is reduced on normal roads. '
+                                  'Was read by the planner but never registered, so it had no effect.')),
     option_item_sp(title=tr('Curve Speed Factor (Highway)'), param='AutoCurveSpeedFactorH', min_value=50, max_value=200, value_change_step=5),
     option_item_sp(title=tr('Highway Curve Aggressiveness'), param='AutoCurveSpeedAggressivenessH', min_value=0, max_value=200, value_change_step=5),
     option_item_sp(title=tr('Curve Speed Lower Limit'), param='AutoCurveSpeedLowerLimit', min_value=0, max_value=100, value_change_step=5),
@@ -156,8 +137,6 @@ def build_speed_items():
 def build_tuning_items():
   return [
 
-    section_heading_sp(tr('Lane Change')),
-    option_item_sp(title=tr('Lane Change Start Cost'), param='AChangeCostStarting', min_value=0, max_value=500, value_change_step=5),
 
     section_heading_sp(tr('Blind Spot')),
     toggle_item_sp(title=tr('Disable Blind Spot'), param='DisableBlindSpot'),
@@ -173,7 +152,11 @@ def build_display_items():
   return [
     section_heading_sp(tr('Steering Suspend')),
     option_item_sp(title=tr('Lateral Suspend Angle'), param='LatSuspendAngleDeg', min_value=45, max_value=300, value_change_step=1,
-                   description=tr('Steering angle threshold to temporarily suspend lateral control.')),
+                   label_callback=lambda v, *_: f'{v}\u00b0',
+                   description=tr('Steering angle at which lateral control pauses while you steer. '
+                                  '300\u00b0 effectively disables it. CarrotPilot stores 0.1-degree units for this '
+                                   'parameter but its code, like this port, compares the raw value against the '
+                                   'steering angle, so the number reads as degrees here.')),
     section_heading_sp(tr('Cluster Map')),
     option_item_sp(title=tr('Cluster Navigation Map Theme'), param='ClusterNaviMapTheme', min_value=0, max_value=5, value_change_step=1),
     option_item_sp(title=tr('Cluster Navigation Map Type'), param='ClusterNaviMapType', min_value=0, max_value=2, value_change_step=1),
@@ -204,7 +187,18 @@ def build_vehicle_items():
     section_heading_sp(tr('Radar / Tracks')),
     toggle_item_sp(title=tr('Enable Radar Tracks'), param='EnableRadarTracks',
                    description=tr('BYD only: feed corner-radar tracks into the radar interface.')),
-    toggle_item_sp(title=tr('Enable Speed TF'), param='EnableSpeedTF'),
+    option_item_sp(title=tr('Alert Volume'), param='SoundVolumeAdjust', min_value=5, max_value=200, value_change_step=5,
+                   description=tr('Scale every alert sound, in percent. 100 keeps the current loudness.')),
+    option_item_sp(title=tr('Engage Chime Volume'), param='SoundVolumeAdjustEngage', min_value=5, max_value=200, value_change_step=5,
+                   description=tr('Scale the engage / disengage / reverse chimes, in percent.')),
+    # Values: 1 = linear scale, 0 = off, -1/-2/-3 = speed breakpoint profiles
+    # (30/60/90, 40/80/120, 50/100/150 km/h). The code reads all of them, so this cannot
+    # be a toggle - one could only ever write 0 or 1 and the profiles were unreachable.
+    option_item_sp(title=tr('Speed-dependent Follow Time'), param='EnableSpeedTF', min_value=-3, max_value=1, value_change_step=1,
+                   label_callback=lambda v, *_: {1: tr('Linear'), 0: tr('Off'),
+                                                -1: '30/60/90', -2: '40/80/120', -3: '50/100/150'}.get(v, str(v)),
+                   description=tr('Shrink the follow distance as speed rises. Off disables it; the three '
+                                  'profiles differ in how far up the speed range the gap keeps tightening.')),
     section_heading_sp(tr('Driving Mode')),
     option_item_sp(title=tr('My Driving Mode'), param='MyDrivingMode', min_value=0, max_value=5, value_change_step=1),
     option_item_sp(title=tr('My Driving Mode Auto'), param='MyDrivingModeAuto', min_value=0, max_value=2, value_change_step=1),
@@ -214,4 +208,5 @@ def build_dev_items():
   return [
     section_heading_sp(tr('Hardware / Tests')),
     toggle_item_sp(title=tr('Show Debug Log'), param='ShowDebugLog'),
+
   ]

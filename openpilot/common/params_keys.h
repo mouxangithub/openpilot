@@ -378,7 +378,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LeadAccelResponseTF2", {PERSISTENT | BACKUP, INT, "-1"}},
     {"LeadAccelResponseTF3", {PERSISTENT | BACKUP, INT, "-1"}},
     {"LeadAccelResponseTF4", {PERSISTENT | BACKUP, INT, "-1"}},
-    {"SpeedTFFactor", {PERSISTENT | BACKUP, INT, "10"}},
     {"AutoNaviRearCameraHoldDistance", {PERSISTENT | BACKUP, INT, "100"}},
     {"CanfdStopRetry", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CruiseMaxVals0", {PERSISTENT | BACKUP, INT, "160"}},
@@ -417,6 +416,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // keys are registered so UnifiedParams writes land in the cross-process Params store.
     {"AutoCurveSpeedLowerLimit", {PERSISTENT | BACKUP, INT, "30"}},
     {"AutoCurveSpeedFactor", {PERSISTENT | BACKUP, INT, "100"}},
+    {"AutoCurveSpeedAggressiveness", {PERSISTENT | BACKUP, INT, "100"}},
     {"AutoTurnControl", {PERSISTENT | BACKUP, INT, "0"}},
     {"AutoTurnControlSpeedTurn", {PERSISTENT | BACKUP, INT, "20"}},
     {"AutoTurnControlTurnEnd", {PERSISTENT | BACKUP, INT, "6"}},
@@ -487,7 +487,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"JLeadFactor3", {PERSISTENT | BACKUP, FLOAT, "0"}},
     {"CruiseEcoControl", {PERSISTENT | BACKUP, INT, "2"}},
     {"MyDrivingModeAuto", {PERSISTENT | BACKUP, INT, "0"}},
-    {"DynamicTFollow", {PERSISTENT | BACKUP, FLOAT, "0"}},
     {"DynamicTFollowLC", {PERSISTENT | BACKUP, FLOAT, "100.0"}},
     // Carrot longitudinal / t_follow tuning surface (webui exposure, mirrors config.py).
     {"LeadAccelResponse", {PERSISTENT | BACKUP, INT, "0"}},
@@ -495,7 +494,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LongTuningKf", {PERSISTENT | BACKUP, INT, "100"}},
     {"LongTuningKiV", {PERSISTENT | BACKUP, INT, "0"}},
     {"LongTuningKpV", {PERSISTENT | BACKUP, INT, "100"}},
-    {"StoppingAccel", {PERSISTENT | BACKUP, INT, "-50"}},
     {"TFollowDecelBoost", {PERSISTENT | BACKUP, INT, "0"}},
     // Carrot cruise / acceleration tuning surface.
     {"AutoCruiseControl", {PERSISTENT | BACKUP, INT, "0"}},
@@ -563,7 +561,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // Carrot tuning surface: parameters present in config.py but previously
     // unregistered in params_keys.h. Registering them lets UnifiedParams write
     // directly to the cross-process Params store instead of nav_params.json.
-    {"AChangeCostStarting", {PERSISTENT | BACKUP, INT, "10"}},
     {"AdjustLaneOffset", {PERSISTENT | BACKUP, INT, "0"}},
     {"CameraYawTrimDeg", {PERSISTENT | BACKUP, INT, "0"}},
     {"CanfdDebug", {PERSISTENT | BACKUP, BOOL, "0"}},
@@ -594,7 +591,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"DisableMinSteerSpeed", {PERSISTENT | BACKUP, INT, "0"}},
     {"EnableCornerRadar", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"EnableRadarTracks", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"EnableSpeedTF", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"EnableSpeedTF", {PERSISTENT | BACKUP, INT, "0"}},
     {"HDPuse", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"HardwareC3xLite", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"HotspotOnBoot", {PERSISTENT | BACKUP, BOOL, "0"}},

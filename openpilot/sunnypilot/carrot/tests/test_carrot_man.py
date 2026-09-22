@@ -1599,7 +1599,6 @@ class TestCarrotParamAlignment(unittest.TestCase):
 
   # 151 parameters imported from cp/selfdrive/carrot_settings.json.
   _IMPORTED_DEFAULTS = {
-    "AChangeCostStarting": 10,
     "AdjustLaneOffset": 0,
     "AlwaysLateral": 0,
     "ApplyModelSpeed": 0,
@@ -1734,7 +1733,6 @@ class TestCarrotParamAlignment(unittest.TestCase):
     "SpeedFromPCM": 0,
     "SteerActuatorDelay": 30,
     "SteerRatioRate": 100,
-    "StoppingAccel": -50,
     "TFollowDecelBoost": 0,
     "TFollowGap1": 110,
     "TFollowGap2": 120,
@@ -1754,7 +1752,6 @@ class TestCarrotParamAlignment(unittest.TestCase):
     "LeadAccelResponseTF2": -1,
     "LeadAccelResponseTF3": -1,
     "LeadAccelResponseTF4": -1,
-    "SpeedTFFactor": 10,
     "AutoNaviRearCameraHoldDistance": 100,
   }
 
@@ -1795,9 +1792,65 @@ class TestCarrotParamAlignment(unittest.TestCase):
     self.assertEqual(params.get_int("MyDrivingMode"), 3)
     self.assertEqual(params.get_int("TFollowGap1"), 110)
     self.assertEqual(params.get_int("CruiseMaxVals0"), 160)
-    self.assertEqual(params.get_int("StoppingAccel"), -50)
+    self.assertEqual(params.get_int("AutoCurveSpeedAggressiveness"), 100)
     self.assertEqual(params.get_int("LateralTorqueCustom"), 1)
     self.assertEqual(params.get("SoundLanguageSetting"), "auto")
+
+
+class TestRetiredParamsStayRetired(unittest.TestCase):
+  """Params P1-P4 removed must not come back.
+
+  StoppingAccel and DynamicTFollow were deleted by CarrotPilot itself, whose
+  test_settings_schema.py asserts they are absent from its settings schema and
+  params_keys.h. SpeedTFFactor and AChangeCostStarting were superseded by
+  sunnypilot's own controls (EnableSpeedTF, LongitudinalMpcTuningAChangeCost),
+  and StopDistanceCarrot was merged into LongitudinalMpcTuningStopDistance.
+  """
+
+  RETIRED = ("StoppingAccel", "DynamicTFollow", "SpeedTFFactor",
+             "AChangeCostStarting", "StopDistanceCarrot")
+
+  def test_absent_from_the_carrot_default_table(self):
+    from openpilot.sunnypilot.carrot.config import _DEFAULT_NAV_PARAMS
+    for param in self.RETIRED:
+      self.assertNotIn(param, _DEFAULT_NAV_PARAMS,
+                       f"{param} must stay retired - see the P1-P4 audit")
+
+  def test_no_carrot_module_reads_them(self):
+    """Only params_migration may mention StopDistanceCarrot, to merge it."""
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[1]
+    for path in root.glob("*.py"):
+      if path.name == "params_migration.py":
+        continue
+      text = path.read_text(encoding="utf-8")
+      for param in self.RETIRED:
+        self.assertNotIn(f'"{param}"', text, f"{path.name} still reads {param}")
+
+
+class TestCarrotPlannerRoadcate(unittest.TestCase):
+  """CarrotPlanner must take the road class from its caller.
+
+  _roadcate used to be hardcoded to 8, so `if self._roadcate > 1` was always
+  true and the highway branch of vturn_speed() never ran. That made
+  AutoCurveSpeedFactorH and AutoCurveSpeedAggressivenessH, both exposed in the
+  UIs, permanently ineffective.
+  """
+
+  def test_default_keeps_surface_street_behaviour(self):
+    from openpilot.sunnypilot.carrot.carrot_functions import CarrotPlanner
+    self.assertEqual(CarrotPlanner()._roadcate, 8)
+
+  def test_supplied_value_is_used(self):
+    from openpilot.sunnypilot.carrot.carrot_functions import CarrotPlanner
+    self.assertEqual(CarrotPlanner(roadcate=1)._roadcate, 1)
+    self.assertEqual(CarrotPlanner(roadcate=2)._roadcate, 2)
+
+  def test_highway_branch_becomes_reachable(self):
+    """roadcate <= 1 must select the highway curve tuning."""
+    from openpilot.sunnypilot.carrot.carrot_functions import CarrotPlanner
+    planner = CarrotPlanner(roadcate=1)
+    self.assertFalse(planner._roadcate > 1, "roadcate=1 is a highway")
 
 
 class TestTFollowHelpers(unittest.TestCase):

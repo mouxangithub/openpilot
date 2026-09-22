@@ -5479,6 +5479,38 @@ msgid "Lane Line / ONNX"
 msgstr "車道線 / ONNX"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Normal Road Curve Aggressiveness"
+msgstr "普通道路彎道積極程度"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "How aggressively curve speed is reduced on normal roads. Was read by the planner but never registered, so it had no effect."
+msgstr "普通道路上彎道降速的積極程度。此前規劃器會讀取但從未註冊，因此不生效。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Speed-dependent Follow Time"
+msgstr "隨速度變化跟車時間"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Navigation Control (advanced)"
+msgstr "導航控制（進階）"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Traffic Congestion Slowdown"
+msgstr "路況壅塞降速"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Fold the phone app traffic congestion report into map-based cruise control. Only ever lowers the target speed."
+msgstr "將手機 App 的路況壅塞資料併入地圖巡航控制，只會降低目標車速。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Lane Guide Blocking"
+msgstr "車道引導封鎖"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Let the phone app guided-lane arrows block lane changes toward non-guided lanes. Only ever adds blocking."
+msgstr "允許手機 App 的車道引導箭頭封鎖往非引導車道的變道，只會增加封鎖。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Lateral MPC Costs"
 msgstr "橫向 MPC 權重"
 
@@ -5657,3 +5689,27 @@ msgstr "從 7706 UDP 資料流解析盲區 / LiDAR / extBlinker 欄位。"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "Use Amap (Gaode) online map data for speed limits and road names in China."
 msgstr "使用高德線上地圖資料取得中國的限速與道路名稱。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Alert Volume"
+msgstr "提示音音量"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Engage Chime Volume"
+msgstr "接管提示音音量"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Steering angle at which lateral control pauses while you steer. 300° effectively disables it. CarrotPilot stores 0.1-degree units for this parameter but its code, like this port, compares the raw value against the steering angle, so the number reads as degrees here."
+msgstr "轉向角超過該值時，橫向控制會在你轉向期間暫停。300° 實際上等於關閉。CarrotPilot 為此參數宣告了 0.1 度單位，但它的程式碼與本移植一樣，直接拿原始值與轉向角比較，所以這裡的數值按度理解。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Shrink the follow distance as speed rises. Off disables it; the three profiles differ in how far up the speed range the gap keeps tightening."
+msgstr "車速升高時縮短跟車距離。關閉則不啟用；三個設定的差別在於跟車距離持續收緊到多高的車速。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Scale every alert sound, in percent. 100 keeps the current loudness."
+msgstr "按百分比縮放所有提示音。100 表示保持目前音量。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Scale the engage / disengage / reverse chimes, in percent."
+msgstr "按百分比縮放接管、退出接管與倒車提示音。"

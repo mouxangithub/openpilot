@@ -1048,8 +1048,9 @@ class CarrotManager:
     cm.tmcResidualDistance = _safe_int(raw.get("tmcResidualDistance"), 0)
     cm.tmcSegmentCount = _safe_int(raw.get("tmcSegmentCount"), 0)
     cm.tmcOverallStatus = _safe_int(raw.get("tmcOverallStatus"), 0)
-    # Lane guidance arrow codes (App §2.2 navLaneGuide).
+    # Lane guidance arrow codes (App §2.2 navLaneGuide / navLaneGuideCnt).
     cm.navLaneGuide = _safe_str(raw.get("navLaneGuide"), "")
+    cm.navLaneGuideCnt = _safe_int(raw.get("navLaneGuideCnt"), 0)
 
     navi_msg = messaging.new_message('navInstructionCarrotSP')
     navi_msg.valid = True
@@ -1279,7 +1280,9 @@ class CarrotManager:
           if self.sm.alive.get('carState', False) and self.sm.alive.get('modelV2', False):
             try:
               from openpilot.sunnypilot.carrot.carrot_functions import CarrotPlanner
-              planner = CarrotPlanner(self._unified)
+              # Pass the live road class: CarrotPlanner cannot see the navi packet,
+              # and without it the highway branch of vturn_speed() never ran.
+              planner = CarrotPlanner(self._unified, roadcate=self._carrot_serv.roadcate)
               vturn_speed = planner.carrot_curve_speed(self.sm)
             except Exception:
               pass

@@ -10,6 +10,7 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.selfdrive.car.sync_sunnylink_params import CAR_LIST_JSON_OUT
 
 ONROAD_BRIGHTNESS_MIGRATION_VERSION: str = "1.0"
+CARROT_STOP_DISTANCE_MIGRATION_VERSION: str = "1.0"
 ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION: str = "1.0"
 
 # index → seconds mapping for OnroadScreenOffTimer (SSoT)
@@ -103,7 +104,36 @@ def _migrate_model_bundle_slots(_params):
     cloudlog.exception(f"Error migrating model bundle slots: {e}")
 
 
+def _migrate_carrot_stop_distance(_params):
+  # StopDistanceCarrot (cm) and LongitudinalMpcTuningStopDistance (m) were two
+  # controls for one quantity with the same 6.0 m default. The carrot one is retired
+  # and carrot now reads sunnypilot's entry, so carry an explicitly-set legacy value
+  # across before dropping the old key - otherwise a user who had tuned it would
+  # silently fall back to 6.0 m.
+  try:
+    if _params.get("CarrotStopDistanceMigrated") == CARROT_STOP_DISTANCE_MIGRATION_VERSION:
+      return
+
+    legacy = _params.get("StopDistanceCarrot")
+    if legacy is not None:
+      legacy_cm = int(legacy)
+      if legacy_cm > 0 and legacy_cm != 600:
+        metres = legacy_cm / 100.0
+        _params.put("LongitudinalMpcTuningStopDistance", metres, block=True)
+        cloudlog.info("params_migration: merged StopDistanceCarrot=%dcm into "
+                      "LongitudinalMpcTuningStopDistance=%sm" % (legacy_cm, metres))
+      else:
+        cloudlog.info("params_migration: StopDistanceCarrot was at its default; nothing to merge.")
+      _params.remove("StopDistanceCarrot")
+
+    _params.put("CarrotStopDistanceMigrated", CARROT_STOP_DISTANCE_MIGRATION_VERSION, block=True)
+  except Exception as e:
+    cloudlog.exception(f"Error migrating StopDistanceCarrot: {e}")
+
+
 def run_migration(_params):
+  _migrate_carrot_stop_distance(_params)
+
   # migrate OnroadScreenOffBrightness
   if _params.get("OnroadScreenOffBrightnessMigrated") != ONROAD_BRIGHTNESS_MIGRATION_VERSION:
     try:

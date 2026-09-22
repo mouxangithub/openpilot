@@ -67,6 +67,7 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   # Speed / turn / navi tuning (aligned with cp/fp defaults).
   "AutoCurveSpeedLowerLimit": 30,
   "AutoCurveSpeedFactor": 100,
+  "AutoCurveSpeedAggressiveness": 100,
   "AutoTurnControl": 0,
   "AutoTurnControlSpeedTurn": 20,
   "AutoTurnControlTurnEnd": 6,
@@ -89,7 +90,6 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "TurnSpeedControlMode": 1,
   "MapTurnSpeedFactor": 100,
   # Sound / stop behavior
-  "StopDistanceCarrot": 600,
   "AutoNaviSpeedCtrlMode": 2,
   "AutoNaviSpeedDecelRate": 200,
   "AutoNaviSpeedSafetyFactor": 105,
@@ -98,15 +98,14 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "AutoUpHighwayRoadLimit": 0,
   "AutoUpHighwayRoadLimit40KMH": 15,
   "RoadType": -1,
-  "SoundVolumeAdjust": 0,
-  "SoundVolumeAdjustEngage": 0,
+  "SoundVolumeAdjust": 100,
+  "SoundVolumeAdjustEngage": 100,
   # Carrot exception message persists across manager start
   "CarrotException": "",
   # ---------------------------------------------------------------------------
   # Missing carrot tuning parameters imported from CarrotPilot (179 -> 225 keys).
   # Values mirror cp/selfdrive/carrot_settings.json defaults.
   # ---------------------------------------------------------------------------
-  "AChangeCostStarting": 10,
   "AdjustLaneOffset": 0,
   "AlwaysLateral": 0,
   "ApplyModelSpeed": 0,
@@ -169,7 +168,6 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "CustomSteerDeltaUpLC": 0,
   "CustomSteerMax": 0,
   "DisableMinSteerSpeed": 0,
-  "DynamicTFollow": 0,
   "DynamicTFollowLC": 100,
   "EnableCornerRadar": 0,
   "EnableRadarTracks": 0,
@@ -242,7 +240,6 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "SpeedFromPCM": 0,
   "SteerActuatorDelay": 30,
   "SteerRatioRate": 100,
-  "StoppingAccel": -50,
   "TFollowDecelBoost": 0,
   "TFollowGap1": 110,
   "TFollowGap2": 120,
@@ -263,7 +260,6 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "LeadAccelResponseTF2": -1,                # lead accel response, gap level 2 (cp default -1)
   "LeadAccelResponseTF3": -1,                # lead accel response, gap level 3 (cp default -1)
   "LeadAccelResponseTF4": -1,                # lead accel response, gap level 4 (cp default -1)
-  "SpeedTFFactor": 10,                       # speed-dependent time-gap factor (cp default 10)
   "AutoNaviRearCameraHoldDistance": 100,     # navi rear-camera hold distance cm (cp default 100)
 }
 

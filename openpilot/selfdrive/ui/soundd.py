@@ -7,6 +7,7 @@ import wave
 from openpilot.cereal import log, messaging, custom
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper
 from openpilot.common.swaglog import cloudlog
 
@@ -37,6 +38,13 @@ if HARDWARE.get_device_type() in ("tizi", "tici"):
 AudibleAlert = log.SelfdriveState.AudibleAlert
 AudibleAlertSP = custom.SelfdriveStateSP.AudibleAlert
 
+
+# Engage / disengage / reverse chimes scale with SoundVolumeAdjustEngage; every
+# other alert is unaffected. The volume column of this table is otherwise unused:
+# playback multiplies by Soundd.current_volume only.
+ENGAGE_ALERTS: frozenset[int] = frozenset({
+  AudibleAlertSP.reverseGear2,
+})
 
 sound_list_sp: dict[int, tuple[str, int | None, float]] = {
   # AudibleAlertSP, file name, play count (none for infinite)
@@ -117,6 +125,10 @@ class Soundd(QuietMode):
 
     self.current_alert = AudibleAlert.none
     self.current_volume = MIN_VOLUME
+    # Both stay at 1.0 until refreshed from params, so loudness is unchanged if the
+    # read fails. See _load_volume_adjust().
+    self.soundVolumeAdjust = 1.0
+    self.soundVolumeAdjustEngage = 1.0
     self.current_sound_frame = 0
 
     self.ramp_start_volume = MIN_VOLUME
@@ -178,7 +190,8 @@ class Soundd(QuietMode):
           self.pending_stop = False
           break
 
-    return ret * self.current_volume
+    scale = self.soundVolumeAdjustEngage if self.current_alert in ENGAGE_ALERTS else 1.0
+    return ret * self.current_volume * scale
 
   def callback(self, data_out: np.ndarray, frames: int, time, status) -> None:
     if status:
@@ -214,6 +227,21 @@ class Soundd(QuietMode):
       self.update_alert(AudibleAlert.none)
       self.selfdrive_timeout_alert = False
 
+  def _load_volume_adjust(self) -> None:
+    """Refresh the SoundVolumeAdjust factors (percent; 100 = unchanged).
+
+    Registered defaults are 100 so an untouched device keeps its current loudness.
+    Values at or below 0 are treated as 100 rather than silence, which also covers
+    devices that still hold the old default of 0.
+    """
+    try:
+      adjust = int(Params().get_int("SoundVolumeAdjust") or 100)
+      engage = int(Params().get_int("SoundVolumeAdjustEngage") or 100)
+    except Exception:
+      return
+    self.soundVolumeAdjust = max(0.05, adjust / 100.0) if adjust > 0 else 1.0
+    self.soundVolumeAdjustEngage = max(0.05, engage / 100.0) if engage > 0 else 1.0
+
   def calculate_volume(self, weighted_db):
     volume = ((weighted_db - AMBIENT_DB) / DB_SCALE) * (MAX_VOLUME - MIN_VOLUME) + MIN_VOLUME
     return math.pow(VOLUME_BASE, (np.clip(volume, MIN_VOLUME, MAX_VOLUME) - 1))
@@ -230,6 +258,13 @@ class Soundd(QuietMode):
         alert_name = f'audio{carrot_man.leftSec}'
         if hasattr(AudibleAlertSP, alert_name):
           self.update_alert(getattr(AudibleAlertSP, alert_name))
+      elif carrot_man.leftSec == 0:
+        # Countdown finished. Mirrors cp's update_carrot_alert(); sp registered the
+        # longDisengaged asset but never played it.
+        self.update_alert(AudibleAlertSP.longDisengaged)
+      elif carrot_man.leftSec == 11:
+        # First frame of the countdown, used as an early warning.
+        self.update_alert(AudibleAlert.promptDistracted)
 
     atc_type = carrot_man.atcType if hasattr(carrot_man, 'atcType') else ""
     if atc_type != self.carrot_atc_type_prev:
@@ -284,12 +319,14 @@ class Soundd(QuietMode):
             sm.update(0)
 
             self.load_param()
+            self._load_volume_adjust()
 
             # freeze volume during alerts to avoid mic feedback increasing volume
             if sm.updated['soundPressure']:
               self.spl_filter_weighted.update(sm["soundPressure"].soundPressureWeightedDb)
               if self.current_alert == AudibleAlert.none:
                 self.current_volume = self.calculate_volume(float(self.spl_filter_weighted.x))
+                self.current_volume *= self.soundVolumeAdjust
 
             self.get_audible_alert(sm)
             self.get_carrot_alert(sm)
