@@ -2,8 +2,8 @@ from types import SimpleNamespace
 
 from openpilot.common.test import OpenpilotTestCase
 from openpilot.cereal import custom
-from openpilot.selfdrive.controls.lib.longcontrol import LongCtrlState, long_control_state_trans
-from openpilot.sunnypilot.selfdrive.controls.lib.longcontrol import LongControlSP
+from openpilot.selfdrive.controls.lib.drive_helpers import STOPPING_SPEED, should_stop
+from openpilot.selfdrive.controls.lib.longcontrol import STOPPING_DECEL_RATE, LongCtrlState, long_control_state_trans
 
 
 class TestLongControlStateTransition(OpenpilotTestCase):
@@ -75,3 +75,13 @@ class TestStoppingHold:
 
   def test_stop_release_does_not_limit_stronger_braking(self):
     assert LongControlSP.limit_stop_release(-0.67, -0.8) == -0.8
+
+class TestTerminalStop(OpenpilotTestCase):
+  def test_stopping_tune_is_gentler_than_upstream_default(self):
+    # Upstream #38394 hardcoded a 1.0 m/s^2/s ramp and a 0.3 m/s latch. comma's own one-stopping-tune uses
+    # 0.3 / 0.25, and every stop recorded on this car was driven with that pair. Both must stay on the less
+    # braking side, or a future edit re-deepens the terminal brake unnoticed - which already happened once.
+    assert 0.0 < STOPPING_DECEL_RATE <= 1.0
+    assert 0.0 < STOPPING_SPEED <= 0.3
+    assert should_stop(STOPPING_SPEED - 0.01, 0.0)
+    assert not should_stop(0.29, 0.0)  # the band upstream would latch in and we do not

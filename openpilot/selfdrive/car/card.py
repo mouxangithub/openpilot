@@ -24,6 +24,7 @@ from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_cap
 
 from openpilot.sunnypilot.mads.helpers import set_alternative_experience, set_car_specific_params
 from openpilot.sunnypilot.selfdrive.car import interfaces as sunnypilot_interfaces
+from openpilot.sunnypilot.carrot.carrot_navi_fusion import merge_carrot_navi_lanes
 
 REPLAY = "REPLAY" in os.environ
 
@@ -71,7 +72,7 @@ class Car:
 
   def __init__(self, CI=None, RI=None) -> None:
     self.can_sock = messaging.sub_sock('can', timeout=20)
-    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP'])
+    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents'] + ['carControlSP', 'longitudinalPlanSP', 'carrotManSP', 'carrotNaviSP'])
     self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'radarTracks'] + ['carParamsSP', 'carStateSP'])
 
     self.can_rcv_cum_timeout_counter = 0
@@ -99,6 +100,7 @@ class Car:
           break
 
       alpha_long_allowed = self.params.get_bool("AlphaLongitudinalEnabled")
+      num_pandas = len(messaging.recv_one_retry(self.sm.sock['pandaStates']).pandaStates)
 
       cached_params = None
       cached_params_raw = self.params.get("CarParamsCache")
@@ -109,7 +111,7 @@ class Car:
       fixed_fingerprint = (self.params.get("CarPlatformBundle") or {}).get("platform", None)
       init_params_list_sp = sunnypilot_interfaces.initialize_params(self.params)
 
-      self.CI = get_car(*self.can_callbacks, obd_callback(self.params), alpha_long_allowed, is_release, cached_params,
+      self.CI = get_car(*self.can_callbacks, obd_callback(self.params), alpha_long_allowed, is_release, num_pandas, cached_params,
                         fixed_fingerprint, init_params_list_sp, is_release_sp)
       sunnypilot_interfaces.setup_interfaces(self.CI, self.params)
       self.RI = interfaces[self.CI.CP.carFingerprint].RadarInterface(self.CI.CP, self.CI.CP_SP)
@@ -185,6 +187,11 @@ class Car:
 
     self.is_metric = self.params.get_bool("IsMetric")
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
+    self.carrot_enabled = self.params.get_bool("CarrotEnabled")
+    self.carrot_navi_v2_enabled = self.params.get_bool("CarrotNaviV2Enabled")
+    self.carrot_nav_lane_guide_block = self.params.get_bool("CarrotNavLaneGuideBlockEnabled")
+    self._carrot_navi_cache = None
+    self._carrot_navi_cache_mono = 0.0
 
     # card is driven by can recv, expected at 100Hz
     self.rk = Ratekeeper(100, print_delay_threshold=None)
@@ -206,6 +213,41 @@ class Car:
     RD: structs.RadarDataT | None = self.RI.update(can_list)
 
     self.sm.update(0)
+
+    # Merge Carrot navigation lane hints into carState/carStateSP. Both the 7714
+    # v2 stream and the 7706 navLaneGuide array feed the SAME flags, so there is
+    # only one lane-blocking decision.
+    if self.sm.updated['carrotNaviSP'] and self.sm.valid['carrotNaviSP']:
+      self._carrot_navi_cache = self.sm['carrotNaviSP']
+      self._carrot_navi_cache_mono = time.monotonic()
+    carrot_navi = self._carrot_navi_cache
+    navi_fresh = carrot_navi is not None and time.monotonic() - self._carrot_navi_cache_mono <= 0.5
+    carrot_man = self.sm['carrotManSP'] if self.sm.valid.get('carrotManSP', False) else None
+    nav_guide = getattr(carrot_man, 'navLaneGuide', "") if carrot_man is not None else ""
+    nav_guide_cnt = int(getattr(carrot_man, 'navLaneGuideCnt', 0) or 0) if carrot_man is not None else 0
+    if self.carrot_enabled:
+      merge_carrot_navi_lanes(
+        CS_SP,
+        carrot_navi if (self.carrot_navi_v2_enabled and navi_fresh) else None,
+        nav_guide,
+        nav_guide_cnt,
+        self.carrot_nav_lane_guide_block,
+      )
+
+      # Amap direct LiDAR/camera blind-spot hint. carrot_man publishes it on
+      # carrotManSP and this is the ONLY place it becomes carState, which keeps
+      # carState single-writer. carrot_man used to assign
+      # sm['carState'].leftBlindspot itself, but SubMaster hands out a capnp
+      # _DynamicStructReader whose attributes cannot be set - so that raised inside
+      # tick() and silently stopped carrotManSP from being published at all.
+      #
+      # Only ever sets True: this is an additional blind-spot source OR-ed onto the
+      # car's own signal, never a way to clear it.
+      if carrot_man is not None:
+        if bool(getattr(carrot_man, 'amapLeftBlind', False)):
+          CS.leftBlindspot = True
+        if bool(getattr(carrot_man, 'amapRightBlind', False)):
+          CS.rightBlindspot = True
 
     can_rcv_valid = len(can_strs) > 0
 
@@ -306,6 +348,7 @@ class Car:
     while not evt.is_set():
       self.is_metric = self.params.get_bool("IsMetric")
       self.experimental_mode = self.params.get_bool("ExperimentalMode") and self.CP.openpilotLongitudinalControl
+      self.carrot_enabled = self.params.get_bool("CarrotEnabled")
 
       # sunnypilot
       self.dynamic_experimental_control = self.params.get_bool("DynamicExperimentalControl")

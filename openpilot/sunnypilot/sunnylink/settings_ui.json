@@ -1098,6 +1098,151 @@
               ]
             }
           ]
+        },
+        {
+          "id": "carrot_navigation",
+          "title": "Amap / Carrot Navigation",
+          "description": "Phone projection, navigation data, and dynamic cruise tuning",
+          "enablement": [
+            {
+              "type": "offroad_only"
+            }
+          ],
+          "items": [
+            {
+              "key": "AmapMapDataEnabled",
+              "widget": "toggle",
+              "title": "Enable Amap Map Data",
+              "description": "Use Amap (Gaode) online map data for speed limits and road names in China."
+            },
+            {
+              "key": "CarrotAmapBlindSpotEnabled",
+              "widget": "toggle",
+              "title": "Enable Amap Blind Spot Data",
+              "description": "Parse blind-spot / LiDAR / extBlinker fields from the 7706 UDP stream."
+            },
+            {
+              "key": "CarrotEnabled",
+              "widget": "toggle",
+              "title": "Enable Carrot Planner",
+              "description": "Enable dynamic following distance, driving modes, traffic light handling, and navigation cruise speed."
+            },
+            {
+              "key": "MyDrivingMode",
+              "widget": "multiple_button",
+              "title": "Driving Mode",
+              "description": "Carrot driving style preset.",
+              "options": [
+                {
+                  "value": 1,
+                  "label": "Eco"
+                },
+                {
+                  "value": 2,
+                  "label": "Safe"
+                },
+                {
+                  "value": 3,
+                  "label": "Normal"
+                },
+                {
+                  "value": 4,
+                  "label": "High"
+                }
+              ],
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "CarrotEnabled",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "TrafficLightDetectMode",
+              "widget": "multiple_button",
+              "title": "Traffic Light Assist",
+              "description": "Stop at red lights and optionally resume on green when using model-based stop line detection.",
+              "options": [
+                {
+                  "value": 0,
+                  "label": "Off"
+                },
+                {
+                  "value": 1,
+                  "label": "Red Stop"
+                },
+                {
+                  "value": 2,
+                  "label": "Red Stop + Green Go"
+                }
+              ],
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "CarrotEnabled",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "CarrotNavCruiseSpeedEnabled",
+              "widget": "toggle",
+              "title": "Navigation Cruise Speed",
+              "description": "Use navigation desired speed to limit cruise set speed.",
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "CarrotEnabled",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "id": "carrot_tuning",
+              "label": "Carrot Tuning",
+              "trigger_key": "CarrotEnabled",
+              "trigger_condition": {
+                "type": "param",
+                "key": "CarrotEnabled",
+                "equals": true
+              },
+              "items": [
+                {
+                  "key": "TFollowGap1",
+                  "widget": "option",
+                  "title": "Follow Gap 1",
+                  "min": 0.5,
+                  "max": 3.0,
+                  "step": 0.05
+                },
+                {
+                  "key": "TFollowGap2",
+                  "widget": "option",
+                  "title": "Follow Gap 2",
+                  "min": 0.5,
+                  "max": 3.0,
+                  "step": 0.05
+                },
+                {
+                  "key": "TFollowGap3",
+                  "widget": "option",
+                  "title": "Follow Gap 3",
+                  "min": 0.5,
+                  "max": 3.0,
+                  "step": 0.05
+                },
+                {
+                  "key": "TFollowGap4",
+                  "widget": "option",
+                  "title": "Follow Gap 4",
+                  "min": 0.5,
+                  "max": 3.0,
+                  "step": 0.05
+                }
+              ]
+            }
+          ]
         }
       ]
     },
@@ -1114,6 +1259,15 @@
           "title": "Brightness & Timeout",
           "description": "Screen dimming and sleep behavior while driving",
           "items": [
+            {
+              "key": "Brightness",
+              "widget": "option",
+              "title": "Screen Brightness",
+              "description": "Screen brightness when offroad (not driving). 0 uses the device default.",
+              "min": 0,
+              "max": 100,
+              "step": 5
+            },
             {
               "key": "OnroadScreenOffBrightness",
               "widget": "multiple_button",
@@ -1220,7 +1374,7 @@
               "options": [
                 {
                   "value": 0,
-                  "label": "Always On"
+                  "label": "0s"
                 },
                 {
                   "value": 3,
@@ -1645,7 +1799,34 @@
               "key": "AlwaysOnDM",
               "widget": "toggle",
               "title": "Always-On Driver Monitoring",
-              "description": "Enable driver monitoring even when sunnypilot is not engaged."
+              "description": "The driver monitoring system can be toggled on/off, but long-term activation is recommended."
+            },
+            {
+              "key": "DistractionDetectionLevel",
+              "widget": "multiple_button",
+              "title": "Distraction Detection Level",
+              "description": "Set how sensitive the driver distraction detection should be. Strict warns on minor distractions; Moderate is balanced; Lenient only alerts on clear distractions.",
+              "options": [
+                {
+                  "value": 0,
+                  "label": "Strict"
+                },
+                {
+                  "value": 1,
+                  "label": "Moderate"
+                },
+                {
+                  "value": 2,
+                  "label": "Lenient"
+                }
+              ],
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "AlwaysOnDM",
+                  "equals": true
+                }
+              ]
             },
             {
               "key": "IsMetric",

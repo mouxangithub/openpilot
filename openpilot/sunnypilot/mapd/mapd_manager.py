@@ -6,6 +6,7 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 import json
+import math
 import platform
 import os
 import glob
@@ -13,13 +14,16 @@ import shutil
 from datetime import datetime
 
 from openpilot.common.params import Params
-from openpilot.common.realtime import Ratekeeper, config_realtime_process
+from openpilot.common.realtime import Ratekeeper, config_realtime_process, set_core_affinity
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
+from openpilot.sunnypilot.mapd.live_map_data.base_map_data import BaseMapData
 from openpilot.sunnypilot.mapd.live_map_data.osm_map_data import OsmMapData
+from openpilot.sunnypilot.mapd.live_map_data.amap_map_data import AmapMapData
 from openpilot.common.hardware.hw import Paths
 from openpilot.sunnypilot.mapd import MAPD_PATH
 from openpilot.sunnypilot.mapd.mapd_installer import VERSION, update_installed_version
+from openpilot.sunnypilot.mapd.china_provinces import CHINA_NATION_REF, get_province_bbox
 
 # PFEIFER - MAPD {{
 params = Params()
@@ -110,13 +114,104 @@ def filter_nations_and_states(nations: list[str], states: list[str] | None = Non
   return nations, states or []
 
 
+# mapd v1.12.0 quantises bboxes to 2 degree tiles. When downloading a CUSTOM
+# bbox (Chinese provinces) it writes per-location totals but leaves the top-level
+# progress.TotalFiles at 0 because CUSTOM is not in STATE_BOXES. Replicate the
+# tile count here so UI progress bars have a meaningful denominator.
+GROUP_AREA_BOX_DEGREES = 2
+
+
+def _count_mapd_tiles(bounds: dict[str, float]) -> int:
+  """Replicate mapd v1.12.0 countFilesForBounds()."""
+  min_lat = int(math.floor(bounds["min_lat"] / GROUP_AREA_BOX_DEGREES)) * GROUP_AREA_BOX_DEGREES
+  min_lon = int(math.floor(bounds["min_lon"] / GROUP_AREA_BOX_DEGREES)) * GROUP_AREA_BOX_DEGREES
+  max_lat = int(math.floor(bounds["max_lat"] / GROUP_AREA_BOX_DEGREES)) * GROUP_AREA_BOX_DEGREES
+  max_lon = int(math.floor(bounds["max_lon"] / GROUP_AREA_BOX_DEGREES)) * GROUP_AREA_BOX_DEGREES
+
+  if bounds["max_lat"] > max_lat:
+    max_lat += GROUP_AREA_BOX_DEGREES
+  if bounds["max_lon"] > max_lon:
+    max_lon += GROUP_AREA_BOX_DEGREES
+
+  lat_tiles = (max_lat - min_lat) // GROUP_AREA_BOX_DEGREES
+  lon_tiles = (max_lon - min_lon) // GROUP_AREA_BOX_DEGREES
+  return max(0, int(lat_tiles * lon_tiles))
+
+
+def _fix_custom_download_progress() -> None:
+  """Backfill total_files for CUSTOM bbox downloads where mapd leaves it at 0."""
+  total_tiles = 0
+  bounds_json = mem_params.get("OSMDownloadBounds")
+  if bounds_json:
+    try:
+      bounds = json.loads(bounds_json)
+      total_tiles = _count_mapd_tiles(bounds)
+    except Exception:
+      pass
+
+  progress = params.get("OSMDownloadProgress")
+  if not isinstance(progress, dict):
+    return
+
+  if total_tiles <= 0:
+    custom_details = progress.get("location_details", {}).get("CUSTOM", {})
+    total_tiles = custom_details.get("location_total_files", 0)
+
+  if total_tiles <= 0:
+    return
+
+  if progress.get("total_files"):
+    return
+
+  progress["total_files"] = total_tiles
+  location_details = progress.setdefault("location_details", {})
+  custom_details = location_details.setdefault("CUSTOM", {})
+  custom_details["location_total_files"] = total_tiles
+  params.put("OSMDownloadProgress", progress, block=True)
+
+
 def update_osm_db() -> None:
   if params.get_bool("OsmDbUpdatesCheck"):
     cleanup_old_osm_data(get_files_for_cleanup())
     country = params.get("OsmLocationName", return_default=True)
     state = params.get("OsmStateName", return_default=True)
-    filtered_nations, filtered_states = filter_nations_and_states([country], [state])
-    request_refresh_osm_location_data(filtered_nations, filtered_states)
+    cn_bbox = get_province_bbox(state) if country == CHINA_NATION_REF else None
+    if cn_bbox is not None:
+      # Chinese provinces are not in mapd v1.12.0's built-in STATE_BOXES, so route the
+      # selection through OSMDownloadBounds (the bbox-based escape hatch in mapd's
+      # download.go). mapd downloads exactly this bbox and labels the job 'CUSTOM'.
+      #
+      # mapd v1.12.0 has a quirk: DownloadIfTriggered() initialises
+      # progress.LocationDetails as an empty map, and DownloadBounds(_, "CUSTOM")
+      # then dereferences progress.LocationDetails["CUSTOM"].TotalFiles unguarded.
+      # If we set OSMDownloadBounds without also seeding a "CUSTOM" entry through
+      # the locations branch, mapd nil-pointer-panics. Seed it via OSMDownloadLocations:
+      # an unknown state code logs a harmless warning, but AddLocationDetailsToProgress
+      # creates the LocationDetails entry the bounds branch needs.
+      params.put("OsmDownloadedDate", str(datetime.now().timestamp()), block=True)
+      params.put_bool("OsmDbUpdatesCheck", False, block=True)
+      mem_params.put("OSMDownloadLocations", {"nations": [], "states": ["CUSTOM"]}, block=True)
+      mem_params.put("OSMDownloadBounds", json.dumps(cn_bbox), block=True)
+
+      # mapd writes OSMDownloadProgress to persistent params but leaves total_files at 0.
+      # Seed the totals now so the UI progress bar works during and after the download.
+      total_tiles = _count_mapd_tiles(cn_bbox)
+      progress = params.get("OSMDownloadProgress") or {}
+      if not isinstance(progress, dict):
+        progress = {}
+      progress["total_files"] = total_tiles
+      progress["downloaded_files"] = progress.get("downloaded_files", 0)
+      progress["locations_to_download"] = ["CUSTOM"]
+      location_details = progress.setdefault("location_details", {})
+      custom_details = location_details.setdefault("CUSTOM", {})
+      custom_details["location_total_files"] = total_tiles
+      custom_details["location_downloaded_files"] = custom_details.get("location_downloaded_files", 0)
+      params.put("OSMDownloadProgress", progress, block=True)
+
+      print(f"Downloading map for CN.{state}: {json.dumps(cn_bbox)}")
+    else:
+      filtered_nations, filtered_states = filter_nations_and_states([country], [state])
+      request_refresh_osm_location_data(filtered_nations, filtered_states)
 
   if not mem_params.get("OSMDownloadBounds"):
     mem_params.put("OSMDownloadBounds", "", block=True)
@@ -125,12 +220,62 @@ def update_osm_db() -> None:
     mem_params.put("LastGPSPosition", "{}", block=True)
 
 
+def _amap_map_data_enabled() -> bool:
+  """Return True when the Amap Web API map-data provider should be used.
+
+  New installs use ``AmapMapDataEnabled``. For backward compatibility we also
+  honour the legacy ``AmapEnabled`` switch when the new param has not been set
+  yet (one-time migration).
+  """
+  if params.get_bool("AmapMapDataEnabled"):
+    return True
+  if params.get_bool("AmapEnabled"):
+    # Migrate legacy switch to the new, semantically-correct param.
+    params.put_bool("AmapMapDataEnabled", True)
+    return True
+  return False
+
+
+def _select_map_provider() -> BaseMapData:
+  """Return the active map-data provider.
+
+  Use Amap's online API when the user has enabled it and provided an API key;
+  otherwise fall back to the offline OSM provider.
+  """
+  if _amap_map_data_enabled():
+    api_key = params.get("AmapApiKey")
+    if api_key:
+      cloudlog.info("mapd: using Amap online provider")
+      return AmapMapData()
+    cloudlog.warning("mapd: Amap map data enabled but no AmapApiKey set; falling back to OSM")
+  cloudlog.info("mapd: using OSM offline provider")
+  return OsmMapData()
+
+
+def _provider_has_key(provider: BaseMapData) -> bool:
+  """Return True if the Amap provider has a usable API key."""
+  return isinstance(provider, AmapMapData) and bool(params.get("AmapApiKey"))
+
+
+def _amap_provider_healthy(provider: BaseMapData) -> bool:
+  """Return True if the Amap provider produced valid data on its last tick."""
+  if not isinstance(provider, AmapMapData):
+    return False
+  # AmapMapData returns 0 for speed limit and "" for road name until the first
+  # successful HTTP response. Treat any non-zero speed limit or non-empty road
+  # name as evidence the provider is working.
+  return provider.get_current_speed_limit() > 0.0 or bool(provider.get_current_road_name())
+
+
 def main_thread():
   update_installed_version(VERSION, params)
-  config_realtime_process([0, 1, 2, 3], 5)
+  # config_realtime_process([0, 1, 2, 3], 5)  # disabled: SCHED_FIFO can starve locationd; use background scheduling below
+  set_core_affinity([0, 1, 2, 3])
+  os.nice(5)
 
   rk = Ratekeeper(1, print_delay_threshold=None)
-  live_map_sp = OsmMapData()
+  live_map_sp = _select_map_provider()
+  amap_fallback_to_osm = False
 
   # Create folder needed for OSM
   try:
@@ -148,8 +293,27 @@ def main_thread():
       clear_downloaded_maps()
       params.remove("Mapd_ClearCache")
 
+    # If the user changed the Amap map-data switch, recreate the provider.
+    if isinstance(live_map_sp, OsmMapData) and _amap_map_data_enabled() and _provider_has_key(live_map_sp):
+      cloudlog.info("mapd: switching from OSM to Amap online provider")
+      live_map_sp = AmapMapData()
+      amap_fallback_to_osm = False
+    elif isinstance(live_map_sp, AmapMapData) and not _amap_map_data_enabled():
+      cloudlog.info("mapd: Amap map data disabled; switching to OSM")
+      live_map_sp = OsmMapData()
+      amap_fallback_to_osm = False
+
     update_osm_db()
+    _fix_custom_download_progress()
     live_map_sp.tick()
+
+    # Amap failure fallback: if we have been running Amap for a while and it
+    # still returns no usable data, fall back to OSM for this session.
+    if isinstance(live_map_sp, AmapMapData) and not amap_fallback_to_osm and not _amap_provider_healthy(live_map_sp):
+      cloudlog.warning("mapd: Amap provider returned no usable data; falling back to OSM for this session")
+      live_map_sp = OsmMapData()
+      amap_fallback_to_osm = True
+
     rk.keep_time()
 
 

@@ -9,6 +9,7 @@ from abc import abstractmethod, ABC
 import openpilot.cereal.messaging as messaging
 from openpilot.common.params import Params
 from openpilot.common.constants import CV
+from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.car.cruise import V_CRUISE_UNSET
 from openpilot.sunnypilot.navd.helpers import coordinate_from_param
 
@@ -56,6 +57,23 @@ class BaseMapData(ABC):
     live_map_data.speedLimitAhead = next_speed_limit
     live_map_data.speedLimitAheadDistance = next_speed_limit_distance
     live_map_data.roadName = self.get_current_road_name()
+
+    # Curve speed is an optional provider capability - the offline OSM provider has
+    # no route geometry and does not implement it - so probe rather than declaring it
+    # abstract. A provider that lacks it publishes "no constraint", which is the same
+    # thing it would publish on a straight road. `valid` is the flag consumers read;
+    # a zero speed with valid=False must never be treated as a stop.
+    curve_speed, curve_distance = 0.0, 0.0
+    get_curve = getattr(self, "get_curve_speed_and_distance", None)
+    if get_curve is not None:
+      try:
+        curve_speed, curve_distance = get_curve()
+      except Exception as e:
+        cloudlog.warning(f"map_data: failed to read curve speed: {e}")
+        curve_speed, curve_distance = 0.0, 0.0
+    live_map_data.curveSpeedValid = bool(MAX_SPEED_LIMIT > curve_speed > 0 and curve_distance > 0)
+    live_map_data.curveSpeed = curve_speed
+    live_map_data.curveSpeedDistance = curve_distance
 
     self.pm.send('liveMapDataSP', mapd_sp_send)
 

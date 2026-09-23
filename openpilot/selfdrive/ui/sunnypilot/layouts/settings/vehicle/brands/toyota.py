@@ -21,8 +21,20 @@ DESCRIPTIONS = {
     'sunnypilot will not take over control of gas and brakes. Factory Toyota longitudinal control will be used.'
   ),
   'stop_and_go_hack': tr_noop(
-    'sunnypilot will allow some Toyota/Lexus cars to auto resume during stop and go traffic. ' +
+    'sunnypilot will allow some Toyota/Lexus cars to auto resume during stop and go traffic. '
     'This feature is only applicable to certain models that are able to use longitudinal control. This is an alpha feature. Use at your own risk.'
+  ),
+  'auto_hold': tr_noop(
+    'Use the vehicle\'s auto brake hold feature on supported TSS2 hybrid Toyotas.'
+  ),
+  'enhanced_bsm': tr_noop(
+    'Enable enhanced blind-spot monitoring behavior for certain Prius TSS2 and TSS-P Toyotas.'
+  ),
+  'tss2_long': tr_noop(
+    'Use a custom longitudinal tuning profile for TSS2 Toyota vehicles.'
+  ),
+  'drive_mode': tr_noop(
+    'Link the Toyota drive-mode button (ECO/NORMAL/SPORT) into sunnypilot logic.'
   ),
 }
 
@@ -47,9 +59,45 @@ class ToyotaSettings(BrandSettings):
       enabled=lambda: not ui_state.engaged,
     )
 
+    self.auto_hold = toggle_item_sp(
+      lambda: tr("Toyota: Auto Brake Hold FOR TSS2 HYBRID CARS"),
+      description=lambda: tr(DESCRIPTIONS["auto_hold"]),
+      initial_state=ui_state.params.get_bool("ToyotaAutoHold"),
+      callback=lambda state: self._on_simple_toyota_toggle("ToyotaAutoHold", state),
+      enabled=lambda: not ui_state.engaged,
+    )
+
+    self.enhanced_bsm = toggle_item_sp(
+      lambda: tr("Toyota: Prius TSS2 BSM and some tssp"),
+      description=lambda: tr(DESCRIPTIONS["enhanced_bsm"]),
+      initial_state=ui_state.params.get_bool("ToyotaEnhancedBsm"),
+      callback=lambda state: self._on_simple_toyota_toggle("ToyotaEnhancedBsm", state),
+      enabled=lambda: not ui_state.engaged,
+    )
+
+    self.tss2_long = toggle_item_sp(
+      lambda: tr("Toyota: custom longitudinal for TSS2"),
+      description=lambda: tr(DESCRIPTIONS["tss2_long"]),
+      initial_state=ui_state.params.get_bool("ToyotaTSS2Long"),
+      callback=lambda state: self._on_simple_toyota_toggle("ToyotaTSS2Long", state),
+      enabled=lambda: not ui_state.engaged,
+    )
+
+    self.drive_mode = toggle_item_sp(
+      lambda: tr("Enable drive mode btn link"),
+      description=lambda: tr(DESCRIPTIONS["drive_mode"]),
+      initial_state=ui_state.params.get_bool("ToyotaDriveMode"),
+      callback=lambda state: self._on_simple_toyota_toggle("ToyotaDriveMode", state),
+      enabled=lambda: not ui_state.engaged,
+    )
+
     self.items = [
       self.enforce_stock_longitudinal,
       self.stop_and_go_hack,
+      self.auto_hold,
+      self.enhanced_bsm,
+      self.tss2_long,
+      self.drive_mode,
     ]
 
   def _on_enable_enforce_stock_longitudinal(self, state: bool):
@@ -74,6 +122,10 @@ class ToyotaSettings(BrandSettings):
     else:
       ui_state.params.put_bool("ToyotaEnforceStockLongitudinal", False)
       ui_state.params.put_bool("OnroadCycleRequested", True)
+
+  def _on_simple_toyota_toggle(self, param: str, state: bool):
+    ui_state.params.put_bool(param, state)
+    ui_state.params.put_bool("OnroadCycleRequested", True)
 
   def _on_enable_stop_and_go_hack(self, state: bool):
     if state:

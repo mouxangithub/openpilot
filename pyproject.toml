@@ -44,6 +44,8 @@ dependencies = [
 
   # these should be removed
   "pyzmq",
+  "shapely>=2.0",  # carrot navigation path resampling
+  "aiohttp>=3.8",  # carrot 7714 v2 WebSocket receiver
   "sentry-sdk",
   "setproctitle",
   "jeepney",

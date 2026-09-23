@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 
 import pyray as rl
 from openpilot.common.params import Params
-from openpilot.system.ui.lib.application import gui_app, MousePos, FontWeight, TextAlignment, TextAlignmentVertical
+from openpilot.system.ui.lib.application import gui_app, MousePos, FontWeight, TextAlignment, TextAlignmentVertical, font_fallback
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.sunnypilot.widgets.toggle import ToggleSP
 from openpilot.system.ui.widgets import Widget
@@ -16,7 +16,7 @@ from openpilot.system.ui.widgets.button import Button, ButtonStyle
 from openpilot.system.ui.widgets.label import gui_label
 from openpilot.system.ui.widgets.list_view import ListItem, ToggleAction, ItemAction, MultipleButtonAction, ButtonAction, \
                                                   _resolve_value, BUTTON_WIDTH, BUTTON_HEIGHT, TEXT_PADDING, DualButtonAction
-from openpilot.system.ui.widgets.scroller_tici import LineSeparator, LINE_COLOR, LINE_PADDING
+from openpilot.system.ui.widgets.scroller_tici import LineSeparator, LINE_COLOR, LINE_PADDING, Scroller
 from openpilot.system.ui.sunnypilot.lib.styles import style
 from openpilot.system.ui.sunnypilot.widgets.option_control import OptionControlSP, LABEL_WIDTH
 
@@ -46,7 +46,12 @@ class ButtonSP(Button):
     super()._update_state()
     if self.enabled:
       if self.is_pressed:
-        self._background_color = style.BUTTON_OFF_PRESSED
+        if self._button_style == ButtonStyle.PRIMARY:
+          self._background_color = style.ON_HOVER_BG_COLOR
+        else:
+          self._background_color = style.BUTTON_OFF_PRESSED
+      elif self._button_style == ButtonStyle.PRIMARY:
+        self._background_color = style.BUTTON_PRIMARY_COLOR
       else:
         self._background_color = style.BUTTON_ENABLED_OFF
     else:
@@ -409,3 +414,52 @@ class LineSeparatorSP(LineSeparator):
     rl.draw_line(int(self._rect.x) + LINE_PADDING, line_y,
                  int(self._rect.x + self._rect.width) - LINE_PADDING, line_y,
                  LINE_COLOR)
+
+
+class SectionHeadingSP(Widget):
+  """A titled divider used to group settings inside a list.
+
+  Non-interactive and non-focusable: it only labels the settings below it.
+  Deliberately reuses the existing description size (ITEM_DESC_FONT_SIZE) and
+  colour rather than introducing another font size, so a page stays within the
+  same type scale as the rest of the settings UI.
+  """
+
+  def __init__(self, label: str | Callable[[], str]):
+    super().__init__()
+    self._label = label
+    self._rect = rl.Rectangle(0, 0, 0, 0)
+
+  @property
+  def label(self) -> str:
+    return str(_resolve_value(self._label, ""))
+
+  @property
+  def _height(self) -> float:
+    return style.ITEM_DESC_FONT_SIZE + style.ITEM_PADDING * 2
+
+  def set_parent_rect(self, parent_rect: rl.Rectangle) -> None:
+    super().set_parent_rect(parent_rect)
+    self._rect.width = parent_rect.width
+    self._rect.height = self._height
+
+  def _render(self, _):
+    if not self.is_visible or self._parent_rect is None:
+      return
+    if (self._rect.y + self._rect.height) <= self._parent_rect.y or self._rect.y >= (self._parent_rect.y + self._parent_rect.height):
+      return
+
+    label = self.label
+    if not label:
+      return
+    # gui_app.font() is looked up per frame: it returns the CJK-capable OpFont for
+    # zh/ja/ko/th and rebuilds its cache on a language change.
+    font = gui_app.font(FontWeight.BOLD)
+    text_y = self._rect.y + style.ITEM_PADDING
+    rl.draw_text_ex(font_fallback(font, label), label,
+                    rl.Vector2(self._rect.x + style.ITEM_PADDING, text_y),
+                    style.ITEM_DESC_FONT_SIZE, 0, style.ITEM_DESC_TEXT_COLOR)
+
+
+def section_heading_sp(label: str | Callable[[], str]) -> SectionHeadingSP:
+  return SectionHeadingSP(label=label)
