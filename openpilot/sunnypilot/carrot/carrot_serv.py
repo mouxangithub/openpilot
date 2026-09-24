@@ -946,6 +946,24 @@ class CarrotServ:
   # ---- parameter refresh -------------------------------------------------- #
 
   def update_params(self) -> None:
+    # First-enable seeding: turning Carrot navigation on is the one action a user
+    # should have to take. Its map-deceleration sub-features default OFF (killswitch
+    # contract), so seed them ON exactly once here; each stays independently offable
+    # afterwards. Without this, enabling carrot silently did nothing until the user
+    # found and flipped three more switches.
+    if (self._params.get_bool("CarrotEnabled")
+        and not self._params.get_bool("CarrotNavFeaturesSeeded")):
+      try:
+        for _p in ("CarrotTrafficCongestionEnabled", "CarrotMapDecelEnabled",
+                   "AmapCurveSpeedEnabled"):
+          self._params.put_bool(_p, True)
+        self._params.put_bool("CarrotNavFeaturesSeeded", True)
+      except Exception:
+        # Seeding is a convenience; a store that cannot write (tests, read-only
+        # mounts) must not take down the control loop. The flag stays unset, so the
+        # next run retries.
+        pass
+
     """Refresh tuning parameters from UnifiedParams (throttled to 10 Hz)."""
     if (self._param_frame % 10) != 0:
       self._param_frame += 1

@@ -64,6 +64,7 @@ class _FakeUiState:
 _ui_mod.ui_state = _FakeUiState()
 sys.modules['openpilot.selfdrive.ui.ui_state'] = _ui_mod
 
+from openpilot.selfdrive.ui.sunnypilot.layouts.settings import navigation as page_module  # noqa: E402
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.navigation import NavigationLayout  # noqa: E402
 from openpilot.system.ui.widgets import DialogResult  # noqa: E402
 
@@ -114,16 +115,15 @@ def main() -> int:
 
   def exposes_live_params():
     expected = ['AmapMapDataEnabled', 'CarrotAmapBlindSpotEnabled', 'CarrotEnabled',
-                'CarrotNaviV2Enabled', 'CarrotWebEnabled', 'CarrotNavCruiseSpeedEnabled',
-                'AmapCurveSpeedEnabled', 'AmapTrafficLightHintEnabled']
+                'CarrotNaviV2Enabled', 'CarrotNavCruiseSpeedEnabled',
+                'AmapCurveSpeedEnabled', 'AmapTrafficLightHintEnabled', 'CarrotPanelOpacity']
     missing = [p for p in expected if p not in exposed]
     assert not missing, f'missing nav params: {missing}'
   check('exposes every live navigation param', exposes_live_params)
 
   def no_dead_or_webui_only_params():
-    """CarrotPanel* position the webui HUD; the native UI has no such panel."""
-    banned = ['CarrotCurveSpeedEnabled', 'CarrotHudInfoEnabled',
-              'CarrotPanelSide', 'CarrotPanelOpacity']
+    """Params that are registered but have no native UI consumer."""
+    banned = ['CarrotCurveSpeedEnabled', 'CarrotHudInfoEnabled', 'CarrotPanelSide']
     found = [p for p in banned if p in exposed]
     assert not found, f'dead / webui-only params exposed natively: {found}'
   check('excludes dead and webui-HUD-only params', no_dead_or_webui_only_params)
@@ -139,10 +139,11 @@ def main() -> int:
     assert not extra, f'native exposes params the webui nav panel does not: {extra}'
   check('native params are a subset of the webui panel', native_is_subset_of_webui)
 
-  def has_car_model_row():
+  def has_new_readout_rows():
     labels = [str(getattr(it, 'title', '')) for it in items]
-    assert any('Car Model' in l for l in labels), f'no Car Model row among {labels}'
-  check('shows the Car Model row', has_car_model_row)
+    assert any('Map Provider' in l for l in labels), f'no Map Provider row among {labels}'
+    assert any('Carrot Navi Debug' in l for l in labels), f'no Carrot Navi Debug row among {labels}'
+  check('shows Map Provider and Carrot Navi Debug rows', has_new_readout_rows)
 
   def gated_rows_follow_carrot_enabled():
     store['CarrotEnabled'] = True
@@ -169,6 +170,74 @@ def main() -> int:
     exposed = [p for p in (find_param(it) for it in items) if p]
     assert 'CarrotManUdpPort' not in exposed, 'CarrotManUdpPort is exposed natively again'
   check('the retired UDP port row is gone', port_row_is_gone)
+
+  def navi_debug_handles_every_param_shape():
+    """CarrotNaviDebug is a JSON param, so Params.get() returns a dict.
+
+    The callback originally assumed a str and did `raw.strip()`, which raised
+    AttributeError: 'dict' object has no attribute 'strip' the moment the user
+    opened the viewer on the device. Cover every shape the param can take, plus
+    the snapshot-only payload written by the 10 Hz writer (no `summary` key).
+    """
+    pushed = []
+    original_gui_app, original_alert = page_module.gui_app, page_module.alert_dialog
+    page_module.gui_app = types.SimpleNamespace(push_widget=pushed.append)
+    page_module.alert_dialog = lambda message, ok: message
+    try:
+      cases = {
+        'dict with summary': {'type': 'crossroad', 'eventTimeMs': 12, 'receivedAt': 'x', 'summary': {'a': 1}},
+        'dict snapshot only': {'activeSource': '7714', 'roadLimit': {'speedKph': 60}},
+        'empty dict': {},
+        'json string': '{"type": "x", "summary": {"b": 2}}',
+        'legacy text': 'raw payload',
+        'bytes': b'{"type": "y"}',
+        'none': None,
+      }
+      for name, raw in cases.items():
+        pushed.clear()
+        store['CarrotNaviDebug'] = raw
+        page._on_carrot_navi_debug()
+        assert pushed, f'{name}: nothing pushed'
+        assert isinstance(pushed[0], str) and pushed[0], f'{name}: non-string message {pushed[0]!r}'
+    finally:
+      page_module.gui_app = original_gui_app
+      page_module.alert_dialog = original_alert
+      store.pop('CarrotNaviDebug', None)
+  check('Carrot Navi Debug tolerates dict/str/bytes/None', navi_debug_handles_every_param_shape)
+
+  def carrot_web_dialog_has_a_params_handle():
+    """CarrotWebDialog read ui_state.params_memory, which UIState does not define.
+
+    UIState exposes `params` (a Params() handle). Tapping the Carrot Web sidebar
+    button therefore raised AttributeError and killed the whole UI process. Assert
+    the real UIState attribute exists and that the dialog only references names
+    that are actually available on it.
+    """
+    import ast
+    import re
+    ui_state_src = (REPO_ROOT / 'openpilot' / 'selfdrive' / 'ui' / 'ui_state.py').read_text(encoding='utf-8')
+    sp_state_src = (REPO_ROOT / 'openpilot' / 'selfdrive' / 'ui' / 'sunnypilot' / 'ui_state.py').read_text(encoding='utf-8')
+
+    defined: set[str] = set()
+    for src, class_name in ((ui_state_src, 'UIState'), (sp_state_src, 'UIStateSP')):
+      tree = ast.parse(src)
+      for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+          for stmt in ast.walk(node):
+            if isinstance(stmt, ast.Assign):
+              for target in stmt.targets:
+                if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name) and target.value.id == 'self':
+                  defined.add(target.attr)
+            elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Attribute):
+              if isinstance(stmt.target.value, ast.Name) and stmt.target.value.id == 'self':
+                defined.add(stmt.target.attr)
+
+    assert 'params' in defined, 'UIState/UIStateSP no longer assigns self.params'
+    src = (REPO_ROOT / 'openpilot' / 'selfdrive' / 'ui' / 'widgets' / 'carrot_web_dialog.py').read_text(encoding='utf-8')
+    referenced = set(re.findall(r'ui_state\.(\w+)', src))
+    missing = sorted(name for name in referenced if name not in defined)
+    assert not missing, f'carrot_web_dialog references UIState attributes that do not exist: {missing}'
+  check('Carrot Web dialog only uses real UIState attributes', carrot_web_dialog_has_a_params_handle)
 
   def every_string_translated():
     import re

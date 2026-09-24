@@ -14,6 +14,7 @@ from openpilot.selfdrive.ui.body.layouts.onroad import BodyLayout
 if gui_app.sunnypilot_ui():
   from openpilot.selfdrive.ui.sunnypilot.layouts.settings.settings import SettingsLayoutSP as SettingsLayout
   from openpilot.selfdrive.ui.sunnypilot.layouts.home import HomeLayoutSP as HomeLayout
+  from openpilot.selfdrive.ui.widgets.carrot_web_dialog import CarrotWebDialog
 
 
 class MainState(IntEnum):
@@ -61,6 +62,7 @@ class MainLayout(Widget):
   def _setup_callbacks(self):
     self._sidebar.set_callbacks(on_settings=self._on_settings_clicked,
                                 on_flag=self._on_bookmark_clicked,
+                                on_carrot_web=lambda: gui_app.push_widget(CarrotWebDialog()),
                                 open_settings=lambda: self.open_settings(PanelType.TOGGLES))
     self._layouts[MainState.HOME]._setup_widget.set_open_settings_callback(lambda: self.open_settings(PanelType.FIREHOSE))
     self._layouts[MainState.HOME].set_settings_callback(lambda: self.open_settings(PanelType.TOGGLES))

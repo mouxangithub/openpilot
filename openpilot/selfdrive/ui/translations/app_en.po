@@ -3917,6 +3917,38 @@ msgid ""
 "waiting for\n"
 "internet..."
 msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Carrot Nav Panel Opacity"
+msgstr "Carrot Nav Panel Opacity"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Opacity of the onroad Carrot navigation panel, in percent. Default 100."
+msgstr "Opacity of the onroad Carrot navigation panel, in percent. Default 100."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Map Provider"
+msgstr "Map Provider"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Current map data source used for speed limits and road names. Amap requires an API key to be set above."
+msgstr "Current map data source used for speed limits and road names. Amap requires an API key to be set above."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Carrot Navi Debug"
+msgstr "Carrot Navi Debug"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "View the last navigation event summary handled by CarrotManager."
+msgstr "View the last navigation event summary handled by CarrotManager."
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Amap"
+msgstr "Amap"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "No navigation event received yet."
+msgstr "No navigation event received yet."
 "waiting for\n"
 "internet..."
 

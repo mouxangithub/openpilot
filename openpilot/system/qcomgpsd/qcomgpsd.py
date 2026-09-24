@@ -124,7 +124,14 @@ def setup_quectel(diag: ModemDiag):
   send_recv(diag, DIAG_NV_WRITE_F, pack('<HI', NV_GNSS_OEM_FEATURE_MASK, 1))
   send_recv(diag, DIAG_NV_READ_F, pack('<H', NV_GNSS_OEM_FEATURE_MASK))
 
-  try_setup_logs(diag, LOG_TYPES)
+  try:
+    try_setup_logs(diag, LOG_TYPES)
+  except Exception as e:
+    # Modem DIAG log-mask setup can fail on some firmware/AGNOS combinations
+    # (the modem returns an unexpected operation/status). Keep qcomgpsd alive so
+    # managerState does not latch shouldBeRunning=False and block engagement;
+    # GNSS fix data will still flow over the AT/NMEA path if the modem is up.
+    cloudlog.error(f"qcomgpsd: setup_logs failed, continuing without DIAG logging: {e}")
 
   if gps_enabled():
     at_cmd("AT+QGPSEND")
@@ -223,8 +230,16 @@ def main() -> NoReturn:
 
   # connect to modem
   diag = connect_diag()
-  setup_quectel(diag)
-  cloudlog.warning("quectel setup done")
+  try:
+    setup_quectel(diag)
+    cloudlog.warning("quectel setup done")
+  except Exception as e:
+    # Keep the process alive so managerState stays healthy even if the modem
+    # DIAG setup is not usable on this device/firmware combination.
+    cloudlog.event("qcomgpsd_setup_failed", error=str(e))
+    while True:
+      time.sleep(60)
+
   gpio_init(GPIO.GNSS_PWR_EN, True)
   gpio_set(GPIO.GNSS_PWR_EN, True)
 

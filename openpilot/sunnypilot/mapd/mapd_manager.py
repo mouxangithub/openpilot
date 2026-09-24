@@ -20,6 +20,7 @@ from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.sunnypilot.mapd.live_map_data.base_map_data import BaseMapData
 from openpilot.sunnypilot.mapd.live_map_data.osm_map_data import OsmMapData
 from openpilot.sunnypilot.mapd.live_map_data.amap_map_data import AmapMapData
+from openpilot.sunnypilot.mapd.live_map_data.no_map_data import NoMapData
 from openpilot.common.hardware.hw import Paths
 from openpilot.sunnypilot.mapd import MAPD_PATH
 from openpilot.sunnypilot.mapd.mapd_installer import VERSION, update_installed_version
@@ -223,17 +224,31 @@ def update_osm_db() -> None:
 def _amap_map_data_enabled() -> bool:
   """Return True when the Amap Web API map-data provider should be used.
 
-  New installs use ``AmapMapDataEnabled``. For backward compatibility we also
-  honour the legacy ``AmapEnabled`` switch when the new param has not been set
-  yet (one-time migration).
+  The legacy ``AmapEnabled`` switch is migrated once, guarded by
+  ``AmapLegacyMigrated``. Without that guard the migration re-ran on every start and
+  read ``AmapEnabled`` again, so turning Amap OFF had no lasting effect: the next start
+  wrote ``AmapMapDataEnabled`` back to True. That is why the switch appeared not to work.
   """
   if params.get_bool("AmapMapDataEnabled"):
     return True
-  if params.get_bool("AmapEnabled"):
-    # Migrate legacy switch to the new, semantically-correct param.
-    params.put_bool("AmapMapDataEnabled", True)
-    return True
+  if not params.get_bool("AmapLegacyMigrated"):
+    # One-time: adopt the legacy value, then never consult it again.
+    if params.get_bool("AmapEnabled"):
+      params.put_bool("AmapMapDataEnabled", True)
+      params.put_bool("AmapLegacyMigrated", True)
+      return True
+    params.put_bool("AmapLegacyMigrated", True)
   return False
+
+
+def _osm_map_data_enabled() -> bool:
+  """Return True when the offline OSM provider may be used.
+
+  Defaults to enabled when the param is absent so existing installs are unchanged.
+  """
+  if params.get("OsmMapDataEnabled") is None:
+    return True
+  return params.get_bool("OsmMapDataEnabled")
 
 
 def _select_map_provider() -> BaseMapData:
@@ -247,7 +262,10 @@ def _select_map_provider() -> BaseMapData:
     if api_key:
       cloudlog.info("mapd: using Amap online provider")
       return AmapMapData()
-    cloudlog.warning("mapd: Amap map data enabled but no AmapApiKey set; falling back to OSM")
+    cloudlog.warning("mapd: Amap map data enabled but no AmapApiKey set; using OSM if allowed")
+  if not _osm_map_data_enabled():
+    cloudlog.info("mapd: OSM map data disabled; no map-data provider this session")
+    return NoMapData()
   cloudlog.info("mapd: using OSM offline provider")
   return OsmMapData()
 
@@ -294,12 +312,25 @@ def main_thread():
       params.remove("Mapd_ClearCache")
 
     # If the user changed the Amap map-data switch, recreate the provider.
-    if isinstance(live_map_sp, OsmMapData) and _amap_map_data_enabled() and _provider_has_key(live_map_sp):
+    # NOTE: this branch used to test `_provider_has_key(live_map_sp)` while
+    # live_map_sp was still the OSM provider. _provider_has_key requires
+    # isinstance(provider, AmapMapData), so it was always False and OSM could never
+    # switch to Amap at runtime - the API key just was not visible from that object.
+    # The key lives in Params, so read it directly.
+    if isinstance(live_map_sp, OsmMapData) and _amap_map_data_enabled() and bool(params.get("AmapApiKey")):
       cloudlog.info("mapd: switching from OSM to Amap online provider")
       live_map_sp = AmapMapData()
       amap_fallback_to_osm = False
     elif isinstance(live_map_sp, AmapMapData) and not _amap_map_data_enabled():
-      cloudlog.info("mapd: Amap map data disabled; switching to OSM")
+      cloudlog.info("mapd: Amap map data disabled; switching to OSM if allowed")
+      live_map_sp = OsmMapData() if _osm_map_data_enabled() else NoMapData()
+      amap_fallback_to_osm = False
+    elif isinstance(live_map_sp, OsmMapData) and not _osm_map_data_enabled():
+      cloudlog.info("mapd: OSM map data disabled; switching off map data")
+      live_map_sp = NoMapData()
+      amap_fallback_to_osm = False
+    elif isinstance(live_map_sp, NoMapData) and _osm_map_data_enabled():
+      cloudlog.info("mapd: OSM map data re-enabled")
       live_map_sp = OsmMapData()
       amap_fallback_to_osm = False
 
@@ -310,8 +341,12 @@ def main_thread():
     # Amap failure fallback: if we have been running Amap for a while and it
     # still returns no usable data, fall back to OSM for this session.
     if isinstance(live_map_sp, AmapMapData) and not amap_fallback_to_osm and not _amap_provider_healthy(live_map_sp):
-      cloudlog.warning("mapd: Amap provider returned no usable data; falling back to OSM for this session")
-      live_map_sp = OsmMapData()
+      if _osm_map_data_enabled():
+        cloudlog.warning("mapd: Amap provider returned no usable data; falling back to OSM for this session")
+        live_map_sp = OsmMapData()
+      else:
+        cloudlog.warning("mapd: Amap provider returned no usable data and OSM is disabled; no map data")
+        live_map_sp = NoMapData()
       amap_fallback_to_osm = True
 
     rk.keep_time()

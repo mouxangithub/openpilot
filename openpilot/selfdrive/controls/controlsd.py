@@ -46,7 +46,10 @@ class Controls(ControlsExt):
 
     self.sm = messaging.SubMaster(['lateralDelay', 'vehicleParameters', 'lateralTorqueParameters', 'modelV2', 'selfdriveState',
                                    'extrinsicsCalibration', 'deviceMotion', 'longitudinalPlan', 'lateralManeuverPlan', 'carState', 'carOutput',
-                                   'driverMonitoringState', 'onroadEvents', 'driverAssistance'] + self.sm_services_ext,
+                                   'driverMonitoringState', 'onroadEvents', 'driverAssistance',
+                                   # carrot navigation state, surfaced on HUDControl for brand
+                                   # controllers that show it (Hyundai camera-deceleration haptic).
+                                   'carrotManSP'] + self.sm_services_ext,
                                   poll='selfdriveState')
     self.pm = messaging.PubMaster(['carControl', 'controlsState'] + self.pm_services_ext)
 
@@ -195,6 +198,18 @@ class Controls(ControlsExt):
     hudControl.leadVisible = self.sm['longitudinalPlan'].hasLead
     hudControl.leadDistanceBars = self.sm['selfdriveState'].personality.raw + 1
     hudControl.visualAlert = self.sm['selfdriveState'].alertHudVisual
+
+    # Carrot navigation state for the brand controllers that present it. These are
+    # read-only presentation values (HUDControl, not Actuators) - they let a carcontroller
+    # react to "carrot is decelerating for a hazard" without giving carrot a control path.
+    # Guarded on validity because carrot_man may not be running at all.
+    if self.sm.valid.get('carrotManSP', False):
+      carrot = self.sm['carrotManSP']
+      hudControl.activeCarrot = int(getattr(carrot, 'activeCarrot', 0) or 0)
+      hudControl.atcDistance = float(getattr(carrot, 'xDistToTurn', 0) or 0)
+    else:
+      hudControl.activeCarrot = 0
+      hudControl.atcDistance = 0.0
 
     hudControl.rightLaneVisible = True
     hudControl.leftLaneVisible = True

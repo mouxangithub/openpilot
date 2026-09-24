@@ -351,6 +351,13 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AmapApiKey", {PERSISTENT | DONT_LOG, STRING}},
     // Use Amap (Gaode) online Web API for speed limits / road names.
     {"AmapMapDataEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    // OSM offline map data. Off means "do not use the offline map for speed limits
+    // or road names", so a user who relies on Amap or carrot can silence the
+    // offline fallback. Default 1 keeps existing behaviour.
+    {"OsmMapDataEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
+    // Set once the legacy AmapEnabled switch has been migrated, so the migration
+    // cannot run again and silently re-enable Amap after the user disabled it.
+    {"AmapLegacyMigrated", {PERSISTENT, BOOL, "0"}},
     // Parse 7706 UDP blind-spot / LiDAR / extBlinker fields (AmapNaviServ).
     {"CarrotAmapBlindSpotEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CarrotEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
@@ -384,12 +391,31 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // cp tuning alignment: params present in CarrotPilot settings but newly
     // registered here so webui read/reset works and defaults match cp.
     {"CruiseGapLevels", {PERSISTENT | BACKUP, INT, "4"}},
+    // How many follow-gap levels the vehicle exposes (3 or 4). Read by
+    // sunnypilot CruiseHelper when the distance button cycles the gap; spans the
+    // cluster personality range. Same default as cp.
+    {"LongitudinalPersonalityMax", {PERSISTENT | BACKUP, INT, "3"}},
+    // Restored with the VCruiseCarrot port (cp L7). These were removed in the dead-key
+    // cleanup because nothing read them; VCruiseCarrot is their reader.
+    {"AutoCruiseControl", {PERSISTENT | BACKUP, INT, "0"}},
+    {"AutoGasCancelSpeed", {PERSISTENT | BACKUP, INT, "30"}},
+    {"AutoGasTokSpeed", {PERSISTENT | BACKUP, INT, "0"}},
+    {"PaddleMode", {PERSISTENT | BACKUP, INT, "0"}},
+    {"SoftHoldOnCancel", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"UseLaneLineSpeed", {PERSISTENT | BACKUP, INT, "0"}},
+    // New with L7.
+    {"ActivateCruiseAfterBrake", {CLEAR_ON_MANAGER_START, INT, "0"}},
+    {"AutoRoadSpeedAdjust", {PERSISTENT | BACKUP, INT, "50"}},
+    {"AutoSpeedUptoRoadSpeedLimit", {PERSISTENT | BACKUP, INT, "0"}},
     {"LeadAccelResponseTF1", {PERSISTENT | BACKUP, INT, "-1"}},
     {"LeadAccelResponseTF2", {PERSISTENT | BACKUP, INT, "-1"}},
     {"LeadAccelResponseTF3", {PERSISTENT | BACKUP, INT, "-1"}},
     {"LeadAccelResponseTF4", {PERSISTENT | BACKUP, INT, "-1"}},
     {"AutoNaviRearCameraHoldDistance", {PERSISTENT | BACKUP, INT, "100"}},
-    {"CanfdStopRetry", {PERSISTENT | BACKUP, BOOL, "0"}},
+    // Removed: carrot keys for opendbc-layer features this fork has not ported.
+    // They were registered (and some drawn in a UI) but no code in this tree read them,
+    // so the knob advertised a feature that did not exist. See artifacts/carrot_control_audit/
+    // cp_sp_opendbc_integration_gaps_2026-09-23.md for what each one would need.
     {"CruiseMaxVals0", {PERSISTENT | BACKUP, INT, "160"}},
     {"CruiseMaxVals1", {PERSISTENT | BACKUP, INT, "160"}},
     {"CruiseMaxVals2", {PERSISTENT | BACKUP, INT, "120"}},
@@ -429,6 +455,40 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // speed table, and the route-curvature speed. Folds into SmartCruiseControlMap
     // (which must ALSO be on for it to actuate, same as the congestion cap).
     {"CarrotMapDecelEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
+    // One-shot: the first time Carrot navigation is enabled, its map-deceleration
+    // sub-features (congestion / map-decel / Amap curve) are seeded ON so the user
+    // does not have to find three more switches. Each stays independently offable
+    // afterwards - they are killswitches, not prerequisites.
+    {"CarrotNavFeaturesSeeded", {PERSISTENT, BOOL, "0"}},
+    {"HapticFeedbackWhenSpeedCamera", {PERSISTENT, INT, "0"}},
+    // Published by networkd; the Carrot web dialog reads it for the QR link.
+    {"NetworkAddress", {CLEAR_ON_MANAGER_START, STRING}},
+    // Registered after the unregistered-reads audit: these BYD-platform and lateral
+    // tuning reads were live code with no registration, so no UI or whitelist could
+    // ever reach them. Defaults are 0 - the carcontroller's own per-platform
+    // fallbacks keep governing exactly as before; nothing changes until a value is
+    // actually written.
+    {"BydBsdType2", {PERSISTENT, BOOL, "0"}},
+    {"BydLatUseSiglin", {PERSISTENT, BOOL, "0"}},
+    {"BydLowSpdLong", {PERSISTENT, BOOL, "0"}},
+    {"BydModifiedStockLong", {PERSISTENT, BOOL, "0"}},
+    {"BydMpcTsr", {PERSISTENT, BOOL, "0"}},
+    {"EnableExtRadar", {PERSISTENT, BOOL, "0"}},
+    {"UseRedPanda", {PERSISTENT, BOOL, "0"}},
+    {"LateralAngleSpdBp1", {PERSISTENT, INT, "0"}},
+    {"LateralAngleSpdBp2", {PERSISTENT, INT, "0"}},
+    {"LateralAngleSpdDn0", {PERSISTENT, INT, "0"}},
+    {"LateralAngleSpdDn1", {PERSISTENT, INT, "0"}},
+    {"LateralAngleSpdDn2", {PERSISTENT, INT, "0"}},
+    {"LateralAngleSpdUp0", {PERSISTENT, INT, "0"}},
+    {"LateralAngleSpdUp1", {PERSISTENT, INT, "0"}},
+    {"LateralAngleSpdUp2", {PERSISTENT, INT, "0"}},
+    {"LateralAngleTorqCut", {PERSISTENT, INT, "0"}},
+    {"LateralAngleTorqMax", {PERSISTENT, INT, "0"}},
+    {"SpeedCorrect120", {PERSISTENT, INT, "0"}},
+    {"SpeedCorrect30", {PERSISTENT, INT, "0"}},
+    {"SpeedCorrect60", {PERSISTENT, INT, "0"}},
+    {"SpeedCorrect90", {PERSISTENT, INT, "0"}},
     {"CarrotNavLaneGuideBlockEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},   // let 7706 navLaneGuide block non-guided adjacent lanes
     {"AmapCurveSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},            // use Amap Web polyline for curve speed
     {"AmapTrafficLightHintEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},      // use Amap Web traffic-light hints
@@ -522,9 +582,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LongTuningKpV", {PERSISTENT | BACKUP, INT, "100"}},
     {"TFollowDecelBoost", {PERSISTENT | BACKUP, INT, "0"}},
     // Carrot cruise / acceleration tuning surface.
-    {"AutoCruiseControl", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CarrotCruiseAtcDecel", {PERSISTENT | BACKUP, INT, "-1"}},
-    {"CarrotCruiseDecel", {PERSISTENT | BACKUP, INT, "-1"}},
     {"CruiseButtonLongDelay", {PERSISTENT | BACKUP, INT, "40"}},
     {"CruiseButtonMode", {PERSISTENT | BACKUP, INT, "0"}},
     {"CruiseOnDist", {PERSISTENT | BACKUP, INT, "0"}},
@@ -538,10 +595,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // Carrot speed limits / road speed tuning surface.
     {"SpeedFromPCM", {PERSISTENT | BACKUP, INT, "0"}},
     // Carrot traffic stop / lights tuning surface.
-    {"HapticFeedbackWhenSpeedCamera", {PERSISTENT | BACKUP, INT, "0"}},
     {"TrafficStopDistanceAdjust", {PERSISTENT | BACKUP, INT, "-150"}},
     // Carrot lane change / blinker / lane-line tuning surface.
-    {"LaneChangeBsd", {PERSISTENT | BACKUP, INT, "0"}},
     {"LaneChangeDelay", {PERSISTENT | BACKUP, INT, "0"}},
     {"LaneChangeNeedTorque", {PERSISTENT | BACKUP, INT, "0"}},
     {"LaneLineCheck", {PERSISTENT | BACKUP, INT, "0"}},
@@ -549,15 +604,9 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"OnnxBsdSmoothingMs", {PERSISTENT | BACKUP, INT, "200"}},
     {"OnnxBsdThreshold", {PERSISTENT | BACKUP, INT, "45"}},
     {"UseLaneLineCurveSpeed", {PERSISTENT | BACKUP, INT, "0"}},
-    {"UseLaneLineSpeed", {PERSISTENT | BACKUP, INT, "0"}},
     // Carrot steering / lateral tuning surface.
     {"AlwaysLateral", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CustomSR", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CustomSteerDeltaDown", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CustomSteerDeltaDownLC", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CustomSteerDeltaUp", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CustomSteerDeltaUpLC", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CustomSteerMax", {PERSISTENT | BACKUP, INT, "0"}},
     {"LatMpcAccelCost", {PERSISTENT | BACKUP, INT, "100"}},
     {"LatMpcJerkCost", {PERSISTENT | BACKUP, INT, "1"}},
     {"LatMpcMotionCost", {PERSISTENT | BACKUP, INT, "7"}},
@@ -573,25 +622,16 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"SteerActuatorDelay", {PERSISTENT | BACKUP, INT, "30"}},
     {"SteerRatioRate", {PERSISTENT | BACKUP, INT, "100"}},
     // Carrot vehicle / CAN / buttons tuning surface.
-    {"AutoGasCancelSpeed", {PERSISTENT | BACKUP, INT, "30"}},
     {"AutoGasSyncSpeed", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"AutoGasTokSpeed", {PERSISTENT | BACKUP, INT, "0"}},
     {"CancelButtonMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"LfaButtonMode", {PERSISTENT | BACKUP, INT, "0"}},
-    {"PaddleMode", {PERSISTENT | BACKUP, INT, "1"}},
     // Carrot misc driving tuning surface.
     {"ApplyModelSpeed", {PERSISTENT | BACKUP, INT, "0"}},
     {"AutoEngage", {PERSISTENT | BACKUP, INT, "0"}},
-    {"SoftHoldOnCancel", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"VEgoStopping", {PERSISTENT | BACKUP, INT, "50"}},
     // Carrot tuning surface: parameters present in config.py but previously
     // unregistered in params_keys.h. Registering them lets UnifiedParams write
     // directly to the cross-process Params store instead of nav_params.json.
-    {"AdjustLaneOffset", {PERSISTENT | BACKUP, INT, "0"}},
     {"CameraYawTrimDeg", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CanfdDebug", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"CanfdHDA2", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"CarrotTireTrajectory", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CarrotYouTubeLive", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CarrotYouTubeQuality", {PERSISTENT | BACKUP, INT, "0"}},
     {"CarrotYouTubeTimestamp", {PERSISTENT | BACKUP, BOOL, "0"}},
@@ -611,23 +651,13 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ClusterHudRadarSourceColor", {PERSISTENT | BACKUP, INT, "0"}},
     {"ClusterHudScreenMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ClusterHudTheme", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CruiseButtonTest1", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CruiseButtonTest2", {PERSISTENT | BACKUP, INT, "0"}},
-    {"CruiseButtonTest3", {PERSISTENT | BACKUP, INT, "0"}},
-    {"DisableMinSteerSpeed", {PERSISTENT | BACKUP, INT, "0"}},
-    {"EnableCornerRadar", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"EnableRadarTracks", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"EnableSpeedTF", {PERSISTENT | BACKUP, INT, "0"}},
-    {"HDPuse", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"HardwareC3xLite", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"HotspotOnBoot", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"HyundaiCameraSCC", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"IsLdwsCar", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"LatMpcInputOffset", {PERSISTENT | BACKUP, INT, "4"}},
     {"LatSmoothSec", {PERSISTENT | BACKUP, INT, "13"}},
     {"LateralTorqueAccelFactor", {PERSISTENT | BACKUP, INT, "2500"}},
     {"MapboxStyle", {PERSISTENT | BACKUP, INT, "0"}},
-    {"MaxAngleFrames", {PERSISTENT | BACKUP, INT, "89"}},
     {"MuteDoor", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MuteSeatbelt", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"OnnxLaneIntervalMs", {PERSISTENT | BACKUP, INT, "400"}},

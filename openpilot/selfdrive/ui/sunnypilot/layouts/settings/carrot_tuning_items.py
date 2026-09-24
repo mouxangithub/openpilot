@@ -28,6 +28,21 @@ def build_start_items():
 
 def build_cruise_items():
   return [
+    section_heading_sp(tr('Cruise Buttons & Speed')),
+    option_item_sp(title=tr('Cruise Speed Unit'), param='CruiseSpeedUnit', min_value=1, max_value=20, value_change_step=1),
+    option_item_sp(title=tr('Cruise Speed Unit (Basic)'), param='CruiseSpeedUnitBasic', min_value=1, max_value=20, value_change_step=1),
+    option_item_sp(title=tr('Cruise Speed 1'), param='CruiseSpeed1', min_value=0, max_value=200, value_change_step=1),
+    option_item_sp(title=tr('Cruise Speed 2'), param='CruiseSpeed2', min_value=0, max_value=200, value_change_step=1),
+    option_item_sp(title=tr('Cruise Speed 3'), param='CruiseSpeed3', min_value=0, max_value=200, value_change_step=1),
+    option_item_sp(title=tr('Cruise Speed 4'), param='CruiseSpeed4', min_value=0, max_value=200, value_change_step=1),
+    option_item_sp(title=tr('Cruise Speed 5'), param='CruiseSpeed5', min_value=0, max_value=200, value_change_step=1),
+    option_item_sp(title=tr('Cruise Button Mode'), param='CruiseButtonMode', min_value=0, max_value=3, value_change_step=1),
+    option_item_sp(title=tr('Cruise Button Long Delay'), param='CruiseButtonLongDelay', min_value=10, max_value=100, value_change_step=1),
+    option_item_sp(title=tr('Cancel Button Mode'), param='CancelButtonMode', min_value=0, max_value=3, value_change_step=1),
+    option_item_sp(title=tr('LFA Button Mode'), param='LfaButtonMode', min_value=0, max_value=2, value_change_step=1),
+    option_item_sp(title=tr('Cruise On Distance'), param='CruiseOnDist', min_value=0, max_value=200, value_change_step=1),
+    option_item_sp(title=tr('Apply Model Speed'), param='ApplyModelSpeed', min_value=0, max_value=100, value_change_step=1),
+    option_item_sp(title=tr('Auto Engage'), param='AutoEngage', min_value=0, max_value=2, value_change_step=1),
     section_heading_sp(tr('Following Distance')),
     option_item_sp(title=tr('Follow Time Gap 1'), param='TFollowGap1', min_value=50, max_value=300, value_change_step=5,
                    use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f}s'),
@@ -51,7 +66,8 @@ def build_cruise_items():
 def build_navi_items():
   return [
     section_heading_sp(tr('Navigation Speed Control')),
-    option_item_sp(title=tr('Navigation Speed Ctrl Mode'), param='AutoNaviSpeedCtrlMode', min_value=0, max_value=3, value_change_step=1,
+        option_item_sp(title=tr('Cruise Gap Levels'), param='CruiseGapLevels', min_value=2, max_value=4, value_change_step=1),
+option_item_sp(title=tr('Navigation Speed Ctrl Mode'), param='AutoNaviSpeedCtrlMode', min_value=0, max_value=3, value_change_step=1,
                    description=tr('0=Off, 1=Limit to nav speed, 2=Limit with early decel.')),
     option_item_sp(title=tr('Navigation Speed Decel Rate'), param='AutoNaviSpeedDecelRate', min_value=0, max_value=500, value_change_step=10),
     option_item_sp(title=tr('Navigation Speed Safety Factor'), param='AutoNaviSpeedSafetyFactor', min_value=50, max_value=150, value_change_step=5,

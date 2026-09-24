@@ -564,6 +564,22 @@ struct CarStateSP @0xb86e6369214c01c8 {
   # the 7714 lane hints above.
   carrotLeftBlindHint @4 :Bool;
   carrotRightBlindHint @5 :Bool;
+
+  # VW two-stage stalk swipe latch (GRA_Tip_Stufe_2).
+  #
+  # VCruiseCarrot reads this in _prepare_buttons to distinguish a short press from
+  # a stage-2 swipe, which maps to an immediate +/-10 on release. It previously read
+  # it off carState, where the field does not exist in opendbc's CarState schema, so
+  # the first button press crashed card.py with
+  # `AttributeError: capnp ... struct has no such member; name = cruiseSpeedBigStep`.
+  # It lives here (fork-only CarStateSP) rather than in opendbc because it is a
+  # cp/Carrot behaviour bit, not a safety-relevant stock signal.
+  #
+  # No publisher fills it yet: mqbcan.create_acc_buttons_control currently only
+  # echoes GRA_Tip_Stufe_2 back to the car without decoding it. Until a VW
+  # CarState decodes it, this stays false and VCruiseCarrot treats every press as
+  # a short press, which is the pre-existing behaviour.
+  carrotCruiseSpeedBigStep @6 :Bool;
 }
 
 struct LiveMapDataSP @0xf416ec09499d9d19 {
@@ -763,6 +779,15 @@ struct CarrotManSP @0xcd96dafb67a082d0 {
   vTurnSpeedMs @70 :Float32 = 0;
   routeSpeed @71 :Float32 = 0;
   routeDist @72 :Float32 = 0;
+
+  # Readable form of `desiredSource` plus its colour class, so every consumer shows
+  # the same thing instead of re-deriving a mapping. `desiredSource` is the internal
+  # token ("atc", "hda_section", ...); `desiredSourceLabel` is the driver-facing
+  # reason ("turn", "section") and `desiredSourceColor` is the HUD colour mode
+  # (2 = normal deceleration, 3 = vehicle CAN navigation, 4 = external navigation).
+  # Mapping lives in openpilot/sunnypilot/carrot/deceleration_source.py.
+  desiredSourceLabel @73 :Text = "";
+  desiredSourceColor @74 :Int32 = 0;
 }
 
 struct ImuCalibrationSP @0xb057204d7deadf3f {

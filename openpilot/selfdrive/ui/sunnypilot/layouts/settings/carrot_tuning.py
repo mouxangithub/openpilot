@@ -21,8 +21,9 @@ from enum import IntEnum
 import pyray as rl
 
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings import carrot_tuning_items as carrot_items
+from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
-from openpilot.system.ui.sunnypilot.widgets.list_view import ButtonActionSP, LineSeparatorSP, ListItemSP
+from openpilot.system.ui.sunnypilot.widgets.list_view import ButtonActionSP, LineSeparatorSP, ListItemSP, toggle_item_sp
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.network import NavButton
 from openpilot.system.ui.widgets.scroller_tici import Scroller
@@ -138,22 +139,35 @@ class CarrotGroupLayout(Widget):
 
 
 class CarrotTuningLayout(Widget):
-  """Carrot tuning root page: one navigation row per settings group."""
+  """Carrot tuning root page: one navigation row per settings group.
 
-  def __init__(self, back_btn_callback: Callable):
+  Used in two places: inside NavigationLayout (with a Back button) and as a
+  top-level settings panel (no Back button, because the sidebar close button is the
+  way out). ``back_btn_callback=None`` selects the panel form.
+  """
+
+  def __init__(self, back_btn_callback: Callable | None):
     super().__init__()
-    self._back_button = NavButton(tr("Back"))
-    self._back_button.set_click_callback(back_btn_callback)
+    self._back_button = NavButton(tr("Back")) if back_btn_callback is not None else None
+    if self._back_button is not None:
+      self._back_button.set_click_callback(back_btn_callback)
+
+    self._carrot_web_enabled = toggle_item_sp(
+      title=tr("Carrot Web Panel"),
+      description=tr("Serve the carrot tuning page (/nav_params) and four-corner radar "
+                      "visualisation (/radar) on port 8088."),
+      param="CarrotWebEnabled",
+    )
 
     self._current_group: CarrotGroupKey | None = None
     # Sub-pages are built on first open: the groups hold ~250 items in total and
     # there is no reason to allocate them all when the page is only passed through.
     self._group_layouts: dict[CarrotGroupKey, CarrotGroupLayout] = {}
     self._nav_rows: list = []
-    self._scroller = Scroller(self._build_nav_rows(), line_separator=False, spacing=0)
+    self._scroller = Scroller(self._build_root_items(), line_separator=False, spacing=0)
 
-  def _build_nav_rows(self) -> list:
-    rows: list = []
+  def _build_root_items(self) -> list:
+    items: list = [self._carrot_web_enabled, LineSeparatorSP(40)]
     # strict=True doubles as the check that CARROT_GROUPS has one entry per key.
     groups = list(zip(CarrotGroupKey, CARROT_GROUPS, strict=True))
     for key, group in groups:
@@ -163,16 +177,20 @@ class CarrotTuningLayout(Widget):
         action_item=ButtonActionSP(text=lambda: tr("OPEN")),
         callback=self._make_open_callback(key),
       )
-      rows.append(row)
+      items.append(row)
       self._nav_rows.append(row)
       if key is not groups[-1][0]:
-        rows.append(LineSeparatorSP(40))
-    return rows
+        items.append(LineSeparatorSP(40))
+    return items
 
   def _make_open_callback(self, key: CarrotGroupKey):
     def _open():
       self._set_current_group(key)
     return _open
+
+  def _update_state(self):
+    super()._update_state()
+    self._carrot_web_enabled.action_item.set_enabled(ui_state.is_offroad())
 
   def _set_current_group(self, key: CarrotGroupKey | None):
     self._current_group = key
@@ -186,10 +204,13 @@ class CarrotTuningLayout(Widget):
       self._group_layouts[self._current_group].render(rect)
       return
 
-    self._back_button.set_position(rect.x, rect.y + BACK_TOP_MARGIN)
-    self._back_button.render()
-
-    list_y = self._back_button.rect.height + LIST_TOP_GAP
+    # A top-level panel has no Back button: the sidebar close button is the way out.
+    if self._back_button is not None:
+      self._back_button.set_position(rect.x, rect.y + BACK_TOP_MARGIN)
+      self._back_button.render()
+      list_y = self._back_button.rect.height + LIST_TOP_GAP
+    else:
+      list_y = LIST_TOP_GAP
     self._scroller.render(rl.Rectangle(rect.x, rect.y + list_y, rect.width, rect.height - list_y))
 
   def show_event(self):

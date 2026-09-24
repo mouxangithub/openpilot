@@ -235,10 +235,26 @@ class TestCarrotSpeedLimitMerge(OpenpilotTestCase):
     assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 60 * CV.KPH_TO_MS) < 1e-6
     assert resolver.distance_solutions[SpeedLimitSource.map] == 0.
 
-  def test_carrot_cannot_raise_an_existing_map_limit(self, mocker):
+  def test_carrot_raises_an_existing_map_limit(self, mocker):
+    """carrot takes priority over the map provider outright.
+
+    This replaces test_carrot_cannot_raise_an_existing_map_limit. The old rule was
+    lower-only, which meant a limit carrot considered authoritative could be outvoted by
+    the offline map - explicitly changed so a projecting phone wins either way. The car's
+    own CAN limit is a separate source and can still be stricter, so this does not
+    override a physical sign.
+    """
     resolver = self._resolver()
     resolver.limit_solutions[SpeedLimitSource.map] = 40 * CV.KPH_TO_MS
     resolver._merge_carrot_speed_limit(carrot_sm(mocker, nRoadLimitSpeed=80))
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 80 * CV.KPH_TO_MS) < 1e-6
+
+  def test_carrot_lowers_an_existing_map_limit_too(self, mocker):
+    """The lower direction still works - priority is not 'ignore carrot when it is
+    stricter'."""
+    resolver = self._resolver()
+    resolver.limit_solutions[SpeedLimitSource.map] = 80 * CV.KPH_TO_MS
+    resolver._merge_carrot_speed_limit(carrot_sm(mocker, nRoadLimitSpeed=40))
     assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 40 * CV.KPH_TO_MS) < 1e-6
 
   def test_carrot_out_of_range_is_rejected(self, mocker):

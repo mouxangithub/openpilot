@@ -220,13 +220,17 @@ class SpeedLimitResolver:
       if limit_ms <= 0.:
         return
 
-      # If a road-class limit is already active from map data, only allow carrot
-      # to *lower* it. This prevents a navigation glitch from raising the limit
-      # above what the car's own map source says.
-      current = self.limit_solutions[SpeedLimitSource.map]
-      if current > 0. and limit_ms >= current:
-        return
-
+      # carrot takes priority over the map provider outright: when the phone is
+      # projecting navigation, its limit wins whether it is higher or lower than what
+      # OSM/Amap reported. This replaces the previous lower-only rule, which meant a
+      # limit carrot considered authoritative could be silently outvoted by the offline
+      # map. Requested explicitly, and the priority matches how the data is produced: a
+      # phone projecting a route has the road the driver is actually on, while the
+      # offline map can be years out of date or simply lack the section.
+      #
+      # The car's own CAN limit is still merged as a separate source and can still be
+      # stricter, so a physical sign the vehicle reports is not overridden here - see
+      # _get_from_car_state and the combined policy.
       self.limit_solutions[SpeedLimitSource.map] = limit_ms
       self.distance_solutions[SpeedLimitSource.map] = distance
     except Exception as e:

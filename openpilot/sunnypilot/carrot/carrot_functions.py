@@ -33,6 +33,8 @@ unit tests honest.
 
 from collections import deque
 from enum import Enum
+import math
+import time
 from typing import Any
 
 import numpy as np
@@ -40,6 +42,7 @@ import numpy as np
 from opendbc.car.common.conversions import Conversions as CV
 from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot.carrot.config import UnifiedParams
+from openpilot.sunnypilot.carrot.curve_speed import TARGET_LAT_ACCEL, VisionCurveSpeed, curve_speed
 from openpilot.sunnypilot.carrot.radar_motion.lane_change_gap import (
   LaneChangeGapPlan,
   LaneChangeGapTracker,
@@ -193,28 +196,136 @@ class _MovingAverage:
 
 
 class DrivingModeDetector:
-  """Flip to ``Safe`` whenever we are stuck in stop-and-go traffic."""
+  """Enter Safe promptly for stopping; leave for lead acceleration or flow recovery.
+
+  Ported whole from CarrotPilot's ``driving_mode.py``. The time-integrated
+  hysteresis is the point: each entry and exit condition must hold for a defined
+  period before the mode changes, so a single frame of stop-and-go, a cut-in or a
+  dropped sample cannot flap the mode. The reduced version this replaces used
+  instantaneous comparisons, which oscillated whenever the lead sat near a
+  threshold.
+
+  This is a comfort-mode selector, not an obstacle detector or brake trigger.
+  Braking continues to use the planner's physical obstacles and limits.
+  """
+
+  STOP_ENTRY_TIME = 0.30
+  SLOW_ENTRY_TIME = 8.0
+  RECOVERY_TIME = 6.0
+  CLEAR_ROAD_TIME = 4.0
+  ACCEL_EXIT_THRESHOLD = 1.5
+  ACCEL_EXIT_TIME = 0.5
 
   def __init__(self) -> None:
-    self._congested = False
-    self._speed_threshold = 2.0          # km/h
-    self._accel_threshold = 1.5          # m/s^2
-    self._distance_threshold = 12.0      # m
-    self._lead_speed_exit_threshold = 35.0  # km/h
+    self.congested = False
+    self.stop_time = 0.0
+    self.slow_time = 0.0
+    self.recovery_time = 0.0
+    self.clear_time = 0.0
+    self.accel_time = 0.0
+    self.lead_key = None
+    # Elapsed time is measured here rather than assumed from the caller's rate:
+    # the caller throttles to roughly 1 Hz, so a fixed DT_MDL would under-count
+    # the integration by ~20x and the entry thresholds would never be reached.
+    self._last_update = None
+
+  def _elapsed(self) -> float:
+    now = time.monotonic()
+    if self._last_update is None:
+      self._last_update = now
+      return 0.0
+    dt = now - self._last_update
+    self._last_update = now
+    return dt
+
+  def _reset_evidence(self) -> None:
+    self.stop_time = self.slow_time = self.recovery_time = self.clear_time = self.accel_time = 0.0
 
   def update_data(self, my_speed: float, lead_speed: float, my_accel: float,
                   lead_accel: float, distance: float) -> None:
-    # 1. Congested: lead is stopped close in front of us.
-    if distance <= self._distance_threshold and lead_speed <= self._speed_threshold:
-      self._congested = True
-    # 2. Free: lead is accelerating, we're moving, or the gap has stretched.
-    if (lead_accel > self._accel_threshold
-            or my_speed > self._lead_speed_exit_threshold
-            or distance >= 200.0):
-      self._congested = False
+    """Feed one sample.
 
-  def get_mode(self) -> DrivingMode:
-    return DrivingMode.Safe if self._congested else DrivingMode.Normal
+    Speeds are in **km/h** and the distance in metres, matching this fork's
+    existing caller; the upstream implementation works in m/s and is converted
+    here at the boundary so the thresholds below keep their published meaning.
+
+    ``my_accel`` is accepted for signature compatibility but deliberately unused:
+    upstream derives the approach envelope from ego speed alone, and inventing a
+    second use for acceleration here would diverge from it.
+    """
+    dt = self._elapsed()
+    if not math.isfinite(dt) or not 0 < dt <= 2.0 or not math.isfinite(my_speed) or not math.isfinite(distance):
+      self._reset_evidence()
+      self.lead_key = None
+      return
+
+    ego = max(0.0, my_speed * CV.KPH_TO_MS)
+
+    # The caller has no explicit "lead present" flag, so a non-finite or
+    # non-positive distance stands in for "no lead" - the same signal the caller
+    # already uses when it substitutes its default gap.
+    lead_present = math.isfinite(lead_speed) and math.isfinite(lead_accel) and distance > 0.0
+    if not lead_present:
+      self.stop_time = self.slow_time = self.recovery_time = self.accel_time = 0.0
+      self.lead_key = None
+      # A disappeared stopped lead is not proof of an open road.
+      self.clear_time = self.clear_time + dt if ego >= 15 * CV.KPH_TO_MS else 0.0
+      if self.clear_time >= self.CLEAR_ROAD_TIME:
+        self.congested = False
+      return
+
+    self.clear_time = 0.0
+    speed = max(0.0, lead_speed * CV.KPH_TO_MS)
+
+    # Approximate approach envelope only for choosing a comfort mode. Actual
+    # braking continues to use the planner's physical obstacles and limits.
+    approach_distance = min(200.0, max(12.0, ego * ego / (2 * 2.4) + 2 * ego))
+    stopping = speed <= 5 * CV.KPH_TO_MS and distance <= approach_distance
+    following = distance <= min(80.0, max(30.0, 12.0 + 3 * ego))
+    slow = following and ego <= 35 * CV.KPH_TO_MS and speed <= 30 * CV.KPH_TO_MS
+    self.stop_time = min(self.STOP_ENTRY_TIME, self.stop_time + dt) if stopping else 0.0
+    self.slow_time = min(self.SLOW_ENTRY_TIME, self.slow_time + dt) if slow else 0.0
+
+    # Restore prompt release for a strongly accelerating lead without waiting
+    # for six seconds of flow recovery. Stopping approaches still take priority.
+    accelerating = not stopping and lead_accel > self.ACCEL_EXIT_THRESHOLD
+    self.accel_time = min(self.ACCEL_EXIT_TIME, self.accel_time + dt) if accelerating else 0.0
+    flowing = ego >= 35 * CV.KPH_TO_MS and speed >= 35 * CV.KPH_TO_MS
+    opening = (speed >= 15 * CV.KPH_TO_MS and lead_speed > 0.0 and distance >= 8.0 + 1.8 * ego)
+    recovering = not stopping and lead_accel >= -0.2 and (flowing or opening)
+    self.recovery_time = min(self.RECOVERY_TIME, self.recovery_time + dt) if recovering else 0.0
+
+    if self.accel_time >= self.ACCEL_EXIT_TIME or self.recovery_time >= self.RECOVERY_TIME:
+      self.congested = False
+      self.stop_time = self.slow_time = 0.0
+    elif self.stop_time >= self.STOP_ENTRY_TIME or self.slow_time >= self.SLOW_ENTRY_TIME:
+      self.congested = True
+
+  def get_mode(self, cruise_mode: "DrivingMode | None" = None) -> DrivingMode:
+    """Return the effective mode.
+
+    ``cruise_mode`` is the driver's selected non-congested mode. It defaults to
+    Normal when omitted, which keeps the previous call shape working.
+    """
+    base = cruise_mode if cruise_mode is not None else DrivingMode.Normal
+    return DrivingMode.Safe if self.congested else base
+
+
+def get_mode_lead_response(requested: int, mode: DrivingMode) -> int:
+  """Resolve the gap override; modes may soften, never increase, that choice.
+
+  A comfort mode must not be able to enlarge the following distance the driver
+  asked for - only reduce it.
+
+  Ported from upstream for parity, but **not yet wired**: this fork expresses the
+  driver's following choice as ``LongitudinalPersonality`` (0-3, resolved by
+  ``_get_base_t_follow``), whereas upstream cycles discrete gap levels 2-5. The
+  ceiling values below are upstream's and would need remapping to personality
+  indices before this can be used here; applying them as-is would reinterpret a
+  personality index as a gap level and clamp the wrong end of the range.
+  """
+  ceiling = {DrivingMode.Eco: 2, DrivingMode.Safe: 3}.get(mode, 5)
+  return max(0, min(int(requested), ceiling))
 
 
 # Longitudinal personality values used by the openpilot longitudinal stack.
@@ -337,9 +448,14 @@ class CarrotPlanner:
     self._auto_curve_speed_aggressiveness = 1.0
     self._auto_curve_speed_factor_h = 0.8
     self._auto_curve_speed_aggressiveness_h = 1.2
+    self._auto_curve_speed_lower_limit = 30
     self._curvature_filter = _MovingAverage(20)
     self._lat_a = 0.0
     self._max_curve = 0.0
+    # Holds the curve ceiling between frames and releases it only against fresh
+    # geometry. One instance per planner so its history tracks the same model path
+    # the calls do; it is not shared between ticks of different objects.
+    self._vision_curve_speed = VisionCurveSpeed()
     # Road class from the navi packet (1 = highway, > 1 = surface street). Supplied
     # by the caller because CarrotPlanner has no view of the raw packet; it gates
     # the highway/surface split in vturn_speed(). Defaults to 8 so a caller that
@@ -484,7 +600,7 @@ class CarrotPlanner:
 
       self._my_driving_mode_auto = p.get_int("MyDrivingModeAuto")
       if self._my_driving_mode_auto > 0 and not self._my_driving_mode_auto_disable:
-        self._my_driving_mode = self._driving_mode_detector.get_mode()
+        self._my_driving_mode = self._driving_mode_detector.get_mode(mode_now)
       else:
         self._my_driving_mode = mode_now
 
@@ -906,71 +1022,76 @@ class CarrotPlanner:
 
   # ---- curve speed (P0-2 / P0-3) ----------------------------------------- #
 
+  def set_roadcate(self, roadcate: int) -> None:
+    """Refresh the road class read from the navi packet.
+
+    The planner lives for the whole drive, but the road class changes as the car
+    moves between highway and surface streets, so it is pushed in each tick rather
+    than captured at construction.
+    """
+    self._roadcate = roadcate
+
   def carrot_curve_speed_params(self) -> None:
     """Load curve-speed tuning parameters from UnifiedParams."""
     self._auto_curve_speed_factor = self._params.get_float("AutoCurveSpeedFactor") * 0.01
     self._auto_curve_speed_aggressiveness = self._params.get_float("AutoCurveSpeedAggressiveness") * 0.01
     self._auto_curve_speed_factor_h = self._params.get_float("AutoCurveSpeedFactorH") * 0.01
     self._auto_curve_speed_aggressiveness_h = self._params.get_float("AutoCurveSpeedAggressivenessH") * 0.01
+    self._auto_curve_speed_lower_limit = self._params.get_int("AutoCurveSpeedLowerLimit") or 30
 
   def carrot_curve_speed(self, sm: Any) -> float:
-    """Calculate curve speed using modelV2 orientation rate.
+    """Curve speed ceiling from the model path, in km/h, signed by curvature.
 
-    Returns:
-      Recommended curve speed in km/h (signed by curvature direction).
+    Routes through ``VisionCurveSpeed``, which holds the ceiling between frames
+    and only releases it against a short history of fresh geometry. A missing or
+    unusable model path is passed as ``None`` rather than as "no limit", so a
+    dropout cannot be mistaken for a straight road.
     """
     self.carrot_curve_speed_params()
 
-    if not sm.alive['carState'] and not sm.alive['modelV2']:
-      return 250.0
+    if not sm.alive['carState'] or not sm.alive['modelV2']:
+      return self._vision_curve_speed.update(None, time.monotonic())
 
     model_data = sm['modelV2']
     if len(model_data.orientationRate.z) == 0:
-      return 250.0
+      return self._vision_curve_speed.update(None, time.monotonic())
 
     return self.vturn_speed(sm['carState'], sm)
 
   def vturn_speed(self, cs: Any, sm: Any) -> float:
-    """Calculate turn speed for a curve using modelV2 orientation rate.
+    """Return the signed km/h curve ceiling for the current model path.
 
-    Uses ``orientationRate.z`` and ``velocity.x`` from modelV2 to estimate
-    the maximum lateral acceleration and derive a safe curve speed.
+    Uses the full distance-adjusted envelope (``curve_speed``) rather than a bare
+    peak-curvature lookup, so the value accounts for how far ahead the curve is
+    and how much braking room is left. The two road-class sensitivities are kept
+    as separate tuning knobs, matching the surface/highway split this fork already
+    exposes.
     """
-    target_lat_a = 1.9  # m/s^2
+    sensitivity = self._auto_curve_speed_factor if self._roadcate > 1 else self._auto_curve_speed_factor_h
 
     model_data = sm['modelV2']
-    v_ego = max(cs.vEgo, 0.1)
+    result = curve_speed(
+      model_data,
+      cs.vEgo,
+      sensitivity,
+      self._auto_curve_speed_lower_limit,
+      # The cluster ratio corrects for a car whose dashboard speed differs from
+      # the wheel-speed estimate; a_ego biases the response distance under
+      # acceleration, so a car already accelerating gets more room to unwind.
+      speed_ratio=float(getattr(cs, "vCluRatio", 1.0) or 1.0),
+      a_ego=float(getattr(cs, "aEgo", 0.0) or 0.0),
+    )
 
-    # Set the curve sensitivity based on road category
-    if self._roadcate > 1:  # 普通道路 (normal road)
-      orientation_rate = np.array(model_data.orientationRate.z) * self._auto_curve_speed_factor
-    else:  # 高速公路 (highway)
-      orientation_rate = np.array(model_data.orientationRate.z) * self._auto_curve_speed_factor_h
+    # Publish the geometry for the UI/diagnostics, same as the reduced version did.
+    if result is not None:
+      self._max_curve = result.curve_kph
+      self._lat_a = TARGET_LAT_ACCEL / sensitivity if sensitivity > 0 else 0.0
+    else:
+      self._max_curve = 0.0
+      self._lat_a = 0.0
 
-    velocity = np.array(model_data.velocity.x)
-
-    # Get the maximum lat accel from the model
-    max_index = np.argmax(np.abs(orientation_rate))
-    curv_direction = np.sign(orientation_rate[max_index])
-    max_pred_lat_acc = np.amax(np.abs(orientation_rate) * velocity)
-
-    # Get the maximum curve based on the current velocity
-    max_curve = max_pred_lat_acc / (v_ego ** 2) if v_ego > 0 else 0.0
-
-    self._lat_a = max_pred_lat_acc
-    self._max_curve = max_curve
-
-    # Set the target lateral acceleration based on road category
-    if self._roadcate > 1:  # 普通道路
-      adjusted_target_lat_a = target_lat_a * self._auto_curve_speed_aggressiveness
-    else:  # 高速公路
-      adjusted_target_lat_a = target_lat_a * self._auto_curve_speed_aggressiveness_h
-
-    # Get the target velocity for the maximum curve
-    turn_speed = max(abs(adjusted_target_lat_a / max_curve) ** 0.5 * 3.6, 5.0)
-    turn_speed = min(turn_speed, 250.0)
-
-    return turn_speed * curv_direction
+    model_time = sm.logMonoTime['modelV2'] if sm.alive.get('modelV2', False) else None
+    return self._vision_curve_speed.update(result, time.monotonic(), model_time=model_time)
 
   # ---- public API --------------------------------------------------------- #
 

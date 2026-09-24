@@ -150,6 +150,22 @@ msgid "ALT."
 msgstr "海拔"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Haptic Feedback (Speed Camera)"
+msgstr "测速相机触觉反馈"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Steering-wheel nudge when carrot decelerates for a speed camera."
+msgstr "carrot 因测速相机减速时轻振方向盘。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Count traffic lights on the route ahead from the Amap route."
+msgstr "统计高德路线上前方红绿灯数量。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Slow for curves using the Amap route shape. Only ever lowers the target speed; arms its controller automatically with Carrot on."
+msgstr "根据高德路线形状弯道减速。只降不升；开启 Carrot 后自动就绪其控制器。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "API key for Amap services. Tap EDIT to enter or update the key."
 msgstr "高德服务API密钥。点击编辑以输入或更新密钥。"
 
@@ -1328,6 +1344,14 @@ msgstr "启用高德盲区数据"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "Enable Amap Map Data"
 msgstr "启用高德地图数据"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Enable OSM Map Data"
+msgstr "启用 OSM 离线地图数据"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Use offline OSM map data for speed limits and road names. Turn off to ignore the offline map entirely - useful when navigation or Amap is the source you trust, since the offline data can be out of date."
+msgstr "使用离线 OSM 地图数据获取限速和路名。关闭后完全忽略离线地图——当你更信任导航或高德数据时很有用，因为离线数据可能已过时。"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "Enable Amap Navigation"
@@ -5538,6 +5562,50 @@ msgid "OPEN"
 msgstr "打开"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Buttons & Speed"
+msgstr "巡航按钮与速度"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Speed Unit"
+msgstr "巡航速度步进"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Speed Unit (Basic)"
+msgstr "巡航速度步进（基础）"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Speed 1"
+msgstr "巡航预设速度 1"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Speed 2"
+msgstr "巡航预设速度 2"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Speed 3"
+msgstr "巡航预设速度 3"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Speed 4"
+msgstr "巡航预设速度 4"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Speed 5"
+msgstr "巡航预设速度 5"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Button Long Delay"
+msgstr "巡航按钮长按延迟"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Apply Model Speed"
+msgstr "模型速度融合"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cruise Gap Levels"
+msgstr "跟车距离档位数"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "ATC Turn Control"
 msgstr "ATC 转弯控制"
 
@@ -5734,10 +5802,6 @@ msgid "Acceleration Limits (not applied yet)"
 msgstr "加速度限制（尚未生效）"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
-msgid "Car Model"
-msgstr "车型"
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "Carrot UDP Port"
 msgstr "Carrot UDP 端口"
 
@@ -5756,10 +5820,6 @@ msgstr "启用 Carrot 导航 v2（7714）"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "Enter the UDP port (0-65535). 0 disables the listener."
 msgstr "输入 UDP 端口（0-65535）。0 表示关闭监听。"
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
-msgid "Identified car model, sent automatically with Carrot FTP uploads and shown in the companion app."
-msgstr "识别出的车型，会随 Carrot FTP 上传自动发送，并显示在手机 App 中。"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "Navigation Cruise Speed"
@@ -5856,3 +5916,35 @@ msgstr "80 km/h 及以上允许的横向加速度，单位为百分比。数值�
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "How early to react to curves on the highway. Lower reacts to gentler curves. Only applies while Smart Cruise Control (Vision) is on."
 msgstr "高速公路上对弯道的响应早晚。数值越小，对越缓的弯也会响应。仅在「智能巡航控制（视觉）」开启时生效。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Carrot Nav Panel Opacity"
+msgstr "Carrot 导航面板透明度"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Opacity of the onroad Carrot navigation panel, in percent. Default 100."
+msgstr "Carrot 导航面板的透明度，以百分比表示。默认 100。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Map Provider"
+msgstr "地图提供商"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Current map data source used for speed limits and road names. Amap requires an API key to be set above."
+msgstr "当前用于限速和道路名的地图数据源。高德地图需要先在上方设置 API 密钥。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Carrot Navi Debug"
+msgstr "Carrot 导航调试"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "View the last navigation event summary handled by CarrotManager."
+msgstr "查看 CarrotManager 处理的最后一次导航事件摘要。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Amap"
+msgstr "高德"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "No navigation event received yet."
+msgstr "尚未收到导航事件。"

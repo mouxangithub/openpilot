@@ -379,6 +379,13 @@ class SmartCruiseControlMap:
       self.use_carrot_congestion = self.params.get_bool("CarrotTrafficCongestionEnabled")
       self.use_carrot_map_decel = self.params.get_bool("CarrotMapDecelEnabled")
       self.use_amap_curve = self.params.get_bool("AmapCurveSpeedEnabled")
+      # Auto-arm: with carrot navigation on, any of its map-deceleration sub-features
+      # turns this controller on by itself. SCC Map stays the single execution path -
+      # the user just no longer has to find and flip a second switch to make the first
+      # one do anything.
+      if not self.enabled and self.params.get_bool("CarrotEnabled"):
+        self.enabled = (self.use_carrot_congestion or self.use_carrot_map_decel
+                        or self.use_amap_curve)
 
   def update_calculations(self) -> None:
     self.last_position = coordinate_from_param("LastGPSPosition", self.mem_params) or Coordinate(0.0, 0.0)

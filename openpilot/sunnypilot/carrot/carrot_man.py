@@ -24,6 +24,7 @@ from openpilot.sunnypilot.carrot.amap_navi import AmapNaviServ, parse_packet
 from openpilot.sunnypilot.carrot.carrot_serv import CarrotServ
 from openpilot.sunnypilot.carrot.carrot_serv import NAV_TYPE_MAPPING as TURN_TYPE_MAPPING
 from openpilot.sunnypilot.carrot.config import UnifiedParams
+from openpilot.sunnypilot.carrot.deceleration_source import deceleration_source_presentation
 
 try:
   from aiohttp import web
@@ -609,6 +610,10 @@ class CarrotManager:
       except Exception as e:
         cloudlog.error(f"carrot_man: failed to start AmapNavi direct comm: {e}")
     self._web: Any = None  # Lazy import: only used when ``--web`` flag is set.
+    # Long-lived curve-speed planner. Rebuilding it per tick would reset the
+    # VisionCurveSpeed release history, which is what carries the envelope across
+    # frames; see the call site in broadcast_version_info.
+    self._curve_planner: Any = None
 
   def _migrate_amap_enabled(self) -> None:
     """One-time migration from the legacy AmapEnabled switch.
@@ -1042,6 +1047,11 @@ class CarrotManager:
     cm.szTBTMainText = _safe_str(raw.get("szTBTMainText"), "")
     cm.desiredSpeed = desired_speed
     cm.desiredSource = desired_source
+    # Resolve the internal token to a driver-facing reason here, once, so every
+    # consumer shows the same thing. The webui used to print the raw token.
+    source_label, source_color = deceleration_source_presentation(desired_source)
+    cm.desiredSourceLabel = source_label
+    cm.desiredSourceColor = int(source_color)
     cm.carrotCmdIndex = _safe_int(raw.get("carrotCmdIndex"), 0)
     cm.carrotCmd = _safe_str(raw.get("carrotCmd"), "")
     cm.carrotArg = _safe_str(raw.get("carrotArg"), "")
@@ -1324,17 +1334,25 @@ class CarrotManager:
           remote_addr = self._remote_addr
           remote_ip = remote_addr.split(':')[0] if remote_addr else ""
 
-          # Calculate curve speed
+          # Calculate curve speed.
+          #
+          # The planner is created once and reused, not rebuilt per tick. Its
+          # VisionCurveSpeed holds the curve ceiling across frames and releases it
+          # only against a short history of fresh geometry; a fresh instance each
+          # tick would empty that history and quietly reduce the whole envelope back
+          # to a per-frame lookup. The road class is refreshed on the live instance
+          # for the same reason - it is read from the navi packet, which changes.
           vturn_speed = 0.0
           if self.sm.alive.get('carState', False) and self.sm.alive.get('modelV2', False):
             try:
-              from openpilot.sunnypilot.carrot.carrot_functions import CarrotPlanner
-              # Pass the live road class: CarrotPlanner cannot see the navi packet,
-              # and without it the highway branch of vturn_speed() never ran.
-              planner = CarrotPlanner(self._unified, roadcate=self._carrot_serv.roadcate)
-              vturn_speed = planner.carrot_curve_speed(self.sm)
-            except Exception:
-              pass
+              if self._curve_planner is None:
+                from openpilot.sunnypilot.carrot.carrot_functions import CarrotPlanner
+                self._curve_planner = CarrotPlanner(self._unified, roadcate=self._carrot_serv.roadcate)
+              self._curve_planner.set_roadcate(self._carrot_serv.roadcate)
+              vturn_speed = self._curve_planner.carrot_curve_speed(self.sm)
+            except Exception as e:
+              # Was a bare `pass`, which hid a broken curve pipeline completely.
+              cloudlog.warning(f"carrot_man: curve speed failed: {e}")
 
           # Calculate navigation route
           coords, distances, route_speed = self.carrot_navi_route()

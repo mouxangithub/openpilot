@@ -154,7 +154,23 @@ def carrot_params(pk: dict[str, str]) -> set[str]:
 
 
 def ui_exposed_params() -> set[str]:
-  """Params reachable from a UI: native carrot items, native navigation, webui panels."""
+  """Params reachable from a UI: native carrot items, native navigation, webui panels.
+
+  Also includes the bare-string key lists, which the widget-form scans miss:
+
+    * ``CARROT_TUNING_UNAVAILABLE`` in ``panel_catalog.py`` - keys the panel deliberately
+      does not render. Including them is the point: without this the "no reader" check
+      silently skipped every key that had been hidden, which is how a batch of
+      opendbc-layer carrot keys stayed hidden and dead at the same time. A hidden knob
+      with no reader is still a knob advertising nothing.
+
+  The ``carrot_tuning_api.py`` whitelist is deliberately NOT included. It carries ~190
+  keys and only its widget-rendered subset has a reader in this tree; treating the whole
+  list as UI-reachable reported 114 "no reader" findings, which is a description of the
+  whitelist's breadth rather than a defect list. Keys there without a reader are visible
+  through the webui's generic editor, and that is a separate question from whether a
+  dedicated knob exists.
+  """
   exposed: set[str] = set()
   for path in (NATIVE_ITEMS,):
     if os.path.exists(path):
@@ -163,6 +179,10 @@ def ui_exposed_params() -> set[str]:
   if os.path.exists(PANEL_CATALOG):
     src = read(PANEL_CATALOG)
     exposed |= set(re.findall(r'"param":\s*"([A-Za-z0-9_]+)"', src))
+    # the hidden list, as bare strings
+    m = re.search(r'CARROT_TUNING_UNAVAILABLE.*?=\s*frozenset\(\{(.*?)\}\)', src, re.S)
+    if m:
+      exposed |= set(re.findall(r'"([A-Za-z0-9_]+)"', m.group(1)))
   return exposed
 
 
@@ -263,14 +283,60 @@ def main() -> int:
     if not has_reader(name):
       orphans.append(name)
   print(f'  {len(exposed_carrot)} carrot params exposed in a UI')
-  if orphans:
-    print(f'  {len(orphans)} of them have NO reader (the user can change them and nothing happens):')
-    for name in orphans:
-      print(f'    {name}')
-    failures.append(f'{len(orphans)} UI-exposed params have no reader')
-  else:
+  if not orphans:
     print('  every exposed param has a reader')
-  print()
+    print()
+  else:
+    # Report the census, but only FAIL on the families that are supposed to work.
+    #
+    # Widening ui_exposed_params() to include the hidden list took this from "0
+    # findings" to ~107, which is the honest number and not a defect count: most are
+    # keys for subsystems this fork never ported (the cluster HUD, YouTube, the ONNX
+    # lane/BSD stack) or opendbc-layer carrot features awaiting a port. They are known
+    # and tracked in artifacts/carrot_control_audit/cp_sp_opendbc_integration_gaps_*.md.
+    #
+    # A gate that is permanently red gets ignored, so the split is explicit: known
+    # unported prefixes are reported and counted, everything else fails.
+    UNPORTED_PREFIXES = (
+      # carrot subsystems this fork never carried
+      'ClusterHud', 'ClusterNaviMap', 'CarrotYouTube', 'CarrotNaviHudMap',
+      'CarrotTireTrajectory', 'OnnxBsd', 'OnnxLane',
+      # carrot knobs whose consumer lives in cp's opendbc layer, which this fork does
+      # not carry - see artifacts/carrot_control_audit/cp_sp_opendbc_integration_gaps_*.md
+      'CarrotCruise', 'CustomSteer', 'CustomSR', 'CruiseButton', 'CruiseMaxVals',
+      'CruiseOnDist', 'CruiseSpeed', 'LeadAccelResponse', 'LongTuning',
+      'LatMpc', 'LateralTorque', 'LatSmooth', 'LaneChange', 'Lfa', 'Steer',
+      'CarrotCurveSpeed', 'CarrotHudInfo',
+      # stock openpilot / sunnypilot display and device keys: the UI reads these through
+      # paths this scan does not model (widget state, C++, soundd), so "no reader" here
+      # does not mean dead. Listed so they do not mask a real carrot finding.
+      'Show', 'Mute', 'Record', 'Share', 'SoftwareMenu', 'UseWideCamera',
+      'SoundLanguage', 'PathOffset', 'AdjustLaneOffset', 'DisableMinSteerSpeed',
+      'VEgoStopping', 'HardwareC3xLite', 'AlwaysLateral', 'ApplyModelSpeed',
+      'AutoEngage', 'AutoTurnInNotRoadEdge', 'CameraYawTrimDeg', 'CancelButtonMode',
+      'ContinuousLaneChange', 'NewLaneWidthDiff', 'StockBlinkerCtrl', 'BsdDelayTime',
+      'SideRadarMinDist', 'CruiseGapLevels', 'LaneChangeBsd', 'UseLaneLineSpeed',
+      'UseLaneLineCurveSpeed', 'AutoGas', 'Canfd',
+    )
+    UNPORTED_EXACT = frozenset((
+      'HDPuse', 'IsLdwsCar', 'HyundaiCameraSCC', 'EnableCornerRadar', 'MaxAngleFrames',
+      'LongTuningKf', 'LongTuningKiV', 'LongTuningKpV',
+    ))
+    known = [n for n in orphans if n.startswith(UNPORTED_PREFIXES) or n in UNPORTED_EXACT]
+    action = [n for n in orphans if n not in known]
+
+    print(f'  {len(orphans)} have NO reader (the user can change them and nothing happens)')
+    print(f'    {len(known)} belong to subsystems this fork has not ported (reported, not failed):')
+    for name in known:
+      print(f'      {name}')
+    if action:
+      print(f'    {len(action)} are NOT in a known-unported family - investigate these:')
+      for name in action:
+        print(f'      {name}')
+      failures.append(f'{len(action)} UI-exposed params have no reader and are not a known unported family')
+    else:
+      print('    every one of them is a known-unported family')
+    print()
 
   # ---- 4. UI ranges must be able to reach the values the code branches on ----
   print('== 4. UI ranges vs the values the code actually uses ==')

@@ -289,6 +289,21 @@ def build_fake_params() -> types.ModuleType:
 def install_stubs() -> None:
   import importlib
 
+  # carrot_tuning.py needs ui_state.is_offroad() for the offroad-only toggle.
+  _ui_mod = types.ModuleType('openpilot.selfdrive.ui.ui_state')
+
+  class _FakeUiState:
+    @staticmethod
+    def is_offroad() -> bool:
+      return True
+
+    @staticmethod
+    def update_params() -> None:
+      return None
+
+  _ui_mod.ui_state = _FakeUiState()
+  sys.modules['openpilot.selfdrive.ui.ui_state'] = _ui_mod
+
   fake_pyray = build_fake_pyray()
   sys.modules["pyray"] = fake_pyray
   # openpilot imports `import pyray as rl`, and some modules use `rl.` helpers that
@@ -383,7 +398,9 @@ def main() -> int:
     rows = root._nav_rows
     seps = [i for i in items if isinstance(i, LineSeparatorSP)]
     assert len(rows) == len(CARROT_GROUPS), f"{len(rows)} rows for {len(CARROT_GROUPS)} groups"
-    assert len(seps) == len(CARROT_GROUPS) - 1, f"expected {len(CARROT_GROUPS) - 1} dividers, got {len(seps)}"
+    # 7 dividers between the 8 groups plus 1 divider below the Carrot Web Panel toggle.
+    expected_seps = len(CARROT_GROUPS)
+    assert len(seps) == expected_seps, f"expected {expected_seps} dividers, got {len(seps)}"
     assert not isinstance(items[0], LineSeparatorSP), "list must not start with a divider"
 
     # Render into a viewport tall enough for every row: the real panel is 900px
@@ -575,7 +592,7 @@ def main() -> int:
 
   # --- translations ---------------------------------------------------------
   print("== translations ==")
-  new_strings = [g.title for g in CARROT_GROUPS] + [g.description for g in CARROT_GROUPS] + ["OPEN", "Back"]
+  new_strings = [g.title for g in CARROT_GROUPS] + [g.description for g in CARROT_GROUPS] + ["OPEN", "Back", "Carrot Web Panel"]
 
   # Group headings inside each page must be translated too, otherwise a Chinese
   # UI falls back to English for every section label.
