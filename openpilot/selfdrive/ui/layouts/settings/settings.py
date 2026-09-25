@@ -2,6 +2,7 @@ import pyray as rl
 from dataclasses import dataclass, field
 from enum import IntEnum
 from collections.abc import Callable
+from openpilot.selfdrive.ui.layouts.settings.chestnut import ChestnutLayout
 from openpilot.selfdrive.ui.layouts.settings.developer import DeveloperLayout
 from openpilot.selfdrive.ui.layouts.settings.device import DeviceLayout
 from openpilot.selfdrive.ui.layouts.settings.firehose import FirehoseLayout
@@ -40,6 +41,7 @@ class PanelType(IntEnum):
   FIREHOSE = 4
   DEVELOPER = 5
   IMU_CALIBRATION = 6
+  CHESTNUT = 7
 
 
 @dataclass
@@ -70,6 +72,7 @@ class SettingsLayout(Widget):
       PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout()),
       PanelType.DEVELOPER: PanelInfo(tr_noop("Developer"), DeveloperLayout()),
       PanelType.IMU_CALIBRATION: PanelInfo(tr_noop("IMU Calibration"), ImuCalibrationLayout()),
+      PanelType.CHESTNUT: PanelInfo(tr_noop("Chestnut AI"), ChestnutLayout()),
     }
 
     device_layout.set_preview_callback(self._enter_onroad_preview)

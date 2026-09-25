@@ -5873,3 +5873,79 @@ msgstr "高德"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "No navigation event received yet."
 msgstr "尚未收到導航事件。"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Chestnut AI"
+msgstr "Chestnut AI 加速器"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Chestnut Status"
+msgstr "Chestnut 狀態"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "USB Link"
+msgstr "USB 鏈路"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Temperature"
+msgstr "溫度"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Memory Temp"
+msgstr "記憶體溫度"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Power Draw"
+msgstr "功率"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Power Limit"
+msgstr "功率上限"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "GPU Usage"
+msgstr "GPU 使用率"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "GPU Clock"
+msgstr "GPU 頻率"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Fan Speed"
+msgstr "風扇轉速"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "PCIe LTSSM"
+msgstr "PCIe 狀態"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Supply Voltage"
+msgstr "供電電壓"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Supply Current"
+msgstr "供電電流"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Supply Fault"
+msgstr "供電故障"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Connection Check"
+msgstr "連線檢測"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Check Chestnut"
+msgstr "檢測 Chestnut"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "CHECK"
+msgstr "檢測"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "Checks USB 5 Gbps, firmware, 12V/PCIe, and GPU execution."
+msgstr "檢測 USB 5 Gbps、韌體、12V/PCIe 和 GPU 執行狀態"
+
+#: openpilot\selfdrive\ui\layouts\settings\chestnut.py
+msgid "not checked"
+msgstr "未檢測"
