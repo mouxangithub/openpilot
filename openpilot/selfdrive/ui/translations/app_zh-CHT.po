@@ -5839,6 +5839,18 @@ msgid "Opacity of the onroad Carrot navigation panel, in percent. Default 100."
 msgstr "Carrot 導航面板的透明度，以百分比表示。預設 100。"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Carrot Nav Panel Side"
+msgstr "Carrot 導航面板位置"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Left"
+msgstr "左側"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
+msgid "Position of the onroad Carrot navigation panel. Default: Right (next to speed display)."
+msgstr "Carrot 導航面板在路上的位置。預設：右側（緊鄰速度顯示）。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
 msgid "Map Provider"
 msgstr "地圖提供商"
 

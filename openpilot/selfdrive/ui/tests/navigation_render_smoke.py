@@ -116,14 +116,14 @@ def main() -> int:
   def exposes_live_params():
     expected = ['AmapMapDataEnabled', 'CarrotAmapBlindSpotEnabled', 'CarrotEnabled',
                 'CarrotNaviV2Enabled', 'CarrotNavCruiseSpeedEnabled',
-                'AmapCurveSpeedEnabled', 'AmapTrafficLightHintEnabled', 'CarrotPanelOpacity']
+                'AmapCurveSpeedEnabled', 'AmapTrafficLightHintEnabled', 'CarrotPanelOpacity', 'CarrotPanelSide']
     missing = [p for p in expected if p not in exposed]
     assert not missing, f'missing nav params: {missing}'
   check('exposes every live navigation param', exposes_live_params)
 
   def no_dead_or_webui_only_params():
     """Params that are registered but have no native UI consumer."""
-    banned = ['CarrotCurveSpeedEnabled', 'CarrotHudInfoEnabled', 'CarrotPanelSide']
+    banned = []
     found = [p for p in banned if p in exposed]
     assert not found, f'dead / webui-only params exposed natively: {found}'
   check('excludes dead and webui-HUD-only params', no_dead_or_webui_only_params)

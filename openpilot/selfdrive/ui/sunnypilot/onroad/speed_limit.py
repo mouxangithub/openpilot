@@ -120,6 +120,10 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
     self.font_demi = gui_app.font(FontWeight.SEMI_BOLD)
     self.font_norm = gui_app.font(FontWeight.NORMAL)
 
+    # CarrotPanelOpacity (0-100, default 100) + CarrotPanelSide (0=right, 1=left).
+    self._panel_opacity = 100
+    self._panel_side = 0
+
   @property
   def speed_conv(self):
     return CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
@@ -127,6 +131,15 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
   def update(self):
     SpeedLimitAlertRenderer.update(self)
     sm = ui_state.sm
+    # Read CarrotPanelOpacity (0-100) and CarrotPanelSide (0=right, 1=left).
+    try:
+      self._panel_opacity = max(10, min(100, int(ui_state.params.get("CarrotPanelOpacity", 100))))
+    except Exception:
+      self._panel_opacity = 100
+    try:
+      self._panel_side = max(0, min(1, int(ui_state.params.get("CarrotPanelSide", 0))))
+    except Exception:
+      self._panel_side = 0
     if sm.recv_frame["carState"] < ui_state.started_frame:
       self.set_speed = SET_SPEED_NA
       self.speed = 0.0
@@ -183,12 +196,18 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
 
   def _render(self, rect: rl.Rectangle):
     width = UI_CONFIG.set_speed_width_metric if ui_state.is_metric else UI_CONFIG.set_speed_width_imperial
-    x = rect.x + 60 + width + 30 - 6
+
+    # CarrotPanelSide: 0=left (left edge), 1=right (next to speed display, default).
+    if self._panel_side == 0:
+      x = rect.x + 60
+    else:
+      x = rect.x + 60 + width + 30 - 6
     y = rect.y + 45 - 6
 
     sign_rect = rl.Rectangle(x, y, width, UI_CONFIG.set_speed_height + 6 * 2)
 
-    alpha = self._pre_active_fade.alpha
+    # CarrotPanelOpacity (10-100) scales the animation fade alpha.
+    alpha = self._pre_active_fade.alpha * (self._panel_opacity / 100.0)
 
     if ui_state.speed_limit_mode != SpeedLimitMode.off:
       self._draw_sign_main(sign_rect, alpha)

@@ -67,6 +67,11 @@ class ClusterOverlayState:
   navi_text_main: str | None = None
   navi_text_sub: str | None = None
   theme_mode: str = "auto"
+  # ── ClusterHud* Params（由 ClusterOverlay._update_state() 填充）─────────────
+  brightness: int = 100                   # 0-100, 控制贴图整体透明度
+  mirror: bool = False                    # 水平翻转
+  orientation: int = 0                    # 0=normal, 1=upsidedown, 2=left, 3=right
+  show_radar: bool = True                 # ClusterHudRadarDisplay
 
 
 def _rl_color(color, alpha: int | None = None) -> rl.Color:
@@ -144,10 +149,15 @@ class ClusterOverlayRenderer:
     theme_text = getattr(theme, "text", _SPEED_COLOR)
     theme_muted = getattr(theme, "muted", _UNIT_COLOR)
 
+    # ClusterHudBrightness 控制面板整体透明度（0=全透明 → 100=完全不透明）。
+    panel_alpha = max(1, min(255, int(_PANEL_ALPHA * state.brightness / 100.0)))
+    bg_color = (*_BG_COLOR[:3], panel_alpha)
+    border_color = (*_BORDER_COLOR[:3], panel_alpha)
+
     # 面板背景：半透明圆角矩形。
     panel = rl.Rectangle(0.0, 0.0, float(self.width), float(self.height))
-    rl.draw_rectangle_rounded(panel, 0.06, 4, _rl_color(_BG_COLOR, _PANEL_ALPHA))
-    rl.draw_rectangle_rounded_lines(panel, 0.06, 4, 2, _rl_color(_BORDER_COLOR))
+    rl.draw_rectangle_rounded(panel, 0.06, 4, _rl_color(bg_color, panel_alpha))
+    rl.draw_rectangle_rounded_lines(panel, 0.06, 4, 2, _rl_color(border_color, panel_alpha))
 
     # 车速（大数字）+ 单位。
     speed_val = display_speed(state.speed_kph, state.is_metric)
@@ -169,9 +179,9 @@ class ClusterOverlayRenderer:
     if cruise_text:
       self._draw_text(self._font, cruise_text, 388.0, 22.0, _TEXT_FONT_PX, _rl_color(cruise_color))
 
-    # 前车距离。
+    # 前车距离（ClusterHudRadarDisplay 控制显隐）。
     y_cursor = 82.0
-    if state.lead_distance_m is not None:
+    if state.show_radar and state.lead_distance_m is not None:
       self._draw_text(self._font, "LEAD", 388.0, y_cursor, _TEXT_FONT_PX, _rl_color(theme_muted))
       self._draw_text(self._font, format_radar_distance(state.lead_distance_m, state.is_metric),
                       510.0, y_cursor, _TEXT_FONT_PX, _rl_color(_RADAR_COLOR))

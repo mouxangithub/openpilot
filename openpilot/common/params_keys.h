@@ -432,9 +432,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CarrotNaviCameraState", {CLEAR_ON_MANAGER_START, STRING, ""}},  // 7714 v2 camera mode/level/tilt/bearing
     {"CarrotNaviCompositionState", {CLEAR_ON_MANAGER_START, STRING, ""}},  // 7714 v2 UI composition active panels
     {"TrafficLightDetectMode", {PERSISTENT | BACKUP, INT, "2"}},  // 0=off, 1=red-stop-only, 2=stop&go (cp default)  // 0=off,1=red stop,2=red stop + green go
-    {"CarrotCurveSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"CarrotNavCruiseSpeedEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
-    {"CarrotHudInfoEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"CarrotWebEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     // Unified control killswitches (carrot > Amap > OSM arbitration). Default off/safe.
     {"CarrotLongitudinalSourceEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // enable CarrotPlanner as a LongitudinalPlanSP source

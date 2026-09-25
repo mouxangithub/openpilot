@@ -11,7 +11,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets.input_dialog import InputDialogSP
-from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, button_item_sp, option_item_sp
+from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, button_item_sp, option_item_sp, multiple_button_item_sp
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets.list_view import text_item
@@ -86,6 +86,15 @@ class NavigationLayout(Widget):
       min_value=10, max_value=100, value_change_step=5,
     )
 
+    self._carrot_panel_side = multiple_button_item_sp(
+      title=tr("Carrot Nav Panel Side"),
+      description=tr("Position of the onroad Carrot navigation panel. Default: Right (next to speed display)."),
+      buttons=[lambda: tr("Left"), lambda: tr("Right")],
+      selected_index=1,
+      button_width=360,
+      param="CarrotPanelSide",
+    )
+
     self._map_provider = text_item(
       lambda: tr("Map Provider"),
       self._map_provider_value,
@@ -137,6 +146,7 @@ class NavigationLayout(Widget):
       self._amap_curve_speed,
       self._amap_traffic_light_hint,
       self._carrot_panel_opacity,
+      self._carrot_panel_side,
       self._map_provider,
       self._carrot_navi_debug,
       self._carrot_atc_blinker,
@@ -154,6 +164,7 @@ class NavigationLayout(Widget):
     self._carrot_enabled.action_item.set_enabled(offroad)
     self._amap_api_key.action_item.set_enabled(offroad)
     self._carrot_panel_opacity.action_item.set_enabled(offroad)
+    self._carrot_panel_side.action_item.set_enabled(offroad)
 
     # The v2 link and the nav-speed limit only mean anything with Carrot on,
     # matching the webui panel's visible_if conditions. Read the param rather than

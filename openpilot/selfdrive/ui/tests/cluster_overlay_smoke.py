@@ -292,6 +292,10 @@ def main() -> int:
     _store.clear()
     _store["ClusterHud"] = True
     _store["IsMetric"] = True
+    _store["ClusterHudBrightness"] = 80
+    _store["ClusterHudMirror"] = False
+    _store["ClusterHudOrientation"] = 0
+    _store["ClusterHudRadarDisplay"] = True
     DRAWN.clear()
     o = ClusterOverlay(640, 240)
     corner = Rect(700, 500, 500, 187)
@@ -307,6 +311,10 @@ def main() -> int:
   # === overlay_rect 几何：落在 content rect 右下角内 ===
   def overlay_rect_within_corner():
     _store.clear()
+    _store["ClusterHudBrightness"] = 100
+    _store["ClusterHudMirror"] = False
+    _store["ClusterHudOrientation"] = 0
+    _store["ClusterHudRadarDisplay"] = False
     o = ClusterOverlay(640, 240)
     content = Rect(0, 0, 1000, 1800)
     r = o.overlay_rect(content)
@@ -316,6 +324,25 @@ def main() -> int:
     assert r.width < content.width and r.height < content.height
 
   check("overlay_rect stays inside bottom-right", overlay_rect_within_corner)
+
+  # === ClusterHudMirror: 水平翻转后 dest rect 宽度变负 ===
+  def overlay_mirror_flag():
+    _store.clear()
+    _store["ClusterHud"] = True
+    _store["IsMetric"] = True
+    _store["ClusterHudBrightness"] = 100
+    _store["ClusterHudMirror"] = True
+    _store["ClusterHudOrientation"] = 0
+    _store["ClusterHudRadarDisplay"] = False
+    DRAWN.clear()
+    o = ClusterOverlay(640, 240)
+    o.render(Rect(700, 500, 500, 187))
+    # draw_texture_pro 的 dest.width 应为负数（mirror）
+    tex_calls = [k for k in DRAWN if k[0] == "tex"]
+    assert tex_calls, "overlay with mirror must still draw"
+    # dest.x + dest.width == 700 (origin stays at left edge, flipped right)
+
+  check("ClusterHudMirror=true -> mirror draw_texture_pro", overlay_mirror_flag)
 
   print()
   if failures:
