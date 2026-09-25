@@ -12,6 +12,8 @@ from openpilot.sunnypilot.selfdrive.car.cruise_ext import VCruiseHelperSP
 from openpilot.sunnypilot.selfdrive.car.cruise_helpers import (
   cruise_gap_levels, next_gap_personality, supported_gap_levels,
 )
+# Bluetooth HID remote command reader (carrot_bluetooth daemon publishes to shared memory).
+from openpilot.sunnypilot.carrot.bluetooth.model import BLUETOOTH_CANCEL, CommandReader
 
 
 # WARNING: this value was determined based on the model's training distribution,
@@ -248,6 +250,8 @@ class VCruiseCarrot(VCruiseHelper):
     self.frame = 0
     self.params_memory = Params("/dev/shm/params")
     self.params = Params()
+    # Bluetooth HID remote commands (carrot_bluetooth daemon → /dev/shm/carrot-bluetooth/cruise.json).
+    self.bluetooth_commands = CommandReader('cruise')
     from openpilot.sunnypilot.selfdrive.controls.lib.drive_helpers_ext import is_volkswagen_meb
     self.is_vw_meb = is_volkswagen_meb(CP)
     self.v_cruise_kph = 20 #V_CRUISE_UNSET
@@ -456,6 +460,15 @@ class VCruiseCarrot(VCruiseHelper):
     #self.events = []
     self.v_ego_kph_set = int(CS.vEgoCluster * CV.MS_TO_KPH + 0.5)
     self._activate_cruise = 0
+    # Bluetooth HID remote: pre-read here so _activate_cruise survives the reset above.
+    # Stored in instance var so _update_cruise_buttons reuses the same command.
+    self._bt_remote = self.bluetooth_commands.read(
+      allowed=(CS.canValid and CS.cruiseState.available and
+              CS.gearShifter == GearShifter.drive and
+              not CS.buttonEvents and self.button_cnt == 0),
+    )
+    if self._bt_remote in ('accelCruise', 'decelCruise', 'accelCruiseLong', 'decelCruiseLong'):
+      self._activate_cruise = 1
     self._cruise_available = CS.cruiseState.available
     if not self._cruise_available:
       self._cruise_ready = False
@@ -516,9 +529,19 @@ class VCruiseCarrot(VCruiseHelper):
     """
     return
 
-  def _prepare_buttons(self, CS, v_cruise_kph, CS_SP=None):
+  def _prepare_buttons(self, CS, v_cruise_kph, CS_SP=None, remote=None):
     button_kph = v_cruise_kph
     button_type = 0
+    # Bluetooth HID remote overrides button type (same mechanism as cp).
+    # Non-button actions (cancel, paddleDecel, carrotCruise) are handled in _update_cruise_buttons.
+    if remote in ('accelCruise', 'accelCruiseLong'):
+      button_type = ButtonType.accelCruise
+    elif remote in ('decelCruise', 'decelCruiseLong'):
+      button_type = ButtonType.decelCruise
+    elif remote == 'gapAdjustCruise':
+      button_type = ButtonType.gapAdjustCruise
+    elif remote == 'lfaButton':
+      button_type = ButtonType.lfaButton
     buttonEvents = CS.buttonEvents
 
     SPEED_UP_UNIT = self._cruise_speed_unit_basic
@@ -644,9 +667,25 @@ class VCruiseCarrot(VCruiseHelper):
     return v_cruise_kph, button_type, long_pressed
 
   def _update_cruise_buttons(self, CS, CC, v_cruise_kph, CS_SP=None):
-    button_kph, button_type, long_pressed = self._prepare_buttons(CS, v_cruise_kph, CS_SP)
+    remote = getattr(self, '_bt_remote', None)
+    # Holding a remote must never re-engage after disengagement.
+    if getattr(self.bluetooth_commands, 'is_repeat', False) and not CC.enabled:
+      remote = None
+    button_kph, button_type, long_pressed = self._prepare_buttons(CS, v_cruise_kph, CS_SP, remote)
 
     v_cruise_kph, button_type, long_pressed = self._carrot_command(v_cruise_kph, button_type, long_pressed)
+
+    # Bluetooth-specific actions that don't map to standard button types.
+    # cancel/cancelLong must fire even when physical buttons also fired this frame.
+    if remote in ('cancel', 'cancelLong'):
+      self._cruise_control(BLUETOOTH_CANCEL, -1, 'Cruise off (Bluetooth cancel)',
+                           allow_cancel_state=True, manual=True)
+    elif remote == 'paddleDecel':
+      self._cruise_control(-2, -1, "Cruise off & Ready (Bluetooth paddle)")
+      self._paddle_decel_active = True
+    elif remote == 'carrotCruise':
+      # Repeated requests keep the mode on; RES/+ exits through the existing path.
+      self.carrot_cruise_active = True
 
     if button_type in [ButtonType.accelCruise, ButtonType.decelCruise]:
       self._paddle_decel_active = False

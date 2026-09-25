@@ -5949,3 +5949,171 @@ msgstr "檢測 USB 5 Gbps、韌體、12V/PCIe 和 GPU 執行狀態"
 #: openpilot\selfdrive\ui\layouts\settings\chestnut.py
 msgid "not checked"
 msgstr "未檢測"
+
+msgid "Bluetooth Remotes"
+msgstr "藍牙遙控器"
+
+msgid "Bluetooth adapter unavailable"
+msgstr "藍牙適配器不可用"
+
+msgid "Requires stationary & disengaged state"
+msgstr "需要車輛靜止且巡航已解除"
+
+msgid "Scanning..."
+msgstr "搜索中..."
+
+msgid "Ready"
+msgstr "就緒"
+
+msgid "Enable Bluetooth"
+msgstr "啟用藍牙"
+
+msgid "Disable Bluetooth"
+msgstr "停用藍牙"
+
+msgid "Scan (30s)"
+msgstr "搜尋設備 (30秒)"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Put your device in pairing mode and scan. Disconnect it from your previous phone if needed."
+msgstr "將設備置於配對模式並搜尋。如需從手機斷開，請先中斷連線。"
+
+msgid "Paired"
+msgstr "已配對"
+
+msgid "Connected"
+msgstr "已連線"
+
+msgid "Battery {}%"
+msgstr "電量 {}%"
+
+msgid "Mapping on"
+msgstr "映射開啟"
+
+msgid "Mapping off"
+msgstr "映射關閉"
+
+msgid "Receiving input"
+msgstr "接收輸入中"
+
+msgid "Pair"
+msgstr "配對"
+
+msgid "Disconnect"
+msgstr "中斷連線"
+
+msgid "Connect"
+msgstr "連線"
+
+msgid "Forget"
+msgstr "移除"
+
+msgid "Edit"
+msgstr "編輯"
+
+msgid "Back"
+msgstr "返回"
+
+msgid "Profile"
+msgstr "輸入類型"
+
+msgid "Generic keyboard / HID"
+msgstr "通用鍵盤 / HID"
+
+msgid "Use Carrot mapping"
+msgstr "使用 Carrot 映射（阻斷原始 HID 輸入）"
+
+msgid "Button Mapping"
+msgstr "按鈕映射"
+
+msgid "None"
+msgstr "無動作"
+
+msgid "Cruise +"
+msgstr "巡航 +"
+
+msgid "Cruise −"
+msgstr "巡航 −"
+
+msgid "Cruise + Long"
+msgstr "巡航 + 長按"
+
+msgid "Cruise − Long"
+msgstr "巡航 − 長按"
+
+msgid "Gap"
+msgstr "間距"
+
+msgid "LFA"
+msgstr "LFA"
+
+msgid "LFA Long"
+msgstr "LFA 長按"
+
+msgid "Cancel Long"
+msgstr "取消長按"
+
+msgid "Lane Left"
+msgstr "向左變道"
+
+msgid "Lane Right"
+msgstr "向右變道"
+
+msgid "Paddle −"
+msgstr "撥片 −"
+
+msgid "CarrotCruise"
+msgstr "CarrotCruise"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Saved"
+msgstr "已保存"
+
+msgid "Test / Learn"
+msgstr "鍵位學習 / 試驗"
+
+msgid "Stop Test"
+msgstr "停止試驗"
+
+msgid "Testing"
+msgstr "試驗模式中"
+
+msgid "Test mode active"
+msgstr "試驗模式已啟動"
+
+msgid "Save your changes"
+msgstr "請先保存更改"
+
+msgid "Exclusive HID capture active"
+msgstr "HID 輸入獨佔中"
+
+msgid "Waiting for HID capture (check connection and mapping)"
+msgstr "等待 HID 獨佔（請檢查連線和映射）"
+
+msgid "Pairing confirmation"
+msgstr "配對確認"
+
+msgid "Enter the code shown on the other device"
+msgstr "輸入對方設備上顯示的驗證碼"
+
+msgid "Confirm"
+msgstr "確認"
+
+msgid "Short"
+msgstr "短按"
+
+msgid "Double"
+msgstr "雙擊"
+
+msgid "Long"
+msgstr "長按"
+
+msgid "Forget this device?"
+msgstr "要移除此設備嗎？"
+
+msgid "Bluetooth"
+msgstr "藍牙"

@@ -6,6 +6,8 @@ from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot.selfdrive.controls.lib.auto_lane_change import AutoLaneChangeController, AutoLaneChangeMode
 from openpilot.sunnypilot.selfdrive.controls.lib.lane_turn_desire import LaneTurnController
 from openpilot.sunnypilot.selfdrive.controls.lib.desire_arbiter import DesireArbiter
+# Bluetooth HID remote lane commands (carrot_bluetooth daemon → /dev/shm/carrot-bluetooth/lane.json).
+from openpilot.sunnypilot.carrot.bluetooth.model import CommandReader
 
 LaneChangeState = log.LaneChangeState
 LaneChangeDirection = log.LaneChangeDirection
@@ -36,6 +38,9 @@ class DesireHelper:
     self.carrot_cmd_index_last = 0
     self.carrot_virtual_blinker = 0  # 0=none, 1=left, 2=right
     self._params = Params()
+    # Bluetooth HID remote lane commands.
+    self.bluetooth_commands = CommandReader('lane')
+    self._bt_lane_count = 0  # frames remaining for a Bluetooth lane command
 
     # Killswitch for the synthetic-blinker path, OFF by default.
     #
@@ -65,6 +70,19 @@ class DesireHelper:
     v_ego = carstate.vEgo
     one_blinker = carstate.leftBlinker != carstate.rightBlinker
     below_lane_change_speed = v_ego < LANE_CHANGE_SPEED_MIN
+
+    # Bluetooth HID remote lane commands (carrot_bluetooth daemon publishes to /dev/shm/carrot-bluetooth/lane.json).
+    # laneLeft/laneRight set carrot_virtual_blinker for the duration of _bt_lane_count frames.
+    remote = self.bluetooth_commands.read(
+      allowed=(lateral_active and carstate.canValid and not below_lane_change_speed),
+    )
+    if remote in ('laneLeft', 'laneRight') and self._bt_lane_count == 0:
+      self._bt_lane_count = int(0.2 / DT_MDL)  # 200 ms window
+    if self._bt_lane_count > 0:
+      self._bt_lane_count -= 1
+      if remote in ('laneLeft', 'laneRight'):
+        self.carrot_virtual_blinker = 1 if remote == 'laneLeft' else 2
+      # When count expires and no new lane command arrives, carrot_man or the else branch below clears it.
 
     # Refresh the ATC killswitch at most once a second (update() runs at 100 Hz).
     self._carrot_atc_blinker_param_t += DT_MDL

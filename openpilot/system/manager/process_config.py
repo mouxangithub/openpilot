@@ -232,6 +232,12 @@ procs += [
   # card.py merges results into carState (blindspot) and carStateSP (lane lines).
   PythonProcess("xiaoge_data", "openpilot.sunnypilot.carrot.xiaoge_data", carrot_enabled),
 
+  # Bluetooth HID remote daemon
+  # Reads evdev input events from paired Bluetooth HID remotes (e.g. Yiser J6).
+  # Publishes cruise/lane commands to /dev/shm/carrot-bluetooth/{cruise,lane}.json.
+  # CommandReader in cruise.py / desire_helper.py consumes these commands.
+  PythonProcess("carrot_bluetooth", "openpilot.sunnypilot.carrot.bluetooth.daemon", carrot_enabled),
+
   # locationd
   NativeProcess("locationd_llk", "openpilot/sunnypilot/selfdrive/locationd", ["./locationd"], only_onroad),
 ]

@@ -4110,3 +4110,171 @@ msgstr "Enable drive mode btn link"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
 msgid "Link the Toyota drive-mode button (ECO/NORMAL/SPORT) into sunnypilot logic."
 msgstr "Link the Toyota drive-mode button (ECO/NORMAL/SPORT) into sunnypilot logic."
+
+msgid "Bluetooth Remotes"
+msgstr "Bluetooth Remotes"
+
+msgid "Bluetooth adapter unavailable"
+msgstr "Bluetooth adapter unavailable"
+
+msgid "Requires stationary & disengaged state"
+msgstr "Requires stationary & disengaged state"
+
+msgid "Scanning..."
+msgstr "Scanning..."
+
+msgid "Ready"
+msgstr "Ready"
+
+msgid "Enable Bluetooth"
+msgstr "Enable Bluetooth"
+
+msgid "Disable Bluetooth"
+msgstr "Disable Bluetooth"
+
+msgid "Scan (30s)"
+msgstr "Scan (30s)"
+
+msgid "Cancel"
+msgstr "Cancel"
+
+msgid "Put your device in pairing mode and scan. Disconnect it from your previous phone if needed."
+msgstr "Put your device in pairing mode and scan. Disconnect it from your previous phone if needed."
+
+msgid "Paired"
+msgstr "Paired"
+
+msgid "Connected"
+msgstr "Connected"
+
+msgid "Battery {}%"
+msgstr "Battery {}%"
+
+msgid "Mapping on"
+msgstr "Mapping on"
+
+msgid "Mapping off"
+msgstr "Mapping off"
+
+msgid "Receiving input"
+msgstr "Receiving input"
+
+msgid "Pair"
+msgstr "Pair"
+
+msgid "Disconnect"
+msgstr "Disconnect"
+
+msgid "Connect"
+msgstr "Connect"
+
+msgid "Forget"
+msgstr "Forget"
+
+msgid "Edit"
+msgstr "Edit"
+
+msgid "Back"
+msgstr "Back"
+
+msgid "Profile"
+msgstr "Profile"
+
+msgid "Generic keyboard / HID"
+msgstr "Generic keyboard / HID"
+
+msgid "Use Carrot mapping"
+msgstr "Use Carrot mapping"
+
+msgid "Button Mapping"
+msgstr "Button Mapping"
+
+msgid "None"
+msgstr "None"
+
+msgid "Cruise +"
+msgstr "Cruise +"
+
+msgid "Cruise −"
+msgstr "Cruise −"
+
+msgid "Cruise + Long"
+msgstr "Cruise + Long"
+
+msgid "Cruise − Long"
+msgstr "Cruise − Long"
+
+msgid "Gap"
+msgstr "Gap"
+
+msgid "LFA"
+msgstr "LFA"
+
+msgid "LFA Long"
+msgstr "LFA Long"
+
+msgid "Cancel Long"
+msgstr "Cancel Long"
+
+msgid "Lane Left"
+msgstr "Lane Left"
+
+msgid "Lane Right"
+msgstr "Lane Right"
+
+msgid "Paddle −"
+msgstr "Paddle −"
+
+msgid "CarrotCruise"
+msgstr "CarrotCruise"
+
+msgid "Save"
+msgstr "Save"
+
+msgid "Saved"
+msgstr "Saved"
+
+msgid "Test / Learn"
+msgstr "Test / Learn"
+
+msgid "Stop Test"
+msgstr "Stop Test"
+
+msgid "Testing"
+msgstr "Testing"
+
+msgid "Test mode active"
+msgstr "Test mode active"
+
+msgid "Save your changes"
+msgstr "Save your changes"
+
+msgid "Exclusive HID capture active"
+msgstr "Exclusive HID capture active"
+
+msgid "Waiting for HID capture (check connection and mapping)"
+msgstr "Waiting for HID capture (check connection and mapping)"
+
+msgid "Pairing confirmation"
+msgstr "Pairing confirmation"
+
+msgid "Enter the code shown on the other device"
+msgstr "Enter the code shown on the other device"
+
+msgid "Confirm"
+msgstr "Confirm"
+
+msgid "Short"
+msgstr "Short"
+
+msgid "Double"
+msgstr "Double"
+
+msgid "Long"
+msgstr "Long"
+
+msgid "Forget this device?"
+msgstr "Forget this device?"
+
+msgid "Bluetooth"
+msgstr "Bluetooth"
