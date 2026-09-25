@@ -463,6 +463,18 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"HapticFeedbackWhenSpeedCamera", {PERSISTENT, INT, "0"}},
     // Published by networkd; the Carrot web dialog reads it for the QR link.
     {"NetworkAddress", {CLEAR_ON_MANAGER_START, STRING}},
+    // Destination pushed by the phone (sunnylink athena RPC setNavDestination,
+    // and carrot_man's external-navi path). Both wrote it through
+    // Params.put() while it was unregistered, so check_key() raised
+    // UnknownKeyName: the athena RPC call had no guard around it at all, and
+    // carrot's copy only survived because of a broad except.
+    // JSON type: writers must pass a dict, not a json.dumps() string.
+    {"NavDestination", {PERSISTENT, JSON, "{}"}},
+    // Timezone the phone pushed, plus who set it. carrot_serv writes them after
+    // syncing the clock from the app so timed.py does not immediately overwrite
+    // the app's value with the device's own guess.
+    {"TimezoneName", {PERSISTENT, STRING}},
+    {"TimezoneSource", {PERSISTENT, STRING}},
     // Registered after the unregistered-reads audit: these BYD-platform and lateral
     // tuning reads were live code with no registration, so no UI or whitelist could
     // ever reach them. Defaults are 0 - the carcontroller's own per-platform

@@ -303,13 +303,6 @@ sections:
     widget: toggle
     title: Enable OSM Map Data
     description: Use offline OSM map data for speed limits and road names. Turn off to ignore the offline map entirely - the offline data can be years out of date.
-  - key: CruiseGapLevels
-    widget: option
-    title: Cruise Gap Levels
-    description: How many follow-gap levels the distance button cycles (2-4). Below the vehicle maximum shortens the cycle.
-    min: 2
-    max: 4
-    step: 1
   - key: CarrotAmapBlindSpotEnabled
     widget: toggle
     title: Enable Amap Blind Spot Data
@@ -366,6 +359,13 @@ sections:
       key: CarrotEnabled
       equals: true
     items:
+    - key: CruiseGapLevels
+      widget: option
+      title: Cruise Gap Levels
+      description: How many follow-gap levels the distance button cycles (2-4). Below the vehicle maximum shortens the cycle.
+      min: 2
+      max: 4
+      step: 1
     - key: TFollowGap1
       widget: option
       title: Follow Gap 1

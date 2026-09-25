@@ -44,6 +44,9 @@ def build_cruise_items():
     option_item_sp(title=tr('Apply Model Speed'), param='ApplyModelSpeed', min_value=0, max_value=100, value_change_step=1),
     option_item_sp(title=tr('Auto Engage'), param='AutoEngage', min_value=0, max_value=2, value_change_step=1),
     section_heading_sp(tr('Following Distance')),
+    # How many gap levels the distance button cycles. Belongs with follow distance,
+    # not with the navigation section it was briefly placed in.
+    option_item_sp(title=tr('Cruise Gap Levels'), param='CruiseGapLevels', min_value=2, max_value=4, value_change_step=1),
     option_item_sp(title=tr('Follow Time Gap 1'), param='TFollowGap1', min_value=50, max_value=300, value_change_step=5,
                    use_float_scaling=True, label_callback=lambda v: f'{v / 100.0:.2f}s'),
     option_item_sp(title=tr('Follow Time Gap 2'), param='TFollowGap2', min_value=50, max_value=300, value_change_step=5,
@@ -66,8 +69,7 @@ def build_cruise_items():
 def build_navi_items():
   return [
     section_heading_sp(tr('Navigation Speed Control')),
-        option_item_sp(title=tr('Cruise Gap Levels'), param='CruiseGapLevels', min_value=2, max_value=4, value_change_step=1),
-option_item_sp(title=tr('Navigation Speed Ctrl Mode'), param='AutoNaviSpeedCtrlMode', min_value=0, max_value=3, value_change_step=1,
+    option_item_sp(title=tr('Navigation Speed Ctrl Mode'), param='AutoNaviSpeedCtrlMode', min_value=0, max_value=3, value_change_step=1,
                    description=tr('0=Off, 1=Limit to nav speed, 2=Limit with early decel.')),
     option_item_sp(title=tr('Navigation Speed Decel Rate'), param='AutoNaviSpeedDecelRate', min_value=0, max_value=500, value_change_step=10),
     option_item_sp(title=tr('Navigation Speed Safety Factor'), param='AutoNaviSpeedSafetyFactor', min_value=50, max_value=150, value_change_step=5,

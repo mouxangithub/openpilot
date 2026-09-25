@@ -1798,11 +1798,13 @@ class CarrotManager:
               # Send routes
               self.send_routes(points, from_navd=True)
 
-              # Save destination to params
+              # Save destination to params. NavDestination is a JSON param, so hand it
+              # the dict directly - Params.put casts by declared type and a str would be
+              # rejected with a type mismatch.
               if len(points):
                 dest = points[-1]
                 dest['place_name'] = "External Navi"
-                self.params.put("NavDestination", json.dumps(dest, ensure_ascii=False))
+                self.params.put("NavDestination", dest)
 
           except Exception as e:
             cloudlog.error(f"carrot_man: route connection error: {e}")
@@ -1935,7 +1937,7 @@ class CarrotManager:
     if points:
       try:
         dest = {"latitude": points[-1][1], "longitude": points[-1][0], "place_name": "External Navi"}
-        self.params.put("NavDestination", json.dumps(dest, ensure_ascii=False))
+        self.params.put("NavDestination", dest)
       except Exception as e:
         cloudlog.error(f"carrot_man: NavDestination put error: {e}")
 
