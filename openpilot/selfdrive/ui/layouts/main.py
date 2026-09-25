@@ -16,6 +16,12 @@ if gui_app.sunnypilot_ui():
   from openpilot.selfdrive.ui.sunnypilot.layouts.home import HomeLayoutSP as HomeLayout
   from openpilot.selfdrive.ui.widgets.carrot_web_dialog import CarrotWebDialog
 
+# cp cluster 的纯 2D HUD overlay（方案X）。导入失败时降级为 None，绝不破坏 onroad 主屏。
+try:
+  from openpilot.sunnypilot.carrot.cluster_view.cluster_overlay import ClusterOverlay
+except Exception:  # pragma: no cover - 依赖缺失时退化为不叠加
+  ClusterOverlay = None
+
 
 class MainState(IntEnum):
   HOME = 0
@@ -41,6 +47,9 @@ class MainLayout(Widget):
       MainState.SETTINGS: SettingsLayout(),
       MainState.ONROAD: AugmentedRoadView(),
     }
+
+    # Cluster HUD overlay（方案X：cp cluster 纯 2D 渲染核叠加到自带屏 onroad 主屏右下角）。
+    self._cluster_overlay = ClusterOverlay() if ClusterOverlay is not None else None
 
     self._sidebar_rect = rl.Rectangle(0, 0, 0, 0)
     self._content_rect = rl.Rectangle(0, 0, 0, 0)
@@ -136,3 +145,9 @@ class MainLayout(Widget):
 
     content_rect = self._content_rect if self._sidebar.is_visible else self._rect
     self._layouts[self._current_mode].render(content_rect)
+
+    # Cluster HUD overlay：先刷新数据，再渲染到本机 onroad 主屏右下角。
+    overlay = self._cluster_overlay
+    if overlay is not None and self._current_mode == MainState.ONROAD:
+      overlay._update_state()
+      overlay.render(overlay.overlay_rect(content_rect))

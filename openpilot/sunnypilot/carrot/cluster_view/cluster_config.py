@@ -1,0 +1,586 @@
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass
+
+DESIGN_WIDTH = 1920
+DESIGN_HEIGHT = 480
+
+Color3 = tuple[int, int, int]
+Color4 = tuple[int, int, int, int]
+
+
+@dataclass(frozen=True, slots=True)
+class ClusterTheme:
+    name: str
+    is_dark: bool
+    bg: Color3
+    panel_bg: Color3
+    text: Color3
+    muted: Color3
+    faint: Color3
+    road: Color3
+    road_edge: Color3
+    lane_marking_border: Color4
+    road_edge_backing: Color4
+    path_shadow: Color4
+    path_uncertainty: Color4
+    path_body: Color4
+    path_highlight: Color4
+    world_label_shadow: Color3
+    world_label_text: Color3
+    clock_bg: Color4
+    clock_outline: Color4
+    clock_text: Color3
+    gauge_bg: Color3
+    gauge_midline: Color3
+    inactive_signal_fill: Color4
+    inactive_signal_outline: Color3
+    route_panel_bg: Color3
+    route_video_bg: Color3
+    route_video_status: Color3
+    primary_vehicle: Color3
+    model_vehicle: Color3
+    default_vehicle: Color3
+
+
+CLUSTER_THEME_AUTO = 0
+CLUSTER_THEME_DARK = 1
+CLUSTER_THEME_LIGHT = 2
+CLUSTER_ENCODER_AUTO = 0
+CLUSTER_ENCODER_JPEG = 1
+CLUSTER_ENCODER_HARDWARE = 2
+CLUSTER_ENCODER_SOFTWARE = 3
+CLUSTER_HUD_PARAM = "ClusterHud"
+CLUSTER_HUD_DEBUG_PARAM = "ClusterHudDebug"
+CLUSTER_BRIGHTNESS_PARAM = "ClusterHudBrightness"
+CLUSTER_ORIENTATION_PARAM = "ClusterHudOrientation"
+CLUSTER_ENCODER_PARAM = "ClusterHudEncoder"
+CLUSTER_HUD_MIRROR_PARAM = "ClusterHudMirror"
+CLUSTER_THEME_PARAM = "ClusterHudTheme"
+CLUSTER_RADAR_INFO_PARAM = "ClusterHudRadarInfo"
+CLUSTER_RADAR_DISPLAY_PARAM = "ClusterHudRadarDisplay"
+CLUSTER_RADAR_SOURCE_COLOR_PARAM = "ClusterHudRadarSourceColor"
+CLUSTER_CAMERA_VIEW_MODE_DEFAULT = 0
+CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM = 1
+CLUSTER_CAMERA_VIEW_MODE_ROAD_CAMERA = 2
+CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA = 3
+CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA = 4
+CLUSTER_CAMERA_VIEW_MODE_PARAM = "ClusterHudCameraViewMode"
+CLUSTER_ROAD_CAMERA_AUTO_WIDE_MAX_KPH = 36.0
+CLUSTER_ROAD_CAMERA_AUTO_NARROW_MIN_KPH = 54.0
+CLUSTER_WIDE_CAMERA_ZOOM_MIN = 1.0
+CLUSTER_WIDE_CAMERA_ZOOM_MAX = 1.55
+CLUSTER_PANEL_LAYOUT_DRIVING_LEFT = 0
+CLUSTER_PANEL_LAYOUT_DRIVING_RIGHT = 1
+CLUSTER_PANEL_LAYOUT_PARAM = "ClusterHudPanelLayout"
+CLUSTER_SCREEN_MODE_FULLSCREEN_3D = -1
+CLUSTER_SCREEN_MODE_DEFAULT = 0
+CLUSTER_SCREEN_MODE_DEBUG = 1
+CLUSTER_SCREEN_MODE_DEBUG_SYSTEM = 2
+CLUSTER_SCREEN_MODE_DEBUG_GRAPH = 3
+CLUSTER_SCREEN_MODE_DEBUG_GRAPH_RIGHT = 4
+CLUSTER_SCREEN_MODE_TRIP_REPORT = 5
+CLUSTER_SCREEN_MODE_NAVI = 6
+CLUSTER_SCREEN_MODE_PARAM = "ClusterHudScreenMode"
+CLUSTER_RADAR_INFO_NONE = 0
+CLUSTER_RADAR_INFO_VEHICLE_SPEED = 1
+CLUSTER_RADAR_INFO_VEHICLE_SPEED_DISTANCE = 2
+CLUSTER_RADAR_INFO_ALL_SPEED = 3
+CLUSTER_RADAR_INFO_ALL_SPEED_DISTANCE = 4
+CLUSTER_RADAR_DISPLAY_MERGED = 0
+CLUSTER_RADAR_DISPLAY_DETAIL = 1
+CLUSTER_RADAR_SOURCE_COLOR_DEFAULT = 0
+CLUSTER_RADAR_SOURCE_COLOR_BY_SOURCE = 1
+SHOW_PLOT_MODE_PARAM = "ShowPlotMode"
+AUTO_DARK_START_HOUR = 18
+AUTO_LIGHT_START_HOUR = 6
+H264_AUTO_BITRATE_REFERENCE_FPS = 30
+H264_AUTO_BITRATE_REFERENCE_BPS = 7_000_000
+H264_AUTO_BITRATE_MIN_BPS = 1_000_000
+H264_AUTO_BITRATE_MAX_BPS = 14_000_000
+H264_AUTO_BITRATE_GRANULARITY_BPS = 1_000
+
+LIGHT_CLUSTER_THEME = ClusterTheme(
+    name="light",
+    is_dark=False,
+    bg=(244, 246, 248),
+    panel_bg=(250, 251, 252),
+    text=(20, 24, 28),
+    muted=(104, 112, 120),
+    faint=(214, 220, 226),
+    road=(218, 222, 226),
+    road_edge=(108, 122, 138),
+    lane_marking_border=(54, 62, 70, 205),
+    road_edge_backing=(72, 82, 92, 118),
+    path_shadow=(56, 72, 88, 70),
+    path_uncertainty=(112, 169, 255, 74),
+    path_body=(34, 126, 255, 220),
+    path_highlight=(222, 239, 255, 238),
+    world_label_shadow=(245, 248, 252),
+    world_label_text=(8, 10, 12),
+    clock_bg=(8, 10, 12, 150),
+    clock_outline=(255, 255, 255, 72),
+    clock_text=(255, 255, 255),
+    gauge_bg=(232, 236, 240),
+    gauge_midline=(88, 96, 104),
+    inactive_signal_fill=(195, 202, 209, 92),
+    inactive_signal_outline=(168, 176, 184),
+    route_panel_bg=(248, 250, 252),
+    route_video_bg=(18, 20, 22),
+    route_video_status=(212, 218, 224),
+    primary_vehicle=(50, 66, 82),
+    model_vehicle=(88, 100, 112),
+    default_vehicle=(70, 78, 88),
+)
+
+DARK_CLUSTER_THEME = ClusterTheme(
+    name="dark",
+    is_dark=True,
+    # Match the map and disconnected backings on wide external displays.
+    bg=(0, 0, 0),
+    panel_bg=(18, 23, 29),
+    text=(238, 242, 247),
+    muted=(150, 160, 172),
+    faint=(66, 76, 88),
+    road=(30, 36, 43),
+    road_edge=(118, 138, 158),
+    lane_marking_border=(3, 6, 10, 205),
+    road_edge_backing=(4, 8, 12, 196),
+    path_shadow=(0, 0, 0, 110),
+    path_uncertainty=(92, 154, 255, 82),
+    path_body=(48, 146, 255, 230),
+    path_highlight=(220, 238, 255, 245),
+    world_label_shadow=(0, 0, 0),
+    world_label_text=(238, 242, 247),
+    clock_bg=(0, 0, 0, 172),
+    clock_outline=(238, 242, 247, 72),
+    clock_text=(255, 255, 255),
+    gauge_bg=(18, 23, 29),
+    gauge_midline=(98, 112, 128),
+    inactive_signal_fill=(74, 86, 100, 92),
+    inactive_signal_outline=(94, 108, 124),
+    route_panel_bg=(16, 20, 25),
+    route_video_bg=(5, 8, 12),
+    route_video_status=(184, 194, 206),
+    primary_vehicle=(92, 112, 134),
+    model_vehicle=(108, 122, 138),
+    default_vehicle=(84, 96, 110),
+)
+
+
+def normalize_cluster_theme_mode(value: object) -> str:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in ("auto", "dark", "light"):
+            return normalized
+        try:
+            value = int(normalized)
+        except ValueError:
+            return "auto"
+    if value == CLUSTER_THEME_DARK:
+        return "dark"
+    if value == CLUSTER_THEME_LIGHT:
+        return "light"
+    return "auto"
+
+
+def resolved_usb_h264_bitrate(requested_bitrate: str, target_fps: float, h264_fps: int) -> str:
+    text = requested_bitrate.strip()
+    if text.lower() != "auto":
+        return text
+    source_fps = int(max(1, round(target_fps if target_fps > 0 else float(h264_fps))))
+    denominator = H264_AUTO_BITRATE_REFERENCE_FPS * H264_AUTO_BITRATE_GRANULARITY_BPS
+    bitrate_bps = (
+        (source_fps * H264_AUTO_BITRATE_REFERENCE_BPS + denominator // 2)
+        // denominator
+        * H264_AUTO_BITRATE_GRANULARITY_BPS
+    )
+    bitrate_bps = int(max(H264_AUTO_BITRATE_MIN_BPS, min(H264_AUTO_BITRATE_MAX_BPS, bitrate_bps)))
+    if bitrate_bps % 1_000_000 == 0:
+        return f"{bitrate_bps // 1_000_000}M"
+    if bitrate_bps % 1_000 == 0:
+        return f"{bitrate_bps // 1_000}k"
+    return str(bitrate_bps)
+
+
+def normalize_cluster_encoder_mode(value: object) -> int:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        aliases = {
+            "auto": CLUSTER_ENCODER_AUTO,
+            "jpeg": CLUSTER_ENCODER_JPEG,
+            "jpg": CLUSTER_ENCODER_JPEG,
+            "hardware": CLUSTER_ENCODER_HARDWARE,
+            "hw": CLUSTER_ENCODER_HARDWARE,
+            "h264": CLUSTER_ENCODER_HARDWARE,
+            "native": CLUSTER_ENCODER_HARDWARE,
+            "software": CLUSTER_ENCODER_SOFTWARE,
+            "sw": CLUSTER_ENCODER_SOFTWARE,
+            "ffmpeg": CLUSTER_ENCODER_SOFTWARE,
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        try:
+            value = int(normalized)
+        except ValueError:
+            return CLUSTER_ENCODER_AUTO
+    try:
+        mode = int(value)
+    except (TypeError, ValueError):
+        return CLUSTER_ENCODER_AUTO
+    if mode in (
+        CLUSTER_ENCODER_AUTO,
+        CLUSTER_ENCODER_JPEG,
+        CLUSTER_ENCODER_HARDWARE,
+        CLUSTER_ENCODER_SOFTWARE,
+    ):
+        return mode
+    return CLUSTER_ENCODER_AUTO
+
+
+def normalize_cluster_camera_view_mode(value: object) -> int:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        aliases = {
+            "default": CLUSTER_CAMERA_VIEW_MODE_DEFAULT,
+            "mode0": CLUSTER_CAMERA_VIEW_MODE_DEFAULT,
+            "mode-0": CLUSTER_CAMERA_VIEW_MODE_DEFAULT,
+            "rear": CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM,
+            "bottom": CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM,
+            "ego-bottom": CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM,
+            "ego_bottom": CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM,
+            "mode1": CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM,
+            "mode-1": CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM,
+            "legacy": CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM,
+            "camera": CLUSTER_CAMERA_VIEW_MODE_ROAD_CAMERA,
+            "road-camera": CLUSTER_CAMERA_VIEW_MODE_ROAD_CAMERA,
+            "road_camera": CLUSTER_CAMERA_VIEW_MODE_ROAD_CAMERA,
+            "mode2": CLUSTER_CAMERA_VIEW_MODE_ROAD_CAMERA,
+            "mode-2": CLUSTER_CAMERA_VIEW_MODE_ROAD_CAMERA,
+            "wide-camera": CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA,
+            "wide_camera": CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA,
+            "wide": CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA,
+            "mode3": CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA,
+            "mode-3": CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA,
+            "auto-camera": CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA,
+            "auto_camera": CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA,
+            "camera-auto": CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA,
+            "mode4": CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA,
+            "mode-4": CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA,
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        try:
+            value = int(normalized)
+        except ValueError:
+            return CLUSTER_CAMERA_VIEW_MODE_DEFAULT
+    try:
+        mode = int(value)
+    except (TypeError, ValueError):
+        return CLUSTER_CAMERA_VIEW_MODE_DEFAULT
+    if mode == CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM:
+        return CLUSTER_CAMERA_VIEW_MODE_EGO_BOTTOM
+    if mode == CLUSTER_CAMERA_VIEW_MODE_ROAD_CAMERA:
+        return CLUSTER_CAMERA_VIEW_MODE_ROAD_CAMERA
+    if mode == CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA:
+        return CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA
+    if mode == CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA:
+        return CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA
+    return CLUSTER_CAMERA_VIEW_MODE_DEFAULT
+
+
+def cluster_camera_view_is_road_camera(mode: object) -> bool:
+    normalized = normalize_cluster_camera_view_mode(mode)
+    return normalized in (
+        CLUSTER_CAMERA_VIEW_MODE_ROAD_CAMERA,
+        CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA,
+        CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA,
+    )
+
+
+def cluster_camera_view_prefers_wide(mode: object, speed_kph: float, currently_wide: bool) -> bool:
+    normalized = normalize_cluster_camera_view_mode(mode)
+    if normalized == CLUSTER_CAMERA_VIEW_MODE_WIDE_CAMERA:
+        return True
+    if normalized != CLUSTER_CAMERA_VIEW_MODE_AUTO_CAMERA:
+        return False
+    if currently_wide:
+        return speed_kph < CLUSTER_ROAD_CAMERA_AUTO_NARROW_MIN_KPH
+    return speed_kph <= CLUSTER_ROAD_CAMERA_AUTO_WIDE_MAX_KPH
+
+
+def cluster_wide_camera_zoom_factor(speed_kph: float) -> float:
+    ratio = max(0.0, min(1.0, speed_kph / CLUSTER_ROAD_CAMERA_AUTO_NARROW_MIN_KPH))
+    smooth = ratio * ratio * (3.0 - 2.0 * ratio)
+    return CLUSTER_WIDE_CAMERA_ZOOM_MIN + smooth * (
+        CLUSTER_WIDE_CAMERA_ZOOM_MAX - CLUSTER_WIDE_CAMERA_ZOOM_MIN
+    )
+
+
+def normalize_cluster_panel_layout(value: object) -> int:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        aliases = {
+            "default": CLUSTER_PANEL_LAYOUT_DRIVING_LEFT,
+            "driving-left": CLUSTER_PANEL_LAYOUT_DRIVING_LEFT,
+            "driving_left": CLUSTER_PANEL_LAYOUT_DRIVING_LEFT,
+            "camera-left": CLUSTER_PANEL_LAYOUT_DRIVING_LEFT,
+            "camera_left": CLUSTER_PANEL_LAYOUT_DRIVING_LEFT,
+            "swapped": CLUSTER_PANEL_LAYOUT_DRIVING_RIGHT,
+            "swap": CLUSTER_PANEL_LAYOUT_DRIVING_RIGHT,
+            "driving-right": CLUSTER_PANEL_LAYOUT_DRIVING_RIGHT,
+            "driving_right": CLUSTER_PANEL_LAYOUT_DRIVING_RIGHT,
+            "camera-right": CLUSTER_PANEL_LAYOUT_DRIVING_RIGHT,
+            "camera_right": CLUSTER_PANEL_LAYOUT_DRIVING_RIGHT,
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        try:
+            value = int(normalized)
+        except ValueError:
+            return CLUSTER_PANEL_LAYOUT_DRIVING_LEFT
+    try:
+        layout = int(value)
+    except (TypeError, ValueError):
+        return CLUSTER_PANEL_LAYOUT_DRIVING_LEFT
+    if layout == CLUSTER_PANEL_LAYOUT_DRIVING_RIGHT:
+        return CLUSTER_PANEL_LAYOUT_DRIVING_RIGHT
+    return CLUSTER_PANEL_LAYOUT_DRIVING_LEFT
+
+
+def normalize_cluster_brightness_percent(value: object) -> int:
+    if isinstance(value, str):
+        normalized = value.strip()
+        try:
+            value = int(normalized)
+        except ValueError:
+            return 0
+    try:
+        brightness = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return min(100, max(0, brightness))
+
+
+def normalize_cluster_screen_mode(value: object) -> int:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        aliases = {
+            "3d-fullscreen": CLUSTER_SCREEN_MODE_FULLSCREEN_3D,
+            "3d_fullscreen": CLUSTER_SCREEN_MODE_FULLSCREEN_3D,
+            "fullscreen-3d": CLUSTER_SCREEN_MODE_FULLSCREEN_3D,
+            "fullscreen_3d": CLUSTER_SCREEN_MODE_FULLSCREEN_3D,
+            "default": CLUSTER_SCREEN_MODE_DEFAULT,
+            "debug": CLUSTER_SCREEN_MODE_DEBUG,
+            "system": CLUSTER_SCREEN_MODE_DEBUG_SYSTEM,
+            "debug-system": CLUSTER_SCREEN_MODE_DEBUG_SYSTEM,
+            "debug_system": CLUSTER_SCREEN_MODE_DEBUG_SYSTEM,
+            "graph": CLUSTER_SCREEN_MODE_DEBUG_GRAPH,
+            "graph-full": CLUSTER_SCREEN_MODE_DEBUG_GRAPH,
+            "graph_full": CLUSTER_SCREEN_MODE_DEBUG_GRAPH,
+            "graph-right": CLUSTER_SCREEN_MODE_DEBUG_GRAPH_RIGHT,
+            "graph_right": CLUSTER_SCREEN_MODE_DEBUG_GRAPH_RIGHT,
+            "debug-graph": CLUSTER_SCREEN_MODE_DEBUG_GRAPH,
+            "debug_graph": CLUSTER_SCREEN_MODE_DEBUG_GRAPH,
+            "debug-graph-right": CLUSTER_SCREEN_MODE_DEBUG_GRAPH_RIGHT,
+            "debug_graph_right": CLUSTER_SCREEN_MODE_DEBUG_GRAPH_RIGHT,
+            "trip-report": CLUSTER_SCREEN_MODE_TRIP_REPORT,
+            "trip_report": CLUSTER_SCREEN_MODE_TRIP_REPORT,
+            "report": CLUSTER_SCREEN_MODE_TRIP_REPORT,
+            "driving-report": CLUSTER_SCREEN_MODE_TRIP_REPORT,
+            "driving_report": CLUSTER_SCREEN_MODE_TRIP_REPORT,
+            "navi": CLUSTER_SCREEN_MODE_NAVI,
+            "navigation": CLUSTER_SCREEN_MODE_NAVI,
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        try:
+            value = int(normalized)
+        except ValueError:
+            return CLUSTER_SCREEN_MODE_DEFAULT
+    try:
+        mode = int(value)
+    except (TypeError, ValueError):
+        return CLUSTER_SCREEN_MODE_DEFAULT
+    if mode in (
+        CLUSTER_SCREEN_MODE_FULLSCREEN_3D,
+        CLUSTER_SCREEN_MODE_DEFAULT,
+        CLUSTER_SCREEN_MODE_DEBUG,
+        CLUSTER_SCREEN_MODE_DEBUG_SYSTEM,
+        CLUSTER_SCREEN_MODE_DEBUG_GRAPH,
+        CLUSTER_SCREEN_MODE_DEBUG_GRAPH_RIGHT,
+        CLUSTER_SCREEN_MODE_TRIP_REPORT,
+        CLUSTER_SCREEN_MODE_NAVI,
+    ):
+        return mode
+    return CLUSTER_SCREEN_MODE_DEFAULT
+
+
+def normalize_cluster_radar_info_mode(value: object) -> int:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        aliases = {
+            "none": CLUSTER_RADAR_INFO_NONE,
+            "off": CLUSTER_RADAR_INFO_NONE,
+            "vehicle-speed": CLUSTER_RADAR_INFO_VEHICLE_SPEED,
+            "vehicle_speed": CLUSTER_RADAR_INFO_VEHICLE_SPEED,
+            "vehicle-speed-distance": CLUSTER_RADAR_INFO_VEHICLE_SPEED_DISTANCE,
+            "vehicle_speed_distance": CLUSTER_RADAR_INFO_VEHICLE_SPEED_DISTANCE,
+            "all-speed": CLUSTER_RADAR_INFO_ALL_SPEED,
+            "all_speed": CLUSTER_RADAR_INFO_ALL_SPEED,
+            "all-speed-distance": CLUSTER_RADAR_INFO_ALL_SPEED_DISTANCE,
+            "all_speed_distance": CLUSTER_RADAR_INFO_ALL_SPEED_DISTANCE,
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        try:
+            value = int(normalized)
+        except ValueError:
+            return CLUSTER_RADAR_INFO_ALL_SPEED_DISTANCE
+    try:
+        mode = int(value)
+    except (TypeError, ValueError):
+        return CLUSTER_RADAR_INFO_ALL_SPEED_DISTANCE
+    if CLUSTER_RADAR_INFO_NONE <= mode <= CLUSTER_RADAR_INFO_ALL_SPEED_DISTANCE:
+        return mode
+    return CLUSTER_RADAR_INFO_ALL_SPEED_DISTANCE
+
+
+def normalize_cluster_radar_display_mode(value: object) -> int:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        aliases = {
+            "default": CLUSTER_RADAR_DISPLAY_MERGED,
+            "merge": CLUSTER_RADAR_DISPLAY_MERGED,
+            "merged": CLUSTER_RADAR_DISPLAY_MERGED,
+            "detail": CLUSTER_RADAR_DISPLAY_DETAIL,
+            "detailed": CLUSTER_RADAR_DISPLAY_DETAIL,
+            "raw": CLUSTER_RADAR_DISPLAY_DETAIL,
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        try:
+            value = int(normalized)
+        except ValueError:
+            return CLUSTER_RADAR_DISPLAY_MERGED
+    try:
+        mode = int(value)
+    except (TypeError, ValueError):
+        return CLUSTER_RADAR_DISPLAY_MERGED
+    if mode == CLUSTER_RADAR_DISPLAY_DETAIL:
+        return CLUSTER_RADAR_DISPLAY_DETAIL
+    return CLUSTER_RADAR_DISPLAY_MERGED
+
+
+def normalize_cluster_radar_source_color_mode(value: object) -> int:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        aliases = {
+            "default": CLUSTER_RADAR_SOURCE_COLOR_DEFAULT,
+            "off": CLUSTER_RADAR_SOURCE_COLOR_DEFAULT,
+            "source": CLUSTER_RADAR_SOURCE_COLOR_BY_SOURCE,
+            "on": CLUSTER_RADAR_SOURCE_COLOR_BY_SOURCE,
+        }
+        if normalized in aliases:
+            return aliases[normalized]
+        try:
+            value = int(normalized)
+        except ValueError:
+            return CLUSTER_RADAR_SOURCE_COLOR_DEFAULT
+    try:
+        mode = int(value)
+    except (TypeError, ValueError):
+        return CLUSTER_RADAR_SOURCE_COLOR_DEFAULT
+    if mode == CLUSTER_RADAR_SOURCE_COLOR_BY_SOURCE:
+        return CLUSTER_RADAR_SOURCE_COLOR_BY_SOURCE
+    return CLUSTER_RADAR_SOURCE_COLOR_DEFAULT
+
+
+def current_cluster_theme(mode: object = "auto", now: float | None = None) -> ClusterTheme:
+    normalized = normalize_cluster_theme_mode(mode)
+    if normalized == "dark":
+        return DARK_CLUSTER_THEME
+    if normalized == "light":
+        return LIGHT_CLUSTER_THEME
+
+    local_hour = time.localtime(now).tm_hour if now is not None else time.localtime().tm_hour
+    if local_hour >= AUTO_DARK_START_HOUR or local_hour < AUTO_LIGHT_START_HOUR:
+        return DARK_CLUSTER_THEME
+    return LIGHT_CLUSTER_THEME
+
+
+BG = LIGHT_CLUSTER_THEME.bg
+PANEL_BG = LIGHT_CLUSTER_THEME.panel_bg
+TEXT = LIGHT_CLUSTER_THEME.text
+MUTED = LIGHT_CLUSTER_THEME.muted
+FAINT = LIGHT_CLUSTER_THEME.faint
+ROAD = LIGHT_CLUSTER_THEME.road
+ROAD_EDGE = LIGHT_CLUSTER_THEME.road_edge
+WHITE = (255, 255, 255)
+BLUE = (38, 132, 255)
+BLUE_SOFT = (168, 207, 255)
+YELLOW = (218, 202, 37)
+GREEN = (20, 188, 104)
+AMBER = (244, 172, 54)
+RED = (222, 72, 64)
+PURPLE = (156, 92, 255)
+VEHICLE_NAVI = (199, 125, 255)
+EGO = (32, 89, 179)
+CAR_DARK = LIGHT_CLUSTER_THEME.default_vehicle
+
+MAX_SPEED_KPH = 260.0
+MAX_ACCEL_MPS2 = 5.0
+CONTROLLER_ACCEL_MPS2 = 3.2
+CONTROLLER_BRAKE_MPS2 = 5.0
+COAST_DECEL_MPS2 = 0.18
+DRAG_DECEL_PER_MPS = 0.012
+LANE_CHANGE_SECONDS = 4.2
+LANE_CHANGE_MIN_SECONDS = 2.2
+LANE_CHANGE_MAX_SECONDS = 4.8
+LANE_RECENTER_SECONDS = 1.35
+MODEL_DIRECT_LANE_RECENTER_SECONDS = 0.85
+DEFAULT_LANE_WIDTH_M = 3.6
+MAX_STEERING_ANGLE_DEG = 45.0
+TURN_SIGNAL_SECONDS = 5.4
+TURN_SIGNAL_BLINK_PERIOD_SECONDS = 1.0
+TURN_SIGNAL_BLINK_ON_SECONDS = TURN_SIGNAL_BLINK_PERIOD_SECONDS * 0.5
+
+CAMERA_CENTER_X = 1050.0
+CAMERA_HORIZON_Y = 30.0
+CAMERA_HEIGHT_M = 1.45
+CAMERA_FOCAL_X = 240.0
+CAMERA_FOCAL_Y = 1050.0
+ROAD_NEAR_M = 0.75
+ROAD_FAR_M = 90.0
+ROAD_CURVE_M_PER_M2 = 0.0042
+EGO_FORWARD_M = 4.18
+PATH_START_M = EGO_FORWARD_M
+PATH_END_M = 72.0
+PATH_HEIGHT_M = 0.10
+PATH_LANE_CHANGE_CURVE_START_M = 6.70
+PATH_LANE_CHANGE_CURVE_END_M = 15.50
+SURROUND_MAX_YAW_DEG = 180.0
+SURROUND_MAX_PITCH_DEG = 18.0
+SURROUND_VIEW_SMOOTH_SECONDS = 0.16
+SURROUND_CAMERA_DISTANCE_M = 6.3
+SURROUND_CAMERA_HEIGHT_M = 2.65
+SURROUND_TARGET_FORWARD_M = 7.6
+SURROUND_TARGET_HEIGHT_M = 0.25
+SURROUND_CENTER_Y = 265.0
+SURROUND_FOCAL_X = 315.0
+SURROUND_FOCAL_Y = 355.0
+SURROUND_ROAD_REAR_M = -70.0
+SURROUND_ROAD_FRONT_M = 115.0
+SURROUND_ROAD_STEPS = 96
+SURROUND_ROAD_NEAR_DEPTH_M = 0.75
+VEHICLE_WIDTH_M = 1.82
+VEHICLE_LENGTH_M = 4.35
+RADAR_TO_CAMERA_M = 1.52
+VEHICLE_SURROUND_WIDTH_M = 1.05
+VEHICLE_SURROUND_LENGTH_M = 1.85
+VEHICLE_HEIGHT_M = 1.35
+VEHICLE_SURROUND_HEIGHT_MULTIPLIER = 3.0
+VEHICLE_LANE_CHANGE_SLOPE = 0.0
+VEHICLE_AA_SCALE = 3
+VEHICLE_CORNER_RADIUS_PX = 7.5
