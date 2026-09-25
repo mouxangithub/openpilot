@@ -181,11 +181,51 @@ def build_display_items():
                                   '300\u00b0 effectively disables it. CarrotPilot stores 0.1-degree units for this '
                                    'parameter but its code, like this port, compares the raw value against the '
                                    'steering angle, so the number reads as degrees here.')),
-    # The Cluster Map / Cluster HUD sections were removed together with their rows:
-    # sp has no cluster subsystem (no cluster_navi_source, no cluster_renderer), so
-    # every one of those 21 params was registered, exposed in both UIs, and read by
-    # nothing. Leaving empty headings behind would still advertise the feature.
-
+    section_heading_sp(tr('Cluster Map')),
+    option_item_sp(title=tr('Cluster Navigation Map Theme'), param='ClusterNaviMapTheme', min_value=0, max_value=2, value_change_step=1,
+                   label_callback=lambda v, *_: {0: tr('Auto'), 1: tr('Dark'), 2: tr('Light')}.get(v, str(v))),
+    option_item_sp(title=tr('Cluster Navigation Map Type'), param='ClusterNaviMapType', min_value=0, max_value=10, value_change_step=1),
+    option_item_sp(title=tr('Cluster Navigation Map FPS'), param='ClusterNaviMapFps', min_value=1, max_value=60, value_change_step=1,
+                   description=tr('Refresh rate of the external cluster map, in frames per second.')),
+    toggle_item_sp(title=tr('Cluster Map Profile'), param='CarrotNaviHudMapProfile',
+                   description=tr('Enable the cluster map HUD profile overlay.')),
+    section_heading_sp(tr('Cluster HUD (external display required)')),
+    # These 16 knobs drive CarrotPilot's USB/GPU external cluster renderer. This port
+    # exposes them for unified sunnypilot control and so the value survives across
+    # sessions; the renderer itself is not ported yet (see the webui/gui notes).
+    toggle_item_sp(title=tr('Cluster HUD'), param='ClusterHud',
+                   description=tr('Master switch for the external cluster HUD renderer.')),
+    option_item_sp(title=tr('Cluster HUD Brightness'), param='ClusterHudBrightness', min_value=0, max_value=100, value_change_step=1,
+                   label_callback=lambda v, *_: f'{v}%'),
+    option_item_sp(title=tr('Cluster HUD Camera View Mode'), param='ClusterHudCameraViewMode', min_value=0, max_value=4, value_change_step=1,
+                   label_callback=lambda v, *_: {0: tr('Default'), 1: tr('Ego Bottom'), 2: tr('Road Camera'),
+                                                  3: tr('Wide Camera'), 4: tr('Auto Camera')}.get(v, str(v))),
+    option_item_sp(title=tr('Cluster HUD Core Mode'), param='ClusterHudCoreMode', min_value=0, max_value=10, value_change_step=1),
+    toggle_item_sp(title=tr('Cluster HUD Debug'), param='ClusterHudDebug',
+                   description=tr('Show debug overlays on the external cluster.')),
+    option_item_sp(title=tr('Cluster HUD Encoder'), param='ClusterHudEncoder', min_value=0, max_value=3, value_change_step=1,
+                   label_callback=lambda v, *_: {0: tr('Auto'), 1: tr('JPEG'), 2: tr('Hardware H.264'),
+                                                  3: tr('Software H.264')}.get(v, str(v))),
+    option_item_sp(title=tr('Cluster HUD Live FPS'), param='ClusterHudLiveFps', min_value=1, max_value=60, value_change_step=1),
+    toggle_item_sp(title=tr('Cluster HUD Mirror'), param='ClusterHudMirror',
+                   description=tr('Mirror the external cluster display horizontally.')),
+    option_item_sp(title=tr('Cluster HUD Orientation'), param='ClusterHudOrientation', min_value=0, max_value=3, value_change_step=1),
+    option_item_sp(title=tr('Cluster HUD Panel Layout'), param='ClusterHudPanelLayout', min_value=0, max_value=1, value_change_step=1,
+                   label_callback=lambda v, *_: {0: tr('Driving Left'), 1: tr('Driving Right')}.get(v, str(v))),
+    option_item_sp(title=tr('Cluster HUD Priority'), param='ClusterHudPriority', min_value=0, max_value=100, value_change_step=1),
+    toggle_item_sp(title=tr('Cluster HUD Radar Display'), param='ClusterHudRadarDisplay',
+                   description=tr('Draw radar tracks on the external cluster.')),
+    option_item_sp(title=tr('Cluster HUD Radar Info'), param='ClusterHudRadarInfo', min_value=0, max_value=4, value_change_step=1,
+                   label_callback=lambda v, *_: {0: tr('None'), 1: tr('Vehicle Speed'), 2: tr('Speed + Distance'),
+                                                  3: tr('All Speeds'), 4: tr('All Speeds + Distance')}.get(v, str(v))),
+    toggle_item_sp(title=tr('Cluster HUD Radar Source Color'), param='ClusterHudRadarSourceColor',
+                   description=tr('Color radar tracks by their detection source.')),
+    option_item_sp(title=tr('Cluster HUD Screen Mode'), param='ClusterHudScreenMode', min_value=0, max_value=6, value_change_step=1,
+                   label_callback=lambda v, *_: {0: tr('Default'), 1: tr('Debug'), 2: tr('Debug System'),
+                                                  3: tr('Debug Graph'), 4: tr('Debug Graph Right'),
+                                                  5: tr('Trip Report'), 6: tr('Navi')}.get(v, str(v))),
+    option_item_sp(title=tr('Cluster HUD Theme'), param='ClusterHudTheme', min_value=0, max_value=2, value_change_step=1,
+                   label_callback=lambda v, *_: {0: tr('Auto'), 1: tr('Dark'), 2: tr('Light')}.get(v, str(v))),
   ]
 
 def build_vehicle_items():

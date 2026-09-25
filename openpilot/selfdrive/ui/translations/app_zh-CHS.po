@@ -5626,6 +5626,10 @@ msgid "Cluster Map"
 msgstr "仪表地图"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Cluster Map Profile"
+msgstr "仪表地图配置"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Comfort"
 msgstr "舒适性"
 
