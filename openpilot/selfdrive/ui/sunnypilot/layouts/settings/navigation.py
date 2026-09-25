@@ -13,7 +13,7 @@ from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets.input_dialog import InputDialogSP
 from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, button_item_sp, option_item_sp
 from openpilot.system.ui.widgets import DialogResult
-from openpilot.system.ui.widgets.confirm_dialog import alert_dialog
+from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets.list_view import text_item
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
@@ -196,8 +196,7 @@ class NavigationLayout(Widget):
       try:
         parsed = json.loads(raw)
       except Exception:
-        message = raw
-        gui_app.push_widget(alert_dialog(message, tr("OK")))
+        self._push_navi_debug(raw)
         return
       debug = parsed if isinstance(parsed, dict) else {}
     else:
@@ -222,7 +221,13 @@ class NavigationLayout(Widget):
         lines.append(json.dumps(snapshot, ensure_ascii=False, indent=2, sort_keys=True, default=str))
       message = "\n".join(lines)
 
-    gui_app.push_widget(alert_dialog(message, tr("OK")))
+    self._push_navi_debug(message)
+
+  def _push_navi_debug(self, message: str):
+    # Same scrollable dialog the error/alarm viewer uses: rich mode routes the body
+    # through Scroller + HtmlRenderer, so long navigation-debug dumps can be scrolled
+    # instead of overflowing the fixed-size alert box.
+    gui_app.push_widget(ConfirmDialog(message, tr("OK"), cancel_text="", rich=True))
 
   def _render(self, rect):
     self._scroller.render(rect)

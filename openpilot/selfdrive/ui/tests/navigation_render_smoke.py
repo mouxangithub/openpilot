@@ -180,9 +180,16 @@ def main() -> int:
     the snapshot-only payload written by the 10 Hz writer (no `summary` key).
     """
     pushed = []
-    original_gui_app, original_alert = page_module.gui_app, page_module.alert_dialog
+    original_gui_app = page_module.gui_app
+    original_confirm_dialog = page_module.ConfirmDialog
+
+    class _FakeConfirm:
+      def __init__(self, message, ok, cancel_text="", rich=False):
+        self.message = message
+        self.rich = rich
+
+    page_module.ConfirmDialog = _FakeConfirm
     page_module.gui_app = types.SimpleNamespace(push_widget=pushed.append)
-    page_module.alert_dialog = lambda message, ok: message
     try:
       cases = {
         'dict with summary': {'type': 'crossroad', 'eventTimeMs': 12, 'receivedAt': 'x', 'summary': {'a': 1}},
@@ -198,12 +205,15 @@ def main() -> int:
         store['CarrotNaviDebug'] = raw
         page._on_carrot_navi_debug()
         assert pushed, f'{name}: nothing pushed'
-        assert isinstance(pushed[0], str) and pushed[0], f'{name}: non-string message {pushed[0]!r}'
+        dlg = pushed[0]
+        assert isinstance(dlg, _FakeConfirm), f'{name}: expected ConfirmDialog, got {type(dlg).__name__}'
+        assert dlg.rich, f'{name}: navi debug must open in the scrollable (rich) dialog'
+        assert isinstance(dlg.message, str) and dlg.message, f'{name}: empty message'
     finally:
       page_module.gui_app = original_gui_app
-      page_module.alert_dialog = original_alert
+      page_module.ConfirmDialog = original_confirm_dialog
       store.pop('CarrotNaviDebug', None)
-  check('Carrot Navi Debug tolerates dict/str/bytes/None', navi_debug_handles_every_param_shape)
+  check('Carrot Navi Debug tolerates dict/str/bytes/None (scrollable)', navi_debug_handles_every_param_shape)
 
   def carrot_web_dialog_has_a_params_handle():
     """CarrotWebDialog read ui_state.params_memory, which UIState does not define.
