@@ -227,6 +227,11 @@ procs += [
   PythonProcess("carrot_man", "openpilot.sunnypilot.carrot.carrot_man", carrot_enabled, restart_if_crash=True),
   PythonProcess("carrot_navi", "openpilot.sunnypilot.carrot.carrot_navi", carrot_navi_v2_enabled, restart_if_crash=True),
 
+  # Xiaoge ONNX BSD/Lane detection
+  # Reads VisionIPC camera buffers, runs ONNX inference, publishes to customReservedRawData0.
+  # card.py merges results into carState (blindspot) and carStateSP (lane lines).
+  PythonProcess("xiaoge_data", "openpilot.sunnypilot.carrot.xiaoge_data", carrot_enabled),
+
   # locationd
   NativeProcess("locationd_llk", "openpilot/sunnypilot/selfdrive/locationd", ["./locationd"], only_onroad),
 ]

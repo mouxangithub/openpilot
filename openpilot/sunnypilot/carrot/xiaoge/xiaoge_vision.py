@@ -7,6 +7,10 @@ Integration:
   On real hardware: xiaoge_data.py reads VisionIPC NV12 buffers, runs ONNX inference,
   serializes results to JSON, and publishes via customReservedRawData0.
   On PC dev: camera source unavailable, inference returns error state.
+
+Lane lines are written to carStateSP (custom.capnp CarStateSP.xiaogeLeftLaneLine /
+xiaogeRightLaneLine) to keep opendbc CarState untouched. Blindspot hints are written
+to carState.leftBlindspot / carState.rightBlindspot (already in opendbc car.capnp).
 """
 from dataclasses import dataclass
 import json
@@ -29,9 +33,14 @@ class XiaogeVisionResult:
   blindspot_received_nanos: int
 
 
-class VisionState(Protocol):
-  leftLaneLine: int
-  rightLaneLine: int
+class CarStateSP(Protocol):
+  """carStateSP fields written by xiaoge vision."""
+  xiaogeLeftLaneLine: int
+  xiaogeRightLaneLine: int
+
+
+class CarState(Protocol):
+  """carState fields written by xiaoge vision."""
   leftBlindspot: bool
   rightBlindspot: bool
 
@@ -87,27 +96,53 @@ def _is_fresh(received_nanos: int, now_nanos: int, timeout_nanos: int) -> bool:
   return received_nanos != 0 and 0 <= age_nanos <= timeout_nanos
 
 
-def apply_xiaoge_vision_result(CS: VisionState, result: XiaogeVisionResult | None,
-                               now_nanos: int) -> bool:
-  """Merge xiaoge vision results into carState.
+def apply_xiaoge_vision_result_to_cs(
+    CS: CarState, result: XiaogeVisionResult | None, now_nanos: int
+) -> bool:
+  """Merge xiaoge blind-spot results into carState.leftBlindspot / rightBlindspot.
 
   Returns True if any field was applied.
   """
   if result is None:
     return False
-
-  applied = False
-  if result.lane_valid and _is_fresh(result.lane_received_nanos, now_nanos, XIAOGE_LANE_TIMEOUT_NS):
-    if result.left_lane >= 0:
-      CS.leftLaneLine = merge_xiaoge_lane_type(CS.leftLaneLine, result.left_lane)
-      applied = True
-    if result.right_lane >= 0:
-      CS.rightLaneLine = merge_xiaoge_lane_type(CS.rightLaneLine, result.right_lane)
-      applied = True
-
-  if result.blindspot_valid and _is_fresh(result.blindspot_received_nanos, now_nanos,
-                                           XIAOGE_BLINDSPOT_TIMEOUT_NS):
+  if result.blindspot_valid and _is_fresh(
+      result.blindspot_received_nanos, now_nanos, XIAOGE_BLINDSPOT_TIMEOUT_NS
+  ):
     CS.leftBlindspot = CS.leftBlindspot or result.left_blindspot
     CS.rightBlindspot = CS.rightBlindspot or result.right_blindspot
-    applied = applied or result.left_blindspot or result.right_blindspot
-  return applied
+    return result.left_blindspot or result.right_blindspot
+  return False
+
+
+def apply_xiaoge_vision_result_to_cs_sp(
+    CS_SP: CarStateSP, result: XiaogeVisionResult | None, now_nanos: int
+) -> bool:
+  """Merge xiaoge lane-inference results into carStateSP.xiaogeLeftLaneLine / xiaogeRightLaneLine.
+
+  Returns True if any field was applied.
+  """
+  if result is None:
+    return False
+  if result.lane_valid and _is_fresh(result.lane_received_nanos, now_nanos, XIAOGE_LANE_TIMEOUT_NS):
+    if result.left_lane >= 0:
+      CS_SP.xiaogeLeftLaneLine = merge_xiaoge_lane_type(
+        int(CS_SP.xiaogeLeftLaneLine), result.left_lane
+      )
+    if result.right_lane >= 0:
+      CS_SP.xiaogeRightLaneLine = merge_xiaoge_lane_type(
+        int(CS_SP.xiaogeRightLaneLine), result.right_lane
+      )
+    return True
+  return False
+
+
+def apply_xiaoge_vision_result(
+    CS: CarState, CS_SP: CarStateSP, result: XiaogeVisionResult | None, now_nanos: int
+) -> bool:
+  """Merge xiaoge vision results into both carState (blindspot) and carStateSP (lane lines).
+
+  Returns True if any field was applied.
+  """
+  cs_applied = apply_xiaoge_vision_result_to_cs(CS, result, now_nanos)
+  cs_sp_applied = apply_xiaoge_vision_result_to_cs_sp(CS_SP, result, now_nanos)
+  return cs_applied or cs_sp_applied

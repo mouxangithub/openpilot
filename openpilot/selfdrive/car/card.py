@@ -25,6 +25,10 @@ from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_cap
 from openpilot.sunnypilot.mads.helpers import set_alternative_experience, set_car_specific_params
 from openpilot.sunnypilot.selfdrive.car import interfaces as sunnypilot_interfaces
 from openpilot.sunnypilot.carrot.carrot_navi_fusion import merge_carrot_navi_lanes
+from openpilot.sunnypilot.carrot.xiaoge.xiaoge_vision import (
+  apply_xiaoge_vision_result,
+  parse_xiaoge_vision_payload,
+)
 
 REPLAY = "REPLAY" in os.environ
 
@@ -72,7 +76,7 @@ class Car:
 
   def __init__(self, CI=None, RI=None) -> None:
     self.can_sock = messaging.sub_sock('can', timeout=20)
-    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents', 'longitudinalPlan', 'radarState', 'drivingModelData'] + ['carControlSP', 'longitudinalPlanSP', 'carrotManSP', 'carrotNaviSP'])
+    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents', 'longitudinalPlan', 'radarState', 'drivingModelData'] + ['carControlSP', 'longitudinalPlanSP', 'carrotManSP', 'carrotNaviSP'] + ['customReservedRawData0'])
     self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'radarTracks'] + ['carParamsSP', 'carStateSP'])
 
     self.can_rcv_cum_timeout_counter = 0
@@ -195,6 +199,10 @@ class Car:
     self._carrot_navi_cache = None
     self._carrot_navi_cache_mono = 0.0
 
+    # Xiaoge vision: parsed customReservedRawData0 payload and last error log time.
+    self._xiaoge_vision_result = None
+    self._xiaoge_vision_error_log_at_ns = 0
+
     # card is driven by can recv, expected at 100Hz
     self.rk = Ratekeeper(100, print_delay_threshold=None)
 
@@ -252,6 +260,19 @@ class Car:
           CS.leftBlindspot = True
         if bool(getattr(carrot_man, 'amapRightBlind', False)):
           CS.rightBlindspot = True
+
+    # Xiaoge ONNX vision: parse customReservedRawData0 and merge into carState/carStateSP.
+    sm_done_ns = self.sm.logMonoTime.get('customReservedRawData0', 0)
+    try:
+      raw = self.sm['customReservedRawData0']
+      if raw is not None and len(raw) > 0:
+        self._xiaoge_vision_result = parse_xiaoge_vision_payload(bytes(raw))
+    except Exception:
+      self._xiaoge_vision_result = None
+      if sm_done_ns - self._xiaoge_vision_error_log_at_ns >= 60_000_000_000:
+        cloudlog.exception("xiaoge vision parse error")
+        self._xiaoge_vision_error_log_at_ns = sm_done_ns
+    apply_xiaoge_vision_result(CS, CS_SP, self._xiaoge_vision_result, sm_done_ns)
 
     can_rcv_valid = len(can_strs) > 0
 

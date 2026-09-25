@@ -53,6 +53,9 @@ dependencies = [
 
   # ui
   "comma-deps-raylib",
+
+  # xiaoge ONNX BSD/Lane detection (opencv-python-headless, not opencv-python, for headless inference)
+  "opencv-python-headless>=4.10.0",
 ]
 
 [project.optional-dependencies]

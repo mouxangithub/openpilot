@@ -580,6 +580,12 @@ struct CarStateSP @0xb86e6369214c01c8 {
   # CarState decodes it, this stays false and VCruiseCarrot treats every press as
   # a short press, which is the pre-existing behaviour.
   carrotCruiseSpeedBigStep @6 :Bool;
+
+  # Xiaoge ONNX lane inference results (customReservedRawData0 → card.py → here).
+  # -1: unknown, 0: dashed, 1: solid, +10: white, +20: yellow, +30: blue, e.g. 21=solid yellow.
+  # Merged by apply_xiaoge_vision_result() which preserves color codes from other sources.
+  xiaogeLeftLaneLine @7 :Int16;
+  xiaogeRightLaneLine @8 :Int16;
 }
 
 struct LiveMapDataSP @0xf416ec09499d9d19 {
