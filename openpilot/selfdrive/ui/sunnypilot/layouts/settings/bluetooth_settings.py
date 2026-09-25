@@ -35,7 +35,7 @@ GESTURE_LABELS = {'single': 'Short', 'double': 'Double', 'long': 'Long'}
 _CONFIG_PATH = '/data/params/d/CarrotBluetooth'
 _RUNTIME_PATH = '/dev/shm/carrot-bluetooth'
 
-API_BASE = 'http://127.0.0.1:8070'
+API_BASE = 'http://127.0.0.1:5080'
 
 
 def _api_path(operation: str | None = None) -> str:

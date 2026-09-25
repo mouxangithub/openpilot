@@ -54,6 +54,7 @@ class CarrotGroupKey(IntEnum):
   DISPLAY = 5
   VEHICLE = 6
   DEVELOPER = 7
+  EGPU = 8
 
 
 @dataclass(frozen=True)
@@ -106,6 +107,11 @@ CARROT_GROUPS: tuple[CarrotGroup, ...] = (
     title='Developer',
     description='Debug and diagnostic toggles. Use with caution.',
     build_items=carrot_items.build_dev_items,
+  ),
+  CarrotGroup(
+    title='eGPU',
+    description='eGPU / big model status and configuration.',
+    build_items=carrot_items.build_egpu_items,
   ),
 )
 

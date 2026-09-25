@@ -26,7 +26,7 @@ from typing import Any
 import openpilot.cereal.messaging as messaging
 from opendbc.can import CANParser
 
-from openpilot.cereal import car
+from opendbc.car.structs import car
 from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper
 
