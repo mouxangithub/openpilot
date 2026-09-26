@@ -17,8 +17,10 @@ from openpilot.system.ui.lib.application import gui_app, MousePos, TextAlignment
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.scroll_panel import GuiScrollPanel
 from openpilot.system.ui.lib.text_measure import measure_text_cached
-from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.widgets import Widget, DialogResult
 from openpilot.system.ui.widgets.button import Button, ButtonStyle
+from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
+from openpilot.system.ui.widgets.keyboard import Keyboard
 from openpilot.system.ui.widgets.label import gui_label
 from openpilot.system.ui.widgets.toggle import Toggle
 
@@ -149,6 +151,16 @@ class CarrotBluetoothLayout(Widget):
     self._auto_scanned = False
     self._installing = False
 
+    # Scanning is only "active" for the UI while we expect it to be. This
+    # prevents the status line from getting stuck on "Scanning..." when BlueZ
+    # leaves the adapter discovering flag set after a timeout/edge case.
+    self._scanning_until = 0.0
+
+    # Pairing prompt handling: remember dismissed prompt ids so we don't
+    # repeatedly push dialog widgets for the same prompt.
+    self._dismissed_prompt_ids: set[str] = set()
+    self._keyboard = Keyboard(max_text_size=16, min_text_size=1)
+
     # UI dimensions
     self._item_height = 160
     self._btn_height = 80
@@ -175,6 +187,7 @@ class CarrotBluetoothLayout(Widget):
     self._discoverable_toggle = Toggle(False, self._on_discoverable_toggled)
     self._save_btn = Button(tr("Save"), self._on_save_clicked, button_style=ButtonStyle.PRIMARY, font_size=45, border_radius=15)
     self._save_name_btn = Button(tr("Save"), self._on_save_name_clicked, button_style=ButtonStyle.PRIMARY, font_size=40, border_radius=15)
+    self._name_edit_btn = Button(tr("Edit"), self._on_edit_name_clicked, button_style=ButtonStyle.NORMAL, font_size=40, border_radius=15)
     self._reset_btn = Button(tr("Reset Bluetooth"), self._on_reset_clicked, button_style=ButtonStyle.DANGER, font_size=45, border_radius=15)
     self._test_btn = Button(tr("Test / Learn"), self._on_test_clicked, button_style=ButtonStyle.NORMAL, font_size=45, border_radius=15)
     self._stop_btn = Button(tr("Stop Test"), self._on_stop_clicked, button_style=ButtonStyle.DANGER, font_size=45, border_radius=15)
@@ -212,10 +225,16 @@ class CarrotBluetoothLayout(Widget):
     self._panel = BTPanel.DEVICES
     self._auto_scanned = False
     self._installing = False
+    self._scanning_until = 0.0
+    self._dismissed_prompt_ids.clear()
     self._fetch_state()
 
   def hide_event(self) -> None:
     self._running = False
+
+  def _is_scanning_active(self, state: BTState) -> bool:
+    """True only while we believe a scan is still in progress."""
+    return state.discovering and time.monotonic() < self._scanning_until
 
   def _fetch_state(self) -> None:
     if not self._running:
@@ -241,7 +260,7 @@ class CarrotBluetoothLayout(Widget):
       return tr("No Bluetooth adapter found")
     if not state.runtime.stationary:
       return tr("Requires stationary & disengaged state")
-    if state.discovering:
+    if self._is_scanning_active(state):
       return tr("Scanning...")
     if not state.radio_enabled:
       return tr("Bluetooth disabled")
@@ -311,6 +330,7 @@ class CarrotBluetoothLayout(Widget):
       self._render_advanced(rect, state)
     else:
       self._render_main(rect, state, error_text, status_text)
+      self._handle_prompt(state)
 
     self._maybe_auto_scan(state)
 
@@ -320,6 +340,7 @@ class CarrotBluetoothLayout(Widget):
     if not state.available or not state.radio_enabled or not state.runtime.stationary:
       return
     self._auto_scanned = True
+    self._scanning_until = time.monotonic() + 32
     self._http_async('scan')
 
   def _render_main(self, rect: rl.Rectangle, state: BTState, error_text: str, status_text: str) -> None:
@@ -327,21 +348,21 @@ class CarrotBluetoothLayout(Widget):
 
     # Not installed
     if not state.has_bluez:
-      self._render_empty_state(rect, icon='📡', title=tr("Bluetooth is not installed"),
+      self._render_empty_state(rect, icon='\ud83d\udce1', title=tr("Bluetooth is not installed"),
                                desc=tr("Install BlueZ to enable Bluetooth HID remotes and device management."),
                                btn=self._install_btn, btn_label=tr("Installing...") if self._installing else None)
       return
 
     # Service not running
     if not state.service_running:
-      self._render_empty_state(rect, icon='🔘', title=tr("Bluetooth service is stopped"),
+      self._render_empty_state(rect, icon='\ud83d\udd18', title=tr("Bluetooth service is stopped"),
                                desc=tr("Start the Bluetooth service to scan and pair devices."),
                                btn=self._enable_btn)
       return
 
     # No adapter
     if not state.available:
-      self._render_empty_state(rect, icon='📵', title=tr("No Bluetooth adapter found"),
+      self._render_empty_state(rect, icon='\ud83d\udcf5', title=tr("No Bluetooth adapter found"),
                                desc=tr("Flash an AGNOS with Bluetooth support or plug in a USB Bluetooth dongle."),
                                btn=self._retry_btn)
       return
@@ -373,10 +394,11 @@ class CarrotBluetoothLayout(Widget):
     y = rect.y + 20
     top_h = 100
     can_act = state.runtime.stationary and state.available
+    discovering = self._is_scanning_active(state)
 
     # Scan / Stop button
-    self._scan_btn.set_text(tr("Stop") if state.discovering else tr("Scan"))
-    self._scan_btn.set_enabled(can_act and (state.discovering or state.radio_enabled))
+    self._scan_btn.set_text(tr("Stop") if discovering else tr("Scan"))
+    self._scan_btn.set_enabled(can_act and (discovering or state.radio_enabled))
     self._scan_btn.set_rect(rl.Rectangle(rect.x, y, 400, top_h))
     self._scan_btn.render()
 
@@ -388,7 +410,7 @@ class CarrotBluetoothLayout(Widget):
     y += top_h + 40
 
     # Status
-    status_color = rl.Color(255, 220, 80, 255) if 'Scanning' in status_text else rl.WHITE
+    status_color = rl.Color(255, 220, 80, 255) if discovering else rl.WHITE
     gui_label(rl.Rectangle(rect.x, y, rect.width, self._label_height), status_text, font_size=42,
               alignment=TextAlignment.CENTER, color=status_color)
     y += self._label_height
@@ -450,12 +472,51 @@ class CarrotBluetoothLayout(Widget):
 
   def _render_device_card(self, rect: rl.Rectangle, dev: BTDevice, state: BTState) -> None:
     bg_color = rl.Color(69, 96, 230, 40) if dev.paired else rl.Color(40, 40, 40, 255)
-    rl.draw_rectangle_rounded(rect, 0.2, 15, bg_color)
+    rl.draw_rectangle_rounded(rect, 0.15, 12, bg_color)
 
+    mouse_pos = rl.get_mouse_position()
+    clicked = rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
+    btn_gap = 16
+
+    # Action buttons on the far right. Compute widths first.
+    if not dev.paired:
+      pair_w = max(160, int(measure_text_cached(gui_app.font(), tr("Pair"), 38).x + 60))
+      action_btns = [
+        (self._connect_btn, pair_w, tr("Pair"), ButtonStyle.PRIMARY, lambda: self._confirm_pair(dev)),
+      ]
+    else:
+      conn_label = tr("Disconnect") if dev.connected else tr("Connect")
+      conn_w = max(160, int(measure_text_cached(gui_app.font(), conn_label, 38).x + 60))
+      edit_w = max(120, int(measure_text_cached(gui_app.font(), tr("Edit"), 38).x + 50))
+      forget_w = max(120, int(measure_text_cached(gui_app.font(), tr("Forget"), 38).x + 50))
+      action_btns = [
+        (self._connect_btn, conn_w, conn_label,
+         ButtonStyle.NORMAL if dev.connected else ButtonStyle.PRIMARY,
+         lambda: self._on_device_action(dev, 'connect' if not dev.connected else 'disconnect')),
+        (self._edit_btn, edit_w, tr("Edit"), ButtonStyle.NORMAL, lambda: self._on_edit_device(dev)),
+        (self._forget_btn, forget_w, tr("Forget"), ButtonStyle.DANGER, lambda: self._confirm_forget(dev)),
+      ]
+
+    total_action_w = sum(w for _, w, _, _, _ in action_btns) + btn_gap * (len(action_btns) - 1)
+    action_right = rect.x + rect.width - self._padding
+
+    # RSSI sits immediately to the left of the action buttons.
+    rssi_str = ''
+    rssi_w = 0
+    if dev.rssi is not None:
+      rssi_str = f"{dev.rssi} dBm"
+      rssi_size = measure_text_cached(gui_app.font(), rssi_str, 34)
+      rssi_w = rssi_size.x
+    rssi_col_w = max(120, rssi_w + 20)
+    rssi_right = action_right - total_action_w - self._padding
+
+    # Main text area is everything left of the RSSI column; scissor it so long
+    # names never draw over the signal/action area.
+    main_right = rssi_right - rssi_col_w - self._padding
     text_x = rect.x + self._padding
-    name_size = measure_text_cached(gui_app.font(), dev.name or dev.address, 55)
-    _ = name_size  # name_size is a Vector2; currently unused but keep for future layout calculations
-    rl.draw_text_ex(gui_app.font(), dev.name or dev.address, rl.Vector2(text_x, rect.y + 15), 55, 0, rl.WHITE)
+    rl.begin_scissor_mode(int(rect.x), int(rect.y), int(max(0, main_right - rect.x)), int(rect.height))
+
+    rl.draw_text_ex(gui_app.font(), dev.name or dev.address, rl.Vector2(text_x, rect.y + 18), 55, 0, rl.WHITE)
 
     status_parts = [dev.address]
     if dev.connected:
@@ -465,56 +526,99 @@ class CarrotBluetoothLayout(Widget):
     if dev.battery is not None:
       status_parts.append(f"{tr('Battery')} {dev.battery}%")
     status_str = ' · '.join(status_parts)
-    rl.draw_text_ex(gui_app.font(), status_str, rl.Vector2(text_x, rect.y + 80), 38, 0, rl.Color(160, 160, 160, 255))
-
-    # RSSI
-    if dev.rssi is not None:
-      rssi_str = f"{dev.rssi} dBm"
-      rssi_size = measure_text_cached(gui_app.font(), rssi_str, 34)
-      rssi_w = rssi_size.x  # measure_text_cached returns rl.Vector2
-      rl.draw_text_ex(gui_app.font(), rssi_str, rl.Vector2(rect.x + rect.width - self._padding - rssi_w, rect.y + 22),
-                      34, 0, rl.Color(120, 180, 255, 255))
+    rl.draw_text_ex(gui_app.font(), status_str, rl.Vector2(text_x, rect.y + 78), 38, 0, rl.Color(160, 160, 160, 255))
 
     if dev.address in state.config_devices:
       cfg = state.config_devices[dev.address]
       mapping_status = tr("Mapping on") if cfg.get('enabled') else tr("Mapping off")
       if dev.grabbed:
         mapping_status += ' · ' + tr("Receiving input")
-      rl.draw_text_ex(gui_app.font(), mapping_status, rl.Vector2(text_x, rect.y + 120), 38, 0, rl.Color(120, 200, 120, 255))
+      rl.draw_text_ex(gui_app.font(), mapping_status, rl.Vector2(text_x, rect.y + 118), 38, 0, rl.Color(120, 200, 120, 255))
 
-    btn_x = rect.x + rect.width - 420
-    btn_y = rect.y + (self._item_height - self._btn_height) // 2
-    rendered: set[str] = set()
+    rl.end_scissor_mode()
 
-    mouse_pos = rl.get_mouse_position()
-    clicked = rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
+    # Draw RSSI
+    if dev.rssi is not None:
+      rssi_y = rect.y + (self._item_height - 34) / 2
+      rl.draw_text_ex(gui_app.font(), rssi_str, rl.Vector2(rssi_right - rssi_w, rssi_y),
+                      34, 0, rl.Color(120, 180, 255, 255))
 
-    if not dev.paired:
-      pair_rect = rl.Rectangle(btn_x + 180, btn_y, 200, self._btn_height)
-      self._connect_btn.set_text(tr("Pair"))
-      self._connect_btn.set_rect(pair_rect)
-      self._connect_btn.render()
-      if clicked and rl.check_collision_point_rec(mouse_pos, pair_rect):
-        self._on_device_action(dev, 'pair')
-    else:
-      conn_rect = rl.Rectangle(btn_x, btn_y, 160, self._btn_height)
-      self._connect_btn.set_text(tr("Disconnect") if dev.connected else tr("Connect"))
-      self._connect_btn.set_rect(conn_rect)
-      self._connect_btn.render()
-      if clicked and rl.check_collision_point_rec(mouse_pos, conn_rect):
-        self._on_device_action(dev, 'connect' if not dev.connected else 'disconnect')
+    # Draw action buttons and handle clicks
+    x = action_right - total_action_w
+    for btn, w, label, style, cb in action_btns:
+      btn.set_text(label)
+      btn.set_button_style(style)
+      btn.set_enabled(True)
+      btn.set_touch_valid_callback(lambda: self._scroll_panel.is_touch_valid())
+      btn_rect = rl.Rectangle(x, rect.y + (self._item_height - self._btn_height) // 2, w, self._btn_height)
+      btn.set_rect(btn_rect)
+      btn.render()
+      if clicked and rl.check_collision_point_rec(mouse_pos, btn_rect):
+        cb()
+      x += w + btn_gap
 
-      forget_rect = rl.Rectangle(btn_x + 170, btn_y, 120, self._btn_height)
-      self._forget_btn.set_rect(forget_rect)
-      self._forget_btn.render()
-      if clicked and rl.check_collision_point_rec(mouse_pos, forget_rect):
+  def _confirm_pair(self, dev: BTDevice) -> None:
+    def on_result(result: DialogResult):
+      if result == DialogResult.CONFIRM:
+        self._scanning_until = time.monotonic() + 32
+        self._http_async('pair', {'address': dev.address})
+    dialog = ConfirmDialog("", tr("Pair"), tr("Cancel"), callback=on_result)
+    dialog.set_text(tr('Pair with "{}"?').format(dev.name or dev.address))
+    gui_app.push_widget(dialog)
+
+  def _confirm_forget(self, dev: BTDevice) -> None:
+    def on_result(result: DialogResult):
+      if result == DialogResult.CONFIRM:
         self._on_device_action(dev, 'forget')
+    dialog = ConfirmDialog("", tr("Forget"), tr("Cancel"), callback=on_result)
+    dialog.set_text(tr('Forget "{}"?').format(dev.name or dev.address))
+    gui_app.push_widget(dialog)
 
-      edit_rect = rl.Rectangle(btn_x + 300, btn_y, 100, self._btn_height)
-      self._edit_btn.set_rect(edit_rect)
-      self._edit_btn.render()
-      if clicked and rl.check_collision_point_rec(mouse_pos, edit_rect):
-        self._on_edit_device(dev)
+  def _handle_prompt(self, state: BTState) -> None:
+    prompt = state.prompt
+    if not prompt:
+      self._dismissed_prompt_ids.clear()
+      return
+    pid = prompt.get('id')
+    if not pid or pid in self._dismissed_prompt_ids:
+      return
+    self._dismissed_prompt_ids.add(pid)
+
+    kind = prompt.get('kind', '')
+    value = prompt.get('value', '')
+
+    if kind in ('DisplayPinCode', 'DisplayPasskey'):
+      dialog = ConfirmDialog("", tr("OK"), cancel_text="", callback=None)
+      dialog.set_text(tr("Pairing code: {}").format(value))
+      gui_app.push_widget(dialog)
+      return
+
+    if kind in ('RequestConfirmation', 'RequestAuthorization', 'AuthorizeService'):
+      def on_confirm(result: DialogResult):
+        self._http_async('answer', {'id': pid, 'value': result == DialogResult.CONFIRM})
+      dialog = ConfirmDialog("", tr("Confirm"), tr("Cancel"), callback=on_confirm)
+      dialog.set_text(tr("Confirm pairing with \"{}\"?").format(value))
+      gui_app.push_widget(dialog)
+      return
+
+    if kind == 'RequestPinCode':
+      def on_pin(result: DialogResult):
+        self._http_async('answer', {'id': pid, 'value': False if result != DialogResult.CONFIRM else self._keyboard.text})
+      self._keyboard.reset(min_text_size=1)
+      self._keyboard.set_title(tr("Enter PIN"), tr("for \"{}\"").format(value) if value else "")
+      self._keyboard.set_text("")
+      self._keyboard.set_callback(on_pin)
+      gui_app.push_widget(self._keyboard)
+      return
+
+    if kind == 'RequestPasskey':
+      def on_passkey(result: DialogResult):
+        self._http_async('answer', {'id': pid, 'value': False if result != DialogResult.CONFIRM else self._keyboard.text})
+      self._keyboard.reset(min_text_size=1)
+      self._keyboard.set_title(tr("Enter passkey"), tr("for \"{}\"").format(value) if value else "")
+      self._keyboard.set_text("")
+      self._keyboard.set_callback(on_passkey)
+      gui_app.push_widget(self._keyboard)
 
   def _render_editor(self, rect: rl.Rectangle, state: BTState) -> None:
     if self._draft is None:
@@ -593,8 +697,6 @@ class CarrotBluetoothLayout(Widget):
     rl.draw_text_ex(gui_app.font(), self._last_event_text[:60], rl.Vector2(x, btn_y + 20), 38, 0, rl.Color(150, 255, 150, 255))
 
   def _render_advanced(self, rect: rl.Rectangle, state: BTState) -> None:
-    mouse_pos = rl.get_mouse_position()
-    clicked = rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
     y = rect.y + 20
 
     self._back_btn.set_rect(rl.Rectangle(rect.x + self._padding, y, 200, 70))
@@ -602,78 +704,151 @@ class CarrotBluetoothLayout(Widget):
     y += 100
 
     can_act = state.runtime.stationary and state.available
+    row_h = 120
+    gap = 24
 
     # Bluetooth master toggle
-    gui_label(rl.Rectangle(rect.x + self._padding, y, 400, 60), tr("Bluetooth"), font_size=46, alignment=TextAlignment.LEFT)
-    self._radio_toggle.set_rect(rl.Rectangle(rect.x + rect.width - 180, y, 160, 70))
-    self._radio_toggle.set_enabled(can_act)
-    if state.radio_enabled != self._last_radio_state:
-      self._last_radio_state = state.radio_enabled
-      self._radio_toggle.set_state(state.radio_enabled)
-    self._radio_toggle.render()
-    gui_label(rl.Rectangle(rect.x + self._padding, y + 55, rect.width - self._padding * 2, 40),
-              tr("Turn Bluetooth radio on or off."), font_size=32, alignment=TextAlignment.LEFT, color=rl.Color(170, 170, 170, 255))
-    y += 110
+    y = self._render_advanced_row(
+      rect, y, row_h,
+      tr("Bluetooth"), tr("Turn Bluetooth radio on or off."),
+      self._radio_toggle, state.radio_enabled, can_act, self._on_radio_toggled,
+      self._last_radio_state,
+    )
+    self._last_radio_state = state.radio_enabled
+    y += gap
 
     # Discoverable toggle
-    gui_label(rl.Rectangle(rect.x + self._padding, y, 400, 60), tr("Discoverable"), font_size=46, alignment=TextAlignment.LEFT)
-    self._discoverable_toggle.set_rect(rl.Rectangle(rect.x + rect.width - 180, y, 160, 70))
-    self._discoverable_toggle.set_enabled(can_act and state.radio_enabled)
-    if state.discoverable != self._last_discoverable_state:
-      self._last_discoverable_state = state.discoverable
-      self._discoverable_toggle.set_state(state.discoverable)
-    self._discoverable_toggle.render()
-    gui_label(rl.Rectangle(rect.x + self._padding, y + 55, rect.width - self._padding * 2, 40),
-              tr("Allow other devices to find this device."), font_size=32, alignment=TextAlignment.LEFT, color=rl.Color(170, 170, 170, 255))
-    y += 110
+    y = self._render_advanced_row(
+      rect, y, row_h,
+      tr("Discoverable"), tr("Allow other devices to find this device."),
+      self._discoverable_toggle, state.discoverable, can_act and state.radio_enabled,
+      self._on_discoverable_toggled, self._last_discoverable_state,
+    )
+    self._last_discoverable_state = state.discoverable
+    y += gap
 
     # Device name
-    gui_label(rl.Rectangle(rect.x + self._padding, y, 400, 60), tr("Device name"), font_size=46, alignment=TextAlignment.LEFT)
-    input_w = rect.width - self._padding * 2 - 180
-    name_rect = rl.Rectangle(rect.x + self._padding, y + 60, input_w, 70)
+    y = self._render_name_row(rect, y, state, can_act)
+    y += gap + 20
+
+    # Paired devices section
+    y = self._render_paired_devices_section(rect, y, state, can_act)
+
+    # Reset section
+    y += 30
+    y = self._render_reset_section(rect, y, state, can_act)
+
+  def _render_advanced_row(self, rect: rl.Rectangle, y: float, row_h: float,
+                           title: str, desc: str, toggle: Toggle, value: bool,
+                           enabled: bool, callback: Callable[[bool], None],
+                           last_state: bool) -> float:
+    toggle_w, toggle_h = 160, 70
+    toggle_rect = rl.Rectangle(rect.x + rect.width - self._padding - toggle_w,
+                               y + (row_h - toggle_h) / 2, toggle_w, toggle_h)
+
+    title_rect = rl.Rectangle(rect.x + self._padding, y,
+                              rect.width - self._padding * 2 - toggle_w - 20, 50)
+    gui_label(title_rect, title, font_size=46, alignment=TextAlignment.LEFT)
+
+    desc_rect = rl.Rectangle(rect.x + self._padding, y + 48,
+                             rect.width - self._padding * 2 - toggle_w - 20, 40)
+    gui_label(desc_rect, desc, font_size=32, alignment=TextAlignment.LEFT,
+              color=rl.Color(170, 170, 170, 255))
+
+    if value != last_state:
+      toggle.set_state(value)
+    toggle.set_rect(toggle_rect)
+    toggle.set_enabled(enabled)
+    toggle.render()
+    return y + row_h
+
+  def _render_name_row(self, rect: rl.Rectangle, y: float, state: BTState, can_act: bool) -> float:
+    row_h = 120
+    save_w = max(140, int(measure_text_cached(gui_app.font(), tr("Save"), 38).x + 50))
+    edit_w = max(140, int(measure_text_cached(gui_app.font(), tr("Edit"), 38).x + 50))
+    control_w = save_w + edit_w + 16
+    control_rect = rl.Rectangle(rect.x + rect.width - self._padding - control_w,
+                                y + (row_h - 70) / 2, control_w, 70)
+
+    title_rect = rl.Rectangle(rect.x + self._padding, y,
+                              rect.width - self._padding * 2 - control_w - 20, 50)
+    gui_label(title_rect, tr("Device name"), font_size=46, alignment=TextAlignment.LEFT)
+    desc_rect = rl.Rectangle(rect.x + self._padding, y + 48,
+                             rect.width - self._padding * 2 - control_w - 20, 40)
+    gui_label(desc_rect, tr("Name shown to other Bluetooth devices."), font_size=32,
+              alignment=TextAlignment.LEFT, color=rl.Color(170, 170, 170, 255))
+
+    # Show current name; Save commits the in-memory input, Edit opens keyboard.
+    name_w = control_w - save_w - edit_w - 32
+    name_rect = rl.Rectangle(control_rect.x, control_rect.y, name_w, 70)
     rl.draw_rectangle_rounded(name_rect, 0.2, 10, rl.Color(50, 50, 50, 255))
-    rl.draw_text_ex(gui_app.font(), self._name_input, rl.Vector2(name_rect.x + 15, name_rect.y + 15), 42, 0, rl.WHITE)
-    self._save_name_btn.set_rect(rl.Rectangle(rect.x + rect.width - self._padding - 160, y + 60, 160, 70))
+    rl.draw_text_ex(gui_app.font(), self._name_input,
+                    rl.Vector2(name_rect.x + 15, name_rect.y + 18), 40, 0, rl.WHITE)
+
+    self._save_name_btn.set_rect(rl.Rectangle(name_rect.x + name_w + 12, control_rect.y, save_w, 70))
     self._save_name_btn.set_enabled(can_act)
     self._save_name_btn.render()
-    gui_label(rl.Rectangle(rect.x + self._padding, y + 140, rect.width - self._padding * 2, 40),
-              tr("Name shown to other Bluetooth devices."), font_size=32, alignment=TextAlignment.LEFT, color=rl.Color(170, 170, 170, 255))
-    y += 190
 
-    # Paired devices
-    gui_label(rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, 50),
+    self._name_edit_btn.set_rect(rl.Rectangle(name_rect.x + name_w + 16 + save_w, control_rect.y, edit_w, 70))
+    self._name_edit_btn.set_enabled(can_act)
+    self._name_edit_btn.render()
+
+    return y + row_h
+
+  def _render_paired_devices_section(self, rect: rl.Rectangle, y: float, state: BTState, can_act: bool) -> float:
+    title_h = 60
+    gui_label(rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, title_h),
               tr("Paired devices"), font_size=44, alignment=TextAlignment.LEFT)
-    y += 60
+    y += title_h + 10
 
     paired = [d for d in state.devices if d.paired]
     if not paired:
       gui_label(rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, 60),
-                tr("No paired devices"), font_size=38, alignment=TextAlignment.LEFT, color=rl.Color(150, 150, 150, 255))
-      y += 70
-    else:
-      for dev in paired:
-        item_rect = rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, 100)
-        rl.draw_rectangle_rounded(item_rect, 0.2, 10, rl.Color(45, 45, 45, 255))
-        rl.draw_text_ex(gui_app.font(), dev.name or dev.address, rl.Vector2(item_rect.x + 20, item_rect.y + 15), 42, 0, rl.WHITE)
-        rl.draw_text_ex(gui_app.font(), dev.address, rl.Vector2(item_rect.x + 20, item_rect.y + 55), 32, 0, rl.Color(150, 150, 150, 255))
-        forget_rect = rl.Rectangle(item_rect.x + item_rect.width - 140, item_rect.y + 15, 120, 70)
-        self._forget_btn.set_rect(forget_rect)
-        self._forget_btn.render()
-        if clicked and rl.check_collision_point_rec(mouse_pos, forget_rect):
-          self._http_async('forget', {'address': dev.address})
-        y += 115
+                tr("No paired devices"), font_size=38, alignment=TextAlignment.LEFT,
+                color=rl.Color(150, 150, 150, 255))
+      return y + 70
 
-    # Reset section
-    y += 30
-    gui_label(rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, 50),
+    mouse_pos = rl.get_mouse_position()
+    clicked = rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
+    for dev in paired:
+      item_h = 100
+      item_rect = rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, item_h)
+      rl.draw_rectangle_rounded(item_rect, 0.2, 10, rl.Color(45, 45, 45, 255))
+
+      rl.draw_text_ex(gui_app.font(), dev.name or dev.address,
+                      rl.Vector2(item_rect.x + 20, item_rect.y + 15), 42, 0, rl.WHITE)
+      rl.draw_text_ex(gui_app.font(), dev.address,
+                      rl.Vector2(item_rect.x + 20, item_rect.y + 55), 32, 0, rl.Color(150, 150, 150, 255))
+
+      forget_w = max(120, int(measure_text_cached(gui_app.font(), tr("Forget"), 36).x + 50))
+      forget_rect = rl.Rectangle(item_rect.x + item_rect.width - forget_w - 15,
+                                 item_rect.y + 15, forget_w, 70)
+      self._forget_btn.set_rect(forget_rect)
+      self._forget_btn.set_text(tr("Forget"))
+      self._forget_btn.set_button_style(ButtonStyle.DANGER)
+      self._forget_btn.set_enabled(can_act)
+      self._forget_btn.render()
+      if clicked and rl.check_collision_point_rec(mouse_pos, forget_rect):
+        self._confirm_forget(dev)
+
+      y += item_h + 12
+    return y
+
+  def _render_reset_section(self, rect: rl.Rectangle, y: float, state: BTState, can_act: bool) -> float:
+    title_h = 60
+    gui_label(rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, title_h),
               tr("Reset Bluetooth"), font_size=44, alignment=TextAlignment.LEFT)
-    y += 60
+    y += title_h + 10
+
     gui_label(rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, 60),
-              tr("Remove all pairings and restart the Bluetooth service."), font_size=34, alignment=TextAlignment.LEFT, color=rl.Color(170, 170, 170, 255))
+              tr("Remove all pairings and restart the Bluetooth service."), font_size=34,
+              alignment=TextAlignment.LEFT, color=rl.Color(170, 170, 170, 255))
     y += 80
+
     self._reset_btn.set_rect(rl.Rectangle(rect.x + self._padding, y, 360, 90))
     self._reset_btn.set_enabled(can_act)
     self._reset_btn.render()
+    return y + 110
 
   def _action_label(self, action: str) -> str:
     labels = {
@@ -704,9 +879,13 @@ class CarrotBluetoothLayout(Widget):
 
   def _on_scan_clicked(self) -> None:
     with self._state_lock:
-      discovering = self._state.discovering
-    operation = 'cancel' if discovering else 'scan'
-    self._http_async(operation)
+      discovering = self._is_scanning_active(self._state)
+    if discovering:
+      self._scanning_until = 0.0
+      self._http_async('cancel')
+    else:
+      self._scanning_until = time.monotonic() + 32
+      self._http_async('scan')
 
   def _on_advanced_clicked(self) -> None:
     with self._state_lock:
@@ -747,6 +926,16 @@ class CarrotBluetoothLayout(Widget):
 
   def _on_edit_clicked(self) -> None:
     pass
+
+  def _on_edit_name_clicked(self) -> None:
+    def update_name(result: DialogResult):
+      if result == DialogResult.CONFIRM:
+        self._name_input = self._keyboard.text.strip() or self._name_input
+    self._keyboard.reset(min_text_size=1)
+    self._keyboard.set_title(tr("Device name"), "")
+    self._keyboard.set_text(self._name_input)
+    self._keyboard.set_callback(update_name)
+    gui_app.push_widget(self._keyboard)
 
   def _on_device_action(self, dev: BTDevice, operation: str) -> None:
     if operation == 'forget':
