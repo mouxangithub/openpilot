@@ -386,6 +386,29 @@ ensure_params_build() {
   fi
 }
 
+# BlueZ is not shipped on C3, but the Carrot Bluetooth HID remote feature needs
+# the org.bluez D-Bus service. Install it once per boot if it is missing; the
+# actual work runs in the background so it does not block the boot sequence.
+ensure_bluez() {
+  command -v bluetoothctl >/dev/null 2>&1 && command -v bluetoothd >/dev/null 2>&1 && return 0
+  [ -f /tmp/.bluez_install_attempted ] && return 0
+  touch /tmp/.bluez_install_attempted
+  echo "[ensure_bluez] bluez missing; installing in background..." >> /tmp/bluez_install.log
+  (
+    if sudo apt-get update >> /tmp/bluez_install.log 2>&1; then
+      if sudo apt-get install -y bluez >> /tmp/bluez_install.log 2>&1; then
+        sudo systemctl enable bluetooth >> /tmp/bluez_install.log 2>&1
+        sudo systemctl start bluetooth >> /tmp/bluez_install.log 2>&1
+        echo "[ensure_bluez] installed and started" >> /tmp/bluez_install.log
+      else
+        echo "[ensure_bluez] install failed" >> /tmp/bluez_install.log
+      fi
+    else
+      echo "[ensure_bluez] apt-get update failed" >> /tmp/bluez_install.log
+    fi
+  ) &
+}
+
 launch() {
   [ -f "$DIR/.git/index.lock" ] && rm -f "$DIR/.git/index.lock"
 
@@ -453,6 +476,10 @@ launch() {
   # Build Params .so before services need it; after an overlay update it is
   # missing and would cause webui to fall back to dev/mock mode.
   ensure_params_build
+
+  # BlueZ is required for the Carrot Bluetooth HID remote panel. It is not
+  # present on a fresh C3 image, so install it on first boot if missing.
+  ensure_bluez
 
   # Start AI and WebUI before the AGNOS OS update so they stay reachable even
   # if the updater loops waiting for user confirmation.
