@@ -392,10 +392,14 @@ ensure_params_build() {
 #
 # The carrot-bluetooth-radio.service (which runs btattach to bring up hci0) has:
 #   ExecCondition=/usr/bin/test -f /data/bluetooth/ENABLED
-# Without /data/bluetooth/ENABLED the service is skipped and hci0 never appears.
-# We create the flag file on first boot (in the install subshell) and on every
-# subsequent boot (in the fast-path below) so that the radio is always available
-# after the first BlueZ installation.
+# Without this file the service is skipped and hci0 never appears.
+#
+# THREE-LAYER ENSURE STRATEGY to eliminate all race conditions:
+#   1. Fast path (BlueZ already installed):  create ENABLED + start service in main shell.
+#   2. First-boot (main shell, before subshell):  same – ensures the service never sees a
+#      missing ENABLED file even when apt-get is still running in the background.
+#   3. Retry path (subshell install):  re-creates ENABLED + restarts service when apt-get
+#      finally succeeds (idempotent, no harm if called twice).
 ensure_bluez() {
   # Helper: create the ENABLED flag and start the Bluetooth radio service.
   # Called from both the install path (after apt-get install succeeds) and the
@@ -418,10 +422,24 @@ ensure_bluez() {
     return 0
   fi
 
-  # Not installed yet – download and install in the background.
+  # First-boot install: BlueZ is not installed yet.
+  # LAYER 2 – create ENABLED and start the radio service HERE in the main shell,
+  # before we fork the background subshell.  This eliminates the race where systemd
+  # starts carrot-bluetooth-radio.service (or the launch script continues and starts
+  # other services) before the background install subshell finishes creating ENABLED.
+  echo "[ensure_bluez] bluez missing; creating ENABLED and starting radio before background install" >> /tmp/bluez_install.log
+  start_carrot_bt_radio
+
+  # If a previous install attempt already ran (and failed), do NOT retry here – the
+  # ENABLED file is already created and the service is already running.  If BlueZ
+  # eventually gets installed later (e.g. next boot or manual apt-get), a subsequent
+  # call to ensure_bluez() will pick it up via the fast path above.
   [ -f /tmp/.bluez_install_attempted ] && return 0
   touch /tmp/.bluez_install_attempted
-  echo "[ensure_bluez] bluez missing; installing in background..." >> /tmp/bluez_install.log
+
+  # LAYER 3 – download and install in the background.  If it succeeds, re-creates
+  # ENABLED and restarts the service (idempotent; also covers retries after a
+  # previous failed attempt finally succeeded).
   (
     if sudo apt-get update >> /tmp/bluez_install.log 2>&1; then
       if sudo apt-get install -y bluez >> /tmp/bluez_install.log 2>&1; then
