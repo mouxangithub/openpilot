@@ -133,6 +133,11 @@ class CarrotBluetoothLayout(Widget):
   def __init__(self):
     super().__init__()
 
+    # Must be initialized here (not only in show_event) because _fetch_state()
+    # checks self._running at the top of its body, before any rendering happens.
+    # If render() is called before show_event() (e.g. a timing edge case in the
+    # settings panel manager), an AttributeError: "_running" would crash the UI.
+    self._running = False
     self._state = BTState()
     self._state_lock = threading.Lock()
     self._selected_address: str | None = None
