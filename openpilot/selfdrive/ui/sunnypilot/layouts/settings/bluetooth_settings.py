@@ -454,6 +454,7 @@ class CarrotBluetoothLayout(Widget):
 
     text_x = rect.x + self._padding
     name_size = measure_text_cached(gui_app.font(), dev.name or dev.address, 55)
+    _ = name_size  # name_size is a Vector2; currently unused but keep for future layout calculations
     rl.draw_text_ex(gui_app.font(), dev.name or dev.address, rl.Vector2(text_x, rect.y + 15), 55, 0, rl.WHITE)
 
     status_parts = [dev.address]
@@ -469,7 +470,8 @@ class CarrotBluetoothLayout(Widget):
     # RSSI
     if dev.rssi is not None:
       rssi_str = f"{dev.rssi} dBm"
-      rssi_w = measure_text_cached(gui_app.font(), rssi_str, 34)
+      rssi_size = measure_text_cached(gui_app.font(), rssi_str, 34)
+      rssi_w = rssi_size.x  # measure_text_cached returns rl.Vector2
       rl.draw_text_ex(gui_app.font(), rssi_str, rl.Vector2(rect.x + rect.width - self._padding - rssi_w, rect.y + 22),
                       34, 0, rl.Color(120, 180, 255, 255))
 
