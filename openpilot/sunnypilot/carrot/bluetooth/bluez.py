@@ -80,8 +80,11 @@ class Bluez:
         props = _props(interfaces[ADAPTER])
         adapters.append({
           'address': props.get('Address'),
+          'name': props.get('Name'),
+          'alias': props.get('Alias'),
           'powered': props.get('Powered', False),
           'discovering': props.get('Discovering', False),
+          'discoverable': props.get('Discoverable', False),
         })
       if DEVICE in interfaces:
         props = _props(interfaces[DEVICE])
