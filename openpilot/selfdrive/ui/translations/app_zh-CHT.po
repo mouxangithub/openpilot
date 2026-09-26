@@ -6117,3 +6117,31 @@ msgstr "要移除此設備嗎？"
 
 msgid "Bluetooth"
 msgstr "藍牙"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning.py
+msgid "eGPU"
+msgstr "eGPU"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning.py
+msgid "eGPU / big model status and configuration."
+msgstr "eGPU / 大模型狀態與設定。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "eGPU / Big Model"
+msgstr "eGPU / 大模型"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "eGPU Status"
+msgstr "eGPU 狀態"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Current eGPU (Chestnut) connection and model status."
+msgstr "目前 eGPU（Chestnut）連線與模型狀態。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Not detected"
+msgstr "未偵測到"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Ready"
+msgstr "就緒"
