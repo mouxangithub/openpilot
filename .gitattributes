@@ -38,6 +38,7 @@ openpilot/sunnypilot/carrot/xiaoge/assets/v_asm_model.onnx -filter -diff -merge 
 
 # Carrot/Amap assets: keep these imported runtime resources as regular Git blobs.
 # This overrides the global *.wav and *.png LFS rules for these paths only.
+openpilot/selfdrive/assets/icons/bluetooth.png -filter -diff -merge binary
 openpilot/selfdrive/assets/sounds/audio_*.wav -filter -diff -merge binary
 openpilot/selfdrive/assets/sounds/nnff.wav -filter -diff -merge binary
 openpilot/selfdrive/assets/sounds/tici_disengaged.wav -filter -diff -merge binary
