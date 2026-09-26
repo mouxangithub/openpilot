@@ -6328,3 +6328,11 @@ msgstr "重置蓝牙"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
 msgid "Remove all pairings and restart the Bluetooth service."
 msgstr "移除所有配对并重启蓝牙服务。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
+msgid "Bluetooth radio hardware not detected"
+msgstr "未检测到蓝牙射频硬件"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
+msgid "This AGNOS or device variant lacks the required Bluetooth UART/power nodes."
+msgstr "当前 AGNOS 或设备变种缺少所需的蓝牙 UART / 电源节点。"

@@ -115,6 +115,8 @@ class BTState:
   has_bluez: bool = False
   service_running: bool = False
   available: bool = False
+  has_uart: bool = False
+  has_btpower: bool = False
   radio_enabled: bool = False
   discoverable: bool = False
   local_name: str = ''
@@ -256,6 +258,8 @@ class CarrotBluetoothLayout(Widget):
       return tr("Bluetooth is not installed")
     if not state.service_running:
       return tr("Bluetooth service is stopped")
+    if not state.has_uart or not state.has_btpower:
+      return tr("Bluetooth radio hardware not detected")
     if not state.available:
       return tr("No Bluetooth adapter found")
     if not state.runtime.stationary:
@@ -271,6 +275,8 @@ class CarrotBluetoothLayout(Widget):
     state.has_bluez = data.get('hasBluez', False)
     state.service_running = data.get('serviceRunning', False)
     state.available = data.get('available', False)
+    state.has_uart = data.get('hasUart', False)
+    state.has_btpower = data.get('hasBtpower', False)
     state.radio_enabled = data.get('radioEnabled', False)
     state.discoverable = data.get('discoverable', False)
     state.local_name = data.get('localName', '') or ''
@@ -358,6 +364,13 @@ class CarrotBluetoothLayout(Widget):
       self._render_empty_state(rect, icon='\ud83d\udd18', title=tr("Bluetooth service is stopped"),
                                desc=tr("Start the Bluetooth service to scan and pair devices."),
                                btn=self._enable_btn)
+      return
+
+    # Required hardware nodes missing (e.g. this device/AGNOS variant has no ttyHS1)
+    if not state.has_uart or not state.has_btpower:
+      self._render_empty_state(rect, icon='\ud83d\udcf5', title=tr("Bluetooth radio hardware not detected"),
+                               desc=tr("This AGNOS or device variant lacks the required Bluetooth UART/power nodes."),
+                               btn=self._retry_btn)
       return
 
     # No adapter

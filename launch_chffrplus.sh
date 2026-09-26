@@ -413,18 +413,20 @@ ensure_bluez() {
     sudo mkdir -p /data/bluetooth
     sudo chmod 777 /data/bluetooth
     sudo touch /data/bluetooth/ENABLED
+    sudo chmod 666 /data/bluetooth/ENABLED
     sudo systemctl start bluetooth >> /tmp/bluez_install.log 2>&1
   }
 
   # Helper: start the carrot-bluetooth-radio service only if the underlying hardware
-  # nodes are available.  Without /dev/ttyHS1 the service's ExecStartPre will crash-loop.
+  # nodes are available.  Without /dev/ttyHS1 the service's ExecStartPre will crash-loop,
+  # so stop any already-running instance and do not start a new one.
   start_carrot_bt_radio() {
-    if [ ! -e /dev/ttyHS1 ]; then
-      echo "[ensure_bluez] /dev/ttyHS1 missing; current AGNOS lacks Bluetooth UART support, skipping radio start" >> /tmp/bluez_install.log
-      return 0
-    fi
-    if [ ! -e /dev/btpower ]; then
-      echo "[ensure_bluez] /dev/btpower missing; skipping radio start" >> /tmp/bluez_install.log
+    if [ ! -e /dev/ttyHS1 ] || [ ! -e /dev/btpower ]; then
+      local missing=""
+      [ ! -e /dev/ttyHS1 ] && missing="/dev/ttyHS1"
+      [ ! -e /dev/btpower ] && missing="${missing}${missing:+, }/dev/btpower"
+      echo "[ensure_bluez] ${missing} missing; this device/AGNOS lacks Bluetooth radio hardware, stopping carrot-bluetooth-radio" >> /tmp/bluez_install.log
+      sudo systemctl stop carrot-bluetooth-radio >> /tmp/bluez_install.log 2>&1 || true
       return 0
     fi
     sudo systemctl start carrot-bluetooth-radio >> /tmp/bluez_install.log 2>&1
