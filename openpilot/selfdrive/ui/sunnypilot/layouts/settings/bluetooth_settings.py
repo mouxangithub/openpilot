@@ -354,28 +354,28 @@ class CarrotBluetoothLayout(Widget):
 
     # Not installed
     if not state.has_bluez:
-      self._render_empty_state(rect, icon='\ud83d\udce1', title=tr("Bluetooth is not installed"),
+      self._render_empty_state(rect, icon='📡', title=tr("Bluetooth is not installed"),
                                desc=tr("Install BlueZ to enable Bluetooth HID remotes and device management."),
                                btn=self._install_btn, btn_label=tr("Installing...") if self._installing else None)
       return
 
     # Service not running
     if not state.service_running:
-      self._render_empty_state(rect, icon='\ud83d\udd18', title=tr("Bluetooth service is stopped"),
+      self._render_empty_state(rect, icon='🔘', title=tr("Bluetooth service is stopped"),
                                desc=tr("Start the Bluetooth service to scan and pair devices."),
                                btn=self._enable_btn)
       return
 
     # Required hardware nodes missing (e.g. this device/AGNOS variant has no ttyHS1)
     if not state.has_uart or not state.has_btpower:
-      self._render_empty_state(rect, icon='\ud83d\udcf5', title=tr("Bluetooth radio hardware not detected"),
+      self._render_empty_state(rect, icon='📵', title=tr("Bluetooth radio hardware not detected"),
                                desc=tr("This AGNOS or device variant lacks the required Bluetooth UART/power nodes."),
                                btn=self._retry_btn)
       return
 
     # No adapter
     if not state.available:
-      self._render_empty_state(rect, icon='\ud83d\udcf5', title=tr("No Bluetooth adapter found"),
+      self._render_empty_state(rect, icon='📵', title=tr("No Bluetooth adapter found"),
                                desc=tr("Flash an AGNOS with Bluetooth support or plug in a USB Bluetooth dongle."),
                                btn=self._retry_btn)
       return
