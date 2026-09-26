@@ -389,16 +389,46 @@ ensure_params_build() {
 # BlueZ is not shipped on C3, but the Carrot Bluetooth HID remote feature needs
 # the org.bluez D-Bus service. Install it once per boot if it is missing; the
 # actual work runs in the background so it does not block the boot sequence.
+#
+# The carrot-bluetooth-radio.service (which runs btattach to bring up hci0) has:
+#   ExecCondition=/usr/bin/test -f /data/bluetooth/ENABLED
+# Without /data/bluetooth/ENABLED the service is skipped and hci0 never appears.
+# We create the flag file on first boot (in the install subshell) and on every
+# subsequent boot (in the fast-path below) so that the radio is always available
+# after the first BlueZ installation.
 ensure_bluez() {
-  command -v bluetoothctl >/dev/null 2>&1 && command -v bluetoothd >/dev/null 2>&1 && return 0
+  # Helper: create the ENABLED flag and start the Bluetooth radio service.
+  # Called from both the install path (after apt-get install succeeds) and the
+  # already-installed fast path.  Idempotent – safe to call multiple times.
+  start_carrot_bt_radio() {
+    sudo mkdir -p /data/bluetooth
+    sudo chmod 777 /data/bluetooth
+    sudo touch /data/bluetooth/ENABLED
+    # bluetooth.service may not be running yet (especially on first boot); start
+    # it first so that carrot-bluetooth-radio.service (which has After=bluetooth)
+    # can bind to the HCI interface after it is available.
+    sudo systemctl start bluetooth >> /tmp/bluez_install.log 2>&1
+    sudo systemctl start carrot-bluetooth-radio >> /tmp/bluez_install.log 2>&1
+  }
+
+  if command -v bluetoothctl >/dev/null 2>&1 && command -v bluetoothd >/dev/null 2>&1; then
+    # BlueZ already installed – create ENABLED and bring up the radio now.
+    echo "[ensure_bluez] bluez already present; ensuring radio is up" >> /tmp/bluez_install.log
+    start_carrot_bt_radio
+    return 0
+  fi
+
+  # Not installed yet – download and install in the background.
   [ -f /tmp/.bluez_install_attempted ] && return 0
   touch /tmp/.bluez_install_attempted
   echo "[ensure_bluez] bluez missing; installing in background..." >> /tmp/bluez_install.log
   (
     if sudo apt-get update >> /tmp/bluez_install.log 2>&1; then
       if sudo apt-get install -y bluez >> /tmp/bluez_install.log 2>&1; then
+        # BlueZ package postinst handles enable; start it explicitly so we can
+        # immediately create the ENABLED flag and bring up hci0.
         sudo systemctl enable bluetooth >> /tmp/bluez_install.log 2>&1
-        sudo systemctl start bluetooth >> /tmp/bluez_install.log 2>&1
+        start_carrot_bt_radio
         echo "[ensure_bluez] installed and started" >> /tmp/bluez_install.log
       else
         echo "[ensure_bluez] install failed" >> /tmp/bluez_install.log

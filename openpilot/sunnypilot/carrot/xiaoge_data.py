@@ -238,7 +238,15 @@ class XiaogeDataBroadcaster:
   def broadcast_data(self) -> None:
     self.server_running = True
     threading.Thread(target=self.start_tcp_server, daemon=True).start()
-    threading.Thread(target=self.start_vision_server, daemon=True).start()
+    # start_vision_server loads ONNX models and may raise if the model files or
+    # VisionIPC cameras are unavailable.  Wrap it in a try-except so that a failed
+    # vision thread does not bring down the entire process (the TCP server on 7711
+    # and the broadcast loop will continue running and the manager will restart the
+    # vision thread on the next crash cycle).
+    try:
+      threading.Thread(target=self.start_vision_server, daemon=True).start()
+    except Exception as error:
+      print(f"[xiaoge_data] start_vision_server thread failed: {error}; vision disabled")
     rk = Ratekeeper(20, print_delay_threshold=None)
     try:
       while self.server_running:
@@ -266,7 +274,21 @@ class XiaogeDataBroadcaster:
 
 
 def main() -> None:
-  XiaogeDataBroadcaster().broadcast_data()
+  # Restart loop: if broadcast_data() exits for any reason (exception, crash,
+  # etc.), re-create and restart.  Combined with restart_if_crash=True in
+  # process_config.py this makes xiaoge_data very resilient – it survives both
+  # transient camera unavailability and ONNX loading failures without producing
+  # a persistent "进程未运行" alert.
+  while True:
+    try:
+      XiaogeDataBroadcaster().broadcast_data()
+    except KeyboardInterrupt:
+      break
+    except Exception as error:
+      print(f"[xiaoge_data] broadcast_data exited with error: {error}; restarting in 2 s")
+      traceback.print_exc()
+      import time
+      time.sleep(2)
 
 
 if __name__ == "__main__":

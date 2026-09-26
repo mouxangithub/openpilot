@@ -230,13 +230,17 @@ procs += [
   # Xiaoge ONNX BSD/Lane detection
   # Reads VisionIPC camera buffers, runs ONNX inference, publishes to customReservedRawData0.
   # card.py merges results into carState (blindspot) and carStateSP (lane lines).
-  PythonProcess("xiaoge_data", "openpilot.sunnypilot.carrot.xiaoge_data", carrot_enabled),
+  # restart_if_crash=True: xiaoge_data can crash on startup if cameras are temporarily
+  # unavailable (e.g. camera stream not yet stable when entering the car). Without this
+  # flag the manager waits for the next ensure_running cycle before restarting, causing a
+  # spurious "进程未运行" alert to appear briefly.
+  PythonProcess("xiaoge_data", "openpilot.sunnypilot.carrot.xiaoge_data", carrot_enabled, restart_if_crash=True),
 
   # Bluetooth HID remote daemon
   # Reads evdev input events from paired Bluetooth HID remotes (e.g. Yiser J6).
   # Publishes cruise/lane commands to /dev/shm/carrot-bluetooth/{cruise,lane}.json.
   # CommandReader in cruise.py / desire_helper.py consumes these commands.
-  PythonProcess("carrot_bluetooth", "openpilot.sunnypilot.carrot.bluetooth.daemon", carrot_enabled),
+  PythonProcess("carrot_bluetooth", "openpilot.sunnypilot.carrot.bluetooth.daemon", carrot_enabled, restart_if_crash=True),
 
   # locationd
   NativeProcess("locationd_llk", "openpilot/sunnypilot/selfdrive/locationd", ["./locationd"], only_onroad),
