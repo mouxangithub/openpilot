@@ -6,20 +6,12 @@ See the LICENSE.md file in the root directory for more details.
 """
 import threading
 import time
-from enum import IntEnum
 
 import pyray as rl
 
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.button import Button, ButtonStyle
-from openpilot.system.ui.widgets.network import NetworkUI
-from openpilot.selfdrive.ui.sunnypilot.layouts.settings.bluetooth_settings import CarrotBluetoothLayout
-
-
-class NetworkUIPanel(IntEnum):
-  WIFI = 0
-  ADVANCED = 1
-  BLUETOOTH = 2
+from openpilot.system.ui.widgets.network import NetworkUI, PanelType
 
 
 class NetworkUISP(NetworkUI):
@@ -31,12 +23,6 @@ class NetworkUISP(NetworkUI):
 
     self._scanning = False
     self._wifi_manager.add_callbacks(networks_updated=self._on_networks_updated)
-
-    # Bluetooth panel
-    self._bluetooth_panel = self._child(CarrotBluetoothLayout())
-
-    # Override _current_panel to use our extended enum (starts at WIFI)
-    self._current_panel = NetworkUIPanel.WIFI
 
   def _scan_clicked(self):
     self._scanning = True
@@ -53,24 +39,8 @@ class NetworkUISP(NetworkUI):
       self.scan_button.set_text(tr("Scan"))
       self.scan_button.set_enabled(True)
 
-  def _cycle_panel(self):
-    # Cycle through: WIFI → ADVANCED → BLUETOOTH → WIFI
-    current = NetworkUIPanel(self._current_panel)
-    if current == NetworkUIPanel.WIFI:
-      self._set_current_panel(NetworkUIPanel.ADVANCED)
-    elif current == NetworkUIPanel.ADVANCED:
-      self._set_current_panel(NetworkUIPanel.BLUETOOTH)
-    else:
-      self._set_current_panel(NetworkUIPanel.WIFI)
-
-  def show_event(self):
-    super().show_event()
-    self._set_current_panel(NetworkUIPanel.WIFI)
-    self._bluetooth_panel.show_event()
-
   def _render(self, _):
     # Subtract button
-    nav_btn_texts = {NetworkUIPanel.WIFI: tr("Advanced"), NetworkUIPanel.ADVANCED: tr("Bluetooth"), NetworkUIPanel.BLUETOOTH: tr("Back")}
     content_rect = rl.Rectangle(
       self._rect.x,
       self._rect.y + self._nav_button.rect.height + 40,
@@ -78,27 +48,15 @@ class NetworkUISP(NetworkUI):
       self._rect.height - self._nav_button.rect.height - 40,
     )
 
-    current = NetworkUIPanel(self._current_panel)
-    self._nav_button.text = nav_btn_texts.get(current, tr("Back"))
-
-    # Position nav button
-    if current == NetworkUIPanel.WIFI:
+    if self._current_panel == PanelType.WIFI:
+      self._nav_button.text = tr("Advanced")
       self._nav_button.set_position(self._rect.x + self._rect.width - self._nav_button.rect.width, self._rect.y + 20)
-    elif current == NetworkUIPanel.ADVANCED:
-      self._nav_button.set_position(self._rect.x, self._rect.y + 20)
-    else:
-      self._nav_button.set_position(self._rect.x, self._rect.y + 20)
-
-    if current == NetworkUIPanel.WIFI:
       self._wifi_panel.render(content_rect)
       self.scan_button.set_position(self._rect.x, self._rect.y + 20)
       self.scan_button.render()
-    elif current == NetworkUIPanel.ADVANCED:
-      self._advanced_panel.render(content_rect)
     else:
-      self._bluetooth_panel.render(content_rect)
+      self._nav_button.text = tr("Back")
+      self._nav_button.set_position(self._rect.x, self._rect.y + 20)
+      self._advanced_panel.render(content_rect)
 
     self._nav_button.render()
-
-  def _set_current_panel(self, panel: NetworkUIPanel):
-    self._current_panel = panel

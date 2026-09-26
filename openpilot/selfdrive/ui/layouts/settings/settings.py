@@ -9,6 +9,7 @@ from openpilot.selfdrive.ui.layouts.settings.firehose import FirehoseLayout
 from openpilot.selfdrive.ui.layouts.settings.imu_calibration import ImuCalibrationLayout
 from openpilot.selfdrive.ui.layouts.settings.software import SoftwareLayout
 from openpilot.selfdrive.ui.layouts.settings.toggles import TogglesLayout
+from openpilot.selfdrive.ui.sunnypilot.layouts.settings.bluetooth_settings import CarrotBluetoothLayout
 from openpilot.common.params import Params
 from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
 from openpilot.system.ui.lib.multilang import tr, tr_noop
@@ -36,12 +37,13 @@ TEXT_SELECTED = rl.WHITE
 class PanelType(IntEnum):
   DEVICE = 0
   NETWORK = 1
-  TOGGLES = 2
-  SOFTWARE = 3
-  FIREHOSE = 4
-  DEVELOPER = 5
-  IMU_CALIBRATION = 6
-  CHESTNUT = 7
+  BLUETOOTH = 2
+  TOGGLES = 3
+  SOFTWARE = 4
+  FIREHOSE = 5
+  DEVELOPER = 6
+  IMU_CALIBRATION = 7
+  CHESTNUT = 8
 
 
 @dataclass
@@ -67,6 +69,7 @@ class SettingsLayout(Widget):
     self._panels = {
       PanelType.DEVICE: PanelInfo(tr_noop("Device"), device_layout),
       PanelType.NETWORK: PanelInfo(tr_noop("Network"), NetworkUI(wifi_manager)),
+      PanelType.BLUETOOTH: PanelInfo(tr_noop("Bluetooth"), CarrotBluetoothLayout()),
       PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout()),
       PanelType.SOFTWARE: PanelInfo(tr_noop("Software"), SoftwareLayout()),
       PanelType.FIREHOSE: PanelInfo(tr_noop("Firehose"), FirehoseLayout()),
