@@ -20,6 +20,7 @@ from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.button import Button, ButtonStyle
 from openpilot.system.ui.widgets.label import gui_label
+from openpilot.system.ui.widgets.toggle import Toggle
 
 # Supported actions for button mapping
 ACTIONS = (
@@ -127,8 +128,6 @@ class CarrotBluetoothLayout(Widget):
     # UI dimensions
     self._item_height = 160
     self._btn_height = 80
-    self._header_height = 80
-    self._action_row_height = 90
     self._label_height = 60
     self._mapping_row_height = 80
     self._gesture_col_width = 220
@@ -149,10 +148,9 @@ class CarrotBluetoothLayout(Widget):
     self._poll_thread: threading.Thread | None = None
     self._running = True
 
-    # Buttons
-    self._radio_btn = Button('', self._on_radio_clicked, button_style=ButtonStyle.NORMAL, font_size=45, border_radius=15)
-    self._scan_btn = Button(tr("Scan (30s)"), self._on_scan_clicked, button_style=ButtonStyle.NORMAL, font_size=45, border_radius=15)
-    self._cancel_btn = Button(tr("Cancel"), self._on_cancel_clicked, button_style=ButtonStyle.NORMAL, font_size=45, border_radius=15)
+    # Buttons / toggles
+    self._scan_btn = Button(tr("Scan"), self._on_scan_clicked, button_style=ButtonStyle.NORMAL, font_size=60, border_radius=30)
+    self._radio_toggle = Toggle(self._state.radio_enabled, self._on_radio_toggled)
     self._save_btn = Button(tr("Save"), self._on_save_clicked, button_style=ButtonStyle.PRIMARY, font_size=45, border_radius=15)
     self._test_btn = Button(tr("Test / Learn"), self._on_test_clicked, button_style=ButtonStyle.NORMAL, font_size=45, border_radius=15)
     self._stop_btn = Button(tr("Stop Test"), self._on_stop_clicked, button_style=ButtonStyle.DANGER, font_size=45, border_radius=15)
@@ -160,6 +158,9 @@ class CarrotBluetoothLayout(Widget):
     self._connect_btn = Button('', self._on_connect_clicked, button_style=ButtonStyle.PRIMARY, font_size=40, border_radius=15)
     self._forget_btn = Button(tr("Forget"), self._on_forget_clicked, button_style=ButtonStyle.DANGER, font_size=40, border_radius=15)
     self._edit_btn = Button(tr("Edit"), self._on_edit_clicked, button_style=ButtonStyle.NORMAL, font_size=40, border_radius=15)
+
+    # Track last fetched radio state so the toggle only animates on real changes
+    self._last_radio_state = self._state.radio_enabled
 
     # Gesture buttons for mapping
     self._gesture_btns: dict[str, dict[str, Button]] = {}
@@ -263,21 +264,41 @@ class CarrotBluetoothLayout(Widget):
       self._fetch_state()
 
     # Header
-    self._render_header(rect)
+    content_top = self._render_header(rect)
 
     # Content
     if self._panel == BTPanel.DEVICES:
-      self._render_devices(rect)
+      self._render_devices(rect, content_top)
     else:
-      self._render_editor(rect)
+      self._render_editor(rect, content_top)
 
-  def _render_header(self, rect: rl.Rectangle) -> None:
+  def _render_header(self, rect: rl.Rectangle) -> float:
+    """Render header and return y-coordinate where content should start."""
     y = rect.y
-    header_h = self._header_height
 
-    # Title
-    gui_label(rl.Rectangle(rect.x, y, rect.width, header_h), tr("Bluetooth Remotes"), font_size=60, alignment=TextAlignment.CENTER)
-    y += header_h
+    # Top row: Scan/Stop (left) and Bluetooth radio toggle (right),
+    # matching the Network panel header layout.
+    top_y = y + 20
+    top_h = 100
+
+    can_act = self._state.runtime.stationary and self._state.available
+
+    # Scan / Stop button
+    self._scan_btn.set_text(tr("Stop") if self._state.discovering else tr("Scan"))
+    self._scan_btn.set_enabled(can_act)
+    self._scan_btn.set_rect(rl.Rectangle(rect.x, top_y, 400, top_h))
+    self._scan_btn.render()
+
+    # Bluetooth radio toggle
+    toggle_x = rect.x + rect.width - 160
+    self._radio_toggle.set_rect(rl.Rectangle(toggle_x, top_y, 160, 80))
+    self._radio_toggle.set_enabled(can_act)
+    if self._state.radio_enabled != self._last_radio_state:
+      self._last_radio_state = self._state.radio_enabled
+      self._radio_toggle.set_state(self._state.radio_enabled)
+    self._radio_toggle.render()
+
+    y += top_h + 40
 
     # Status
     status_color = rl.Color(200, 200, 0, 255) if 'Scanning' in self._status_text else rl.WHITE
@@ -291,31 +312,10 @@ class CarrotBluetoothLayout(Widget):
                 color=rl.Color(255, 80, 80, 255))
       y += self._label_height
 
-    # Action buttons row
-    btn_y = y + 10
-    btn_h = self._action_row_height
-    total_btns = 3
-    gap = 20
-    total_gap = gap * (total_btns - 1)
-    btn_w = (rect.width - self._padding * 2 - total_gap) // total_btns
+    return y + 20
 
-    x = rect.x + self._padding
-    self._radio_btn.set_text(tr("Disable Bluetooth") if self._state.radio_enabled else tr("Enable Bluetooth"))
-    self._radio_btn.set_rect(rl.Rectangle(x, btn_y, btn_w, btn_h))
-    self._radio_btn.render()
-    x += btn_w + gap
-
-    self._scan_btn.set_enabled(self._state.runtime.stationary and not self._state.discovering)
-    self._scan_btn.set_rect(rl.Rectangle(x, btn_y, btn_w, btn_h))
-    self._scan_btn.render()
-    x += btn_w + gap
-
-    self._cancel_btn.set_enabled(self._state.discovering)
-    self._cancel_btn.set_rect(rl.Rectangle(x, btn_y, btn_w, btn_h))
-    self._cancel_btn.render()
-
-  def _render_devices(self, rect: rl.Rectangle) -> None:
-    start_y = rect.y + self._header_height + self._label_height + self._action_row_height + 40
+  def _render_devices(self, rect: rl.Rectangle, content_top: float) -> None:
+    start_y = content_top
 
     if self._error_text and not self._state.devices:
       gui_label(rl.Rectangle(rect.x, start_y, rect.width, 100), tr("No devices found"), font_size=45, alignment=TextAlignment.CENTER)
@@ -370,40 +370,46 @@ class CarrotBluetoothLayout(Widget):
     # Action buttons (right side)
     btn_x = rect.x + rect.width - 280
     btn_y = rect.y + (self._item_height - self._btn_height) // 2
+
+    # Track which buttons were actually rendered for this device so we only
+    # handle clicks for the ones currently on screen.
+    rendered_buttons: set[str] = set()
     if not dev.paired:
       self._connect_btn.set_text(tr("Pair"))
       self._connect_btn.set_rect(rl.Rectangle(btn_x, btn_y, 250, self._btn_height))
       self._connect_btn.render()
+      rendered_buttons.add('connect')
     else:
       # Connect / Disconnect
       btn_w = 110
       self._connect_btn.set_text(tr("Disconnect") if dev.connected else tr("Connect"))
       self._connect_btn.set_rect(rl.Rectangle(btn_x, btn_y, btn_w, self._btn_height))
       self._connect_btn.render()
+      rendered_buttons.add('connect')
 
       # Forget button
       self._forget_btn.set_rect(rl.Rectangle(btn_x + btn_w + 10, btn_y, 110, self._btn_height))
       self._forget_btn.render()
+      rendered_buttons.add('forget')
 
       # Edit button
       self._edit_btn.set_rect(rl.Rectangle(btn_x + btn_w * 2 + 20, btn_y, 90, self._btn_height))
       self._edit_btn.render()
+      rendered_buttons.add('edit')
 
-    # Store device reference for click handling
-    dev_rect = rl.Rectangle(rect.x, rect.y, rect.width - 300, self._item_height)
-    if self._connect_btn.is_touched():
+    # Handle clicks only for buttons that were rendered above
+    if 'connect' in rendered_buttons and self._connect_btn.is_touched():
       self._on_device_action(dev, 'connect' if not dev.connected else 'disconnect')
-    elif self._forget_btn.is_touched():
+    elif 'forget' in rendered_buttons and self._forget_btn.is_touched():
       self._on_device_action(dev, 'forget')
-    elif self._edit_btn.is_touched():
+    elif 'edit' in rendered_buttons and self._edit_btn.is_touched():
       self._on_edit_device(dev)
 
-  def _render_editor(self, rect: rl.Rectangle) -> None:
+  def _render_editor(self, rect: rl.Rectangle, content_top: float) -> None:
     if self._draft is None:
       return
 
-    start_y = rect.y + self._header_height + self._label_height + self._action_row_height + 40
-    y = start_y
+    y = content_top
 
     # Device name header
     name = self._draft.name or self._selected_address or ''
@@ -510,17 +516,14 @@ class CarrotBluetoothLayout(Widget):
     }
     return labels.get(action, action)
 
-  def _on_radio_clicked(self) -> None:
-    self._http_async('radio', {'enabled': not self._state.radio_enabled})
-    time.sleep(0.5)
-    self._fetch_state()
+  def _on_radio_toggled(self, enabled: bool) -> None:
+    if enabled == self._state.radio_enabled:
+      return
+    self._http_async('radio', {'enabled': enabled})
 
   def _on_scan_clicked(self) -> None:
-    self._http_async('scan')
-    self._fetch_state()
-
-  def _on_cancel_clicked(self) -> None:
-    self._http_async('cancel')
+    operation = 'cancel' if self._state.discovering else 'scan'
+    self._http_async(operation)
     self._fetch_state()
 
   def _on_connect_clicked(self) -> None:
