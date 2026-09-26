@@ -4278,3 +4278,42 @@ msgstr "Forget this device?"
 
 msgid "Bluetooth"
 msgstr "Bluetooth"
+
+msgid "eGPU Not Active"
+msgstr "eGPU Not Active"
+
+msgid "eGPU Active"
+msgstr "eGPU Active"
+
+msgid "eGPU Failed"
+msgstr "eGPU Failed"
+
+msgid "eGPU Loading..."
+msgstr "eGPU Loading..."
+
+msgid "No eGPU (big model) is selected. The default model is running."
+msgstr "No eGPU (big model) is selected. The default model is running."
+
+msgid "eGPU big model is running and healthy."
+msgstr "eGPU big model is running and healthy."
+
+msgid "eGPU was selected but failed to start. Check device connection and model files."
+msgstr "eGPU was selected but failed to start. Check device connection and model files."
+
+msgid "eGPU big model is being loaded. This may take a moment."
+msgstr "eGPU big model is being loaded. This may take a moment."
+
+msgid "eGPU (Chestnut) not detected. Connect your eGPU hardware to enable."
+msgstr "eGPU (Chestnut) not detected. Connect your eGPU hardware to enable."
+
+msgid "Status Details"
+msgstr "Status Details"
+
+msgid "Current State"
+msgstr "Current State"
+
+msgid "eGPU Available"
+msgstr "eGPU Available"
+
+msgid "Description"
+msgstr "Description"

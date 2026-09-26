@@ -744,9 +744,6 @@ class CarrotBluetoothLayout(Widget):
     y = self._render_name_row(rect, y, state, can_act)
     y += gap + 20
 
-    # Paired devices section
-    y = self._render_paired_devices_section(rect, y, state, can_act)
-
     # Reset section
     y += 30
     y = self._render_reset_section(rect, y, state, can_act)
@@ -807,45 +804,6 @@ class CarrotBluetoothLayout(Widget):
     self._name_edit_btn.render()
 
     return y + row_h
-
-  def _render_paired_devices_section(self, rect: rl.Rectangle, y: float, state: BTState, can_act: bool) -> float:
-    title_h = 60
-    gui_label(rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, title_h),
-              tr("Paired devices"), font_size=44, alignment=TextAlignment.LEFT)
-    y += title_h + 10
-
-    paired = [d for d in state.devices if d.paired]
-    if not paired:
-      gui_label(rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, 60),
-                tr("No paired devices"), font_size=38, alignment=TextAlignment.LEFT,
-                color=rl.Color(150, 150, 150, 255))
-      return y + 70
-
-    mouse_pos = rl.get_mouse_position()
-    clicked = rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
-    for dev in paired:
-      item_h = 100
-      item_rect = rl.Rectangle(rect.x + self._padding, y, rect.width - self._padding * 2, item_h)
-      rl.draw_rectangle_rounded(item_rect, 0.2, 10, rl.Color(45, 45, 45, 255))
-
-      rl.draw_text_ex(gui_app.font(), dev.name or dev.address,
-                      rl.Vector2(item_rect.x + 20, item_rect.y + 15), 42, 0, rl.WHITE)
-      rl.draw_text_ex(gui_app.font(), dev.address,
-                      rl.Vector2(item_rect.x + 20, item_rect.y + 55), 32, 0, rl.Color(150, 150, 150, 255))
-
-      forget_w = max(120, int(measure_text_cached(gui_app.font(), tr("Forget"), 36).x + 50))
-      forget_rect = rl.Rectangle(item_rect.x + item_rect.width - forget_w - 15,
-                                 item_rect.y + 15, forget_w, 70)
-      self._forget_btn.set_rect(forget_rect)
-      self._forget_btn.set_text(tr("Forget"))
-      self._forget_btn.set_button_style(ButtonStyle.DANGER)
-      self._forget_btn.set_enabled(can_act)
-      self._forget_btn.render()
-      if clicked and rl.check_collision_point_rec(mouse_pos, forget_rect):
-        self._confirm_forget(dev)
-
-      y += item_h + 12
-    return y
 
   def _render_reset_section(self, rect: rl.Rectangle, y: float, state: BTState, can_act: bool) -> float:
     title_h = 60

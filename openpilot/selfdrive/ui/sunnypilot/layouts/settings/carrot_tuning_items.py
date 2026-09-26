@@ -270,18 +270,8 @@ def build_dev_items():
 
 
 def build_egpu_items():
-  from openpilot.system.ui.sunnypilot.widgets.list_view import ListItemSP, section_heading_sp
-
-  def _egpu_state_label():
-    from openpilot.system.ui.lib.multilang import tr_noop
-    from openpilot.selfdrive.ui.ui_state import ui_state
-    chestnut_present = bool(ui_state.chestnut_present) if hasattr(ui_state, 'chestnut_present') else False
-    if not chestnut_present:
-      return tr_noop("Not detected")
-    # State is informational only — mirroring sidebarSP eGPU icon
-    return tr_noop("Ready")
+  from openpilot.selfdrive.ui.sunnypilot.layouts.settings.carrot_tuning_egpu import EgpuPanelWidget
 
   return [
-    section_heading_sp(tr('eGPU / Big Model')),
-    ListItemSP(title=tr('eGPU Status'), description=tr('Current eGPU (Chestnut) connection and model status.')),
+    EgpuPanelWidget(),
   ]
