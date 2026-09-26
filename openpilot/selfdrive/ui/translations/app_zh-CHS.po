@@ -6388,3 +6388,27 @@ msgstr "未检测到蓝牙射频硬件"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
 msgid "This AGNOS or device variant lacks the required Bluetooth UART/power nodes."
 msgstr "当前 AGNOS 或设备变种缺少所需的蓝牙 UART / 电源节点。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
+msgid "Bluetooth UART not exposed by this AGNOS kernel"
+msgstr "当前 AGNOS 内核未暴露蓝牙 UART"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
+msgid "Bluetooth UART not available"
+msgstr "蓝牙 UART 不可用"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
+msgid "Bluetooth power node not detected"
+msgstr "未检测到蓝牙电源节点"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
+msgid "This AGNOS kernel does not expose /dev/ttyHS1. Reflash to a Bluetooth-capable AGNOS build."
+msgstr "当前 AGNOS 内核未暴露 /dev/ttyHS1，请重刷支持蓝牙的 AGNOS 版本。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
+msgid "This device or AGNOS build lacks the required Bluetooth UART and power nodes."
+msgstr "当前设备或 AGNOS 版本缺少所需的蓝牙 UART 和电源节点。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
+msgid "This device or AGNOS build lacks /dev/btpower."
+msgstr "当前设备或 AGNOS 版本缺少 /dev/btpower。"

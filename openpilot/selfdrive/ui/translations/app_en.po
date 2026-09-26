@@ -4317,3 +4317,21 @@ msgstr "eGPU Available"
 
 msgid "Description"
 msgstr "Description"
+
+msgid "Bluetooth UART not exposed by this AGNOS kernel"
+msgstr "Bluetooth UART not exposed by this AGNOS kernel"
+
+msgid "Bluetooth UART not available"
+msgstr "Bluetooth UART not available"
+
+msgid "Bluetooth power node not detected"
+msgstr "Bluetooth power node not detected"
+
+msgid "This AGNOS kernel does not expose /dev/ttyHS1. Reflash to a Bluetooth-capable AGNOS build."
+msgstr "This AGNOS kernel does not expose /dev/ttyHS1. Reflash to a Bluetooth-capable AGNOS build."
+
+msgid "This device or AGNOS build lacks the required Bluetooth UART and power nodes."
+msgstr "This device or AGNOS build lacks the required Bluetooth UART and power nodes."
+
+msgid "This device or AGNOS build lacks /dev/btpower."
+msgstr "This device or AGNOS build lacks /dev/btpower."

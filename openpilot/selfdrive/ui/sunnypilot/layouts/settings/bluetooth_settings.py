@@ -188,8 +188,7 @@ class CarrotBluetoothLayout(Widget):
     self._radio_toggle = Toggle(self._state.radio_enabled, self._on_radio_toggled)
     self._discoverable_toggle = Toggle(False, self._on_discoverable_toggled)
     self._save_btn = Button(tr("Save"), self._on_save_clicked, button_style=ButtonStyle.PRIMARY, font_size=45, border_radius=15)
-    self._save_name_btn = Button(tr("Save"), self._on_save_name_clicked, button_style=ButtonStyle.PRIMARY, font_size=40, border_radius=15)
-    self._name_edit_btn = Button(tr("Edit"), self._on_edit_name_clicked, button_style=ButtonStyle.NORMAL, font_size=40, border_radius=15)
+    self._name_action_btn = Button(tr("Edit"), self._on_name_action_clicked, button_style=ButtonStyle.NORMAL, font_size=40, border_radius=15)
     self._reset_btn = Button(tr("Reset Bluetooth"), self._on_reset_clicked, button_style=ButtonStyle.DANGER, font_size=45, border_radius=15)
     self._test_btn = Button(tr("Test / Learn"), self._on_test_clicked, button_style=ButtonStyle.NORMAL, font_size=45, border_radius=15)
     self._stop_btn = Button(tr("Stop Test"), self._on_stop_clicked, button_style=ButtonStyle.DANGER, font_size=45, border_radius=15)
@@ -258,8 +257,12 @@ class CarrotBluetoothLayout(Widget):
       return tr("Bluetooth is not installed")
     if not state.service_running:
       return tr("Bluetooth service is stopped")
-    if not state.has_uart or not state.has_btpower:
+    if not state.has_uart and not state.has_btpower:
       return tr("Bluetooth radio hardware not detected")
+    if not state.has_uart:
+      return tr("Bluetooth UART not exposed by this AGNOS kernel")
+    if not state.has_btpower:
+      return tr("Bluetooth power node not detected")
     if not state.available:
       return tr("No Bluetooth adapter found")
     if not state.runtime.stationary:
@@ -368,9 +371,16 @@ class CarrotBluetoothLayout(Widget):
 
     # Required hardware nodes missing (e.g. this device/AGNOS variant has no ttyHS1)
     if not state.has_uart or not state.has_btpower:
-      self._render_empty_state(rect, icon='📵', title=tr("Bluetooth radio hardware not detected"),
-                               desc=tr("This AGNOS or device variant lacks the required Bluetooth UART/power nodes."),
-                               btn=self._retry_btn)
+      if not state.has_uart and not state.has_btpower:
+        title = tr("Bluetooth radio hardware not detected")
+        desc = tr("This device or AGNOS build lacks the required Bluetooth UART and power nodes.")
+      elif not state.has_uart:
+        title = tr("Bluetooth UART not available")
+        desc = tr("This AGNOS kernel does not expose /dev/ttyHS1. Reflash to a Bluetooth-capable AGNOS build.")
+      else:
+        title = tr("Bluetooth power node not detected")
+        desc = tr("This device or AGNOS build lacks /dev/btpower.")
+      self._render_empty_state(rect, icon='📵', title=title, desc=desc, btn=self._retry_btn)
       return
 
     # No adapter
@@ -774,11 +784,12 @@ class CarrotBluetoothLayout(Widget):
 
   def _render_name_row(self, rect: rl.Rectangle, y: float, state: BTState, can_act: bool) -> float:
     row_h = 120
-    save_w = max(140, int(measure_text_cached(gui_app.font(), tr("Save"), 38).x + 50))
-    edit_w = max(140, int(measure_text_cached(gui_app.font(), tr("Edit"), 38).x + 50))
-    control_w = save_w + edit_w + 16
-    control_rect = rl.Rectangle(rect.x + rect.width - self._padding - control_w,
-                                y + (row_h - 70) / 2, control_w, 70)
+    btn_w = max(160, int(measure_text_cached(gui_app.font(), tr("Save"), 40).x + 50),
+                int(measure_text_cached(gui_app.font(), tr("Edit"), 40).x + 50))
+    gap = 20
+    control_w = btn_w + gap
+    control_x = rect.x + rect.width - self._padding - btn_w
+    control_y = y + (row_h - 70) / 2
 
     title_rect = rl.Rectangle(rect.x + self._padding, y,
                               rect.width - self._padding * 2 - control_w - 20, 50)
@@ -788,20 +799,31 @@ class CarrotBluetoothLayout(Widget):
     gui_label(desc_rect, tr("Name shown to other Bluetooth devices."), font_size=32,
               alignment=TextAlignment.LEFT, color=rl.Color(170, 170, 170, 255))
 
-    # Show current name; Save commits the in-memory input, Edit opens keyboard.
-    name_w = control_w - save_w - edit_w - 32
-    name_rect = rl.Rectangle(control_rect.x, control_rect.y, name_w, 70)
+    # Name value sits to the left of the single action button.
+    name_max_w = control_x - gap - (rect.x + self._padding)
+    name_rect = rl.Rectangle(rect.x + self._padding, control_y, name_max_w, 70)
     rl.draw_rectangle_rounded(name_rect, 0.2, 10, rl.Color(50, 50, 50, 255))
-    rl.draw_text_ex(gui_app.font(), self._name_input,
-                    rl.Vector2(name_rect.x + 15, name_rect.y + 18), 40, 0, rl.WHITE)
 
-    self._save_name_btn.set_rect(rl.Rectangle(name_rect.x + name_w + 12, control_rect.y, save_w, 70))
-    self._save_name_btn.set_enabled(can_act)
-    self._save_name_btn.render()
+    name_text = self._name_input
+    name_size = measure_text_cached(gui_app.font(), name_text, 40)
+    text_x = name_rect.x + 15
+    text_y = name_rect.y + (70 - name_size.y) / 2
+    if name_size.x > name_max_w - 30:
+      rl.begin_scissor_mode(int(name_rect.x), int(name_rect.y), int(name_max_w), int(70))
+      rl.draw_text_ex(gui_app.font(), name_text, rl.Vector2(text_x, text_y), 40, 0, rl.WHITE)
+      rl.end_scissor_mode()
+    else:
+      rl.draw_text_ex(gui_app.font(), name_text, rl.Vector2(text_x, text_y), 40, 0, rl.WHITE)
 
-    self._name_edit_btn.set_rect(rl.Rectangle(name_rect.x + name_w + 16 + save_w, control_rect.y, edit_w, 70))
-    self._name_edit_btn.set_enabled(can_act)
-    self._name_edit_btn.render()
+    # Single button toggles between Edit (name matches saved) and Save (name modified).
+    has_changes = self._name_input != state.local_name
+    btn_label = tr("Save") if has_changes else tr("Edit")
+    btn_style = ButtonStyle.PRIMARY if has_changes else ButtonStyle.NORMAL
+    self._name_action_btn.set_text(btn_label)
+    self._name_action_btn.set_button_style(btn_style)
+    self._name_action_btn.set_rect(rl.Rectangle(control_x, control_y, btn_w, 70))
+    self._name_action_btn.set_enabled(can_act)
+    self._name_action_btn.render()
 
     return y + row_h
 
@@ -898,7 +920,15 @@ class CarrotBluetoothLayout(Widget):
   def _on_edit_clicked(self) -> None:
     pass
 
-  def _on_edit_name_clicked(self) -> None:
+  def _on_name_action_clicked(self) -> None:
+    with self._state_lock:
+      saved_name = self._state.local_name
+    if self._name_input != saved_name:
+      name = self._name_input.strip()
+      if name:
+        self._http_async('name', {'name': name})
+      return
+
     def update_name(result: DialogResult):
       if result == DialogResult.CONFIRM:
         self._name_input = self._keyboard.text.strip() or self._name_input
@@ -964,12 +994,6 @@ class CarrotBluetoothLayout(Widget):
       }
     })
     self._dirty = False
-
-  def _on_save_name_clicked(self) -> None:
-    name = self._name_input.strip()
-    if not name:
-      return
-    self._http_async('name', {'name': name})
 
   def _on_reset_clicked(self) -> None:
     def do():
