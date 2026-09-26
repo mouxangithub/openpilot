@@ -400,34 +400,50 @@ ensure_params_build() {
 #      missing ENABLED file even when apt-get is still running in the background.
 #   3. Retry path (subshell install):  re-creates ENABLED + restarts service when apt-get
 #      finally succeeds (idempotent, no harm if called twice).
+#
+# HARDWARE COMPATIBILITY: carrot-bluetooth-radio needs /dev/btpower and /dev/ttyHS1.
+# If /dev/ttyHS1 is missing the current AGNOS kernel does not expose the WCN3990
+# Bluetooth UART; starting the service would just fail-loop.  We still create ENABLED
+# (so the radio auto-starts after the user flashes a Bluetooth-capable AGNOS) but we
+# skip starting the doomed service and log a clear warning instead.
 ensure_bluez() {
-  # Helper: create the ENABLED flag and start the Bluetooth radio service.
-  # Called from both the install path (after apt-get install succeeds) and the
-  # already-installed fast path.  Idempotent – safe to call multiple times.
-  start_carrot_bt_radio() {
+  # Helper: create /data/bluetooth/ENABLED and start the BlueZ D-Bus service.
+  # Idempotent – safe to call multiple times.
+  start_bluez_dbus() {
     sudo mkdir -p /data/bluetooth
     sudo chmod 777 /data/bluetooth
     sudo touch /data/bluetooth/ENABLED
-    # bluetooth.service may not be running yet (especially on first boot); start
-    # it first so that carrot-bluetooth-radio.service (which has After=bluetooth)
-    # can bind to the HCI interface after it is available.
     sudo systemctl start bluetooth >> /tmp/bluez_install.log 2>&1
+  }
+
+  # Helper: start the carrot-bluetooth-radio service only if the underlying hardware
+  # nodes are available.  Without /dev/ttyHS1 the service's ExecStartPre will crash-loop.
+  start_carrot_bt_radio() {
+    if [ ! -e /dev/ttyHS1 ]; then
+      echo "[ensure_bluez] /dev/ttyHS1 missing; current AGNOS lacks Bluetooth UART support, skipping radio start" >> /tmp/bluez_install.log
+      return 0
+    fi
+    if [ ! -e /dev/btpower ]; then
+      echo "[ensure_bluez] /dev/btpower missing; skipping radio start" >> /tmp/bluez_install.log
+      return 0
+    fi
     sudo systemctl start carrot-bluetooth-radio >> /tmp/bluez_install.log 2>&1
   }
 
   if command -v bluetoothctl >/dev/null 2>&1 && command -v bluetoothd >/dev/null 2>&1; then
-    # BlueZ already installed – create ENABLED and bring up the radio now.
+    # Fast path: BlueZ already installed – create ENABLED and bring up the radio now.
     echo "[ensure_bluez] bluez already present; ensuring radio is up" >> /tmp/bluez_install.log
+    start_bluez_dbus
     start_carrot_bt_radio
     return 0
   fi
 
   # First-boot install: BlueZ is not installed yet.
-  # LAYER 2 – create ENABLED and start the radio service HERE in the main shell,
+  # LAYER 2 – create ENABLED and start the BlueZ service HERE in the main shell,
   # before we fork the background subshell.  This eliminates the race where systemd
-  # starts carrot-bluetooth-radio.service (or the launch script continues and starts
-  # other services) before the background install subshell finishes creating ENABLED.
-  echo "[ensure_bluez] bluez missing; creating ENABLED and starting radio before background install" >> /tmp/bluez_install.log
+  # starts carrot-bluetooth-radio.service before the subshell finishes creating ENABLED.
+  echo "[ensure_bluez] bluez missing; creating ENABLED and starting dbus before background install" >> /tmp/bluez_install.log
+  start_bluez_dbus
   start_carrot_bt_radio
 
   # If a previous install attempt already ran (and failed), do NOT retry here – the
@@ -446,6 +462,7 @@ ensure_bluez() {
         # BlueZ package postinst handles enable; start it explicitly so we can
         # immediately create the ENABLED flag and bring up hci0.
         sudo systemctl enable bluetooth >> /tmp/bluez_install.log 2>&1
+        start_bluez_dbus
         start_carrot_bt_radio
         echo "[ensure_bluez] installed and started" >> /tmp/bluez_install.log
       else
