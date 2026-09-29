@@ -56,7 +56,7 @@ class TrainingGuidePreDMTutorial(NavScroller):
   def __init__(self, continue_callback: Callable[[], None]):
     super().__init__()
 
-    continue_button = BigPillButton("next")
+    continue_button = BigPillButton(tr("next"))
     continue_button.set_click_callback(continue_callback)
 
     self._scroller.add_widgets([
@@ -78,7 +78,7 @@ class DMBadFaceDetected(NavScroller):
   def __init__(self):
     super().__init__()
 
-    back_button = BigPillButton("back")
+    back_button = BigPillButton(tr("back"))
     back_button.set_click_callback(self.dismiss)
 
     self._scroller.add_widgets([
@@ -226,16 +226,16 @@ class TrainingGuideRecordFront(NavScroller):
       ui_state.params.put_bool("RecordFront", False)
       continue_callback()
 
-    self._accept_button = BigConfirmationCircleButton("allow data uploading", gui_app.texture("icons_mici/setup/driver_monitoring/dm_check.png", 64, 64),
+    self._accept_button = BigConfirmationCircleButton(tr("allow data uploading"), gui_app.texture("icons_mici/setup/driver_monitoring/dm_check.png", 64, 64),
                                                       on_accept, exit_on_confirm=False)
 
-    self._decline_button = BigConfirmationCircleButton("no, don't upload", gui_app.texture("icons_mici/setup/cancel.png", 64, 64), on_decline,
+    self._decline_button = BigConfirmationCircleButton(tr("no, don't upload"), gui_app.texture("icons_mici/setup/cancel.png", 64, 64), on_decline,
                                                        exit_on_confirm=False)
 
     self._scroller.add_widgets([
-      GreyBigButton("driver camera data", "do you want to share video data for training?",
+      GreyBigButton(tr("driver camera data"), tr("do you want to share video data for training?"),
                     gui_app.texture("icons_mici/setup/green_dm.png", 64, 64)),
-      GreyBigButton("", "Sharing your data with comma helps improve openpilot and sunnypilot for everyone."),
+      GreyBigButton("", tr("Sharing your data with comma helps improve openpilot and sunnypilot for everyone.")),
       self._accept_button,
       self._decline_button,
     ])
@@ -245,16 +245,16 @@ class TrainingGuideAttentionNotice(Scroller):
   def __init__(self, continue_callback: Callable[[], None]):
     super().__init__()
 
-    continue_button = BigPillButton("next")
+    continue_button = BigPillButton(tr("next"))
     continue_button.set_click_callback(continue_callback)
 
     self._scroller.add_widgets([
-      GreyBigButton("what is sunnypilot?", "scroll to continue",
+      GreyBigButton(tr("what is sunnypilot?"), "scroll to continue",
                     gui_app.texture("icons_mici/setup/green_info.png", 64, 64)),
-      GreyBigButton("", "1. sunnypilot is a driver assistance system."),
-      GreyBigButton("", "2. You must pay attention at all times."),
-      GreyBigButton("", "3. You must be ready to take over at any time."),
-      GreyBigButton("", "4. You are fully responsible for driving the car."),
+      GreyBigButton("", tr("1. sunnypilot is a driver assistance system.")),
+      GreyBigButton("", tr("2. You must pay attention at all times.")),
+      GreyBigButton("", tr("3. You must be ready to take over at any time.")),
+      GreyBigButton("", tr("4. You are fully responsible for driving the car.")),
       continue_button,
     ])
 
@@ -263,12 +263,17 @@ class TrainingGuide(NavWidget):
   def __init__(self, completed_callback: Callable[[], None]):
     super().__init__()
 
-    self._steps = [
-      TrainingGuideAttentionNotice(continue_callback=lambda: gui_app.push_widget(self._steps[1])),
-      TrainingGuidePreDMTutorial(continue_callback=lambda: gui_app.push_widget(self._steps[2])),
-      TrainingGuideDMTutorial(continue_callback=lambda: gui_app.push_widget(self._steps[3])),
-      TrainingGuideRecordFront(continue_callback=completed_callback),
-    ]
+    if ui_state.params.get_bool("DisableDM"):
+      self._steps = [
+        TrainingGuideAttentionNotice(continue_callback=completed_callback),
+      ]
+    else:
+      self._steps = [
+        TrainingGuideAttentionNotice(continue_callback=lambda: gui_app.push_widget(self._steps[1])),
+        TrainingGuidePreDMTutorial(continue_callback=lambda: gui_app.push_widget(self._steps[2])),
+        TrainingGuideDMTutorial(continue_callback=lambda: gui_app.push_widget(self._steps[3])),
+        TrainingGuideRecordFront(continue_callback=completed_callback),
+      ]
 
     self._child(self._steps[0])
     self._steps[0].set_enabled(lambda: self.enabled and not self.is_dismissing)  # for nav stack
@@ -298,17 +303,17 @@ class TermsPage(Scroller):
   def __init__(self, on_accept, on_decline):
     super().__init__()
 
-    self._accept_button = BigConfirmationCircleButton("accept\nterms", gui_app.texture("icons_mici/setup/driver_monitoring/dm_check.png", 64, 64), on_accept)
-    self._decline_button = BigConfirmationCircleButton("decline &\nuninstall", gui_app.texture("icons_mici/setup/cancel.png", 64, 64), on_decline,
+    self._accept_button = BigConfirmationCircleButton(tr("accept\nterms"), gui_app.texture("icons_mici/setup/driver_monitoring/dm_check.png", 64, 64), on_accept)
+    self._decline_button = BigConfirmationCircleButton(tr("decline &\nuninstall"), gui_app.texture("icons_mici/setup/cancel.png", 64, 64), on_decline,
                                                        red=True, exit_on_confirm=False)
 
-    self._terms_header = GreyBigButton("terms of\nservice", "scroll to continue",
+    self._terms_header = GreyBigButton(tr("terms of\nservice"), tr("scroll to continue"),
                                        gui_app.texture("icons_mici/setup/green_info.png", 64, 64))
-    self._must_accept_card = GreyBigButton("", "You must accept the Terms of Service to use sunnypilot.")
+    self._must_accept_card = GreyBigButton("", tr("You must accept the Terms of Service to use sunnypilot."))
 
     self._scroller.add_widgets([
       self._terms_header,
-      GreyBigButton("swipe for QR code", "or go to https://sunnypilot.ai/terms",
+      GreyBigButton(tr("swipe for QR code"), tr("or go to https://sunnypilot.ai/terms"),
                     gui_app.texture("icons_mici/setup/small_slider/slider_arrow.png", 64, 56, flip_x=True)),
       QRCodeWidget("https://sunnypilot.ai/terms"),
       self._must_accept_card,

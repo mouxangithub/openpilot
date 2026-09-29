@@ -49,3 +49,14 @@ euler_from_rot = rot2euler
 euler_from_quat = quat2euler
 rot_from_euler = euler2rot
 quat_from_euler = euler2quat
+
+
+def sensor_to_device_frame(v: list[float] | np.ndarray) -> np.ndarray:
+  """Convert raw sensor-message axes to the locationd Kalman-filter device frame.
+
+  Both locationd.py and imu_calibrationd.py remap accelerometer and gyroscope
+  readings with [-v[2], -v[1], -v[0]] before feeding them to the Kalman filter
+  or calibration algorithms. This helper ensures both paths use the same
+  convention and can be updated in one place.
+  """
+  return np.array([-v[2], -v[1], -v[0]])

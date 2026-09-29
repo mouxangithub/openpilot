@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 import pyray as rl
 from openpilot.cereal import log
@@ -9,7 +11,10 @@ from openpilot.selfdrive.ui.onroad.driver_state import DriverStateRenderer
 from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer
 from openpilot.selfdrive.ui.onroad.model_renderer import ModelRenderer
 from openpilot.selfdrive.ui.onroad.cameraview import CameraView
-from openpilot.system.ui.lib.application import gui_app
+from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
+from openpilot.system.ui.lib.multilang import tr
+from openpilot.system.ui.widgets.label import UnifiedLabel
+from openpilot.common.params import Params
 from openpilot.common.transformations.camera import DEVICE_CAMERAS, DeviceCameraConfig, view_frame_from_device_frame
 from openpilot.common.transformations.orientation import rot_from_euler
 
@@ -37,6 +42,10 @@ WIDE_CAM_MAX_SPEED = 10.0  # m/s (22 mph)
 ROAD_CAM_MIN_SPEED = 15.0  # m/s (34 mph)
 INF_POINT = np.array([1000.0, 0.0, 0.0])
 
+PREVIEW_BTN_W = 200
+PREVIEW_BTN_H = 80
+PREVIEW_BTN_PAD = 16
+
 
 class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
   def __init__(self, stream_type: VisionStreamType = VisionStreamType.VISION_STREAM_NARROW_ROAD):
@@ -51,6 +60,20 @@ class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
     self._matrix_cache_key = (0, 0.0, 0.0, stream_type)
     self._cached_matrix: np.ndarray | None = None
     self._content_rect = rl.Rectangle()
+
+    self._params = Params()
+    self._preview_button_rects: dict[str, rl.Rectangle] = {}
+    self._preview_button_pressed: str | None = None
+    label_color = rl.Color(255, 255, 255, 230)
+    self._preview_label_road = UnifiedLabel(tr("road"), 36, FontWeight.BOLD, text_color=label_color,
+                                            alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
+                                            alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
+    self._preview_label_wide = UnifiedLabel(tr("wide"), 36, FontWeight.BOLD, text_color=label_color,
+                                            alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
+                                            alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
+    self._preview_label_exit = UnifiedLabel(tr("exit"), 36, FontWeight.BOLD, text_color=label_color,
+                                            alignment=rl.GuiTextAlignment.TEXT_ALIGN_CENTER,
+                                            alignment_vertical=rl.GuiTextAlignmentVertical.TEXT_ALIGN_MIDDLE)
 
     self.model_renderer = ModelRenderer()
     self._hud_renderer = HudRenderer()
@@ -103,13 +126,61 @@ class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
     # Draw colored border based on driving state
     self._draw_border(rect)
 
-  def _handle_mouse_press(self, _):
+    if self._params.get_bool("IsOnroadPreview"):
+      self._draw_preview_controls()
+
+  def _draw_preview_controls(self):
+    if not ui_state.started:
+      return
+    total_width = 3 * PREVIEW_BTN_W + 2 * PREVIEW_BTN_PAD
+    base_x = self._content_rect.x + (self._content_rect.width - total_width) / 2
+    base_y = self._content_rect.y + self._content_rect.height - PREVIEW_BTN_H - PREVIEW_BTN_PAD
+    is_road = self.stream_type == NARROW_ROAD_CAM
+
+    wide_rect = rl.Rectangle(base_x, base_y, PREVIEW_BTN_W, PREVIEW_BTN_H)
+    self._preview_button_rects["wide"] = wide_rect
+    self._draw_preview_button(wide_rect, self._preview_label_wide, not is_road)
+
+    road_rect = rl.Rectangle(base_x + PREVIEW_BTN_W + PREVIEW_BTN_PAD, base_y, PREVIEW_BTN_W, PREVIEW_BTN_H)
+    self._preview_button_rects["road"] = road_rect
+    self._draw_preview_button(road_rect, self._preview_label_road, is_road)
+
+    exit_rect = rl.Rectangle(base_x + 2 * (PREVIEW_BTN_W + PREVIEW_BTN_PAD), base_y, PREVIEW_BTN_W, PREVIEW_BTN_H)
+    self._preview_button_rects["exit"] = exit_rect
+    self._draw_preview_button(exit_rect, self._preview_label_exit, False, bg_color=rl.Color(180, 60, 60, 200))
+
+  def _draw_preview_button(self, rect: rl.Rectangle, label: UnifiedLabel, active: bool, bg_color: rl.Color | None = None):
+    bg = bg_color if bg_color is not None else (rl.Color(0, 120, 60, 220) if active else rl.Color(40, 40, 40, 180))
+    pressed_rect = self._preview_button_rects.get(self._preview_button_pressed)
+    if pressed_rect is not None and pressed_rect == rect:
+      bg = rl.Color(min(255, bg.r + 40), min(255, bg.g + 40), min(255, bg.b + 40), bg.a)
+    rl.draw_rectangle_rounded(rect, 0.25, 8, bg)
+    label.render(rect)
+
+  def _handle_mouse_press(self, mouse_pos: MousePos):
+    if self._params.get_bool("IsOnroadPreview"):
+      for name, rect in self._preview_button_rects.items():
+        if rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), rect):
+          self._preview_button_pressed = name
+          return
+
     if not self._hud_renderer.user_interacting() and self._click_callback is not None:
       self._click_callback()
 
-  def _handle_mouse_release(self, _):
-    # We only call click callback on press if not interacting with HUD
-    pass
+  def _handle_mouse_release(self, mouse_pos: MousePos):
+    pressed = self._preview_button_pressed
+    self._preview_button_pressed = None
+    if pressed is None or not self._params.get_bool("IsOnroadPreview"):
+      return
+    rect = self._preview_button_rects.get(pressed)
+    if rect is None or not rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), rect):
+      return
+    if pressed == "road":
+      self.switch_stream(NARROW_ROAD_CAM)
+    elif pressed == "wide":
+      self.switch_stream(WIDE_CAM)
+    elif pressed == "exit":
+      self._params.put_bool("IsOnroadPreview", False)
 
   def _draw_border(self, rect: rl.Rectangle):
     rl.draw_rectangle_lines_ex(rect, UI_BORDER_SIZE, rl.BLACK)
@@ -120,6 +191,10 @@ class AugmentedRoadView(CameraView, AugmentedRoadViewSP):
     rl.draw_rectangle_rounded_lines_ex(border_rect, border_roundness, 10, UI_BORDER_SIZE, border_color)
 
   def _switch_stream_if_needed(self, sm):
+    # In onroad preview the user controls the camera manually.
+    if self._params.get_bool("IsOnroadPreview"):
+      return
+
     if sm['selfdriveState'].experimentalMode and WIDE_CAM in self.available_streams:
       v_ego = sm['carState'].vEgo
       if v_ego < WIDE_CAM_MAX_SPEED:

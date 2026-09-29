@@ -15,18 +15,18 @@ if gui_app.sunnypilot_ui():
 # Description constants
 DESCRIPTIONS = {
   'enable_adb': tr_noop(
-    "ADB (Android Debug Bridge) allows connecting to your device over USB or over the network. " +
+    "ADB (Android Debug Bridge) allows connecting to your device over USB or over the network. "
     "See https://docs.comma.ai/how-to/connect-to-comma for more info."
   ),
   'ssh_key': tr_noop(
-    "Warning: This grants SSH access to all public keys in your GitHub settings. Never enter a GitHub username " +
+    "Warning: This grants SSH access to all public keys in your GitHub settings. Never enter a GitHub username "
     "other than your own. A comma employee will NEVER ask you to add their GitHub username."
   ),
   'alpha_longitudinal': tr_noop(
-    "<b>WARNING: sunnypilot longitudinal control is in alpha for this car and may disable Automatic Emergency Braking (AEB).</b><br><br>" +
-    "On this car, sunnypilot defaults to the car's built-in ACC instead of sunnypilot's longitudinal control. " +
-    "Enable this to switch to sunnypilot longitudinal control. " +
-    "Enabling Experimental mode is recommended when enabling sunnypilot longitudinal control alpha. " +
+    "<b>WARNING: sunnypilot longitudinal control is in alpha for this car and may disable Automatic Emergency Braking (AEB).</b><br><br>"
+    "On this car, sunnypilot defaults to the car's built-in ACC instead of sunnypilot's longitudinal control. "
+    "Enable this to switch to sunnypilot longitudinal control. "
+    "Enabling Experimental mode is recommended when enabling sunnypilot longitudinal control alpha. "
     "Changing this setting will restart sunnypilot if the car is powered on."
   ),
 }

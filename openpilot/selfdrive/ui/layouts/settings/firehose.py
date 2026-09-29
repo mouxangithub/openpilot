@@ -10,17 +10,17 @@ from openpilot.selfdrive.ui.mici.layouts.settings.firehose import FirehoseLayout
 TITLE = tr_noop("Firehose Mode")
 DESCRIPTION = tr_noop(
   "sunnypilot learns to drive by watching humans, like you, drive.\n\n"
-  + "Firehose Mode allows you to maximize your training data uploads to improve "
-  + "openpilot's driving models. More data means bigger models, which means better Experimental Mode."
+  "Firehose Mode allows you to maximize your training data uploads to improve "
+  "openpilot's driving models. More data means bigger models, which means better Experimental Mode."
 )
 INSTRUCTIONS = tr_noop(
   "For maximum effectiveness, bring your device inside and connect to a good USB-C adapter and Wi-Fi weekly.\n\n"
-  + "Firehose Mode can also work while you're driving if connected to a hotspot or unlimited SIM card.\n\n\n"
-  + "Frequently Asked Questions\n\n"
-  + "Does it matter how or where I drive? Nope, just drive as you normally would.\n\n"
-  + "Do all of my segments get pulled in Firehose Mode? No, we selectively pull a subset of your segments.\n\n"
-  + "What's a good USB-C adapter? Any fast phone or laptop charger should be fine.\n\n"
-  + "Does it matter which software I run? Yes, only upstream openpilot (and particular forks) are able to be used for training."
+  "Firehose Mode can also work while you're driving if connected to a hotspot or unlimited SIM card.\n\n\n"
+  "Frequently Asked Questions\n\n"
+  "Does it matter how or where I drive? Nope, just drive as you normally would.\n\n"
+  "Do all of my segments get pulled in Firehose Mode? No, we selectively pull a subset of your segments.\n\n"
+  "What's a good USB-C adapter? Any fast phone or laptop charger should be fine.\n\n"
+  "Does it matter which software I run? Yes, only upstream openpilot (and particular forks) are able to be used for training."
 )
 
 

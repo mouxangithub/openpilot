@@ -7,6 +7,7 @@ from opendbc.car.structs import car
 import openpilot.cereal.messaging as messaging
 from openpilot.common.constants import CV
 from openpilot.common.params import Params
+from openpilot.common.dm import is_dm_disabled
 from openpilot.common.realtime import config_realtime_process, DT_CTRL, Priority, Ratekeeper
 from openpilot.common.swaglog import cloudlog
 
@@ -45,7 +46,10 @@ class Controls(ControlsExt):
 
     self.sm = messaging.SubMaster(['lateralDelay', 'vehicleParameters', 'lateralTorqueParameters', 'modelV2', 'selfdriveState',
                                    'extrinsicsCalibration', 'deviceMotion', 'longitudinalPlan', 'lateralManeuverPlan', 'carState', 'carOutput',
-                                   'driverMonitoringState', 'onroadEvents', 'driverAssistance'] + self.sm_services_ext,
+                                   'driverMonitoringState', 'onroadEvents', 'driverAssistance',
+                                   # carrot navigation state, surfaced on HUDControl for brand
+                                   # controllers that show it (Hyundai camera-deceleration haptic).
+                                   'carrotManSP'] + self.sm_services_ext,
                                   poll='selfdriveState')
     self.pm = messaging.PubMaster(['carControl', 'controlsState'] + self.pm_services_ext)
 
@@ -117,6 +121,12 @@ class Controls(ControlsExt):
 
     CC.latActive = _lat_active and not CS.steerFaultTemporary and not CS.steerFaultPermanent and \
                    (not standstill or self.CP.steerAtStandstill)
+    # NOTE: carrot's lat-suspend used to override CC.latActive here, i.e. AFTER the
+    # sunnypilot lateral-enable arbitration in get_lat_active(). That made it a second
+    # independent gate on the actuator, and it ran regardless of CarrotEnabled because
+    # nothing consulted that switch. It is now folded into ControlsExt.get_lat_active
+    # (blinker_pause_lateral -> carrot_controls.wants_suspend -> MADS), so lateral
+    # enable has exactly one decision point.
     CC.longActive = CC.enabled and not any(e.overrideLongitudinal for e in self.sm['onroadEvents']) and \
                     (self.CP.openpilotLongitudinalControl or not self.CP_SP.pcmCruiseSpeed)
 
@@ -189,6 +199,18 @@ class Controls(ControlsExt):
     hudControl.leadDistanceBars = self.sm['selfdriveState'].personality.raw + 1
     hudControl.visualAlert = self.sm['selfdriveState'].alertHudVisual
 
+    # Carrot navigation state for the brand controllers that present it. These are
+    # read-only presentation values (HUDControl, not Actuators) - they let a carcontroller
+    # react to "carrot is decelerating for a hazard" without giving carrot a control path.
+    # Guarded on validity because carrot_man may not be running at all.
+    if self.sm.valid.get('carrotManSP', False):
+      carrot = self.sm['carrotManSP']
+      hudControl.activeCarrot = int(getattr(carrot, 'activeCarrot', 0) or 0)
+      hudControl.atcDistance = float(getattr(carrot, 'xDistToTurn', 0) or 0)
+    else:
+      hudControl.activeCarrot = 0
+      hudControl.atcDistance = 0.0
+
     hudControl.rightLaneVisible = True
     hudControl.leftLaneVisible = True
     if self.sm.valid['driverAssistance']:
@@ -219,7 +241,7 @@ class Controls(ControlsExt):
     cs.upAccelCmd = float(self.LoC.pid.p)
     cs.uiAccelCmd = float(self.LoC.pid.i)
     cs.ufAccelCmd = float(self.LoC.pid.f)
-    cs.forceDecel = bool(self.sm['driverMonitoringState'].noResponseForceDecel or
+    cs.forceDecel = bool((not is_dm_disabled(self.params) and self.sm['driverMonitoringState'].noResponseForceDecel) or
                          (self.sm['selfdriveState'].state == State.softDisabling))
 
     # trigger the car's stock driver monitoring escalation
@@ -255,7 +277,7 @@ class Controls(ControlsExt):
 
 
 def main():
-  config_realtime_process(4, Priority.CTRL_HIGH)
+  config_realtime_process(6, Priority.CTRL_HIGH)
   controls = Controls()
   controls.run()
 

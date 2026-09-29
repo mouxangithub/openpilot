@@ -19,6 +19,8 @@ VisionState = custom.LongitudinalPlanSP.SmartCruiseControl.VisionState
 ACTIVE_STATES = (VisionState.entering, VisionState.turning, VisionState.leaving)
 ENABLED_STATES = (VisionState.enabled, VisionState.overriding, *ACTIVE_STATES)
 
+# Nominal thresholds. These are the values used when carrot's curve tuning is at its
+# neutral setting (every factor 100), so the default behaviour is unchanged.
 _ENTERING_PRED_LAT_ACC_TH = 1.3  # Predicted Lat Acc threshold to trigger entering turn state.
 _ABORT_ENTERING_PRED_LAT_ACC_TH = 1.1  # Predicted Lat Acc threshold to abort entering state if speed drops.
 
@@ -30,6 +32,13 @@ _FINISH_LAT_ACC_TH = 1.1  # Lat Acc threshold to trigger the end of the turn cyc
 
 _A_LAT_REG_MAX = 2.  # Maximum lateral acceleration
 
+# Speed above which the "highway" curve tuning applies.
+_HIGHWAY_SPEED_KPH = 80.0
+
+# Bounds for the tuned values, so a nonsense param cannot make the controller unsafe.
+_A_LAT_REG_MAX_MIN, _A_LAT_REG_MAX_MAX = 1.0, 3.5
+_CURVE_TH_SCALE_MIN, _CURVE_TH_SCALE_MAX = 0.5, 2.0
+
 _RELIEF_CONFIRMATION_FRAMES = max(1, int(round(0.5 / DT_MDL)))
 _TARGET_TIGHTEN_CONFIRMATION_FRAMES = max(1, int(round(0.1 / DT_MDL)))
 _TARGET_RELEASE_CONFIRMATION_FRAMES = max(1, int(round(0.15 / DT_MDL)))
@@ -38,6 +47,11 @@ _TARGET_RELEASE_RATE = 1.  # m/s^2
 _BELOW_EGO_TARGET_RELEASE_RATE = 3.  # m/s^2
 _MIN_PRED_SPEED = 1.  # m/s
 _MIN_ACTIVATION_SPEED = 10.  # m/s
+
+
+def _TH(scale: float, nominal: float) -> float:
+  """Apply the tuned threshold scale to a nominal lateral-acceleration threshold."""
+  return nominal * scale
 
 
 class SmartCruiseControlVision:
@@ -65,11 +79,79 @@ class SmartCruiseControlVision:
     self.tighten_frames = 0
     self.release_frames = 0
 
+    # Tuning, driven by carrot's curve parameters.
+    #
+    # Why carrot's knobs feed THIS controller: carrot has AutoCurveSpeedFactor /
+    # Aggressiveness (+ the highway variants) exposed in both UIs, and they did nothing
+    # for the car. They only reached `desiredSpeed`, which is display-only - see the
+    # note in carrot_functions.py and the assertions in test_carrot_planner.py and
+    # test_speed_limit_resolver.py. Meanwhile this controller, which is the one that
+    # actually slows for curves, had no tunables at all: every threshold was a module
+    # constant. Rather than build a second curve-deceleration path, carrot now supplies
+    # the setpoints for this one.
+    #
+    # They only take effect while SmartCruiseControlVision is on; carrot's parameters
+    # are tuning inputs to a sunnypilot controller, never an execution path of their own.
+    # Neutral until update() provides a speed: the plain/H variant choice depends on
+    # v_ego, so loading here would pick the "normal road" variant for a controller that
+    # has not seen the vehicle yet. update() reloads every frame anyway.
+    self.tuned_a_lat_reg_max = _A_LAT_REG_MAX
+    self.tuned_curve_th_scale = 1.0
+
+  def _load_curve_tuning(self) -> None:
+    """Read carrot's curve parameters and derive this controller's setpoints.
+
+    Neutral values reproduce the module defaults, so an untouched device behaves
+    exactly as before:
+      * AutoCurveSpeedFactor / ...FactorH   (50-200, 100 = neutral)
+            scales the lateral-acceleration ceiling. Higher = allow more lateral acc =
+            faster through the curve.
+      * AutoCurveSpeedAggressiveness / ...AggressivenessH  (0-200, 100 = neutral)
+            scales the lateral-acceleration thresholds that arm the turn cycle. Lower =
+            react to gentler curves.
+    The H variants are used at or above _HIGHWAY_SPEED_KPH, the plain ones below.
+    """
+    try:
+      v_kph = self.v_ego * 3.6
+      if v_kph >= _HIGHWAY_SPEED_KPH:
+        factor_pct = self.params.get_float("AutoCurveSpeedFactorH")
+        aggressiveness_pct = self.params.get_float("AutoCurveSpeedAggressivenessH")
+      else:
+        factor_pct = self.params.get_float("AutoCurveSpeedFactor")
+        aggressiveness_pct = self.params.get_float("AutoCurveSpeedAggressiveness")
+
+      # A missing/invalid param reads back as 0; treat that as neutral rather than as
+      # "zero lateral acceleration allowed", which would brake for every bend.
+      factor = (factor_pct / 100.0) if factor_pct > 0.0 else 1.0
+      aggressiveness = (aggressiveness_pct / 100.0) if aggressiveness_pct > 0.0 else 1.0
+
+      # Aggressiveness is inverted: a smaller threshold means reacting to gentler curves,
+      # i.e. more aggressive. Guard the divisor so 0 cannot blow up.
+      th_scale = 1.0 / max(aggressiveness, 0.1)
+      self.tuned_curve_th_scale = float(np.clip(th_scale, _CURVE_TH_SCALE_MIN, _CURVE_TH_SCALE_MAX))
+      self.tuned_a_lat_reg_max = float(
+        np.clip(_A_LAT_REG_MAX * factor, _A_LAT_REG_MAX_MIN, _A_LAT_REG_MAX_MAX))
+    except Exception:
+      # Never let a tuning read take down longitudinal control.
+      self.tuned_a_lat_reg_max = _A_LAT_REG_MAX
+      self.tuned_curve_th_scale = 1.0
+
   def _v_demand(self) -> float:
+    """The speed this controller would command right now.
+
+    Restored after a merge dropped it: the definition sat immediately after __init__
+    in both branches, so resolving that region kept only _load_curve_tuning while
+    _filtered_v_target's call to self._v_demand() survived - an AttributeError on the
+    first frame the controller produced a v_target.
+
+    Unchanged from the original: floor at MIN_V, and never above either the curve
+    target or the cruise setpoint.
+    """
     return max(MIN_V, min(self.v_target, self.v_cruise_setpoint))
 
   def _curve_is_urgent(self) -> bool:
-    return self.current_lat_acc >= _TURNING_LAT_ACC_TH or self.max_pred_lat_acc >= _URGENT_PRED_LAT_ACC_TH
+    return (self.current_lat_acc >= _TH(self.tuned_curve_th_scale, _TURNING_LAT_ACC_TH) or
+            self.max_pred_lat_acc >= _TH(self.tuned_curve_th_scale, _URGENT_PRED_LAT_ACC_TH))
 
   def _filtered_v_target(self) -> float:
     demand = self._v_demand()
@@ -140,11 +222,12 @@ class SmartCruiseControlVision:
       self.max_pred_lat_acc = float(np.percentile(rate_plan[valid] * vel_plan[valid], 97))
       max_pred_curvature = float(np.percentile(rate_plan[valid] / vel_plan[valid], 97))
       if max_pred_curvature > 0.:
-        self.v_target = min(float((_A_LAT_REG_MAX / max_pred_curvature) ** 0.5), V_CRUISE_UNSET)
+        self.v_target = min(float((self.tuned_a_lat_reg_max / max_pred_curvature) ** 0.5), V_CRUISE_UNSET)
 
   def _update_state_machine(self) -> tuple[bool, bool]:
     # ENABLED, ENTERING, TURNING, LEAVING, OVERRIDING
-    relief = self.current_lat_acc < _FINISH_LAT_ACC_TH and self.max_pred_lat_acc < _ABORT_ENTERING_PRED_LAT_ACC_TH
+    relief = (self.current_lat_acc < _TH(self.tuned_curve_th_scale, _FINISH_LAT_ACC_TH) and
+              self.max_pred_lat_acc < _TH(self.tuned_curve_th_scale, _ABORT_ENTERING_PRED_LAT_ACC_TH))
     self.relief_frames = self.relief_frames + 1 if self.state in ACTIVE_STATES and relief else 0
 
     if self.state != VisionState.disabled:
@@ -161,7 +244,7 @@ class SmartCruiseControlVision:
           if self.v_ego <= _MIN_ACTIVATION_SPEED:
             pass
           # If significant lateral acceleration is predicted ahead, then move to Entering turn state.
-          elif self.max_pred_lat_acc >= _ENTERING_PRED_LAT_ACC_TH:
+          elif self.max_pred_lat_acc >= _TH(self.tuned_curve_th_scale, _ENTERING_PRED_LAT_ACC_TH):
             self.state = VisionState.entering
 
         # OVERRIDING
@@ -172,7 +255,7 @@ class SmartCruiseControlVision:
         # ENTERING
         elif self.state == VisionState.entering:
           # Transition to Turning if current lateral acceleration is over the threshold.
-          if self.current_lat_acc >= _TURNING_LAT_ACC_TH:
+          if self.current_lat_acc >= _TH(self.tuned_curve_th_scale, _TURNING_LAT_ACC_TH):
             self.state = VisionState.turning
           # Begin releasing only after both current and predicted lateral acceleration stay clear.
           elif self.relief_frames >= _RELIEF_CONFIRMATION_FRAMES:
@@ -181,16 +264,16 @@ class SmartCruiseControlVision:
         # TURNING
         elif self.state == VisionState.turning:
           # Transition out of Turning if current lateral acceleration drops below a threshold.
-          if self.current_lat_acc <= _LEAVING_LAT_ACC_TH:
+          if self.current_lat_acc <= _TH(self.tuned_curve_th_scale, _LEAVING_LAT_ACC_TH):
             self.state = VisionState.entering if self.max_pred_lat_acc >= _ENTERING_PRED_LAT_ACC_TH else VisionState.leaving
 
         # LEAVING
         elif self.state == VisionState.leaving:
           # Transition back to Turning if current lateral acceleration goes back over the threshold.
-          if self.current_lat_acc >= _TURNING_LAT_ACC_TH:
+          if self.current_lat_acc >= _TH(self.tuned_curve_th_scale, _TURNING_LAT_ACC_TH):
             self.state = VisionState.turning
           # Start a new turn cycle immediately if another curve is predicted.
-          elif self.max_pred_lat_acc >= _ENTERING_PRED_LAT_ACC_TH:
+          elif self.max_pred_lat_acc >= _TH(self.tuned_curve_th_scale, _ENTERING_PRED_LAT_ACC_TH):
             self.state = VisionState.entering
           # Finish after confirmed relief and a gradual release to the cruise setpoint.
           elif self.relief_frames >= _RELIEF_CONFIRMATION_FRAMES and self.output_v_target >= self.v_cruise_setpoint:
@@ -220,6 +303,10 @@ class SmartCruiseControlVision:
     self.v_cruise_setpoint = v_cruise_setpoint
 
     self._update_params()
+    # Re-evaluate the curve tuning every frame, not just on the param-refresh tick:
+    # the highway/normal variant is selected by v_ego, which changes continuously.
+    # Reading two params at 20 Hz is negligible next to the modelV2 percentile work.
+    self._load_curve_tuning()
     self._update_calculations(sm)
 
     self.is_enabled, self.is_active = self._update_state_machine()

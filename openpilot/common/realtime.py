@@ -33,9 +33,44 @@ def drop_realtime() -> None:
     os.sched_setscheduler(0, os.SCHED_OTHER, os.sched_param(0))
 
 
-def set_core_affinity(cores: list[int]) -> None:
-  if sys.platform == 'linux' and not PC:
-    os.sched_setaffinity(0, cores)
+def get_available_cores() -> set[int]:
+  """CPUs this process is currently allowed to run on.
+
+  On Comma hardware the big cluster (4-7) is taken offline by hardwared's power
+  save mode whenever the device is offroad with the screen off. Calling
+  os.sched_setaffinity() with an offline CPU raises EINVAL, which used to kill
+  daemons (modeld boots straight into a hard-coded `config_realtime_process(7, 54)`).
+  """
+  if sys.platform == 'linux':
+    try:
+      return set(os.sched_getaffinity(0))
+    except OSError:
+      pass
+  return set(range(os.cpu_count() or 1))
+
+
+def set_core_affinity(cores: list[int]) -> set[int]:
+  """Pin the current process to `cores`, skipping any CPU that is not online.
+
+  Returns the set of CPUs actually pinned. An empty set means no pinning was
+  applied, either because `cores` were all unavailable (power save offlined the
+  big cluster) or because this is not a Linux Comma device. Never raises on an
+  offline core: a daemon degraded to the wrong core is recoverable, a daemon
+  that fails to start is not.
+  """
+  if not (sys.platform == 'linux' and not PC):
+    return set()
+
+  available = get_available_cores()
+  usable = [c for c in cores if c in available]
+  if not usable:
+    return set()
+
+  try:
+    os.sched_setaffinity(0, usable)
+  except OSError:
+    return set()
+  return set(usable)
 
 
 def config_realtime_process(cores: int | list[int], priority: int) -> None:

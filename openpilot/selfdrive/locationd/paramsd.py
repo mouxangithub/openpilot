@@ -68,7 +68,10 @@ class VehicleParamsLearner:
     if which == 'deviceMotion':
       t = msg.timestamp * 1e-9
       device_motion = Pose.from_device_motion(msg)
-      calibrated_pose = self.calibrator.build_calibrated_pose(device_motion)
+      if self.calibrator.calib_valid:
+        calibrated_pose = self.calibrator.build_calibrated_pose(device_motion)
+      else:
+        calibrated_pose = device_motion
 
       yaw_rate, yaw_rate_std = calibrated_pose.angular_velocity.z, calibrated_pose.angular_velocity.z_std
       yaw_rate_valid = msg.angularVelocityDevice.valid
@@ -121,7 +124,11 @@ class VehicleParamsLearner:
 
       in_linear_region = abs(steering_angle) < 45
       self.observed_speed = msg.vEgo
-      self.active = self.observed_speed > MIN_ACTIVE_SPEED and in_linear_region and msg.gearShifter != car.CarState.GearShifter.reverse
+      # Freeze vehicle-parameter learning until IMU extrinsics calibration is
+      # complete. Feeding uncalibrated device-frame motion into the learner
+      # caused transient "paramsd temporary error" alerts.
+      self.active = (self.observed_speed > MIN_ACTIVE_SPEED and in_linear_region and
+                     msg.gearShifter != car.CarState.GearShifter.reverse and self.calibrator.calib_valid)
 
       if self.active:
         self.kf.predict_and_observe(t, ObservationKind.STEER_ANGLE, np.array([[np.radians(steering_angle)]]))

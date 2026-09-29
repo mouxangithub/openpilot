@@ -61,8 +61,8 @@ class HomeLayoutSP(HomeLayout):
       desc_rect = rl.Rectangle(version_right - desc_width, self.header_rect.y, desc_width, self.header_rect.height)
       gui_label(desc_rect, description, BRAND_FONT_SIZE, rl.WHITE, alignment=TextAlignment.RIGHT)
 
-    brand_size = measure_text_cached(gui_app.font(FontWeight.AUDIOWIDE), brand, BRAND_FONT_SIZE)
+    brand_size = measure_text_cached(gui_app.font(FontWeight.BOLD), brand, BRAND_FONT_SIZE)
     spacing = BRAND_DESC_SPACING if description else 0
     brand_x = version_right - desc_width - spacing - brand_size.x
     brand_rect = rl.Rectangle(max(version_left, brand_x), self.header_rect.y, brand_size.x, self.header_rect.height)
-    gui_label(brand_rect, brand, BRAND_FONT_SIZE, rl.WHITE, font_weight=FontWeight.AUDIOWIDE)
+    gui_label(brand_rect, brand, BRAND_FONT_SIZE, rl.WHITE, font_weight=FontWeight.BOLD)

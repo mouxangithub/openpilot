@@ -17,7 +17,7 @@ from openpilot.common.markdown import parse_markdown
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.common.hardware import AGNOS, HARDWARE
-from openpilot.common.version import get_build_metadata, SP_BRANCH_MIGRATIONS
+from openpilot.common.version import get_build_metadata
 
 LOCK_FILE = os.getenv("UPDATER_LOCK_FILE", "/tmp/safe_staging_overlay.lock")
 STAGING_ROOT = os.getenv("UPDATER_STAGING_ROOT", "/data/safe_staging")
@@ -193,7 +193,7 @@ def finalize_update() -> None:
 
 
 def handle_agnos_update() -> None:
-  from openpilot.common.hardware.comma.agnos import flash_agnos_update, get_target_slot_number
+  from openpilot.common.hardware.comma.agnos import default_agnos_manifest_path, flash_agnos_update, get_target_slot_number
 
   cur_version = HARDWARE.get_os_version()
   updated_version = run(["bash", "-c", r"unset AGNOS_VERSION && source launch_env.sh && \
@@ -208,7 +208,7 @@ def handle_agnos_update() -> None:
 
   cloudlog.info(f"Beginning background installation for AGNOS {updated_version}")
 
-  manifest_path = os.path.join(OVERLAY_MERGED, "openpilot/system/hardware/comma/agnos.json")
+  manifest_path = default_agnos_manifest_path(OVERLAY_MERGED)
   target_slot_number = get_target_slot_number()
   flash_agnos_update(manifest_path, target_slot_number, cloudlog)
 
@@ -228,7 +228,12 @@ class Updater:
     b: str | None = self.params.get("UpdaterTargetBranch")
     if b is None:
       b = self.get_branch(BASEDIR)
-    b = SP_BRANCH_MIGRATIONS.get((HARDWARE.get_device_type(), b), b)
+    b = {
+      ("tizi", "release3"): "release-tizi",
+      ("tizi", "release3-staging"): "release-tizi-staging",
+      ("mici", "release3"): "release-mici",
+      ("mici", "release3-staging"): "release-mici-staging",
+    }.get((HARDWARE.get_device_type(), b), b)
     return b
 
   @property

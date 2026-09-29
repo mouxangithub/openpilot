@@ -127,6 +127,10 @@ class HardwareBase(ABC):
   def get_thermal_config(self):
     return ThermalConfig()
 
+  def has_builtin_display(self) -> bool:
+    """True when the device has a built-in screen (comma hardware probes panel backlight)."""
+    return True
+
   def set_display_power(self, on: bool):
     pass
 

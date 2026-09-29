@@ -1,0 +1,39 @@
+name: AI PR 安全合并
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    branches: [master-c3]
+  pull_request_target:
+    types: [opened, synchronize, reopened, labeled]
+    branches: [master-c3]
+
+permissions:
+  contents: write
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: ai-safe-merge-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  safe-merge:
+    name: 安全合并
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository
+      && contains(github.event.pull_request.labels.*.name, 'ai-safe-merge')
+      && !contains(github.event.pull_request.labels.*.name, 'upstream-sync')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 基于规则的安全 squash 合并
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AI_REPO_KIND: openpilot
+        run: python .github/scripts/ai_pr_safe_merge.py

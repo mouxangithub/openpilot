@@ -10,10 +10,12 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.selfdrive.car.sync_sunnylink_params import CAR_LIST_JSON_OUT
 
 ONROAD_BRIGHTNESS_MIGRATION_VERSION: str = "1.0"
+CARROT_STOP_DISTANCE_MIGRATION_VERSION: str = "1.0"
+CARROT_UDP_PORT_MIGRATION_VERSION: str = "1.0"
 ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION: str = "1.0"
 
 # index → seconds mapping for OnroadScreenOffTimer (SSoT)
-ONROAD_BRIGHTNESS_TIMER_VALUES = {0: 3, 1: 5, 2: 7, 3: 10, 4: 15, 5: 30, **{i: (i - 5) * 60 for i in range(6, 16)}}
+ONROAD_BRIGHTNESS_TIMER_VALUES = {0: 0, 1: 3, 2: 5, 3: 10, 4: 15, 5: 30, 6: 60, 7: 180, 8: 300, 9: 600}
 VALID_TIMER_VALUES = set(ONROAD_BRIGHTNESS_TIMER_VALUES.values())
 
 
@@ -103,7 +105,60 @@ def _migrate_model_bundle_slots(_params):
     cloudlog.exception(f"Error migrating model bundle slots: {e}")
 
 
+def _migrate_carrot_stop_distance(_params):
+  # StopDistanceCarrot (cm) and LongitudinalMpcTuningStopDistance (m) were two
+  # controls for one quantity with the same 6.0 m default. The carrot one is retired
+  # and carrot now reads sunnypilot's entry, so carry an explicitly-set legacy value
+  # across before dropping the old key - otherwise a user who had tuned it would
+  # silently fall back to 6.0 m.
+  try:
+    if _params.get("CarrotStopDistanceMigrated") == CARROT_STOP_DISTANCE_MIGRATION_VERSION:
+      return
+
+    legacy = _params.get("StopDistanceCarrot")
+    if legacy is not None:
+      legacy_cm = int(legacy)
+      if legacy_cm > 0 and legacy_cm != 600:
+        metres = legacy_cm / 100.0
+        _params.put("LongitudinalMpcTuningStopDistance", metres, block=True)
+        cloudlog.info("params_migration: merged StopDistanceCarrot=%dcm into "
+                      "LongitudinalMpcTuningStopDistance=%sm" % (legacy_cm, metres))
+      else:
+        cloudlog.info("params_migration: StopDistanceCarrot was at its default; nothing to merge.")
+      _params.remove("StopDistanceCarrot")
+
+    _params.put("CarrotStopDistanceMigrated", CARROT_STOP_DISTANCE_MIGRATION_VERSION, block=True)
+  except Exception as e:
+    cloudlog.exception(f"Error migrating StopDistanceCarrot: {e}")
+
+
+def _migrate_carrot_udp_port(_params):
+  # CarrotManUdpPort used to be a user setting and its registered default was 0,
+  # which carrot_man read as "do not listen at all" - so a default-config device
+  # was silent on both 7705 (no broadcast) and 7706 (no socket), and the phone app
+  # could never find it. The port is now the CARROT_MAN_UDP_PORT constant.
+  #
+  # Clear any stored value so it cannot look like a live setting, and so a device
+  # that has 0 or a custom port stored converges to the fixed one.
+  try:
+    if _params.get("CarrotUdpPortMigrated") == CARROT_UDP_PORT_MIGRATION_VERSION:
+      return
+
+    legacy = _params.get("CarrotManUdpPort")
+    if legacy is not None:
+      cloudlog.info("params_migration: clearing retired CarrotManUdpPort=%s; the listen "
+                    "port is now the fixed 7706 constant" % (legacy,))
+      _params.remove("CarrotManUdpPort")
+
+    _params.put("CarrotUdpPortMigrated", CARROT_UDP_PORT_MIGRATION_VERSION, block=True)
+  except Exception as e:
+    cloudlog.exception(f"Error migrating CarrotManUdpPort: {e}")
+
+
 def run_migration(_params):
+  _migrate_carrot_udp_port(_params)
+  _migrate_carrot_stop_distance(_params)
+
   # migrate OnroadScreenOffBrightness
   if _params.get("OnroadScreenOffBrightnessMigrated") != ONROAD_BRIGHTNESS_MIGRATION_VERSION:
     try:

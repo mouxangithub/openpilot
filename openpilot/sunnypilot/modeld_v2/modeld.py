@@ -28,6 +28,7 @@ from opendbc.car.car_helpers import get_demo_car_params
 from openpilot.common.file_chunker import open_file_chunked
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.params import Params
+from openpilot.common.dm import is_dm_disabled
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.realtime import config_realtime_process, DT_MDL
 from openpilot.common.transformations.camera import DEVICE_CAMERAS
@@ -389,7 +390,8 @@ def main(demo=False):
   # messaging
   pub_socks = ["modelV2", "drivingModelData", "cameraOdometry", "modelDataV2SP"] + (["chestnutState"] if CHESTNUT else [])
   pm = PubMaster(pub_socks)
-  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration", "driverMonitoringState", "carControl", "lateralDelay"])
+  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration",
+                  "driverMonitoringState", "carControl", "lateralDelay", "carStateSP", "carrotManSP"])
 
   publish_state = PublishState()
   chestnut_state = ChestnutState(pm, model.chestnut) if CHESTNUT else None
@@ -458,7 +460,7 @@ def main(demo=False):
 
     sm.update(0)
     desire = DH.desire
-    is_rhd = sm["driverMonitoringState"].isRHD
+    is_rhd = False if is_dm_disabled(params) else sm["driverMonitoringState"].isRHD
     frame_id = sm["narrowRoadCameraState"].frameId
     v_ego = max(sm["carState"].vEgo, 0.)
     if sm.frame % 60 == 0:
@@ -548,12 +550,21 @@ def main(demo=False):
       l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]
       r_lane_change_prob = desire_state[log.Desire.laneChangeRight]
       lane_change_prob = l_lane_change_prob + r_lane_change_prob
+      cs_sp = sm['carStateSP']
+      left_lane_line_blocked = cs_sp.carrotLaneValid and cs_sp.carrotLeftLineBlocked
+      right_lane_line_blocked = cs_sp.carrotLaneValid and cs_sp.carrotRightLineBlocked
+
       left_edge, right_edge = RELC.update_and_fill(modelv2_send.modelV2, mdv2sp_send.modelDataV2SP, v_ego)
-      DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge)
+      carrot_man = sm['carrotManSP'] if sm.alive['carrotManSP'] else None
+      DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge,
+                left_lane_line_blocked=left_lane_line_blocked,
+                right_lane_line_blocked=right_lane_line_blocked,
+                carrot_man=carrot_man)
       modelv2_send.modelV2.meta.laneChangeState = DH.lane_change_state
       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
       mdv2sp_send.valid = modelv2_send.valid
       mdv2sp_send.modelDataV2SP.laneTurnDirection = DH.lane_turn_direction
+      mdv2sp_send.valid = modelv2_send.valid
       drivingdata_send.drivingModelData.meta.laneChangeState = DH.lane_change_state
       drivingdata_send.drivingModelData.meta.laneChangeDirection = DH.lane_change_direction
 

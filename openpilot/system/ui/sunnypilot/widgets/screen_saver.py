@@ -65,7 +65,7 @@ class ScreenSaverSP(Widget):
   def _update_state(self):
     super()._update_state()
 
-    self.font = gui_app.font(FontWeight.AUDIOWIDE)
+    self.font = gui_app.font(FontWeight.BOLD)
     text_size = measure_text_cached(self.font, self.text, self.font_size, 0)
     self.logo_width = text_size.x
     self.logo_height = text_size.y

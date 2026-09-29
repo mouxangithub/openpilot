@@ -17,7 +17,7 @@ from openpilot.system.ui.widgets.label import UnifiedLabel
 class MiciHomeLayoutSP(MiciHomeLayout):
   def __init__(self):
     super().__init__()
-    self._openpilot_label = UnifiedLabel("sunnypilot", font_size=88, font_weight=FontWeight.AUDIOWIDE, max_width=480, wrap_text=False)
+    self._openpilot_label = UnifiedLabel("sunnypilot", font_size=88, font_weight=FontWeight.BOLD, max_width=480, wrap_text=False)
 
   def _set_chestnut_visibility(self):
     usb_connected = ui_state.usb_connected
