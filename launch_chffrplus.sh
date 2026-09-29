@@ -124,6 +124,13 @@ pip_requirement_for() {
       # the boot-time retry loop spun forever.
       echo "pyzmq"
       ;;
+    serial)
+      # `serial` is the import name; the wheel is pyserial. The updater's bundled
+      # snapshot imports serial at module scope (system/hardware/tici/lpa.py), so a
+      # missing pyserial makes the FIRST-BOOT updater die with ModuleNotFoundError
+      # before it can install AGNOS. See ensure_updater_deps().
+      echo "pyserial"
+      ;;
     *)
       echo "$1"
       ;;
@@ -430,14 +437,91 @@ agnos_init() {
   if $agnos_py --verify $manifest; then
     sudo reboot
   fi
+
+  # The updater is a self-contained zipapp that runs with THIS interpreter and its
+  # environment. Its bundled snapshot of system/hardware/tici/lpa.py imports serial
+  # at module scope, which reaches the crash chain
+  #   updater -> ui/updater -> ui/lib/application -> common/swaglog
+  #           -> system/hardware/__init__ -> tici/hardware -> tici/lpa -> import serial
+  # so a missing pyserial aborts the updater before it can install AGNOS and the
+  # device loops on ModuleNotFoundError forever. Make pyserial importable first.
+  ensure_updater_deps
+
   if is_headless_boot; then
     echo "[agnos] headless: OS update required ($(cat /VERSION) -> $AGNOS_VERSION). Use WebUI Software → AGNOS, or SSH: $agnos_py --swap $manifest" | tee -a /tmp/agnos_pending.log
     return 0
   fi
 
   while true; do
+    # PYTHONPATH must explicitly carry $PYDEPS_DIR: the updater inherits this
+    # environment, and the deps installed by bootstrap_deps (notably pyserial,
+    # needed by the bundled snapshot above) live there.
     PYTHONPATH="$PY_PATH" "$PY" "$DIR/openpilot/common/hardware/comma/updater" "$agnos_py" "$manifest"
   done
+}
+
+# Guarantees the AGNOS updater can start on a FIRST BOOT. The updater is a
+# self-contained zipapp but has NO bundled site-packages: `#!/usr/bin/env python3`
+# resolves to the system interpreter, so it needs pyserial from the environment.
+# Its bundled system/hardware/tici/lpa.py imports serial at module scope and the
+# very first thing the updater does is pull in that chain, so without pyserial the
+# updater dies immediately and its `while true` loop in agnos_init never recovers.
+#
+# Prefers the bundled offline wheel (third_party/wheels/pyserial-*.whl) since a
+# fresh install may have no network yet; falls back to the pip mirror.
+ensure_updater_deps() {
+  local pydeps="$PYDEPS_DIR"
+  local py=$(find_python python3.12) || py=python3
+  local py_path=$(setup_python_path "$DIR")
+
+  # Fast path: already importable with the same path the updater will use.
+  if PYTHONPATH="$py_path" "$py" -c "import serial" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "[ensure_updater_deps] pyserial missing; installing for the AGNOS updater" >> /tmp/bootstrap.log
+  mkdir -p "$pydeps" 2>/dev/null || true
+
+  local tmpdir=$(pip_scratch_dir)
+  local wheel=""
+  for w in "$WHEEL_DIR"/pyserial-*.whl; do
+    [ -f "$w" ] && wheel="$w" && break
+  done
+
+  # 1) Offline wheel first (no network needed).
+  if [ -n "$wheel" ]; then
+    if TMPDIR="$tmpdir" "$py" -m pip install --no-cache-dir --no-index --no-deps \
+         --disable-pip-version-check --target "$pydeps" "$wheel" >> /tmp/bootstrap.log 2>&1 \
+       && PYTHONPATH="$py_path" "$py" -c "import serial" >/dev/null 2>&1; then
+      echo "[ensure_updater_deps] installed pyserial from bundled wheel" >> /tmp/bootstrap.log
+      rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+      return 0
+    fi
+  fi
+
+  # 2) Network fallback via the pip mirror.
+  if wait_for_dns 30; then
+    if ! "$py" -c "import pip" >/dev/null 2>&1; then
+      curl -fsSL "${GET_PIP_URL:-https://mirrors.aliyun.com/pypi/get-pip.py}" -o /tmp/get-pip.py 2>/dev/null && \
+        "$py" /tmp/get-pip.py --target="$pydeps" --no-warn-script-location >> /tmp/bootstrap.log 2>&1 || true
+    fi
+    local index_url="${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}"
+    TMPDIR="$tmpdir" PYTHONPATH="$py_path" "$py" -m pip install --no-cache-dir --upgrade \
+      --index-url="$index_url" --target="$pydeps" pyserial >> /tmp/bootstrap.log 2>&1 || true
+  fi
+
+  rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+
+  if PYTHONPATH="$py_path" "$py" -c "import serial" >/dev/null 2>&1; then
+    echo "[ensure_updater_deps] pyserial ready" >> /tmp/bootstrap.log
+    return 0
+  fi
+
+  # Non-fatal: if the updater is truly needed and pyserial is still absent it will
+  # log its own traceback. Returning 0 keeps agnos_init's flow intact rather than
+  # aborting the whole boot.
+  echo "[ensure_updater_deps] WARNING: pyserial still missing; updater may fail" >> /tmp/bootstrap.log
+  return 0
 }
 
 link_repos() {
@@ -477,7 +561,12 @@ bootstrap_deps() {
   # Network group: needed by ai/aid.py and webui/webuid.py (and carrot_man /
   # carrot_navi). Installed together so a single overlay update does not leave either
   # service unable to import. These are not bundled as wheels.
-  ensure_pip_deps aiohttp jinja2 zmq zstandard numpy requests tqdm jeepney
+  #
+  # serial (pyserial) is included even though the fork's own runtime barely uses it:
+  # the FIRST-BOOT AGNOS updater is a self-contained zipapp that runs with this
+  # interpreter's environment, and its bundled snapshot imports serial at module
+  # scope. Without pyserial here the updater dies instantly (see ensure_updater_deps).
+  ensure_pip_deps aiohttp jinja2 zmq zstandard numpy requests tqdm jeepney serial
 }
 
 # Retries bootstrap_deps() until it succeeds, because a single attempt at boot is
@@ -680,6 +769,11 @@ launch() {
   # BlueZ is required for the Carrot Bluetooth HID remote panel. It is not
   # present on a fresh C3 image, so install it on first boot if missing.
   ensure_bluez
+
+  # The AGNOS updater needs pyserial before agnos_init ever runs (see
+  # ensure_updater_deps). Do it here too so the dependency is satisfied even when
+  # AGNOS is already current and agnos_init returns early.
+  ensure_updater_deps
 
   # Start AI and WebUI before the AGNOS OS update so they stay reachable even
   # if the updater loops waiting for user confirmation.
