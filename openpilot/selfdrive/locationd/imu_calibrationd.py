@@ -44,11 +44,17 @@ STATIC_MIN_DURATION = 1.5  # seconds of stationary data required
 STATIC_MAX_GYRO_STD = 0.05  # rad/s, must be nearly still
 STATIC_MAX_SPEED = 0.2  # m/s
 STATIC_MIN_SAMPLES = 100
-STATIC_MAX_SLOPE_ANGLE = math.radians(5.0)  # reject static calibration on steep slopes
+STATIC_MAX_SLOPE_ANGLE = math.radians(45.0)  # reject static calibration when the device is not plausibly vertical
 
 DYNAMIC_MIN_DURATION = 3.0  # seconds of straight driving required
 DYNAMIC_MIN_SPEED = 5.0  # m/s
-DYNAMIC_MAX_YAW_RATE = 0.10  # rad/s, roughly straight
+# 0.10 rad/s (~5.7 deg/s) rejects any curve tighter than v/0.1 metres, i.e. a
+# 167 m radius at 60 km/h - a perfectly ordinary highway bend - which made the
+# dynamic phase unattainable on anything but dead-straight road and pushed the
+# user into the 300 s timeout. The lateral-acceleration gate below is the
+# physically meaningful "not cornering hard" test, so this one only has to
+# reject clearly curved driving: 0.25 rad/s is a 67 m radius at 60 km/h.
+DYNAMIC_MAX_YAW_RATE = 0.25  # rad/s, roughly straight
 DYNAMIC_MAX_STEERING_RATE = 10.0  # deg/s
 DYNAMIC_MAX_LATERAL_ACCEL = 1.0  # m/s^2
 DYNAMIC_MIN_CAMERA_FRAMES = 20
@@ -68,6 +74,7 @@ MATRIX_MAX_ROLL_PITCH_DIFF = math.radians(5.0)
 # Vehicle frame convention used internally:
 #   X = forward, Y = left, Z = up (opposite of gravity)
 VEHICLE_GRAVITY = np.array([0.0, 0.0, -1.0])
+VEHICLE_UP = np.array([0.0, 0.0, 1.0])
 VEHICLE_FORWARD = np.array([1.0, 0.0, 0.0])
 
 
@@ -239,11 +246,28 @@ def compute_static_rotation(acc_samples: list[np.ndarray], gyro_samples: list[np
     raise ValueError("accelerometer samples are near zero")
   up_device = up_device / norm
 
-  # Check that the vehicle is on reasonably level ground.
-  cos_angle = float(np.dot(up_device, VEHICLE_GRAVITY))
+  # Sanity gate on the static sample set.
+  #
+  # A stationary accelerometer measures specific force, i.e. the vehicle *up*
+  # direction expressed in the device frame. That is all the information there
+  # is: with a single stationary IMU reading it is mathematically impossible to
+  # separate "the device is mounted at an angle" from "the car is on a slope",
+  # so this check cannot be a true slope test - it only rejects readings that
+  # are obviously not a mounted-device gravity vector (free fall, heavy shaking,
+  # a device lying on its face), while accepting every plausible installation
+  # angle. Real protection against a bad static estimate comes later, from
+  # MATRIX_MAX_ROLL_PITCH_DIFF in _validate_final_matrix.
+  #
+  # The sign is irrelevant: a windshield C3 may be mounted upright or upside
+  # down and both put the gravity axis parallel to vehicle up, so compare the
+  # absolute value. (A previous version compared against VEHICLE_GRAVITY, which
+  # points DOWN, so the dot product was -1 on level ground, acos returned
+  # 180 deg, and every static phase raised SlopeTooSteepError - the calibration
+  # could never start at all.)
+  cos_angle = abs(float(np.dot(up_device, VEHICLE_UP)))
   slope = math.acos(max(-1.0, min(1.0, cos_angle)))
   if slope > STATIC_MAX_SLOPE_ANGLE:
-    raise SlopeTooSteepError(f"ground slope too steep: {math.degrees(slope):.1f} deg")
+    raise SlopeTooSteepError(f"device is not vertical: {math.degrees(slope):.1f} deg from vertical")
 
   gyro_bias = np.mean(gyro_samples, axis=0)
 
@@ -358,10 +382,32 @@ def compute_yaw_correction(
   # with the temporary vehicle frame defined by R_static (yaw=0). Therefore
   # msg.rot can be treated as a vehicle-frame rotation. We predict the
   # corresponding device-frame rotation with R_static and compare it to the
-  # integrated gyro rotation, both projected onto the plane perpendicular to
-  # vehicle gravity.
+  # integrated gyro rotation.
+  #
+  # Both `cam_rot` and `integrate_gyro` return a *rotation vector* (axis-angle).
+  # The unknown mounting yaw psi is a rotation about the gravity axis, so the
+  # rotation vector's component *along* gravity is invariant to psi
+  # (<Rz(psi)v, z> == <v, z>). What changes with psi is the *azimuth* of the
+  # rotation vector inside the plane perpendicular to gravity. So compare the
+  # in-plane angles of the predicted vs measured rotation vectors.
+  #
+  # The in-plane angle must be taken in a basis that spans that plane. With an
+  # arbitrary mount the gravity axis is not [0, 0, 1], so `atan2(v[1], v[0])`
+  # is meaningless - a basis (u, w) perpendicular to gravity has to be built
+  # first. An earlier version projected the vector (`v - (v·z)z`) and then read
+  # atan2 from the raw x/y components, which collapses whenever the mount tips
+  # the apparent "up" axis, and - for motion purely about gravity - is zero for
+  # every interval, so calibration always died with "insufficient dynamic
+  # samples" after the 300 s timeout.
   z_axis = R_static @ VEHICLE_GRAVITY
   z_axis = z_axis / np.linalg.norm(z_axis)
+
+  # Orthonormal basis (u_axis, w_axis) spanning the plane perpendicular to gravity.
+  u_axis = np.cross(z_axis, np.array([0.0, 0.0, 1.0]))
+  if np.linalg.norm(u_axis) < 1e-6:
+    u_axis = np.cross(z_axis, np.array([0.0, 1.0, 0.0]))
+  u_axis = u_axis / np.linalg.norm(u_axis)
+  w_axis = np.cross(z_axis, u_axis)
 
   diffs: list[float] = []
   weights: list[float] = []
@@ -384,17 +430,17 @@ def compute_yaw_correction(
     # Measured device rotation = integrated gyro minus bias
     meas_rot = integrate_gyro(gyro_ts, gyro_samples, t0, t1, gyro_bias)
 
-    # Project onto x-y plane (perpendicular to gravity)
-    pred_xy = pred_rot - np.dot(pred_rot, z_axis) * z_axis
-    meas_xy = meas_rot - np.dot(meas_rot, z_axis) * z_axis
+    # In-plane azimuth of each rotation vector, measured in the gravity basis.
+    pred_u, pred_w = float(np.dot(pred_rot, u_axis)), float(np.dot(pred_rot, w_axis))
+    meas_u, meas_w = float(np.dot(meas_rot, u_axis)), float(np.dot(meas_rot, w_axis))
 
-    p_norm = np.linalg.norm(pred_xy)
-    m_norm = np.linalg.norm(meas_xy)
-    if p_norm < 1e-6 or m_norm < 1e-6:
+    # An interval with no rotation perpendicular to gravity carries no yaw
+    # information; skip it instead of letting numerical noise set the angle.
+    if math.hypot(pred_u, pred_w) < 1e-6 or math.hypot(meas_u, meas_w) < 1e-6:
       continue
 
-    pred_angle = math.atan2(pred_xy[1], pred_xy[0])
-    meas_angle = math.atan2(meas_xy[1], meas_xy[0])
+    pred_angle = math.atan2(pred_w, pred_u)
+    meas_angle = math.atan2(meas_w, meas_u)
     diffs.append(meas_angle - pred_angle)
     weights.append(dt)
 

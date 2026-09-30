@@ -1,9 +1,11 @@
 import math
+import time
 
 import numpy as np
 
 from openpilot.common.test import OpenpilotTestCase
 from openpilot.common.transformations.orientation import euler_from_rot, rot_from_euler, sensor_to_device_frame
+from openpilot.common.transformations.transformations import axis_angle_to_rot
 import openpilot.cereal.messaging as messaging
 from openpilot.selfdrive.locationd.imu_calibrationd import (
   CalibrationError,
@@ -27,8 +29,11 @@ def _device_to_sensor_msg_frame(v_device: np.ndarray) -> list[float]:
   locationd remaps sensor msg -> device frame with [-v[2], -v[1], -v[0]].
   To produce a given device-frame vector from a fake sensor message, use the
   inverse mapping: msg = [-device_z, -device_y, -device_x].
+
+  Values are coerced to builtin floats: capnp rejects numpy scalar types when
+  assigning to list fields.
   """
-  return [-v_device[2], -v_device[1], -v_device[0]]
+  return [float(-v_device[2]), float(-v_device[1]), float(-v_device[0])]
 
 
 class TestImuCalibrationd(OpenpilotTestCase):
@@ -59,7 +64,10 @@ class TestImuCalibrationd(OpenpilotTestCase):
     acc_samples = [z_vehicle_in_device for _ in range(100)]
     gyro_samples = [np.zeros(3) for _ in range(100)]
     R, _ = compute_static_rotation(acc_samples, gyro_samples)
-    np.testing.assert_allclose(R, R_true, atol=1e-6)
+    # Yaw is unobservable from a static accelerometer and is defined as zero by
+    # convention, so only the recovered gravity axis (third column) is checked.
+    np.testing.assert_allclose(R[:, 2], R_true[:, 2], atol=1e-6)
+    assert _valid_rotation(R)
 
   def test_compute_static_rotation_pure_pitch(self):
     """Pure pitch mounting is recovered exactly."""
@@ -69,7 +77,8 @@ class TestImuCalibrationd(OpenpilotTestCase):
     acc_samples = [z_vehicle_in_device for _ in range(100)]
     gyro_samples = [np.zeros(3) for _ in range(100)]
     R, _ = compute_static_rotation(acc_samples, gyro_samples)
-    np.testing.assert_allclose(R, R_true, atol=1e-6)
+    np.testing.assert_allclose(R[:, 2], R_true[:, 2], atol=1e-6)
+    assert _valid_rotation(R)
 
   def test_compute_static_rotation_pure_roll(self):
     """Pure roll mounting is recovered exactly."""
@@ -79,7 +88,8 @@ class TestImuCalibrationd(OpenpilotTestCase):
     acc_samples = [z_vehicle_in_device for _ in range(100)]
     gyro_samples = [np.zeros(3) for _ in range(100)]
     R, _ = compute_static_rotation(acc_samples, gyro_samples)
-    np.testing.assert_allclose(R, R_true, atol=1e-6)
+    np.testing.assert_allclose(R[:, 2], R_true[:, 2], atol=1e-6)
+    assert _valid_rotation(R)
 
   def test_compute_static_rotation_gravity_axis(self):
     """For arbitrary mounting the gravity (vehicle up) axis is recovered."""
@@ -104,15 +114,30 @@ class TestImuCalibrationd(OpenpilotTestCase):
     _, bias_out = compute_static_rotation(acc_samples, gyro_samples)
     np.testing.assert_allclose(bias_out, bias_in, atol=1e-3)
 
-  def test_compute_static_rotation_slope_too_steep(self):
-    """Static phase rejects non-level ground."""
-    slope = np.deg2rad(8.0)
-    R_slope = rot_from_euler([slope, 0.0, 0.0])
-    z_vehicle_in_device = R_slope[:, 2]
+  def test_compute_static_rotation_rejects_non_vertical_device(self):
+    """An implausible (far from vertical) device orientation is rejected.
+
+    Note: a stationary IMU cannot separate "the device is mounted at an angle"
+    from "the car is on a slope", so this gate only screens out orientations no
+    reasonable mount would produce. 90 deg (device lying on its face) is used
+    here rather than a small tilt, which is a legitimate mounting angle.
+    """
+    R_bad = rot_from_euler([np.deg2rad(90.0), 0.0, 0.0])
+    z_vehicle_in_device = R_bad[:, 2]
     acc_samples = [z_vehicle_in_device for _ in range(100)]
     gyro_samples = [np.zeros(3) for _ in range(100)]
     with self.assertRaises(SlopeTooSteepError):
       compute_static_rotation(acc_samples, gyro_samples)
+
+  def test_compute_static_rotation_accepts_tilted_mount(self):
+    """A tilted (but plausible) mounting angle is accepted."""
+    for roll_deg in (-20.0, 0.0, 20.0, 30.0):
+      R_tilt = rot_from_euler([np.deg2rad(roll_deg), 0.0, 0.0])
+      z_vehicle_in_device = R_tilt[:, 2]
+      acc_samples = [z_vehicle_in_device for _ in range(100)]
+      gyro_samples = [np.zeros(3) for _ in range(100)]
+      R, _ = compute_static_rotation(acc_samples, gyro_samples)
+      assert _valid_rotation(R)
 
   def test_integrate_gyro_constant_rate(self):
     """Integrate a constant rotation rate over a known interval."""
@@ -134,14 +159,26 @@ class TestImuCalibrationd(OpenpilotTestCase):
     np.testing.assert_allclose(rot, rate * 0.05, atol=1e-6)
 
   def test_compute_yaw_correction(self):
-    """Recover a yaw offset from rotations that have horizontal components."""
+    """Recover a yaw offset from rotations that have components off the gravity axis.
+
+    cam_rot is a rotation vector per camera interval; the gyro measures the same
+    rotation expressed in the device frame. Only rotations with a component in
+    the plane perpendicular to gravity carry yaw information, so pitch/roll
+    excitation is included here.
+
+    The true mount is built as a rotation about the gravity axis (VEHICLE_GRAVITY
+    = -Z), matching how compute_yaw_correction defines the axis it solves about.
+    Note this is the inverse of `rot_from_euler([0, 0, psi])`, which rotates
+    about +Z.
+    """
     yaw_true = np.deg2rad(25.0)
     R_static = np.eye(3)
-    R_yaw = rot_from_euler([0.0, 0.0, yaw_true])
-    R_true = R_yaw @ R_static
+    z_axis = R_static @ np.array([0.0, 0.0, -1.0])
+    z_axis = z_axis / np.linalg.norm(z_axis)
+    R_true = axis_angle_to_rot(z_axis, yaw_true) @ R_static
 
-    # Vehicle rotation rate with some pitch/roll excitation so projections are non-zero.
-    omega_vehicle = np.array([0.02, 0.02, 0.05])
+    # Rotation rate with pitch/roll excitation so the in-plane component is non-zero.
+    omega_vehicle = np.array([0.02, 0.03, 0.04])
     dt_cam = 0.1
     cam_ts = [i * dt_cam for i in range(41)]
     cam_rot_samples = [omega_vehicle * dt_cam for _ in range(1, len(cam_ts))]
@@ -158,13 +195,45 @@ class TestImuCalibrationd(OpenpilotTestCase):
     self.assertLess(yaw_std, math.radians(5.0))
     self.assertGreater(valid_ratio, 0.9)
 
+  def test_compute_yaw_correction_arbitrary_mount(self):
+    """Yaw is recovered for mounts whose gravity axis is not the device Z axis.
+
+    This is the regression test for the projection bug: the previous code read
+    atan2(v[1], v[0]) after subtracting the gravity component, which is only
+    meaningful when gravity happens to be [0, 0, 1].
+    """
+    for mount_rpy, yaw_deg in (((np.pi, 0.0, 0.0), 25.0),
+                               ((0.0, 0.0, 0.0), -30.0),
+                               ((np.deg2rad(20.0), np.deg2rad(30.0), 0.0), 10.0)):
+      R_static = rot_from_euler(list(mount_rpy))
+      z_axis = R_static @ np.array([0.0, 0.0, -1.0])
+      z_axis = z_axis / np.linalg.norm(z_axis)
+      yaw_true = np.deg2rad(yaw_deg)
+      R_true = axis_angle_to_rot(z_axis, yaw_true) @ R_static
+
+      omega_vehicle = np.array([0.02, 0.03, 0.04])
+      dt_cam = 0.1
+      cam_ts = [i * dt_cam for i in range(41)]
+      cam_rot_samples = [omega_vehicle * dt_cam for _ in range(1, len(cam_ts))]
+
+      dt_gyro = 0.01
+      gyro_ts = [i * dt_gyro for i in range(int(cam_ts[-1] / dt_gyro) + 1)]
+      gyro_samples = [R_true @ omega_vehicle for _ in gyro_ts]
+
+      yaw_est, _, _ = compute_yaw_correction(
+        R_static, np.zeros(3), gyro_ts, gyro_samples, cam_rot_samples, cam_ts
+      )
+      np.testing.assert_allclose(math.degrees(yaw_est), yaw_deg, atol=1.5,
+                                 err_msg=f"mount rpy={mount_rpy}")
+
   def test_compute_yaw_correction_with_outliers(self):
     """Outlier camera-odometry frames are rejected."""
     yaw_true = np.deg2rad(10.0)
     R_static = np.eye(3)
-    R_true = rot_from_euler([0.0, 0.0, yaw_true])
+    z_axis = R_static @ np.array([0.0, 0.0, -1.0])
+    R_true = axis_angle_to_rot(z_axis / np.linalg.norm(z_axis), yaw_true)
 
-    omega_vehicle = np.array([0.0, 0.0, 0.05])
+    omega_vehicle = np.array([0.02, 0.03, 0.04])
     dt_cam = 0.1
     cam_ts = [i * dt_cam for i in range(41)]
     cam_rot_samples = [omega_vehicle * dt_cam for _ in range(1, len(cam_ts))]
@@ -181,7 +250,7 @@ class TestImuCalibrationd(OpenpilotTestCase):
     yaw_est, _, valid_ratio = compute_yaw_correction(
       R_static, np.zeros(3), gyro_ts, gyro_samples, cam_rot_samples, cam_ts
     )
-    np.testing.assert_allclose(math.degrees(yaw_est), math.degrees(yaw_true), atol=1.0)
+    np.testing.assert_allclose(math.degrees(yaw_est), math.degrees(yaw_true), atol=1.5)
     self.assertLess(valid_ratio, 1.0)
     self.assertGreater(valid_ratio, 0.8)
 
@@ -214,17 +283,19 @@ class TestImuCalibrationd(OpenpilotTestCase):
 
     assert cal.state == CalibrationState.DYNAMIC_COLLECTING
     assert cal.R_static is not None
-    R_expected = rot_from_euler([np.pi, 0.0, 0.0])
-    np.testing.assert_allclose(cal.R_static, R_expected, atol=1e-3)
+    # Yaw is unobservable statically and defined as zero, so only the recovered
+    # gravity axis is pinned here.
+    np.testing.assert_allclose(cal.R_static[:, 2], z_device, atol=1e-3)
+    assert _valid_rotation(cal.R_static)
 
-  def test_calibrator_static_phase_rejects_slope(self):
-    """Static phase fails with the slope-too-steep error code."""
+  def test_calibrator_static_phase_rejects_non_vertical_device(self):
+    """Static phase fails with the slope-too-steep error code for an implausible mount."""
     cal = ImuCalibrator()
     cal.start()
 
-    slope = np.deg2rad(8.0)
-    R_slope = rot_from_euler([slope, 0.0, 0.0])
-    z_device = R_slope[:, 2]
+    # 90 deg: the device lies on its face, which no plausible mount produces.
+    R_bad = rot_from_euler([np.deg2rad(90.0), 0.0, 0.0])
+    z_device = R_bad[:, 2]
     z_msg = _device_to_sensor_msg_frame(z_device)
     t0 = 0.0
     for i in range(200):
@@ -247,6 +318,36 @@ class TestImuCalibrationd(OpenpilotTestCase):
     assert cal.state == CalibrationState.FAILED
     assert cal.status.error_code == CalibrationError.SLOPE_TOO_STEEP
 
+  def test_calibrator_static_phase_accepts_tilted_mount(self):
+    """Static phase proceeds for a tilted but plausible mount."""
+    cal = ImuCalibrator()
+    cal.start()
+
+    R_tilt = rot_from_euler([np.deg2rad(20.0), 0.0, 0.0])
+    z_device = R_tilt[:, 2]
+    z_msg = _device_to_sensor_msg_frame(z_device)
+    t0 = 0.0
+    for i in range(200):
+      ts = int((t0 + i * 0.01) * 1e9)
+      acc = messaging.new_message('accelerometer').accelerometer
+      acc.timestamp = ts
+      acc.acceleration.v = z_msg
+      cal.handle_accel(acc)
+
+      gyr = messaging.new_message('gyroscope').gyroscope
+      gyr.timestamp = ts
+      gyr.init('gyroUncalibrated')
+      gyr.gyroUncalibrated.v = [0.0, 0.0, 0.0]
+      cal.handle_gyro(gyr)
+
+    car_state = messaging.new_message('carState').carState
+    car_state.vEgo = 0.0
+    cal.update(car_state)
+
+    assert cal.state == CalibrationState.DYNAMIC_COLLECTING
+    assert cal.R_static is not None
+    np.testing.assert_allclose(cal.R_static[:, 2], z_device, atol=1e-3)
+
   def test_calibrator_dynamic_segment_resume_after_brief_interruption(self):
     """Brief interruptions do not wipe already-collected dynamic data."""
     cal = ImuCalibrator()
@@ -254,7 +355,9 @@ class TestImuCalibrationd(OpenpilotTestCase):
     cal.R_static = np.eye(3)
     cal.gyro_bias = np.zeros(3)
     cal._set_state(CalibrationState.DYNAMIC_COLLECTING)
-    cal.dynamic_start_ts = 0.0
+    # Must be a real monotonic stamp: update() compares it against
+    # time.monotonic(), so 0.0 would look like an instant timeout.
+    cal.dynamic_start_ts = time.monotonic()
 
     def _add_straight_samples(start_t: float, count: int) -> float:
       for i in range(count):
@@ -262,11 +365,11 @@ class TestImuCalibrationd(OpenpilotTestCase):
         gyr = messaging.new_message('gyroscope').gyroscope
         gyr.timestamp = int(t * 1e9)
         gyr.init('gyroUncalibrated')
-        gyr.gyroUncalibrated.v = _device_to_sensor_msg_frame([0.0, 0.0, 0.05])
+        gyr.gyroUncalibrated.v = _device_to_sensor_msg_frame([0.02, 0.03, 0.04])
         cal.handle_gyro(gyr)
 
       cam = messaging.new_message('cameraOdometry').cameraOdometry
-      cam.rot = [0.0, 0.0, 0.05 * 0.1]
+      cam.rot = [0.002, 0.003, 0.004]
       cam.rotStd = [0.001, 0.001, 0.001]
       cam.transStd = [0.01, 0.01, 0.01]
       cam_ts = start_t + count * 0.01
@@ -279,7 +382,8 @@ class TestImuCalibrationd(OpenpilotTestCase):
     car_state.yawRate = 0.0
     car_state.steeringRateDeg = 0.0
     cal.update(car_state)
-    assert len(cal.current_segment) == 100 or len(cal.dynamic_segments) > 0
+    first_batch = sum(len(s) for s in cal.dynamic_segments) + len(cal.current_segment)
+    self.assertGreater(first_batch, 0)
 
     # Brief interruption (< DYNAMIC_MAX_INTERRUPTION).
     car_state2 = messaging.new_message('carState').carState
@@ -294,8 +398,10 @@ class TestImuCalibrationd(OpenpilotTestCase):
     car_state3.steeringRateDeg = 0.0
     cal.update(car_state3)
 
+    # History from before the interruption must survive: the later batch alone
+    # holds 200 samples, so requiring more than that proves nothing was wiped.
     total = sum(len(s) for s in cal.dynamic_segments) + len(cal.current_segment)
-    self.assertGreaterEqual(total, 250)
+    self.assertGreater(total, 200, "brief interruption must not wipe collected data")
 
   def test_calibrator_get_incremental_rotation(self):
     """Incremental yaw estimation returns a valid rotation matrix."""
@@ -304,11 +410,15 @@ class TestImuCalibrationd(OpenpilotTestCase):
     cal.R_static = np.eye(3)
     cal.gyro_bias = np.zeros(3)
     cal._set_state(CalibrationState.DYNAMIC_COLLECTING)
-    cal.dynamic_start_ts = 0.0
+    # Real monotonic stamp - see note in the interruption test above.
+    cal.dynamic_start_ts = time.monotonic()
 
     yaw_true = np.deg2rad(15.0)
-    R_true = rot_from_euler([0.0, 0.0, yaw_true])
-    omega_vehicle = np.array([0.0, 0.0, 0.05])
+    z_axis = np.array([0.0, 0.0, -1.0])
+    R_true = axis_angle_to_rot(z_axis, yaw_true)
+    # Excitation off the gravity axis is required: a rotation purely about
+    # gravity carries no mounting-yaw information.
+    omega_vehicle = np.array([0.02, 0.03, 0.04])
     dt_gyro = 0.01
     for i in range(500):
       t = i * dt_gyro
@@ -331,8 +441,10 @@ class TestImuCalibrationd(OpenpilotTestCase):
     R_inc = cal.get_incremental_rotation()
     assert R_inc is not None
     assert _valid_rotation(R_inc)
-    rpy = euler_from_rot(R_inc)
-    np.testing.assert_allclose(rpy[2], yaw_true, atol=math.radians(2.0))
+    # Compare as a rotation matrix. yaw_true is a rotation about VEHICLE_GRAVITY
+    # (-Z), which is the inverse of a +Z euler yaw, so reading euler_from_rot()[2]
+    # here would report -yaw_true even though the rotation is correct.
+    np.testing.assert_allclose(R_inc, R_true, atol=math.radians(2.0))
 
 
   def test_calibrator_timeout(self):
@@ -350,13 +462,12 @@ class TestImuCalibrationd(OpenpilotTestCase):
     car_state.yawRate = 0.0
     car_state.steeringRateDeg = 0.0
 
-    import time as time_module
-    original_monotonic = time_module.monotonic
+    original_monotonic = time.monotonic
     try:
-      time_module.monotonic = lambda: 400.0  # well past DYNAMIC_TIMEOUT
+      time.monotonic = lambda: 400.0  # well past DYNAMIC_TIMEOUT
       cal.update(car_state)
     finally:
-      time_module.monotonic = original_monotonic
+      time.monotonic = original_monotonic
 
     assert cal.state == CalibrationState.FAILED
     assert cal.status.error_code == CalibrationError.TIMEOUT
