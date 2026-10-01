@@ -36,6 +36,9 @@ class ChestnutState(Enum):
   LOADING = "loading"
   ACTIVE = "active"
   FAILED = "failed"
+  # onroad, an off-board accelerator only: loaded and waiting for a window to
+  # switch. A board is loaded before the first modelV2 and never sees this
+  WAITING = "waiting"
 
 
 class UIState(UIStateSP):

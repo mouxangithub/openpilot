@@ -230,16 +230,28 @@ class ModelsLayout(Widget):
       item.set_description("")
 
   def _status_note(self) -> str:
-    """The failover story for the Model Status row. One-way big -> small, and the
-    fallback is runner-matched: a Default big can only fall back to the Default
-    small (stock modeld), a custom big has no automatic fallback yet."""
-    if not ui_state.chestnut_present:
+    """The failover story for the Model Status row. A chestnut's is one-way big ->
+    small and runner-matched: a Default big can only fall back to the Default
+    small (stock modeld), a custom big has no automatic fallback yet. An
+    accelerator's goes both ways, all drive."""
+    view = ui_state.jetlink_view
+    accelerator = view is not None
+    if not (ui_state.chestnut_present or accelerator):
       return ""
-    big_bundle = get_selected_bundle(ui_state.params, "chestnut")
-    big_name = big_bundle.internalName if big_bundle else default_model_name("chestnut")
-    big_is_default = big_bundle is None
     fallback_name = default_model_name("qcom")
     state = big_model_state()
+    if accelerator:
+      # named by the accelerator: the slot's pick, or its default, which can be
+      # newer than the chestnut's. The small model the user picked drives in
+      # its place, so it reads like a Default big
+      big_name = view.model or tr("The big model")
+      big_is_default = True
+      if small := get_selected_bundle(ui_state.params, "qcom"):
+        fallback_name = small.internalName
+    else:
+      big_bundle = get_selected_bundle(ui_state.params, "chestnut")
+      big_name = big_bundle.internalName if big_bundle else default_model_name("chestnut")
+      big_is_default = big_bundle is None
     if state == 'failed':
       if big_is_default:
         return tr("Big model unavailable, {} is driving until the next drive.").format(fallback_name)
@@ -248,6 +260,12 @@ class ModelsLayout(Widget):
       if big_is_default:
         return tr("{} drives until the big model is ready.").format(fallback_name)
       return tr("Getting the big model ready.")
+    if state == 'ready':
+      # the swap window, not the model, is what is missing now: it opens when
+      # nothing is in control
+      return tr("{} is ready. Disengage fully, then re-engage to switch.").format(big_name)
+    if accelerator and not view.ready:
+      return tr("{} will drive when the accelerator is ready.").format(big_name)
     if big_is_default:
       return tr("{} will drive. If it fails during a drive, {} takes over until the next drive.").format(big_name, fallback_name)
     return tr("{} will drive when the chestnut is ready.").format(big_name)

@@ -39,6 +39,15 @@ def speed_limit_adjust_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.
     Priority.LOW, VisualAlert.none, AudibleAlert.none, 4.)
 
 
+def big_model_ready_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
+  # an accelerator's comes a second after its swap, when the driver can engage;
+  # its offer to switch is the one titled "Big Model Ready"
+  accelerator = sm['modelDataV2SP'].acceleratorState != custom.ModelDataV2SP.AcceleratorState.none
+  return Alert("大模型已接管" if accelerator else "大模型已就绪", "",
+               AlertStatus.normal, AlertSize.small,
+               Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 2.)
+
+
 def speed_limit_pre_active_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
   speed_conv = CV.MS_TO_KPH if metric else CV.MS_TO_MPH
   v_cruise_cluster = CS.vCruiseCluster
@@ -254,11 +263,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
   },
 
   EventNameSP.bigModelReady: {
-    ET.PERMANENT: Alert(
-      "大模型已就绪",
-      "",
-      AlertStatus.normal, AlertSize.small,
-      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 2.),
+    ET.PERMANENT: big_model_ready_alert,
   },
 
   # an accelerator (jetlink) ready while something is in control: it swaps in only when
