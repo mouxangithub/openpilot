@@ -443,6 +443,8 @@ struct OnroadEventSP @0xda96579883444c35 {
     e2eChime @23;
     laneChangeRoadEdge @24;
     bigModelReady @25;
+    bigModelAvailable @29;
+    bigModelLinkLost @30;
 
     # carrot (phone projection & navigation)
     trafficSignGreen @26;
@@ -625,6 +627,22 @@ struct ModelDataV2SP @0xa1680744031fdb2d {
   laneTurnDirection @0 :TurnDirection;
   leftLaneChangeEdgeBlock @1 :Bool;
   rightLaneChangeEdgeBlock @2 :Bool;
+
+  bigModelAvailableDEPRECATED @3 :Bool;  # acceleratorState ready says it; ordinal kept for old logs
+
+  # Runtime state of an off-board accelerator (sunnypilot/accelerators). Offroad
+  # progress stays in the AcceleratorProgress param; telemetry waits for a customReserved slot.
+  acceleratorState @4 :AcceleratorState;
+  acceleratorNameDEPRECATED @5 :Text;  # always jetlink; ordinal kept for old logs
+
+  enum AcceleratorState {
+    none @0;
+    joining @1;
+    running @2;
+    retrying @3;
+    unavailable @4;
+    ready @5;      # link up, engine loaded, waiting for a window to switch
+  }
 
   enum TurnDirection {
     none @0;

@@ -23,9 +23,12 @@ from openpilot.system.ui.widgets.toggle import ON_COLOR
 
 from openpilot.system.ui.sunnypilot.lib.styles import style
 from openpilot.system.ui.sunnypilot.lib.utils import NoElideButtonAction, ScrollingButtonAction
-from openpilot.system.ui.sunnypilot.widgets.list_view import ListItemSP, toggle_item_sp, option_item_sp
+from openpilot.system.ui.sunnypilot.widgets.list_view import ListItemSP, toggle_item_sp, option_item_sp, multiple_button_item_sp
 from openpilot.system.ui.sunnypilot.widgets.download_status import download_status_item
 from openpilot.system.ui.sunnypilot.widgets.tree_dialog import TreeOptionDialog, TreeNode, TreeFolder
+
+from openpilot.selfdrive.ui.sunnypilot.accelerator_link import LINK_MODES, LINK_MODE_TITLES, LINK_PARAM, link_mode, \
+  link_status, link_toggle_meaningful
 
 if gui_app.sunnypilot_ui():
   from openpilot.system.ui.sunnypilot.widgets.list_view import button_item_sp as button_item
@@ -44,6 +47,7 @@ class ModelsLayout(Widget):
     self._refresh_start: float | None = None
     self._last_note = None
     self.last_cache_calc_time = 0
+    self._link_status: str | None = None
 
     self._initialize_items()
 
@@ -107,8 +111,28 @@ class ModelsLayout(Widget):
                                         1, None, True, "", style.BUTTON_ACTION_WIDTH, None, True,
                                         lambda v: f"{v / 100:.2f} m")
 
-    self.items = [self.small_model_item, self.big_model_item, self.cancel_download_item, self.download_item, self.refresh_item, self.clear_cache_item,
+    self.accelerator_link_item = multiple_button_item_sp(
+      tr("Accelerator Link"),
+      lambda: self._link_description(self._link_status or ""),
+      [LINK_MODE_TITLES[m] for m in LINK_MODES],
+      param=LINK_PARAM, button_width=300, inline=False)
+
+    self.items = [self.small_model_item, self.big_model_item, self.accelerator_link_item, self.cancel_download_item, self.download_item, self.refresh_item, self.clear_cache_item,
                   self.lane_turn_desire_toggle, self.lane_turn_value_control, self.lagd_toggle, self.delay_control, self.camera_offset]
+
+  def _link_description(status: str) -> str:
+    what = tr("Run the big driving model on an attached accelerator: USB for a Jetson, a Linux PC or a Mac, iOS for an iPhone.")
+    return f"{what} {status}".strip()
+
+  def _refresh_accelerator_items(self):
+    # the setting is a param read, so this rides the half-second tick
+    self.accelerator_link_item.set_visible(link_toggle_meaningful())
+    self.accelerator_link_item.action_item.set_selected_button(LINK_MODES.index(link_mode()))
+    self.accelerator_link_item.action_item.set_enabled(ui_state.is_offroad())
+    status = link_status()
+    if status != self._link_status:
+      self._link_status = status
+      self.accelerator_link_item.set_description(self._link_description(status))
 
   def _update_lagd_description(self, lagd_toggle: bool):
     desc = tr("Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. "
@@ -352,6 +376,8 @@ class ModelsLayout(Widget):
     # manager is offroad-only, so a refresh queued onroad would never be serviced
     self._refreshing = refresh_in_progress(self._refresh_start)
     self.refresh_item.action_item.set_enabled(offroad and not self._downloading and not self._refreshing)
+
+    self._refresh_accelerator_items()
 
   def _render(self, rect):
     self._scroller.render(rect)

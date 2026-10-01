@@ -31,6 +31,8 @@ camera_configs = [
   (_os_fisheye.width, _os_fisheye.height),        # mici: 1344x760
 ]
 
+Export('camera_configs')
+
 if arch == 'comma_arm64':
   tg_backend = 'QCOM'
   tg_flags = f'DEV={tg_backend} IMAGE=1 FLOAT16=1 NOLOCALS=1 JIT_BATCH_SIZE=0 OPENPILOT_HACKS=1'

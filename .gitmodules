@@ -27,3 +27,6 @@
 [submodule "webui"]
 	path = webui
 	url = https://github.com/mouxangithub/webui.git
+[submodule "jetlink"]
+  path = jetlink_repo
+  url = https://github.com/mouxangithub/jetlink.git

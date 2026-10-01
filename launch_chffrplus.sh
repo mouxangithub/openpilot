@@ -525,7 +525,7 @@ ensure_updater_deps() {
 }
 
 link_repos() {
-  for repo in msgq opendbc rednose teleoprtc tinygrad; do
+  for repo in msgq opendbc rednose teleoprtc tinygrad jetlink; do
     ln -sfn "${repo}_repo/$repo" "$repo"
   done
 }

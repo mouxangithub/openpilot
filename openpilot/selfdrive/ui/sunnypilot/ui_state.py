@@ -11,10 +11,10 @@ from opendbc.car.structs import car
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.display import OnroadBrightness
 from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_active_source
+from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.sunnylink.sunnylink_state import SunnylinkState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.sunnypilot.widgets.screen_saver import ScreenSaverSP
-
 OpenpilotState = log.SelfdriveState.OpenpilotState
 MADSState = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
 
@@ -36,7 +36,7 @@ class UIStateSP:
     self.sm_services_ext = [
       "modelManagerSP", "selfdriveStateSP", "longitudinalPlanSP", "backupManagerSP",
       "gpsLocation", "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay",
-      "imuCalibrationSP", "carrotManSP",
+      "imuCalibrationSP", "carrotManSP", "modelDataV2SP",
     ]
 
     self.sunnylink_state = SunnylinkState()
@@ -46,6 +46,10 @@ class UIStateSP:
 
     self.active_bundle = None
     self.model_runner_tinygrad: bool = False
+    # jetlink's snapshot (jetlink.openpilot.Status) from the params pass; None
+    # with a chestnut fitted or no jetlink on this device
+    self.jetlink = None
+    self._accelerator_state_name: str = 'none'
     self.blindspot: bool = False
     self.chevron_metrics = None
     self.custom_interactive_timeout: int = 0
@@ -72,6 +76,23 @@ class UIStateSP:
       self.sunnylink_state.start()
     else:
       self.sunnylink_state.stop()
+    # read where sm is updated, so the params thread never touches a message
+    self._accelerator_state_name = str(self.sm['modelDataV2SP'].acceleratorState)
+
+  @property
+  def jetlink_view(self):
+    """jetlink's snapshot when the chestnut icon is the link's: no chestnut
+    fitted, and something to show. Presence comes from jetlink: the comma is
+    the gadget and enumerates nothing."""
+    s = self.jetlink
+    return s if s is not None and (s.enabled or s.present or s.progress is not None) else None
+
+  def _jetlink_state(self, view):
+    """ChestnutState for the link: progress and the records offroad, modelV2 and acceleratorState onroad"""
+    from openpilot.selfdrive.ui.ui_state import ChestnutState  # defined by the class that mixes this in
+    model_seen = self.sm.recv_frame["modelV2"] > self.started_frame
+    running_big = self.sm.alive["modelV2"] and self.sm["modelV2"].big
+    return ChestnutState(view.icon(self.started, model_seen, running_big, self._accelerator_state_name))
 
   def onroad_brightness_handle_alerts(self, _ui_state, alert):
     if _ui_state.sm.recv_frame["carState"] < _ui_state.started_frame:
@@ -161,6 +182,12 @@ class UIStateSP:
     # stock only counts the default big model's compiled pkl. a downloaded big bundle runs on the
     # chestnut just the same, so ChestnutState has to see it as available too.
     self.chestnut_compiled = self.chestnut_compiled or self.model_runner_tinygrad
+    # on the 5 Hz params pass, not per frame in a layout; a fitted chestnut owns chestnut_state
+    self.jetlink = None if self.sm['deviceState'].chestnutPresent else jetlink_adapter.status()
+    # the Jetson configures the gadget ~25 s after a cold boot, after the one-shot
+    # usb_unknown decision; recognising it late still clears "unknown"
+    if (view := self.jetlink_view) is not None and view.present and self.usb_unknown:
+      self.usb_unknown = False
     self.blindspot = self.params.get_bool("BlindSpot")
     self.chevron_metrics = self.params.get("ChevronInfo")
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)

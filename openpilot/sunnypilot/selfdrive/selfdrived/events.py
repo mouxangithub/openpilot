@@ -261,6 +261,28 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 2.),
   },
 
+  # an accelerator (jetlink) ready while something is in control: it swaps in only when
+  # nothing is, so an offer is raised for a few seconds (accelerator_events) telling the
+  # driver to re-engage to switch. Not as loud as the native ready.
+  EventNameSP.bigModelAvailable: {
+    ET.PERMANENT: Alert(
+      "大模型已就绪",
+      "重新接管以切换",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, .2),
+  },
+
+  # an accelerator lost or too slow while engaged: the small model drives on
+  # from a reset history and nothing disengages, so the warning is as loud as a
+  # soft disable. Raised for 5 s (accelerator_events); a disengage ends it.
+  EventNameSP.bigModelLinkLost: {
+    ET.WARNING: Alert(
+      "立即接管",
+      "大模型已丢失，小模型接管",
+      AlertStatus.userPrompt, AlertSize.mid,
+      Priority.MID, VisualAlert.steerRequired, AudibleAlert.warningSoft, .2),
+  },
+
   # Carrot / Amap traffic-light advisories.  Only the SP enum has
   # trafficSignGreen/trafficSignChanged/trafficStopping; surface them in
   # the same place the model-based detection would so the HUD can show

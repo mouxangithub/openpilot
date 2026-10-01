@@ -145,6 +145,8 @@ class ModelFetcher:
     "qcom": (MODEL_URL, ""),
     "chestnut": (MODEL_URL_CHESTNUT, "_Chestnut"),
   }
+  # stamped on the big-model catalog: whether it carries the newer catalogs' models
+  EXTENDED_KEY = "extended"
 
   def __init__(self, params: Params):
     self.params = params
@@ -154,6 +156,7 @@ class ModelFetcher:
       for source, (_, suffix) in self.MODEL_SOURCES.items()
     }
     self._refetched: set[str] = set()
+    self._refetched_extends: bool | None = None
     self.params.put("ModelManager_ActiveJson", {
       "qcom": self.MODEL_URL,
       "chestnut": self.MODEL_URL_CHESTNUT,
@@ -180,6 +183,10 @@ class ModelFetcher:
       response.raise_for_status()
 
       json_data = response.json()
+      if source == "chestnut":
+        from openpilot.sunnypilot import jetlink_adapter
+        extended = jetlink_adapter.should_extend_catalog()
+        json_data = {**(jetlink_adapter.extend_catalog(json_data) if extended else json_data), self.EXTENDED_KEY: extended}
       parsed = self.model_parser.parse_models(json_data)
       if parsed:
         self.model_caches[source].set(json_data)
@@ -204,12 +211,26 @@ class ModelFetcher:
       return any(bundle.get("is_big") is True for bundle in bundles)
     return not any(bundle.get("is_big") is True for bundle in bundles)
 
+  def _extension_stale(self, cached_data: dict) -> bool:
+    """Was the big-model catalog fetched for other hardware? A chestnut coming or going
+    changes whether it is extended, and the cache would otherwise hide that for an hour.
+    Once per change: offline, the refetch fails and the cache stands until it expires."""
+    from openpilot.sunnypilot import jetlink_adapter
+    extends = jetlink_adapter.should_extend_catalog()
+    if bool(cached_data.get(self.EXTENDED_KEY)) == extends or self._refetched_extends == extends:
+      return False
+    self._refetched_extends = extends
+    cloudlog.warning(f"big-model catalog was fetched {'without' if extends else 'with'} the newer catalogs; refetching")
+    return True
+
   def get_bundles_for_source(self, source: str) -> list[custom.ModelManagerSP.ModelBundle]:
     if source not in self.MODEL_SOURCES:
       cloudlog.warning(f"Unknown model source: {source}")
       return []
 
     cached_data, is_expired = self.model_caches[source].get()
+    if source == "chestnut" and cached_data and not is_expired and self._extension_stale(cached_data):
+      is_expired = True
 
     if cached_data and not is_expired:
       # a source is refetched over a mismatch at most once per process: if the fresh

@@ -39,7 +39,16 @@ def bundles_for_source(source: str):
 
 
 def default_model(source: str) -> str:
-  return DEFAULT_BIG_MODEL if source == 'chestnut' else DEFAULT_MODEL
+  """What an empty slot runs. The big slot's is the chestnut's model in the tree
+  when a board is fitted; with none, the slot is the accelerator's, whose
+  default is its own."""
+  if source != 'chestnut':
+    return DEFAULT_MODEL
+  # read once: the params thread sets it to None when a chestnut turns up
+  jetlink = ui_state.jetlink
+  if not ui_state.chestnut_present and jetlink is not None and (name := jetlink.default_model):
+    return name
+  return DEFAULT_BIG_MODEL
 
 
 def default_model_name(source: str) -> str:
@@ -57,6 +66,12 @@ def carrying_model() -> tuple[str | None, str | None, str | None]:
   """(source, internal name, display name) of what actually drives. Runner-matched:
   when a Default big cannot carry, stock modeld runs the Default small, never the
   small slot's pick; a custom big has no automatic fallback yet -> (None, None, None)."""
+  # only when no board is fitted does the chestnut state describe the jetlink view
+  if not ui_state.chestnut_present and ui_state.chestnut_state == ChestnutState.ACTIVE:
+    jetlink = ui_state.jetlink
+    name = jetlink.active_model if jetlink is not None else None
+    if name is not None:
+      return 'accelerator', name, name
   source = active_source()
   if source == "chestnut":
     bundle = get_selected_bundle(ui_state.params, "chestnut")
