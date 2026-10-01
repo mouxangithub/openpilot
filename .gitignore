@@ -123,3 +123,6 @@ sessions/
 !.idea/customTargets.xml
 !.idea/tools/*
 !.run/*
+android_app/android/local.properties
+android_app/prebuilt-swift/
+*.apk

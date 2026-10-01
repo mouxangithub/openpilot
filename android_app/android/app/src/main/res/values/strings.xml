@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Jetlink</string>
+
+    <!-- Tabs -->
+    <string name="tab_status">Status</string>
+    <string name="tab_models">Models</string>
+    <string name="tab_benchmark">Benchmark</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- Shutdown dialog -->
+    <string name="shutdown_title">Comma Asked to Shut Down</string>
+    <string name="shutdown_text">Jetlink can\'t turn off your phone, but you can close the app.</string>
+    <string name="ok">OK</string>
+
+    <!-- Settings: connection -->
+    <string name="settings_connection">Connection</string>
+    <string name="settings_connection_footer">The port is only for testing from a Mac over Wi-Fi.</string>
+    <string name="settings_link">Link</string>
+    <string name="link_connecting">Connecting</string>
+    <string name="link_not_connected">Not Connected</string>
+    <string name="settings_port">Port</string>
+    <string name="settings_use_port">Use Port %1$d</string>
+    <string name="settings_wifi">Wi-Fi</string>
+
+    <!-- Settings: performance -->
+    <string name="settings_performance">Performance</string>
+    <string name="settings_performance_footer">Changing the processor prepares models again.</string>
+    <string name="settings_processor">Processor</string>
+    <string name="settings_keep_npu">Keep NPU Awake</string>
+    <string name="settings_keep_npu_support">Holds the NPU at full speed between frames.</string>
+    <string name="settings_keep_cpu">Keep CPU Awake</string>
+    <string name="settings_keep_cpu_support">Holds the CPU\'s clocks up between frames.</string>
+
+    <!-- Settings: display & language -->
+    <string name="settings_display">Display</string>
+    <string name="settings_display_footer">Jetlink keeps serving with the screen off.</string>
+    <string name="settings_keep_screen_on">Keep Screen On</string>
+    <string name="settings_language">Language / 语言</string>
+
+    <!-- Settings: storage -->
+    <string name="settings_storage">Storage</string>
+    <string name="storage_downloaded">Downloaded</string>
+    <string name="storage_prepared">Prepared</string>
+    <string name="storage_available">Available</string>
+
+    <!-- Settings: help -->
+    <string name="settings_help">Help</string>
+    <string name="help_connect">Connecting the Comma</string>
+    <string name="help_logs">Logs</string>
+
+    <!-- Settings: about -->
+    <string name="settings_about">About</string>
+    <string name="about_version">Version</string>
+    <string name="about_runtime">Runtime</string>
+    <string name="about_chip">Chip</string>
+    <string name="about_server">Server</string>
+    <string name="server_stopped">Stopped</string>
+    <string name="server_starting">Starting</string>
+    <string name="server_running">Running</string>
+    <string name="server_failed">Failed</string>
+    <string name="action_start_server">Start Server</string>
+    <string name="action_restart_server">Restart Server</string>
+    <string name="action_stop_server">Stop Server</string>
+
+    <!-- Status: summary -->
+    <string name="summary_failed">Stopped</string>
+    <string name="summary_starting">Starting</string>
+    <string name="summary_stopped">Stopped</string>
+    <string name="summary_preparing">Preparing Model</string>
+    <string name="summary_loading">Loading Model</string>
+    <string name="summary_model_failed">Model Failed</string>
+    <string name="summary_allow_usb">Allow USB</string>
+    <string name="summary_connected">Connected</string>
+    <string name="summary_no_model">No Model</string>
+    <string name="summary_waiting">Waiting for Comma</string>
+    <string name="summary_disconnected">Disconnected</string>
+    <string name="summary_connected_over">Connected over %1$s</string>
+
+    <!-- Status: notes -->
+    <string name="note_connecting">Connecting</string>
+    <string name="note_waiting">Waiting</string>
+    <string name="note_slow_link">Slow, use USB 3</string>
+    <string name="note_below_20">Below 20</string>
+    <string name="note_over_60ms">Over 60 ms</string>
+    <string name="note_battery_temp">Battery %1$d °C</string>
+    <string name="power_charged">Charged</string>
+    <string name="power_charging">Charging</string>
+    <string name="power_unknown">Unknown</string>
+    <string name="power_battery_saver">Battery Saver</string>
+    <string name="power_not_charging">Not Charging</string>
+    <string name="memory_low">Low</string>
+    <string name="memory_free">Free</string>
+    <string name="note_throttling">Throttling</string>
+    <string name="thermal_normal">Normal</string>
+    <string name="thermal_warm">Warm</string>
+    <string name="thermal_hot">Hot</string>
+    <string name="thermal_critical">Critical</string>
+    <string name="waiting_desc_usb">Connecting over USB.</string>
+    <string name="waiting_desc_plug">Plug in the comma.</string>
+
+    <!-- Status: cards & tiles -->
+    <string name="card_headroom">Headroom</string>
+    <string name="label_max">Max</string>
+    <string name="hero_loading">Loading</string>
+    <string name="hero_preparing">Preparing</string>
+    <string name="placeholder_model">Model</string>
+    <string name="hero_stopped">Jetlink Stopped</string>
+    <string name="action_start">Start</string>
+    <string name="allow_usb_desc">Tap OK when Android asks, and tick Always open.</string>
+    <string name="action_ask_again">Ask Again</string>
+    <string name="no_model_catalog_error">Couldn\'t load models. Check your connection.</string>
+    <string name="no_model_hint">Get a model before you drive.</string>
+    <string name="action_try_again">Try Again</string>
+    <string name="action_get_model">Get %1$s</string>
+    <string name="action_browse_models">Browse Models</string>
+    <string name="model_failed_desc">Couldn\'t prepare this model. See Logs for details.</string>
+    <string name="stopped_see_logs">See Logs for details.</string>
+    <string name="banner_allow_usb">Allow USB: tap OK when Android asks, and tick Always open.</string>
+    <string name="section_latency">Latency</string>
+    <string name="section_history">History</string>
+    <string name="section_link">Link</string>
+    <string name="section_phone">Phone</string>
+    <string name="last_10s">Last 10 s</string>
+    <string name="last_2min">2 min</string>
+    <string name="tile_frame_rate">Frame Rate</string>
+    <string name="tile_slow_frames">Slow Frames</string>
+    <string name="tile_temperature">Temperature</string>
+    <string name="tile_battery">Battery</string>
+    <string name="tile_memory">Memory</string>
+    <string name="tile_link">Link</string>
+    <string name="link_none">None</string>
+    <string name="content_desc_logs">Logs</string>
+
+    <!-- Models -->
+    <string name="content_desc_refresh">Refresh</string>
+    <string name="content_desc_add_model">Add Model File</string>
+    <string name="model_delete_title">Delete %1$s?</string>
+    <string name="model_delete_text">You can download it again later.</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="model_use_title">Use %1$s?</string>
+    <string name="model_use_text">The comma uses its small model until this one is ready.</string>
+    <string name="action_use_model">Use Model</string>
+    <string name="error_title">Couldn\'t Complete</string>
+    <string name="section_available">Available</string>
+    <string name="section_adding">Adding</string>
+    <string name="section_added">Added</string>
+    <string name="section_uploaded">Uploaded</string>
+    <string name="catalog_refresh_failed">Couldn\'t refresh. Pull down to try again.</string>
+    <string name="catalog_load_failed">Couldn\'t Load</string>
+    <string name="loading">Loading…</string>
+    <string name="tag_default">Default</string>
+    <string name="content_desc_in_use">In Use</string>
+    <string name="action_get">Get</string>
+    <string name="action_use">Use</string>
+    <string name="content_desc_more">More</string>
+    <string name="menu_stop_download">Stop Download</string>
+    <string name="menu_stop_using">Stop Using</string>
+
+    <!-- Connect help -->
+    <string name="connect_step_1">On the comma, set Accelerator Link to USB, offroad.</string>
+    <string name="connect_step_2">Plug a USB 3 hub with power pass-through into the phone.</string>
+    <string name="connect_step_3">Connect the hub to the comma with a USB-A to USB-C cable.</string>
+    <string name="connect_step_4">Plug a charger into the hub.</string>
+    <string name="connect_step_5">When Android asks, tap OK and tick Always open.</string>
+    <string name="connect_step_6">Wait for Connected.</string>
+    <string name="connect_footer_otg">Or use a USB-C OTG adapter instead of the hub. The phone then does not charge.</string>
+    <string name="section_good_to_know">Good to Know</string>
+    <string name="connect_note_1">OnePlus, OPPO and realme: turn on OTG connection in Settings.</string>
+    <string name="connect_note_2">Jetlink keeps running with the screen off while its notification shows.</string>
+    <string name="connect_footer_usb3">Every hop must be USB 3: the phone, the hub and the cable. USB 2 leaves less time for each frame.</string>
+    <string name="action_learn_more">Learn More</string>
+
+    <!-- Logs -->
+    <string name="content_desc_share">Share</string>
+    <string name="content_desc_clear">Clear</string>
+    <string name="no_logs">No Logs</string>
+
+    <!-- Benchmark -->
+    <string name="bench_blocker_not_serving">The server is not running.</string>
+    <string name="bench_blocker_no_model">Load a model first.</string>
+    <string name="bench_blocker_comma">Disconnect the comma first.</string>
+    <string name="bench_1min">1 Minute</string>
+    <string name="bench_10min">10 Minutes</string>
+    <string name="bench_failed">The benchmark failed. See Logs for details.</string>
+    <string name="bench_hint">Run it with the phone charging and in its mount.</string>
+    <string name="bench_refusal">Couldn\'t start the benchmark.</string>
+    <string name="bench_elapsed">%1$s of %2$s</string>
+    <string name="bench_frames">%1$s frames</string>
+    <string name="bench_verdict">Verdict</string>
+    <string name="verdict_stopped_early">Stopped Early</string>
+    <string name="verdict_good_title">Fast Enough</string>
+    <string name="verdict_good_detail">Room for the cable in the 50 ms budget.</string>
+    <string name="verdict_tight_title">Tight</string>
+    <string name="verdict_tight_detail">Little room left for the cable.</string>
+    <string name="verdict_slow_title">Too Slow</string>
+    <string name="verdict_slow_detail">Misses 20 frames a second.</string>
+    <string name="label_mean">Mean</string>
+    <string name="tile_frames">Frames</string>
+    <string name="tile_over_budget">Over Budget</string>
+    <string name="bench_frames_note">%1$s at 20 Hz</string>
+    <string name="bench_over_note_pos">%1$s over 35 ms</string>
+    <string name="bench_over_note_none">None over 35 ms</string>
+    <string name="bench_thermal_throughout">Throughout</string>
+    <string name="bench_thermal_from">From %1$s</string>
+    <string name="bench_model_note">Mean, model alone</string>
+    <string name="section_from_comma">From the Comma</string>
+    <string name="section_accuracy">Accuracy</string>
+    <string name="bench_over_cable">Over the Cable</string>
+    <string name="bench_from_mac">From a Mac</string>
+    <string name="bench_missing_model">Load a model to get the command.</string>
+    <string name="bench_missing_wifi">Join Wi-Fi and load a model to get the command.</string>
+    <string name="bench_note_comma">Run it on the comma over SSH, offroad, with Accelerator Link set to USB.</string>
+    <string name="bench_note_mac">Run it in a jetlink checkout on a Mac on the same Wi-Fi.</string>
+    <string name="action_copy">Copy</string>
+    <string name="bench_copied">Copied</string>
+    <string name="section_over_time">Over Time</string>
+    <string name="bench_10s_each">10 s each</string>
+    <string name="expectation_should">Should keep up</string>
+    <string name="expectation_possible">Might keep up</string>
+    <string name="expectation_too_old">NPU too old</string>
+    <string name="expectation_no_npu">No Snapdragon NPU</string>
+</resources>

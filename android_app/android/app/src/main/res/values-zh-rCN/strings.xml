@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Jetlink</string>
+
+    <!-- Tabs -->
+    <string name="tab_status">状态</string>
+    <string name="tab_models">模型</string>
+    <string name="tab_benchmark">跑分</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- Shutdown dialog -->
+    <string name="shutdown_title">Comma 请求关机</string>
+    <string name="shutdown_text">Jetlink 无法关闭手机，但你可以关闭本应用。</string>
+    <string name="ok">确定</string>
+
+    <!-- Settings: connection -->
+    <string name="settings_connection">连接</string>
+    <string name="settings_connection_footer">此端口仅用于通过 Wi-Fi 从 Mac 进行测试。</string>
+    <string name="settings_link">链路</string>
+    <string name="link_connecting">连接中</string>
+    <string name="link_not_connected">未连接</string>
+    <string name="settings_port">端口</string>
+    <string name="settings_use_port">使用端口 %1$d</string>
+    <string name="settings_wifi">Wi-Fi</string>
+
+    <!-- Settings: performance -->
+    <string name="settings_performance">性能</string>
+    <string name="settings_performance_footer">更改处理器后会重新准备模型。</string>
+    <string name="settings_processor">处理器</string>
+    <string name="settings_keep_npu">保持 NPU 唤醒</string>
+    <string name="settings_keep_npu_support">帧间维持 NPU 全速运行。</string>
+    <string name="settings_keep_cpu">保持 CPU 唤醒</string>
+    <string name="settings_keep_cpu_support">帧间维持 CPU 高频运行。</string>
+
+    <!-- Settings: display & language -->
+    <string name="settings_display">显示</string>
+    <string name="settings_display_footer">熄屏后 Jetlink 仍会继续服务。</string>
+    <string name="settings_keep_screen_on">保持屏幕常亮</string>
+    <string name="settings_language">Language / 语言</string>
+
+    <!-- Settings: storage -->
+    <string name="settings_storage">存储</string>
+    <string name="storage_downloaded">已下载</string>
+    <string name="storage_prepared">已准备</string>
+    <string name="storage_available">可用</string>
+
+    <!-- Settings: help -->
+    <string name="settings_help">帮助</string>
+    <string name="help_connect">连接 Comma</string>
+    <string name="help_logs">日志</string>
+
+    <!-- Settings: about -->
+    <string name="settings_about">关于</string>
+    <string name="about_version">版本</string>
+    <string name="about_runtime">运行时</string>
+    <string name="about_chip">芯片</string>
+    <string name="about_server">服务</string>
+    <string name="server_stopped">已停止</string>
+    <string name="server_starting">启动中</string>
+    <string name="server_running">运行中</string>
+    <string name="server_failed">失败</string>
+    <string name="action_start_server">启动服务</string>
+    <string name="action_restart_server">重启服务</string>
+    <string name="action_stop_server">停止服务</string>
+
+    <!-- Status: summary -->
+    <string name="summary_failed">已停止</string>
+    <string name="summary_starting">启动中</string>
+    <string name="summary_stopped">已停止</string>
+    <string name="summary_preparing">正在准备模型</string>
+    <string name="summary_loading">正在加载模型</string>
+    <string name="summary_model_failed">模型失败</string>
+    <string name="summary_allow_usb">允许 USB</string>
+    <string name="summary_connected">已连接</string>
+    <string name="summary_no_model">无模型</string>
+    <string name="summary_waiting">等待 Comma</string>
+    <string name="summary_disconnected">已断开</string>
+    <string name="summary_connected_over">已通过 %1$s 连接</string>
+
+    <!-- Status: notes -->
+    <string name="note_connecting">连接中</string>
+    <string name="note_waiting">等待中</string>
+    <string name="note_slow_link">速度慢，请使用 USB 3</string>
+    <string name="note_below_20">低于 20</string>
+    <string name="note_over_60ms">超过 60 ms</string>
+    <string name="note_battery_temp">电池 %1$d °C</string>
+    <string name="power_charged">已充满</string>
+    <string name="power_charging">充电中</string>
+    <string name="power_unknown">未知</string>
+    <string name="power_battery_saver">省电模式</string>
+    <string name="power_not_charging">未充电</string>
+    <string name="memory_low">偏低</string>
+    <string name="memory_free">可用</string>
+    <string name="note_throttling">降频中</string>
+    <string name="thermal_normal">正常</string>
+    <string name="thermal_warm">偏热</string>
+    <string name="thermal_hot">很热</string>
+    <string name="thermal_critical">过热</string>
+    <string name="waiting_desc_usb">正在通过 USB 连接。</string>
+    <string name="waiting_desc_plug">请插入 Comma。</string>
+
+    <!-- Status: cards & tiles -->
+    <string name="card_headroom">余量</string>
+    <string name="label_max">最大</string>
+    <string name="hero_loading">加载中</string>
+    <string name="hero_preparing">准备中</string>
+    <string name="placeholder_model">模型</string>
+    <string name="hero_stopped">Jetlink 已停止</string>
+    <string name="action_start">启动</string>
+    <string name="allow_usb_desc">在 Android 弹出提示时点「确定」，并勾选「一律打开」。</string>
+    <string name="action_ask_again">再次询问</string>
+    <string name="no_model_catalog_error">无法加载模型列表，请检查网络连接。</string>
+    <string name="no_model_hint">出发前先获取一个模型。</string>
+    <string name="action_try_again">重试</string>
+    <string name="action_get_model">获取 %1$s</string>
+    <string name="action_browse_models">浏览模型</string>
+    <string name="model_failed_desc">无法准备此模型，详情见日志。</string>
+    <string name="stopped_see_logs">详情见日志。</string>
+    <string name="banner_allow_usb">允许 USB：在 Android 弹出提示时点「确定」，并勾选「一律打开」。</string>
+    <string name="section_latency">延迟</string>
+    <string name="section_history">历史</string>
+    <string name="section_link">链路</string>
+    <string name="section_phone">手机</string>
+    <string name="last_10s">最近 10 秒</string>
+    <string name="last_2min">2 分钟</string>
+    <string name="tile_frame_rate">帧率</string>
+    <string name="tile_slow_frames">慢帧</string>
+    <string name="tile_temperature">温度</string>
+    <string name="tile_battery">电池</string>
+    <string name="tile_memory">内存</string>
+    <string name="tile_link">链路</string>
+    <string name="link_none">无</string>
+    <string name="content_desc_logs">日志</string>
+
+    <!-- Models -->
+    <string name="content_desc_refresh">刷新</string>
+    <string name="content_desc_add_model">添加模型文件</string>
+    <string name="model_delete_title">删除 %1$s？</string>
+    <string name="model_delete_text">之后可以重新下载。</string>
+    <string name="action_delete">删除</string>
+    <string name="action_cancel">取消</string>
+    <string name="model_use_title">使用 %1$s？</string>
+    <string name="model_use_text">在此模型就绪前，Comma 会继续使用它自带的小模型。</string>
+    <string name="action_use_model">使用模型</string>
+    <string name="error_title">操作未完成</string>
+    <string name="section_available">可获取</string>
+    <string name="section_adding">添加中</string>
+    <string name="section_added">已添加</string>
+    <string name="section_uploaded">已导入</string>
+    <string name="catalog_refresh_failed">刷新失败，下拉重试。</string>
+    <string name="catalog_load_failed">无法加载</string>
+    <string name="loading">加载中…</string>
+    <string name="tag_default">默认</string>
+    <string name="content_desc_in_use">使用中</string>
+    <string name="action_get">获取</string>
+    <string name="action_use">使用</string>
+    <string name="content_desc_more">更多</string>
+    <string name="menu_stop_download">停止下载</string>
+    <string name="menu_stop_using">停止使用</string>
+
+    <!-- Connect help -->
+    <string name="connect_step_1">在 Comma 上（离线状态）将 Accelerator Link 设为 USB。</string>
+    <string name="connect_step_2">将带供电直通的 USB 3 集线器插入手机。</string>
+    <string name="connect_step_3">用 USB-A 转 USB-C 线把集线器连接到 Comma。</string>
+    <string name="connect_step_4">给集线器接上充电器。</string>
+    <string name="connect_step_5">在 Android 弹出提示时点「确定」并勾选「一律打开」。</string>
+    <string name="connect_step_6">等待显示「已连接」。</string>
+    <string name="connect_footer_otg">也可以用 USB-C OTG 转接头代替集线器，此时手机不会充电。</string>
+    <string name="section_good_to_know">注意事项</string>
+    <string name="connect_note_1">一加、OPPO 和 realme：需要在系统设置中打开 OTG 连接。</string>
+    <string name="connect_note_2">只要通知还在，Jetlink 熄屏后仍会继续运行。</string>
+    <string name="connect_footer_usb3">每一环都必须是 USB 3：手机、集线器和线缆。USB 2 会压缩每帧的可用时间。</string>
+    <string name="action_learn_more">了解更多</string>
+
+    <!-- Logs -->
+    <string name="content_desc_share">分享</string>
+    <string name="content_desc_clear">清空</string>
+    <string name="no_logs">暂无日志</string>
+
+    <!-- Benchmark -->
+    <string name="bench_blocker_not_serving">服务未运行。</string>
+    <string name="bench_blocker_no_model">请先加载模型。</string>
+    <string name="bench_blocker_comma">请先断开 Comma。</string>
+    <string name="bench_1min">1 分钟</string>
+    <string name="bench_10min">10 分钟</string>
+    <string name="bench_failed">跑分失败，详情见日志。</string>
+    <string name="bench_hint">跑分时请给手机充电并固定在支架上。</string>
+    <string name="bench_refusal">无法启动跑分。</string>
+    <string name="bench_elapsed">%1$s / 共 %2$s</string>
+    <string name="bench_frames">%1$s 帧</string>
+    <string name="bench_verdict">结论</string>
+    <string name="verdict_stopped_early">提前结束</string>
+    <string name="verdict_good_title">足够快</string>
+    <string name="verdict_good_detail">50 ms 预算内仍留有线缆传输余量。</string>
+    <string name="verdict_tight_title">勉强够用</string>
+    <string name="verdict_tight_detail">线缆传输所剩余量很少。</string>
+    <string name="verdict_slow_title">太慢</string>
+    <string name="verdict_slow_detail">达不到每秒 20 帧。</string>
+    <string name="label_mean">平均</string>
+    <string name="tile_frames">帧数</string>
+    <string name="tile_over_budget">超预算</string>
+    <string name="bench_frames_note">%1$s @ 20 Hz</string>
+    <string name="bench_over_note_pos">%1$s 帧超过 35 ms</string>
+    <string name="bench_over_note_none">没有超过 35 ms 的帧</string>
+    <string name="bench_thermal_throughout">全程不变</string>
+    <string name="bench_thermal_from">从「%1$s」开始</string>
+    <string name="bench_model_note">仅模型本身的平均值</string>
+    <string name="section_from_comma">来自 Comma 端</string>
+    <string name="section_accuracy">精度校验</string>
+    <string name="bench_over_cable">经线缆</string>
+    <string name="bench_from_mac">从 Mac 端</string>
+    <string name="bench_missing_model">加载模型后才能获取命令。</string>
+    <string name="bench_missing_wifi">连接 Wi-Fi 并加载模型后才能获取命令。</string>
+    <string name="bench_note_comma">在 Comma 上离线通过 SSH 运行，并将 Accelerator Link 设为 USB。</string>
+    <string name="bench_note_mac">在同一 Wi-Fi 下的 Mac 的 jetlink 检出目录中运行。</string>
+    <string name="action_copy">复制</string>
+    <string name="bench_copied">已复制</string>
+    <string name="section_over_time">随时间变化</string>
+    <string name="bench_10s_each">每 10 秒一段</string>
+    <string name="expectation_should">应该跟得上</string>
+    <string name="expectation_possible">可能跟得上</string>
+    <string name="expectation_too_old">NPU 过旧</string>
+    <string name="expectation_no_npu">无骁龙 NPU</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The comma's jetlink gadget: 1209:0001 (Pinned.usbVendorID and
+     usbProductID) with the strings jetlink-root.sh gives it. The IDs are
+     pid.codes' test pair, so the strings keep other test gadgets out. -->
+<resources>
+    <usb-device vendor-id="4617" product-id="1" manufacturer-name="zoompilot" product-name="jetlink" />
+</resources>
