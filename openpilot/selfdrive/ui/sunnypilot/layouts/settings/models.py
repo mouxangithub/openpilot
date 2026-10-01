@@ -126,7 +126,10 @@ class ModelsLayout(Widget):
 
   @staticmethod
   def _link_description(status: str) -> str:
-    what = tr("Run the big driving model on an attached accelerator: USB for a Jetson, a Linux PC or a Mac, iOS for an iPhone.")
+    # An Android phone rides the USB mode exactly like a Jetson or a Mac
+    # (jetlink docs/android-app.md: "Accelerator Link on USB"), so the USB
+    # option covers it; iOS keeps its own mode.
+    what = tr("Run the big driving model on an attached accelerator: USB for a Jetson, a Linux PC, a Mac or an Android phone; iOS for an iPhone.")
     return f"{what} {status}".strip()
 
   def _refresh_accelerator_items(self):

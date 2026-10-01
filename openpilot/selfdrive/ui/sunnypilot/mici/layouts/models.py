@@ -25,7 +25,7 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 
 
 # the value line: the mode, and what it is for
-LINK_MODE_LABELS = {"off": "off", "usb": "usb: mac, linux", "ios": "iOS: iPhone, iPad"}
+LINK_MODE_LABELS = {"off": "off", "usb": "usb: mac, linux, android", "ios": "iOS: iPhone, iPad"}
 
 
 class AcceleratorLinkToggle(BigMultiToggle):
