@@ -4446,7 +4446,7 @@ msgstr "comma prime"
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\network\wifi_ui.py
 msgid "connect"
-msgstr ""
+msgstr "連接"
 
 #: openpilot\system\ui\mici_setup.py
 msgid ""
