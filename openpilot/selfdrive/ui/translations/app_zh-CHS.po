@@ -5504,3 +5504,75 @@ msgstr "已订阅"
 msgid "🚀 sunnylink 🚀"
 msgstr "🚀 SunnyLink 🚀"
 
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Accelerator Link"
+msgstr "外接算力连接"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Run the big driving model on an attached accelerator: USB for a Jetson, a Linux PC, a Mac or an Android phone; iOS for an iPhone."
+msgstr "在已连接的外接算力上运行大模型：USB 支持 Jetson、Linux 电脑、Mac 或安卓手机；iOS 支持 iPhone。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Nothing on the USB port."
+msgstr "USB 端口上没有设备。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "A device is on the USB port."
+msgstr "USB 端口上有设备。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "The big model"
+msgstr "大模型"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "{} is ready. Disengage fully, then re-engage to switch."
+msgstr "{} 已就绪。完全松开控制后重新接合即可切换。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "{} will drive when the accelerator is ready."
+msgstr "外接算力就绪后 {} 将参与驾驶。"
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "accelerator link"
+msgstr "外接算力连接"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "download"
+msgstr "下载"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "ready"
+msgstr "就绪"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "looking up the model"
+msgstr "正在查找模型"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "downloading the large model"
+msgstr "正在下载大模型"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "could not download the large model"
+msgstr "无法下载大模型"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "talking to the accelerator"
+msgstr "正在与外接算力通信"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "engine ready"
+msgstr "引擎已就绪"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "see the log"
+msgstr "详见日志"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "waiting for the accelerator"
+msgstr "正在等待外接算力"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "ready; re-engage to switch models"
+msgstr "已就绪；重新接合以切换模型"
