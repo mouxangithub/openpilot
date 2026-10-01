@@ -120,6 +120,11 @@ class ModelsLayout(Widget):
     self.items = [self.small_model_item, self.big_model_item, self.accelerator_link_item, self.cancel_download_item, self.download_item, self.refresh_item, self.clear_cache_item,
                   self.lane_turn_desire_toggle, self.lane_turn_value_control, self.lagd_toggle, self.delay_control, self.camera_offset]
 
+    # initial visibility/selection for the param-bound accelerator row (the
+    # periodic _update_state tick also refreshes this, but late)
+    self._refresh_accelerator_items()
+
+  @staticmethod
   def _link_description(status: str) -> str:
     what = tr("Run the big driving model on an attached accelerator: USB for a Jetson, a Linux PC or a Mac, iOS for an iPhone.")
     return f"{what} {status}".strip()
