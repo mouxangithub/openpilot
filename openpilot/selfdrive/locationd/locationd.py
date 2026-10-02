@@ -78,8 +78,17 @@ class LocationEstimator:
     self.car_speed = 0.0
     self.camodo_yawrate_distribution = np.array([0.0, 10.0])  # mean, std
     self.device_from_calib = np.eye(3)
-    self.imu_calib_matrix = load_imu_calibration_matrix(params or Params())
+    params = params or Params()
+    self.imu_calib_matrix = load_imu_calibration_matrix(params)
     self.use_imu_calib = self.imu_calib_matrix is not None
+    # IMU calibration is what allows arbitrary mount angles in the first place:
+    # while it is enabled, paramsd's rpyCalib legitimately sits far outside the
+    # legacy +-30 deg window (a horizontally mounted C3 reads ~90 deg pitch), so
+    # the legacy sanity gate must not reject those frames — before the IMU matrix
+    # lands, every one of them counted INPUT_INVALID and cameraOdometry only
+    # tolerates two, which flipped inputsOK and raised the sunnypilot-unavailable
+    # alert while driving.
+    self._imu_calibration_enabled = params.get_bool("ImuCalibrationEnabled")
     if self.use_imu_calib:
       self.device_from_calib = self.imu_calib_matrix
     # Set once the calibrated IMU matrix takes over; afterwards camera rpyCalib
@@ -191,8 +200,9 @@ class LocationEstimator:
         calib = np.array(msg.rpyCalib)
         # When IMU calibration is enabled the device can be mounted at large
         # angles (e.g. horizontal), so the stock rpyCalib sanity limits do not
-        # apply. Only enforce them in the legacy non-IMU-calibration path.
-        if not self.use_imu_calib and (calib.min() < -CALIB_RPY_SANITY_CHECK or calib.max() > CALIB_RPY_SANITY_CHECK):
+        # apply — not even while the IMU matrix is still being collected.
+        # Only enforce them in the legacy non-IMU-calibration path.
+        if not self._imu_calibration_enabled and not self.use_imu_calib and (calib.min() < -CALIB_RPY_SANITY_CHECK or calib.max() > CALIB_RPY_SANITY_CHECK):
           return HandleLogResult.INPUT_INVALID
         self.device_from_calib = rot_from_euler(calib)
 
