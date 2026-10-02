@@ -199,6 +199,15 @@ class ModelFetcher:
       # Raise for any other 4xx/5xx
       response.raise_for_status()
 
+      catalog_bytes = response.content
+      from openpilot.sunnypilot.models.signing import fetch_catalog_signature, verify_catalog, has_trusted_keys
+      accepted, reason = verify_catalog(catalog_bytes, fetch_catalog_signature(model_url))
+      cloudlog.info(f"Model catalog signature check ({source}): {reason}")
+      if not accepted:
+        # a trust root is installed and the catalog didn't verify: do not let a
+        # forged catalog reach the model cache or the downloader
+        raise HTTPError(f"Model catalog rejected: {reason}", response=response)
+
       json_data = response.json()
       if source == "chestnut":
         from openpilot.sunnypilot import jetlink_adapter
