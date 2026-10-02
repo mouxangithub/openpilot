@@ -17,11 +17,7 @@ SOURCE_DIRS = [
   SELFDRIVE_DIR / "selfdrived",
   SELFDRIVE_DIR / "ui",
   ROOT_DIR / "system" / "ui",
-  ROOT_DIR / "dragonpilot",
-  # sunnypilot's events.py carries its own hardcoded Chinese alert text
-  # ("locationd临时错误", "sunnypilot 不可用", ...) — without this the glyphs for
-  # those alerts never reach the atlases and every alert renders as "?".
-  ROOT_DIR / "sunnypilot" / "selfdrive" / "selfdrived",
+  ROOT_DIR / "sunnypilot",
 ]
 
 GLYPH_PADDING = 6
