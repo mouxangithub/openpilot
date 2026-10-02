@@ -35,6 +35,8 @@ ROUTES_NO_CONNECTIVITY_MAX = 84
 # send an offroad prompt after this many hours onroad and this many routes
 HOURS_NO_CONNECTIVITY_PROMPT = 23
 ROUTES_NO_CONNECTIVITY_PROMPT = 80
+from openpilot.sunnypilot.system.updated.connectivity import HOURS_NO_CONNECTIVITY_MAX, ROUTES_NO_CONNECTIVITY_MAX  # noqa: F811
+from openpilot.sunnypilot.system.updated.connectivity import HOURS_NO_CONNECTIVITY_PROMPT, ROUTES_NO_CONNECTIVITY_PROMPT  # noqa: F811
 
 
 class UserRequest:
