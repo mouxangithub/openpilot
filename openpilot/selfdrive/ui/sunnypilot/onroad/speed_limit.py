@@ -197,12 +197,15 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
   def _render(self, rect: rl.Rectangle):
     width = UI_CONFIG.set_speed_width_metric if ui_state.is_metric else UI_CONFIG.set_speed_width_imperial
 
-    # CarrotPanelSide: 0=left (left edge), 1=right (next to speed display, default).
+    # CarrotPanelSide: 0=left (stacked under the MAX box), 1=right (next to the MAX box, default).
+    # The MAX box owns x+46..x+246 at the left edge of the content area, so "left" can only mean
+    # *below* it — the original x+60 landed exactly on top of the MAX box.
     if self._panel_side == 0:
       x = rect.x + 60
+      y = rect.y + 45 + UI_CONFIG.set_speed_height + 24
     else:
       x = rect.x + 60 + width + 30 - 6
-    y = rect.y + 45 - 6
+      y = rect.y + 45 - 6
 
     sign_rect = rl.Rectangle(x, y, width, UI_CONFIG.set_speed_height + 6 * 2)
 
