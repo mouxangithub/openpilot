@@ -62,6 +62,11 @@ class ServerController(private val context: Context, private val scope: Coroutin
 
     /** Starts the server with [settings], restarting one that runs. */
     suspend fun start(settings: SettingsValues) = lifecycle.withLock {
+        if (!Native.loaded) {
+            // a build without the Swift server: refuse in the UI, never crash
+            run.value = RunState.Failed("libjetlink.so is missing from this build; rebuild it with the Swift server.")
+            return@withLock
+        }
         run.value = RunState.Starting
         // the server stops one that runs first
         val error = withContext(Dispatchers.IO) { Native.start(config(settings).toString()) }
@@ -77,7 +82,9 @@ class ServerController(private val context: Context, private val scope: Coroutin
     }
 
     suspend fun stop() = lifecycle.withLock {
-        withContext(Dispatchers.IO) { Native.stop() }
+        if (Native.loaded) {
+            withContext(Dispatchers.IO) { Native.stop() }
+        }
         run.value = RunState.Stopped
     }
 

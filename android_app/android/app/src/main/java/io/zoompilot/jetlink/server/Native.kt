@@ -7,8 +7,16 @@ package io.zoompilot.jetlink.server
  * snapshot, logs) belong on a background thread.
  */
 object Native {
-    init {
+    /**
+     * False on a build without libjetlink.so (packaged without the Swift
+     * server). The library loads at first touch of this object, so call
+     * sites check [loaded] first and degrade instead of crashing the app.
+     */
+    val loaded: Boolean = try {
         System.loadLibrary("jetlink")
+        true
+    } catch (error: UnsatisfiedLinkError) {
+        false
     }
 
     /** Starts the server; null, or why it could not start. */

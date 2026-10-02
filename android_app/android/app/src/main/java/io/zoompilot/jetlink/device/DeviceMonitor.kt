@@ -59,7 +59,10 @@ class DeviceMonitor(context: Context, scope: CoroutineScope) {
             context, receiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         // Called at once with the current status, then on each change.
-        power.addThermalStatusListener(Dispatchers.Default.asExecutor()) { Native.reportThermal(thermalLabel(it)) }
+        // Skipped without libjetlink.so: touching Native would crash the app.
+        if (Native.loaded) {
+            power.addThermalStatusListener(Dispatchers.Default.asExecutor()) { Native.reportThermal(thermalLabel(it)) }
+        }
     }
 
     val health: StateFlow<DeviceHealth> = flow {

@@ -71,6 +71,7 @@ class CommaUsb(private val context: Context) {
 
     private fun attach(device: UsbDevice) {
         disconnect()
+        if (!Native.loaded) return fail("libjetlink.so is missing; the server cannot take the link")
         val iface = linkInterface(device) ?: return fail("the comma's gadget has no vendor interface")
         val bulkIn = endpoint(iface, UsbConstants.USB_DIR_IN) ?: return fail("the gadget's interface has no bulk IN endpoint")
         val bulkOut = endpoint(iface, UsbConstants.USB_DIR_OUT) ?: return fail("the gadget's interface has no bulk OUT endpoint")
@@ -95,7 +96,7 @@ class CommaUsb(private val context: Context) {
     fun disconnect() {
         val current = open ?: return
         open = null
-        Native.usbDetach()
+        if (Native.loaded) Native.usbDetach()
         current.connection.releaseInterface(current.iface)
         current.connection.close()
         state.value = UsbState.None
