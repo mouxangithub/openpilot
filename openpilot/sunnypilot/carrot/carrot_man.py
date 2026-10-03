@@ -273,11 +273,12 @@ def _navi_meta(item: Any) -> tuple[bool, int]:
 DEFAULT_RATE = 10.  # Hz
 
 # How long the UDP status broadcast (7705) holds the last fresh speed/cruise/active when the
-# cereal source briefly lapses. `sm.alive` for carState is only a 10/freq = 0.1 s window,
-# so a momentary GC / Ratekeeper / heavy-navi stall flips it False and - without this hold -
-# the broadcast would dump every value to 0. A genuinely stopped car still reports 0 here
-# (carState keeps publishing vEgoCluster == 0, so alive stays True); this only prevents a
-# spurious 0 from a ~1 s hiccup.
+# cereal source briefly lapses. The reads below use `sm.valid` (msg.valid, i.e. carState.valid
+# = CAN health), NOT `sm.alive`: alive is a 10/freq = 0.1 s window and flips False whenever
+# this process stalls longer than that (GC / Ratekeeper / heavy navi work), which zeroed the
+# broadcast - the "仪表盘 80、app 跳 0" flicker. A genuinely stopped car still reports 0
+# because carState keeps publishing vEgoCluster == 0 with valid True; this hold only covers a
+# real CAN gap, where valid itself goes False.
 BROADCAST_HOLD_SEC = 1.5
 UDP_BUFFER_SIZE = 4096
 PACKET_TIMEOUT_SEC = 8.0
@@ -889,7 +890,7 @@ class CarrotManager:
         accel_limit_kmh = accel_limit * 3.6  # Convert to km/h per second
         out_speeds = [0.0] * len(speeds)
         out_speeds[-1] = speeds[-1]
-        v_ego_kph = self.sm['carState'].vEgo * 3.6 if self.sm.alive.get('carState', False) else 0.0
+        v_ego_kph = self.sm['carState'].vEgo * 3.6 if self.sm.valid.get('carState', False) else 0.0
 
         time_delay = self._carrot_serv.auto_navi_speed_ctrl_end
         time_wait = 0.0
@@ -1012,7 +1013,7 @@ class CarrotManager:
     raw = self._carrot_serv.raw
 
     # Vehicle CAN navi display fields (cluster/UI)
-    cs = self.sm["carState"] if self.sm.alive.get("carState", False) else None
+    cs = self.sm["carState"] if self.sm.valid.get("carState", False) else None
     vehicle_navi_active, vehicle_navi_speed, vehicle_navi_section_active = self._carrot_serv._vehicle_navigation_display(cs)
     vehicle_navi_available = bool(getattr(cs, "vehicleNaviAvailable", False)) if cs is not None else False
 
@@ -1384,7 +1385,7 @@ class CarrotManager:
           # to a per-frame lookup. The road class is refreshed on the live instance
           # for the same reason - it is read from the navi packet, which changes.
           vturn_speed = 0.0
-          if self.sm.alive.get('carState', False) and self.sm.alive.get('modelV2', False):
+          if self.sm.valid.get('carState', False) and self.sm.valid.get('modelV2', False):
             try:
               if self._curve_planner is None:
                 from openpilot.sunnypilot.carrot.carrot_functions import CarrotPlanner
@@ -1449,21 +1450,21 @@ class CarrotManager:
   def _refresh_broadcast_status(self, now: float) -> None:
     """Recompute the values the UDP status broadcast carries, holding last-good on a lapse.
 
-    `sm.alive` for carState is a 10/freq = 0.1 s window - far shorter than the occasional
-    GC / Ratekeeper / heavy-navi stall this process hits while driving - so a momentary lag
-    flips it False. Without a hold, the broadcast would dump speed/cruise/active to 0 for a
-    hiccup, which is exactly the "仪表盘 80、app 跳 0" flicker. A genuinely stopped car still
-    reports 0 here because carState keeps publishing (vEgoCluster -> 0) while alive stays
-    True; the hold only suppresses a spurious 0 from a transient source lapse.
+    Reads use `sm.valid` (msg.valid), not `sm.alive`: alive is a 10/freq = 0.1 s window and
+    flips False whenever this process stalls longer than that (GC / Ratekeeper / heavy-navi
+    work), which dumped speed/cruise/active to 0 - the "仪表盘 80、app 跳 0" flicker. valid
+    mirrors carState.valid (CAN health), so it only goes False on a genuine data gap, and the
+    hold below covers that gap. A genuinely stopped car still reports 0 because carState keeps
+    publishing vEgoCluster == 0 with valid True.
     """
-    if self.sm.alive.get('carState', False):
+    if self.sm.valid.get('carState', False):
       cs = self.sm['carState']
       self._bcast_v_ego_kph = _car_float(cs, 'vEgoCluster') * 3.6
       self._bcast_v_cruise_kph = _car_float(cs, 'vCruise')
       cruise_state = getattr(cs, 'cruiseState', None)
       self._bcast_cruise_speed = _car_float(cruise_state, 'speed') * 3.6
       self._bcast_fresh_ts = max(self._bcast_fresh_ts, now)
-    if self.sm.alive.get('selfdriveState', False):
+    if self.sm.valid.get('selfdriveState', False):
       try:
         self._bcast_active = bool(self.sm['selfdriveState'].active)
       except Exception:
@@ -1495,7 +1496,7 @@ class CarrotManager:
     v_ego_kph = int(round(self._bcast_v_ego_kph))
     v_cruise_kph = self._bcast_v_cruise_kph
     log_carrot = ""
-    if self.sm.alive.get('carState', False):
+    if self.sm.valid.get('carState', False):
       carState = self.sm['carState']
       log_carrot = getattr(carState, 'logCarrot', '')
 
@@ -1517,7 +1518,7 @@ class CarrotManager:
     active = self._bcast_active
     x_state = 0
     car_cruise_speed = self._bcast_cruise_speed
-    if self.sm.alive.get('longitudinalPlan', False):
+    if self.sm.valid.get('longitudinalPlan', False):
       lp = self.sm['longitudinalPlan']
       x_state = int(getattr(lp, 'xState', 0) or 0)
       msg['trafficState'] = int(getattr(lp, 'trafficState', msg['trafficState']) or 0)
@@ -1605,7 +1606,7 @@ class CarrotManager:
     self._amap_blind_left, self._amap_blind_right = self._amap_navi.blind_spot_hint()
 
     v_ego_kph = 0.0
-    if self.sm.alive.get('carState', False):
+    if self.sm.valid.get('carState', False):
       v_ego_kph = self.sm['carState'].vEgo * 3.6
 
     self._derive_state(v_ego_kph)
@@ -2581,7 +2582,7 @@ class CarrotManager:
     try:
       serv = self._carrot_serv
       raw = serv.raw
-      cs = self.sm["carState"] if self.sm.alive.get("carState", False) else None
+      cs = self.sm["carState"] if self.sm.valid.get("carState", False) else None
 
       now_mono = self._mono_now()
       last_packet = serv.last_packet_mono
