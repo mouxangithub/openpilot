@@ -15,6 +15,7 @@ from types import SimpleNamespace
 
 import numpy as np
 from openpilot.common.test import OpenpilotTestCase
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode
 
 from openpilot.sunnypilot.selfdrive.controls.lib.traffic_light_fusion import (
   RawLight, FusedState, FusedSource, TrafficLightFusion,
@@ -40,9 +41,22 @@ class TestTrafficLightFusionFuse(OpenpilotTestCase):
     fusion = TrafficLightFusion()
     fusion._fusion_enabled = True
     fusion._nav_caution_only = False
+    fusion._speed_limit_mode = Mode.assist
     _run(fusion, RawLight.RED, False, False, 50.0)
     assert fusion.state == FusedState.RED_CONFIRMED
     assert fusion.source == FusedSource.FUSED
+
+  def test_nav_only_red_stays_caution_when_mode_is_not_assist(self) -> None:
+    """Unified control: with the SLA mode at warning/information/off the light is a
+    warning only, whatever the killswitches say."""
+    for mode in (Mode.off, Mode.information, Mode.warning, None):
+      fusion = TrafficLightFusion()
+      fusion._fusion_enabled = True
+      fusion._nav_caution_only = False
+      fusion._speed_limit_mode = mode
+      _run(fusion, RawLight.RED, False, False, 50.0)
+      assert fusion.state == FusedState.RED, f"mode={mode} must not actuate"
+      assert fusion.source == FusedSource.CARROT
 
   def test_vision_red_is_confirmed(self) -> None:
     fusion = TrafficLightFusion()
