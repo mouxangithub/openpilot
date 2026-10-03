@@ -295,15 +295,19 @@ class UnifiedParams:
   def _is_bool(self, value: Any) -> bool:
     return isinstance(value, bool) or value in (0, 1)
 
-  def _read_from_system(self, key: str) -> Any | None:
+  def _read_from_system(self, key: str, return_default: bool = False) -> Any | None:
     """Try to read ``key`` from the global Params store.
 
     Returns the value on success, ``None`` on any failure (including
     ``UnknownKeyName`` for keys that have not been registered yet).
+
+    ``return_default`` is passed through to Params: True asks the system store for
+    the registered default of an unset key (e.g. SpeedLimitMode), mirroring
+    openpilot's Params.get signature so callers can use one accessor for both.
     """
     try:
-      return self._system_params.get(key)
-    except (KeyError, AttributeError, UnknownKeyName):
+      return self._system_params.get(key, return_default=return_default)
+    except (KeyError, AttributeError, UnknownKeyName, TypeError):
       return None
 
   def _write_to_system(self, key: str, value: Any) -> bool:
@@ -331,8 +335,8 @@ class UnifiedParams:
 
   # ---- public API ---------------------------------------------------------
 
-  def get(self, key: str, default: Any = None) -> Any:
-    sys_val = self._read_from_system(key)
+  def get(self, key: str, default: Any = None, return_default: bool = False) -> Any:
+    sys_val = self._read_from_system(key, return_default)
     if sys_val is not None and sys_val != b"":
       return sys_val
     if key in self._nav_data:
