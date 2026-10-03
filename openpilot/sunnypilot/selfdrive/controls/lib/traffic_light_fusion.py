@@ -30,6 +30,7 @@ from enum import Enum
 from typing import Any
 
 from openpilot.sunnypilot.carrot.config import UnifiedParams
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode
 
 
 class RawLight(Enum):
@@ -93,6 +94,9 @@ class TrafficLightFusion:
   def _refresh_params(self) -> None:
     self._fusion_enabled = self._params.get_bool("CarrotTrafficLightFusionEnabled")
     self._nav_caution_only = self._params.get_bool("TrafficLightNavCautionOnly", True)
+    # Unified control: a stop assist follows the SLA mode like the speed-limit signs do.
+    # warning/information/off keep the light a warning only, whatever the killswitches say.
+    self._speed_limit_mode = self._params.get("SpeedLimitMode", return_default=True)
 
   # -- source extraction (from a SubMaster snapshot) --------------------- #
 
@@ -221,7 +225,8 @@ class TrafficLightFusion:
     # default. A stop assist is only allowed when the fusion killswitch is on and
     # the caution-only guard is explicitly disabled.
     if nav_red:
-      if self._fusion_enabled and not self._nav_caution_only:
+      if (self._fusion_enabled and not self._nav_caution_only and
+          self._speed_limit_mode == Mode.assist):
         self.state = FusedState.RED_CONFIRMED
         self.source = FusedSource.FUSED
         self.confidence = 0.6

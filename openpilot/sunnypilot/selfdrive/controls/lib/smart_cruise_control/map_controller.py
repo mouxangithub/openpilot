@@ -11,6 +11,7 @@ from openpilot.selfdrive.car.cruise import V_CRUISE_UNSET
 from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD
 from openpilot.sunnypilot.navd.helpers import coordinate_from_param, Coordinate
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control import MIN_V
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode
 
 MapState = VisionState = custom.LongitudinalPlanSP.SmartCruiseControl.MapState
 
@@ -183,7 +184,13 @@ class SmartCruiseControlMap:
     # Carrot navigation deceleration (ATC / curve / route). Gated by
     # CarrotMapDecelEnabled; like the congestion cap it only folds into v_target and
     # therefore still needs SmartCruiseControlMap to actuate.
-    self.use_carrot_map_decel = self.params.get_bool("CarrotMapDecelEnabled")
+    # Unified control: carrot navi deceleration follows the SLA mode the way the
+    # speed-limit signs already do - assist actuates, warning/information/off do not.
+    # CarrotMapDecelEnabled stays the master switch, so turning it off still silences
+    # this path entirely.
+    self._speed_limit_mode = self.params.get("SpeedLimitMode", return_default=True)
+    self.use_carrot_map_decel = (self.params.get_bool("CarrotMapDecelEnabled") and
+                                 self._speed_limit_mode == Mode.assist)
     self.map_decel_speed = 0.0
     self.map_decel_source = ""
 
@@ -336,7 +343,13 @@ class SmartCruiseControlMap:
     if self.frame % int(PARAMS_UPDATE_PERIOD / DT_MDL) == 0:
       self.enabled = self.params.get_bool("SmartCruiseControlMap")
       self.use_carrot_congestion = self.params.get_bool("CarrotTrafficCongestionEnabled")
-      self.use_carrot_map_decel = self.params.get_bool("CarrotMapDecelEnabled")
+      # Unified control: carrot navi deceleration follows the SLA mode the way the
+      # speed-limit signs already do - assist actuates, warning/information/off do not.
+      # CarrotMapDecelEnabled stays the master switch, so turning it off still silences
+      # this path entirely.
+      self._speed_limit_mode = self.params.get("SpeedLimitMode", return_default=True)
+      self.use_carrot_map_decel = (self.params.get_bool("CarrotMapDecelEnabled") and
+                                   self._speed_limit_mode == Mode.assist)
       # Auto-arm: with carrot navigation on, any of its map-deceleration sub-features
       # turns this controller on by itself. SCC Map stays the single execution path -
       # the user just no longer has to find and flip a second switch to make the first
