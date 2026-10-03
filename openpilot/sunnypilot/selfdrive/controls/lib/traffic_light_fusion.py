@@ -88,6 +88,8 @@ class TrafficLightFusion:
     # Killswitch state (refreshed in update(); overridable for unit tests).
     self._fusion_enabled = False
     self._nav_caution_only = True
+    # SLA mode for the unified-control gate; refreshed in _refresh_params().
+    self._speed_limit_mode = None
 
   # -- parameter refresh ------------------------------------------------- #
 
