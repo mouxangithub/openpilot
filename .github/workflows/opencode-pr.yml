@@ -1,0 +1,118 @@
+name: OpenCode PR 审查
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
+    branches: [master-c3]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: opencode-pr-${{ github.event.pull_request.number || github.event.issue.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  ensure-label:
+    name: 确保标签
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.action == 'opened'
+      && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: 添加 ai-auto-review 标签
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr edit "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --add-label "ai-auto-review" 2>/dev/null || \
+          gh api -X POST "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels" \
+            -f 'labels[]=ai-auto-review' || true
+
+  opencode-review:
+    name: OpenCode 审查
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && contains(github.event.pull_request.labels.*.name, 'ai-auto-review')
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+      issues: read
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: OpenCode AI 审查（上游同步）
+        if: contains(github.event.pull_request.labels.*.name, 'upstream-sync')
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: ${{ vars.OPENCODE_MODEL || 'opencode/deepseek-v4-flash' }}
+          use_github_token: true
+          prompt: |
+            你是 openpilot 上游同步 PR 审阅机器人（head: master-c3-new → base: master-c3）。
+            用简体中文在 PR 上发表审查评论。
+            重点：C3/tici/DOS 与统一 pandad 适配是否保留；子模块 opendbc/panda 指针是否合理；
+            sunnypilot 新特性是否误删；opendbc/safety、selfdrive 高风险区变更。
+            本 PR 不自动合并，需车主在车机测 master-c3-new 后再合。
+            结尾：风险等级(低/中/高)、是否建议合并、车机测试检查清单、子仓是否也需先测。
+
+      - name: OpenCode AI 审查（默认）
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'upstream-sync') }}
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: ${{ vars.OPENCODE_MODEL || 'opencode/deepseek-v4-flash' }}
+          use_github_token: true
+          prompt: |
+            你是 op助手 PR 审阅机器人。用简体中文在 PR 上发表审查评论。
+            仓库：openpilot（保护分支 master-c3）。
+            关注：正确性、回归风险、安全（禁止随意改 selfdrive/panda/opendbc safety/cereal）。
+            仅 ai/、docs/、.github/ 内的小改动风险较低。
+            结尾给出：风险等级(低/中/高)、是否建议合并、需人工关注的点。
+            不要直接 merge；合并由独立 safe-merge 工作流处理。
+
+  opencode-on-comment:
+    name: OpenCode 评论触发
+    if: >-
+      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment')
+      && (contains(github.event.comment.body, '/oc') || contains(github.event.comment.body, '/opencode'))
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: OpenCode（评论触发）
+        uses: anomalyco/opencode/github@latest
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          model: ${{ vars.OPENCODE_MODEL || 'opencode/deepseek-v4-flash' }}
+          use_github_token: true

@@ -18,6 +18,10 @@ class LatControlTorqueJerkAware(LatControlTorqueExtBase):
     self.params = Params()
     self._jerk_aware_enabled = self.params.get_bool("LateralJerkTorqueController")
 
+  @property
+  def overrides_output(self) -> bool:
+    return self._jerk_aware_enabled or super().overrides_output
+
   def update_limits(self):
     if not self._jerk_aware_enabled:
       return
@@ -35,8 +39,11 @@ class LatControlTorqueJerkAware(LatControlTorqueExtBase):
     )
 
     self._pid_log.error = float(torque_from_setpoint - torque_from_measurement)  # ty: ignore[invalid-assignment]
+    # torqued fits lat_accel = latAccelFactor * torque + latAccelOffset, so the inversion to
+    # torque space must subtract the offset (the stock controller's `ff -= latAccelOffset`)
     self._ff = self.torque_from_lateral_accel_in_torque_space(
-      LatControlInputs(gravity_adjusted_lateral_accel, roll_compensation, CS.vEgo, CS.aEgo), self.torque_params, gravity_adjusted=True
+      LatControlInputs(gravity_adjusted_lateral_accel - self.torque_params.latAccelOffset, roll_compensation, CS.vEgo, CS.aEgo),
+      self.torque_params, gravity_adjusted=True
     )
 
     friction_input = self.update_friction_input(self._desired_lateral_accel, self._actual_lateral_accel)

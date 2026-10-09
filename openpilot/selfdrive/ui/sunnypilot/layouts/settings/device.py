@@ -86,6 +86,16 @@ class DeviceLayoutSP(DeviceLayout):
     )
     self._quiet_mode_and_dcam.action_item.right_button.set_button_style(ButtonStyle.NORMAL)
 
+    self._onroad_preview_btn = dual_button_item_sp(
+      left_text="",
+      right_text=lambda: tr("Onroad Preview"),
+      left_callback=None,
+      right_callback=self._enter_onroad_preview,
+      enabled=lambda: ui_state.is_offroad() or self._params.get_bool("IsOnroadPreview"),
+    )
+    self._onroad_preview_btn.action_item.left_button.set_visible(False)
+    self._onroad_preview_btn.action_item.right_button.set_button_style(ButtonStyle.NORMAL)
+
     self._reg_and_training = dual_button_item_sp(
       left_text=lambda: tr("Regulatory"),
       left_callback=self._on_regulatory,
@@ -124,6 +134,7 @@ class DeviceLayoutSP(DeviceLayout):
       self._max_time_offroad,
       LineSeparator(height=10),
       self._quiet_mode_and_dcam,
+      self._onroad_preview_btn,
       self._reg_and_training,
       self._onroad_uploads_and_reset_settings,
       Spacer(10),
@@ -216,6 +227,10 @@ class DeviceLayoutSP(DeviceLayout):
 
     # Offroad only buttons
     self._quiet_mode_and_dcam.action_item.right_button.set_enabled(ui_state.is_offroad())
+    is_preview = self._params.get_bool("IsOnroadPreview")
+    preview_enabled = ui_state.is_offroad() or is_preview
+    self._onroad_preview_btn.action_item.right_button.set_enabled(preview_enabled)
+    self._onroad_preview_btn.action_item.right_button.set_button_style(ButtonStyle.PRIMARY if is_preview else ButtonStyle.NORMAL)
     self._reg_and_training.action_item.left_button.set_enabled(ui_state.is_offroad())
     self._reg_and_training.action_item.right_button.set_enabled(ui_state.is_offroad())
     self._onroad_uploads_and_reset_settings.action_item.right_button.set_enabled(ui_state.is_offroad())

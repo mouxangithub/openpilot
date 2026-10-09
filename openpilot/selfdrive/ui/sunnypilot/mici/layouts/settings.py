@@ -9,12 +9,28 @@ from openpilot.selfdrive.ui.mici.layouts.settings.settings import SettingsBigBut
 from openpilot.selfdrive.ui.mici.layouts.settings.device import DeviceLayoutMici
 from openpilot.selfdrive.ui.mici.widgets.button import BigCircleButton
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigConfirmationDialog, BigDialog
-from openpilot.selfdrive.ui.sunnypilot.mici.layouts.sunnylink import SunnylinkLayoutMici
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.cruise import CruiseLayoutMici
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.developer import DeveloperLayoutMiciSP
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.display import DisplayLayoutMici
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models import ModelsLayoutMici
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.software import SoftwareLayoutSP
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.steering import SteeringLayoutMici
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.sunnylink import SunnylinkLayoutMici
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.toggles import TogglesLayoutMiciSP
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.trips import TripsLayoutMici
+from openpilot.selfdrive.ui.sunnypilot.mici.layouts.visuals import VisualsLayoutMici
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.common.swaglog import cloudlog
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
 
+# experimental mode and the alpha switch move to Cruise > alpha longitudinal. Swapped before the base
+# layout builds them, so the upstream panels are never constructed and their ui_state callbacks
+# (a full params pass each) never register.
+OP.TogglesLayoutMici = TogglesLayoutMiciSP
+OP.DeveloperLayoutMici = DeveloperLayoutMiciSP
+
+SP_ICON = "../../sunnypilot/selfdrive/assets/offroad"
 ICON_SIZE = 70
 BIG_ICON_SIZE = 110
 
@@ -22,10 +38,9 @@ BIG_ICON_SIZE = 110
 class SunnylinkBigButton(SettingsBigButton):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-    self._label.set_font_weight(FontWeight.AUDIOWIDE)
+    self._label.set_font_weight(FontWeight.BOLD)
 
   def _get_label_font_size(self):
-    # Audiowide runs wider than Inter: "sunnylink" wraps to two lines at 64
     return 56
 
 
@@ -34,7 +49,11 @@ class SettingsLayoutSP(OP.SettingsLayout):
     OP.SettingsLayout.__init__(self)
 
     device_panel = DeviceLayoutMici()
+    device_panel.set_preview_callback(self._enter_onroad_preview)
     self._scroller._items[2].set_click_callback(lambda: gui_app.push_widget(device_panel))
+
+    # by label: an index mis-wires silently if the base list is ever reordered
+    self._replace_panel("software", SoftwareLayoutSP())
 
     self.icon_offroad_enable = gui_app.texture("../../sunnypilot/selfdrive/assets/icons_mici/always_offroad.png", BIG_ICON_SIZE,
                                                BIG_ICON_SIZE)
@@ -46,9 +65,21 @@ class SettingsLayoutSP(OP.SettingsLayout):
     sunnylink_btn = SunnylinkBigButton(tr("sunnylink"), "", gui_app.texture("../../sunnypilot/selfdrive/assets/icons_mici/sunnylink.png", 76, 44))
     sunnylink_btn.set_click_callback(lambda: gui_app.push_widget(sunnylink_panel))
 
-    models_panel = ModelsLayoutMici()
-    models_btn = SettingsBigButton(tr("models"), "", gui_app.texture("../../sunnypilot/selfdrive/assets/offroad/icon_models.png", ICON_SIZE, ICON_SIZE))
-    models_btn.set_click_callback(lambda: gui_app.push_widget(models_panel))
+    panels = [
+      (tr("models"), ModelsLayoutMici, gui_app.texture(f"{SP_ICON}/icon_models.png", ICON_SIZE, ICON_SIZE)),
+      (tr("cruise"), CruiseLayoutMici, gui_app.texture(f"{SP_ICON}/icon_vehicle.png", ICON_SIZE, ICON_SIZE)),
+      (tr("steering"), SteeringLayoutMici, gui_app.texture(f"{SP_ICON}/icon_lateral.png", ICON_SIZE, ICON_SIZE)),
+      (tr("display"), DisplayLayoutMici, gui_app.texture(f"{SP_ICON}/icon_display.png", ICON_SIZE, ICON_SIZE)),
+      (tr("visuals"), VisualsLayoutMici, gui_app.texture(f"{SP_ICON}/icon_visuals.png", ICON_SIZE, ICON_SIZE)),
+      (tr("trips"), TripsLayoutMici, gui_app.texture(f"{SP_ICON}/icon_trips.png", ICON_SIZE, ICON_SIZE)),
+    ]
+
+    sp_buttons = []
+    for label, panel_cls, icon in panels:
+      panel = panel_cls()
+      btn = SettingsBigButton(label, "", icon)
+      btn.set_click_callback(lambda p=panel: gui_app.push_widget(p))
+      sp_buttons.append(btn)
 
     # onroad: enable button sits at the front (left of toggles)
     self._enable_offroad_btn_onroad = BigCircleButton(self.icon_offroad_enable, red=True)
@@ -65,9 +96,11 @@ class SettingsLayoutSP(OP.SettingsLayout):
     self._disable_offroad_btn.set_visible(lambda: ui_state.always_offroad)
 
     items = self._scroller._items.copy()
-
-    items.insert(1, models_btn)
-    items.insert(5, sunnylink_btn)
+    for i, btn in enumerate(sp_buttons):
+      items.insert(1 + i, btn)
+    # sunnylink sits right after software (base order: toggles, network, device,
+    # software, pair, firehose, imu calibration, developer, shifted by the sp panels above)
+    items.insert(len(sp_buttons) + 4, sunnylink_btn)
 
     # front slots (only one ever visible at a time): exit-always-offroad, then enable-onroad
     items.insert(0, self._enable_offroad_btn_onroad)
@@ -78,6 +111,13 @@ class SettingsLayoutSP(OP.SettingsLayout):
     self._scroller._items.clear()
     for item in items:
       self._scroller.add_widget(item)
+
+  def _replace_panel(self, label: str, panel) -> None:
+    btn = next((btn for btn in self._scroller.items if btn.get_text() == label), None)
+    if btn is None:
+      cloudlog.warning(f"mici settings: no panel button labelled {label!r}")
+      return
+    btn.set_click_callback(lambda: gui_app.push_widget(panel))
 
   def _update_state(self):
     super()._update_state()

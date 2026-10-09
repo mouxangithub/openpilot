@@ -475,6 +475,17 @@ class TestSmartCruiseControlVision(OpenpilotTestCase):
       update=lambda *_args: None,
     )
     planner.events_sp = SimpleNamespace()
+    # update_targets refreshes the carrot killswitches every 100 frames and reads them
+    # unconditionally; both default OFF so the carrot source / fusion paths stay out.
+    planner._param_count = 0
+    planner._params = SimpleNamespace(get_bool=lambda *_a, **_k: False)
+    planner._carrot_enabled = False
+    planner._fusion_enabled = False
+    planner.carrot_source = SimpleNamespace(active=False)
+    planner.traffic_fusion = SimpleNamespace()
+    planner.output_v_target = 0.0
+    planner.output_a_target = 0.0
+    planner.source = LongitudinalPlanSource.cruise
 
     self.set_lat_accels(0.5, 2.2)
     planner.update_targets(self.sm, 20.0, -0.8, 30.0)

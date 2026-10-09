@@ -9,7 +9,7 @@ import math
 import numpy as np
 
 from opendbc.car.lateral import FRICTION_THRESHOLD, get_friction
-from opendbc.sunnypilot.car.interfaces import LatControlInputs
+from opendbc.sunnypilot.car.interfaces import LatControlInputs, get_tune_scale
 from opendbc.sunnypilot.car.lateral_ext import get_friction as get_friction_in_torque_space
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.params import Params
@@ -44,6 +44,9 @@ class NeuralNetworkLateralControl(LatControlTorqueJerkAware):
     # of lat accel and roll
     # Past value is computed using previous desired lat accel and observed roll
     self.model = NNTorqueModel(model_path) if self.has_nn_model else None
+    # The models were trained on upstream's STEER_MAX; their torque, and the friction override
+    # summed with it, is rescaled to this car's (1/1.5 on the Mazda EPS envelope).
+    self._nn_torque_scale = 1.0 / get_tune_scale(CP)
 
     self.pitch = FirstOrderFilter(0.0, 0.5, 0.01)
     self.pitch_last = 0.0
@@ -64,6 +67,21 @@ class NeuralNetworkLateralControl(LatControlTorqueJerkAware):
   @property
   def _nnlc_enabled(self):
     return self.enabled and self.model_valid and self.has_nn_model
+
+  def update_model_v2(self, model_v2):
+    # _nnlc_enabled depends on model_valid, which is False at construction (no modelV2
+    # yet) and can flip either way mid-drive. The shared PID's limits differ by mode
+    # (torque-space +-steer_max vs the host's lat-accel-space limits), so re-assert them
+    # on every transition; otherwise the NNLC integrator runs against limits ~LAF x
+    # too wide until the next unrelated update_limits() call.
+    was_enabled = self._nnlc_enabled
+    super().update_model_v2(model_v2)
+    if self._nnlc_enabled != was_enabled:
+      self.lac_torque.update_limits()
+
+  @property
+  def overrides_output(self) -> bool:
+    return self._nnlc_enabled or super().overrides_output
 
   def update_limits(self):
     super().update_limits()
@@ -156,5 +174,8 @@ class NeuralNetworkLateralControl(LatControlTorqueJerkAware):
     # apply friction override for cars with low NN friction response
     if self.model.friction_override:
       self._pid_log.error += get_friction(friction_input, self._lateral_accel_deadzone, FRICTION_THRESHOLD, self.torque_params)
+
+    self._pid_log.error *= self._nn_torque_scale  # ty: ignore[invalid-assignment]
+    self._ff *= self._nn_torque_scale
 
     self.update_output_torque(CS)

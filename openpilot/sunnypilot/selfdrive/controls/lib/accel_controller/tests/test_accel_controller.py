@@ -14,7 +14,7 @@ from openpilot.common.params import Params
 from openpilot.common.test import OpenpilotTestCase
 from openpilot.sunnypilot.selfdrive.controls.lib.accel_controller.accel_controller import (
   AccelController, AccelProfile, CRUISE_DECEL_ACCEL, CRUISE_DECEL_RESPONSE_TIME, ECO_CRUISE_DECEL_BP,
-  ECO_CRUISE_DECEL_V, ECO_ENGINE_OFF_MAX_ACCEL, MAX_ACCEL_BREAKPOINTS, MAX_ACCEL_PROFILES,
+  ECO_CRUISE_DECEL_V, ECO_ENGINE_OFF_BP, ECO_ENGINE_OFF_MAX_ACCEL, MAX_ACCEL_BREAKPOINTS, MAX_ACCEL_PROFILES,
 )
 
 
@@ -53,7 +53,7 @@ class TestAccelController(OpenpilotTestCase):
     eco = self.set_profile(AccelProfile.eco)
     for speed in speeds:
       assert eco.get_max_accel(speed, engine_off=True) <= eco.get_max_accel(speed) + 1e-12
-    for speed, expected in zip(MAX_ACCEL_BREAKPOINTS, ECO_ENGINE_OFF_MAX_ACCEL, strict=True):
+    for speed, expected in zip(ECO_ENGINE_OFF_BP, ECO_ENGINE_OFF_MAX_ACCEL, strict=True):
       assert eco.get_max_accel(speed, engine_off=True) == expected
 
     for profile in (AccelProfile.normal, AccelProfile.sport):
@@ -78,6 +78,7 @@ class TestAccelController(OpenpilotTestCase):
     normal = self.set_profile(AccelProfile.normal)
     lead = SimpleNamespace(present=True, modelProb=0.9, dRel=30.0, vLead=23.0)
     assert normal.get_max_accel(20.0, lead=lead) == normal.get_max_accel(20.0)
+
 
   def test_sport_uses_openpilot_accel_max_at_launch(self):
     controller = self.set_profile(AccelProfile.sport)

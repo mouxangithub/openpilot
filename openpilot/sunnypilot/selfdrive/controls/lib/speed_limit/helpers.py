@@ -23,6 +23,13 @@ def compare_cluster_target(v_cruise_cluster: float, target_set_speed: float, is_
   return req_plus, req_minus
 
 
+def settle_conv(v_cap: float, cluster_conv: int, is_metric: bool) -> int:
+  """The display speed an SLA cap (m/s) leaves the car at, shared by the two SLA machines,
+  which announce only when it moves. The cap limits the plan, it never lifts it past the set
+  speed; an unset cap (V_CRUISE_UNSET, 255 m/s) never wins the min."""
+  return min(round(v_cap * (CV.MS_TO_KPH if is_metric else CV.MS_TO_MPH)), cluster_conv)
+
+
 def set_speed_limit_assist_availability(CP: car.CarParams, CP_SP: custom.CarParamsSP, params: Params | None = None) -> bool:
   if params is None:
     params = Params()

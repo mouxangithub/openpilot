@@ -81,7 +81,8 @@ def _bundle_is_valid_locally(bundle: custom.ModelManagerSP.ModelBundle) -> bool:
              for file_name, expected_hash in _bundle_artifacts(bundle))
 
 
-def _bundle_needs_reset(active_bundle: custom.ModelManagerSP.ModelBundle, available_bundles: list[custom.ModelManagerSP.ModelBundle] | None) -> bool:
+def _bundle_needs_reset(active_bundle: custom.ModelManagerSP.ModelBundle, available_bundles: list[custom.ModelManagerSP.ModelBundle] | None,
+                        check_files: bool) -> bool:
   if active_bundle is None:
     return False
 
@@ -105,7 +106,7 @@ def _bundle_needs_reset(active_bundle: custom.ModelManagerSP.ModelBundle, availa
     if set(_bundle_artifacts(active_bundle)) != set(_bundle_artifacts(matching_bundle)):
       return True
 
-  return not _bundle_is_valid_locally(active_bundle)
+  return check_files and not _bundle_is_valid_locally(active_bundle)
 
 
 def _parse_active_bundle(raw_bundle) -> "custom.ModelManagerSP.ModelBundle | None":
@@ -135,7 +136,26 @@ def get_active_bundle(params: Params | None = None, *, chestnut: bool | None = N
   # no cross-slot fallback: an empty active slot means the hardware default, which
   # only stock modeld can run - modeld_v2 requires a real bundle
   params = params or Params()
-  return get_selected_bundle(params, get_active_source(chestnut=chestnut))
+  source = get_active_source(chestnut=chestnut)
+  bundle = get_selected_bundle(params, source)
+  if source == "chestnut" and bundle is not None and not _big_files_ready(params, bundle):
+    return None
+  return bundle
+
+
+def _big_files_ready(params: Params, bundle: custom.ModelManagerSP.ModelBundle) -> bool:
+  """A chestnut pick whose files are not all here, or are being fetched again,
+  runs as the Default big model until the manager has them
+  (ModelManagerSP._fetch_big_model_files). Upstream resets the pick instead;
+  keeping it and driving the Default meanwhile loses neither. Existence only:
+  this is asked every manager tick, and the manager hashes them once per ref."""
+  downloading = params.get("ModelManager_DownloadRef")
+  if isinstance(downloading, bytes):
+    downloading = downloading.decode()
+  if downloading == bundle.ref:
+    return False
+  model_root = Paths.model_root()
+  return all(os.path.isfile(os.path.join(model_root, name)) for name, _ in _bundle_artifacts(bundle))
 
 
 def resolve_bundle_by_ref(
@@ -150,6 +170,11 @@ def resolve_bundle_by_ref(
 
 def _validate_active_bundle(params: Params, source: str, available_bundles: list[custom.ModelManagerSP.ModelBundle] | None = None) -> None:
   global _LAST_VALIDATED_RAW
+  # the big-model slot's missing files are fetched, not a reason to reset: an
+  # accelerator runs the pick without them, and for a chestnut the manager
+  # fetches them (ModelManagerSP._fetch_big_model_files). A change from
+  # upstream for chestnuts too: files gone means a re-fetch, not the default
+  check_files = source != "chestnut"
 
   key = ACTIVE_BUNDLE_KEYS[source]
   raw_bundle = params.get(key)
@@ -160,7 +185,7 @@ def _validate_active_bundle(params: Params, source: str, available_bundles: list
     return
 
   active_bundle = _parse_active_bundle(raw_bundle)
-  if active_bundle is None or _bundle_needs_reset(active_bundle, available_bundles):
+  if active_bundle is None or _bundle_needs_reset(active_bundle, available_bundles, check_files):
     cloudlog.warning(f"Active model bundle invalid for {source}; resetting to default")
     params.remove(key)
     _LAST_VALIDATED_RAW[key] = None

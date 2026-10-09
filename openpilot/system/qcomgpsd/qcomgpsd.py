@@ -18,7 +18,7 @@ from openpilot.common.time_helpers import system_time_valid
 from openpilot.common.hardware.comma.pins import GPIO
 from openpilot.common.serial import Serial
 from openpilot.common.swaglog import cloudlog
-from openpilot.system.qcomgpsd.modemdiag import ModemDiag, DIAG_LOG_F, setup_logs, send_recv
+from openpilot.system.qcomgpsd.modemdiag import ModemDiag, DIAG_LOG_F, DIAG_PORT, setup_logs, send_recv
 from openpilot.system.qcomgpsd.structs import (dict_unpacker, position_report, relist,
                                               gps_measurement_report, gps_measurement_report_sv,
                                               glonass_measurement_report, glonass_measurement_report_sv,
@@ -110,7 +110,11 @@ def at_cmd(cmd: str) -> str:
 def gps_enabled() -> bool:
   return "QGPS: 1" in at_cmd("AT+QGPS?")
 
-@retry(attempts=5, delay=1.0)
+# The modem answers AT+QGPS? (what wait_for_modem waits on) well before its AT and DIAG channels
+# are reliably settled after a cold boot, so give the whole setup ~30s to ride that out. Failing
+# here kills qcomgpsd for the entire ignition cycle: manager never restarts a process it already
+# started, so managerState latches shouldBeRunning with running=False and the UI blocks engagement.
+@retry(attempts=15, delay=2.0)
 def setup_quectel(diag: ModemDiag):
   # enable OEMDRE in the NV
   # TODO: it has to reboot for this to take effect
@@ -120,7 +124,14 @@ def setup_quectel(diag: ModemDiag):
   send_recv(diag, DIAG_NV_WRITE_F, pack('<HI', NV_GNSS_OEM_FEATURE_MASK, 1))
   send_recv(diag, DIAG_NV_READ_F, pack('<H', NV_GNSS_OEM_FEATURE_MASK))
 
-  try_setup_logs(diag, LOG_TYPES)
+  try:
+    try_setup_logs(diag, LOG_TYPES)
+  except Exception as e:
+    # Modem DIAG log-mask setup can fail on some firmware/AGNOS combinations
+    # (the modem returns an unexpected operation/status). Keep qcomgpsd alive so
+    # managerState does not latch shouldBeRunning=False and block engagement;
+    # GNSS fix data will still flow over the AT/NMEA path if the modem is up.
+    cloudlog.error(f"qcomgpsd: setup_logs failed, continuing without DIAG logging: {e}")
 
   if gps_enabled():
     at_cmd("AT+QGPSEND")
@@ -164,9 +175,16 @@ def teardown_quectel(diag):
   try_setup_logs(diag, [])
 
 
+@retry(attempts=10, delay=1.0)
+def connect_diag() -> ModemDiag:
+  # the DIAG port is a separate USB interface from AT_PORT and udev can create it later. it is also
+  # opened exclusively, so a previous qcomgpsd that has not fully exited yet still holds the lock.
+  return ModemDiag()
+
+
 def wait_for_modem():
   cloudlog.warning("waiting for modem to come up")
-  while not os.path.exists(AT_PORT):
+  while not (os.path.exists(AT_PORT) and os.path.exists(DIAG_PORT)):
     time.sleep(0.5)
   # wait until the modem GNSS subsystem responds
   while True:
@@ -211,9 +229,17 @@ def main() -> NoReturn:
   signal.signal(signal.SIGTERM, cleanup)
 
   # connect to modem
-  diag = ModemDiag()
-  setup_quectel(diag)
-  cloudlog.warning("quectel setup done")
+  diag = connect_diag()
+  try:
+    setup_quectel(diag)
+    cloudlog.warning("quectel setup done")
+  except Exception as e:
+    # Keep the process alive so managerState stays healthy even if the modem
+    # DIAG setup is not usable on this device/firmware combination.
+    cloudlog.event("qcomgpsd_setup_failed", error=str(e))
+    while True:
+      time.sleep(60)
+
   gpio_init(GPIO.GNSS_PWR_EN, True)
   gpio_set(GPIO.GNSS_PWR_EN, True)
 

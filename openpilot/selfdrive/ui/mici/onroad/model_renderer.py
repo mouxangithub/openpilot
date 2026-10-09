@@ -108,7 +108,7 @@ class ModelRenderer(Widget, ModelRendererSP):
       self._camera_offset = ui_state.params.get("CameraOffset", return_default=True) if ui_state.active_bundle else 0.0
     self._counter += 1
 
-    self._torque_filter.update(-ui_state.sm['carOutput'].actuatorsOutput.torque)
+    self._torque_filter.update(-ui_state.torque_utilization)
 
     # Check if data is up-to-date
     if (sm.recv_frame["extrinsicsCalibration"] < ui_state.started_frame or

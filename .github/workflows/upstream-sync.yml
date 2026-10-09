@@ -1,0 +1,120 @@
+name: 同步上游到 master-c3-new
+
+on:
+  workflow_dispatch:
+    inputs:
+      update_submodules:
+        description: "Point opendbc/panda submodules to master-c3-new"
+        type: boolean
+        default: true
+  repository_dispatch:
+    types: [upstream-sync-run]
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: upstream-sync-openpilot
+  cancel-in-progress: false
+
+env:
+  FORK_BRANCH: master-c3
+  OUTPUT_BRANCH: master-c3-new
+  UPSTREAM_URL: https://github.com/sunnypilot/sunnypilot.git
+  UPSTREAM_BRANCH: master
+
+jobs:
+  sync:
+    name: 同步
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
+
+      - name: 合并上游到 master-c3-new
+        id: merge
+        run: bash .github/scripts/upstream_sync_merge.sh
+        env:
+          UPSTREAM_URL: ${{ env.UPSTREAM_URL }}
+
+      - name: 更新子模块到 master-c3-new
+        if: >-
+          (github.event_name == 'workflow_dispatch' && inputs.update_submodules) ||
+          github.event_name == 'repository_dispatch'
+        run: bash .github/scripts/upstream_sync_submodules.sh
+
+      - name: 恢复工作流脚本
+        if: steps.merge.outputs.merge_conflicts == 'true'
+        run: |
+          git fetch origin "${{ env.FORK_BRANCH }}"
+          git checkout "origin/${{ env.FORK_BRANCH }}" -- .github/scripts/ 2>/dev/null || true
+
+      - name: OpenCode 解决冲突
+        if: steps.merge.outputs.merge_conflicts == 'true'
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/deepseek-v4-flash' }}
+          FORK_BRANCH: ${{ env.FORK_BRANCH }}
+        run: bash .github/scripts/upstream_sync_opencode.sh .github/scripts/prompts/upstream_sync_openpilot.txt
+
+      - name: 验证冲突解决
+        if: steps.merge.outputs.merge_conflicts == 'true'
+        run: |
+          git fetch origin "${{ env.FORK_BRANCH }}"
+          git checkout "origin/${{ env.FORK_BRANCH }}" -- .github/scripts/upstream_sync_verify.sh 2>/dev/null || true
+          bash .github/scripts/upstream_sync_verify.sh
+
+      - name: 快速验证
+        id: test
+        continue-on-error: true
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENCODE_MODEL: ${{ vars.OPENCODE_MODEL || 'opencode/deepseek-v4-flash' }}
+          MAX_FIX_ATTEMPTS: "2"
+        run: |
+          git fetch origin "${{ env.FORK_BRANCH }}"
+          git checkout "origin/${{ env.FORK_BRANCH }}" -- \
+            .github/scripts/upstream_sync_validate.sh \
+            .github/scripts/upstream_sync_test_with_fixup.sh \
+            .github/scripts/upstream_sync_opencode_test_fix.sh \
+            .github/scripts/prompts/upstream_sync_openpilot_test_fix.txt 2>/dev/null || true
+          chmod +x .github/scripts/upstream_sync_validate.sh \
+            .github/scripts/upstream_sync_test_with_fixup.sh \
+            .github/scripts/upstream_sync_opencode_test_fix.sh
+          bash .github/scripts/upstream_sync_test_with_fixup.sh \
+            'bash .github/scripts/upstream_sync_validate.sh' \
+            .github/scripts/prompts/upstream_sync_openpilot_test_fix.txt
+
+      - name: 仅推送 master-c3-new
+        if: steps.merge.outcome == 'success'
+        run: |
+          git fetch origin "${{ env.FORK_BRANCH }}"
+          git checkout "origin/${{ env.FORK_BRANCH }}" -- .github/scripts/upstream_sync_push.sh .github/scripts/upstream_sync_open_pr.sh 2>/dev/null || true
+          bash .github/scripts/upstream_sync_push.sh
+
+      - name: 创建 master-c3-new 到 master-c3 的草稿 PR
+        if: steps.merge.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_PAT || secrets.GITHUB_TOKEN }}
+          SYNC_TEST_PASSED: ${{ steps.test.outcome == 'success' }}
+          SYNC_TEST_LOG: ${{ runner.temp }}/upstream_test.log
+          OPEN_PR_EXTRA_BODY: |
+            - Submodules point to mouxangithub/opendbc and panda master-c3-new when child sync ran
+            - Add prebuilt label on PR after device test if needed
+        run: |
+          bash .github/scripts/upstream_sync_open_pr.sh \
+            "sync(openpilot) sunnypilot master to master-c3-new"
+
+      - name: 报告同步状态
+        if: always() && steps.merge.outcome == 'success'
+        run: |
+          if [[ "${{ steps.test.outcome }}" != "success" ]]; then
+            echo "::warning::Validation failed — master-c3-new pushed and draft PR opened for human review"
+            exit 1
+          fi
+          echo "Sync validation passed"

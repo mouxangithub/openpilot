@@ -187,7 +187,7 @@ class TorqueBar(Widget):
       else:
         self._torque_filter.update(np.clip((lateral_acceleration + accel_diff) / max_lateral_acceleration, -1, 1))
     else:
-      self._torque_filter.update(-ui_state.sm['carOutput'].actuatorsOutput.torque)
+      self._torque_filter.update(-ui_state.torque_utilization)
 
   def _render(self, rect: rl.Rectangle) -> None:
     # adjust y pos with torque

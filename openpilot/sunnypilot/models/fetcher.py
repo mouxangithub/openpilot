@@ -8,11 +8,12 @@ See the LICENSE.md file in the root directory for more details.
 import time
 import os
 import requests
-from requests.exceptions import (SSLError, RequestException, HTTPError)
+from requests.exceptions import RequestException, HTTPError
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.hardware.hw import Paths
 from openpilot.sunnypilot.models.helpers import is_bundle_version_compatible
+from openpilot.sunnypilot.models.mirror import catalog_fetch_candidates
 from openpilot.cereal import custom
 
 
@@ -41,21 +42,38 @@ class ModelParser:
 
     if "chunks" in artifact_data:
       artifact.chunks = [ModelParser._parse_chunk(chunk_data) for chunk_data in artifact_data["chunks"]]
-
-      try:
-        model_dir = Paths.model_root()
-        os.makedirs(model_dir, exist_ok=True)
-        manifest_path = os.path.join(model_dir, f"{artifact.fileName}.chunkmanifest")
-        num_chunks = str(len(artifact.chunks))
-
-        if not os.path.exists(manifest_path) or open(manifest_path).read().strip() != num_chunks:
-          with open(manifest_path, "w") as f:
-            f.write(num_chunks)
-          cloudlog.info(f"Wrote chunk manifest for {artifact.fileName}: {num_chunks} chunks")
-      except Exception as e:
-        cloudlog.warning(f"Failed to write chunk manifest for {artifact.fileName}: {e}")
+      ModelParser._repair_chunk_manifest(artifact)
 
     return artifact
+
+  @staticmethod
+  def _repair_chunk_manifest(artifact: custom.ModelManagerSP.Artifact) -> None:
+    """Record the chunk count of an artifact already on disk. Every catalog parses each
+    tick and qcom and chestnut list the same file with different counts, so only the source
+    whose first chunk exists writes; a download writes its own manifest when it finishes."""
+    from openpilot.common.file_chunker import get_chunk_name, get_manifest_path
+
+    try:
+      model_dir = Paths.model_root()
+      os.makedirs(model_dir, exist_ok=True)
+      base_path = os.path.join(model_dir, artifact.fileName)
+      num_chunks = len(artifact.chunks)
+
+      if not os.path.isfile(get_chunk_name(base_path, 0, num_chunks)):
+        return
+
+      manifest_path = get_manifest_path(base_path)
+      expected = str(num_chunks)
+      if os.path.isfile(manifest_path):
+        with open(manifest_path) as f:
+          if f.read().strip() == expected:
+            return
+
+      with open(manifest_path, "w") as f:
+        f.write(expected)
+      cloudlog.info(f"Wrote chunk manifest for {artifact.fileName}: {expected} chunks")
+    except Exception as e:
+      cloudlog.warning(f"Failed to write chunk manifest for {artifact.fileName}: {e}")
 
   @staticmethod
   def _parse_model(model_data) -> custom.ModelManagerSP.Model:
@@ -145,6 +163,8 @@ class ModelFetcher:
     "qcom": (MODEL_URL, ""),
     "chestnut": (MODEL_URL_CHESTNUT, "_Chestnut"),
   }
+  # stamped on the big-model catalog: whether it carries the newer catalogs' models
+  EXTENDED_KEY = "extended"
 
   def __init__(self, params: Params):
     self.params = params
@@ -154,6 +174,7 @@ class ModelFetcher:
       for source, (_, suffix) in self.MODEL_SOURCES.items()
     }
     self._refetched: set[str] = set()
+    self._refetched_extends: bool | None = None
     self.params.put("ModelManager_ActiveJson", {
       "qcom": self.MODEL_URL,
       "chestnut": self.MODEL_URL_CHESTNUT,
@@ -165,35 +186,59 @@ class ModelFetcher:
 
   def _fetch_and_cache_models(self, source: str) -> list[custom.ModelManagerSP.ModelBundle] | None:
     """Fetches fresh model data from remote and updates cache.
-    Returns None on transport errors. Raises on 404 and other fatal HTTP errors.
+
+    Tries each mirror candidate (direct / user proxy prefix / jsDelivr fallback,
+    see mirror.catalog_fetch_candidates) until one serves a verifiable catalog.
+    Returns None on transport errors. 404 and other fatal HTTP errors move on
+    to the next candidate instead of aborting the whole refresh.
     """
     model_url, _ = self.MODEL_SOURCES[source]
-    try:
-      response = requests.get(model_url, timeout=10)
+    last_error: Exception | None = None
+    for candidate_url in catalog_fetch_candidates(model_url, self.params):
+      try:
+        response = requests.get(candidate_url, timeout=10)
 
-      # Explicitly handle 404 differently
-      if response.status_code == 404:
-        cloudlog.error(f"Models URL returned 404 Not Found: {model_url}")
-        raise HTTPError(f"404 Not Found: {model_url}", response=response)
+        # Explicitly handle 404: this candidate has no such file, try the next one
+        if response.status_code == 404:
+          cloudlog.warning(f"Models URL returned 404 Not Found: {candidate_url}")
+          last_error = HTTPError(f"404 Not Found: {candidate_url}", response=response)
+          continue
 
-      # Raise for any other 4xx/5xx
-      response.raise_for_status()
+        # Raise for any other 4xx/5xx
+        response.raise_for_status()
 
-      json_data = response.json()
-      parsed = self.model_parser.parse_models(json_data)
-      if parsed:
-        self.model_caches[source].set(json_data)
-        cloudlog.debug(f"Successfully updated models cache for {source}")
-      return parsed
+        catalog_bytes = response.content
+        from openpilot.sunnypilot.models.signing import fetch_catalog_signature, verify_catalog
+        # the signature sidecar must come from the same host that served these bytes
+        accepted, reason = verify_catalog(catalog_bytes, fetch_catalog_signature(candidate_url))
+        cloudlog.info(f"Model catalog signature check ({source}): {reason}")
+        if not accepted:
+          # a trust root is installed and the catalog didn't verify: do not let a
+          # forged catalog reach the model cache or the downloader
+          cloudlog.error(f"Model catalog rejected from {candidate_url}: {reason}")
+          last_error = HTTPError(f"Model catalog rejected: {reason}", response=response)
+          continue
 
-    except ConnectionError as e:
-      cloudlog.warning(f"DNS/connection error while fetching models: {e}")
-    except SSLError as e:
-      cloudlog.warning(f"SSL error while fetching models: {e}")
-    except RequestException as e:
-      cloudlog.warning(f"Request transport error while fetching models: {e}")
-    except Exception as e:
-      cloudlog.exception(f"Unexpected error fetching models: {e}")
+        json_data = response.json()
+        if source == "chestnut":
+          from openpilot.sunnypilot import jetlink_adapter
+          extended = jetlink_adapter.should_extend_catalog()
+          json_data = {**(jetlink_adapter.extend_catalog(json_data) if extended else json_data), self.EXTENDED_KEY: extended}
+        parsed = self.model_parser.parse_models(json_data)
+        if parsed:
+          self.model_caches[source].set(json_data)
+          cloudlog.debug(f"Successfully updated models cache for {source}")
+        return parsed
+
+      except RequestException as e:
+        last_error = e
+        cloudlog.warning(f"Catalog fetch failed via {candidate_url}: {e}")
+      except Exception as e:
+        last_error = e
+        cloudlog.exception(f"Unexpected error fetching models via {candidate_url}: {e}")
+
+    if last_error is not None:
+      cloudlog.warning(f"All catalog sources failed for {source}; last error: {last_error}")
 
     return None
 
@@ -204,12 +249,26 @@ class ModelFetcher:
       return any(bundle.get("is_big") is True for bundle in bundles)
     return not any(bundle.get("is_big") is True for bundle in bundles)
 
+  def _extension_stale(self, cached_data: dict) -> bool:
+    """Was the big-model catalog fetched for other hardware? A chestnut coming or going
+    changes whether it is extended, and the cache would otherwise hide that for an hour.
+    Once per change: offline, the refetch fails and the cache stands until it expires."""
+    from openpilot.sunnypilot import jetlink_adapter
+    extends = jetlink_adapter.should_extend_catalog()
+    if bool(cached_data.get(self.EXTENDED_KEY)) == extends or self._refetched_extends == extends:
+      return False
+    self._refetched_extends = extends
+    cloudlog.warning(f"big-model catalog was fetched {'without' if extends else 'with'} the newer catalogs; refetching")
+    return True
+
   def get_bundles_for_source(self, source: str) -> list[custom.ModelManagerSP.ModelBundle]:
     if source not in self.MODEL_SOURCES:
       cloudlog.warning(f"Unknown model source: {source}")
       return []
 
     cached_data, is_expired = self.model_caches[source].get()
+    if source == "chestnut" and cached_data and not is_expired and self._extension_stale(cached_data):
+      is_expired = True
 
     if cached_data and not is_expired:
       # a source is refetched over a mismatch at most once per process: if the fresh

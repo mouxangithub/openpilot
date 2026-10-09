@@ -93,6 +93,17 @@ _services: dict[str, tuple] = {
   "liveMapDataSP": (True, 1., 1),
   "modelDataV2SP": (True, 20., None, QueueSize.BIG),
   "liveLocationKalman": (True, 20.),
+  "imuCalibrationSP": (True, 4., 4),
+
+  # carrot (phone projection & navigation)
+  "carrotManSP": (False, 10., 1),
+  "navInstructionCarrotSP": (False, 1., 10),
+  "carrotNaviSP": (True, 2.),
+  "carrotNaviMediaSP": (False, 20., None, QueueSize.BIG),
+
+  # stock navigation (navd) - consumed by carrot_man as fallback for navInstructionCarrotSP
+  "navInstruction": (False, 1., 10),
+  "navRoute": (True, 0.),
 
   # debug
   "uiDebug": (True, 0., 1),
@@ -105,6 +116,7 @@ _services: dict[str, tuple] = {
   "livestreamNarrowRoadEncodeData": (False, 20., None, QueueSize.MEDIUM),
   "livestreamCabinEncodeData": (False, 20., None, QueueSize.MEDIUM),
   "customReservedRawData0": (True, 0.),
+  "customReserved19": (True, 4., 1),  # liveTorqueParametersSP, published by torqued_ext
 }
 SERVICE_LIST = {name: Service(*vals) for
                 idx, (name, vals) in enumerate(_services.items())}

@@ -17,14 +17,25 @@ EventNameSP = custom.OnroadEventSP.EventName
 ACTIVE_STATES = (State.enabled, State.softDisabling, State.overriding)
 ENABLED_STATES = (State.paused, *ACTIVE_STATES)
 
+# stockLkasOff: held paused until the car's lane keep is back on (mads.py update_stock_lkas)
 GEARS_ALLOW_PAUSED_SILENT = [EventNameSP.silentWrongGear, EventNameSP.silentReverseGear, EventNameSP.silentBrakeHold,
-                             EventNameSP.silentDoorOpen, EventNameSP.silentSeatbeltNotLatched, EventNameSP.silentParkBrake]
+                             EventNameSP.silentDoorOpen, EventNameSP.silentSeatbeltNotLatched, EventNameSP.silentParkBrake,
+                             EventNameSP.silentPedalPressed, EventNameSP.stockLkasOff]
+# bigModelLoading: MADS turned on (a main-on edge, never repeated) while a big
+# model is not ready to drive waits in paused and resumes when it is, rather
+# than being refused and left off with main on (jetlink's second after a swap)
 GEARS_ALLOW_PAUSED = [EventName.wrongGear, EventName.reverseGear, EventName.brakeHold,
-                      EventName.doorOpen, EventName.seatbeltNotLatched, EventName.parkBrake]
+                      EventName.doorOpen, EventName.seatbeltNotLatched, EventName.parkBrake,
+                      EventName.bigModelLoading]
+# ...but not while it stands in for the commIssue of modeld's first load on every boot (model_startup.py):
+# that refused MADS, and paused it would steer silently once the last no-entry cleared, which another
+# still starting (calibration, a slow service) can stretch well into a drive
+GEARS_ALLOW_PAUSED_STARTING = [e for e in GEARS_ALLOW_PAUSED if e != EventName.bigModelLoading]
 
 
 class StateMachine:
   def __init__(self, mads):
+    self.mads = mads
     self.selfdrive = mads.selfdrive
     self.ss_state_machine = mads.selfdrive.state_machine
     self._events = mads.selfdrive.events
@@ -36,11 +47,22 @@ class StateMachine:
     if not self.selfdrive.enabled:
       self.ss_state_machine.current_alert_types.append(alert_type)
 
+  def add_enable_alert_type(self):
+    # With a declared MADS button owning lateral (Mazda TJA), an explicit LKAS/TJA enable
+    # still chimes while longitudinal selfdrive is already active; silent resumes stay
+    # silent. Every other car keeps upstream's rule: no enable alert while already enabled.
+    audible_lkas_enable = (self.mads.button_owns_lateral and self._events_sp.has(EventNameSP.lkasEnable) and
+                           not self._events_sp.has(EventNameSP.silentLkasEnable))
+    if audible_lkas_enable or not self.selfdrive.enabled:
+      self.ss_state_machine.current_alert_types.append(ET.ENABLE)
+
   def check_contains(self, event_type: str) -> bool:
     return bool(self._events.contains(event_type) or self._events_sp.contains(event_type))
 
   def check_contains_in_list(self) -> bool:
-    return bool(self._events.contains_in_list(GEARS_ALLOW_PAUSED) or self._events_sp.contains_in_list(GEARS_ALLOW_PAUSED_SILENT))
+    model_starting = self.selfdrive.model_startup.starting and not self.selfdrive.big_model_loading
+    gears = GEARS_ALLOW_PAUSED_STARTING if model_starting else GEARS_ALLOW_PAUSED
+    return bool(self._events.contains_in_list(gears) or self._events_sp.contains_in_list(GEARS_ALLOW_PAUSED_SILENT))
 
   def update(self):
     # soft disable timer and current alert types are from the state machine of openpilot
@@ -97,7 +119,7 @@ class StateMachine:
                 self.state = State.overriding
               else:
                 self.state = State.enabled
-              self.add_current_alert_types(ET.ENABLE)
+              self.add_enable_alert_type()
 
         # OVERRIDING
         elif self.state == State.overriding:
@@ -124,7 +146,7 @@ class StateMachine:
             self.state = State.overriding
           else:
             self.state = State.enabled
-          self.add_current_alert_types(ET.ENABLE)
+          self.add_enable_alert_type()
 
     # check if MADS is engaged and actuators are enabled
     enabled = self.state in ENABLED_STATES

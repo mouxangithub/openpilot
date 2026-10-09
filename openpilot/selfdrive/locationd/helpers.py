@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 from collections.abc import Sequence
 from typing import Any
@@ -154,10 +156,52 @@ class Pose:
     )
 
 
+IMU_SOURCE_HOLD_S = 10.0  # s without an IMU frame before camera frames are trusted again
+
+
 class PoseCalibrator:
   def __init__(self):
     self.calib_valid = False
     self.calib_from_device = np.eye(3)
+    # Two daemons publish extrinsicsCalibration: calibrationd (camera mounting
+    # rpyCalib) and imu_calibrationd (device mounting imuCalibMatrix). The two
+    # rotations disagree on large-angle mounts, so letting camera frames
+    # overwrite the IMU matrix made every consumer (paramsd, controlsd,
+    # torqued, lagd, selfdrived) flip its pose transform between frames and
+    # diverged paramsd's fast angle offset -> "paramsd 临时错误".
+    # Once the IMU source is seen only IMU frames may update the calibration
+    # state — but the stickiness decays: turning ImuCalibrationEnabled off
+    # swaps the publisher back to calibrationd (rpyCalib frames only), and a
+    # permanent latch would freeze calib_from_device on the stale IMU matrix
+    # and keep calib_valid false for the rest of the drive.
+    self._imu_source_seen = False
+    self._imu_source_last_ts: float | None = None
+
+  def feed_extrinsics_calibration(self, extrinsics_calibration: log.ExtrinsicsCalibration):
+    if self._imu_source_last_ts is not None and time.monotonic() - self._imu_source_last_ts > IMU_SOURCE_HOLD_S:
+      self._imu_source_seen = False
+      self._imu_source_last_ts = None
+
+  def feed_extrinsics_calibration(self, extrinsics_calibration: log.ExtrinsicsCalibration):
+    if len(extrinsics_calibration.imuCalibMatrix) == 9:
+      self._imu_source_seen = True
+      self._imu_source_last_ts = time.monotonic()
+      device_from_calib = np.array(extrinsics_calibration.imuCalibMatrix, dtype=np.float64).reshape(3, 3)
+      det = float(np.linalg.det(device_from_calib))
+      if 0.99 < det < 1.01 and extrinsics_calibration.calStatus == log.ExtrinsicsCalibration.Status.calibrated:
+        self.calib_from_device = device_from_calib.T
+        self.calib_valid = True
+      else:
+        # IMU calibration active but not complete: keep consumers frozen
+        # (raw device pose) instead of falling back to the camera mounting.
+        self.calib_valid = False
+      return
+    if self._imu_source_seen:
+      return  # camera frames must not clobber the IMU calibration state
+    calib_rpy = np.array(extrinsics_calibration.rpyCalib)
+    device_from_calib = rot_from_euler(calib_rpy)
+    self.calib_from_device = device_from_calib.T
+    self.calib_valid = extrinsics_calibration.calStatus == log.ExtrinsicsCalibration.Status.calibrated
 
   def _transform_calib_from_device(self, meas: Measurement):
     new_xyz = self.calib_from_device @ meas.xyz
@@ -177,9 +221,3 @@ class PoseCalibrator:
     velocity_calib = self._transform_calib_from_device(pose.velocity)
 
     return Pose(ned_from_calib_euler, velocity_calib, acceleration_calib, angular_velocity_calib)
-
-  def feed_extrinsics_calibration(self, extrinsics_calibration: log.ExtrinsicsCalibration):
-    calib_rpy = np.array(extrinsics_calibration.rpyCalib)
-    device_from_calib = rot_from_euler(calib_rpy)
-    self.calib_from_device = device_from_calib.T
-    self.calib_valid = extrinsics_calibration.calStatus == log.ExtrinsicsCalibration.Status.calibrated

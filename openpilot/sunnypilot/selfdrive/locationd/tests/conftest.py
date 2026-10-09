@@ -1,0 +1,35 @@
+"""
+Copyright (c) 2026-, Zeph Leggett.
+
+This file is part of zoompilot and is licensed under the MIT License.
+See the LICENSE.md file in the root directory for more details.
+
+Pytest fixtures for torqued speed-dep tests, kept as a conftest.py for backward
+compatibility with pytest-based test runners on the device.
+
+In unittest contexts, the same FakeParams patching is done in each test class setUp.
+"""
+import pytest
+
+from openpilot.selfdrive.locationd import torqued
+from openpilot.sunnypilot.selfdrive.locationd import torqued_ext
+from openpilot.sunnypilot.selfdrive.locationd.tests.speed_dep_helpers import FakeParams
+
+
+def _route_params(monkeypatch, fake):
+  # both Params sites: torqued reads the caches, torqued_ext reads the toggles
+  monkeypatch.setattr(torqued, "Params", lambda: fake)
+  monkeypatch.setattr(torqued_ext, "Params", lambda: fake)
+  return fake
+
+
+@pytest.fixture
+def fake_params(monkeypatch):
+  """One FakeParams behind both Params sites, Enforce Torque Control and Self-Tune on, caches empty."""
+  return _route_params(monkeypatch, FakeParams())
+
+
+@pytest.fixture
+def fake_params_off(monkeypatch):
+  """Same, with Enforce Torque Control and Self-Tune off."""
+  return _route_params(monkeypatch, FakeParams(self_tune_on=False))

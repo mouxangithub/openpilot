@@ -1,7 +1,9 @@
 #include <array>
 #include <cassert>
+#include <cstddef>
 #include <fstream>
 #include <map>
+#include <string>
 
 #include "common/swaglog.h"
 #include "common/util.h"
@@ -12,15 +14,21 @@ int freshClone();
 int cachedFetch(const std::string &cache);
 int executeGitCommand(const std::string &cmd);
 
+// Fork installer generator (openpilot-installer-generator) patches these fixed slots in the ELF.
+#ifdef INSTALLER_USE_PLACEHOLDERS
+#define GIT_URL "https://github.com/27182818284590452353602874713526624977572470936999595"
+#define BRANCH_SLOT "161803398874989484820458683436563811772030917980576286213544862270526046281890244970720720418939113748475408807538689175212663386222353693179318006076672635443338908659593958290563832266131992829026788067520876689250171169620703222104321626954862629631361"
+#define LOADING_MSG_SLOT "314159265358979323846264338327950288419"
+#else
 std::string get_str(std::string const s) {
   std::string::size_type pos = s.find('?');
   assert(pos != std::string::npos);
   return s.substr(0, pos);
 }
 
-// Leave some extra space for the fork installer
-const std::string GIT_URL = get_str("https://github.com/commaai/openpilot.git" "?                                                                ");
-const std::string BRANCH_STR = get_str(BRANCH "?                                                                ");
+const std::string GIT_URL_BUILTIN = get_str("https://github.com/commaai/openpilot.git" "?                                                                ");
+const std::string BRANCH_BUILTIN = get_str(BRANCH "?                                                                ");
+#endif
 
 #define GIT_SSH_URL "git@github.com:commaai/openpilot.git"
 #define CONTINUE_PATH "/data/continue.sh"
@@ -48,31 +56,40 @@ Font font_display;
 const bool tici_device = Hardware::get_device_type() == cereal::InitData::DeviceType::TICI ||
                          Hardware::get_device_type() == cereal::InitData::DeviceType::TIZI;
 
-std::vector<std::string> tici_prebuilt_branches = {"release3", "release-tici", "release3-staging", "nightly", "nightly-dev"};
-std::string migrated_branch;
-
-void branchMigration() {
-  migrated_branch = BRANCH_STR;
-  cereal::InitData::DeviceType device_type = Hardware::get_device_type();
-  if (device_type == cereal::InitData::DeviceType::TICI) {
-    if (std::find(tici_prebuilt_branches.begin(), tici_prebuilt_branches.end(), BRANCH_STR) != tici_prebuilt_branches.end()) {
-      migrated_branch = "release-tici";
-    } else if (BRANCH_STR == "master") {
-      migrated_branch = "master-tici";
-    }
-  } else if (device_type == cereal::InitData::DeviceType::TIZI) {
-    if (BRANCH_STR == "release3") {
-      migrated_branch = "release-tizi";
-    } else if (BRANCH_STR == "release3-staging") {
-      migrated_branch = "release-tizi-staging";
-    }
-  } else if (device_type == cereal::InitData::DeviceType::MICI) {
-    if (BRANCH_STR == "release3") {
-      migrated_branch = "release-mici";
-    } else if (BRANCH_STR == "release3-staging") {
-      migrated_branch = "release-mici-staging";
-    }
+std::string trim_slot(const char *slot) {
+  std::string s(slot);
+  const auto nul = s.find('\0');
+  if (nul != std::string::npos) {
+    s.resize(nul);
   }
+  while (!s.empty() && (s.back() == ' ' || s.back() == '\0')) {
+    s.pop_back();
+  }
+  return s;
+}
+
+std::string git_url() {
+#ifdef INSTALLER_USE_PLACEHOLDERS
+  return trim_slot(GIT_URL);
+#else
+  return GIT_URL_BUILTIN;
+#endif
+}
+
+std::string branch_name() {
+#ifdef INSTALLER_USE_PLACEHOLDERS
+  return trim_slot(BRANCH_SLOT);
+#else
+  return BRANCH_BUILTIN;
+#endif
+}
+
+std::string loading_msg() {
+#ifdef INSTALLER_USE_PLACEHOLDERS
+  return trim_slot(LOADING_MSG_SLOT);
+#else
+  return "openpilot";
+#endif
 }
 
 void run(const char* cmd) {
@@ -95,10 +112,12 @@ void finishInstall() {
 }
 
 void renderProgress(int progress) {
+  const std::string title = "Installing " + loading_msg();
+
   BeginDrawing();
     ClearBackground(BLACK);
     if (tici_device) {
-      DrawTextEx(font_inter, "Installing...", (Vector2){150, 290}, 110, 0, WHITE);
+      DrawTextEx(font_inter, title.c_str(), (Vector2){150, 290}, 110, 0, WHITE);
       Rectangle bar = {150, 570, (float)GetScreenWidth() - 300, 72};
       DrawRectangleRec(bar, (Color){41, 41, 41, 255});
       progress = std::clamp(progress, 0, 100);
@@ -116,16 +135,13 @@ void renderProgress(int progress) {
 }
 
 int doInstall() {
-  // wait for valid time
   while (!util::system_time_valid()) {
     util::sleep_for(500);
     LOGD("Waiting for valid time");
   }
 
-  // cleanup previous install attempts
   run("rm -rf " TMP_INSTALL_PATH);
 
-  // do the install
   if (util::file_exists(INSTALL_PATH) && util::file_exists(VALID_CACHE_PATH)) {
     return cachedFetch(INSTALL_PATH);
   } else {
@@ -135,26 +151,41 @@ int doInstall() {
 
 int freshClone() {
   LOGD("Doing fresh clone");
-  std::string cmd = util::string_format("git clone --progress %s -b %s --depth=1 --recurse-submodules %s 2>&1",
-                                        GIT_URL.c_str(), migrated_branch.c_str(), TMP_INSTALL_PATH);
+  const auto url = git_url();
+  const auto branch = branch_name();
+  std::string cmd;
+  if (branch.empty()) {
+    cmd = util::string_format("git clone --progress %s --depth=1 --recurse-submodules %s 2>&1",
+                              url.c_str(), TMP_INSTALL_PATH);
+  } else {
+    cmd = util::string_format("git clone --progress %s -b %s --depth=1 --recurse-submodules %s 2>&1",
+                              url.c_str(), branch.c_str(), TMP_INSTALL_PATH);
+  }
   return executeGitCommand(cmd);
 }
 
 int cachedFetch(const std::string &cache) {
   LOGD("Fetching with cache: %s", cache.c_str());
 
+  const auto url = git_url();
+  const auto branch = branch_name();
+
   run(util::string_format("cp -rp %s %s", cache.c_str(), TMP_INSTALL_PATH).c_str());
-  run(util::string_format("cd %s && git remote set-url origin %s", TMP_INSTALL_PATH, GIT_URL.c_str()).c_str());
-  run(util::string_format("cd %s && git remote set-branches --add origin %s", TMP_INSTALL_PATH, migrated_branch.c_str()).c_str());
+  run(util::string_format("cd %s && git remote set-url origin %s", TMP_INSTALL_PATH, url.c_str()).c_str());
+  if (!branch.empty()) {
+    run(util::string_format("cd %s && git remote set-branches --add origin %s", TMP_INSTALL_PATH, branch.c_str()).c_str());
+  }
 
   renderProgress(10);
 
-  return executeGitCommand(util::string_format("cd %s && git fetch --progress origin %s 2>&1", TMP_INSTALL_PATH, migrated_branch.c_str()));
+  if (branch.empty()) {
+    return executeGitCommand(util::string_format("cd %s && git fetch --progress origin 2>&1", TMP_INSTALL_PATH));
+  }
+  return executeGitCommand(util::string_format("cd %s && git fetch --progress origin %s 2>&1", TMP_INSTALL_PATH, branch.c_str()));
 }
 
 int executeGitCommand(const std::string &cmd) {
   static const std::array stages = {
-    // prefix, weight in percentage
     std::pair{"Receiving objects: ", 91},
     std::pair{"Resolving deltas: ", 2},
     std::pair{"Updating files: ", 7},
@@ -187,16 +218,18 @@ void cloneFinished(int exitCode) {
   LOGD("git finished with %d", exitCode);
   assert(exitCode == 0);
 
+  const auto branch = branch_name();
+
   renderProgress(100);
 
-  // ensure correct branch is checked out
   int err = chdir(TMP_INSTALL_PATH);
   assert(err == 0);
-  run(("git checkout " + migrated_branch).c_str());
-  run(("git reset --hard origin/" + migrated_branch).c_str());
+  if (!branch.empty()) {
+    run(("git checkout " + branch).c_str());
+    run(("git reset --hard origin/" + branch).c_str());
+  }
   run("git submodule update --init");
 
-  // move into place
   run(("rm -f " + VALID_CACHE_PATH).c_str());
   run(("rm -rf " + INSTALL_PATH).c_str());
   run(util::string_format("mv %s %s", TMP_INSTALL_PATH, INSTALL_PATH.c_str()).c_str());
@@ -204,7 +237,6 @@ void cloneFinished(int exitCode) {
 #ifdef INTERNAL
   run("mkdir -p /data/params/d/");
 
-  // https://github.com/commaci2.keys
   const std::string ssh_keys = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMX2kU8eBZyEWmbq0tjMPxksWWVuIV/5l64GabcYbdpI";
   std::map<std::string, std::string> params = {
     {"SshEnabled", "1"},
@@ -222,7 +254,6 @@ void cloneFinished(int exitCode) {
       "git config --replace-all remote.origin.fetch \"+refs/heads/*:refs/remotes/origin/*\"").c_str());
 #endif
 
-  // write continue.sh
   FILE *of = fopen("/data/continue.sh.new", "wb");
   assert(of != NULL);
 
@@ -234,7 +265,6 @@ void cloneFinished(int exitCode) {
   run("chmod +x /data/continue.sh.new");
   run("mv /data/continue.sh.new " CONTINUE_PATH);
 
-  // wait for the installed software's UI to take over
   finishInstall();
 }
 
@@ -251,8 +281,6 @@ int main(int argc, char *argv[]) {
   SetTextureFilter(font_inter.texture, TEXTURE_FILTER_BILINEAR);
   SetTextureFilter(font_roman.texture, TEXTURE_FILTER_BILINEAR);
   SetTextureFilter(font_display.texture, TEXTURE_FILTER_BILINEAR);
-
-  branchMigration();
 
   if (util::file_exists(CONTINUE_PATH)) {
     finishInstall();

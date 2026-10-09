@@ -8,10 +8,12 @@ import openpilot.cereal.messaging as messaging
 from openpilot.cereal import log, custom
 from opendbc.car.structs import car
 from openpilot.common.constants import CV
+from openpilot.selfdrive.selfdrived.events import get_display_speed
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EventsBase, Priority, ET, Alert, \
   NoEntryAlert, ImmediateDisableAlert, EngagementAlert, NormalPermanentAlert, AlertCallbackType, wrong_car_mode_alert
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import PCM_LONG_REQUIRED_MAX_SET_SPEED, CONFIRM_SPEED_THRESHOLD
 from openpilot.common.hardware import HARDWARE
+from openpilot.system.ui.lib.multilang import tr, tr_noop
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -27,22 +29,41 @@ EVENT_NAME_SP = {v: k for k, v in EventNameSP.schema.enumerants.items()}
 IS_MICI = HARDWARE.get_device_type() == 'mici'
 
 
+def _set_speed_ms(CS: car.CarState, sm: messaging.SubMaster) -> float:
+  v_cruise_cluster = CS.vCruiseCluster
+  set_speed = sm['controlsState'].deprecated.vCruise if v_cruise_cluster == 0.0 else v_cruise_cluster
+  # vCruise/vCruiseCluster are kph; the resolver speeds are m/s
+  return set_speed * CV.KPH_TO_MS
+
+
 def speed_limit_adjust_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
-  speedLimit = sm['longitudinalPlanSP'].speedLimit.resolver.speedLimit
-  speed = round(speedLimit * (CV.MS_TO_KPH if metric else CV.MS_TO_MPH))
-  message = f'Adjusting to {speed} {"km/h" if metric else "mph"} speed limit'
+  speed = sm['longitudinalPlanSP'].speedLimit.assist.vTarget  # the cap that moved, in this event's message
+  # the plan never runs above the set speed, so a limit over it settles there
+  set_speed = _set_speed_ms(CS, sm)
+  if set_speed > 0:
+    speed = min(speed, set_speed)
+  # mici wraps the unit off its number; break before the speed instead
+  sep = "\n" if IS_MICI else " "
   return Alert(
-    message,
+    f'正在调整至限速{sep}{get_display_speed(speed, metric)}',
     "",
     AlertStatus.normal, AlertSize.small,
-    Priority.LOW, VisualAlert.none, AudibleAlert.none, 4.)
+    Priority.LOW, VisualAlert.none, AudibleAlertSP.promptSingleHigh, 5.)
+
+
+def big_model_ready_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
+  # an accelerator's comes a second after its swap, when the driver can engage;
+  # its offer to switch is the one titled "Big Model Ready"
+  accelerator = sm['modelDataV2SP'].acceleratorState != custom.ModelDataV2SP.AcceleratorState.none
+  return Alert("大模型已接管" if accelerator else "大模型已就绪", "",
+               AlertStatus.normal, AlertSize.small,
+               Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 2.)
 
 
 def speed_limit_pre_active_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
   speed_conv = CV.MS_TO_KPH if metric else CV.MS_TO_MPH
-  v_cruise_cluster = CS.vCruiseCluster
-  set_speed = sm['controlsState'].deprecated.vCruise if v_cruise_cluster == 0.0 else v_cruise_cluster
-  set_speed_conv = round(set_speed * speed_conv)
+  # vCruise/vCruiseCluster are kph; the resolver speeds below are m/s
+  set_speed_conv = round(_set_speed_ms(CS, sm) * speed_conv)
 
   speed_limit_final_last = sm['longitudinalPlanSP'].speedLimit.resolver.speedLimitFinalLast
   speed_limit_final_last_conv = round(speed_limit_final_last * speed_conv)
@@ -54,15 +75,15 @@ def speed_limit_pre_active_alert(CP: car.CarParams, CS: car.CarState, sm: messag
     cst_low, cst_high = PCM_LONG_REQUIRED_MAX_SET_SPEED[metric]
     pcm_long_required_max = cst_low if speed_limit_final_last_conv < CONFIRM_SPEED_THRESHOLD[metric] else cst_high
     pcm_long_required_max_set_speed_conv = round(pcm_long_required_max * speed_conv)
-    speed_unit = "km/h" if metric else "mph"
 
-    alert_1_str = f"Speed Limit Assist: set to {pcm_long_required_max_set_speed_conv} {speed_unit} to engage"
+    alert_1_str = f"限速辅助：请将设定速度调至 {pcm_long_required_max_set_speed_conv} {"公里/时" if metric else "英里/时"} 以启用"
   else:
     if IS_MICI:
+      # the target is the limit plus any offset; the break keeps the unit with its number
       if set_speed_conv < speed_limit_final_last_conv:
-        alert_1_str = "Press + to confirm speed limit"
+        alert_1_str = f"按 + 键调至\n{get_display_speed(speed_limit_final_last, metric)}"
       elif set_speed_conv > speed_limit_final_last_conv:
-        alert_1_str = "Press - to confirm speed limit"
+        alert_1_str = f"按 - 键调至\n{get_display_speed(speed_limit_final_last, metric)}"
     else:
       alert_size = AlertSize.none
 
@@ -100,16 +121,16 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventNameSP.manualSteeringRequired: {
     ET.USER_DISABLE: Alert(
-      "Automatic Lane Centering is OFF",
-      "Manual Steering Required",
+      "自动车道居中已关闭",
+      "需要手动转向",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.disengage, 1.),
   },
 
   EventNameSP.manualLongitudinalRequired: {
     ET.WARNING: Alert(
-      "Smart/Adaptive Cruise Control: OFF",
-      "Manual Speed Control Required",
+      "智能/自适应巡航：已关闭",
+      "需要手动控制车速",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1.),
   },
@@ -122,9 +143,19 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
     ET.USER_DISABLE: EngagementAlert(AudibleAlert.none),
   },
 
+  # button owns lateral. PERMANENT carries no state-machine meaning, so the chime cannot
+  # enable or disable anything.
+  EventNameSP.longitudinalEnableChime: {
+    ET.PERMANENT: EngagementAlert(AudibleAlert.engage),
+  },
+
+  EventNameSP.longitudinalDisableChime: {
+    ET.PERMANENT: EngagementAlert(AudibleAlert.disengage),
+  },
+
   EventNameSP.silentBrakeHold: {
     ET.WARNING: EngagementAlert(AudibleAlert.none),
-    ET.NO_ENTRY: NoEntryAlert("Brake Hold Active"),
+    ET.NO_ENTRY: NoEntryAlert("制动保持已激活"),
   },
 
   EventNameSP.silentWrongGear: {
@@ -134,19 +165,19 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       AlertStatus.normal, AlertSize.none,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0.),
     ET.NO_ENTRY: Alert(
-      "Gear not D",
-      "openpilot Unavailable",
+      "挡位不在D挡",
+      "sunnypilot 不可用",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 0.),
   },
 
   EventNameSP.silentReverseGear: {
     ET.PERMANENT: Alert(
-      "Reverse\nGear",
+      "倒车中",
       "",
       AlertStatus.normal, AlertSize.full,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .2, creation_delay=0.5),
-    ET.NO_ENTRY: NoEntryAlert("Reverse Gear"),
+    ET.NO_ENTRY: NoEntryAlert("倒档"),
   },
 
   EventNameSP.silentDoorOpen: {
@@ -155,7 +186,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       "",
       AlertStatus.normal, AlertSize.none,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0.),
-    ET.NO_ENTRY: NoEntryAlert("Door Open"),
+    ET.NO_ENTRY: NoEntryAlert("车门开启"),
   },
 
   EventNameSP.silentSeatbeltNotLatched: {
@@ -164,7 +195,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       "",
       AlertStatus.normal, AlertSize.none,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0.),
-    ET.NO_ENTRY: NoEntryAlert("Seatbelt Unlatched"),
+    ET.NO_ENTRY: NoEntryAlert("安全带未系"),
   },
 
   EventNameSP.silentParkBrake: {
@@ -173,16 +204,36 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       "",
       AlertStatus.normal, AlertSize.none,
       Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0.),
-    ET.NO_ENTRY: NoEntryAlert("Parking Brake Engaged"),
+    ET.NO_ENTRY: NoEntryAlert("停车制动已启用"),
+  },
+
+  # a brake already held at standstill raises no pedalPressed, so engage into paused on the
+  # brake level; this event mirrors it silently
+  EventNameSP.silentPedalPressed: {
+    ET.NO_ENTRY: Alert(
+      "",
+      "",
+      AlertStatus.normal, AlertSize.none,
+      Priority.LOWEST, VisualAlert.none, AudibleAlert.none, 0.),
   },
 
   EventNameSP.controlsMismatchLateral: {
-    ET.IMMEDIATE_DISABLE: ImmediateDisableAlert("Controls Mismatch: Lateral"),
-    ET.NO_ENTRY: NoEntryAlert("Controls Mismatch: Lateral"),
+    ET.IMMEDIATE_DISABLE: ImmediateDisableAlert("控制不匹配：横向"),
+    ET.NO_ENTRY: NoEntryAlert("控制不匹配：横向"),
+  },
+
+  # unsteered from the first rejected frame, not from the disable 2 s later (Mazda routes
+  # 00000116/117: 2 s of rejected 0x243 with the camera relay-blocked latched the EPS fault)
+  EventNameSP.controlsMismatchLateralWarning: {
+    ET.WARNING: Alert(
+      "请接管",
+      "转向被 panda 安全机制阻止",
+      AlertStatus.userPrompt, AlertSize.mid,
+      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.prompt, .5),
   },
 
   EventNameSP.experimentalModeSwitched: {
-    ET.WARNING: NormalPermanentAlert("Experimental Mode Switched", duration=1.5)
+    ET.WARNING: NormalPermanentAlert("实验模式已切换", duration=1.5)
   },
 
   EventNameSP.wrongCarModeAlertOnly: {
@@ -190,12 +241,29 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
   },
 
   EventNameSP.pedalPressedAlertOnly: {
-    ET.WARNING: NoEntryAlert("Pedal Pressed")
+    ET.WARNING: NoEntryAlert("踏板被按下")
   },
+
+  # Mazda: invalidLkasSetting is swapped for this when MADS is on (CarSpecificEventsSP);
+  # MADS holds lateral paused on it (mads.py update_stock_lkas). mici gets a standing alert,
+  # tizi only its border.
+  EventNameSP.stockLkasOff: {
+    ET.NO_ENTRY: Alert(
+      "Lateral Disabled",
+      "LKAS is off",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.LOW, VisualAlert.none, AudibleAlert.refuse, 3.),
+    **({ET.PERMANENT: NormalPermanentAlert("Lateral Disabled", "LKAS is off", priority=Priority.LOW)} if IS_MICI else {}),
+  },
+
+  # LKA back on with lateral resuming, the EPS not delivering yet: still disabled to the driver.
+  EventNameSP.stockLkasArming: {
+    ET.PERMANENT: NormalPermanentAlert("Lateral Disabled", "Waiting for steering", priority=Priority.LOW),
+  } if IS_MICI else {},
 
   EventNameSP.laneTurnLeft: {
     ET.WARNING: Alert(
-      "Turning Left",
+      "正在左转",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1.),
@@ -203,26 +271,18 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventNameSP.laneTurnRight: {
     ET.WARNING: Alert(
-      "Turning Right",
+      "正在右转",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, 1.),
   },
 
   EventNameSP.speedLimitActive: {
-    ET.WARNING: Alert(
-      "Auto adjusting to speed limit",
-      "",
-      AlertStatus.normal, AlertSize.small,
-      Priority.LOW, VisualAlert.none, AudibleAlertSP.promptSingleHigh, 5.),
+    ET.WARNING: speed_limit_adjust_alert,
   },
 
   EventNameSP.speedLimitChanged: {
-    ET.WARNING: Alert(
-      "Set speed changed",
-      "",
-      AlertStatus.normal, AlertSize.small,
-      Priority.LOW, VisualAlert.none, AudibleAlertSP.promptSingleHigh, 5.),
+    ET.WARNING: speed_limit_adjust_alert,
   },
 
   EventNameSP.speedLimitPreActive: {
@@ -231,7 +291,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventNameSP.speedLimitPending: {
     ET.WARNING: Alert(
-      "Auto adjusting to last speed limit",
+      "正在自动调整至上次限速",
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlertSP.promptSingleHigh, 5.),
@@ -247,17 +307,64 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
 
   EventNameSP.laneChangeRoadEdge: {
     ET.WARNING: Alert(
-      "Lane Change Unavailable: Road Edge",
+      "变道不可用：道路边缘",
       "",
       AlertStatus.userPrompt, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 0.1),
   },
 
   EventNameSP.bigModelReady: {
+    ET.PERMANENT: big_model_ready_alert,
+  },
+
+  # an accelerator (jetlink) ready while something is in control: it swaps in only when
+  # nothing is, so an offer is raised for a few seconds (accelerator_events) telling the
+  # driver to re-engage to switch. Not as loud as the native ready.
+  EventNameSP.bigModelAvailable: {
     ET.PERMANENT: Alert(
-      "Big Model Ready",
+      "大模型已就绪",
+      "重新接管以切换",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, .2),
+  },
+
+  # an accelerator lost or too slow while engaged: the small model drives on
+  # from a reset history and nothing disengages. As loud as a soft disable for
+  # 5 s (accelerator_events), but it says what happened, not TAKE CONTROL:
+  # nothing has let go, and a driver told to take control on every drop read
+  # it as a disengage (2026-10-04). A disengage ends it
+  EventNameSP.bigModelLinkLost: {
+    ET.WARNING: Alert(
+      "大模型已断开",
+      "使用小模型行驶",
+      AlertStatus.userPrompt, AlertSize.mid,
+      Priority.MID, VisualAlert.steerRequired, AudibleAlert.warningSoft, .2),
+  },
+
+  # Carrot / Amap traffic-light advisories.  Only the SP enum has
+  # trafficSignGreen/trafficSignChanged/trafficStopping; surface them in
+  # the same place the model-based detection would so the HUD can show
+  # a single, consistent prompt regardless of where the signal came
+  # from.  Kept as small / non-blocking so the planner can still react.
+  EventNameSP.trafficSignGreen: {
+    ET.WARNING: Alert(
+      "Carrot：识别到绿灯",
       "",
       AlertStatus.normal, AlertSize.small,
-      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 2.),
+      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 0.5),
+  },
+  EventNameSP.trafficSignChanged: {
+    ET.WARNING: Alert(
+      "Carrot：信号灯状态变化",
+      "",
+      AlertStatus.normal, AlertSize.small,
+      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 0.2),
+  },
+  EventNameSP.trafficStopping: {
+    ET.WARNING: Alert(
+      "Carrot：准备停车",
+      "",
+      AlertStatus.normal, AlertSize.small,
+      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 0.2),
   },
 }

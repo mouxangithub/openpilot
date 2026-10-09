@@ -8,13 +8,30 @@ from collections import defaultdict
 
 from openpilot.cereal import log, messaging
 from openpilot.cereal.services import SERVICE_LIST
-from openpilot.common.transformations.orientation import rot_from_euler
+from openpilot.common.transformations.orientation import rot_from_euler, sensor_to_device_frame
 from openpilot.common.realtime import config_realtime_process
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.locationd.helpers import rotate_std
 from openpilot.selfdrive.locationd.models.pose_kf import PoseKalman, States
 from openpilot.selfdrive.locationd.models.constants import ObservationKind, GENERATED_DIR
+
+
+def load_imu_calibration_matrix(params: Params) -> np.ndarray | None:
+  """Load the IMU-to-vehicle rotation matrix from Params if enabled."""
+  if not params.get_bool("ImuCalibrationEnabled"):
+    return None
+  data = params.get("ImuCalibrationMatrix")
+  if data is None or len(data) != 36:
+    return None
+  try:
+    R = np.frombuffer(data, dtype=np.float32).reshape(3, 3)
+    det = float(np.linalg.det(R))
+    if 0.99 < det < 1.01:
+      return R
+  except Exception:
+    pass
+  return None
 
 ACCEL_SANITY_CHECK = 100.0  # m/s^2
 ROTATION_SANITY_CHECK = 10.0  # rad/s
@@ -51,8 +68,32 @@ class HandleLogResult(Enum):
   SENSOR_SOURCE_INVALID = 3
 
 
+def update_observation_invalid(res, which, observation_input_invalid, timing_run,
+                               input_invalid_decay, timing_invalid_grace):
+  """How one handle_log result moves the per-service invalid counter.
+
+  A wrong sample (INPUT_INVALID: accel/gyro out of range, camodo std implausible)
+  is a fault and counts at once. A frame that only arrived late
+  (TIMING_INVALID: its stamp is off logMonoTime) is a transport hiccup and counts
+  only once the run of them is long enough to mean the timebase itself is wrong.
+  Isolated stalls -- a loaded C3, a poll-thread hiccup -- are dropped without
+  pulling inputsOK down, while a genuinely broken timebase still crosses the
+  limit. Without the grace a handful of late frames per drive latched
+  locationdTemporaryError for the rest of it.
+  """
+  if res == HandleLogResult.TIMING_INVALID:
+    timing_run[which] += 1
+    if timing_run[which] >= timing_invalid_grace[which]:
+      observation_input_invalid[which] += 1
+  elif res == HandleLogResult.INPUT_INVALID:
+    observation_input_invalid[which] += 1
+  elif res == HandleLogResult.SUCCESS:
+    observation_input_invalid[which] *= input_invalid_decay[which]
+    timing_run[which] = 0
+
+
 class LocationEstimator:
-  def __init__(self, debug: bool):
+  def __init__(self, debug: bool, params: Params | None = None):
     self.kf = PoseKalman(GENERATED_DIR, MAX_FILTER_REWIND_TIME)
 
     self.debug = debug
@@ -61,6 +102,23 @@ class LocationEstimator:
     self.car_speed = 0.0
     self.camodo_yawrate_distribution = np.array([0.0, 10.0])  # mean, std
     self.device_from_calib = np.eye(3)
+    params = params or Params()
+    self.imu_calib_matrix = load_imu_calibration_matrix(params)
+    self.use_imu_calib = self.imu_calib_matrix is not None
+    # IMU calibration is what allows arbitrary mount angles in the first place:
+    # while it is enabled, paramsd's rpyCalib legitimately sits far outside the
+    # legacy +-30 deg window (a horizontally mounted C3 reads ~90 deg pitch), so
+    # the legacy sanity gate must not reject those frames — before the IMU matrix
+    # lands, every one of them counted INPUT_INVALID and cameraOdometry only
+    # tolerates two, which flipped inputsOK and raised the sunnypilot-unavailable
+    # alert while driving.
+    self._imu_calibration_enabled = params.get_bool("ImuCalibrationEnabled")
+    if self.use_imu_calib:
+      self.device_from_calib = self.imu_calib_matrix
+    # Set once the calibrated IMU matrix takes over; afterwards camera rpyCalib
+    # frames must not flip device_from_calib back to the camera mounting
+    # (same dual-publisher issue as PoseCalibrator).
+    self._imu_calibrated = self.use_imu_calib
 
     obs_kinds = [ObservationKind.PHONE_ACCEL, ObservationKind.PHONE_GYRO, ObservationKind.CAMERA_ODO_ROTATION, ObservationKind.CAMERA_ODO_TRANSLATION]
     self.observations = {kind: np.zeros(3, dtype=np.float32) for kind in obs_kinds}
@@ -74,6 +132,13 @@ class LocationEstimator:
     return source != log.SensorEventData.SensorSource.bmx055
 
   def _validate_sensor_time(self, sensor_time: float, t: float):
+    """Is this sample usable now: its event stamp close to the publish time.
+
+    A frame that arrives late (poll-thread stall, a wall-clock guard gap) fails
+    here and is dropped. That is a transport hiccup, not a broken sensor, so it
+    does not by itself mean the timebase is wrong -- update_observation_invalid
+    is what tells the two apart before anything counts toward inputsOK.
+    """
     # ignore empty readings
     if sensor_time == 0:
       return False
@@ -108,8 +173,7 @@ class LocationEstimator:
       if not self._validate_sensor_source(msg.source):
         return HandleLogResult.SENSOR_SOURCE_INVALID
 
-      v = msg.acceleration.v
-      meas = np.array([-v[2], -v[1], -v[0]])
+      meas = sensor_to_device_frame(msg.acceleration.v)
       if np.linalg.norm(meas) >= ACCEL_SANITY_CHECK:
         return HandleLogResult.INPUT_INVALID
 
@@ -128,8 +192,7 @@ class LocationEstimator:
       if not self._validate_sensor_source(msg.source):
         return HandleLogResult.SENSOR_SOURCE_INVALID
 
-      v = msg.gyroUncalibrated.v
-      meas = np.array([-v[2], -v[1], -v[0]])
+      meas = sensor_to_device_frame(msg.gyroUncalibrated.v)
 
       gyro_bias = self.kf.x[States.GYRO_BIAS]
       gyro_camodo_yawrate_err = np.abs((meas[2] - gyro_bias[2]) - self.camodo_yawrate_distribution[0])
@@ -149,12 +212,29 @@ class LocationEstimator:
       self.car_speed = abs(msg.vEgo)
 
     elif which == "extrinsicsCalibration":
-      # Note that we use this message during calibration
-      if len(msg.rpyCalib) > 0:
-        calib = np.array(msg.rpyCalib)
-        if calib.min() < -CALIB_RPY_SANITY_CHECK or calib.max() > CALIB_RPY_SANITY_CHECK:
+      # cameraOdometry is published in the calibration frame defined by
+      # rpyCalib, so locationd must follow rpyCalib to correctly transform
+      # camera motion into the device frame. A full IMU calibration matrix is
+      # only applied when the calibration is explicitly marked complete; during
+      # dynamic collecting the incremental rpyCalib is used instead.
+      if len(msg.imuCalibMatrix) == 9 and msg.calStatus == log.ExtrinsicsCalibration.Status.calibrated:
+        R = np.array(msg.imuCalibMatrix, dtype=np.float64).reshape(3, 3)
+        det = float(np.linalg.det(R))
+        if 0.99 < det < 1.01:
+          self.device_from_calib = R
+          self.use_imu_calib = True
+          self._imu_calibrated = True
+        else:
           return HandleLogResult.INPUT_INVALID
 
+      if len(msg.rpyCalib) > 0 and not self._imu_calibrated:
+        calib = np.array(msg.rpyCalib)
+        # When IMU calibration is enabled the device can be mounted at large
+        # angles (e.g. horizontal), so the stock rpyCalib sanity limits do not
+        # apply — not even while the IMU matrix is still being collected.
+        # Only enforce them in the legacy non-IMU-calibration path.
+        if not self._imu_calibration_enabled and not self.use_imu_calib and (calib.min() < -CALIB_RPY_SANITY_CHECK or calib.max() > CALIB_RPY_SANITY_CHECK):
+          return HandleLogResult.INPUT_INVALID
         self.device_from_calib = rot_from_euler(calib)
 
     elif which == "cameraOdometry":
@@ -275,7 +355,7 @@ def main():
 
   params = Params()
 
-  estimator = LocationEstimator(DEBUG)
+  estimator = LocationEstimator(DEBUG, params)
 
   filter_initialized = False
   critcal_services = ["accelerometer", "gyroscope", "cameraOdometry"]
@@ -284,6 +364,10 @@ def main():
   input_invalid_limit = {s: round(INPUT_INVALID_LIMIT * (SERVICE_LIST[s].frequency / 20.)) for s in critcal_services}
   input_invalid_threshold = {s: input_invalid_limit[s] - 0.5 for s in critcal_services}
   input_invalid_decay = {s: calculate_invalid_input_decay(input_invalid_limit[s], INPUT_INVALID_RECOVERY, SERVICE_LIST[s].frequency) for s in critcal_services}
+
+  # Half a second of *continuous* late frames is a timebase fault; fewer is a hiccup.
+  timing_run = defaultdict(int)
+  timing_invalid_grace = {s: max(1, round(0.5 * SERVICE_LIST[s].frequency)) for s in critcal_services}
 
   initial_pose_data = params.get("LocationFilterInitialState")
   if initial_pose_data is not None:
@@ -316,14 +400,10 @@ def main():
           if which not in critcal_services:
             continue
 
-          if res == HandleLogResult.TIMING_INVALID:
-            cloudlog.warning(f"Observation {which} ignored due to failed timing check")
-            observation_input_invalid[which] += 1
-          elif res == HandleLogResult.INPUT_INVALID:
-            cloudlog.warning(f"Observation {which} ignored due to failed sanity check")
-            observation_input_invalid[which] += 1
-          elif res == HandleLogResult.SUCCESS:
-            observation_input_invalid[which] *= input_invalid_decay[which]
+          if res != HandleLogResult.SUCCESS:
+            cloudlog.warning(f"Observation {which} ignored ({res.name.lower()})")
+          update_observation_invalid(res, which, observation_input_invalid, timing_run,
+                                     input_invalid_decay, timing_invalid_grace)
     else:
       filter_initialized = sm.all_checks() and sensor_all_checks(acc_msgs, gyro_msgs, sensor_valid, sensor_recv_time, sensor_alive, SIMULATION)
 

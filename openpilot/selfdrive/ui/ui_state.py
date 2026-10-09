@@ -6,6 +6,7 @@ from enum import Enum
 from openpilot.cereal import messaging, log
 from opendbc.car.structs import car
 from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.sunnypilot.common.ignition import get_ignition_state
 from openpilot.common.params import Params
 from openpilot.common.realtime import drop_realtime
 from openpilot.common.swaglog import cloudlog
@@ -36,6 +37,9 @@ class ChestnutState(Enum):
   LOADING = "loading"
   ACTIVE = "active"
   FAILED = "failed"
+  # onroad, an off-board accelerator only: loaded and waiting for a window to
+  # switch. A board is loaded before the first modelV2 and never sees this
+  WAITING = "waiting"
 
 
 class UIState(UIStateSP):
@@ -166,19 +170,24 @@ class UIState(UIStateSP):
         self.panda_type = panda_states[0].pandaType
         # Check ignition status across all pandas
         if self.panda_type != log.PandaState.PandaType.unknown:
-          self.ignition = any(state.ignitionLine or state.ignitionCan for state in panda_states)
+          self.ignition = get_ignition_state(panda_states)
     elif not self.sm.alive["pandaStates"]:
       self.panda_type = log.PandaState.PandaType.unknown
 
     # Handle wide road camera state updates
     if self.sm.updated["wideRoadCameraState"]:
       cam_state = self.sm["wideRoadCameraState"]
-      self.light_sensor = max(100.0 - cam_state.exposureValPercent, 0.0)
+      # rick - for c3: Scale factor based on sensor type
+      scale = 6.0 if cam_state.sensor == 'ar0231' else 1.0
+      self.light_sensor = max(100.0 - scale * cam_state.exposureValPercent, 0.0)
     elif not self.sm.alive["wideRoadCameraState"] or not self.sm.valid["wideRoadCameraState"]:
       self.light_sensor = -1
 
-    # Update started state
-    self.started = self.sm["deviceState"].started and self.ignition
+    # Update started state (onroad preview allows rendering the onroad UI while parked)
+    self.started = (self.sm["deviceState"].started and self.ignition) or self.params.get_bool("IsOnroadPreview")
+
+    # Never rebuild the CJK font atlas while driving: it stalls the UI for 100 ms+.
+    gui_app.allow_font_rebake = not self.started
 
     # Update body state
     if self.CP is not None and self.is_body != self.CP.notCar:
@@ -218,6 +227,10 @@ class UIState(UIStateSP):
       self._started_prev = self.started
 
   def _update_chestnut_state(self) -> None:
+    if (view := self.jetlink_view) is not None:
+      self.chestnut_state = self._jetlink_state(view)
+      return
+
     detected = self.sm["deviceState"].chestnutPresent
     if not self.started:
       self.chestnut_present = detected
@@ -267,7 +280,9 @@ class UIState(UIStateSP):
         self.usb_connected_ts = now
         self.usb_unknown = False
       elif self.usb_connected_ts is not None and now - self.usb_connected_ts > 10.:
-        self.usb_unknown = not any(is_chestnut_usb_id(d["vendorId"], d["productId"], True) for d in get_usb_state())
+        # the comma is the gadget for an off-board accelerator and enumerates nothing
+        self.usb_unknown = not (self.jetlink_view is not None or
+                                any(is_chestnut_usb_id(d["vendorId"], d["productId"], True) for d in get_usb_state()))
         self.usb_connected_ts = None
     elif self.usb_connected:
       if self.usb_disconnected_ts is None:
@@ -314,8 +329,8 @@ class Device(DeviceSP):
     if gui_app.sunnypilot_ui() and ui_state.custom_interactive_timeout != 0:
       return ui_state.custom_interactive_timeout
 
-    ignition_timeout = 10 if gui_app.big_ui() else 5
-    return ignition_timeout if ui_state.ignition else 30
+    ignition_timeout = 30 if gui_app.big_ui() else 5
+    return ignition_timeout if ui_state.ignition else 60
 
   def _reset_interactive_timeout(self) -> None:
     self._interaction_time = time.monotonic() + self.interactive_timeout
@@ -330,6 +345,7 @@ class Device(DeviceSP):
     if self._interaction_time <= 0:
       self._reset_interactive_timeout()
 
+    self._sync_offroad_brightness_from_params()
     self._update_brightness()
     self._update_wakefulness()
 
@@ -349,6 +365,13 @@ class Device(DeviceSP):
     if brightness is None:
       brightness = BACKLIGHT_OFFROAD
     self._offroad_brightness = min(max(brightness, 0), 100)
+
+  def _sync_offroad_brightness_from_params(self):
+    val = ui_state.params.get("Brightness", return_default=True)
+    if val is None or int(val) == 0:
+      self.set_offroad_brightness(None)
+    else:
+      self.set_offroad_brightness(int(val))
 
   def _update_brightness(self):
     clipped_brightness = self._offroad_brightness
@@ -372,6 +395,13 @@ class Device(DeviceSP):
 
     if gui_app.sunnypilot_ui():
       brightness = DeviceSP.set_onroad_brightness(ui_state, self._awake, brightness)
+
+    # Instant 100% when max brightness is requested, bypassing the 10 s filter ramp.
+    target_is_max = (not ui_state.started and self._offroad_brightness == 100) or \
+                    (ui_state.started and gui_app.sunnypilot_ui() and ui_state.onroad_brightness == 22)
+    if target_is_max and self._last_brightness != 100:
+      self._brightness_filter.x = 100.0
+      brightness = 100
 
     if not self._awake:
       brightness = 0

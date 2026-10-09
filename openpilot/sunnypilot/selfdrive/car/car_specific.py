@@ -24,8 +24,9 @@ class CarSpecificEventsSP:
 
     self.low_speed_alert = False
 
-  def update(self, CS: structs.CarState, events: Events):
+  def update(self, CS: structs.CarState, events: Events, mads_enabled: bool = False):
     events_sp = EventsSP()
+    self.mads_enabled = mads_enabled
 
     if self.CP.brand == 'chrysler':
       if self.CP.carFingerprint in RAM_DT:
@@ -47,5 +48,16 @@ class CarSpecificEventsSP:
         if CS.cruiseState.standstill and not CS.brakePressed and self.CP_SP.enableGasInterceptor:
           if events.has(EventName.resumeRequired):
             events.remove(EventName.resumeRequired)
+
+    elif self.CP.brand == 'mazda':
+      # Mazda: invalidLkasSetting is swapped for stockLkasOff when MADS is on.
+      # No alert of its own: the button press on the same frame already speaks; the no-entry
+      # is for later enable attempts with LKA still off.
+      if getattr(self, 'mads_enabled', False) and events.has(EventName.invalidLkasSetting):
+        events.remove(EventName.invalidLkasSetting)
+        events_sp.add(EventNameSP.stockLkasOff)
+      # LKA back on with lateral resuming, the EPS not delivering yet: still disabled to the driver.
+      if getattr(self, 'mads_enabled', False) and getattr(CS, 'lkas_arming', False):
+        events_sp.add(EventNameSP.stockLkasArming)
 
     return events_sp

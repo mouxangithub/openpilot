@@ -8,6 +8,7 @@ from openpilot.common.constants import CV
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.realtime import DT_MDL
 from openpilot.selfdrive.modeld.constants import ModelConstants
+from openpilot.selfdrive.controls.lib.accel_boost import AccelBoost
 from openpilot.selfdrive.controls.lib.longcontrol import LongCtrlState
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import LongitudinalMpc, LongitudinalPlanSource
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDXS as T_IDXS_MPC
@@ -16,6 +17,9 @@ from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
 from openpilot.common.swaglog import cloudlog
 
 from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_planner import LongitudinalPlannerSP
+from openpilot.sunnypilot.carrot.traffic_stop import (
+  get_traffic_stop_distance_adjust, get_traffic_stop_obstacle_distance,
+)
 
 A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
 A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
@@ -66,6 +70,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     self.fcw = False
     self.dt = dt
     self.allow_throttle = True
+    self.accel_boost = AccelBoost()
 
     self.v_desired_filter = FirstOrderFilter(init_v, 2.0, self.dt)
     self.a_cruise = init_a
@@ -119,9 +124,55 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     # Get new v_cruise and a_target from Smart Cruise Control and Speed Limit Assist
     v_cruise, self.output_a_target = LongitudinalPlannerSP.update_targets(self, sm, self.v_desired_filter.x, self.output_a_target, v_cruise)
 
-    self.mpc.set_weights(prev_accel_constraint, personality=sm['selfdriveState'].personality)
+    self.mpc.set_weights(prev_accel_constraint, personality=sm['selfdriveState'].personality,
+                         jerk_factor=self.carrot_jerk_factor if self.carrot_source_active else None)
     self.mpc.set_cur_state(self.v_desired_filter.x, self.output_a_target)
-    self.mpc.update(sm['radarState'], personality=sm['selfdriveState'].personality)
+
+    # The follow time Carrot contributes, scaled by how far the user moved
+    # sunnypilot's Longitudinal MPC Tuning value from its default. Carrot supplies
+    # the dynamics (speed interpolation, driving-mode factor, deceleration boost);
+    # the user's tuning decides the nominal gap. On default params the scale is
+    # exactly 1.0, so this is behaviour-preserving; previously Carrot replaced the
+    # tuned value outright and the tuning page was ignored while it was active.
+    personality = sm['selfdriveState'].personality
+    carrot_t_follow = None
+    if self.carrot_source_active:
+      carrot_t_follow = self.carrot_t_follow * self.mpc.t_follow_user_scale(personality)
+
+    # CarrotPlanner longitudinal overrides (Option C). Only applied when the
+    # carrot source is active, so stock behavior is untouched otherwise. These
+    # never change PARAM_DIM or rebuild the acados solver. Stop distance is not
+    # among them: it is baked into the solver at codegen, so the planned stop is
+    # injected as a virtual obstacle instead (see stop_obstacle_distance below).
+    mpc_carrot_kwargs: dict = {}
+    if self.carrot_source_active:
+      mpc_carrot_kwargs['comfort_brake'] = self.carrot_comfort_brake
+
+      # Inject the planned stop as a virtual obstacle so the MPC brakes toward
+      # the CarrotPlanner stop point. Blended against the current lead obstacle
+      # so a closer real lead still wins (safety floor preserved).
+      if self.carrot_should_stop:
+        cruise_obstacle = float(self.mpc.lead_0_obstacle[0]) if self.mpc.lead_0_obstacle is not None else 1000.0
+        adjust = get_traffic_stop_distance_adjust(self.carrot_traffic_stop_adjust, v_ego,
+                                                 self.carrot_traffic_stop_offset)
+        stop_obstacle = get_traffic_stop_obstacle_distance(self.carrot_source.stop_dist, cruise_obstacle, adjust)
+        if 0.0 < stop_obstacle < 1e5:
+          mpc_carrot_kwargs['stop_obstacle_distance'] = float(stop_obstacle)
+
+      # Lane-change gap credit: permit a bounded ACC departure once the gap is
+      # clear. The tracker's own guards gate on confidence / clearance / speed.
+      if self.carrot_lane_change_active and self.carrot_lane_change_gap is not None \
+              and getattr(self.carrot_lane_change_gap, 'active', False):
+        credit = self.carrot_lane_change_gap.credit(
+          sm['radarState'].leadOne, T_IDXS_MPC, v_ego, ACCEL_MAX,
+          carrot_t_follow, self.carrot_stop_distance_margin, self.carrot_dynamic_t_follow_lc,
+        )
+        if credit is not None and np.any(credit):
+          mpc_carrot_kwargs['lane_change_credit'] = credit
+
+    self.mpc.update(sm['radarState'], personality=personality,
+                    t_follow=carrot_t_follow,
+                    **mpc_carrot_kwargs)
     self.update_dec(sm)
 
     self.v_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.v_solution)
@@ -144,6 +195,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     output_should_stop_e2e = sm['modelV2'].action.shouldStop
 
     is_e2e = self.is_e2e(sm)
+    output_a_target_e2e = LongitudinalPlannerSP.update_e2e_target(self, sm, output_a_target_e2e, reset_state, accel_coast)
 
     max_accel_override = self.get_max_accel_override(v_ego, sm['carStateSP'].engineOff)
     v_cruise = self.get_cruise_target_override(v_ego, v_cruise, force_decel, accel_coast if accel_coast < 0.0 else None)
@@ -157,6 +209,8 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
       allow_throttle=self.allow_throttle, e2e=is_e2e, force_decel=force_decel,
     )
     cruise_should_stop = should_stop(v_ego, self.a_cruise)
+
+    output_a_target_e2e = self.accel_boost.update(sm, output_a_target_e2e, output_a_target_mpc, self.a_cruise)
 
     candidates = [(output_a_target_mpc, self.mpc.source, output_should_stop_mpc),
                   (self.a_cruise, LongitudinalPlanSource.cruise, cruise_should_stop)]
@@ -189,6 +243,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     longitudinalPlan.fcw = self.fcw
 
     longitudinalPlan.aTarget = float(self.output_a_target)
+    longitudinalPlan.accelBoost = float(self.accel_boost.total_boost)
     longitudinalPlan.shouldStop = bool(self.output_should_stop)
     longitudinalPlan.allowBrake = True
     longitudinalPlan.allowThrottle = bool(self.allow_throttle)

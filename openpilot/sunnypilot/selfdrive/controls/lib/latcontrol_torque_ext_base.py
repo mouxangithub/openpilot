@@ -7,15 +7,11 @@ See the LICENSE.md file in the root directory for more details.
 import math
 import numpy as np
 
-from openpilot.common.pid import PIDController
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N
 from openpilot.selfdrive.modeld.constants import ModelConstants
 
 LAT_PLAN_MIN_IDX = 5
 LATERAL_LAG_MOD = 0.0  # seconds, modifies how far in the future we look ahead for the lateral plan
-
-KP = 1.0
-KI = 0.3
 
 
 def get_predicted_lateral_jerk(lat_accels, t_diffs):
@@ -61,7 +57,9 @@ class LatControlTorqueExtBase:
     self.torque_params = lac_torque.torque_params
 
     self._ff = 0.0
-    self._pid = PIDController(KP, KI)
+    # the controller's own PID: torque-space child classes retune its limits and drive it
+    # directly, so it must be the real object from construction, not a placeholder
+    self._pid = lac_torque.pid
     self._pid_log = None
     self._setpoint = 0.0
     self._measurement = 0.0
@@ -96,6 +94,14 @@ class LatControlTorqueExtBase:
     # precompute time differences between ModelConstants.T_IDXS
     self.t_diffs = np.diff(ModelConstants.T_IDXS)
     self.desired_lat_jerk_time = CP.steerActuatorDelay + LATERAL_LAG_MOD
+
+  @property
+  def overrides_output(self) -> bool:
+    """True when a child controller replaces the stock PID output with its own torque-space
+    update this frame. The stock lat-accel-space pid.update must then be skipped, or the
+    shared integrator accumulates both error spaces (lat-accel error is latAccelFactor times
+    the torque-space error, so the effective ki becomes (1 + latAccelFactor) times the tune)."""
+    return False
 
   def update_model_v2(self, model_v2):
     self.model_v2 = model_v2

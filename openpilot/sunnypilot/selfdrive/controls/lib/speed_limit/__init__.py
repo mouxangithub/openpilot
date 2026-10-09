@@ -7,6 +7,9 @@ See the LICENSE.md file in the root directory for more details.
 LIMIT_ADAPT_ACC = -1.  # m/s^2 Ideal acceleration for the adapting (braking) phase when approaching speed limits.
 LIMIT_MAX_MAP_DATA_AGE = 10.  # s Maximum time to hold to map data, then consider it invalid inside limits controllers.
 
+# Speed Limit Assist / ICBM: the "no target" sentinel (also max v_cruise the dash accepts).
+V_CRUISE_UNSET = 255.
+
 # Speed Limit Assist constants
 PCM_LONG_REQUIRED_MAX_SET_SPEED = {
   True: (33.3333, 36.1111),  # km/h, (120, 130)

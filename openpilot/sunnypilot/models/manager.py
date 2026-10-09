@@ -19,6 +19,8 @@ from openpilot.cereal import messaging, custom
 from openpilot.sunnypilot.models.fetcher import ModelFetcher
 from openpilot.sunnypilot.models.helpers import (ACTIVE_BUNDLE_KEYS, get_active_bundle, get_selected_bundle,
                                                   resolve_bundle_by_ref, validate_active_bundles, verify_file)
+from openpilot.sunnypilot.models.default_bootstrap import maybe_apply_default_model
+from openpilot.sunnypilot.models.mirror import apply_hf_mirror, get_hf_mirror_base
 
 # (connect, read) seconds. read is per-request inactivity, not a total cap
 DOWNLOAD_TIMEOUT = (30, 30)
@@ -163,6 +165,16 @@ class ModelManagerSP:
     expected_hash = artifact.downloadUri.sha256
     filename = artifact.fileName
     full_path = os.path.join(destination_path, filename)
+
+    # mirror support: read at download time, so a param change applies to the
+    # next download without refetching the catalog. Chunk URLs derive from
+    # this base, so rewriting it here covers the whole chunked transfer.
+    mirror_base = get_hf_mirror_base(self.params)
+    if mirror_base:
+      mirrored_url = apply_hf_mirror(url, mirror_base)
+      if mirrored_url != url:
+        cloudlog.info(f"Downloading {filename} via mirror {mirror_base}")
+        url = mirrored_url
 
     try:
       # progress counts only valid chunks so a resumed download continues the
@@ -327,6 +339,7 @@ class ModelManagerSP:
         self.available_models = self.source_models[ModelFetcher.active_source(self.chestnut_present)]
         validate_active_bundles(self.params, self.source_models)
         self.active_bundle = get_active_bundle(self.params, chestnut=self.chestnut_present)
+        maybe_apply_default_model(self.params, self.source_models["qcom"])
 
         if get_selected_bundle(self.params, "chestnut") is not None and get_selected_bundle(self.params, "qcom") is None:
           if self.params.get("ModelManager_DownloadRef") is None:

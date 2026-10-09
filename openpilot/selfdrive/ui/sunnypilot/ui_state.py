@@ -6,15 +6,18 @@ See the LICENSE.md file in the root directory for more details.
 """
 from enum import Enum
 
+import numpy as np
+
 from openpilot.cereal import messaging, log, custom
 from opendbc.car.structs import car
+from opendbc.sunnypilot.car.interfaces import get_steer_rail_schedule
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.display import OnroadBrightness
 from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_active_source
+from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.sunnylink.sunnylink_state import SunnylinkState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.sunnypilot.widgets.screen_saver import ScreenSaverSP
-
 OpenpilotState = log.SelfdriveState.OpenpilotState
 MADSState = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
 
@@ -35,7 +38,8 @@ class UIStateSP:
     self.is_sp_release: bool = self.params.get_bool("IsReleaseSpBranch")
     self.sm_services_ext = [
       "modelManagerSP", "selfdriveStateSP", "longitudinalPlanSP", "backupManagerSP",
-      "gpsLocation", "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay"
+      "gpsLocation", "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay",
+      "imuCalibrationSP", "carrotManSP", "modelDataV2SP",
     ]
 
     self.sunnylink_state = SunnylinkState()
@@ -45,6 +49,17 @@ class UIStateSP:
 
     self.active_bundle = None
     self.model_runner_tinygrad: bool = False
+    # jetlink's snapshot (jetlink.openpilot.Status) from the params pass; None
+    # with a chestnut fitted or no jetlink on this device
+    self.jetlink = None
+    # the link is on and holds the USB port ADB needs; the developer panels grey
+    # the ADB toggle on it (_enforce_usb_port)
+    self.adb_blocked: bool = False
+    self._accelerator_state_name: str = 'none'
+    # carOutput's applied torque on the EPS rail's own scale, for the torque bar
+    # and lane lines (_update_torque_utilization)
+    self.torque_utilization: float = 0.0
+    self._steer_rail_schedule = None
     self.blindspot: bool = False
     self.chevron_metrics = None
     self.custom_interactive_timeout: int = 0
@@ -63,6 +78,7 @@ class UIStateSP:
     self.enforce_torque_control: bool = False
     self.custom_torque_params: bool = False
     self.torque_override_enabled: bool = False
+    self.carrot_amap_blind_spot_enabled: bool = False
     self._sp_initialized: bool = False
 
   def update(self) -> None:
@@ -70,6 +86,40 @@ class UIStateSP:
       self.sunnylink_state.start()
     else:
       self.sunnylink_state.stop()
+    # read where sm is updated, so the params thread never touches a message
+    self._accelerator_state_name = str(self.sm['modelDataV2SP'].acceleratorState)
+    self._update_torque_utilization()
+
+  def _update_torque_utilization(self) -> None:
+    """carOutput's applied torque on a scale where the EPS rail is +-1, for the
+    torque bar and lane lines: a torque tune saturates at the rail, below the
+    carcontroller's full scale, so the bar would only reach the top after the
+    car has already given all it has."""
+    try:
+      torque = self.sm['carOutput'].actuatorsOutput.torque
+    except Exception:
+      # before card's first message, or a build without carOutput
+      self.torque_utilization = 0.0
+      return
+    if self._steer_rail_schedule is not None:
+      rail = float(np.interp(self.sm['carState'].vEgo, self._steer_rail_schedule[0], self._steer_rail_schedule[1]))
+      torque = min(1.0, max(-1.0, torque / rail))
+    self.torque_utilization = torque
+
+  @property
+  def jetlink_view(self):
+    """jetlink's snapshot when the chestnut icon is the link's: no chestnut
+    fitted, and something to show. Presence comes from jetlink: the comma is
+    the gadget and enumerates nothing."""
+    s = self.jetlink
+    return s if s is not None and (s.enabled or s.present or s.progress is not None) else None
+
+  def _jetlink_state(self, view):
+    """ChestnutState for the link: progress and the records offroad, modelV2 and acceleratorState onroad"""
+    from openpilot.selfdrive.ui.ui_state import ChestnutState  # defined by the class that mixes this in
+    model_seen = self.sm.recv_frame["modelV2"] > self.started_frame
+    running_big = self.sm.alive["modelV2"] and self.sm["modelV2"].big
+    return ChestnutState(view.icon(self.started, model_seen, running_big, self._accelerator_state_name))
 
   def onroad_brightness_handle_alerts(self, _ui_state, alert):
     if _ui_state.sm.recv_frame["carState"] < _ui_state.started_frame:
@@ -113,6 +163,8 @@ class UIStateSP:
     state = ss.state
     mads = ss_sp.mads
     mads_state = mads.state
+    # held by the car's own lane keep (mads.py update_stock_lkas): reads as lateral off
+    mads_enabled = mads.enabled and not mads.lateralHeld
 
     if state == OpenpilotState.preEnabled:
       return "override"
@@ -124,20 +176,20 @@ class UIStateSP:
       if any(e.overrideLongitudinal for e in onroad_evt):
         return "override"
 
-    if mads_state in (MADSState.paused, MADSState.overriding):
+    if mads_state in (MADSState.paused, MADSState.overriding) and not mads.lateralHeld:
       return "override"
 
     # MADS specific statuses
     if not mads.available:
       return "engaged" if ss.enabled else "disengaged"
 
-    if not mads.enabled and not ss.enabled:
+    if not mads_enabled and not ss.enabled:
       return "disengaged"
 
-    if mads.enabled and ss.enabled:
+    if mads_enabled and ss.enabled:
       return "engaged"
 
-    if mads.enabled:
+    if mads_enabled:
       return "lat_only"
 
     if ss.enabled:
@@ -150,6 +202,8 @@ class UIStateSP:
     if CP_SP_bytes is not None:
       self.CP_SP = messaging.log_from_bytes(CP_SP_bytes, custom.CarParamsSP)
       self.has_icbm = self.CP_SP.intelligentCruiseButtonManagementAvailable and self.params.get_bool("IntelligentCruiseButtonManagement")
+    # the EPS rail the torque bar normalizes against, per car and per speed
+    self._steer_rail_schedule = get_steer_rail_schedule(self.CP) if self.CP is not None else None
 
     self._enforce_constraints()
     source = get_active_source(chestnut=self.chestnut_present, chestnut_active=self.chestnut_active,
@@ -159,10 +213,18 @@ class UIStateSP:
     # stock only counts the default big model's compiled pkl. a downloaded big bundle runs on the
     # chestnut just the same, so ChestnutState has to see it as available too.
     self.chestnut_compiled = self.chestnut_compiled or self.model_runner_tinygrad
+    # on the 5 Hz params pass, not per frame in a layout; a fitted chestnut owns chestnut_state
+    self.jetlink = None if self.sm['deviceState'].chestnutPresent else jetlink_adapter.status()
+    self._enforce_usb_port()
+    # the Jetson configures the gadget ~25 s after a cold boot, after the one-shot
+    # usb_unknown decision; recognising it late still clears "unknown"
+    if (view := self.jetlink_view) is not None and view.present and self.usb_unknown:
+      self.usb_unknown = False
     self.blindspot = self.params.get_bool("BlindSpot")
     self.chevron_metrics = self.params.get("ChevronInfo")
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
     self.developer_ui = self.params.get("DevUIInfo")
+    self.hide_firehose_prompt = self.params.get_bool("HideFirehosePrompt")
     self.hide_v_ego_ui = self.params.get_bool("HideVEgoUI")
     self.onroad_brightness = int(float(self.params.get("OnroadScreenOffBrightness", return_default=True)))
     self.onroad_brightness_timer_param = self.params.get("OnroadScreenOffTimer", return_default=True)
@@ -183,6 +245,7 @@ class UIStateSP:
     self.boot_offroad_mode = self.params.get("DeviceBootMode", return_default=True)
     self.always_offroad = self.params.get_bool("OffroadMode")
     self.screensaver_enabled = self.params.get_bool("ScreenSaverEnabled")
+    self.carrot_amap_blind_spot_enabled = self.params.get_bool("CarrotAmapBlindSpotEnabled")
 
     if not self._sp_initialized:
       self._sp_initialized = True
@@ -241,6 +304,20 @@ class UIStateSP:
       self.params.remove("SmartCruiseControlVision")
       self.params.remove("SmartCruiseControlMap")
 
+  def _enforce_usb_port(self) -> None:
+    """ADB and Jetlink both need the comma's USB port: the link on turns ADB off,
+    and the developer panels grey its toggle out. Here, not in the panels, so a
+    link set from sunnylink or the web panel counts too.
+
+    AGNOS's ADB gadget (g1) holds the device controller while AdbEnabled is set,
+    and jetlink-root.sh refuses to take the controller from it, so the link stays
+    "unavailable" until this lands. jetlink's owner retries the port every few
+    seconds, so clearing the param is enough. Over Wi-Fi the link leaves the port
+    alone, and ADB with it."""
+    self.adb_blocked = self.jetlink is not None and self.jetlink.enabled and self.jetlink.mode != "wifi"
+    if self.adb_blocked and self.params.get_bool("AdbEnabled"):
+      self.params.put_bool("AdbEnabled", False, block=True)
+
 
 class DeviceSP:
   def __init__(self):
@@ -274,6 +351,10 @@ class DeviceSP:
   def set_onroad_brightness(_ui_state, awake: bool, cur_brightness: float) -> float:
     if not awake or not _ui_state.started:
       return cur_brightness
+
+    # Keep screen at 100% when onroad brightness is set to maximum (22 -> 100%)
+    if _ui_state.onroad_brightness == 22:
+      return 100.0
 
     if _ui_state.onroad_brightness_timer != 0:
       if _ui_state.onroad_brightness == OnroadBrightness.AUTO_DARK:

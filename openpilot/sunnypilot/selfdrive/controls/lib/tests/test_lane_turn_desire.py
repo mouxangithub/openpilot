@@ -72,7 +72,7 @@ class TestLaneTurnDesire(OpenpilotTestCase):
 
 class DummyCarState:
   def __init__(self, vEgo=0, leftBlinker=False, rightBlinker=False, leftBlindspot=False, rightBlindspot=False,
-               steeringPressed=False, steeringTorque=0, brakePressed=False):
+               steeringPressed=False, steeringTorque=0, brakePressed=False, canValid=True):
     self.vEgo = vEgo
     self.leftBlinker = leftBlinker
     self.rightBlinker = rightBlinker
@@ -81,6 +81,8 @@ class DummyCarState:
     self.steeringPressed = steeringPressed
     self.steeringTorque = steeringTorque
     self.brakePressed = brakePressed
+    # desire_helper's Bluetooth HID remote gate reads carState.canValid (CAN health).
+    self.canValid = canValid
 
 
 def set_lane_turn_params():

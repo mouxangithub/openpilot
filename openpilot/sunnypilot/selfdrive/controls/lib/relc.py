@@ -54,6 +54,12 @@ class RoadEdgeLaneChangeController:
       self.reset()
       return
 
+    # a model bundle that doesn't emit these outputs provides no edge evidence;
+    # zero-filled defaults would otherwise read as high-confidence edges on both sides
+    if len(road_edge_stds) < 2 or len(lane_line_probs) < 4:
+      self.reset()
+      return
+
     left_edge_prob = np.clip(1.0 - road_edge_stds[0], 0.0, 1.0)
     right_edge_prob = np.clip(1.0 - road_edge_stds[1], 0.0, 1.0)
     left_lane_prob = lane_line_probs[0]
@@ -63,8 +69,10 @@ class RoadEdgeLaneChangeController:
       left_clearance = abs(road_edges[0].y[0]) - VEHICLE_EDGE_MARGIN
       right_clearance = abs(road_edges[1].y[0]) - VEHICLE_EDGE_MARGIN
     else:
-      left_clearance = 0.0
-      right_clearance = 0.0
+      # missing edge geometry: proximity cannot be confirmed, so it must not count as near
+      # (this also blocks manual nudge lane changes, so never block on absent data)
+      left_clearance = float('inf')
+      right_clearance = float('inf')
 
     left_cond = left_edge_prob > EDGE_PROB and left_lane_prob < NEARSIDE_PROB and left_clearance < EDGE_CLEARANCE
     right_cond = right_edge_prob > EDGE_PROB and right_lane_prob < NEARSIDE_PROB and right_clearance < EDGE_CLEARANCE

@@ -27,6 +27,8 @@ PREBUILT_PATH = os.path.join(Paths.comma_home(), "prebuilt") if PC else "/data/o
 class DeveloperLayoutSP(DeveloperLayout):
   def __init__(self):
     super().__init__()
+    # the alpha switch lives in the Alpha Longitudinal panel at the top of Cruise
+    self._scroller._items.remove(self._alpha_long_toggle)
     self.error_log_path = os.path.join(Paths.crash_log_root(), "error.log")
     self._is_release_branch: bool = self._is_release or ui_state.params.get_bool("IsReleaseSpBranch")
     self._is_development_branch: bool = ui_state.params.get_bool("IsTestedBranch") or ui_state.params.get_bool("IsDevelopmentBranch")
@@ -37,15 +39,15 @@ class DeveloperLayoutSP(DeveloperLayout):
 
   def _initialize_items(self):
     self.show_advanced_controls = toggle_item_sp(tr("Show Advanced Controls"),
-                                                 tr("Toggle visibility of advanced sunnypilot controls.<br>This only changes the visibility of the toggles; " +
+                                                 tr("Toggle visibility of advanced sunnypilot controls.<br>This only changes the visibility of the toggles; "
                                                     "it does not change the actual enabled/disabled state."), param="ShowAdvancedControls")
 
     self.enable_github_runner_toggle = toggle_item_sp(tr("GitHub Runner Service"), tr("Enables or disables the GitHub runner service."),
                                                       param="EnableGithubRunner")
 
     self.enable_copyparty_toggle = toggle_item_sp(tr("copyparty Service"),
-                                                  tr("copyparty is a very capable file server, you can use it to download your routes, view your logs " +
-                                                     "and even make some edits on some files from your browser. " +
+                                                  tr("copyparty is a very capable file server, you can use it to download your routes, view your logs "
+                                                     "and even make some edits on some files from your browser. "
                                                      "Requires you to connect to your comma locally via its IP address."), param="EnableCopyparty")
 
     self.prebuilt_toggle = toggle_item_sp(tr("Quickboot Mode"), "", param="QuickBootToggle", callback=self._on_prebuilt_toggled)
@@ -96,7 +98,7 @@ class DeveloperLayoutSP(DeveloperLayout):
     self.prebuilt_toggle.action_item.set_enabled(disable_updates)
 
     if disable_updates:
-      self.prebuilt_toggle.set_description(tr("When toggled on, this creates a prebuilt file to allow accelerated boot times. When toggled off, it " +
+      self.prebuilt_toggle.set_description(tr("When toggled on, this creates a prebuilt file to allow accelerated boot times. When toggled off, it "
                                               "removes the prebuilt file so compilation of locally edited cpp files can be made."))
     else:
       self.prebuilt_toggle.set_description(tr("Quickboot mode requires updates to be disabled.<br>Enable 'Disable Updates' in the Software panel first."))

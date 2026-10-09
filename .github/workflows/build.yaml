@@ -1,0 +1,427 @@
+name: 编译并发布预构建包
+
+env:
+  BUILD_DIR: "/data/github/openpilot_build"
+  OUTPUT_DIR: ${{ github.workspace }}/output
+  CI_DIR: ${{ github.workspace }}/release/ci
+  SCONS_CACHE_DIR: /data/github/scons_cache
+  PUBLIC_REPO_URL: "https://github.com/${{ github.repository }}"
+  STAGING_SOURCE_BRANCH: 'master-c3'
+  SOURCE_BRANCH: "${{ inputs.branch || github.head_ref || github.ref_name }}"
+
+on:
+  push:
+    branches: [ master-c3-prebuild, tn-c3-prebuild ]
+    tags: [ 'release/*' ]
+  workflow_run:
+    workflows: ["打包预编译分支"]
+    types: [completed]
+  pull_request_target:
+    types: [ labeled ]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Source branch to build'
+        required: false
+        default: 'master-c3'
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
+
+jobs:
+  prepare_strategy:
+    name: 准备策略
+    runs-on: ubuntu-24.04
+    if: >-
+      (!contains(github.event_name, 'pull_request') || (github.event.action == 'labeled' && github.event.label.name == 'prebuilt')) &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    outputs:
+      source_branch: ${{ steps.branches.outputs.source_branch }}
+      checkout_branch: ${{ steps.branches.outputs.checkout_branch }}
+      is_prebuild: ${{ steps.branches.outputs.is_prebuild }}
+      environment: ${{ steps.strategy.outputs.environment }}
+      new_branch: ${{ steps.strategy.outputs.new_branch }}
+      extra_version_identifier: ${{ steps.strategy.outputs.extra_version_identifier }}
+      version: ${{ steps.strategy.outputs.version }}
+      cancel_publish_in_progress: ${{ steps.strategy.outputs.cancel_publish_in_progress }}
+      publish_concurrency_group: ${{ steps.strategy.outputs.publish_concurrency_group }}
+      is_stable_branch: ${{ steps.strategy.outputs.is_stable_branch }}
+      build: ${{ steps.strategy.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 确定源分支和检出分支
+        id: branches
+        run: |
+          EVENT="${{ github.event_name }}"
+          REF="${{ github.ref_name }}"
+          INPUT="${{ inputs.branch }}"
+          HEAD="${{ github.head_ref }}"
+          WORKFLOW_HEAD="${{ github.event.workflow_run.head_branch }}"
+          if [ "$EVENT" = "workflow_run" ] && [ -n "$WORKFLOW_HEAD" ]; then
+            SOURCE_BRANCH="$WORKFLOW_HEAD"
+            CHECKOUT_BRANCH="${WORKFLOW_HEAD}-prebuild"
+            IS_PREBUILD="true"
+          elif [[ "$REF" == release/* ]]; then
+            SOURCE_BRANCH="$REF"
+            CHECKOUT_BRANCH="$REF"
+            IS_PREBUILD="false"
+          elif [[ "$REF" == *-prebuild ]]; then
+            SOURCE_BRANCH="${REF%-prebuild}"
+            CHECKOUT_BRANCH="$REF"
+            IS_PREBUILD="true"
+          elif [ "$EVENT" = "workflow_dispatch" ]; then
+            SOURCE_BRANCH="${INPUT:-$REF}"
+            CHECKOUT_BRANCH="${SOURCE_BRANCH}-prebuild"
+            IS_PREBUILD="true"
+          else
+            SOURCE_BRANCH="${INPUT:-${HEAD:-$REF}}"
+            CHECKOUT_BRANCH="$SOURCE_BRANCH"
+            IS_PREBUILD="false"
+          fi
+          echo "source_branch=$SOURCE_BRANCH" >> $GITHUB_OUTPUT
+          echo "checkout_branch=$CHECKOUT_BRANCH" >> $GITHUB_OUTPUT
+          echo "is_prebuild=$IS_PREBUILD" >> $GITHUB_OUTPUT
+          echo "source_branch=$SOURCE_BRANCH checkout_branch=$CHECKOUT_BRANCH is_prebuild=$IS_PREBUILD"
+      - name: 提取发布策略
+        id: strategy
+        run: |
+          echo '::group::Strategy Extraction'
+          BRANCH="${{ steps.branches.outputs.source_branch }}"
+          echo "Current branch: $BRANCH"
+
+          STRATEGY_JSON='${{ vars.DEPLOY_STRATEGY }}'
+          CONFIG=$(echo "$STRATEGY_JSON" | jq -r --arg branch "$BRANCH" '
+            .configs[] | select(.branch == $branch)
+          ')
+
+          BUILD="$(date '+%Y.%m.%d')-${{ github.run_number }}"
+          if [[ -z "$CONFIG" || "$CONFIG" == "null" ]]; then
+            echo "No exact strategy match found. Falling back to feature/fork logic."
+            IS_FORK="${{ github.event.pull_request.head.repo.fork && 'true' || 'false' }}"
+            FORK_SUFFIX=$( [[ "$IS_FORK" == "true" ]] && echo "-fork" || echo "" )
+            NEW_BRANCH="${BRANCH}${FORK_SUFFIX}-staging"
+
+            echo "new_branch=$NEW_BRANCH" >> $GITHUB_OUTPUT
+            echo "version=$BUILD" >> $GITHUB_OUTPUT
+            echo "cancel_publish_in_progress=true" >> $GITHUB_OUTPUT
+            echo "publish_concurrency_group=publish-${BRANCH}" >> $GITHUB_OUTPUT
+            echo "environment=feature-branch" >> $GITHUB_OUTPUT
+            echo "extra_version_identifier=feature-branch" >> $GITHUB_OUTPUT
+          else
+            echo "Matched config: $CONFIG"
+            environment=$(echo "$CONFIG" | jq -r '.environment')
+            echo "environment=$environment" >> $GITHUB_OUTPUT
+            echo "new_branch=$(echo "$CONFIG" | jq -r '.target_branch')" >> $GITHUB_OUTPUT
+            cancel="$(echo "$CONFIG" | jq -r '.cancel_publish_in_progress')";
+            echo "cancel_publish_in_progress=$( [ "$cancel" = "null" ] && echo "true" || echo $cancel)" >> $GITHUB_OUTPUT
+            echo "publish_concurrency_group=publish-${BRANCH}$( [ "$cancel" = "null" ] || [ "$cancel" = "true" ] || echo "${{ github.sha }}" )" >> $GITHUB_OUTPUT
+
+            is_stable_branch="$(echo "$CONFIG" | jq -r '.stable_branch // false')";
+            echo "is_stable_branch=$is_stable_branch" >> $GITHUB_OUTPUT
+
+            stable_version=$(cat openpilot/sunnypilot/common/version.h | grep SUNNYPILOT_VERSION | sed -e 's/[^0-9|.]//g');
+            echo "version=$([ "$is_stable_branch" = "true" ] && echo "$stable_version" || echo "$BUILD")" >> $GITHUB_OUTPUT
+            echo "extra_version_identifier=${environment}" >> $GITHUB_OUTPUT
+          fi
+          echo "build=$BUILD" >> $GITHUB_OUTPUT
+          cat $GITHUB_OUTPUT
+
+  build:
+    name: 构建
+    needs: [ prepare_strategy ]
+    concurrency:
+      group: build-${{ needs.prepare_strategy.outputs.checkout_branch }}
+      cancel-in-progress: false
+    runs-on: [self-hosted, tici]
+    env:
+      SOURCE_BRANCH: ${{ needs.prepare_strategy.outputs.source_branch }}
+      TMPDIR: /data/github/tmp
+      XDG_CACHE_HOME: /data/github/cache
+    outputs:
+      new_branch: ${{ needs.prepare_strategy.outputs.new_branch }}
+      version: ${{ needs.prepare_strategy.outputs.version }}
+      extra_version_identifier: ${{ needs.prepare_strategy.outputs.extra_version_identifier }}
+      commit_sha: ${{ steps.set-sha.outputs.sha }}
+    if: >-
+      needs.prepare_strategy.result == 'success' &&
+      (!contains(github.event_name, 'pull_request') ||
+      (github.event.action == 'labeled' && github.event.label.name == 'prebuilt'))
+    steps:
+      - name: 准备 runner 磁盘空间
+        run: |
+          set -euxo pipefail
+          RUNNER_ROOT="${RUNNER_ROOT:-/data/github/runner}"
+          BUILDS_ROOT="${BUILDS_ROOT:-/data/github/builds}"
+          MIN_FREE_MB="${MIN_FREE_MB:-2048}"
+
+          echo "==> 清理 runner 磁盘（构建前）"
+          mkdir -p /data/github/tmp /data/github/cache /data/github/scons_cache /data/github/ci "${{ env.BUILD_DIR }}"
+
+          # 终止上次失败遗留的 scons（避免占盘 + UI 假仍在构建）
+          if pgrep -af '[s]cons' >/dev/null 2>&1; then
+            echo "::warning::发现遗留 scons 进程，正在终止"
+            pkill -TERM -f '[s]cons' 2>/dev/null || true
+            sleep 3
+            pkill -KILL -f '[s]cons' 2>/dev/null || true
+          fi
+
+          # 仅清理 7 天前的诊断日志（勿清空当前 job 的 _diag，否则 GitHub 上看不到步骤日志）
+          mkdir -p "${RUNNER_ROOT}/_diag" /data/github/logs
+          find "${RUNNER_ROOT}/_diag" -mindepth 1 -mtime +7 -exec rm -rf {} + 2>/dev/null || true
+          find "${RUNNER_ROOT}/_work" -mindepth 1 -maxdepth 1 -mtime +1 -exec rm -rf {} + 2>/dev/null || true
+          find "${BUILDS_ROOT}" -mindepth 1 -maxdepth 1 -mtime +3 -exec rm -rf {} + 2>/dev/null || true
+          rm -rf /data/github/tmp/* /tmp/test-checkout /tmp/op-bootstrap.* 2>/dev/null || true
+
+          free_mb="$(df -Pm /data | awk 'NR==2 {print $4}')"
+          echo "可用空间 /data: ${free_mb} MB (需要 >= ${MIN_FREE_MB} MB)"
+          df -h /tmp /data
+          if [ "${free_mb:-0}" -lt "${MIN_FREE_MB}" ]; then
+            echo "::error::/data 剩余空间不足 (${free_mb}MB < ${MIN_FREE_MB}MB)，请清理 scons_cache 或旧构建产物"
+            du -sh /data/github/* 2>/dev/null | sort -hr | head -15 || true
+            exit 1
+          fi
+
+          deploy_ci_script() {
+            local name="$1"
+            local dest="/data/github/ci/${name}"
+            for src in "${{ github.workspace }}/release/ci/${name}" /data/openpilot/release/ci/${name}; do
+              if [ -f "$src" ]; then
+                sudo cp "$src" "$dest"
+                sudo chmod +x "$dest"
+                sudo chown github-runner:comma "$dest"
+                echo "Deployed $dest from $src"
+                return 0
+              fi
+            done
+            if [ -x "$dest" ]; then
+              echo "Reusing existing $dest"
+              return 0
+            fi
+            RAW="${{ env.PUBLIC_REPO_URL }}/raw/${{ github.sha }}/release/ci/${name}"
+            for prefix in "" "https://ghp.ci/"; do
+              url="${prefix}${RAW}"
+              echo "Fetching $dest from $url"
+              if curl -fsSL --connect-timeout 60 --retry 2 "$url" -o "$dest"; then
+                chmod +x "$dest"
+                echo "Deployed $dest from $url"
+                return 0
+              fi
+            done
+            echo "::warning::Could not deploy ${name}"
+            return 1
+          }
+          deploy_ci_script checkout_selfhosted.sh || true
+          deploy_ci_script git_resilient_clone.sh || true
+          rm -rf /data/github/tmp/op-bootstrap.* /data/github/tmp/clone-* 2>/dev/null || true
+          rm -rf /tmp/test-checkout 2>/dev/null || true
+          sudo rm -rf "${{ github.workspace }}"
+          sudo mkdir -p "${{ github.workspace }}"
+          sudo chown -R github-runner:comma "${{ github.workspace }}"
+          df -h /tmp /data
+
+      - name: 检出仓库
+        timeout-minutes: 15
+        env:
+          LOCAL_GIT_REPO: /data/openpilot
+        run: |
+          set -euxo pipefail
+          exec > >(tee -a /data/github/logs/ci-checkout.log) 2>&1
+          export GIT_LFS_SKIP_SMUDGE=1
+          export GIT_TERMINAL_PROMPT=0
+          WS="${{ github.workspace }}"
+          BRANCH="${{ needs.prepare_strategy.outputs.checkout_branch }}"
+          IS_PREBUILD="${{ needs.prepare_strategy.outputs.is_prebuild }}"
+          CHECKOUT_SCRIPT="/data/github/ci/checkout_selfhosted.sh"
+          echo "checkout branch=$BRANCH workspace=$WS is_prebuild=$IS_PREBUILD"
+          if ! sudo -u comma git -C /data/openpilot rev-parse --git-dir >/dev/null 2>&1; then
+            echo "::error::/data/openpilot 不是有效 git 仓库（若 runner 服务 bind-mount 了空目录到 /data/openpilot，请按 release/ci/README.md 重启 runner）"
+            exit 1
+          fi
+          if [ ! -x "$CHECKOUT_SCRIPT" ]; then
+            echo "::error::checkout_selfhosted.sh missing at $CHECKOUT_SCRIPT"
+            exit 1
+          fi
+          "$CHECKOUT_SCRIPT" "$BRANCH" "$WS"
+          cd "$WS"
+          if [ "$IS_PREBUILD" = "true" ]; then
+            echo "Using prebuilt source branch; submodules and LFS are already resolved."
+          else
+            git fetch --depth 1 origin "${{ github.sha }}"
+            git checkout "${{ github.sha }}"
+            git submodule sync --recursive
+            git submodule update --init --recursive --depth 1 || (sleep 15 && git submodule update --init --recursive --depth 1) || (sleep 15 && git submodule update --init --recursive)
+            git lfs pull
+          fi
+          git log -1 --oneline
+
+      - name: 设置提交 SHA
+        id: set-sha
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: 缓存 SCons
+        uses: actions/cache@v4
+        with:
+          path: ${{env.SCONS_CACHE_DIR}}
+          key: scons-${{ runner.os }}-${{ runner.arch }}-${{ env.SOURCE_BRANCH }}-${{ github.sha }}
+          restore-keys: |
+            scons-${{ runner.os }}-${{ runner.arch }}-${{ env.SOURCE_BRANCH }}
+            scons-${{ runner.os }}-${{ runner.arch }}-${{ env.STAGING_SOURCE_BRANCH }}
+            scons-${{ runner.os }}-${{ runner.arch }}
+
+      - name: 设置环境变量
+        id: set-env
+        run: |
+          echo "new_branch=${{ needs.prepare_strategy.outputs.new_branch }}" >> $GITHUB_OUTPUT
+          echo "version=${{ needs.prepare_strategy.outputs.version }}" >> $GITHUB_OUTPUT
+          echo "extra_version_identifier=${{ needs.prepare_strategy.outputs.extra_version_identifier }}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${{ steps.set-sha.outputs.sha }}" >> $GITHUB_OUTPUT
+
+          source /etc/profile;
+          export UV_PROJECT_ENVIRONMENT=${HOME}/venv
+          export UV_PYTHON_PREFERENCE=managed
+          export UV_PYTHON_INSTALL_DIR=${HOME}/uv/python
+          export VIRTUAL_ENV=$UV_PROJECT_ENVIRONMENT
+          uv sync
+          printenv >> $GITHUB_ENV
+
+      - name: 设置构建环境
+        run: |
+          mkdir -p "${BUILD_DIR}/"
+          sudo find $BUILD_DIR/ -mindepth 1 -delete
+          echo "Starting build stage..."
+          echo "BUILD_DIR: ${BUILD_DIR}"
+          echo "CI_DIR: ${CI_DIR}"
+          echo "VERSION: ${{ needs.prepare_strategy.outputs.version }}"
+          echo "UV_PROJECT_ENVIRONMENT: ${UV_PROJECT_ENVIRONMENT}"
+          echo "VIRTUAL_ENV: ${VIRTUAL_ENV}"
+          echo "-------"
+          if [[ "${{ runner.debug }}" == "1" ]]; then
+            printenv
+          fi
+          source ${UV_PROJECT_ENVIRONMENT}/bin/activate
+          PYTHONPATH=$PYTHONPATH:${{ github.workspace }}/ ${{ github.workspace }}/scripts/manage-powersave.py --disable
+
+      - name: 构建主项目
+        run: |
+          export PYTHONPATH="$BUILD_DIR:$BUILD_DIR/msgq_repo:$BUILD_DIR/opendbc_repo:$BUILD_DIR/rednose_repo:$BUILD_DIR/teleoprtc_repo:$BUILD_DIR/tinygrad_repo"
+          ./tools/release/release_files.py | xargs -0 cp -pR --parents -t "$BUILD_DIR" --
+          # outside the checkout, which is wiped each run. /data/scons_cache is the device's, not ours.
+          SCONS_CACHE="$RUNNER_WORKSPACE/scons_cache"
+          mkdir -p "$SCONS_CACHE"
+          cd $BUILD_DIR
+          echo "Building locationd..."
+          # -j1: parallel rednose generators OOM the device
+          scons -j1 cache_dir="$SCONS_CACHE" --minimal \
+            openpilot/selfdrive/locationd openpilot/sunnypilot/selfdrive/locationd
+          echo "Building rest of sunnypilot"
+          /usr/bin/time -v scons -j$(nproc) cache_dir="$SCONS_CACHE" --minimal
+          touch ${BUILD_DIR}/prebuilt
+
+      - name: 准备输出
+        run: |
+          cd $BUILD_DIR
+          find . -name '*.a' -delete
+          find . -name '*.o' -delete
+          find . -name '*.os' -delete
+          find . -name '*.pyc' -delete
+          find . -name 'moc_*' -delete
+          find . -name '__pycache__' -type d -exec rm -rf {} +
+          find . -name 'SConstruct' -delete
+          find . -name 'SConscript' -delete
+          rm -rf .sconsign.dblite Jenkinsfile tools/release/ release/
+          rm -f openpilot/selfdrive/modeld/models/*.onnx*
+          rm -f openpilot/sunnypilot/modeld*/models/*.onnx*
+          find openpilot/third_party/ -name '*x86*' -exec rm -r {} +
+          find openpilot/third_party/ -name '*Darwin*' -exec rm -r {} +
+          cd -
+
+      - name: 打包 Tar.gz
+        run: |
+          tar czf prebuilt.tar.gz -C ${{ env.BUILD_DIR }} .
+          ls -la prebuilt.tar.gz
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuilt
+          path: prebuilt.tar.gz
+          compression-level: 0
+
+      - name: 重新启用节能
+        if: always()
+        run: |
+          source ${UV_PROJECT_ENVIRONMENT}/bin/activate
+          PYTHONPATH=$PYTHONPATH:${{ github.workspace }}/ ${{ github.workspace }}/scripts/manage-powersave.py --enable
+
+
+  publish:
+    name: 发布
+    concurrency:
+      group: ${{ needs.prepare_strategy.outputs.publish_concurrency_group }}
+      cancel-in-progress: ${{ needs.prepare_strategy.outputs.cancel_publish_in_progress == 'true' }}
+    if: >-
+      needs.build.result == 'success' &&
+      needs.prepare_strategy.result == 'success' &&
+      (!contains(github.event_name, 'pull_request') ||
+      (github.event.action == 'labeled' && github.event.label.name == 'prebuilt'))
+    needs: [ build, prepare_strategy ]
+    runs-on: ubuntu-24.04
+    environment: ${{ needs.prepare_strategy.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare_strategy.outputs.checkout_branch }}
+          fetch-depth: 1
+
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          name: prebuilt
+
+      - name: 解压预构建包
+        run: |
+          mkdir -p ${{ env.OUTPUT_DIR }}
+          tar xzf prebuilt.tar.gz -C ${{ env.OUTPUT_DIR }}
+
+      - name: 配置 Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: 发布编译分支
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ${{ env.CI_DIR }}/publish.sh \
+            "${{ github.workspace }}" \
+            "${{ env.OUTPUT_DIR }}" \
+            "${{ needs.build.outputs.new_branch }}" \
+            "${{ needs.build.outputs.version }}" \
+            "https://x-access-token:${{github.token}}@github.com/${{ github.repository }}.git" \
+            "${{ needs.build.outputs.extra_version_identifier }}"
+
+      - name: 打标签
+        if: ${{ needs.prepare_strategy.outputs.is_stable_branch == 'true' && (github.event_name != 'push' || !startsWith(github.ref, 'refs/tags/')) }}
+        run: |
+          TAG="${{ needs.prepare_strategy.outputs.environment }}/${{ needs.prepare_strategy.outputs.version }}/${{ needs.prepare_strategy.outputs.build }}"
+          git tag -f -a ${TAG} -m "${{ needs.prepare_strategy.outputs.environment }} @ ${{ needs.prepare_strategy.outputs.version }} of build ${{ needs.build.outputs.build }}."
+          git push -f origin ${TAG}
+
+  manage-pr-labels:
+    name: 移除 prebuilt 标签
+    runs-on: ubuntu-latest
+    if: (always() && contains(github.event_name, 'pull_request') && (github.event.action == 'labeled' && github.event.label.name == 'prebuilt'))
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              name: 'prebuilt'
+            });

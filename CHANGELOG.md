@@ -1,3 +1,26 @@
+sp test 分支 2026-10-01 / 10-02
+========================
+
+**jetlink 外接大模型对齐 zoompilot develop**
+* jetlink 生态 100% 对齐：adapter/测试/cereal 契约/告警/UI 面板逐文件核对
+* 修复 chunk manifest 互踩 bug：qcom 与 chestnut 目录同一文件分块数不同时互相覆盖
+* 恢复 modeld 的 pkl 完整性校验（check_modeld_pkl / check_camera_jit），坏模型从裸 KeyError 变成明确报错
+* qlog 的 drivingModelData 现在标记当前驱动的大/小模型
+* jetlink 子模块固定到 zoompilot 实车验证的 v0.7.3（消除 80% 内存的假 LOW MEMORY 接管）
+
+**稳定性与体验**
+* hardwared 崩溃修复：Offroad_AcceleratorUnavailable 告警未注册导致 deviceState/温度监控全部停发
+* 无网不再弹提醒、不影响接管（connectivity 阈值豁免）
+* CAN 瞬断时点火状态保持 5 秒（丰田 CAN 点火车的稳定性改进）
+* webui「Accelerator Link」点击即时响应（乐观更新 + 消除事件循环阻塞，GET 1500ms → 565ms）
+* 限速标志不再叠在最高速度框上（左模式改为垂直堆叠）
+* 字体图集补齐「临时」等缺字，告警不再显示问号
+
+**locationd 临时错误修复**
+* IMU 校准收集期间，大角度安装的 rpyCalib 不再被旧 sanity 门误判为输入无效
+* 关闭 IMU 校准后，paramsd 10 秒内自动恢复信任相机校准帧（原为永久冻结）
+* 字体图集与告警文案同步重建，设备 unittest 25/25 通过
+
 sunnypilot Version 2026.002.000 (2026-06-28)
 ========================
 * What's Changed (sunnypilot/sunnypilot)

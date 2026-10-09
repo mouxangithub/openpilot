@@ -14,6 +14,13 @@ from openpilot.selfdrive.ui.body.layouts.onroad import BodyLayout
 if gui_app.sunnypilot_ui():
   from openpilot.selfdrive.ui.sunnypilot.layouts.settings.settings import SettingsLayoutSP as SettingsLayout
   from openpilot.selfdrive.ui.sunnypilot.layouts.home import HomeLayoutSP as HomeLayout
+  from openpilot.selfdrive.ui.widgets.carrot_web_dialog import CarrotWebDialog
+
+# cp cluster 的纯 2D HUD overlay（方案X）。导入失败时降级为 None，绝不破坏 onroad 主屏。
+try:
+  from openpilot.sunnypilot.carrot.cluster_view.cluster_overlay import ClusterOverlay
+except Exception:  # pragma: no cover - 依赖缺失时退化为不叠加
+  ClusterOverlay = None
 
 
 class MainState(IntEnum):
@@ -41,6 +48,9 @@ class MainLayout(Widget):
       MainState.ONROAD: AugmentedRoadView(),
     }
 
+    # Cluster HUD overlay（方案X：cp cluster 纯 2D 渲染核叠加到自带屏 onroad 主屏右下角）。
+    self._cluster_overlay = ClusterOverlay() if ClusterOverlay is not None else None
+
     self._sidebar_rect = rl.Rectangle(0, 0, 0, 0)
     self._content_rect = rl.Rectangle(0, 0, 0, 0)
 
@@ -61,10 +71,12 @@ class MainLayout(Widget):
   def _setup_callbacks(self):
     self._sidebar.set_callbacks(on_settings=self._on_settings_clicked,
                                 on_flag=self._on_bookmark_clicked,
+                                on_carrot_web=lambda: gui_app.push_widget(CarrotWebDialog()),
                                 open_settings=lambda: self.open_settings(PanelType.TOGGLES))
     self._layouts[MainState.HOME]._setup_widget.set_open_settings_callback(lambda: self.open_settings(PanelType.FIREHOSE))
     self._layouts[MainState.HOME].set_settings_callback(lambda: self.open_settings(PanelType.TOGGLES))
     self._layouts[MainState.SETTINGS].set_callbacks(on_close=self._set_mode_for_state)
+    self._layouts[MainState.SETTINGS].set_preview_callback(self._set_mode_for_state)
 
     for layout in (self._layouts[MainState.ONROAD], self._home_body_layout):
       layout.set_click_callback(self._on_onroad_clicked)
@@ -133,3 +145,9 @@ class MainLayout(Widget):
 
     content_rect = self._content_rect if self._sidebar.is_visible else self._rect
     self._layouts[self._current_mode].render(content_rect)
+
+    # Cluster HUD overlay：先刷新数据，再渲染到本机 onroad 主屏右下角。
+    overlay = self._cluster_overlay
+    if overlay is not None and self._current_mode == MainState.ONROAD:
+      overlay._update_state()
+      overlay.render(overlay.overlay_rect(content_rect))

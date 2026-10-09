@@ -96,6 +96,10 @@ class SidebarSP:
     if state == ChestnutState.LOADING:
       icon = self._chestnut_default_img
       opacity = 0.35 + 0.65 * (0.5 - 0.5 * math.cos(rl.get_time() * 6.0))
+    elif state == ChestnutState.WAITING:
+      # ready, and only a swap window away. Steady rather than the loading
+      # pulse, dim rather than the solid green of a model that is driving
+      icon, opacity = self._chestnut_green_img, 0.5
     elif state in (ChestnutState.UNCOMPILED, ChestnutState.FAILED):
       icon, opacity = self._chestnut_orange_img, 1.0
     else:
