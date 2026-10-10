@@ -11,7 +11,7 @@ from collections import namedtuple
 
 import numpy as np
 
-from openpilot.selfdrive.modeld.helpers import dump_oob, load_oob
+from openpilot.selfdrive.modeld.helpers import MODELD_PKL_KEYS, dump_oob, load_oob
 
 def _patch_tinygrad_fetch_fw():
   import hashlib
@@ -314,6 +314,7 @@ if __name__ == "__main__":
     'input_devices': {'model': Device.DEFAULT},
     'run_model': {},
   }
+  assert set(out) == set(MODELD_PKL_KEYS), "modeld reads MODELD_PKL_KEYS, keep it in step"
 
   run_policy = make_run_policy(model_runner, out['metadata'], args.frame_skip)
 

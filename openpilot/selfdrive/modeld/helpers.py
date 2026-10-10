@@ -52,11 +52,12 @@ def load_oob(f):
       yield pb
   return pickle.load(io.BytesIO(opcodes), buffers=buffers())
 
+# the top level of the pkl compile_modeld.py writes. checked at both ends: a pkl from another
 # compile_modeld.py unpickles fine and only fails on the first key it lacks, as a bare KeyError
-MODEL_PKL_KEYS = ('metadata', 'input_devices', 'run_model')
+MODELD_PKL_KEYS = ('metadata', 'input_devices', 'run_model')
 
 def check_modeld_pkl(jits: dict, path) -> None:
-  missing = [k for k in MODEL_PKL_KEYS if k not in jits]
+  missing = [k for k in MODELD_PKL_KEYS if k not in jits]
   if missing:
     raise RuntimeError(f"{path} is missing {missing}: it was compiled by a different compile_modeld.py than this modeld, rebuild it")
 

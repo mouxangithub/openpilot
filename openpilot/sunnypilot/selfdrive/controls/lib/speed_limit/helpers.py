@@ -9,6 +9,7 @@ from openpilot.cereal import custom
 from opendbc.car.structs import car
 from openpilot.common.constants import CV
 from openpilot.common.params import Params
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import CONFIRM_SPEED_THRESHOLD
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode as SpeedLimitMode
 
 
@@ -21,6 +22,16 @@ def compare_cluster_target(v_cruise_cluster: float, target_set_speed: float, is_
   req_minus = v_cruise_cluster_conv > target_set_speed_conv
 
   return req_plus, req_minus
+
+
+def confirm_needed_for_change(cluster_conv: int, target_conv: int, is_metric: bool) -> bool:
+  """The confirm-speed-threshold rule, shared by the pcm SLA machine and the cruise
+  arbiter: below CST a limit change always prompts; at/above it, a new target >= CST
+  applies without confirmation. Inputs are display-unit integers."""
+  cst = CONFIRM_SPEED_THRESHOLD[is_metric]
+  if cluster_conv < cst:
+    return True
+  return target_conv < cst
 
 
 def settle_conv(v_cap: float, cluster_conv: int, is_metric: bool) -> int:

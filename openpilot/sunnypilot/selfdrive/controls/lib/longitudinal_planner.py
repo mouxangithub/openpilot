@@ -11,6 +11,7 @@ from openpilot.cereal import messaging, custom, log
 from opendbc.car import structs
 from openpilot.common.constants import CV
 from openpilot.common.realtime import DT_MDL
+from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.car.cruise import V_CRUISE_MAX
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, get_accel_from_plan
 from openpilot.selfdrive.modeld.constants import ModelConstants
@@ -67,7 +68,7 @@ class LongitudinalPlannerSP:
     self.dec = DynamicExperimentalController(CP, mpc)
     self.scc = make_smart_cruise_control(CP)
     self.scc_actionable = CP.openpilotLongitudinalControl or not CP_SP.pcmCruiseSpeed
-    self.resolver = SpeedLimitResolver()
+    self.resolver = SpeedLimitResolver(CP)
     self.sla = SpeedLimitAssist(CP, CP_SP)
     self.generation = int(model_bundle.generation) if (model_bundle := get_active_bundle()) else None
     self.source = LongitudinalPlanSource.cruise
@@ -80,6 +81,7 @@ class LongitudinalPlannerSP:
 
     self.output_v_target = 0.
     self.output_a_target = 0.
+    self.seed_fault_logged = False
 
     # Carrot longitudinal source + traffic-light fusion (gated by killswitches;
     # both default OFF so stock behavior is untouched unless explicitly enabled).
@@ -186,7 +188,23 @@ class LongitudinalPlannerSP:
       self.carrot_source.update(sm, v_cruise * CV.MS_TO_KPH, mpc_mode)
 
     self.source = min(self.targets, key=lambda k: self.targets[k][0])
-    self.output_v_target, self.output_a_target = self.targets[self.source]
+    v_target, a_target = self.targets[self.source]
+
+    # The pair returned here becomes the MPC seed (set_cur_state pins stage 0 to it), and a
+    # single NaN in the seed poisons HPIPM's memory past acados_reset: every solve after it
+    # fails, the plan stays at zero and the car never resumes. No source may reach the
+    # solver with a non-finite target; fall back to what the cruise path would have given.
+    if not (math.isfinite(v_target) and math.isfinite(a_target)):
+      if not self.seed_fault_logged:
+        self.seed_fault_logged = True
+        cloudlog.error(f"longitudinal_planner: non-finite target from {self.source}: v={v_target} a={a_target}")
+      v_target = v_cruise if math.isfinite(v_cruise) else v_ego
+      a_target = a_ego if math.isfinite(a_ego) else 0.
+      if not math.isfinite(v_target):
+        v_target = 0.
+      self.source = LongitudinalPlanSource.cruise
+
+    self.output_v_target, self.output_a_target = v_target, a_target
 
     # When the carrot source is active and commanding a stop, flag it for MPC
     # stop-line handling (consumed downstream / by the subclass). Carrot no
