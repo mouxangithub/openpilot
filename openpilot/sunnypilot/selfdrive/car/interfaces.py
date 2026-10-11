@@ -8,6 +8,7 @@ from typing import Any
 
 from opendbc.car import structs
 from opendbc.car.interfaces import CarInterfaceBase
+from opendbc.car.mazda.values import MazdaFlags
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.selfdrive.controls.lib.nnlc.helpers import get_nn_model_path
@@ -16,6 +17,7 @@ from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import set_
 import openpilot.system.sentry as sentry
 
 from openpilot.sunnypilot.sunnylink.statsd import STATSLOGSP
+from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.helpers import icbm_applicable
 
 
 def log_fingerprint(CP: structs.CarParams) -> None:
@@ -23,6 +25,56 @@ def log_fingerprint(CP: structs.CarParams) -> None:
     sentry.capture_fingerprint_mock()
   else:
     sentry.capture_fingerprint(CP.carFingerprint, CP.brand)
+
+
+MAZDA_STEER_TO_ZERO_TORQUE_TUNE = 2.0  # FLOAT param; the tune fitted to the 2022+ EPS (latcontrol_torque_v2.py)
+
+
+def _seed_mazda_torque_defaults(CP: structs.CarParams, params: Params | None = None) -> None:
+  """One-time: default the torque-control stack ON for Mazdas on the measured EPS hardware.
+
+  Gated on the EPS hardware mask, not the model, so the CX-9 sharing this EPS, EPS swaps and
+  legacy firmware on the same hardware are covered.
+  Both seeds sit behind markers, because manager_init materializes every declared default at
+  boot: TorqueControlTune is already 0.0 on disk by the time card runs, so "unset" never
+  survives to here. The two toggles are seeded once behind MazdaTorqueDefaultsApplied. The
+  tune is seeded once per value of MAZDA_STEER_TO_ZERO_TORQUE_TUNE, recorded in
+  MazdaTorqueTuneSeeded, so a later bump moves everyone again while a choice made after the
+  seed is kept. TorqueControlTune's declared default stays 0.0 for every other brand.
+  """
+  if params is None:
+    params = Params()
+
+  if CP.brand != "mazda" or not (CP.flags & MazdaFlags.EPS_HW):
+    return
+  if params.get("MazdaTorqueTuneSeeded") != MAZDA_STEER_TO_ZERO_TORQUE_TUNE:
+    params.put("TorqueControlTune", MAZDA_STEER_TO_ZERO_TORQUE_TUNE, block=True)  # controlsd reads it at startup
+    params.put("MazdaTorqueTuneSeeded", MAZDA_STEER_TO_ZERO_TORQUE_TUNE, block=True)
+    cloudlog.warning("Seeded steer-to-zero Mazda TorqueControlTune=%s", MAZDA_STEER_TO_ZERO_TORQUE_TUNE)
+  if params.get_bool("MazdaTorqueDefaultsApplied"):
+    return
+
+  params.put_bool("EnforceTorqueControl", True)     # torque lateral control
+  params.put_bool("LiveTorqueParamsToggle", True)   # self-tune (live torque params)
+  params.put_bool("MazdaTorqueDefaultsApplied", True)
+  cloudlog.warning("Seeded steer-to-zero Mazda torque-control defaults (EnforceTorqueControl, self-tune)")
+
+
+def seed_car_defaults_offroad(params: Params) -> None:
+  """manager_init hook: apply the per-car seeds from the last drive's CarParams, so a device
+  that updated offroad shows and runs the seeded defaults without waiting for card to
+  fingerprint. A device that has never driven is seeded by card on its first drive."""
+  CP_bytes = params.get("CarParamsPersistent")
+  if CP_bytes is None:
+    return
+  try:
+    from openpilot.cereal import messaging  # lazy: keep manager_init's import cost down
+    from opendbc.car.structs import car
+    CP = messaging.log_from_bytes(CP_bytes, car.CarParams)
+  except Exception:
+    cloudlog.exception("seed_car_defaults_offroad: could not parse CarParamsPersistent")
+    return
+  _seed_mazda_torque_defaults(CP, params)
 
 
 def _enforce_torque_lateral_control(CP: structs.CarParams, params: Params | None = None, enabled: bool = False) -> bool:
@@ -60,7 +112,7 @@ def _initialize_intelligent_cruise_button_management(CP: structs.CarParams, CP_S
     params = Params()
 
   icbm_enabled = params.get_bool("IntelligentCruiseButtonManagement")
-  if icbm_enabled and CP_SP.intelligentCruiseButtonManagementAvailable and not CP.openpilotLongitudinalControl:
+  if icbm_enabled and icbm_applicable(CP, CP_SP):
     CP_SP.pcmCruiseSpeed = False
 
 
@@ -84,21 +136,18 @@ def _cleanup_unsupported_params(CP: structs.CarParams, CP_SP: structs.CarParamsS
     params.remove("EnforceTorqueControl")
     params.remove("LateralJerkTorqueController")
 
-  if not CP_SP.intelligentCruiseButtonManagementAvailable or CP.openpilotLongitudinalControl:
-    cloudlog.warning("ICBM not available or openpilot Longitudinal Control enabled, cleaning up params")
+  if not icbm_applicable(CP, CP_SP):
+    cloudlog.warning("ICBM not applicable, cleaning up params")
     params.remove("IntelligentCruiseButtonManagement")
 
-  if not CP.openpilotLongitudinalControl and CP_SP.pcmCruiseSpeed:
-    cloudlog.warning("openpilot Longitudinal Control and ICBM not available, cleaning up params")
-    params.remove("DynamicExperimentalControl")
-    params.remove("CustomAccIncrementsEnabled")
-    params.remove("SmartCruiseControlVision")
-    params.remove("SmartCruiseControlMap")
+  # DEC, custom ACC and SCC stay as the user left them without openpilot long or ICBM: they
+  # are inert then, and come back as set when either returns
 
   set_speed_limit_assist_availability(CP, CP_SP, params)
 
 
 def setup_interfaces(CI: CarInterfaceBase, params: Params | None = None) -> None:
+  _seed_mazda_torque_defaults(CI.CP, params)
   enforce_torque = _enforce_torque_lateral_control(CI.CP, params)
   nnlc_enabled = _initialize_neural_network_lateral_control(CI.CP, CI.CP_SP, params)
   _initialize_intelligent_cruise_button_management(CI.CP, CI.CP_SP, params)
@@ -118,6 +167,12 @@ def initialize_params(params) -> list[dict[str, Any]]:
   # hyundai
   keys.extend([
     "HyundaiLongitudinalTuning",
+  ])
+
+  # mazda
+  keys.extend([
+    "MazdaTjaButton",
+    "MazdaMovingTakeover",
   ])
 
   # subaru

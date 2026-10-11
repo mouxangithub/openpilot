@@ -262,6 +262,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     // sunnypilot car specific params
     {"HyundaiLongitudinalTuning", {PERSISTENT | BACKUP, INT, "0"}},
+    {"MazdaTjaButton", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"MazdaMovingTakeover", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"SubaruStopAndGo", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"SubaruStopAndGoManualParkingBrake", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"TeslaCoopSteering", {PERSISTENT | BACKUP, BOOL, "0"}},
@@ -338,6 +340,10 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"TorqueParamsOverrideEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"TorqueParamsOverrideFriction", {PERSISTENT | BACKUP, FLOAT, "0.1"}},
     {"TorqueParamsOverrideLatAccelFactor", {PERSISTENT | BACKUP, FLOAT, "2.5"}},
+    // Ensures steer-to-zero Mazda torque defaults are seeded once.
+    {"MazdaTorqueDefaultsApplied", {PERSISTENT | BACKUP, BOOL}},
+    // Tune version last seeded for the steer-to-zero Mazda EPS; a bump re-seeds everyone once.
+    {"MazdaTorqueTuneSeeded", {PERSISTENT | BACKUP, FLOAT}},
 
     {"DistractionDetectionLevel", {PERSISTENT | BACKUP, INT, "1"}},
     {"DisableDM", {PERSISTENT | BACKUP, BOOL, "0"}},

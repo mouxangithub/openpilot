@@ -22,6 +22,7 @@ from openpilot.common.version import get_build_metadata
 from openpilot.common.hardware.hw import Paths
 
 from openpilot.sunnypilot.system.params_migration import run_migration
+from openpilot.sunnypilot.selfdrive.car.interfaces import seed_car_defaults_offroad
 
 
 def manager_init() -> None:
@@ -52,6 +53,7 @@ def manager_init() -> None:
 
   if not PC:
     run_migration(params)
+    seed_car_defaults_offroad(params)
 
   if COMMA_HARDWARE:
     headless_override = os.getenv("OPENPILOT_HEADLESS", "").strip().lower()
