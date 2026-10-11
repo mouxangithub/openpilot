@@ -6,7 +6,9 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from openpilot.cereal import car, log, messaging
+from opendbc.car.structs import car
+from openpilot.cereal import log
+import openpilot.cereal.messaging as messaging
 from openpilot.common.params import Params
 from openpilot.common.realtime import Priority, config_realtime_process
 from openpilot.common.runtime_diagnostics import RuntimeDiagnostics
