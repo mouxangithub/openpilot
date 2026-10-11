@@ -229,6 +229,13 @@ lint.flake8-implicit-str-concat.allow-multiline = false
 # sp_param_labels.py is a pure data table: each row is one param's four label
 # slots (en title/descr + zh title/descr) and cannot fit the line limit.
 "openpilot/sunnypilot/carrot/tools/sp_param_labels.py" = ["E501"]
+# Ported from CarrotPilot verbatim (signal observation trial + its tools);
+# keep them byte-comparable with cp so re-syncs stay mechanical.
+"openpilot/sunnypilot/carrot/signal_assist.py" = ["C408", "E702"]
+"openpilot/sunnypilot/carrot/signal_assist_runtime.py" = ["C408", "E702"]
+"openpilot/sunnypilot/carrot/signal_display.py" = ["C408", "E702"]
+"openpilot/selfdrive/modeld/signal_color_shadow.py" = ["C408", "E702", "RUF100"]
+"openpilot/selfdrive/modeld/signal_tracking_shadow.py" = ["C408", "E702", "RUF100"]
 "openpilot/sunnypilot/carrot/recovery/server.py" = ["E501", "ISC002"]
 "openpilot/sunnypilot/carrot/server/features/carrot_navi/client_hub.py" = ["RUF006"]
 "openpilot/sunnypilot/carrot/server/features/dashcam/paths.py" = ["TID251"]

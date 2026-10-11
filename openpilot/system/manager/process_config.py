@@ -101,6 +101,11 @@ def radar_tracks_enabled(started: bool, params: Params, CP: car.CarParams) -> bo
 def radar_tracks_disabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   return started and not params.get_bool("EnableRadarTracks")
 
+def signal_color_observer(started: bool, params: Params, CP: car.CarParams) -> bool:
+  """Signal-light observation trial; opt-in through a local artifact install."""
+  from openpilot.selfdrive.modeld.signal_color_shadow import requested
+  return started and requested()
+
 def onroad_preview(started: bool, params: Params, CP: car.CarParams) -> bool:
   return params.get_bool("IsOnroadPreview")
 
@@ -253,6 +258,8 @@ procs = [
   PythonProcess("timed", "openpilot.system.timed", always_run, enabled=not PC),
 
   PythonProcess("modeld", "openpilot.selfdrive.modeld.modeld", and_(or_(only_onroad, onroad_preview), is_stock_model)),
+  # Signal-light colour observation (camera comparison only, never control).
+  PythonProcess("signalcolord", "openpilot.selfdrive.modeld.signal_color_shadow", signal_color_observer, restart_if_crash=True),
   PythonProcess("dmonitoringmodeld", "openpilot.selfdrive.modeld.dmonitoringmodeld", dm_process, enabled=(WEBCAM or not PC) and not LITE),
 
   PythonProcess("sensord", "openpilot.system.sensord.sensord", only_onroad, enabled=not PC),
