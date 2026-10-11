@@ -320,5 +320,27 @@ function renderDeviceSpToggleRow(param, title, descr, checked, needsConfirm) {
 function renderDeviceSpItems(groupId, values) {
   const names = getDeviceGroupParamNames(groupId);
   const data = { ...deviceParamValues, ...(values || {}) };
-  return names.map((name) => renderDeviceSpRow(name, spCatalogIndex?.[name], data[name])).join("");
+  // The Models section leads with the real model manager (5080 webui parity):
+  // bundle tree, selection, favorites, download state. The generic rows below
+  // keep the tuning knobs the on-device page has around the manager.
+  const manager = groupId === "Models" ? renderDeviceModelManagerShell() : "";
+  return manager + names.map((name) => renderDeviceSpRow(name, spCatalogIndex?.[name], data[name])).join("");
+}
+
+function renderDeviceModelManagerShell() {
+  return `
+    <div class="setting device-setting device-model-manager" id="deviceModelManager">
+      <div class="settingTop">
+        <div>
+          <div class="title">${escapeHtml(getUIText("model_manager", "Model manager"))}</div>
+          <div class="descr" id="deviceModelManagerStatus">${escapeHtml(getUIText("loading", "Loading..."))}</div>
+        </div>
+        <div class="ctrl">
+          <button type="button" class="smallBtn" id="btnDeviceModelRefresh">${escapeHtml(getUIText("refresh", "Refresh"))}</button>
+        </div>
+      </div>
+      <div id="deviceModelManagerBody" class="device-model-manager__body">
+        <div class="descr">${escapeHtml(getUIText("loading", "Loading..."))}</div>
+      </div>
+    </div>`;
 }

@@ -470,3 +470,158 @@ function bindDeviceSpControls(container) {
     });
   });
 }
+
+// ── Model manager: 5080 webui parity via /api/opui proxy ───────────────────
+
+const DEVICE_MODEL_SOURCE_LABELS = { device: "on-device", chestnut: "eGPU", jetlink: "accelerator" };
+
+function deviceModelBundleLabel(bundle) {
+  return String(bundle?.name || bundle?.internal || "").trim() || "-";
+}
+
+function deviceModelManagerSlot(payload) {
+  const slotName = payload?.active_source || "qcom";
+  return payload?.slots?.[slotName] || null;
+}
+
+function deviceModelManagerSummary(payload) {
+  const parts = [];
+  const carry = String(payload?.carry_display || "").trim();
+  if (carry) parts.push(`${getUIText("model_manager_running", "Driving")}: ${carry}`);
+  const source = String(payload?.big_model_source || "").trim();
+  if (source) {
+    parts.push(`${getUIText("model_manager_big_model_source", "Big model on")}: ${getUIText(`model_manager_source_${source}`, DEVICE_MODEL_SOURCE_LABELS[source] || source)}`);
+  }
+  const queued = payload?.download?.queued_name || payload?.download?.name;
+  if (queued) parts.push(`${getUIText("model_manager_downloading", "Downloading")}: ${queued}`);
+  return parts.join(" · ");
+}
+
+function deviceModelManagerTreeHtml(slot) {
+  const groups = Array.isArray(slot?.tree) ? slot.tree : [];
+  if (!groups.length) {
+    return `<div class="descr">${escapeHtml(getUIText("model_manager_empty", "No downloadable models reported."))}</div>`;
+  }
+  return groups.map((group, groupIndex) => {
+    const bundles = Array.isArray(group?.bundles) ? group.bundles : [];
+    if (!bundles.length) return "";
+    const groupName = String(group?.name || "").trim();
+    const heading = groupName || getUIText("model_manager_group_default", "Default");
+    const selectedRef = String(slot?.selected?.ref || "");
+    const activeRef = String(slot?.active_ref || "");
+    const rows = bundles.map((bundle) => {
+      const ref = String(bundle?.ref || "");
+      const isSelected = ref && ref === selectedRef;
+      const isActive = ref && ref === activeRef;
+      const fav = Boolean(bundle?.fav);
+      const badge = isActive
+        ? `<span class="descr"> (${escapeHtml(getUIText("model_manager_active", "active"))})</span>`
+        : (isSelected ? `<span class="descr"> (${escapeHtml(getUIText("model_manager_selected", "selected"))})</span>` : "");
+      const buttons = [];
+      if (ref && ref !== "Default" && bundle?.index !== undefined && bundle.index !== null) {
+        buttons.push(`<button type="button" class="smallBtn" data-model-select="${escapeHtml(ref)}" data-model-index="${escapeHtml(String(bundle.index ?? -1))}">${escapeHtml(getUIText("model_manager_select", "Select"))}</button>`);
+      }
+      if (ref && ref !== "Default") {
+        buttons.push(`<button type="button" class="smallBtn" data-model-favorite="${escapeHtml(ref)}">${fav ? "★" : "☆"}</button>`);
+      }
+      return `
+        <div class="setting device-setting">
+          <div class="settingTop">
+            <div>
+              <div class="title">${escapeHtml(deviceModelBundleLabel(bundle))}${badge}</div>
+            </div>
+            <div class="ctrl device-model-actions">${buttons.join("")}</div>
+          </div>
+        </div>`;
+    }).join("");
+    return `
+      <div class="setting device-setting device-model-group">
+        <div class="title">${escapeHtml(heading)}</div>
+        ${rows}
+      </div>`;
+  }).join("");
+}
+
+async function loadDeviceModelManager(container) {
+  const body = container.querySelector("#deviceModelManagerBody");
+  const status = container.querySelector("#deviceModelManagerStatus");
+  let payload;
+  try {
+    payload = await requestJson("/api/opui/models", { cache: "no-store" });
+  } catch (err) {
+    if (body) body.innerHTML = `<div class="descr">${escapeHtml(err.message || getUIText("failed", "Failed"))}</div>`;
+    if (status) status.textContent = getUIText("model_manager_unavailable", "Model manager (5080) unreachable");
+    return;
+  }
+  if (!payload?.ok) {
+    if (body) body.innerHTML = `<div class="descr">${escapeHtml(payload?.error || getUIText("failed", "Failed"))}</div>`;
+    return;
+  }
+  const slot = deviceModelManagerSlot(payload);
+  if (status) status.textContent = deviceModelManagerSummary(payload);
+  if (body) {
+    body.innerHTML = `
+      <div class="setting device-setting">
+        <div class="settingTop">
+          <div>
+            <div class="title">${escapeHtml(getUIText("model_manager_current", "Current selection"))}</div>
+          </div>
+          <div class="ctrl">
+            <div class="title muted device-value">${escapeHtml(String(slot?.selected?.name || payload?.carry_display || "-"))}</div>
+          </div>
+        </div>
+      </div>
+      ${deviceModelManagerTreeHtml(slot)}`;
+    bindDeviceModelActions(body, payload);
+  }
+}
+
+async function deviceModelPost(path, bodyObj, confirmMessage) {
+  if (confirmMessage) {
+    const ok = await appConfirm(confirmMessage, {
+      title: getUIText("model_manager", "Model manager"),
+      confirmLabel: getUIText("ok", "OK"),
+      cancelLabel: getUIText("cancel", "Cancel"),
+    });
+    if (!ok) return false;
+  }
+  await postJson(path, bodyObj || {});
+  showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+  return true;
+}
+
+function bindDeviceModelActions(scope, payload) {
+  const slotName = payload?.active_source || "qcom";
+  scope.querySelectorAll("[data-model-select]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const ref = button.dataset.modelSelect;
+      const index = Number(button.dataset.modelIndex);
+      const done = await deviceModelPost("/api/opui/models/select", {
+        ref,
+        index: Number.isFinite(index) ? index : -1,
+        source: slotName,
+      }, getUIText("model_manager_select_confirm", "Switch to this model? It downloads on the device and applies after the model loads."));
+      if (done) {
+        const container = document.getElementById("deviceItems");
+        if (container) loadDeviceModelManager(container).catch(() => {});
+      }
+    });
+  });
+  scope.querySelectorAll("[data-model-favorite]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const done = await deviceModelPost("/api/opui/models/favorite", { ref: button.dataset.modelFavorite });
+      if (done) {
+        const container = document.getElementById("deviceItems");
+        if (container) loadDeviceModelManager(container).catch(() => {});
+      }
+    });
+  });
+  const refresh = document.getElementById("btnDeviceModelRefresh");
+  if (refresh && !refresh.dataset.bound) {
+    refresh.dataset.bound = "1";
+    refresh.addEventListener("click", () => {
+      const container = document.getElementById("deviceItems");
+      if (container) loadDeviceModelManager(container).catch(() => {});
+    });
+  }
+}

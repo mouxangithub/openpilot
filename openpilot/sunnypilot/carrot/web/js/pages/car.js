@@ -228,6 +228,19 @@ async function loadCurrentCar(options = {}) {
 
   currentCarLoadPromise = (async () => {
     try {
+      try {
+        const sp = await getJson("/api/opui/vehicle/platforms");
+        if (sp?.ok && sp.display) {
+          cancelCurrentCarRetry();
+          currentCarRetryIndex = 0;
+          applyCurrentCarLabel(sp.display);
+          currentCarHasSnapshot = true;
+          currentCarLoadedAt = Date.now();
+          return sp.display;
+        }
+      } catch (e) {
+        // 5080 unreachable - the cp params below are the fallback
+      }
       const values = await bulkGet(["CarSelected3", "CarName"]);
       const label = resolveCurrentCarLabel(values);
       if (label) {
@@ -438,14 +451,36 @@ function renderCarPickerModels(maker) {
   }
 }
 
+// sunnypilot's own vehicle selection: platform tree + bundle select via the
+// 5080 webui API (proxied on 7000). Falls back to cp's read-only car list.
+let VEHICLE_SP = null;
+let CAR_BUNDLE_BY_LINE = {};
+
 async function ensureCarsLoaded() {
   if (CARS?.makers) return CARS;
   if (carsLoadPromise) return carsLoadPromise;
 
   carsLoadPromise = (async () => {
+    try {
+      const sp = await getJson("/api/opui/vehicle/platforms");
+      if (sp?.ok && Array.isArray(sp.tree)) {
+        VEHICLE_SP = sp;
+        CAR_BUNDLE_BY_LINE = {};
+        const makers = {};
+        sp.tree.forEach((brand) => {
+          const platforms = Array.isArray(brand.platforms) ? brand.platforms : [];
+          makers[brand.name] = platforms.map((p) => p.label || p.bundle);
+          platforms.forEach((p) => {
+            CAR_BUNDLE_BY_LINE[p.label || p.bundle] = p.bundle;
+          });
+        });
+        return { ok: true, sources: ["sunnypilot"], makers };
+      }
+    } catch (e) {
+      // 5080 unreachable - cp's read-only list is the fallback
+    }
     const j = await getJson("/api/cars");
-    CARS = j;
-    return CARS;
+    return j;
   })();
 
   try {
@@ -579,6 +614,24 @@ function stripMaker(fullLine, maker) {
 async function onSelectCar(maker, modelOnly, fullLine) {
   const msg = (UI_STRINGS[LANG].confirm_car || "Select this car?") + `\n\n${maker} ${modelOnly}`;
   if (!await appConfirm(msg, { title: UI_STRINGS[LANG].car_select || "Car Select" })) return;
+
+  // sunnypilot selection: CarPlatformBundle, applied by the fingerprint
+  // manager on the next drive - no reboot required.
+  const bundle = CAR_BUNDLE_BY_LINE[fullLine];
+  if (bundle) {
+    try {
+      await postJson("/api/opui/vehicle/select", { bundle });
+    } catch (e) {
+      await appAlert((UI_STRINGS[LANG].failed_set_car || "Failed to set car: ") + e.message, {
+        title: UI_STRINGS[LANG].error || "Error",
+      });
+      return;
+    }
+    if (typeof applyCurrentCarLabel === "function") applyCurrentCarLabel(modelOnly);
+    closeCarPicker(true);
+    showAppToast(UI_STRINGS[LANG].car_sp_selected || "Selected. Applies on the next drive.", { tone: "success" });
+    return;
+  }
 
   try {
     await setParam("CarSelected3", fullLine);

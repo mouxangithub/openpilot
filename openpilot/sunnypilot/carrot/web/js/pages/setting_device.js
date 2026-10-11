@@ -511,6 +511,9 @@ async function renderDeviceItems(groupId, showItemsScreen = true, options = {}) 
     applyDeviceItemsStagger(itemsContainer);
   }
   bindDeviceTabEvents(itemsContainer);
+  if (groupId === "Models") {
+    loadDeviceModelManager(itemsContainer).catch((err) => console.error("[DeviceTab]", err));
+  }
   syncDeviceGroupActiveState(groupId);
   syncDeviceGroupChrome(groupId);
   syncDeviceNetworkRefresh();

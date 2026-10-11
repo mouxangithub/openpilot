@@ -18,6 +18,7 @@ from aiohttp import ClientSession, web
 from . import config
 from .features import bluetooth as bluetooth_feature
 from .features import camera as camera_feature
+from .features import opui_proxy as opui_proxy_feature
 from .features import carrot_navi as carrot_navi_feature
 from .features import cars as cars_feature
 from .features import dashcam as dashcam_feature
@@ -111,6 +112,8 @@ def create_app(params=None) -> web.Application:
   web_sound_feature.register(app)
   bluetooth_feature.register(app)
   camera_feature.register(app)
+  # The 5080 webui daemon's API (model manager, vehicle selection), pass-through.
+  opui_proxy_feature.register(app)
   # Registered last: it claims the wildcard prefixes for the subsystems this fork still does
   # not run, so a real route must never be shadowed by a refusal.
   unsupported_feature.register(app)

@@ -109,6 +109,10 @@ TMUX_START_DIR = "/data/openpilot"
 # Internal services
 WEBRTCD_URL = "http://127.0.0.1:5001/stream"
 
+# The webui daemon (5080) owns the interactive sunnypilot surfaces - model manager,
+# vehicle selection - that this panel proxies instead of duplicating.
+WEBUI_PROXY_TARGET = os.environ.get("WEBUI_PROXY_TARGET", "http://127.0.0.1:5080")
+
 # UI
 UNIT_CYCLE = [1, 2, 5, 10, 50, 100]
 

@@ -447,3 +447,14 @@
     bottom: auto;
   }
 }
+
+/* Model manager (5080 parity) */
+.device-model-manager__body .device-model-group > .title {
+  font-weight: 600;
+  padding: 8px 0 4px;
+}
+.device-model-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
