@@ -62,6 +62,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"IsLiveStreaming", {CLEAR_ON_MANAGER_START | CLEAR_ON_IGNITION_ON, BOOL}},
     {"IsMetric", {PERSISTENT | BACKUP, BOOL}},
     {"IsOffroad", {CLEAR_ON_MANAGER_START, BOOL}},
+    {"IsTakingSnapshot", {CLEAR_ON_MANAGER_START, BOOL}},  // offroad camera check (carrot vision runner)
+    {"Offroad_IsTakingSnapshot", {CLEAR_ON_MANAGER_START, JSON}},
     // Jetlink (accelerator link): what runs the large model off the device.
     // JetlinkSpec carries whether the engine is built, which must survive a reboot
     // or every ignition cycle would rebuild a multi-minute engine.
