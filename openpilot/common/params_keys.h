@@ -695,6 +695,9 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ClusterHudScreenMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ClusterHudTheme", {PERSISTENT | BACKUP, INT, "0"}},
     {"EnableRadarTracks", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"EnableCornerRadar", {PERSISTENT, INT, "0"}},  // corner-radar object groups (Hyundai)
+    {"RadarTrackFlip", {PERSISTENT, BOOL, "0"}},  // invert frontRadar yRel/yvRel once per drive
+    {"EnableRadarTracksResult", {PERSISTENT | CLEAR_ON_MANAGER_START, INT}},
     {"EnableSpeedTF", {PERSISTENT | BACKUP, INT, "0"}},
     {"HotspotOnBoot", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"LatMpcInputOffset", {PERSISTENT | BACKUP, INT, "4"}},

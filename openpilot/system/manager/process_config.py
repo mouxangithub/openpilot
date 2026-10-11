@@ -90,6 +90,17 @@ def enable_webrtc(started: bool, params: Params, CP: car.CarParams) -> bool:
   # The web encoder remains idle until a Carrot Vision session requests it.
   return params.get_bool("CarrotVisionEnabled")
 
+def radar_tracks_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  """Carrot radar stack: radarcan (CAN -> liveTracks) and the dPath radard.
+
+  Off by default - upstream radard/card keep publishing radarTracks, so the
+  stock path is untouched unless EnableRadarTracks is on.
+  """
+  return started and params.get_bool("EnableRadarTracks")
+
+def radar_tracks_disabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and not params.get_bool("EnableRadarTracks")
+
 def onroad_preview(started: bool, params: Params, CP: car.CarParams) -> bool:
   return params.get_bool("IsOnroadPreview")
 
@@ -268,7 +279,11 @@ procs = [
   PythonProcess("plannerd", "openpilot.selfdrive.controls.plannerd", not_long_maneuver),
   PythonProcess("maneuversd", "openpilot.tools.longitudinal_maneuvers.maneuversd", long_maneuver),
   PythonProcess("lateral_maneuversd", "openpilot.tools.lateral_maneuvers.lateral_maneuversd", lat_maneuver),
-  PythonProcess("radard", "openpilot.selfdrive.controls.radard", only_onroad),
+  # EnableRadarTracks swaps in CarrotPilot's CAN-driven radar stack: radarcan
+  # publishes liveTracks from raw CAN, radard_dpath selects leads from them.
+  PythonProcess("radard", "openpilot.selfdrive.controls.radard", radar_tracks_disabled),
+  PythonProcess("radard_dpath", "openpilot.sunnypilot.carrot.radar.radard_dpath", radar_tracks_enabled),
+  PythonProcess("radarcan", "openpilot.sunnypilot.carrot.radar.radarcan", radar_tracks_enabled),
   PythonProcess("hardwared", "openpilot.system.hardware.hardwared", always_run),
   PythonProcess("modem", "openpilot.common.hardware.comma.modem", always_run, enabled=COMMA_HARDWARE and not LITE),
   PythonProcess("tombstoned", "openpilot.system.tombstoned", always_run, enabled=not PC),

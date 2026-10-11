@@ -35,6 +35,7 @@ _services: dict[str, tuple] = {
   "radarState": (True, 20., 5),
   "narrowRoadEncodeIdx": (False, 20., 1),
   "radarTracks": (True, 20.),
+  "liveTracks": (True, 20.),
   "sendcan": (True, 100., 139, QueueSize.MEDIUM),
   "logMessage": (True, 0., None, QueueSize.BIG),
   "errorLogMessage": (True, 0., 1, QueueSize.BIG),

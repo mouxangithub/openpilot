@@ -2551,6 +2551,7 @@ struct Event {
     peripheralState @80 :PeripheralState;
     radarState @13 :RadarState;
     radarTracks @131 :Car.RadarData;
+    liveTracks @153 :Car.RadarData;  # radarcan: CAN-driven radar tracks (carrot)
     sendcan @17 :List(CanData);
     extrinsicsCalibration @19 :ExtrinsicsCalibration;
     carState @22 :Car.CarState;

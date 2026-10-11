@@ -1,6 +1,4 @@
-"""Lane-change gap tracker (ported from CarrotPilot).
-
-Bounded ACC departure credit; never reduce the common following time.
+"""Bounded ACC departure credit; never reduce the common following time.
 
 Coordinates: model/pose y is right-positive, radar yRel is left-positive.
 The session frame is fixed at lane-change entry. Measured yaw and speed, not
@@ -8,10 +6,6 @@ the moving model path, establish that ego has actually started moving aside.
 Only the selected leadOne/leadTwo enter this tracker. Stored entry identities
 can veto acceleration relief; they never add or retain a braking obstacle.
 Confidence below is an evidence ramp, NOT a calibrated collision probability.
-
-Ported into sunnypilot from ``openpilot.selfdrive.carrot.radar_motion``. Uses
-only the standard library plus numpy so it can run without a compiled cereal
-runtime (unit tests construct fake leads directly).
 """
 from __future__ import annotations
 
@@ -118,8 +112,14 @@ class LaneChangeGapTracker:
 
   def update(self, *, now: float, direction: int, v_ego: float, yaw_rate: float,
              path_t: tuple, path_x: tuple, path_y: tuple, primary: Any,
-             secondary: Any, blindspot: bool = False, valid: bool = True) -> LaneChangeGapPlan:
+             secondary: Any = None, blindspot: bool = False, valid: bool = True,
+             side_leads: tuple | None = None) -> LaneChangeGapPlan:
     active = direction in (-1, 1)
+    if side_leads is not None:
+      # A stale caller must not crash planning or turn unselected side returns
+      # into braking obstacles. Require the selected-pair API for any credit.
+      self.reset()
+      return LaneChangeGapPlan(active=active, reason='legacy-side-input')
     if not active or not valid or not math.isfinite(now):
       self.reset()
       return LaneChangeGapPlan(active=active, reason='invalid-input' if active else 'inactive')
