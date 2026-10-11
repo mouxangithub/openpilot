@@ -247,3 +247,37 @@ NetworkAddress 监听与 30s 自动关闭；8088 不再出现在二维码里（�
   Display 7 / Navigation 8 / Osm 12 / Maps 9 / Trips 3 / Imu 4；
 - 静态 JS 新内容已生效（`SP_DEVICE_GROUP_IDS`、中文标签在服务端下发）；
 - ui 进程携带新二维码代码稳定运行无重启循环；本地渲染冒烟 10/10、web 测试失败集与基线一致。
+
+## 10. Carrot Vision / Carrot 导航对齐（2026-10-11，已 push `15280cdbf`..`f6512bf14`，设备实测）
+
+### 结论
+
+- **Carrot 导航：本已对齐**。`/api/carrot_navi/*` + `/ws/carrot_navi/state|media`（7714 navipilot
+  本 fork 自己的通道）+ 前端 worker.js 全部在位，`CarrotNaviV2Enabled=true`；cp 的 Kakao kmap
+  （carrot_map.js）在本面板是死代码（无任何引用），不是导航数据源。
+- **Carrot Vision：此前整条链缺失**，本轮补齐：
+
+| 环节 | 缺失 | 处理 |
+|---|---|---|
+| `CarrotVisionEnabled`/`CarrotVisionActive` | 未声明 → 目录裁掉 → 面板按钮永久禁用 | params_keys.h 声明；目录重生成（338 参数，cp 自带 ko/en/zh 标签） |
+| webrtcd 变体 | fork 无 carrot 会话/状态桥 | `system/webrtc/carrot/` 自包含子包（cp aiohttp 版 daemon + 会话注册表 + 帧同步 + CarrotStateChannelProxy），road socket 重映射 `livestreamNarrowRoadEncodeData`，compact_state 指向 sunnypilot 包；**不动 sp 上游 webrtcd** |
+| 编码器 | `encoderd --carrot-vision-road` 不存在 | encoderd 增加 on-demand 模式（预热一帧后按 `CarrotVisionActive` 停车），`set_idle` 贯穿 encoder 基类与 V4L dequeue；不匹配流跳过而非 assert |
+| manager | 无进程 | `carrot_vision_encoderd` + `carrot_webrtcd`(5001)，`and_(iscar, CarrotVisionEnabled)`，与 cp 一致 |
+| /stream 代理 | `app["http"]` 从未创建 → 代理必 500 | create_app 增加 cleanup_ctx（ssh_keys/xiaoge/热门值同步受益） |
+| runner | `IsTakingSnapshot` 未声明 | 补声明（含 Offroad_IsTakingSnapshot） |
+
+### 设备实测（C3 @ f6512bf14）
+
+- `param_set CarrotVisionEnabled=1` OK；面板设置出现「Carrot Vision 使用」开关；
+- 桌面路径（vision_test runner）：camerad + stream_encoderd + webrtcd 三进程活、VIPC 0/1/2 流、
+  5001 开、7000 `/stream` 代理透传 webrtcd 响应；
+- 车内路径（iscar=true 时 manager 自动拉起 carrot_vision_encoderd + carrot_webrtcd）待实车确认；
+- carrot_server 稳定无异常重启。
+
+### 移植差异备忘（后续维护）
+
+- sp 的 road 流叫 narrow road：新增 camera info 用 `VISION_STREAM_NARROW_ROAD` +
+  `livestreamNarrowRoadEncodeData`；
+- 本 fork Params 无 `put_bool_nonblocking` 别名 → 用 `put_nonblocking(key, "1"/"0")`；
+- sp `encoderd_thread` 对未知流是 assert（cp 是 continue）——on-demand 模式必须跳过；
+- `carrot/` 子包刻意不 import 上游 webrtcd，两套实现互不影响。
