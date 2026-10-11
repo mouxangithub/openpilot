@@ -122,6 +122,12 @@ def carrot_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   # carrot_man gates its own behaviour with the IsOnroad param
   return params.get_bool("CarrotEnabled")
 
+def carrot_recovery_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # The 6999 support terminal is an unauthenticated remote shell (plus git-recovery
+  # actions), so it is opt-in and off by default. CarrotPilot runs it always; this fork
+  # does not. See openpilot/sunnypilot/carrot/recovery/server.py.
+  return params.get_bool("CarrotRecoveryEnabled")
+
 def mapd_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
   return bool(os.path.exists(Paths.mapd_root()))
 
@@ -321,6 +327,13 @@ procs += [
   # "设备未连接" with nothing on the device to explain why.
   PythonProcess("carrot_server", "openpilot.sunnypilot.carrot.carrot_server", always_run,
                 enabled=not CARROT_WEB_EXTERNAL, restart_if_crash=True),
+
+  # Support terminal on 6999 (CarrotPilot's recovery/server.py): a standalone, stdlib-only
+  # shell that keeps working when the rest of the web stack is broken. Gated on
+  # CarrotRecoveryEnabled (default "0") because it is an unauthenticated shell reachable
+  # from the car network - see the module docstring before turning it on.
+  PythonProcess("carrot_recovery", "openpilot.sunnypilot.carrot.recovery.server",
+                carrot_recovery_enabled, restart_if_crash=True),
 
   # Xiaoge ONNX BSD/Lane detection
   # Reads VisionIPC camera buffers, runs ONNX inference, publishes to customReservedRawData0.
