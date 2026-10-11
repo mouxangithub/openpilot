@@ -14,7 +14,9 @@ ko/en/zh labels, min/max/unit, options and a menu tree. This fork cannot serve i
     built from them could only ever fail to write;
   * 46 params this fork tunes are not in it at all (`carrot/config.py::_DEFAULT_NAV_PARAMS`
     is this fork's carrot surface, and it is the source the panel used to read);
-  * 10 more are declared here and named by CarrotPilot's menu but missing from its params.
+  * 10 more are declared here and named by CarrotPilot's menu but missing from its params;
+  * and sunnypilot's own settings - the 134 params the car's UI groups across its 19
+    settings pages - are not in it at all, so the panel hid them.
 
 The output is CarrotPilot's structure with those three differences applied, so the panel,
 the setting profiles, the popular-value upload and the intro presets all read one catalog
@@ -23,6 +25,7 @@ instead of two.
 Usage:
     python -m openpilot.sunnypilot.carrot.tools.build_settings_catalog
 """
+import importlib.util
 import json
 import pathlib
 import re
@@ -48,9 +51,38 @@ SP_SUBGROUPS = (
 )
 
 
+_DECL_RE = re.compile(r'\{"([A-Za-z0-9_]+)",\s*\{([^}]*)\}')
+
+
+def declared() -> dict[str, tuple[str, object]]:
+  """`{key: (json_type, default)}` for every key `params_keys.h` declares.
+
+  The declaration is the only place that knows a key's type and default, and a control may
+  only be built from a key that is declared - an undeclared one can be read (as its default)
+  but never written.
+  """
+  types = {"BOOL": "bool", "INT": "int", "FLOAT": "float", "STRING": "str", "TIME": "int", "JSON": "str", "BYTES": "str"}
+  out = {}
+  for name, attrs in _DECL_RE.findall(PARAMS_KEYS_H.read_text(encoding="utf-8")):
+    kind = "str"
+    for token, json_type in types.items():
+      if re.search(rf"\b{token}\b", attrs):
+        kind = json_type
+        break
+    raw = re.search(r'"([^"]*)"\s*\}\s*$', "{" + attrs + "}")
+    default = raw.group(1) if raw else ""
+    try:
+      value = {"bool": lambda v: v == "1", "int": int, "float": float}.get(kind, str)(default) if default != "" else \
+        {"bool": False, "int": 0, "float": 0.0}.get(kind, "")
+    except (TypeError, ValueError):
+      value = {"bool": False, "int": 0, "float": 0.0}.get(kind, "")
+    out[name] = (kind, value)
+  return out
+
+
 def declared_keys() -> set[str]:
   """Every key `params_keys.h` declares - the only keys a control may be built from."""
-  return set(re.findall(r'\{"([A-Za-z0-9_]+)",\s*\{', PARAMS_KEYS_H.read_text(encoding="utf-8")))
+  return set(declared())
 
 
 def sp_defaults() -> dict:
@@ -97,6 +129,27 @@ def sp_subgroup(name: str) -> str:
   return "MISC"
 
 
+def ui_page_params() -> dict:
+  """`{page: [param, ...]}` for the params the car's own settings pages group.
+
+  Reuses the scanner the 8088 panel already serves from, so the two panels cannot disagree
+  about which page a setting belongs to. Its output is filtered to declared keys here: the
+  scan also picks up UI strings and state names (`Scan`, `Back`, `active`), which are not
+  settings and must not become controls.
+  """
+  spec = importlib.util.spec_from_file_location("_carrot_web_settings", CARROT / "web_settings.py")
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+
+  declared_set = declared_keys()
+  pages = {}
+  for page, keys in module.scan_ui_pages(module.ui_settings_dir()).items():
+    kept = [k for k in keys if k in declared_set]
+    if kept:
+      pages[page] = kept
+  return pages
+
+
 def _type_of(value) -> str:
   if isinstance(value, bool):
     return "bool"
@@ -109,10 +162,10 @@ def _type_of(value) -> str:
 
 def build() -> dict:
   upstream = json.loads(UPSTREAM_JSON.read_text(encoding="utf-8"))
-  declared = declared_keys()
+  declared_set = declared_keys()
   defaults = sp_defaults()
 
-  kept_params = [p for p in upstream["params"] if p.get("name") in declared]
+  kept_params = [p for p in upstream["params"] if p.get("name") in declared_set]
   kept_names = {p["name"] for p in kept_params}
   dropped = sorted({p.get("name") for p in upstream["params"]} - kept_names)
   added = sorted((set(defaults) | kept_names) - kept_names)
@@ -137,13 +190,40 @@ def build() -> dict:
       "type": _type_of(default),
     })
 
+  # 1b) sunnypilot's own settings, grouped the way the car's UI groups them. Their type and
+  #     default come from params_keys.h, which is the only place that knows either.
+  pages = ui_page_params()
+  declared_types = declared()
+  already = kept_names | set(defaults)
+  page_params = []
+  for page, keys in sorted(pages.items()):
+    for name in keys:
+      if name in already:
+        continue
+      kind, value = declared_types.get(name, ("str", ""))
+      page_params.append({
+        "group": page,
+        "name": name,
+        "title": humanize(name),
+        "descr": "sunnypilot",
+        "egroup": page.upper(),
+        "etitle": humanize(name),
+        "edescr": "sunnypilot",
+        "cgroup": page,
+        "ctitle": humanize(name),
+        "cdescr": "sunnypilot",
+        "default": value,
+        "type": kind,
+      })
+  extra_params.extend(page_params)
+
   # 2) the menu keeps CarrotPilot's tree, with the dropped names removed from its leaves.
   def prune(nodes):
     out = []
     for node in nodes:
       node = dict(node)
       if "params" in node:
-        node["params"] = [n for n in node["params"] if n in declared or n in defaults]
+        node["params"] = [n for n in node["params"] if n in declared_set or n in defaults]
         if not node["params"]:
           continue
       if "groups" in node:
@@ -155,27 +235,45 @@ def build() -> dict:
 
   menu = prune(upstream.get("menu") or [])
 
-  # 3) and gains one node for the fork-only params, grouped by family.
+  # 3) and gains a SUNNYPILOT node: the fork-only carrot params by family, and one group per
+  #    on-device settings page (the car's own grouping, filtered to declared keys).
   by_sub: dict[str, list[str]] = {}
   for name in added:
     by_sub.setdefault(sp_subgroup(name), []).append(name)
+
+  sp_groups = []
   if by_sub:
+    sp_groups.append({
+      "id": SP_GROUP_ID,
+      "ko": "carrot (sp)",
+      "en": "carrot (sp)",
+      "zh": "carrot (sp)",
+      "groups": [
+        {"id": f"{SP_GROUP_ID}_{sub}", "ko": sub, "en": sub, "zh": sub,
+         "params": sorted(by_sub[sub])}
+        for sub in sorted(by_sub)
+      ],
+    })
+  if pages:
+    sp_groups.append({
+      "id": SP_GROUP_ID + "_UI",
+      "ko": "차량 설정",
+      "en": "On-device settings",
+      "zh": "车机设置页",
+      "groups": [
+        {"id": f"{SP_GROUP_ID}_UI_{page.upper()}", "ko": page, "en": page, "zh": page,
+         "params": [k for k in keys if k in declared_set]}
+        for page, keys in sorted(pages.items())
+      ],
+    })
+
+  if sp_groups:
     menu.append({
       "id": SP_NODE_ID,
       "ko": "sunnypilot",
       "en": "sunnypilot",
       "zh": "sunnypilot",
-      "groups": [{
-        "id": SP_GROUP_ID,
-        "ko": "carrot (sp)",
-        "en": "carrot (sp)",
-        "zh": "carrot (sp)",
-        "groups": [
-          {"id": f"{SP_GROUP_ID}_{sub}", "ko": sub, "en": sub, "zh": sub,
-           "params": sorted(by_sub[sub])}
-          for sub in sorted(by_sub)
-        ],
-      }],
+      "groups": sp_groups,
     })
 
   return {
@@ -188,6 +286,8 @@ def build() -> dict:
       "kept": len(kept_params),
       "dropped_undeclared": dropped,
       "added_from_this_fork": added,
+      "added_from_on_device_pages": sorted(p["name"] for p in page_params),
+      "on_device_pages": sorted(pages),
     },
   }
 
