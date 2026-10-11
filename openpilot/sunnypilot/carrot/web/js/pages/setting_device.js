@@ -102,6 +102,7 @@ function isSpDeviceGroup(groupId) {
 // renderDeviceSpItems from the 5080 webui API.
 const DEVICE_CAPABILITY_LOADERS = {
   Models: (container) => loadDeviceModelManager(container),
+  Vehicle: (container) => loadDeviceVehicleManager(container),
   Osm: (container) => loadDeviceOsmManager(container),
   Trips: (container) => loadDeviceTripsManager(container),
   Imu: (container) => loadDeviceImuManager(container),

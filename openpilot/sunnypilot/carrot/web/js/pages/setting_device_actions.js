@@ -1345,8 +1345,28 @@ async function loadDeviceStorageManager(container) {
           // Friendly names - the daemon reports raw ids (ota_staging, scons_cache).
           title: getUIText(`storage_cat_${String(c.id)}`, DEVICE_STORAGE_CATEGORY_LABELS[String(c.id)] || String(c.id)),
           value: `${deviceBytesText(c.bytes)} · ${Number(c.percent ?? 0).toFixed(1)}%`,
+          button: getUIText("storage_clear_btn", "Clear"),
+          buttonId: `btnStClear-${String(c.id)}`,
         }))
         .join("");
+      cats.filter((c) => Number(c?.bytes || 0) > 0).forEach((c) => {
+        const id = String(c.id);
+        bindOnce(container.querySelector(`#btnStClear-${id}`), "click", async () => {
+          const label = getUIText(`storage_cat_${id}`, DEVICE_STORAGE_CATEGORY_LABELS[id] || id);
+          const ok = await appConfirm(
+            `${getUIText("storage_clear_confirm", "Delete this category's data? This cannot be undone.")}\n\n${label} · ${deviceBytesText(c.bytes)}`,
+            { title: getUIText("storage_clear_title", "Clear storage"), confirmLabel: getUIText("storage_clear_btn", "Clear"), cancelLabel: getUIText("cancel", "Cancel") },
+          );
+          if (!ok) return;
+          try {
+            await postJson("/api/opui/storage/clear", { category: id });
+            showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+            await loadDeviceStorageManager(container);
+          } catch (err) {
+            showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+          }
+        });
+      });
     }
   } catch (err) {
     if (usageValue) usageValue.textContent = "-";
@@ -1364,7 +1384,10 @@ function renderDeviceSunnylinkShell() {
   return `
     ${deviceManagerRow({ id: "slStatus", title: getUIText("sunnylink_status", "sunnylink status"), value: "-" })}
     ${deviceManagerRow({ id: "slAccount", title: getUIText("sunnylink_account", "Account"), value: "-" })}
-    ${deviceManagerRow({ id: "slBackup", title: getUIText("sunnylink_backup", "Backup / restore"), value: "-" })}`;
+    ${deviceManagerRow({ id: "slBackup", title: getUIText("sunnylink_backup", "Backup / restore"), value: "-" })}
+    ${deviceManagerRow({ id: "slPair", title: getUIText("sunnylink_pair", "Pair this device"), descr: getUIText("sunnylink_pair_hint", "Open the link on your phone to sign in"), button: getUIText("sunnylink_pair_btn", "PAIR"), buttonId: "btnDeviceSlPair" })}
+    ${deviceManagerRow({ id: "slBackupAction", title: getUIText("sunnylink_backup_action", "Run backup"), descr: getUIText("sunnylink_backup_action_hint", "Uploads settings and calibration to sunnylink"), button: getUIText("sunnylink_backup_btn", "BACKUP"), buttonId: "btnDeviceSlBackup" })}
+    ${deviceManagerRow({ id: "slRestoreAction", title: getUIText("sunnylink_restore_action", "Run restore"), descr: getUIText("sunnylink_restore_action_hint", "Pulls the last backup back onto this device"), button: getUIText("sunnylink_restore_btn", "RESTORE"), buttonId: "btnDeviceSlRestore" })}`;
 }
 
 async function loadDeviceSunnylinkManager(container) {
@@ -1393,6 +1416,53 @@ async function loadDeviceSunnylinkManager(container) {
   } catch (err) {
     if (statusValue) statusValue.textContent = err.message || getUIText("failed", "Failed");
   }
+
+  bindOnce(container.querySelector("#btnDeviceSlPair"), "click", async () => {
+    try {
+      const pair = await requestJson("/api/opui/sunnylink/pair?mode=pair", { cache: "no-store" });
+      const url = String(pair?.url || "").trim();
+      const qr = String(pair?.qr_data_url || "").trim();
+      if (!url && !qr) throw new Error(pair?.error || getUIText("sunnylink_pair_failed", "No pairing link returned"));
+      // The daemon renders the QR itself (qr_data_url); the URL is the fallback.
+      openDeviceListPicker({
+        title: getUIText("sunnylink_pair", "Pair this device"),
+        meta: getUIText("sunnylink_pair_hint", "Open the link on your phone to sign in"),
+        groups: [],
+        onPick: async () => {},
+      });
+      const dialogs = document.querySelectorAll(".device-picker");
+      const dialog = dialogs[dialogs.length - 1];
+      const list = dialog?.querySelector(".device-picker__list");
+      if (list) {
+        list.innerHTML = `
+          ${qr ? `<img src="${qr}" alt="QR" style="display:block;margin:0 auto 12px;width:220px;height:220px;background:#fff;border-radius:8px" />` : ""}
+          <div class="descr" style="word-break:break-all;text-align:center">${escapeHtml(url)}</div>`;
+      }
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+
+  const runSunnylinkAction = (action, label) => async () => {
+    const ok = await appConfirm(`${label}?`, {
+      title: getUIText("device_group_sunnylink", "sunnylink"),
+      confirmLabel: getUIText("ok", "OK"),
+      cancelLabel: getUIText("cancel", "Cancel"),
+    });
+    if (!ok) return;
+    try {
+      await postJson(`/api/opui/action/${action}`, {});
+      showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+      const container2 = document.getElementById("deviceItems");
+      if (container2) await loadDeviceSunnylinkManager(container2);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  };
+  bindOnce(container.querySelector("#btnDeviceSlBackup"), "click",
+    runSunnylinkAction("sunnylink_backup", getUIText("sunnylink_backup_action", "Run backup")));
+  bindOnce(container.querySelector("#btnDeviceSlRestore"), "click",
+    runSunnylinkAction("sunnylink_restore", getUIText("sunnylink_restore_action", "Run restore")));
 }
 
 // ── firehose (Data) ────────────────────────────────────────────────────────
@@ -1420,4 +1490,109 @@ async function loadDeviceFirehoseManager(container) {
   } catch (err) {
     if (stateValue) stateValue.textContent = err.message || getUIText("failed", "Failed");
   }
+}
+
+// ── Vehicle: the fingerprint selector 5080 puts in Settings > Vehicle ───────
+// The tools-page picker is CarrotPilot's; the settings section is where webui
+// keeps it, showing the active platform, its fingerprint status, and a
+// SELECT / REMOVE action (manual selection vs automatic fingerprinting).
+
+DEVICE_SECTION_SHELLS.Vehicle = () => renderDeviceVehicleShell();
+
+function renderDeviceVehicleShell() {
+  return `
+    ${deviceManagerRow({ id: "vehCurrent", title: getUIText("vehicle_current", "Vehicle"), descr: getUIText("vehicle_loading", "Reading fingerprint status"), value: "-", button: getUIText("model_manager_select", "Select"), buttonId: "btnDeviceVehiclePick" })}
+    ${deviceManagerRow({ id: "vehLegend", title: getUIText("vehicle_legend", "Fingerprint status"), descr: getUIText("vehicle_legend_hint", "Select a vehicle to force the fingerprint manually; automatic detection is the default"), value: "-" })}`;
+}
+
+function deviceVehicleStatusText(payload) {
+  const status = String(payload?.status || (payload?.manual ? "manual" : "unknown"));
+  const keys = {
+    auto: ["vehicle_status_auto", "Fingerprinted automatically"],
+    manual: ["vehicle_status_manual", "Manually selected"],
+    unknown: ["vehicle_status_unknown", "Not fingerprinted yet"],
+  };
+  const [key, fallback] = keys[status] || keys.unknown;
+  return getUIText(key, fallback);
+}
+
+async function loadDeviceVehicleManager(container) {
+  const valueEl = container.querySelector("#vehCurrent-value");
+  const descrEl = container.querySelector("#vehCurrent-descr");
+  const legendEl = container.querySelector("#vehLegend-value");
+  const pickButton = container.querySelector("#btnDeviceVehiclePick");
+  let payload = null;
+  try {
+    payload = await requestJson("/api/opui/vehicle/platforms", { cache: "no-store" });
+    if (!payload?.ok) throw new Error(payload?.error || "vehicle list unavailable");
+    const display = String(payload.display || payload.active || "").trim();
+    if (valueEl) valueEl.textContent = display || getUIText("vehicle_none", "No vehicle selected");
+    if (descrEl) descrEl.textContent = deviceVehicleStatusText(payload);
+    if (legendEl) legendEl.textContent = payload.manual
+      ? getUIText("vehicle_legend_manual", "Manual selection is active")
+      : getUIText("vehicle_legend_auto", "Automatic fingerprinting is active");
+    if (pickButton) {
+      pickButton.textContent = payload.manual
+        ? getUIText("vehicle_remove", "Remove")
+        : getUIText("model_manager_select", "Select");
+      pickButton.disabled = false;
+    }
+  } catch (err) {
+    if (valueEl) valueEl.textContent = "-";
+    if (descrEl) descrEl.textContent = err.message || getUIText("failed", "Failed");
+    if (pickButton) pickButton.disabled = true;
+  }
+
+  bindOnce(pickButton, "click", async () => {
+    if (!payload?.ok) return;
+    if (payload.manual) {
+      const ok = await appConfirm(getUIText("vehicle_remove_confirm", "Remove the manual selection and go back to automatic fingerprinting?"), {
+        title: getUIText("device_group_vehicle", "Vehicle"),
+        confirmLabel: getUIText("vehicle_remove", "Remove"),
+        cancelLabel: getUIText("cancel", "Cancel"),
+      });
+      if (!ok) return;
+      try {
+        await postJson("/api/opui/vehicle/select", { bundle: "" });
+        showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+        const container2 = document.getElementById("deviceItems");
+        if (container2) await loadDeviceVehicleManager(container2);
+      } catch (err) {
+        showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+      }
+      return;
+    }
+
+    // Brand -> platform, the same two-step tree the tools picker uses.
+    const brands = Array.isArray(payload.tree) ? payload.tree : [];
+    openDeviceListPicker({
+      title: getUIText("vehicle_select", "Select a vehicle"),
+      meta: `${brands.length}`,
+      groups: [{ items: brands.map((b) => ({ value: b, label: `${b.name} (${(b.platforms || []).length})` })) }],
+      onPick: async (brandItem) => {
+        const platforms = Array.isArray(brandItem.value.platforms) ? brandItem.value.platforms : [];
+        openDeviceListPicker({
+          title: brandItem.value.name,
+          meta: `${platforms.length}`,
+          groups: [{ items: platforms.map((p) => ({ value: p.bundle, label: p.label || p.bundle })) }],
+          onPick: async (platformItem) => {
+            const ok = await appConfirm(getUIText("vehicle_select_confirm", "Select this vehicle? It will be fingerprinted as this platform."), {
+              title: getUIText("vehicle_select", "Select a vehicle"),
+              confirmLabel: getUIText("ok", "OK"),
+              cancelLabel: getUIText("cancel", "Cancel"),
+            });
+            if (!ok) return;
+            try {
+              await postJson("/api/opui/vehicle/select", { bundle: platformItem.value });
+              showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+              const container2 = document.getElementById("deviceItems");
+              if (container2) await loadDeviceVehicleManager(container2);
+            } catch (err) {
+              showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+            }
+          },
+        });
+      },
+    });
+  });
 }
