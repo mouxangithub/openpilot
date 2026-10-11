@@ -46,8 +46,8 @@ class Events:
 
 
 def planner_class(source):
-  helpers = load_file(REPO / 'openpilot/selfdrive/carrot/t_follow.py', 'replay_tf')
-  stop = load_file(REPO / 'openpilot/selfdrive/carrot/traffic_stop.py', 'replay_stop')
+  helpers = load_file(REPO / 'openpilot/sunnypilot/carrot/t_follow.py', 'replay_tf')
+  stop = load_file(REPO / 'openpilot/sunnypilot/carrot/traffic_stop.py', 'replay_stop')
   filters = load_file(REPO / 'openpilot/common/filter_simple.py', 'replay_filters')
   driving = Enum('DrivingMode', dict(Eco=1, Safe=2, Normal=3, High=4))
   ns = dict(time=time, np=np, Enum=Enum, DT_MDL=.05, CV=NS(MS_TO_KPH=3.6, KPH_TO_MS=1/3.6),
