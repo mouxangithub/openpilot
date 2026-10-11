@@ -17,9 +17,14 @@ ROOT_DIR = os.path.dirname(BASE_DIR)
 
 # CarrotPilot's tuning catalog (names, groups, ranges, labels) that drives the settings page.
 # Copied from selfdrive/carrot_settings.json; CARROT_SETTINGS_PATH overrides it.
+# The fork's own build of CarrotPilot's settings catalog: its menu tree, labels and ranges
+# with the params this fork does not declare removed and its own carrot params added.
+# Regenerate with `python -m openpilot.sunnypilot.carrot.tools.build_settings_catalog`.
+# Serving this one file is what keeps the panel, the setting profiles, the popular-value
+# upload and the intro presets on a single catalog.
 DEFAULT_SETTINGS_PATH = os.environ.get(
   "CARROT_SETTINGS_PATH",
-  os.path.join(os.path.dirname(ROOT_DIR), "carrot_settings.json"),
+  os.path.join(os.path.dirname(ROOT_DIR), "carrot_settings_sp.json"),
 )
 
 
