@@ -193,12 +193,14 @@ function renderDeviceToggleRow(param, title, checked, options = {}) {
   const confirmKey = options.confirmKey || "";
   const confirmedParam = options.confirmedParam || "";
   const confirmed = options.confirmed === true ? "1" : "0";
+  const descr = options.descr || "";
   return `
     <div class="setting device-setting${disabledClass}" ${disabledAttrs}>
       <div class="settingTop">
         <label class="device-toggle" data-param="${escapeHtml(param)}" data-confirm-key="${escapeHtml(confirmKey)}" data-confirmed-param="${escapeHtml(confirmedParam)}" data-confirmed="${confirmed}">
           <span class="device-toggle__text">
             <span class="title">${escapeHtml(title)}</span>
+            ${descr ? `<span class="descr">${escapeHtml(descr)}</span>` : ""}
           </span>
           <span class="ctrl">
             <span class="c-switch">
@@ -209,4 +211,114 @@ function renderDeviceToggleRow(param, title, checked, options = {}) {
         </label>
       </div>
     </div>`;
+}
+
+// ── sunnypilot sections (generic catalog-driven rows) ──────────────────────
+
+function spOptionLabels(item) {
+  const options = item?.options;
+  if (!options) return [];
+  if (Array.isArray(options)) return options.map(String);
+  const pack = options[LANG] || options.en || options.zh || options.ko || [];
+  return Array.isArray(pack) ? pack.map(String) : [];
+}
+
+function spParamKind(item, value) {
+  const options = spOptionLabels(item);
+  if (options.length) return "choice";
+  const type = String(item?.type || "").toLowerCase();
+  if (type === "bool" || typeof value === "boolean") return "bool";
+  if (type === "int" || type === "float" || typeof value === "number") return "number";
+  return "info";
+}
+
+function spParamStep(item) {
+  return String(item?.type || "").toLowerCase() === "float" ? 0.1 : 1;
+}
+
+function spHasRange(item) {
+  return Boolean(item && Number.isFinite(Number(item.min)) && Number.isFinite(Number(item.max)));
+}
+
+function spFormatValue(item, value) {
+  const kind = spParamKind(item, value);
+  if (kind === "choice") {
+    const labels = spOptionLabels(item);
+    const index = Number(value);
+    return Number.isInteger(index) && index >= 0 && index < labels.length ? labels[index] : String(value);
+  }
+  if (kind === "bool") return isTruthyDeviceFlag(value) ? getUIText("on", "ON") : getUIText("off", "OFF");
+  if (kind === "number") {
+    const text = (value === null || value === undefined || value === "") ? String(item?.default ?? "-") : String(value);
+    return item?.type === "float" ? String(Number(text)) : text;
+  }
+  const text = String(value ?? "").trim();
+  return text || "-";
+}
+
+function renderDeviceSpRow(name, item, value) {
+  const title = (item && spLocalizedText(item, "title")) || name;
+  const descr = item ? spLocalizedText(item, "descr") : "";
+  const kind = spParamKind(item, value);
+  const display = spFormatValue(item, value);
+
+  if (kind === "bool") {
+    return renderDeviceSpToggleRow(name, title, descr, isTruthyDeviceFlag(value), item && SP_ACTION_PARAMS.has(name));
+  }
+
+  if (kind === "choice") {
+    const labels = spOptionLabels(item);
+    return `
+      <div class="setting device-setting">
+        <div class="settingTop">
+          <div>
+            <div class="title">${escapeHtml(title)}</div>
+            ${descr ? `<div class="descr">${escapeHtml(descr)}</div>` : ""}
+          </div>
+          <div class="ctrl">
+            <button type="button" class="val value-surface sp-choice" data-sp-choice="${escapeHtml(name)}" data-sp-options="${escapeHtml(JSON.stringify(labels))}">${escapeHtml(display)}</button>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  if (kind === "number") {
+    const range = spHasRange(item) ? ` data-sp-min="${Number(item.min)}" data-sp-max="${Number(item.max)}"` : "";
+    const step = ` data-sp-step="${spParamStep(item)}"`;
+    const buttons = spHasRange(item)
+      ? `<button type="button" class="smallBtn sp-minus" aria-label="-">-</button>
+         <button type="button" class="val value-surface sp-value">${escapeHtml(display)}</button>
+         <button type="button" class="smallBtn sp-plus" aria-label="+">+</button>`
+      // No catalog range: stepping blind could write nonsense, so offer the
+      // direct input only.
+      : `<button type="button" class="val value-surface sp-value">${escapeHtml(display)}</button>`;
+    return `
+      <div class="setting device-setting">
+        <div class="settingTop">
+          <div>
+            <div class="title">${escapeHtml(title)}</div>
+            ${descr ? `<div class="descr">${escapeHtml(descr)}</div>` : ""}
+          </div>
+          <div class="ctrl sp-stepper" data-sp-param="${escapeHtml(name)}"${range}${step}>
+            ${buttons}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // read-only state: identifiers, versions, computed status strings
+  return renderDeviceInfoRow(title, display);
+}
+
+function renderDeviceSpToggleRow(param, title, descr, checked, needsConfirm) {
+  return renderDeviceToggleRow(param, title, checked, {
+    descr,
+    confirmKey: needsConfirm ? "device_sp_action_confirm" : "",
+  });
+}
+
+function renderDeviceSpItems(groupId, values) {
+  const names = getDeviceGroupParamNames(groupId);
+  const data = { ...deviceParamValues, ...(values || {}) };
+  return names.map((name) => renderDeviceSpRow(name, spCatalogIndex?.[name], data[name])).join("");
 }

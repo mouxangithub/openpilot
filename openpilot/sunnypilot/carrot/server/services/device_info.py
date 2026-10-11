@@ -102,6 +102,66 @@ DEVICE_SETTING_DEFAULTS: dict[str, Any] = {
   for name, default in entries
 }
 
+# sunnypilot sections shown on the Device tab, in sidebar order. Membership is
+# read from the same settings catalog the CarrotPilot tab serves (the
+# SUNNYPILOT menu node), so the two tabs cannot disagree about which params a
+# section owns. The client renders these groups generically from the catalog's
+# per-param metadata; only the names are shipped here.
+SP_DEVICE_MENU_GROUPS: tuple[tuple[str, str], ...] = (
+  ("Models", "CARROT_SP_UI_MODELS"),
+  ("Vehicle", "CARROT_SP_UI_VEHICLE"),
+  ("Steering", "CARROT_SP_UI_STEERING"),
+  ("Cruise", "CARROT_SP_UI_CRUISE"),
+  ("Visuals", "CARROT_SP_UI_VISUALS"),
+  ("Display", "CARROT_SP_UI_DISPLAY"),
+  ("Navigation", "CARROT_SP_UI_NAVIGATION"),
+  ("Osm", "CARROT_SP_UI_OSM"),
+  ("Maps", "CARROT_SP_MAPS"),
+  ("Trips", "CARROT_SP_UI_TRIPS"),
+  ("Imu", "CARROT_SP_IMU"),
+)
+
+_sp_device_groups_cache: dict[str, list[str]] | None = None
+
+
+def _sp_device_setting_groups() -> dict[str, list[str]]:
+  """`{groupId: [param, ...]}` for the sunnypilot sections, from the catalog menu.
+
+  A section that is missing from the catalog (regenerated away, file absent)
+  simply does not ship - the browser hides a group with no names.
+  """
+  global _sp_device_groups_cache
+  if _sp_device_groups_cache is not None:
+    return _sp_device_groups_cache
+
+  wanted = dict(SP_DEVICE_MENU_GROUPS)
+  out: dict[str, list[str]] = {}
+  try:
+    import json
+
+    from openpilot.sunnypilot.carrot.server.config import DEFAULT_SETTINGS_PATH
+    with open(DEFAULT_SETTINGS_PATH, encoding="utf-8") as f:
+      catalog = json.load(f)
+  except Exception:
+    _sp_device_groups_cache = out
+    return out
+
+  declared = {p.get("name") for p in catalog.get("params", [])}
+
+  def walk(nodes: Any) -> None:
+    for node in nodes or []:
+      group_id = wanted.get(node.get("id"))
+      if group_id and group_id not in out:
+        names = [n for n in node.get("params", []) if n in declared]
+        if names:
+          out[node["id"]] = names
+      walk(node.get("groups"))
+
+  walk(catalog.get("menu") or [])
+  # keep the sidebar order from SP_DEVICE_MENU_GROUPS, drop empty sections
+  _sp_device_groups_cache = {gid: out[gid] for gid, _menu_id in SP_DEVICE_MENU_GROUPS if out.get(gid)}
+  return _sp_device_groups_cache
+
 
 # The Tools > Info dialog is a read-only support snapshot, not a Params
 # settings group.  Keep its data contract here so it can add hardware values
@@ -214,8 +274,14 @@ def get_tools_device_info() -> dict[str, Any]:
 
 
 def get_device_setting_group_names() -> dict[str, list]:
-  """Group -> parameter names, for the browser to read its groups from."""
-  return {group: [name for name, _default in entries] for group, entries in DEVICE_SETTING_GROUPS}
+  """Group -> parameter names, for the browser to read its groups from.
+
+  The five base groups own their rows; the sunnypilot sections ride along from
+  the settings catalog so the Device tab and the CarrotPilot tab stay in sync.
+  """
+  groups = {group: [name for name, _default in entries] for group, entries in DEVICE_SETTING_GROUPS}
+  groups.update(_sp_device_setting_groups())
+  return groups
 
 DEVICE_NETWORK_REFRESH_INTERVAL_SEC = 15.0
 _network_cache_lock = threading.Lock()

@@ -5,6 +5,7 @@ function bindDeviceTabEvents(container) {
   bindDeviceToggleRows(container);
   bindDevicePersonality(container);
   bindDeviceLanguage(container);
+  bindDeviceSpControls(container);
 
   bindDeviceAction(container, "btnDeviceReboot", "/api/reboot", getUIText("confirm_reboot", "Reboot now?"));
   bindDeviceAction(container, "btnDevicePoweroff", "/api/poweroff", getUIText("power_off_confirm", "Power off device?"));
@@ -382,4 +383,90 @@ function openTrainingGuide() {
 
   render();
   document.body.appendChild(overlay);
+}
+
+// ── sunnypilot sections: generic catalog-driven controls ───────────────────
+
+function spClampStepValue(value, step) {
+  const fixed = Math.round(value * 100) / 100;
+  return step < 1 ? fixed : Math.round(fixed);
+}
+
+function bindDeviceSpControls(container) {
+  container.querySelectorAll(".sp-stepper[data-sp-param]").forEach((row) => {
+    const param = row.dataset.spParam;
+    const valueButton = row.querySelector(".sp-value");
+    if (!valueButton) return;
+    const step = Number(row.dataset.spStep || 1);
+    const hasRange = row.dataset.spMin !== undefined && row.dataset.spMax !== undefined;
+    const min = hasRange ? Number(row.dataset.spMin) : -Number.MAX_SAFE_INTEGER;
+    const max = hasRange ? Number(row.dataset.spMax) : Number.MAX_SAFE_INTEGER;
+
+    async function commit(next) {
+      const value = spClampStepValue(Math.min(max, Math.max(min, next)), step);
+      try {
+        await setParam(param, value);
+        valueButton.textContent = String(value);
+      } catch (err) {
+        showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+      }
+    }
+
+    const minusButton = row.querySelector(".sp-minus");
+    const plusButton = row.querySelector(".sp-plus");
+    if (minusButton && plusButton && window.CarrotUI?.numericStepper?.create) {
+      // Same commit gesture the CarrotPilot tab uses: the value is written on
+      // release, so a scroll starting on a button never changes anything.
+      window.CarrotUI.numericStepper.create({
+        minusButton,
+        plusButton,
+        getValue: () => Number(valueButton.textContent) || 0,
+        getFallback: () => 0,
+        getStep: () => step,
+        getRange: () => ({ min, max }),
+        commit,
+      });
+    }
+
+    valueButton.addEventListener("click", async () => {
+      const rangeMeta = hasRange ? `${min} ~ ${max}` : "";
+      const input = await appPrompt(rangeMeta, {
+        title: param,
+        defaultValue: valueButton.textContent,
+        placeholder: "0",
+        confirmLabel: getUIText("ok", "OK"),
+        cancelLabel: getUIText("cancel", "Cancel"),
+        showCancel: true,
+      });
+      if (input === null) return;
+      const next = Number(input);
+      if (!Number.isFinite(next)) {
+        showAppToast(getUIText("setting_value_invalid", "Enter a valid number."), { tone: "error" });
+        return;
+      }
+      await commit(next);
+    });
+  });
+
+  container.querySelectorAll("[data-sp-choice]").forEach((button) => {
+    const param = button.dataset.spChoice;
+    let labels = [];
+    try {
+      labels = JSON.parse(button.dataset.spOptions || "[]");
+    } catch {}
+    if (!Array.isArray(labels) || !labels.length) return;
+
+    button.addEventListener("click", async () => {
+      try {
+        const values = await bulkGet([param]);
+        const current = Number(values[param]);
+        const base = Number.isInteger(current) && current >= 0 ? current : 0;
+        const next = (base + 1) % labels.length;
+        await setParam(param, next);
+        button.textContent = labels[next];
+      } catch (err) {
+        showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+      }
+    });
+  });
 }

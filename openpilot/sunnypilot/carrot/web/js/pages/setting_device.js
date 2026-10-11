@@ -65,6 +65,35 @@ function getDeviceGroupParamNames(groupId) {
   return Array.isArray(fromServer) ? fromServer.slice() : getLocalDeviceGroupParamNames(groupId);
 }
 
+// ── sunnypilot sections: catalog metadata ─────────────────────────────────
+// The snapshot's settings.items_by_group carries every catalog entry with its
+// labels, type and range. Flattened to name -> meta once, so the generic SP
+// renderer can draw a control for any parameter the server named.
+let spCatalogIndex = null;
+
+function hydrateSpCatalogIndex(settings) {
+  const itemsByGroup = settings?.items_by_group;
+  if (!itemsByGroup || typeof itemsByGroup !== "object") return;
+  const index = {};
+  Object.values(itemsByGroup).forEach((items) => {
+    (Array.isArray(items) ? items : []).forEach((item) => {
+      if (item?.name) index[item.name] = item;
+    });
+  });
+  if (Object.keys(index).length) spCatalogIndex = index;
+}
+
+function spLocalizedText(item, field) {
+  if (!item) return "";
+  if (LANG === "zh") return item[`c${field}`] || item[`e${field}`] || item[field] || "";
+  if (LANG === "ko") return item[field] || item[`e${field}`] || item[`c${field}`] || "";
+  return item[`e${field}`] || item[field] || item[`c${field}`] || "";
+}
+
+function isSpDeviceGroup(groupId) {
+  return SP_DEVICE_GROUP_IDS.has(groupId);
+}
+
 function getCachedDeviceGroupValues(groupId) {
   const names = getDeviceGroupParamNames(groupId);
   if (!names.length || !names.every((name) => Object.prototype.hasOwnProperty.call(deviceParamValues, name))) {
@@ -87,6 +116,7 @@ function normalizeDeviceSshStatus(status) {
 function hydrateDeviceSettingsSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== "object") return false;
   hydrateDeviceGroupParamNames(snapshot.device_groups);
+  hydrateSpCatalogIndex(snapshot.settings);
   mergeDeviceParamValues(snapshot.device_values || {});
   if (snapshot.device_network && typeof snapshot.device_network === "object") {
     deviceNetworkInfo = { ...snapshot.device_network };
@@ -109,8 +139,13 @@ function getDeviceTypeValue(values = deviceParamValues) {
 
 function getVisibleDeviceGroups() {
   return DEVICE_GROUPS.filter((group) => {
-    if (group.id !== "Software") return true;
-    return isTruthyDeviceFlag(deviceParamValues.SoftwareMenu ?? 1);
+    if (group.id === "Software") {
+      return isTruthyDeviceFlag(deviceParamValues.SoftwareMenu ?? 1);
+    }
+    // A sunnypilot section the server could not fill (catalog absent on a
+    // cp-pure deployment) has no names - hiding it beats showing an empty page.
+    if (isSpDeviceGroup(group.id)) return getDeviceGroupParamNames(group.id).length > 0;
+    return true;
   });
 }
 
@@ -509,6 +544,7 @@ function renderDeviceGroupItems(groupId, values) {
   if (groupId === "Network") return renderNetworkPanel(deviceNetworkInfo || {});
   if (groupId === "Toggles") return renderDeviceToggleItems(data);
   if (groupId === "Developer") return renderDeviceDeveloperItems(data);
+  if (isSpDeviceGroup(groupId)) return renderDeviceSpItems(groupId, data);
   if (groupId === "Software") {
     let html = "";
     html += renderDeviceInfoRow(getUIText("updates_offroad_only", "Updates are only downloaded while the car is off."), "");
@@ -688,6 +724,14 @@ window.addEventListener("carrot:paramchange", (event) => {
 window.addEventListener("carrot:settings-store", (event) => {
   if (event.detail?.status === "ready") {
     hydrateDeviceSettingsSnapshot(event.detail.snapshot);
+    // The sidebar's sunnypilot sections only exist once the snapshot has
+    // shipped their names - redraw the (possibly changed) group list.
+    if (CURRENT_PAGE === "setting" && CURRENT_SETTING_TAB === "device") {
+      renderDeviceGroups({ animateGroups: false });
+      if (isSpDeviceGroup(CURRENT_DEVICE_GROUP) && !getDeviceGroupParamNames(CURRENT_DEVICE_GROUP).length) {
+        CURRENT_DEVICE_GROUP = "Device";
+      }
+    }
   }
 });
 

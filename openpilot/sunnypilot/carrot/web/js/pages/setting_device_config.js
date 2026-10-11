@@ -7,9 +7,38 @@ const DEVICE_GROUPS = [
   { id: "Device", labelKey: "device_group_info", defaultLabel: "Device Info" },
   { id: "Network", labelKey: "device_group_network", defaultLabel: "Network" },
   { id: "Toggles", labelKey: "device_group_toggles", defaultLabel: "Toggles" },
+  // sunnypilot sections - the server ships each group's parameter names in the
+  // settings snapshot (services/device_info.py reads them from the settings
+  // catalog), and renderDeviceSpItems draws them from the catalog's labels.
+  { id: "Models", labelKey: "device_group_models", defaultLabel: "Models" },
+  { id: "Vehicle", labelKey: "device_group_vehicle", defaultLabel: "Vehicle" },
+  { id: "Steering", labelKey: "device_group_steering", defaultLabel: "Steering" },
+  { id: "Cruise", labelKey: "device_group_cruise", defaultLabel: "Cruise" },
+  { id: "Visuals", labelKey: "device_group_visuals", defaultLabel: "Visuals" },
+  { id: "Display", labelKey: "device_group_display", defaultLabel: "Display" },
+  { id: "Navigation", labelKey: "device_group_navigation", defaultLabel: "Navigation" },
+  { id: "Osm", labelKey: "device_group_osm", defaultLabel: "OSM" },
+  { id: "Maps", labelKey: "device_group_maps", defaultLabel: "Maps" },
+  { id: "Trips", labelKey: "device_group_trips", defaultLabel: "Trips" },
+  { id: "Imu", labelKey: "device_group_imu", defaultLabel: "IMU" },
   { id: "Software", labelKey: "device_group_software", defaultLabel: "Software" },
   { id: "Developer", labelKey: "device_group_developer", defaultLabel: "Developer" },
 ];
+
+// Groups rendered generically from the catalog metadata (name -> item meta in
+// the snapshot's items_by_group). Base groups keep their hand-built layouts.
+const SP_DEVICE_GROUP_IDS = new Set([
+  "Models", "Vehicle", "Steering", "Cruise", "Visuals", "Display",
+  "Navigation", "Osm", "Maps", "Trips", "Imu",
+]);
+
+// Bool params that make a process *do* something the moment they are written
+// (reboot, drop caches, recalibrate). A toggle is fine, but confirm first so a
+// mis-tap cannot reboot the device or wipe a cache.
+const SP_ACTION_PARAMS = new Set([
+  "DoReboot", "ModelManager_ClearCache", "Mapd_ClearCache", "ImuCalibrationRequested",
+  "OnroadCycleRequested", "BackupManager_CreateBackup", "OsmDbUpdatesCheck",
+]);
 
 const DEVICE_INFO_PARAMS = [
   "DeviceType",
