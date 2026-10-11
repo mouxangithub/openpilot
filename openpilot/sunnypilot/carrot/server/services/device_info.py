@@ -1,6 +1,8 @@
 """Device support services that are not plain Params reads."""
 from __future__ import annotations
 
+import re
+
 import math
 import subprocess
 import threading
@@ -123,6 +125,30 @@ SP_DEVICE_MENU_GROUPS: tuple[tuple[str, str], ...] = (
 
 _sp_device_groups_cache: dict[str, list[str]] | None = None
 
+# The catalog marks status-only entries in its own descriptions ("... (read-only).")
+# and a few entries are actions owned by a dedicated manager block on this panel.
+# Neither is a setting the user tunes, so they are dropped here - shipping them
+# made the sections read as a wall of uneditable rows.
+_READ_ONLY_MARKER = re.compile(r"\(read-?only\)", re.IGNORECASE)
+_MANAGED_ELSEWHERE = frozenset({
+  # model manager block: selection, favourites and cache live in its own UI
+  "ModelManager_DownloadRef",
+  "ModelManager_Favs",
+  "ModelManager_ClearCache",
+  # region picker / trips source / IMU start are manager-block actions
+  "OsmStateName",
+  "TripsDataSource",
+  "ImuCalibrationRequested",
+})
+
+
+def _is_device_setting(entry: dict[str, Any]) -> bool:
+  name = entry.get("name")
+  if not name or name in _MANAGED_ELSEWHERE:
+    return False
+  text = f"{entry.get('descr') or ''} {entry.get('edescr') or ''}"
+  return not _READ_ONLY_MARKER.search(text)
+
 
 def _sp_device_setting_groups() -> dict[str, list[str]]:
   """`{groupId: [param, ...]}` for the sunnypilot sections, from the catalog menu.
@@ -146,13 +172,16 @@ def _sp_device_setting_groups() -> dict[str, list[str]]:
     _sp_device_groups_cache = out
     return out
 
-  declared = {p.get("name") for p in catalog.get("params", [])}
+  by_name = {p.get("name"): p for p in catalog.get("params", []) if p.get("name")}
 
   def walk(nodes: Any) -> None:
     for node in nodes or []:
       group_id = wanted.get(node.get("id"))
       if group_id and group_id not in out:
-        names = [n for n in node.get("params", []) if n in declared]
+        names = [
+          n for n in node.get("params", [])
+          if n in by_name and _is_device_setting(by_name[n])
+        ]
         if names:
           out[group_id] = names
       walk(node.get("groups"))

@@ -571,6 +571,8 @@ window.CarrotTranslations.register("en", {
     web_vision_fullscreen_default_desc: "Start Carrot Vision in fullscreen.",
     web_lab: "Web Lab",
     web_lab_locked: "Web Lab locked — run carrot web-lab on in the terminal",
+        web_settings_lab: "Experimental",
+        web_lab_desc: "Unlock experimental web features (Carrot Vision AR display and AR debug).",
     web_feature_locked: "Feature locked",
     web_vision_ar_enabled: "Show AR",
     web_vision_ar_enabled_desc: "Show AR guidance over Carrot Vision.",

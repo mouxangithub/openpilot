@@ -61,6 +61,17 @@ const WEB_SETTINGS_GROUPS = [
     ],
   },
   {
+    id: "lab",
+    labelKey: "web_settings_lab",
+    items: [
+      {
+        id: "web_lab_enabled",
+        titleKey: "web_lab",
+        descKey: "web_lab_desc",
+      },
+    ],
+  },
+  {
     id: "vision",
     labelKey: "web_settings_carrot_vision",
     items: [

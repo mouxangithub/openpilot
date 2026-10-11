@@ -571,6 +571,8 @@ window.CarrotTranslations.register("ko", {
     web_vision_fullscreen_default_desc: "당근비전을 전체화면으로 시작합니다.",
     web_lab: "Web Lab",
     web_lab_locked: "Web Lab 잠김 — 터미널에서 carrot web-lab on 실행",
+        web_settings_lab: "실험 기능",
+        web_lab_desc: "실험적 웹 기능(Carrot Vision AR 표시 및 AR 디버그)을 해제합니다.",
     web_feature_locked: "기능 잠김",
     web_vision_ar_enabled: "AR 표시",
     web_vision_ar_enabled_desc: "당근비전 위에 AR 주행 안내를 표시합니다.",

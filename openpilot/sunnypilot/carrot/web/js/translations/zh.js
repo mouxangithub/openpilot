@@ -538,6 +538,8 @@ window.CarrotTranslations.register("zh", {
     web_vision_fullscreen_default_desc: "以全屏启动 Carrot Vision。",
     web_lab: "Web Lab",
     web_lab_locked: "Web Lab 已锁定 — 请在终端执行 carrot web-lab on 解锁",
+        web_settings_lab: "实验功能",
+        web_lab_desc: "解锁实验性 Web 功能（Carrot Vision 的 AR 显示与 AR 调试）。",
     web_feature_locked: "功能已锁定",
     web_vision_ar_enabled: "显示 AR",
     web_vision_ar_enabled_desc: "在 Carrot Vision 画面上显示 AR 引导。",
