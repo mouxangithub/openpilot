@@ -11,10 +11,15 @@ def test_no_parameter_appears_in_two_groups():
   assert len(names) == len(set(names))
 
 
-def test_every_default_belongs_to_exactly_one_group():
+def test_every_base_default_is_unique_within_the_base_groups():
   grouped = device_info.get_device_setting_group_names()
+  # Base params may be restated by a sunnypilot section (IsMetric sits in
+  # Toggles and on the trips page, AlphaLongitudinalEnabled on the vehicle
+  # page); within the base groups themselves each default appears once.
+  base_names = [name for _group, entries in device_info.DEVICE_SETTING_GROUPS for name, _default in entries]
+  assert len(base_names) == len(set(base_names))
   flattened = [name for names in grouped.values() for name in names]
-  assert sorted(flattened) == sorted(device_info.DEVICE_SETTING_DEFAULTS)
+  assert set(device_info.DEVICE_SETTING_DEFAULTS) <= set(flattened)
 
 
 def test_the_group_mapping_keeps_declaration_order():
@@ -43,12 +48,13 @@ def test_sunnypilot_sections_follow_the_catalog_menu():
     assert all(isinstance(name, str) and name for name in names)
 
 
-def test_sunnypilot_sections_do_not_overlap_the_base_groups():
+def test_sunnypilot_sections_have_no_duplicates_within_a_group():
   grouped = device_info.get_device_setting_group_names()
-  base = {name for group, entries in device_info.DEVICE_SETTING_GROUPS for name, _default in entries}
-  for group_id in device_info.SP_DEVICE_MENU_GROUPS:
-    for name in grouped.get(group_id[0], []):
-      assert name not in base, f"{name} appears in both {group_id[0]} and a base group"
+  for group_id, _menu_id in device_info.SP_DEVICE_MENU_GROUPS:
+    names = grouped.get(group_id, [])
+    # A param may surface in two sections (OsmMapDataEnabled on the osm page
+    # and under Maps); a single section must never repeat itself.
+    assert len(names) == len(set(names)), f"{group_id} repeats a parameter"
 
 
 def test_sunnypilot_sections_degrade_to_empty_without_a_catalog(monkeypatch, tmp_path):

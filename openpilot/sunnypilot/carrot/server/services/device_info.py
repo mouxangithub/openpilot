@@ -134,7 +134,7 @@ def _sp_device_setting_groups() -> dict[str, list[str]]:
   if _sp_device_groups_cache is not None:
     return _sp_device_groups_cache
 
-  wanted = dict(SP_DEVICE_MENU_GROUPS)
+  wanted = {menu_id: group_id for group_id, menu_id in SP_DEVICE_MENU_GROUPS}
   out: dict[str, list[str]] = {}
   try:
     import json
@@ -154,7 +154,7 @@ def _sp_device_setting_groups() -> dict[str, list[str]]:
       if group_id and group_id not in out:
         names = [n for n in node.get("params", []) if n in declared]
         if names:
-          out[node["id"]] = names
+          out[group_id] = names
       walk(node.get("groups"))
 
   walk(catalog.get("menu") or [])
