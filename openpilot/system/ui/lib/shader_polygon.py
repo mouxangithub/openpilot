@@ -1,7 +1,7 @@
 import pyray as rl
 import numpy as np
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Optional, cast
 from openpilot.system.ui.lib.application import gui_app, GL_VERSION
 
 MAX_GRADIENT_COLORS = 20  # includes stops as well
@@ -152,7 +152,7 @@ class ShaderState:
     self.initialized = False
 
 
-def _configure_shader_color(state: ShaderState, color: rl.Color | None,  # rl.Color is a function, so `rl.Color | None` fails
+def _configure_shader_color(state: ShaderState, color: Optional[rl.Color],  # noqa: UP045  # rl.Color is a function, so `rl.Color | None` fails
                             gradient: Gradient | None, origin_rect: rl.Rectangle):
   assert (color is not None) != (gradient is not None), "Either color or gradient must be provided"
 
@@ -204,7 +204,7 @@ def triangulate(pts: np.ndarray) -> list[tuple[float, float]]:
 
 
 def draw_polygon(origin_rect: rl.Rectangle, points: np.ndarray,
-                 color: rl.Color | None = None, gradient: Gradient | None = None):  # rl.Color is a function, so `rl.Color | None` fails
+                 color: Optional[rl.Color] = None, gradient: Gradient | None = None):  # noqa: UP045  # rl.Color is a function, so `rl.Color | None` fails
 
   """
   Draw a ribbon polygon (two chains) with a triangle strip and gradient.
