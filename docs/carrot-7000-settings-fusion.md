@@ -180,3 +180,40 @@ C 组都在 sp 的 carrot 默认表里、只是 cp 目录没有。做法：在�
 ```bash
 python -m openpilot.sunnypilot.carrot.tools.build_settings_catalog
 ```
+
+## 8. 中文标注与新增栏位（2026-10-11，已 push `bf28d5c86`，设备实测）
+
+187 条 fork 新增参数原先的 `cdescr` 是 "sunnypilot" 占位，`CARROT_SP_UI` 的 16 个页面分组
+zh 直接用英文页面名。此轮补齐：
+
+1. **`carrot/tools/sp_param_labels.py`**（新，纯数据表，per-file-ignores E501）：
+   每个新增参数一行，四个槽位（en title/descr + zh title/descr），描述按代码实际行为
+   （`carrot_serv.py`、sp 横向/纵向）撰写，非望文生义。生成器经 `apply_param_labels()` 消费。
+2. **菜单标签**：`FAMILY_LABELS`（carrot (sp) 五族 → 岔路自动驾驶/横向扩展/速度扩展/显示扩展/杂项）、
+   `PAGE_LABELS`（16 页 → 转向/巡航/视觉/显示/OSM 地图/导航/行程/车辆/模型选择/开发者/设备/软件/
+   Sunnylink/开关/Alpha 纵向控制/Carrot 调校）。`SUNNYPILOT` 节点 zh = "sunnypilot 自有设置"。
+3. **新增栏位**：
+   - **地图**（`CARROT_SP_MAPS`，9 项）：OsmMapDataEnabled、OsmLocal、MapboxStyle、
+     MapTurnSpeedFactor、CarrotMapDecelEnabled（新条目，带标注）、CarrotNaviHudMapProfile、
+     ClusterNaviMapTheme/Type/Fps；
+   - **IMU 惯性测量**（`CARROT_SP_IMU`，4 项）：ImuCalibrationEnabled/Requested/Status/Matrix
+     （本 fork locationd IMU 校准面，带标注）；
+   - **模型选择**页并入 `ModelManager_MirrorUrl`/`ModelManager_GithubProxy`（已声明但不在
+     cp 目录也不在 defaults，此轮补为条目）；
+   - 参数按名去重（同一参数被两个页面扫描到时先到先得），337 条全唯一、0 占位。
+4. **cgroup 同步翻译**：flat groups 列表里 maps→地图、imu→IMU 惯性测量、models→模型选择、
+   steering→转向。
+
+### 蓝牙为何没有栏位
+
+车机蓝牙页（`bluetooth_settings`）扫出的 24 个键全部是 UI 字符串（Scan/Pair/Forget…），
+`params_keys.h` 无任何蓝牙声明键——配对是设备级操作，不存在参数面，7000 无法用参数控件承载；
+设备端蓝牙页本身已可用。
+
+### 设备实测（192.168.2.233 @ bf28d5c86）
+
+- `/api/health` ok，`/` 200；
+- `/api/settings` 与 `/api/settings/snapshot`：337 items / 35 组，`categories` 树
+  `SUNNYPILOT → CARROT_SP(46) + CARROT_SP_UI(144, 16 页) + CARROT_SP_MAPS(9) + CARROT_SP_IMU(4)`；
+- 抽查标注：`Mads → MADS 开关`、`AutoUpRoadLimit40KMH → 道路限速上调幅度`、
+  `ImuCalibrationEnabled → IMU 校准`、`ModelManager_MirrorUrl → 模型下载镜像`。
