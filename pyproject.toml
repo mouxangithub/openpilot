@@ -226,6 +226,9 @@ lint.flake8-implicit-str-concat.allow-multiline = false
 # qcomgpsd/structs.py embeds C struct layouts verbatim as triple-quoted strings
 # (dict_unpacker parses them), so those lines exceed the line limit by design.
 "openpilot/system/qcomgpsd/structs.py" = ["E501"]
+# sp_param_labels.py is a pure data table: each row is one param's four label
+# slots (en title/descr + zh title/descr) and cannot fit the line limit.
+"openpilot/sunnypilot/carrot/tools/sp_param_labels.py" = ["E501"]
 "openpilot/sunnypilot/carrot/recovery/server.py" = ["E501", "ISC002"]
 "openpilot/sunnypilot/carrot/server/features/carrot_navi/client_hub.py" = ["RUF006"]
 "openpilot/sunnypilot/carrot/server/features/dashcam/paths.py" = ["TID251"]

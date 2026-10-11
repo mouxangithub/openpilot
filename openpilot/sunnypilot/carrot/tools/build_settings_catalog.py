@@ -36,6 +36,10 @@ UPSTREAM_JSON = ROOT / "openpilot" / "sunnypilot" / "carrot_settings.json"
 OUTPUT_JSON = ROOT / "openpilot" / "sunnypilot" / "carrot_settings_sp.json"
 PARAMS_KEYS_H = ROOT / "openpilot" / "common" / "params_keys.h"
 
+from openpilot.sunnypilot.carrot.tools.sp_param_labels import (
+  FAMILY_LABELS, IMU_PARAMS, MAPS_PARAMS, MODEL_MIRROR_PARAMS, PAGE_LABELS, apply_param_labels,
+)
+
 # The menu node the fork-only params live under.
 SP_NODE_ID = "SUNNYPILOT"
 SP_GROUP_ID = "CARROT_SP"
@@ -162,7 +166,8 @@ def _type_of(value) -> str:
 
 def build() -> dict:
   upstream = json.loads(UPSTREAM_JSON.read_text(encoding="utf-8"))
-  declared_set = declared_keys()
+  declared_map = declared()
+  declared_set = set(declared_map)
   defaults = sp_defaults()
 
   kept_params = [p for p in upstream["params"] if p.get("name") in declared_set]
@@ -170,52 +175,84 @@ def build() -> dict:
   dropped = sorted({p.get("name") for p in upstream["params"]} - kept_names)
   added = sorted((set(defaults) | kept_names) - kept_names)
 
-  # 1) fork-only params get a minimal entry: no ko/zh label exists for them, so the key
-  #    itself is the title and the fork's own default is the value.
-  extra_params = []
-  for name in added:
-    default = defaults.get(name, 0)
-    extra_params.append({
-      "group": "sunnypilot",
+  def labelled_entry(name: str, default, group: str) -> dict:
+    """An added param entry with its label slots filled from sp_param_labels."""
+    kind = _type_of(default) if name not in declared_map else declared_map[name][0]
+    value = default if name in defaults else (declared_map.get(name, (kind, default))[1])
+    entry = {
+      "group": group,
       "name": name,
       "title": humanize(name),
       "descr": "sunnypilot",
-      "egroup": sp_subgroup(name),
+      "egroup": sp_subgroup(name) if group == "sunnypilot" else group.upper(),
       "etitle": humanize(name),
       "edescr": "sunnypilot",
-      "cgroup": "sunnypilot",
+      "cgroup": group,
       "ctitle": humanize(name),
       "cdescr": "sunnypilot",
-      "default": default,
-      "type": _type_of(default),
-    })
+      "default": value,
+      "type": kind,
+    }
+    apply_param_labels(entry)
+    # the ko slots are the panel's last resort; the English text beats "sunnypilot"
+    if entry["edescr"] and entry["descr"] == "sunnypilot":
+      entry["descr"] = entry["edescr"]
+    return entry
+
+  # 1) fork-only params get an entry: labels come from sp_param_labels, the
+  #    fork's own default is the value.
+  extra_params = [labelled_entry(name, defaults.get(name, 0), "sunnypilot") for name in added]
 
   # 1b) sunnypilot's own settings, grouped the way the car's UI groups them. Their type and
   #     default come from params_keys.h, which is the only place that knows either.
   pages = ui_page_params()
-  declared_types = declared()
   already = kept_names | set(defaults)
   page_params = []
   for page, keys in sorted(pages.items()):
+    zh_page = PAGE_LABELS.get(page, (page, page, page))[2]
     for name in keys:
       if name in already:
         continue
-      kind, value = declared_types.get(name, ("str", ""))
-      page_params.append({
-        "group": page,
-        "name": name,
-        "title": humanize(name),
-        "descr": "sunnypilot",
-        "egroup": page.upper(),
-        "etitle": humanize(name),
-        "edescr": "sunnypilot",
-        "cgroup": page,
-        "ctitle": humanize(name),
-        "cdescr": "sunnypilot",
-        "default": value,
-        "type": kind,
-      })
+      kind, value = declared_map.get(name, ("str", ""))
+      entry = labelled_entry(name, value, page)
+      entry["default"], entry["type"] = value, kind
+      entry["cgroup"] = zh_page
+      page_params.append(entry)
   extra_params.extend(page_params)
+
+  # 1c) IMU calibration (this fork's locationd work): declared keys with no upstream
+  #     entry and no on-device page.
+  imu_params = []
+  for name in IMU_PARAMS:
+    if name in kept_names or name in {p["name"] for p in extra_params}:
+      continue
+    kind, value = declared_map.get(name, ("str", ""))
+    entry = labelled_entry(name, value, "imu")
+    entry["default"], entry["type"] = value, kind
+    imu_params.append(entry)
+  extra_params.extend(imu_params)
+
+  # 1d) map-section params the panel tree references but no upstream entry carries, plus
+  #     the model-mirror keys (declared, but neither in cp's catalog nor _DEFAULT_NAV_PARAMS).
+  catalog_names = kept_names | {p["name"] for p in extra_params}
+  for name in tuple(MAPS_PARAMS) + MODEL_MIRROR_PARAMS:
+    if name in catalog_names:
+      continue
+    kind, value = declared_map.get(name, ("str", ""))
+    entry = labelled_entry(name, value, "maps" if name in MAPS_PARAMS else "models")
+    entry["default"], entry["type"] = value, kind
+    extra_params.append(entry)
+    catalog_names.add(name)
+
+  # de-dupe by name (a param can be claimed by two on-device pages; first wins)
+  seen: set[str] = set()
+  deduped_params = []
+  for p in kept_params + extra_params:
+    if p["name"] in seen:
+      continue
+    seen.add(p["name"])
+    deduped_params.append(p)
+  all_params = deduped_params
 
   # 2) the menu keeps CarrotPilot's tree, with the dropped names removed from its leaves.
   def prune(nodes):
@@ -235,8 +272,9 @@ def build() -> dict:
 
   menu = prune(upstream.get("menu") or [])
 
-  # 3) and gains a SUNNYPILOT node: the fork-only carrot params by family, and one group per
-  #    on-device settings page (the car's own grouping, filtered to declared keys).
+  # 3) and gains a SUNNYPILOT node: the fork-only carrot params by family, the on-device
+  #    settings pages (the car's own grouping, filtered to declared keys) with real labels,
+  #    and the map/IMU sections.
   by_sub: dict[str, list[str]] = {}
   for name in added:
     by_sub.setdefault(sp_subgroup(name), []).append(name)
@@ -249,22 +287,47 @@ def build() -> dict:
       "en": "carrot (sp)",
       "zh": "carrot (sp)",
       "groups": [
-        {"id": f"{SP_GROUP_ID}_{sub}", "ko": sub, "en": sub, "zh": sub,
+        {"id": f"{SP_GROUP_ID}_{sub}",
+         "ko": FAMILY_LABELS.get(sub, (sub,) * 3)[0],
+         "en": FAMILY_LABELS.get(sub, (sub,) * 3)[1],
+         "zh": FAMILY_LABELS.get(sub, (sub,) * 3)[2],
          "params": sorted(by_sub[sub])}
         for sub in sorted(by_sub)
       ],
     })
   if pages:
+    ui_groups = []
+    for page, keys in sorted(pages.items()):
+      ko, en, zh = PAGE_LABELS.get(page, (page, page, page))
+      refs = [k for k in keys if k in declared_set]
+      if page == "models":
+        refs += [k for k in MODEL_MIRROR_PARAMS if k in catalog_names and k not in refs]
+      if refs:
+        ui_groups.append({"id": f"{SP_GROUP_ID}_UI_{page.upper()}", "ko": ko, "en": en, "zh": zh,
+                          "params": refs})
+    if ui_groups:
+      sp_groups.append({
+        "id": SP_GROUP_ID + "_UI",
+        "ko": "차량 설정",
+        "en": "On-device settings",
+        "zh": "车机设置页",
+        "groups": ui_groups,
+      })
+  # 地图: map-data display and decel settings, gathered where a user looks for them.
+  map_refs = [k for k in MAPS_PARAMS if k in catalog_names]
+  if map_refs:
     sp_groups.append({
-      "id": SP_GROUP_ID + "_UI",
-      "ko": "차량 설정",
-      "en": "On-device settings",
-      "zh": "车机设置页",
-      "groups": [
-        {"id": f"{SP_GROUP_ID}_UI_{page.upper()}", "ko": page, "en": page, "zh": page,
-         "params": [k for k in keys if k in declared_set]}
-        for page, keys in sorted(pages.items())
-      ],
+      "id": SP_GROUP_ID + "_MAPS",
+      "ko": "지도", "en": "Maps", "zh": "地图",
+      "params": map_refs,
+    })
+  # IMU: this fork's locationd calibration surface.
+  imu_refs = IMU_PARAMS if imu_params else []
+  if imu_refs:
+    sp_groups.append({
+      "id": SP_GROUP_ID + "_IMU",
+      "ko": "IMU", "en": "IMU calibration", "zh": "IMU 惯性测量",
+      "params": list(imu_refs),
     })
 
   if sp_groups:
@@ -272,14 +335,14 @@ def build() -> dict:
       "id": SP_NODE_ID,
       "ko": "sunnypilot",
       "en": "sunnypilot",
-      "zh": "sunnypilot",
+      "zh": "sunnypilot 自有设置",
       "groups": sp_groups,
     })
 
   return {
     "apilot": upstream.get("apilot"),
     "menu": menu,
-    "params": kept_params + extra_params,
+    "params": all_params,
     "_generated": {
       "note": "Generated by openpilot/sunnypilot/carrot/tools/build_settings_catalog.py - do not edit by hand.",
       "upstream_params": len(upstream["params"]),
@@ -287,7 +350,9 @@ def build() -> dict:
       "dropped_undeclared": dropped,
       "added_from_this_fork": added,
       "added_from_on_device_pages": sorted(p["name"] for p in page_params),
+      "added_imu": [p["name"] for p in imu_params],
       "on_device_pages": sorted(pages),
+      "labelled_by_sp_param_labels": len(extra_params),
     },
   }
 
