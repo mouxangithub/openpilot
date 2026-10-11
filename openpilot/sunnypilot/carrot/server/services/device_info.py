@@ -187,8 +187,21 @@ def _sp_device_setting_groups() -> dict[str, list[str]]:
       walk(node.get("groups"))
 
   walk(catalog.get("menu") or [])
-  # keep the sidebar order from SP_DEVICE_MENU_GROUPS, drop empty sections
-  _sp_device_groups_cache = {gid: out[gid] for gid, _menu_id in SP_DEVICE_MENU_GROUPS if out.get(gid)}
+
+  # Keep the sidebar order from SP_DEVICE_MENU_GROUPS, drop empty sections, and
+  # show a param in its first section only - a few sit under two menu nodes
+  # (OsmLocal under Osm and Maps, OsmMapDataEnabled under Navigation and Maps,
+  # TeslaMadsScreenButton under Vehicle and Steering) and rendering both copies
+  # reads as duplicated rows.
+  assigned: set[str] = set()
+  ordered: dict[str, list[str]] = {}
+  for gid, _menu_id in SP_DEVICE_MENU_GROUPS:
+    names = [name for name in out.get(gid, []) if name not in assigned]
+    if names:
+      assigned.update(names)
+      ordered[gid] = names
+
+  _sp_device_groups_cache = ordered
   return _sp_device_groups_cache
 
 
