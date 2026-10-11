@@ -129,7 +129,7 @@ def write_params_backup_file(params, path: str) -> dict[str, Any]:
 
 def restore_param_values_from_backup(params, values: dict[str, Any], source: str = "restore") -> dict[str, Any]:
   """Write each value through the single-key path. Returns per-key counts, never raises."""
-  from ..services.params import set_param_value
+  from ..services.params_typed import set_param_value
   from .param_changes import append_param_change
 
   ok_count = 0
@@ -194,7 +194,7 @@ def _values_equal(key_type: Any, left: Any, right: Any) -> bool:
 
 def preview_param_restore_values(params, values: dict[str, Any], selected_keys: list[str] | None = None) -> dict[str, Any]:
   """Classify each incoming value so the app can show the diff before applying it."""
-  from ..services.params import get_param_values
+  from ..services.params_typed import get_param_values
 
   selected = set(selected_keys or [])
   current_values = get_param_values(params, list(values.keys()))

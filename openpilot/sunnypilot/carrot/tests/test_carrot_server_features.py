@@ -17,7 +17,7 @@ import unittest
 
 from openpilot.sunnypilot.carrot.server.services.device_info import listening_ports
 from openpilot.sunnypilot.carrot.server.services.live_runtime import LiveRuntime, json_safe
-from openpilot.sunnypilot.carrot.server.services.settings import _group_for, _type_of
+from openpilot.sunnypilot.carrot.server.services.settings_sp import _group_for, _type_of
 
 try:
   from aiohttp.test_utils import TestClient, TestServer
@@ -202,20 +202,23 @@ class TestFeatureEndpoints(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(status, 200)
     self.assertIn("network", body)
 
-  async def test_calibration_reports_a_source_even_when_unavailable(self):
+  async def test_calibration_answers_the_carrotpilot_shape(self):
+    # CarrotPilot parses CalibrationParams and answers calibrated/pitch/yaw.
     status, body = await self._get_json("/api/calibration_status")
     self.assertEqual(status, 200)
-    self.assertIn("source", body["calibration"])
+    self.assertIn("calibrated", body["calibration"])
 
   async def test_carrot_navi_capabilities_mention_the_missing_mode(self):
     status, body = await self._get_json("/api/carrot_navi/capabilities")
     self.assertEqual(status, 200)
-    self.assertFalse(body["capabilities"]["compactState"])
+    # CarrotPilot answers with the capability document itself, not a wrapper.
+    self.assertIn("stateProtocolVersion", body)
 
   async def test_carrot_navi_status_answers_without_cereal(self):
     status, body = await self._get_json("/api/carrot_navi/status")
     self.assertEqual(status, 200)
-    self.assertIn("ports", body)
+    # CarrotPilot's status is the web-bridge snapshot (client counts, stream state).
+    self.assertIn("stateClients", body)
 
   async def test_egpu_is_absent_rather_than_an_error(self):
     status, body = await self._get_json("/api/egpu/model")

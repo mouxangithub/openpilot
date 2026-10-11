@@ -15,7 +15,7 @@ the only device controller and jetlink reads as unavailable:
 import unittest
 from unittest import mock
 
-from openpilot.sunnypilot.carrot.server.services.params import _USB_PORT_KEYS, _enforce_usb_port
+from openpilot.sunnypilot.carrot.server.services.params_typed import _USB_PORT_KEYS, _enforce_usb_port
 
 
 class _FakeParams:

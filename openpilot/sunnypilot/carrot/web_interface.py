@@ -35,7 +35,7 @@ from collections.abc import Callable
 from openpilot.sunnypilot.carrot.amap_navi import AmapNaviServ
 from openpilot.sunnypilot.carrot.config import UnifiedParams
 from openpilot.sunnypilot.carrot import web_settings as ws
-from openpilot.sunnypilot.carrot.server.services.params import _USB_PORT_KEYS, _enforce_usb_port
+from openpilot.sunnypilot.carrot.server.services.params_typed import _USB_PORT_KEYS, _enforce_usb_port
 from openpilot.common.params import Params
 from openpilot.sunnypilot.models.mirror import (DEFAULT_HF_MIRROR, DIRECT_VALUE, GITHUB_PROXY_PARAM, HF_MIRROR_PARAM,
                                                 PROXY_DIRECT_VALUE, describe_github_proxy, describe_hf_mirror,

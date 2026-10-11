@@ -17,6 +17,7 @@ doing nothing.
 """
 import asyncio
 import logging
+import os
 import time
 
 from aiohttp import web
@@ -85,13 +86,10 @@ async def api_device_network(request: web.Request) -> web.Response:
 
 
 async def api_calibration_status(request: web.Request) -> web.Response:
-  messaging = None
+  # CarrotPilot's get_calibration_status() reads CalibrationParams through Params itself, so
+  # there is no messaging handle to hand it (the fork's earlier version took one).
   try:
-    from openpilot.cereal import messaging
-  except Exception:
-    messaging = None
-  try:
-    calibration = await asyncio.to_thread(get_calibration_status, messaging)
+    calibration = await asyncio.to_thread(get_calibration_status)
   except Exception as exc:
     return web.json_response({"ok": False, "error": str(exc)}, status=500)
   return web.json_response({"ok": True, "calibration": calibration})
@@ -146,7 +144,7 @@ async def api_set_default(request: web.Request) -> web.Response:
   updater state belong to openpilot and are never cleared from here.
   """
   try:
-    from ..services.settings import carrot_defaults
+    from ..services.settings_sp import carrot_defaults
 
     defaults = carrot_defaults()
   except Exception as exc:
@@ -201,6 +199,34 @@ async def _close_runtime(app: web.Application) -> None:
       pass
 
 
+# The FCC / regulatory notice the settings screen shows. Kept here (moved out of the old
+# tools module) because it is a read-only device fact, not a tool action.
+REGULATORY_ASSET_CANDIDATES = (
+  "/data/openpilot/openpilot/selfdrive/assets/offroad/fcc.html",
+  "/data/openpilot/selfdrive/assets/offroad/fcc.html",
+)
+
+
+def _read_regulatory() -> tuple[str, str]:
+  for path in REGULATORY_ASSET_CANDIDATES:
+    if not os.path.isfile(path):
+      continue
+    try:
+      with open(path, encoding="utf-8", errors="replace") as f:
+        return f.read(), path
+    except Exception:
+      continue
+  return "", ""
+
+
+async def api_regulatory(request: web.Request) -> web.Response:
+  """The FCC / regulatory notice the settings screen shows, if the asset is present."""
+  html, path = await asyncio.to_thread(_read_regulatory)
+  if not html:
+    return web.json_response({"ok": False, "error": "regulatory info unavailable"}, status=404)
+  return web.json_response({"ok": True, "html": html, "path": path})
+
+
 def register(app: web.Application) -> None:
   app[RUNTIME_KEY] = RuntimeHolder()
   app.router.add_get("/api/heartbeat_status", api_heartbeat_status)
@@ -212,4 +238,5 @@ def register(app: web.Application) -> None:
   app.router.add_post("/api/recalibrate", api_recalibrate)
   app.router.add_post("/api/set_default", api_set_default)
   app.router.add_post("/api/time_sync", api_time_sync)
+  app.router.add_get("/api/regulatory", api_regulatory)
   app.on_cleanup.append(_close_runtime)

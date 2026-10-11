@@ -38,7 +38,7 @@ from ..services.params_backup import (
   restore_param_values_validated,
   write_params_backup_file,
 )
-from ..services.settings import carrot_defaults
+from ..services.settings_sp import carrot_defaults
 from .params import PARAMS_KEY
 
 MAX_CHANGES = 500
@@ -46,7 +46,7 @@ MAX_CHANGES = 500
 
 def _fingerprint_now(params) -> dict:
   defaults = carrot_defaults()
-  from ..services.params import get_param_values
+  from ..services.params_typed import get_param_values
 
   values = get_param_values(params, sorted(defaults), defaults)
   # Drift is only meaningful for keys the catalog owns, so hardware readouts and synthetic

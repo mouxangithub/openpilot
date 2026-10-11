@@ -1,275 +1,1363 @@
-"""
-Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
-
-This file is part of sunnypilot and is licensed under the MIT License.
-See the LICENSE.md file in the root directory for more details.
-"""
-"""Typed parameter access for the carrot HTTP API.
-
-Everything the 7000 API writes has to go through sunnypilot's own `Params`, which is the
-single source of truth every daemon reads. `Params.put` casts with
-`python2cpp(type(value), params_keys.h's type)` and **raises TypeError on any mismatch** -
-writing the int 0 to a BOOL key is an error, not a coercion (this bit us once already with
-`OnroadUploads`). So the value coming off the wire is coerced to the declared type here,
-up front, and every rejection carries a message the client can show.
-
-Reads go the other way: `Params.get` already returns the declared Python type, so the only
-work left is making the result JSON-safe.
-"""
-
+import base64
+import hashlib
+import importlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import threading
+import zlib
 from typing import Any
 
 try:
-  from openpilot.common.params import UnknownKeyName
-except Exception:  # pragma: no cover - openpilot's native params are absent on a bare dev host
-  class UnknownKeyName(Exception):
-    """Stand-in so this module stays importable (and testable) without the native store."""
+  import brotli
+except Exception:
+  brotli = None
 
 
-class ParamWriteError(Exception):
-  """A rejected write: unknown key, unsupported type, or an unparseable value."""
+# -----------------------
+# Optional openpilot Params
+# -----------------------
+HAS_PARAMS = False
+Params = None
+ParamKeyType = None
+UnknownKeyName = None
 
+try:
+  from openpilot.common.params import Params as _Params
+  Params = _Params
+  HAS_PARAMS = True
+except Exception:
+  pass
 
-def _unknown_key() -> tuple[type[BaseException], ...]:
-  """The exception the store raises for a key it does not have, looked up when a
-  write fails rather than captured at import.
-
-  `except <a non-exception>` never matches, so binding this at import makes the
-  API's 400-for-an-unknown-key promise depend on import order: a test module that
-  stands in for openpilot.common.params in sys.modules (test_carrot_man does)
-  leaves whatever was imported in that window holding its stub. The native store
-  is asked again per failure, and its class is the only one worth catching.
-  """
+# ParamKeyType는 fork/버전에 따라 위치가 다를 수 있어서 방어적으로 처리
+if HAS_PARAMS:
   try:
-    from openpilot.common.params import UnknownKeyName as real
+    from openpilot.common.params import ParamKeyType as _ParamKeyType
+    ParamKeyType = _ParamKeyType
   except Exception:
-    real = None
-  for candidate in (real, UnknownKeyName):
-    if isinstance(candidate, type) and issubclass(candidate, BaseException):
-      return (candidate,)
-  return ()
+    ParamKeyType = None
+  try:
+    from openpilot.common.params import UnknownKeyName as _UnknownKeyName
+    UnknownKeyName = _UnknownKeyName
+  except Exception:
+    UnknownKeyName = None
 
 
-# Keys that must never be writable over HTTP. Both are produced by the device itself and
-# changing them over the network would either be a no-op or break identification.
-_READ_ONLY_KEYS = frozenset((
-  "CarParams",
-  "CarParamsSP",
-  "CarParamsCache",
-  "CarParamsPersistent",
-  "CarParamsSPCache",
-  "CarParamsSPPersistent",
-))
+# In-memory fallback store when Params is unavailable
+_mem_store: dict[str, str] = {}
 
-# A write to either can take the USB port out from under the other (see _enforce_usb_port).
-_USB_PORT_KEYS = frozenset(("AdbEnabled", "JetlinkLink"))
-
-
-def _as_bool(value: Any) -> bool:
-  if isinstance(value, bool):
-    return value
-  # Only 0/1 are accepted as numbers. Treating any non-zero float as True would let a
-  # client silently set a BOOL with a value it never meant as one.
-  if isinstance(value, (int, float)):
-    if value == 0:
-      return False
-    if value == 1:
-      return True
-    raise ParamWriteError(f"cannot read {value!r} as a boolean (expected 0 or 1)")
-  if isinstance(value, str):
-    text = value.strip().lower()
-    if text in ("1", "true", "yes", "on"):
-      return True
-    if text in ("0", "false", "no", "off", ""):
-      return False
-  raise ParamWriteError(f"cannot read {value!r} as a boolean")
+QR_BACKUP_PREFIX_V1 = "CQR1"
+QR_BACKUP_PREFIX_V2 = "CQR2"
+QR_BACKUP_PREFIX_V3 = "CQR3"
+QR_BACKUP_PREFIX_V4 = "CQR4"
+QR_BACKUP_PREFIX = QR_BACKUP_PREFIX_V4
+QR_BACKUP_TYPE = "params_backup"
+QR_BACKUP_VERSION = 4
+QR_BACKUP_ECC = "L"
+QR_BACKUP_CODE_BYTES = 3
+QR_BACKUP_CODE_BYTES_V3 = 2
+QR_BACKUP_CHECKSUM_CHARS = 12
+QR_BACKUP_SCHEMA_BYTES = 4
+QR_BACKUP_BASE45_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:"
+QR_BACKUP_DEPENDENCY = "brotli"
+QR_BACKUP_PYDEPS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..", "pydeps"))
+QR_BACKUP_WHEEL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../..", "third_party", "wheels"))
+_qr_dependency_lock = threading.Lock()
 
 
-def _as_int(value: Any) -> int:
-  if isinstance(value, bool):
-    return int(value)
-  if isinstance(value, int):
-    return value
-  if isinstance(value, float):
-    if value != int(value):
-      raise ParamWriteError(f"cannot read {value!r} as an integer (has a fraction)")
-    return int(value)
-  if isinstance(value, str):
-    text = value.strip()
-    try:
-      return int(text)
-    except ValueError:
-      pass
-    try:
-      as_float = float(text)
-    except ValueError as exc:
-      raise ParamWriteError(f"cannot read {value!r} as an integer") from exc
-    if as_float != int(as_float):
-      raise ParamWriteError(f"cannot read {value!r} as an integer (has a fraction)")
-    return int(as_float)
-  raise ParamWriteError(f"cannot read {value!r} as an integer")
-
-
-def _as_float(value: Any) -> float:
-  if isinstance(value, bool):
-    return float(value)
-  if isinstance(value, (int, float)):
-    return float(value)
-  if isinstance(value, str):
-    try:
-      return float(value.strip())
-    except ValueError as exc:
-      raise ParamWriteError(f"cannot read {value!r} as a number") from exc
-  raise ParamWriteError(f"cannot read {value!r} as a number")
-
-
-def _as_string(value: Any) -> str:
-  if isinstance(value, str):
-    return value
-  if isinstance(value, bool):
-    return "1" if value else "0"
-  if isinstance(value, (int, float)):
-    return str(value)
-  raise ParamWriteError(f"cannot read {value!r} as a string")
-
-
-def _as_json(value: Any) -> Any:
-  import json
-
-  if isinstance(value, (dict, list)):
-    return value
-  if isinstance(value, str):
-    text = value.strip()
-    if not text:
-      raise ParamWriteError("cannot read an empty string as JSON")
-    try:
-      return json.loads(text)
-    except ValueError as exc:
-      raise ParamWriteError(f"cannot read {value!r} as JSON") from exc
-  raise ParamWriteError(f"cannot read {value!r} as JSON")
-
-
-_COERCERS = {
-  "BOOL": _as_bool,
-  "INT": _as_int,
-  "FLOAT": _as_float,
-  "STRING": _as_string,
-  "JSON": _as_json,
-}
-
-
-def coerce_for_type(value: Any, key_type) -> Any:
-  """Coerce a JSON-decoded value to the Python type `Params.put` will accept.
-
-  `key_type` is a `ParamKeyType` member, but it is dispatched on by *name* rather than by
-  importing the enum: `openpilot.common.params` needs the compiled store, and doing the
-  import here would make this module - the part that decides what gets written - untestable
-  off-device. TIME and BYTES are deliberately unsupported: neither can be expressed
-  unambiguously by a JSON client, and guessing would store a value the fork cannot parse.
+# -----------------------
+# Type inference / clamp
+# -----------------------
+def infer_type_from_setting(p: dict[str, Any] | None) -> str:
   """
-  name = getattr(key_type, "name", None) or str(key_type).rsplit(".", 1)[-1]
-  coercer = _COERCERS.get(name)
-  if coercer is None:
-    raise ParamWriteError(f"type {name} cannot be written over the API")
-  return coercer(value)
-
-
-def json_safe(value: Any) -> Any:
-  """Make a value returned by `Params.get` encodable, without inventing data."""
-  if value is None or isinstance(value, (bool, int, float, str)):
-    return value
-  if isinstance(value, (dict, list)):
-    return value
-  if isinstance(value, (bytes, bytearray)):
-    try:
-      return bytes(value).decode("utf-8")
-    except UnicodeDecodeError:
-      return bytes(value).hex()
-  return str(value)
-
-
-def read_only_reason(name: str) -> str | None:
-  if name in _READ_ONLY_KEYS:
-    return f"{name} is written by the device and is read-only over the API"
-  return None
-
-
-def set_param_value(params, name: str, value: Any) -> Any:
-  """Validate and write one parameter, returning the value that was stored.
-
-  Raises `ParamWriteError` with a client-facing message for anything the caller got wrong
-  (unknown key, read-only key, unrepresentable value). Nothing else is allowed to escape:
-  a TypeError leaking out of `Params.put` would be reported as a 500 instead of a 400.
+  Fallback when get_type/ParamKeyType unavailable.
+  returns one of: "bool","int","float","string","json","time"
   """
-  if not isinstance(name, str) or not name.strip():
-    raise ParamWriteError("missing name")
-  name = name.strip()
+  if not p:
+    return "string"
+  mn, mx, d = p.get("min"), p.get("max"), p.get("default")
 
-  reason = read_only_reason(name)
-  if reason is not None:
-    raise ParamWriteError(reason)
+  # bool heuristic: min=0 max=1 and default is 0/1
+  if mn in (0, 0.0) and mx in (1, 1.0) and d in (0, 1, 0.0, 1.0):
+    return "bool"
 
+  # int vs float
+  if isinstance(mn, int) and isinstance(mx, int) and isinstance(d, int):
+    return "int"
+
+  if isinstance(mn, (int, float)) and isinstance(mx, (int, float)) and isinstance(d, (int, float)):
+    if any(isinstance(x, float) for x in (mn, mx, d)):
+      return "float"
+    return "int"
+
+  return "string"
+
+
+def clamp_numeric(value: float, p: dict[str, Any] | None) -> float:
+  if not p:
+    return value
+  mn = p.get("min")
+  mx = p.get("max")
   try:
-    params.check_key(name)
-  except _unknown_key() as exc:
-    raise ParamWriteError(f"unknown parameter {name}") from exc
+    if mn is not None:
+      value = max(value, float(mn))
+    if mx is not None:
+      value = min(value, float(mx))
+  except Exception:
+    pass
+  return value
 
-  key_type = params.get_type(name)
+
+def _unregistered_param_paths(params: "Params", key: str) -> tuple[str, str]:
+  if not isinstance(key, str) or not key or not key.isascii() or any(not (char.isalnum() or char == "_") for char in key):
+    raise ValueError(f"invalid param name: {key}")
+
+  param_dir = os.path.abspath(params.get_param_path())
+  param_path = os.path.abspath(params.get_param_path(key))
+  if os.path.normcase(os.path.dirname(param_path)) != os.path.normcase(param_dir):
+    raise ValueError(f"invalid param path: {key}")
+  return param_dir, param_path
+
+
+def _read_param_value(params: "Params", name: str, default: Any) -> Any:
   try:
-    coerced = coerce_for_type(value, key_type)
-  except ParamWriteError:
-    raise
-  except Exception as exc:  # pragma: no cover - defensive, keeps this a 400
-    raise ParamWriteError(f"cannot write {value!r} to {name}: {exc}") from exc
+    t = params.get_type(name)
 
-  try:
-    params.put(name, coerced)
-  except _unknown_key() as exc:
-    raise ParamWriteError(f"unknown parameter {name}") from exc
-  except TypeError as exc:
-    raise ParamWriteError(f"type mismatch writing {name}: {exc}") from exc
+    if ParamKeyType is not None and t == ParamKeyType.BOOL:
+      return bool(params.get_bool(name))
 
-  if name in _USB_PORT_KEYS:
-    _enforce_usb_port(params)
+    if ParamKeyType is not None and t == ParamKeyType.INT:
+      return int(params.get_int(name))
 
-  return coerced
+    if ParamKeyType is not None and t == ParamKeyType.FLOAT:
+      return float(params.get_float(name))
 
+    v = params.get(name)
+    if v is None:
+      return default if default is not None else ""
+    if isinstance(v, (bytes, bytearray, memoryview)):
+      return v.decode("utf-8", errors="replace")
+    return str(v)
 
-def _enforce_usb_port(params=None) -> None:
-  """ADB and Jetlink both need the comma's USB port. AGNOS's ADB gadget (g1) holds
-  the only device controller while AdbEnabled is set, and jetlink refuses to take
-  it, so the link reads as unavailable until ADB is off.
-
-  `UIStateSP._enforce_usb_port` does this in the native UI's params pass, but that
-  pass only runs where a builtin display does, and the carrot servers are the other
-  places either key can be written from. Over Wi-Fi the link leaves the port
-  alone, and ADB with it. Best-effort: a failure here must not turn a good write
-  into a 400."""
-  try:
-    from openpilot.sunnypilot import jetlink_adapter
-
-    if params is None:
-      from openpilot.common.params import Params
-      params = Params()
-    status = jetlink_adapter.status()
-    if status is not None and getattr(status, "enabled", False) and getattr(status, "mode", None) != "wifi" \
-        and params.get_bool("AdbEnabled"):
-      params.put_bool("AdbEnabled", False)
   except Exception:
     pass
 
+  # fallback: raw get + minimal decode
+  try:
+    v = params.get(name)
+    if v is None:
+      return default if default is not None else ""
+    return v.decode("utf-8", errors="replace")
+  except Exception:
+    pass
 
-def get_param_values(params, names: list[str], defaults: dict[str, Any] | None = None) -> dict[str, Any]:
-  """Read several parameters, never raising for a single bad key.
+  # During a source hot-update, the web assets and settings JSON can be newer
+  # than the already-loaded native Params key table. Reading the backing file
+  # keeps newly registered settings usable until params_pyx is rebuilt/reloaded.
+  try:
+    _, param_path = _unregistered_param_paths(params, name)
+    with open(param_path, "rb") as f:
+      raw = f.read().decode("utf-8", errors="replace")
+    if isinstance(default, bool):
+      return raw.strip().lower() in ("1", "true", "on", "yes")
+    if isinstance(default, int):
+      return _to_int(raw)
+    if isinstance(default, float):
+      return float(raw)
+    if isinstance(default, (dict, list)):
+      return json.loads(raw)
+    return raw
+  except Exception:
+    return default if default is not None else ""
 
-  A missing or unreadable key falls back to `defaults[name]` (or None) so one odd name
-  cannot fail a whole bulk read - the app asks for a list of keys it half-remembers.
-  """
+
+# -----------------------
+# Single-key get/set (used by features/params and tools)
+# -----------------------
+def get_param_value(name: str, default: Any) -> Any:
+  # 'GitPullTime' is a synthetic key backed by services/git_state.py.
+  # Imported lazily to avoid a circular import at module load.
+  from .git_state import read_custom_meta_value
+  custom_value = read_custom_meta_value(name)
+  if custom_value is not None:
+    return custom_value
+
+  if not HAS_PARAMS:
+    s = _mem_store.get(name, None)
+    return default if s is None else s
+
+  return _read_param_value(Params(), name, default)
+
+
+def get_param_values(names: list[str], defaults: dict[str, Any] | None = None) -> dict[str, Any]:
   defaults = defaults or {}
+
+  # Imported lazily to avoid a circular import at module load.
+  from .git_state import read_custom_meta_value
+
   values: dict[str, Any] = {}
+  if not HAS_PARAMS:
+    for name in names:
+      custom_value = read_custom_meta_value(name)
+      if custom_value is not None:
+        values[name] = custom_value
+      else:
+        values[name] = _mem_store.get(name, defaults.get(name, 0))
+    return values
+
+  params = Params()
   for name in names:
+    custom_value = read_custom_meta_value(name)
+    if custom_value is not None:
+      values[name] = custom_value
+      continue
+    values[name] = _read_param_value(params, name, defaults.get(name, 0))
+  if "CruiseGapLevels" in values:
+    from openpilot.sunnypilot.selfdrive.car.cruise_helpers import cruise_gap_levels
+    from .settings import current_max_gap_levels
     try:
-      values[name] = json_safe(params.get(name))
-    except Exception:
-      values[name] = json_safe(defaults.get(name))
+      requested = int(values["CruiseGapLevels"])
+    except (TypeError, ValueError):
+      requested = 0
+    values["CruiseGapLevels"] = cruise_gap_levels(requested, current_max_gap_levels(params))
   return values
+
+
+def _to_int(value: Any) -> int:
+  """Round to the nearest integer instead of truncating toward zero.
+
+  int(float(v)) turns 14.999 into 14, so a value that is a hair under its
+  target lands one whole step below it. Nothing produces such a value today --
+  every parameter in carrot_settings.json is declared with integer bounds --
+  but the moment a fractional one is added, the symptom would be settings that
+  read one lower than what was saved. That is exactly the complaint this whole
+  effort started from, so it is not a difference worth leaving in place.
+
+  Matches the rounding features/params.py already applies when it clamps.
+  """
+  return int(round(float(value)))
+
+
+def _coerce_bool(value: Any) -> bool:
+  if isinstance(value, str):
+    return value.strip().lower() in ("1", "true", "on", "yes")
+  return bool(value)
+
+
+def _coerce_inferred_value(value: Any, p: dict[str, Any] | None) -> tuple[str, Any]:
+  kind = infer_type_from_setting(p)
+  if kind == "bool":
+    return kind, _coerce_bool(value)
+  if kind == "int":
+    return kind, _to_int(value)
+  if kind == "float":
+    return kind, float(value)
+  if kind == "json":
+    return kind, json.loads(value) if isinstance(value, str) else value
+  return kind, str(value)
+
+
+def _put_inferred(params: "Params", key: str, value: Any, p: dict[str, Any] | None) -> None:
+  """Write using a type inferred from the setting definition.
+
+  Used when the runtime type system (get_type / ParamKeyType) is unavailable,
+  so a missing ParamKeyType can no longer silently drop the write (the previous
+  code promised this 'inference' fallback in a comment but never did it)."""
+  kind, coerced = _coerce_inferred_value(value, p)
+  if kind == "bool":
+    if hasattr(params, "put_bool"):
+      params.put_bool(key, coerced)
+    else:
+      params.put(key, "1" if coerced else "0")
+  elif kind == "int":
+    if hasattr(params, "put_int"):
+      params.put_int(key, coerced)
+    else:
+      params.put(key, str(coerced))
+  elif kind == "float":
+    if hasattr(params, "put_float"):
+      params.put_float(key, coerced)
+    else:
+      params.put(key, repr(coerced))
+  elif kind == "json":
+    params.put(key, coerced)
+  else:
+    params.put(key, coerced)
+
+
+def _put_unregistered_setting(params: "Params", key: str, value: Any, p: dict[str, Any]) -> None:
+  """Atomically persist a trusted setting while params_pyx still has an old key table."""
+  kind, coerced = _coerce_inferred_value(value, p)
+  if kind == "bool":
+    raw = "1" if coerced else "0"
+  elif kind == "float":
+    raw = repr(coerced)
+  elif kind == "json":
+    raw = json.dumps(coerced, ensure_ascii=False, separators=(",", ":"))
+  else:
+    raw = str(coerced)
+
+  param_dir, param_path = _unregistered_param_paths(params, key)
+
+  # Match the native Params writer: keep temporary files outside the `d`
+  # symlink so clear_all cannot remove one while it is being committed.
+  fd, temp_path = tempfile.mkstemp(prefix=".tmp_value_", dir=os.path.dirname(param_dir))
+  try:
+    with os.fdopen(fd, "wb") as f:
+      fd = -1
+      f.write(raw.encode("utf-8"))
+      f.flush()
+      os.fsync(f.fileno())
+    os.replace(temp_path, param_path)
+    temp_path = ""
+
+    try:
+      dir_fd = os.open(param_dir, os.O_RDONLY)
+    except OSError:
+      dir_fd = -1
+    if dir_fd >= 0:
+      try:
+        os.fsync(dir_fd)
+      finally:
+        os.close(dir_fd)
+  finally:
+    if fd >= 0:
+      os.close(fd)
+    if temp_path:
+      try:
+        os.unlink(temp_path)
+      except FileNotFoundError:
+        pass
+
+
+def put_typed(params: "Params", key: str, value: Any, p: dict[str, Any] | None = None) -> None:
+  """Persist value with the param's declared type.
+
+  Prefers the runtime type (get_type / ParamKeyType); when that is unavailable
+  (older fork, ParamKeyType is None, or an unknown key) it falls back to a type
+  inferred from the setting definition. A genuine write failure is RAISED so the
+  caller (e.g. /api/param_set) reports it — previously every error here was
+  swallowed, so a failed save still returned ok and the UI showed a false
+  success ("toggle not saved")."""
+  t = None
+  if ParamKeyType is not None:
+    try:
+      t = params.get_type(key)
+    except Exception:
+      t = None
+
+  if t is None or ParamKeyType is None:
+    _put_inferred(params, key, value, p)
+    return
+
+  if t == ParamKeyType.BOOL:
+    params.put_bool(key, _coerce_bool(value))
+  elif t == ParamKeyType.INT:
+    params.put_int(key, _to_int(value))
+  elif t == ParamKeyType.FLOAT:
+    params.put_float(key, float(value))
+  elif t == ParamKeyType.TIME:
+    params.put(key, str(value))
+  elif t == ParamKeyType.STRING:
+    params.put(key, str(value))
+  elif t == ParamKeyType.JSON:
+    obj = json.loads(value) if isinstance(value, str) else value
+    params.put(key, obj)
+  else:
+    # BYTES or anything unmapped → best-effort string write.
+    params.put(key, str(value))
+
+
+INTERNAL_SESSION_PARAMS = frozenset({"DriverMonitoringSessionDisabled", "JetsonLegacyUpdatePending"})
+BACKUP_EXCLUDED_PARAMS = frozenset({"DriverMonitoringEnabled"})
+
+
+def filter_param_backup_values(values: dict[str, Any]) -> dict[str, Any]:
+  return {
+    str(key): value
+    for key, value in values.items()
+    if str(key) not in INTERNAL_SESSION_PARAMS and str(key) not in BACKUP_EXCLUDED_PARAMS
+  }
+
+
+def read_param_backup_values(path: str) -> dict[str, Any]:
+  with open(path, encoding="utf-8") as f:
+    values = json.load(f)
+  if not isinstance(values, dict):
+    raise ValueError("bad json format (must be object)")
+  return filter_param_backup_values(values)
+
+
+def set_param_value(name: str, value: Any, p: dict[str, Any] | None = None) -> None:
+  if name in INTERNAL_SESSION_PARAMS:
+    raise ValueError(f"{name} is controlled internally")
+  if not HAS_PARAMS:
+    _mem_store[name] = str(value)
+    return
+  params = Params()
+  try:
+    put_typed(params, name, value, p)
+  except Exception as exc:
+    if p is None or UnknownKeyName is None or not isinstance(exc, UnknownKeyName):
+      raise
+    _put_unregistered_setting(params, name, value, p)
+
+  if name == "DriverMonitoringEnabled" and not _coerce_bool(value) and not params.get_bool("IsOnroad"):
+    params.remove("Offroad_DriverMonitoringUncertain")
+
+# -----------------------
+# Bulk backup / restore
+# -----------------------
+def get_all_param_values_for_backup() -> dict[str, str]:
+  if not HAS_PARAMS or ParamKeyType is None:
+    raise RuntimeError("Params/ParamKeyType not available")
+
+  params = Params()
+  out: dict[str, str] = {}
+
+  for k in params.all_keys():
+    if isinstance(k, (bytes, bytearray, memoryview)):
+      try:
+        key = k.decode("utf-8")
+      except Exception:
+        continue
+    else:
+      key = str(k)
+
+    if key in INTERNAL_SESSION_PARAMS or key in BACKUP_EXCLUDED_PARAMS:
+      continue
+
+    try:
+      t = params.get_type(key)
+    except Exception:
+      continue
+
+    # skip heavy/unsupported
+    if t in (ParamKeyType.BYTES, ParamKeyType.JSON):
+      continue
+
+    # default 없는 키 제외
+    try:
+      dv = params.get_default_value(key)
+    except Exception:
+      continue
+    if dv is None:
+      continue
+
+    try:
+      v = params.get(key, block=False, return_default=False)
+    except Exception:
+      v = None
+
+    if v is None:
+      v = dv
+
+    if isinstance(v, (dict, list)):
+      out[key] = json.dumps(v, ensure_ascii=False)
+    else:
+      out[key] = str(v)
+
+  return out
+
+
+def _backup_param_names() -> list[str]:
+  if not HAS_PARAMS or ParamKeyType is None:
+    raise RuntimeError("Params/ParamKeyType not available")
+
+  params = Params()
+  names: list[str] = []
+
+  for k in params.all_keys():
+    if isinstance(k, (bytes, bytearray, memoryview)):
+      try:
+        key = k.decode("utf-8")
+      except Exception:
+        continue
+    else:
+      key = str(k)
+
+    try:
+      t = params.get_type(key)
+    except Exception:
+      continue
+
+    if t in (ParamKeyType.BYTES, ParamKeyType.JSON):
+      continue
+
+    try:
+      if params.get_default_value(key) is None:
+        continue
+    except Exception:
+      continue
+
+    names.append(key)
+
+  return names
+
+
+def _backup_param_type_map(names: list[str] | None = None) -> dict[str, Any]:
+  if not HAS_PARAMS or ParamKeyType is None:
+    return {}
+
+  params = Params()
+  type_map: dict[str, Any] = {}
+  for key in names or _backup_param_names():
+    try:
+      type_map[key] = params.get_type(key)
+    except Exception:
+      continue
+  return type_map
+
+
+def restore_param_values_from_backup(values: dict[str, Any], source: str = "restore") -> dict[str, Any]:
+  if not HAS_PARAMS or ParamKeyType is None:
+    raise RuntimeError("Params/ParamKeyType not available")
+
+  # Imported lazily: services.param_changes is a leaf module and importing it
+  # at module load would tangle the import order of the params services.
+  from .param_changes import append_param_change
+
+  params = Params()
+  definitions = _catalog_definitions()
+  ok_cnt = 0
+  fail_cnt = 0
+  fails = []
+
+  for key, value in values.items():
+    if key in INTERNAL_SESSION_PARAMS:
+      continue
+    if source != "reset_defaults" and key in BACKUP_EXCLUDED_PARAMS:
+      continue
+    try:
+      definition = definitions.get(key)
+      t = resolve_param_type(params, key, definition)
+      if t is None or _is_unsupported_param_type(t):
+        # JSON/BYTES are excluded from backups; an unknown key with no
+        # definition to infer from is left untouched rather than failed.
+        continue
+
+      previous = _read_param_value(params, key, None)
+      # The single write path: same clamping, inference and unregistered-key
+      # fallback the settings screen uses, so a profile cannot fail on a key a
+      # single write would have saved.
+      set_param_value(key, value, definition)
+      ok_cnt += 1
+
+      # Recording each write individually — bulk writes are the hardest changes
+      # to explain after the fact. A read-back failure must not undo the write.
+      try:
+        after = _read_param_value(params, key, None)
+        if previous != after:
+          append_param_change(key, previous, after, source=source)
+      except Exception:
+        pass
+
+    except Exception as e:
+      fail_cnt += 1
+      fails.append({"key": key, "err": str(e)})
+
+  return {"ok_cnt": ok_cnt, "fail_cnt": fail_cnt, "fails": fails[:30]}
+
+
+# -----------------------
+# QR backup / restore
+# -----------------------
+def _ensure_pydeps_on_path() -> None:
+  if QR_BACKUP_PYDEPS_DIR not in sys.path:
+    sys.path.insert(0, QR_BACKUP_PYDEPS_DIR)
+
+
+def _load_brotli_module() -> Any:
+  global brotli
+  if brotli is not None:
+    return brotli
+  _ensure_pydeps_on_path()
+  brotli = importlib.import_module(QR_BACKUP_DEPENDENCY)
+  return brotli
+
+
+def get_qr_dependency_status() -> dict[str, Any]:
+  try:
+    module = _load_brotli_module()
+    return {
+      "ok": True,
+      "installed": True,
+      "dependency": QR_BACKUP_DEPENDENCY,
+      "format": QR_BACKUP_PREFIX_V3,
+      "module_path": getattr(module, "__file__", ""),
+      "target": QR_BACKUP_PYDEPS_DIR,
+    }
+  except Exception as exc:
+    return {
+      "ok": True,
+      "installed": False,
+      "dependency": QR_BACKUP_DEPENDENCY,
+      "format": QR_BACKUP_PREFIX_V4,
+      "module_path": "",
+      "target": QR_BACKUP_PYDEPS_DIR,
+      "error": str(exc),
+    }
+
+
+def ensure_qr_dependency() -> dict[str, Any]:
+  status = get_qr_dependency_status()
+  if status.get("installed"):
+    return {**status, "configured": False, "message": "already installed"}
+
+  with _qr_dependency_lock:
+    status = get_qr_dependency_status()
+    if status.get("installed"):
+      return {**status, "configured": False, "message": "already installed"}
+
+    os.makedirs(QR_BACKUP_PYDEPS_DIR, exist_ok=True)
+    _ensure_pydeps_on_path()
+    cmd = [
+      sys.executable or "python3",
+      "-m", "pip", "install",
+      "--target", QR_BACKUP_PYDEPS_DIR,
+      "--upgrade",
+      QR_BACKUP_DEPENDENCY,
+    ]
+
+    wheel_files = []
+    try:
+      wheel_files = [
+        name for name in os.listdir(QR_BACKUP_WHEEL_DIR)
+        if name.lower().startswith("brotli-") and name.endswith(".whl")
+      ]
+    except Exception:
+      wheel_files = []
+
+    if wheel_files:
+      cmd = [
+        sys.executable or "python3",
+        "-m", "pip", "install",
+        "--no-index",
+        "--find-links", QR_BACKUP_WHEEL_DIR,
+        "--target", QR_BACKUP_PYDEPS_DIR,
+        "--upgrade",
+        QR_BACKUP_DEPENDENCY,
+      ]
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = QR_BACKUP_PYDEPS_DIR + os.pathsep + env.get("PYTHONPATH", "")
+    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env, check=False)
+    if proc.returncode != 0 and wheel_files:
+      fallback_cmd = [
+        sys.executable or "python3",
+        "-m", "pip", "install",
+        "--target", QR_BACKUP_PYDEPS_DIR,
+        "--upgrade",
+        QR_BACKUP_DEPENDENCY,
+      ]
+      proc = subprocess.run(fallback_cmd, capture_output=True, text=True, timeout=180, env=env, check=False)
+
+    if proc.returncode != 0:
+      return {
+        "ok": False,
+        "installed": False,
+        "configured": False,
+        "dependency": QR_BACKUP_DEPENDENCY,
+        "format": QR_BACKUP_PREFIX_V4,
+        "target": QR_BACKUP_PYDEPS_DIR,
+        "error": (proc.stderr or proc.stdout or "pip install failed")[-1200:],
+      }
+
+    importlib.invalidate_caches()
+    try:
+      module = _load_brotli_module()
+      return {
+        "ok": True,
+        "installed": True,
+        "configured": True,
+        "dependency": QR_BACKUP_DEPENDENCY,
+        "format": QR_BACKUP_PREFIX_V3,
+        "module_path": getattr(module, "__file__", ""),
+        "target": QR_BACKUP_PYDEPS_DIR,
+        "message": "installed",
+      }
+    except Exception as exc:
+      return {
+        "ok": False,
+        "installed": False,
+        "configured": False,
+        "dependency": QR_BACKUP_DEPENDENCY,
+        "format": QR_BACKUP_PREFIX_V4,
+        "target": QR_BACKUP_PYDEPS_DIR,
+        "error": str(exc),
+      }
+
+
+def _b64url_encode(data: bytes) -> str:
+  return base64.urlsafe_b64encode(data).decode("ascii").rstrip("=")
+
+
+def _b64url_decode(text: str) -> bytes:
+  return base64.urlsafe_b64decode(text + ("=" * (-len(text) % 4)))
+
+
+def _base45_encode(data: bytes) -> str:
+  chars = QR_BACKUP_BASE45_ALPHABET
+  out = []
+  i = 0
+  while i < len(data):
+    if i + 1 < len(data):
+      n = (data[i] << 8) + data[i + 1]
+      out.append(chars[n % 45])
+      out.append(chars[(n // 45) % 45])
+      out.append(chars[n // (45 * 45)])
+      i += 2
+    else:
+      n = data[i]
+      out.append(chars[n % 45])
+      out.append(chars[n // 45])
+      i += 1
+  return "".join(out)
+
+
+def _base45_decode(text: str) -> bytes:
+  chars = QR_BACKUP_BASE45_ALPHABET
+  values = {ch: i for i, ch in enumerate(chars)}
+  out = bytearray()
+  i = 0
+  while i < len(text):
+    remaining = len(text) - i
+    if remaining == 1:
+      raise ValueError("bad base45 payload")
+    if remaining >= 3:
+      try:
+        n = values[text[i]] + values[text[i + 1]] * 45 + values[text[i + 2]] * 45 * 45
+      except KeyError:
+        raise ValueError("bad base45 payload")
+      if n > 0xFFFF:
+        raise ValueError("bad base45 payload")
+      out.append(n >> 8)
+      out.append(n & 0xFF)
+      i += 3
+    else:
+      try:
+        n = values[text[i]] + values[text[i + 1]] * 45
+      except KeyError:
+        raise ValueError("bad base45 payload")
+      if n > 0xFF:
+        raise ValueError("bad base45 payload")
+      out.append(n)
+      i += 2
+  return bytes(out)
+
+
+def _write_varint(value: int) -> bytes:
+  if value < 0:
+    raise ValueError("negative varint")
+  out = bytearray()
+  while True:
+    b = value & 0x7F
+    value >>= 7
+    if value:
+      out.append(b | 0x80)
+    else:
+      out.append(b)
+      return bytes(out)
+
+
+def _read_varint(data: bytes, pos: int) -> tuple[int, int]:
+  shift = 0
+  value = 0
+  while True:
+    if pos >= len(data) or shift > 63:
+      raise ValueError("bad varint")
+    b = data[pos]
+    pos += 1
+    value |= (b & 0x7F) << shift
+    if not (b & 0x80):
+      return value, pos
+    shift += 7
+
+
+def _zigzag_encode(value: int) -> int:
+  return (value << 1) ^ (value >> 63)
+
+
+def _zigzag_decode(value: int) -> int:
+  return (value >> 1) ^ -(value & 1)
+
+
+def _param_short_code(key: str) -> str:
+  digest = hashlib.sha256(key.encode("utf-8")).digest()[:QR_BACKUP_CODE_BYTES]
+  return _b64url_encode(digest)
+
+
+def _param_short_code_bytes(key: str, size: int = QR_BACKUP_CODE_BYTES_V3) -> bytes:
+  return hashlib.sha256(key.encode("utf-8")).digest()[:size]
+
+
+def _build_param_code_maps(names: list[str]) -> tuple[dict[str, str], dict[str, str]]:
+  buckets: dict[str, list[str]] = {}
+  for name in sorted(set(str(n) for n in names)):
+    buckets.setdefault(_param_short_code(name), []).append(name)
+
+  code_to_key = {
+    code: keys[0]
+    for code, keys in buckets.items()
+    if len(keys) == 1
+  }
+  key_to_code = {key: code for code, key in code_to_key.items()}
+  return key_to_code, code_to_key
+
+
+def _build_param_code_maps_bytes(names: list[str], size: int = QR_BACKUP_CODE_BYTES_V3) -> tuple[dict[str, bytes], dict[bytes, str]]:
+  buckets: dict[bytes, list[str]] = {}
+  for name in sorted(set(str(n) for n in names)):
+    buckets.setdefault(_param_short_code_bytes(name, size), []).append(name)
+
+  code_to_key = {
+    code: keys[0]
+    for code, keys in buckets.items()
+    if len(keys) == 1
+  }
+  key_to_code = {key: code for code, key in code_to_key.items()}
+  return key_to_code, code_to_key
+
+
+def _schema_fingerprint(names: list[str], size: int = QR_BACKUP_CODE_BYTES_V3) -> bytes:
+  encoded_names = "\n".join(sorted(set(str(n) for n in names))).encode("utf-8")
+  return hashlib.sha256(bytes([size]) + encoded_names).digest()[:QR_BACKUP_SCHEMA_BYTES]
+
+
+def _is_int_string(value: str) -> bool:
+  if not value:
+    return False
+  if value == "0":
+    return True
+  if value.startswith("-"):
+    body = value[1:]
+    return bool(body) and body.isdigit() and not (len(body) > 1 and body.startswith("0"))
+  return value.isdigit() and not value.startswith("0")
+
+
+def _encode_qr_value(value: Any, param_type: Any = None) -> bytes:
+  if ParamKeyType is not None and param_type == ParamKeyType.BOOL:
+    bool_value = value in ("1", "true", "True", "on", "yes") if isinstance(value, str) else bool(value)
+    return b"\x02" if bool_value else b"\x01"
+
+  text = str(value)
+  if text == "":
+    return b"\x00"
+  if text == "0":
+    return b"\x01"
+  if text == "1":
+    return b"\x02"
+
+  if ParamKeyType is not None and param_type == ParamKeyType.INT:
+    try:
+      return b"\x03" + _write_varint(_zigzag_encode(_to_int(value)))
+    except Exception:
+      pass
+
+  if param_type is None and _is_int_string(text):
+    return b"\x03" + _write_varint(_zigzag_encode(int(text)))
+
+  raw = text.encode("utf-8")
+  return b"\x04" + _write_varint(len(raw)) + raw
+
+
+def _decode_qr_value(data: bytes, pos: int) -> tuple[str, int]:
+  if pos >= len(data):
+    raise ValueError("bad QR backup value")
+  tag = data[pos]
+  pos += 1
+  if tag == 0:
+    return "", pos
+  if tag == 1:
+    return "0", pos
+  if tag == 2:
+    return "1", pos
+  if tag == 3:
+    value, pos = _read_varint(data, pos)
+    return str(_zigzag_decode(value)), pos
+  if tag == 4:
+    size, pos = _read_varint(data, pos)
+    end = pos + size
+    if end > len(data):
+      raise ValueError("bad QR backup string")
+    return data[pos:end].decode("utf-8"), end
+  raise ValueError("unsupported QR backup value")
+
+
+def _build_params_qr_payload_v2(values: dict[str, Any]) -> dict[str, Any]:
+  try:
+    code_names = _backup_param_names()
+  except Exception:
+    code_names = list(values.keys())
+  key_to_code, _ = _build_param_code_maps(code_names)
+  pairs = []
+  fallback: dict[str, Any] = {}
+  for key in sorted(values.keys()):
+    key_text = str(key)
+    code = key_to_code.get(key_text)
+    if code:
+      pairs.append([code, values[key]])
+    else:
+      fallback[key_text] = values[key]
+
+  envelope: list[Any] = [2, pairs]
+  if fallback:
+    envelope.append(fallback)
+  raw = json.dumps(envelope, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+  compressed = zlib.compress(raw, 9)
+  checksum = hashlib.sha256(compressed).hexdigest()[:QR_BACKUP_CHECKSUM_CHARS]
+  payload = f"{QR_BACKUP_PREFIX_V2}.{_b64url_encode(compressed)}.{checksum}"
+  return {
+    "payload": payload,
+    "format": QR_BACKUP_PREFIX_V2,
+    "count": len(values),
+    "json_bytes": len(raw),
+    "compressed_bytes": len(compressed),
+    "payload_chars": len(payload),
+    "ecc": QR_BACKUP_ECC,
+    "version": 2,
+    "checksum": checksum,
+  }
+
+
+def _build_params_qr_binary(values: dict[str, Any], version: int) -> bytes:
+  try:
+    code_names = _backup_param_names()
+  except Exception:
+    code_names = list(values.keys())
+
+  type_map = _backup_param_type_map(code_names)
+  key_to_code, _ = _build_param_code_maps_bytes(code_names)
+  raw = bytearray()
+  pairs = []
+  fallback = []
+
+  for key in sorted(values.keys()):
+    key_text = str(key)
+    encoded_value = _encode_qr_value(values[key], type_map.get(key_text))
+    code = key_to_code.get(key_text)
+    if code:
+      pairs.append((code, encoded_value))
+    else:
+      fallback.append((key_text.encode("utf-8"), encoded_value))
+
+  raw.append(version)
+  raw.append(QR_BACKUP_CODE_BYTES_V3)
+  raw.extend(_schema_fingerprint(code_names))
+  raw.extend(_write_varint(len(pairs)))
+  for code, encoded_value in pairs:
+    raw.extend(code)
+    raw.extend(encoded_value)
+
+  raw.extend(_write_varint(len(fallback)))
+  for key_bytes, encoded_value in fallback:
+    raw.extend(_write_varint(len(key_bytes)))
+    raw.extend(key_bytes)
+    raw.extend(encoded_value)
+
+  return bytes(raw)
+
+
+def _build_params_qr_payload_v3(values: dict[str, Any]) -> dict[str, Any]:
+  brotli_module = _load_brotli_module()
+
+  raw_bytes = _build_params_qr_binary(values, 3)
+  compressed = brotli_module.compress(raw_bytes, quality=11)
+  checksum = hashlib.sha256(compressed).hexdigest()[:QR_BACKUP_CHECKSUM_CHARS].upper()
+  payload = f"{QR_BACKUP_PREFIX_V3}:{_base45_encode(compressed)}:{checksum}"
+  return {
+    "payload": payload,
+    "format": QR_BACKUP_PREFIX_V3,
+    "count": len(values),
+    "json_bytes": len(raw_bytes),
+    "compressed_bytes": len(compressed),
+    "payload_chars": len(payload),
+    "ecc": QR_BACKUP_ECC,
+    "version": 3,
+    "checksum": checksum,
+  }
+
+
+def _build_params_qr_payload_v4(values: dict[str, Any]) -> dict[str, Any]:
+  raw_bytes = _build_params_qr_binary(values, 4)
+  compressed = zlib.compress(raw_bytes, 9)
+  checksum = hashlib.sha256(compressed).hexdigest()[:QR_BACKUP_CHECKSUM_CHARS].upper()
+  payload = f"{QR_BACKUP_PREFIX_V4}:{_base45_encode(compressed)}:{checksum}"
+  return {
+    "payload": payload,
+    "format": QR_BACKUP_PREFIX_V4,
+    "count": len(values),
+    "json_bytes": len(raw_bytes),
+    "compressed_bytes": len(compressed),
+    "payload_chars": len(payload),
+    "ecc": QR_BACKUP_ECC,
+    "version": 4,
+    "checksum": checksum,
+  }
+
+
+def build_params_qr_payload(values: dict[str, Any] | None = None) -> dict[str, Any]:
+  if values is None:
+    values = get_all_param_values_for_backup()
+  values = filter_param_backup_values(values)
+
+  try:
+    return _build_params_qr_payload_v3(values)
+  except Exception:
+    pass
+
+  try:
+    return _build_params_qr_payload_v4(values)
+  except Exception:
+    return _build_params_qr_payload_v2(values)
+
+
+def _parse_params_qr_payload_v1(compressed: bytes, checksum_text: str) -> dict[str, Any]:
+  checksum = hashlib.sha256(compressed).hexdigest()[:16]
+  if checksum != checksum_text:
+    raise ValueError("QR payload checksum mismatch")
+
+  raw = zlib.decompress(compressed)
+  envelope = json.loads(raw.decode("utf-8"))
+  if envelope.get("type") != QR_BACKUP_TYPE:
+    raise ValueError("unsupported QR backup type")
+  if int(envelope.get("version", 0)) > 1:
+    raise ValueError("unsupported QR backup version")
+
+  values = envelope.get("values")
+  if not isinstance(values, dict):
+    raise ValueError("bad QR backup values")
+  return values
+
+
+def _parse_params_qr_payload_v2(compressed: bytes, checksum_text: str) -> dict[str, Any]:
+  checksum = hashlib.sha256(compressed).hexdigest()[:QR_BACKUP_CHECKSUM_CHARS]
+  if checksum != checksum_text:
+    raise ValueError("QR payload checksum mismatch")
+
+  raw = zlib.decompress(compressed)
+  envelope = json.loads(raw.decode("utf-8"))
+
+  if isinstance(envelope, list):
+    if len(envelope) < 2:
+      raise ValueError("bad QR backup format")
+    version = int(envelope[0])
+    pairs = envelope[1]
+    fallback = envelope[2] if len(envelope) > 2 else {}
+  elif isinstance(envelope, dict):
+    version = int(envelope.get("v", 0))
+    pairs = envelope.get("d")
+    fallback = envelope.get("n", {})
+  else:
+    raise ValueError("bad QR backup format")
+
+  if version > QR_BACKUP_VERSION:
+    raise ValueError("unsupported QR backup version")
+  if not isinstance(pairs, list):
+    raise ValueError("bad QR backup values")
+  if fallback is None:
+    fallback = {}
+  if not isinstance(fallback, dict):
+    raise ValueError("bad QR backup fallback")
+
+  _, code_to_key = _build_param_code_maps(_backup_param_names())
+  values: dict[str, Any] = {}
+  for item in pairs:
+    if not isinstance(item, list) or len(item) != 2:
+      continue
+    key = code_to_key.get(str(item[0]))
+    if key:
+      values[key] = item[1]
+
+  for key, value in fallback.items():
+    values[str(key)] = value
+
+  return values
+
+
+def _parse_params_qr_binary(raw: bytes) -> dict[str, Any]:
+  if len(raw) < 2 + QR_BACKUP_SCHEMA_BYTES:
+    raise ValueError("bad QR backup format")
+
+  version = raw[0]
+  code_size = raw[1]
+  pos = 2 + QR_BACKUP_SCHEMA_BYTES
+  if version > QR_BACKUP_VERSION:
+    raise ValueError("unsupported QR backup version")
+  if code_size < 1 or code_size > 8:
+    raise ValueError("bad QR backup code size")
+
+  _, code_to_key = _build_param_code_maps_bytes(_backup_param_names(), code_size)
+  values: dict[str, Any] = {}
+  pair_count, pos = _read_varint(raw, pos)
+  for _ in range(pair_count):
+    end = pos + code_size
+    if end > len(raw):
+      raise ValueError("bad QR backup code")
+    code = raw[pos:end]
+    pos = end
+    value, pos = _decode_qr_value(raw, pos)
+    key = code_to_key.get(code)
+    if key:
+      values[key] = value
+
+  fallback_count, pos = _read_varint(raw, pos)
+  for _ in range(fallback_count):
+    key_size, pos = _read_varint(raw, pos)
+    key_end = pos + key_size
+    if key_end > len(raw):
+      raise ValueError("bad QR backup key")
+    key = raw[pos:key_end].decode("utf-8")
+    pos = key_end
+    value, pos = _decode_qr_value(raw, pos)
+    values[key] = value
+
+  if pos != len(raw):
+    raise ValueError("bad QR backup trailing data")
+
+  return values
+
+
+def _parse_params_qr_payload_v3(payload: str) -> dict[str, Any]:
+  brotli_module = _load_brotli_module()
+  prefix = f"{QR_BACKUP_PREFIX_V3}:"
+  if not payload.startswith(prefix):
+    raise ValueError("unsupported QR payload")
+
+  try:
+    encoded, checksum_text = payload[len(prefix):].rsplit(":", 1)
+  except ValueError:
+    raise ValueError("bad QR payload")
+
+  compressed = _base45_decode(encoded)
+  checksum = hashlib.sha256(compressed).hexdigest()[:QR_BACKUP_CHECKSUM_CHARS].upper()
+  if checksum != checksum_text.upper():
+    raise ValueError("QR payload checksum mismatch")
+
+  return _parse_params_qr_binary(brotli_module.decompress(compressed))
+
+
+def _parse_params_qr_payload_v4(payload: str) -> dict[str, Any]:
+  prefix = f"{QR_BACKUP_PREFIX_V4}:"
+  if not payload.startswith(prefix):
+    raise ValueError("unsupported QR payload")
+
+  try:
+    encoded, checksum_text = payload[len(prefix):].rsplit(":", 1)
+  except ValueError:
+    raise ValueError("bad QR payload")
+
+  compressed = _base45_decode(encoded)
+  checksum = hashlib.sha256(compressed).hexdigest()[:QR_BACKUP_CHECKSUM_CHARS].upper()
+  if checksum != checksum_text.upper():
+    raise ValueError("QR payload checksum mismatch")
+
+  return _parse_params_qr_binary(zlib.decompress(compressed))
+
+
+def parse_params_qr_payload(data: Any) -> dict[str, Any]:
+  if isinstance(data, dict):
+    values = data.get("values") if isinstance(data.get("values"), dict) else data
+    if not isinstance(values, dict):
+      raise ValueError("bad payload format")
+    return values
+
+  payload = str(data or "").strip()
+  if not payload:
+    raise ValueError("empty payload")
+
+  if payload.startswith("{"):
+    j = json.loads(payload)
+    return parse_params_qr_payload(j)
+
+  if payload.startswith(f"{QR_BACKUP_PREFIX_V3}:"):
+    return _parse_params_qr_payload_v3(payload)
+  if payload.startswith(f"{QR_BACKUP_PREFIX_V4}:"):
+    return _parse_params_qr_payload_v4(payload)
+
+  parts = payload.split(".")
+  if len(parts) != 3 or parts[0] not in (QR_BACKUP_PREFIX_V1, QR_BACKUP_PREFIX_V2):
+    raise ValueError("unsupported QR payload")
+
+  compressed = _b64url_decode(parts[1])
+  if parts[0] == QR_BACKUP_PREFIX_V1:
+    return _parse_params_qr_payload_v1(compressed, parts[2])
+  return _parse_params_qr_payload_v2(compressed, parts[2])
+
+
+def _inferred_param_key_type(definition: dict[str, Any] | None) -> Any:
+  """Map a catalog-inferred kind onto a ParamKeyType, or None if impossible."""
+  if ParamKeyType is None or not definition:
+    return None
+  mapping = {
+    "bool": ParamKeyType.BOOL,
+    "int": ParamKeyType.INT,
+    "float": ParamKeyType.FLOAT,
+    "string": ParamKeyType.STRING,
+    "json": ParamKeyType.JSON,
+  }
+  return mapping.get(infer_type_from_setting(definition))
+
+
+def resolve_param_type(params: "Params", key: str, definition: dict[str, Any] | None = None) -> Any:
+  """The key's type, preferring the native table and falling back to the catalog.
+
+  A parameter added to carrot_settings.json is usable from the web (single
+  writes and reads already fall back) before params_pyx is rebuilt, but the
+  profile preview and apply used to call params.get_type() directly and mark
+  such a key as an error. This resolves the type the same way the write path
+  does, so all four paths agree on what a parameter is.
+  """
+  try:
+    return params.get_type(key)
+  except Exception:
+    return _inferred_param_key_type(definition)
+
+
+def _catalog_definitions() -> dict[str, Any]:
+  # Lazy: services.settings imports this module, so importing it at load time
+  # would form a cycle.
+  try:
+    from .settings import get_settings_cached
+    _data, _groups, by_name, _groups_list = get_settings_cached()
+    return by_name or {}
+  except Exception:
+    return {}
+
+
+def _param_type_name(t: Any) -> str:
+  name = getattr(t, "name", None)
+  return str(name or t)
+
+
+def _is_unsupported_param_type(t: Any) -> bool:
+  if ParamKeyType is None:
+    return True
+  return t in (ParamKeyType.BYTES, ParamKeyType.JSON)
+
+
+def _normalize_param_value(t: Any, value: Any) -> Any:
+  if ParamKeyType is not None and t == ParamKeyType.BOOL:
+    if isinstance(value, str):
+      v = value.strip().lower()
+      if v in ("1", "true", "on", "yes"):
+        return True
+      if v in ("0", "false", "off", "no", ""):
+        return False
+    return bool(value)
+
+  if ParamKeyType is not None and t == ParamKeyType.INT:
+    return _to_int(value)
+
+  if ParamKeyType is not None and t == ParamKeyType.FLOAT:
+    return float(value)
+
+  return str(value)
+
+
+def _values_equal(t: Any, left: Any, right: Any) -> bool:
+  try:
+    l_norm = _normalize_param_value(t, left)
+    r_norm = _normalize_param_value(t, right)
+    if ParamKeyType is not None and t == ParamKeyType.FLOAT:
+      return abs(float(l_norm) - float(r_norm)) < 0.000001
+    return l_norm == r_norm
+  except Exception:
+    return str(left) == str(right)
+
+
+def preview_param_restore_values(values: dict[str, Any], selected_keys: list[str] | None = None,
+                                 source: str = "restore") -> dict[str, Any]:
+  if not HAS_PARAMS or ParamKeyType is None:
+    raise RuntimeError("Params/ParamKeyType not available")
+
+  selected = set(selected_keys or [])
+  params = Params()
+  definitions = _catalog_definitions()
+  current_values = get_param_values(list(values.keys()), {})
+  entries = []
+  summary = {"changed": 0, "same": 0, "skipped": 0, "invalid": 0, "selected": 0}
+
+  for key in sorted(values.keys()):
+    raw_value = values[key]
+    status = "changed"
+    reason = ""
+    can_apply = True
+    type_name = "unknown"
+    normalized_value: Any = raw_value
+
+    if key in INTERNAL_SESSION_PARAMS:
+      status = "invalid"
+      reason = "controlled internally"
+      can_apply = False
+    elif source != "reset_defaults" and key in BACKUP_EXCLUDED_PARAMS:
+      status = "skipped"
+      reason = "excluded from backup restore"
+      can_apply = False
+    else:
+      try:
+        # Same type resolution as the write path: a not-yet-registered key is
+        # typed from its catalog definition instead of being marked invalid.
+        t = resolve_param_type(params, key, definitions.get(key))
+        if t is None:
+          status = "invalid"
+          reason = "unknown parameter"
+          can_apply = False
+        else:
+          type_name = _param_type_name(t)
+          if _is_unsupported_param_type(t):
+            status = "skipped"
+            reason = "unsupported type"
+            can_apply = False
+          else:
+            normalized_value = _normalize_param_value(t, raw_value)
+            current_value = current_values.get(key, "")
+            if _values_equal(t, current_value, normalized_value):
+              status = "same"
+              can_apply = False
+      except Exception as e:
+        current_value = current_values.get(key, "")
+        status = "invalid"
+        reason = str(e)
+        can_apply = False
+
+    is_selected = can_apply and (not selected or key in selected)
+    if is_selected:
+      summary["selected"] += 1
+    summary[status] += 1
+    entries.append({
+      "key": key,
+      "type": type_name,
+      "current": current_values.get(key, ""),
+      "value": normalized_value,
+      "status": status,
+      "reason": reason,
+      "apply": is_selected,
+    })
+
+  return {
+    "count": len(entries),
+    "summary": summary,
+    "entries": entries,
+  }
+
+
+def restore_param_values_validated(values: dict[str, Any], selected_keys: list[str] | None = None,
+                                   source: str = "restore") -> dict[str, Any]:
+  preview = preview_param_restore_values(values, selected_keys, source=source)
+  apply_values = {
+    entry["key"]: entry["value"]
+    for entry in preview["entries"]
+    if entry.get("apply")
+  }
+  result = restore_param_values_from_backup(apply_values, source=source) if apply_values else {
+    "ok_cnt": 0,
+    "fail_cnt": 0,
+    "fails": [],
+  }
+  return {
+    "preview": preview,
+    "result": result,
+  }

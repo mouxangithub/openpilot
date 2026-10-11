@@ -65,3 +65,8 @@ openpilot/sunnypilot/selfdrive/controls/lib/accel_controller/tests/__init__.py -
 openpilot/sunnypilot/selfdrive/test/__init__.py -filter -diff -merge text
 openpilot/sunnypilot/selfdrive/test/longitudinal_maneuvers/__init__.py -filter -diff -merge text
 openpilot/sunnypilot/selfdrive/test/longitudinal_maneuvers/tests/__init__.py -filter -diff -merge text
+
+# Carrot web panel assets: the panel is a verbatim copy of CarrotPilot's front end and ships
+# small icons/backgrounds. Keep them as plain Git blobs like the other imported resources
+# above - the upstream GitLab LFS server does not accept pushes from this fork.
+openpilot/sunnypilot/carrot/web/assets/** -filter -diff -merge binary

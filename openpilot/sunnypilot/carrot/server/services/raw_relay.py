@@ -15,8 +15,9 @@ Differences from CarrotPilot's hub, on purpose:
 * no per-service display cadence table. One conflated socket is polled at a fixed low rate
   and whatever is newest is forwarded, which is the same "latest-only" behaviour without
   carrying a rate for every service;
-* no compact/native encoding mode (that needs `compact_state_pyx`, still unported), no
-  single-service mode differences beyond the frame prefix;
+* the compact-state mode is supported (`/ws/compact_state`), encoded from the same payloads
+  by `carrot/realtime/compact_state.py`; `compact_state_pyx` is used when the device has
+  built it, and the pure-Python encoder is the fallback, so the wire format is identical;
 * a slow client cannot stall the poll loop: each socket has its own bounded, coalesced
   queue drained by its own sender task, and a send that exceeds the timeout disconnects
   that client only.
@@ -28,7 +29,13 @@ import asyncio
 import logging
 from collections import OrderedDict
 
+from ...realtime.compact_state import compact_service_interval, encode_carrot_state_frame
 from .raw_protocol import encode_raw_multiplex_frame
+
+try:
+  from ...realtime.compact_state_pyx import encode_frame as _encode_compact_frame_native
+except ImportError:
+  _encode_compact_frame_native = None
 
 logger = logging.getLogger("openpilot.carrot.server.raw_relay")
 
@@ -49,6 +56,8 @@ class RawRelayHub:
     self._next_read: dict[str, float] = {}
     self._ws_services: dict[object, set] = {}
     self._ws_names: dict[object, dict] = {}
+    self._ws_modes: dict[object, str] = {}
+    self._sequence: dict[str, int] = {}
     self._pending: dict[object, OrderedDict] = {}
     self._events: dict[object, asyncio.Event] = {}
     self._senders: dict[object, asyncio.Task] = {}
@@ -61,6 +70,10 @@ class RawRelayHub:
     if service is None:
       return len(self._ws_services)
     return len(self._clients.get(service, ()))
+
+  def is_compact_service(self, service: str) -> bool:
+    """True when `compact_state` has a schema for this service."""
+    return bool(compact_service_interval(service))
 
   async def register(self, resolved, ws) -> None:
     """`resolved` is [(client_name, device_service)] from `raw_services.resolve_services`."""
@@ -75,10 +88,16 @@ class RawRelayHub:
       self._clients.setdefault(device, set()).add(ws)
     await self._ensure_poll_task()
 
+  async def register_compact(self, resolved, ws) -> None:
+    """Register for the packed Carrot-Vision frames rather than raw multiplex frames."""
+    self._ws_modes[ws] = "compact"
+    await self.register(resolved, ws)
+
   async def unregister(self, ws) -> None:
     for device in self._ws_services.pop(ws, set()):
       self._clients.get(device, set()).discard(ws)
     self._ws_names.pop(ws, None)
+    self._ws_modes.pop(ws, None)
     self._pending.pop(ws, None)
     self._events.pop(ws, None)
     sender = self._senders.pop(ws, None)
@@ -175,8 +194,39 @@ class RawRelayHub:
 
   # ---- delivery ----------------------------------------------------------- #
 
+  def _compact_frame(self, service: str, payload: bytes) -> bytes | None:
+    """One packed frame, or None when the payload cannot be encoded for this service."""
+    from openpilot.cereal import log  # lazy: keeps this module importable without capnp
+
+    sequence = (self._sequence.get(service, 0) + 1) & 0xffff
+    try:
+      # deviceState carries the HUD power-policy signal; keep it on the source-level encoder
+      # so a rolling update cannot load an older compact_state_pyx.so that silently omits a
+      # newly appended field. At 2 Hz this costs nothing on the device.
+      if _encode_compact_frame_native is not None and service != "deviceState":
+        try:
+          frame = _encode_compact_frame_native(service, payload, sequence)
+        except Exception:
+          with log.Event.from_bytes(payload, traversal_limit_in_words=2**64 - 1) as event:
+            frame = encode_carrot_state_frame(service, getattr(event, service), sequence)
+      else:
+        with log.Event.from_bytes(payload, traversal_limit_in_words=2**64 - 1) as event:
+          frame = encode_carrot_state_frame(service, getattr(event, service), sequence)
+    except Exception:
+      return None
+    self._sequence[service] = sequence
+    return frame
+
   def _broadcast(self, device: str, payload: bytes) -> None:
+    compact_wire = None
     for ws in list(self._clients.get(device, ())):
+      if self._ws_modes.get(ws) == "compact":
+        if compact_wire is None:
+          compact_wire = self._compact_frame(device, payload)
+        if compact_wire is None:
+          continue
+        self._queue(ws, device, compact_wire)
+        continue
       client_name = self._ws_names.get(ws, {}).get(device, device)
       try:
         wire = encode_raw_multiplex_frame(service=client_name, payload=payload)

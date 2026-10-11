@@ -22,7 +22,7 @@ caller's mistake, and navipilot surfaces the `error` string to the driver.
 
 from aiohttp import web
 
-from ..services.params import ParamWriteError, get_param_values, json_safe, set_param_value
+from ..services.params_typed import ParamWriteError, get_param_values, json_safe, set_param_value
 
 PARAMS_KEY = web.AppKey("carrot_server_params")
 
@@ -54,7 +54,7 @@ async def api_params_bulk(request: web.Request) -> web.Response:
   # catalog keys, because DeviceType and friends change on every read and are not settings.
   try:
     from ..services.param_changes import observe_param_values
-    from ..services.settings import carrot_defaults
+    from ..services.settings_sp import carrot_defaults
 
     observe_param_values(values, allowed=set(carrot_defaults()))
   except Exception:  # pragma: no cover - a history miss must never fail a read

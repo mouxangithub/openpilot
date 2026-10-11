@@ -17,7 +17,7 @@ import logging
 from aiohttp import web
 
 from ..services.device_info import get_device_network_snapshot
-from ..services.settings import carrot_catalog, carrot_values
+from ..services.settings_sp import carrot_catalog, carrot_values
 
 logger = logging.getLogger("openpilot.carrot.server.settings")
 

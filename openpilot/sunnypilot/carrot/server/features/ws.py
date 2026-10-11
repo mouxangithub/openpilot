@@ -8,6 +8,7 @@ See the LICENSE.md file in the root directory for more details.
 
     GET /ws/raw_multiplex?services=carState,modelV2,...   -> hello text frame, then binary
     GET /ws/raw/{service}                                 -> hello text frame, then binary
+    GET /ws/compact_state?services=...                    -> hello text frame, then packed
 
 The app (navipilot / CP 搭子) opens `/ws/raw_multiplex` for vehicle and model data; it
 never sends anything, so inbound frames are read and ignored purely to notice the close.
@@ -105,6 +106,38 @@ async def ws_raw(request: web.Request) -> web.WebSocketResponse:
   return ws
 
 
+async def ws_compact_state(request: web.Request) -> web.WebSocketResponse:
+  """Carrot Vision's packed HUD frames, from the same cereal payloads as `/ws/raw`.
+
+  The client names services the way it does everywhere else; `resolve_services` maps them to
+  device services and `is_compact_service` rejects the ones compact_state has no schema for.
+  """
+  names = [name.strip() for name in request.query.get("services", "").split(",") if name.strip()]
+  if not names:
+    raise _json_error(web.HTTPBadRequest, "missing compact state services")
+
+  hub = _hub(request)
+  if hub is None:
+    raise _json_error(web.HTTPServiceUnavailable, "cereal relay unavailable")
+
+  resolved = [pair for pair in resolve_services(names) if hub.is_compact_service(pair[1])]
+  if not resolved:
+    raise _json_error(web.HTTPNotFound, "no compact-capable services requested")
+
+  ws = web.WebSocketResponse(heartbeat=WS_HEARTBEAT_S, max_msg_size=MAX_INBOUND_BYTES)
+  await ws.prepare(request)
+  await ws.send_str(json.dumps({
+    "mode": "carrot-state-v1",
+    "services": list(dict.fromkeys(name for name, _ in resolved)),
+  }, separators=(",", ":")))
+  await hub.register_compact(resolved, ws)
+  try:
+    await _pump(ws)
+  finally:
+    await hub.unregister(ws)
+  return ws
+
+
 async def _close_hub(app: web.Application) -> None:
   hub = app.get(RAW_HUB_KEY)
   if hub is not None:
@@ -114,5 +147,6 @@ async def _close_hub(app: web.Application) -> None:
 def register(app: web.Application) -> None:
   app[RAW_HUB_KEY] = None
   app.router.add_get("/ws/raw_multiplex", ws_raw_multiplex)
+  app.router.add_get("/ws/compact_state", ws_compact_state)
   app.router.add_get("/ws/raw/{service}", ws_raw)
   app.on_cleanup.append(_close_hub)

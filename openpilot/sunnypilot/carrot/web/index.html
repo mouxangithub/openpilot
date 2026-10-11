@@ -1,0 +1,1013 @@
+<!doctype html>
+<html class="notranslate" translate="no">
+<head>
+  <script id="carrotAssetManifest" type="application/json"></script>
+  <!-- Do not add ?v= to .js or .css here. The server rewrites every local
+       script/style URL with a SHA-256 of the file's contents when it serves
+       this page (server/features/static.py), dropping any v= that was already
+       there. A hand-maintained version is therefore inert, and bumping one
+       looks like cache busting while doing nothing. The remaining ?v= values
+       are on assets the fingerprinter skips: /js/vendor/, /css/vendor/,
+       /support-terminal-assets/ and non-JS/CSS files such as images. -->
+  <meta charset="utf-8" />
+  <meta name="google" content="notranslate" />
+  <!-- Keep CSS layout breakpoints stable when the keyboard opens. viewport.js
+       follows visualViewport for available height and keyboard-aware controls. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual" />
+  <title>CarrotPilot</title>
+  <link rel="icon" type="image/png" href="/assets/img_chffr_wheel.png?v=2604-01" />
+  <script>
+    (function () {
+      var primaryPages = { carrot: 1, setting: 1, tools: 1, logs: 1, terminal: 1 };
+      var startPage = "carrot";
+      try {
+        var miniHudRequested = /(?:^|[?&])mini_hud=(?:auto|force|1)(?:&|$)/.test(window.location.search || "");
+        var webSettings = window.__CARROT_BOOTSTRAP__ && window.__CARROT_BOOTSTRAP__.webSettings;
+        var setting = (webSettings && webSettings.start_page) || "last";
+        if (miniHudRequested) {
+          startPage = "carrot";
+        } else if (setting === "last") {
+          var lastPage = localStorage.getItem("carrot_web_last_page");
+          startPage = primaryPages[lastPage] ? lastPage : "carrot";
+        } else {
+          startPage = primaryPages[setting] ? setting : "carrot";
+        }
+      } catch (e) {}
+      document.documentElement.dataset.carrotStartPage = startPage;
+    })();
+  </script>
+  <script>
+    // Set the visual-viewport CSS vars BEFORE first paint. Geometry that depends
+    // on --app-vv-height (e.g. the settings page height → the page-anchored
+    // floating button's bottom) would otherwise first lay out at the 100dvh
+    // fallback, then shift when viewport.js corrects it on script load — that is
+    // the "세로모드 로딩 중 플로팅버튼이 위→아래로 복귀" jump. viewport.js keeps these updated.
+    (function () {
+      try {
+        var vv = window.visualViewport;
+        var h = Math.max(320, Math.round((vv && vv.height) || window.innerHeight || 0));
+        var w = Math.max(320, Math.round((vv && vv.width) || window.innerWidth || 0));
+        var t = Math.max(0, Math.round((vv && vv.offsetTop) || 0));
+        var s = document.documentElement.style;
+        s.setProperty("--app-vv-height", h + "px");
+        s.setProperty("--app-vv-width", w + "px");
+        s.setProperty("--app-vv-top", t + "px");
+        // Mirror the coarse layout mode before first paint so CSS attribute /
+        // container hooks (and JS read on early pages) match viewport.js.
+        var lw = window.innerWidth || w;
+        var lh = window.innerHeight || h;
+        var ratio = lh > 0 ? lw / lh : 1;
+        var segmented = false;
+        try {
+          segmented =
+            (window.viewport && Array.isArray(window.viewport.segments) && window.viewport.segments.length > 1) ||
+            (window.matchMedia && (
+              window.matchMedia("(horizontal-viewport-segments: 2)").matches ||
+              window.matchMedia("(vertical-viewport-segments: 2)").matches
+            ));
+        } catch (e) {}
+        var wide = ratio >= 1.3 || segmented || (lw >= 640 && lh >= 650);
+        document.documentElement.dataset.layout =
+          wide ? "wide" : (ratio >= 0.92 ? "square" : "tall");
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    html[data-carrot-start-page]:not([data-carrot-bootstrapped]) #pageCar,
+    html[data-carrot-start-page]:not([data-carrot-bootstrapped]) #pageSetting,
+    html[data-carrot-start-page]:not([data-carrot-bootstrapped]) #pageTools,
+    html[data-carrot-start-page]:not([data-carrot-bootstrapped]) #pageBranch,
+    html[data-carrot-start-page]:not([data-carrot-bootstrapped]) #pageTerminal,
+    html[data-carrot-start-page]:not([data-carrot-bootstrapped]) #pageLogs,
+    html[data-carrot-start-page]:not([data-carrot-bootstrapped]) #pageCarrot {
+      display: none !important;
+    }
+
+    /* Keep the Drive page hidden until DriveWorkspaceRuntime has applied the
+       saved orientation/mode. Its unsynchronized base layout is Vision-only. */
+    html[data-carrot-start-page="setting"]:not([data-carrot-bootstrapped]) #pageSetting,
+    html[data-carrot-start-page="logs"]:not([data-carrot-bootstrapped]) #pageLogs {
+      display: block !important;
+    }
+
+    html[data-carrot-start-page="terminal"]:not([data-carrot-bootstrapped]) #pageTerminal {
+      display: flex !important;
+    }
+
+    html[data-carrot-start-page="tools"]:not([data-carrot-bootstrapped]) #pageTools {
+      display: block !important;
+    }
+
+    @media (min-aspect-ratio: 13/10), (horizontal-viewport-segments: 2), (vertical-viewport-segments: 2), (min-width: 640px) and (min-height: 650px) {
+      html[data-carrot-start-page="tools"]:not([data-carrot-bootstrapped]) #pageTools {
+        display: grid !important;
+      }
+    }
+
+    html[data-carrot-start-page]:not([data-carrot-bootstrapped]) .topbar .nav-btn.active {
+      color: var(--md-on-surface-var) !important;
+      font-weight: 600 !important;
+      background: transparent !important;
+    }
+
+    html[data-carrot-start-page="carrot"]:not([data-carrot-bootstrapped]) .topbar #btnHome,
+    html[data-carrot-start-page="setting"]:not([data-carrot-bootstrapped]) .topbar #btnSetting,
+    html[data-carrot-start-page="tools"]:not([data-carrot-bootstrapped]) .topbar #btnTools,
+    html[data-carrot-start-page="logs"]:not([data-carrot-bootstrapped]) .topbar #btnLogs,
+    html[data-carrot-start-page="terminal"]:not([data-carrot-bootstrapped]) .topbar #btnTerminal {
+      color: var(--md-primary) !important;
+      font-weight: 700 !important;
+      background: color-mix(in srgb, var(--md-primary) 14%, transparent) !important;
+    }
+  </style>
+  <link rel="stylesheet" href="/css/generated/design-tokens.css" />
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <link rel="stylesheet" href="/css/layout_tokens.css" />
+  <link rel="stylesheet" href="/css/hud_card.css" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/layout.css" />
+  <link rel="stylesheet" href="/css/generated/design-system.css" />
+  <link rel="stylesheet" href="/css/generated/drive.css" />
+  <link rel="stylesheet" href="/css/generated/replay.css" />
+  <link rel="stylesheet" href="/css/components.css" />
+  <link rel="stylesheet" href="/css/components/media_transport.css" />
+  <link rel="stylesheet" href="/css/components/nav_status_badges.css" />
+  <link rel="stylesheet" href="/css/components/drive_content_intro.css" />
+  <link rel="stylesheet" href="/css/components/drive_workspace.css" />
+  <link rel="stylesheet" href="/css/generated/logs.css" />
+  <link rel="stylesheet" href="/css/vendor/xterm.css?v=550" />
+  <link rel="stylesheet" href="/css/generated/terminal.css" />
+  <link rel="stylesheet" href="/css/generated/settings.css" />
+  <link rel="stylesheet" href="/css/generated/tools.css" />
+  <link rel="stylesheet" href="/css/pages/drive.css" />
+  <link rel="stylesheet" href="/css/pages/carrot_navi.css" />
+  <link rel="stylesheet" href="/css/components/mini_hud.css" />
+  <link rel="stylesheet" href="/css/responsive.css" />
+  <link rel="stylesheet" href="/css/generated/intro.css" />
+  <link rel="stylesheet" href="/css/vendor/plyr.css?v=3.7.8" />
+</head>
+
+<body class="notranslate" translate="no">
+
+  <div class="wrap swipe-container" id="swipeContainer">
+    <!-- ════════════ CAR SELECT ════════════ -->
+    <div id="pageCar" class="page page--bounded" hidden style="display:none;">
+      <div class="page-header">
+        <h2 id="carTitle" class="page-title" style="cursor:pointer;">Car Select</h2>
+        <button id="btnBackCar" class="btn">Back</button>
+      </div>
+
+      <!-- Current Car -->
+      <div class="row-between mb-md" style="padding:var(--sp-md) 0; border-bottom:1px solid var(--md-outline-var);">
+        <div id="curCarLabelCar" style="font-weight:700; font-size:var(--fs-title-md);">-</div>
+      </div>
+
+      <div class="muted mb-sm" id="carMeta">loading...</div>
+
+      <!-- Maker screen -->
+      <div id="carScreenMakers" class="screen">
+        <h3 id="makersTitle" class="section-title">Makers</h3>
+        <div id="makerList"></div>
+      </div>
+
+      <!-- Model screen -->
+      <div id="carScreenModels" class="screen hidden" style="display:none;">
+        <div class="row-between mb-sm">
+          <h3 id="modelTitle" class="section-title" style="cursor:pointer; margin:0;">Models</h3>
+          <span class="muted" id="modelMeta">-</span>
+        </div>
+        <div id="modelList"></div>
+      </div>
+    </div>
+
+    <!-- ════════════ SETTING ════════════ -->
+    <div id="pageSetting" class="page page--setting" hidden style="display:none;">
+      <div class="page-fab-layer page-fab-layer--setting">
+        <div id="settingFabMenu" class="setting-fab-menu">
+          <div id="settingFabActions" class="setting-fab-actions" role="menu" aria-labelledby="btnSettingSearch" hidden>
+            <button id="btnSettingFabProfileAdd" class="setting-fab-action" type="button" role="menuitem">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4m-8-2V7H4V5h3V2h2v3h3v2H9v3zm8 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4"/>
+              </svg>
+              <span id="settingFabProfileAddLabel">프로필 추가</span>
+            </button>
+            <button id="btnSettingFabResetDefaults" class="setting-fab-action" type="button" role="menuitem">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6 0 1.01-.25 1.96-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 15c0-4.42-3.58-8-8-8m-6 4.74A7.93 7.93 0 0 0 4 15c0 4.42 3.58 8 8 8v-2c-3.31 0-6-2.69-6-6 0-1.01.25-1.96.7-2.8z"/>
+              </svg>
+              <span id="settingFabResetDefaultsLabel">설정 초기화</span>
+            </button>
+            <!-- Retired overlay-search entry point: hidden until the page's
+                 SETTING_OVERLAY_SEARCH_ENABLED flag re-enables it. The inline
+                 "설정 찾기" field is the active search. -->
+            <button id="btnSettingFabSearch" class="setting-fab-action" type="button" role="menuitem" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16a6.47 6.47 0 0 0 4.23-1.57l.27.28v.79L19 20.49 20.49 19zM9.5 14A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14"/>
+              </svg>
+              <span id="settingFabSearchLabel">설정 검색</span>
+            </button>
+            <button id="btnSettingFabFingerprint" class="setting-fab-action" type="button" role="menuitem">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M12 2a9 9 0 0 0-9 9c0 1.4.3 2.7.9 3.9l1.8-.9A7 7 0 0 1 12 4a7 7 0 0 1 7 7c0 2.6-.6 5-1.7 7.2l1.8.9A16 16 0 0 0 21 11a9 9 0 0 0-9-9m0 4a5 5 0 0 0-5 5c0 3.1-.8 6-2.2 8.5l1.7 1A19 19 0 0 0 9 11a3 3 0 0 1 6 0c0 3.4-.9 6.6-2.5 9.4l1.7 1A21 21 0 0 0 17 11a5 5 0 0 0-5-5m0 4a1 1 0 0 0-1 1 17 17 0 0 1-2.6 9l1.7 1A19 19 0 0 0 13 11a1 1 0 0 0-1-1"/>
+              </svg>
+              <span id="settingFabFingerprintLabel">설정 코드</span>
+            </button>
+          </div>
+          <button id="btnSettingSearch" class="fab fab--round fab--icon fab--setting-search fab--setting-menu" type="button" aria-label="설정 작업" aria-expanded="false" aria-haspopup="menu" aria-controls="settingFabActions">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="setting-fab-menu-icon">
+              <path d="M5 7h14M5 12h14M5 17h14"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="page-header page-header--hidden" aria-hidden="true">
+        <h2 id="settingTitle" style="margin:0; font-size:var(--fs-headline); font-weight:700; cursor:pointer;"><span id="settingTitleText">Setting</span></h2>
+      </div>
+
+      <div class="muted mb-sm" id="settingsMeta" hidden aria-live="polite"></div>
+
+      <div id="settingScreenHost" class="screen-host">
+        <!-- Groups Screen -->
+        <div id="settingScreenGroups" class="screen">
+          <div id="settingTabBar" class="setting-tabbar" role="tablist" aria-label="Setting categories">
+            <button type="button" class="setting-tab" id="settingTabDevice" data-setting-tab="device" role="tab" aria-selected="false">
+              <span id="settingTabDeviceLabel">디바이스</span>
+            </button>
+            <button type="button" class="setting-tab is-active" id="settingTabCarrot" data-setting-tab="carrot" role="tab" aria-selected="true">
+              <span id="settingTabCarrotLabel">당근파일럿</span>
+            </button>
+          </div>
+
+          <!-- CarrotPilot Groups -->
+          <div id="carrotTabContent">
+            <form id="settingInlineSearch" class="setting-inline-search" role="search">
+              <div class="setting-inline-search__field">
+                <svg class="setting-inline-search__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16a6.47 6.47 0 0 0 4.23-1.57l.27.28v.79L19 20.49 20.49 19zM9.5 14A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14"/>
+                </svg>
+                <input id="settingInlineSearchInput" type="search" placeholder="예: 감속, TF" autocomplete="off" spellcheck="false" enterkeyhint="search" aria-label="설정 찾기" />
+                <button id="settingInlineSearchClear" type="button" aria-label="검색어 지우기" hidden>×</button>
+              </div>
+              <output id="settingInlineSearchStatus" class="setting-inline-search__status" aria-live="polite"></output>
+            </form>
+            <div id="groupList"></div>
+          </div>
+
+          <!-- Device tab content (hidden by default) -->
+          <div id="deviceTabContent" hidden>
+            <div id="deviceGroupList"></div>
+          </div>
+        </div>
+
+        <!-- Items Screen -->
+        <div id="settingScreenItems" class="screen hidden" style="display:none;">
+          <div class="row-between mb-sm">
+            <h3 id="itemsTitle" class="section-title" style="cursor:pointer; margin:0;">Items</h3>
+            <span class="muted" id="groupMeta">-</span>
+          </div>
+          <div id="items"></div>
+          <div id="deviceItems" hidden></div>
+        </div>
+      </div>
+
+      <button id="settingSearchBackdrop" class="setting-search-backdrop" type="button" hidden aria-label="Close search"></button>
+      <div id="settingSearchPanel" class="setting-search-panel" hidden aria-hidden="true">
+        <form id="settingSearchForm" class="setting-search-form">
+          <input id="settingSearchInput" type="text" class="setting-search-form__input" placeholder="설정 검색" autocomplete="off" />
+          <button id="btnSettingSearchSubmit" class="setting-search-form__submit" type="submit" aria-label="Search settings">
+            <svg viewBox="0 0 24 24" focusable="false">
+              <path fill="currentColor" d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16a6.47 6.47 0 0 0 4.23-1.57l.27.28v.79L19 20.49 20.49 19zM9.5 14A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14"/>
+            </svg>
+          </button>
+        </form>
+        <div id="settingSearchResults" class="setting-search-results"></div>
+      </div>
+    </div>
+
+    <!-- ════════════ TOOLS ════════════ -->
+    <div id="pageTools" class="page page--full page--split page--tools" hidden style="display:none;">
+      <div class="page-header page-header--hidden" aria-hidden="true">
+        <h2 id="toolsTitle" class="page-title">Tools</h2>
+      </div>
+
+      <div class="muted mb-md" id="toolsMeta">-</div>
+      <div id="toolsProgress" class="tools-progress" hidden aria-hidden="true">
+        <div id="toolsProgressBar" class="tools-progress__bar"></div>
+      </div>
+
+      <div class="tools-scroll-stack">
+        <section id="egpuModelCard" class="egpu-model-card" hidden aria-live="polite">
+          <div class="egpu-model-card__icon" aria-hidden="true">HB</div>
+          <div class="egpu-model-card__body">
+            <div class="egpu-model-card__heading">
+              <strong id="egpuModelTitle">eGPU big model</strong>
+              <span id="egpuModelState" class="egpu-model-card__state">Checking</span>
+            </div>
+            <p id="egpuModelDetail" class="egpu-model-card__detail"></p>
+            <p id="egpuModelRecovery" class="egpu-model-card__detail" hidden></p>
+            <div id="egpuModelProgress" class="egpu-model-card__progress" hidden>
+              <div class="egpu-model-card__track"><span id="egpuModelProgressBar"></span></div>
+            </div>
+            <div class="egpu-model-card__footer">
+              <span id="egpuModelAmount" class="egpu-model-card__amount"></span>
+              <button id="btnEgpuCompileRestart" class="btn egpu-model-card__action" type="button" hidden>Restart &amp; compile</button>
+            </div>
+          </div>
+        </section>
+
+        <div id="toolsPrimaryActions" class="tools-primary-actions ui-action-grid ui-action-grid--quick mb-md" role="group" aria-label="Tools shortcuts">
+          <button id="btnToolsCarSelect" class="btn" type="button">Car Select</button>
+          <button id="btnToolsLanguage" class="btn" type="button" aria-haspopup="dialog">Language</button>
+          <button id="btnToolsWebSettings" class="btn" type="button">Web Settings</button>
+          <button id="btnDeviceInfo" class="btn" type="button">Info</button>
+          <button id="btnToolsBluetooth" class="btn" type="button" aria-haspopup="dialog">Bluetooth</button>
+        </div>
+
+        <div class="section tools-group is-open" data-tools-group="git">
+          <button class="tools-group__toggle" type="button" aria-expanded="true" aria-controls="toolsGroupBodyGit">
+            <span id="gitCommandsTitle" class="section-title tools-group__title">Git Commands</span>
+            <span class="tools-group__chevron" aria-hidden="true"></span>
+          </button>
+          <div id="toolsGroupBodyGit" class="tools-group__body">
+            <div class="tools-group__bodyInner ui-action-grid">
+              <button id="btnGitPull" class="btn git-pull-btn" type="button">
+                <span>git pull</span>
+                <span id="gitPullBadge" class="git-pull-btn__badge" hidden aria-label="pending commits">0</span>
+              </button>
+              <button id="btnGitSync" class="btn">git sync</button>
+              <button id="btnGitReset" class="btn">git reset</button>
+              <button id="btnGitLog" class="btn">git log</button>
+              <button id="btnGitBranch" class="btn">change branch</button>
+              <button id="btnGitResetRepo" class="btn btn--danger">reset repo</button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="section tools-group" data-tools-group="system">
+          <button class="tools-group__toggle" type="button" aria-expanded="false" aria-controls="toolsGroupBodySystem">
+            <span id="userSystemTitle" class="section-title tools-group__title">User / System</span>
+            <span class="tools-group__chevron" aria-hidden="true"></span>
+          </button>
+          <div id="toolsGroupBodySystem" class="tools-group__body">
+            <div class="tools-group__bodyInner ui-action-grid">
+              <button id="btnRecordToggle" class="btn" type="button" aria-label="Record">Record</button>
+              <button id="btnDeviceLang" class="btn" hidden style="display:none;">Device Lang</button>
+              <button id="btnResetCalib" class="btn btn--danger">Reset Calib</button>
+              <button id="btnSendTmuxLog" class="btn">capture tmux</button>
+              <button id="btnSendTmuxServerLog" class="btn">send tmux</button>
+              <button id="btnDeleteVideos" class="btn btn--danger">delete all videos</button>
+              <button id="btnDeleteLogs" class="btn btn--danger">delete all logs</button>
+              <button id="btnRebuildAll" class="smallBtn btn--danger">Rebuild All</button>
+              <button id="btnReboot" class="btn">reboot</button>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
+        <div class="section tools-group" data-tools-group="settings">
+          <button class="tools-group__toggle" type="button" aria-expanded="false" aria-controls="toolsGroupBodySettings">
+            <span id="userSettingsTitle" class="section-title tools-group__title">Settings</span>
+            <span class="tools-group__chevron" aria-hidden="true"></span>
+          </button>
+          <div id="toolsGroupBodySettings" class="tools-group__body">
+            <div class="tools-group__bodyInner ui-action-grid">
+              <button id="btnBackupSettings" class="btn">Backup</button>
+              <button id="btnRestoreSettings" class="btn">Restore</button>
+              <button id="btnQrBackupSettings" class="btn">QR Backup</button>
+              <button id="btnQrRestoreSettings" class="btn">QR Restore</button>
+              <button id="btnCopySettings" class="btn">Copy</button>
+              <button id="btnViewSettings" class="btn">View</button>
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+
+      <div class="tools-console-dock">
+        <div class="tools-console-shell">
+          <div class="tools-console-meta hidden" aria-hidden="true">
+            <span id="sysCmdTitle">System Command</span>
+            <span id="outputTitle">Output</span>
+          </div>
+          <form id="sysCmdForm" class="tools-console-form">
+            <span class="tools-console-prompt" aria-hidden="true">&gt;_</span>
+            <input id="sysCmdInput" type="text" class="input-text" placeholder="" />
+            <button id="btnSysCmdInfo" class="tools-console-iconBtn" type="button" aria-expanded="false" aria-controls="sysCmdHelpPanel" aria-label="Allowed commands">
+              <svg class="tools-console-iconBtn__svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path fill="currentColor" d="M11 17h2v-6h-2zm0-8h2V7h-2zm1 13C6.48 22 2 17.52 2 12S6.48 2 12 2s10 4.48 10 10-4.48 10-10 10m0-18a8 8 0 1 0 0 16 8 8 0 0 0 0-16"/>
+              </svg>
+            </button>
+          </form>
+          <div id="sysCmdHelpPanel" class="tools-console-help" hidden>
+            <span id="sysCmdHelp">Allowed: git pull/status/branch/log, df, free, uptime</span>
+          </div>
+          <pre id="toolsOut" class="tools-console-log">-</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════ BRANCH SELECT ════════════ -->
+    <div id="pageBranch" class="page page--bounded" hidden style="display:none;">
+      <div class="page-header">
+        <h2 id="branchTitle" class="page-title" style="cursor:pointer;">Branch Select</h2>
+        <button id="btnBackBranch" class="btn">Back</button>
+      </div>
+
+      <div class="muted mb-sm" id="branchMeta">-</div>
+      <div id="branchList"></div>
+    </div>
+
+    <!-- ════════════ TERMINAL ════════════ -->
+    <div id="pageTerminal" class="page page--full page--terminal" hidden style="display:none;">
+      <div class="terminal-shell">
+        <div class="terminal-head">
+          <div class="page-header terminal-pageHeader">
+            <h2 id="terminalTitle" class="page-title">Terminal</h2>
+          </div>
+
+          <div class="muted terminal-meta" id="terminalMeta">connecting...</div>
+
+          <div class="terminal-toolbar">
+            <div id="terminalSessionMeta" class="terminal-sessionMeta">IP</div>
+            <div class="terminal-toolbar__actions">
+              <button id="btnSupportTerminalOpen" class="smallBtn terminal-support-open" type="button">Support</button>
+              <button id="btnTerminalReconnect" class="smallBtn" type="button">Reconnect</button>
+            </div>
+          </div>
+        </div>
+        <div id="terminalScreen" class="terminal-screen">
+          <pre id="terminalOutput" class="terminal-output">...</pre>
+        </div>
+        <div id="terminalXterm" class="terminal-xterm" hidden></div>
+        <div id="supportTerminalTypingHost" class="terminal-typing-host" aria-hidden="true"></div>
+        <div id="supportTerminalApprovalHost" class="terminal-approval-host" hidden></div>
+        <div id="terminalKeys" class="terminal-keys" role="group" aria-label="Terminal keys">
+          <button class="smallBtn terminal-key" type="button" data-key="esc">Esc</button>
+          <button class="smallBtn terminal-key" type="button" data-key="ctrl">Ctrl</button>
+          <button class="smallBtn terminal-key" type="button" data-key="ctrl_c">Ctrl+C</button>
+          <button class="smallBtn terminal-key" type="button" data-key="ctrl_d">Ctrl+D</button>
+          <button id="btnTerminalClear" class="smallBtn terminal-key" type="button">Clear</button>
+          <button class="smallBtn terminal-key" type="button" data-key="detach">Detach</button>
+          <button class="smallBtn terminal-key" type="button" data-key="tab">Tab</button>
+          <button class="smallBtn terminal-key" type="button" data-key="home">Home</button>
+          <button class="smallBtn terminal-key" type="button" data-key="end">End</button>
+          <button class="smallBtn terminal-key" type="button" data-key="page_up">PgUp</button>
+          <button class="smallBtn terminal-key" type="button" data-key="page_down">PgDn</button>
+          <button class="smallBtn terminal-key" type="button" data-key="up" aria-label="Up">↑</button>
+          <button class="smallBtn terminal-key" type="button" data-key="down" aria-label="Down">↓</button>
+          <button class="smallBtn terminal-key" type="button" data-key="left" aria-label="Left">←</button>
+          <button class="smallBtn terminal-key" type="button" data-key="right" aria-label="Right">→</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════ LOGS ════════════ -->
+    <div id="pageLogs" class="page page--full page--logs" hidden style="display:none;">
+      <div class="logs-shell">
+        <div class="logs-tabbar">
+          <div id="logsTabs" class="logs-tabs c-segmented-control c-segmented-control--equal"
+               role="tablist" aria-label="로그">
+            <button id="logsTabDashcam" class="c-segmented-control__item is-active" type="button"
+                    role="tab" aria-selected="true" aria-controls="logsDashcamPanel" tabindex="0"
+                    data-logs-tab="dashcam">
+              <span id="logsDashcamTitle" class="c-segmented-control__label">대시캠</span>
+            </button>
+            <button id="logsTabScreen" class="c-segmented-control__item" type="button"
+                    role="tab" aria-selected="false" aria-controls="logsScreenPanel" tabindex="-1"
+                    data-logs-tab="screen">
+              <span id="logsScreenTitle" class="c-segmented-control__label">화면녹화</span>
+            </button>
+          </div>
+          <!-- Menu contents live in the shared choice dialog (see logs runtime),
+               so only the trigger is markup here. -->
+          <div id="logsMenu" class="ui-dropdown-menu logs-menu">
+            <button id="logsMenuButton" class="ui-dropdown-menu__button logs-menu__button" type="button"
+                    aria-haspopup="dialog" aria-label="로그 메뉴" title="로그 메뉴">
+              <span class="ui-menu-icon" aria-hidden="true">
+                <span class="ui-menu-icon__line"></span>
+                <span class="ui-menu-icon__line"></span>
+                <span class="ui-menu-icon__line"></span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <section id="logsDashcamPanel" class="logs-panel" role="tabpanel" aria-labelledby="logsTabDashcam">
+          <div id="dashcamStatus" class="dashcam-status" hidden></div>
+          <div id="dashcamRoutes" class="dashcam-routes"></div>
+        </section>
+
+        <section id="logsScreenPanel" class="logs-panel" role="tabpanel" hidden aria-labelledby="logsTabScreen">
+          <div id="screenrecordStatus" class="dashcam-status" hidden></div>
+          <div id="screenrecordVideos" class="screenrecord-list"></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- ════════════ CARROT TEST ════════════ -->
+    <div id="pageCarrot" class="page page--full page--drive" hidden style="display:none;">
+      <div class="page-header page-header--hidden" aria-hidden="true">
+        <h2 id="carrotTitle" class="page-title">Home</h2>
+      </div>
+
+      <div id="carrotDriveWorkspace" class="drive-workspace">
+        <div id="carrotStage" class="carrot-stage" data-drive-workspace-slot="primary">
+        <canvas id="carrotAmbientCanvas" class="carrot-stage__ambient" aria-hidden="true"></canvas>
+        <div id="carrotReplayViewport" class="carrot-stage__replayViewport" aria-hidden="true"></div>
+        <video id="carrotRoadVideo" class="carrot-stage__video" autoplay playsinline muted disablepictureinpicture></video>
+        <canvas id="carrotLastFrameCanvas" class="carrot-stage__videoHold" aria-hidden="true"></canvas>
+        <canvas id="carrotPerformanceCanvas" class="carrot-stage__canvas carrot-stage__canvas--performance" aria-hidden="true"></canvas>
+        <canvas id="carrotOverlayCanvas" class="carrot-stage__canvas"></canvas>
+        <canvas id="carrotHudCanvas" class="carrot-stage__hud"></canvas>
+        <div id="carrotOnroadAlert" class="carrot-stage__alert" hidden aria-live="polite" aria-atomic="true">
+          <div id="carrotOnroadAlertBox" class="carrot-stage__alert-box">
+            <div id="carrotOnroadAlertText1" class="carrot-stage__alert-text carrot-stage__alert-text--primary"></div>
+            <div id="carrotOnroadAlertText2" class="carrot-stage__alert-text carrot-stage__alert-text--secondary" hidden></div>
+          </div>
+        </div>
+
+        <div id="visionStartOverlay" class="vision-start-overlay">
+          <button id="btnStartVision" class="btn btn--filled" type="button" style="font-size:1.2rem; padding: 16px 32px; border-radius: 99px;">
+            ▶ 주행 비전 시작
+          </button>
+          <div id="visionDisabledMessage" class="vision-start-overlay__message" hidden></div>
+        </div>
+
+        <div id="carrotStageLoading" class="carrot-stage__loading" hidden aria-live="polite" aria-busy="true">
+          <div class="carrot-stage__loadingPanel">
+            <div class="carrot-stage__spinner" aria-hidden="true"></div>
+            <div id="carrotStageLoadingText" class="carrot-stage__loadingText"></div>
+            <div id="carrotStageLoadingDetail" class="carrot-stage__loadingDetail"></div>
+            <div class="carrot-stage__loadingActions" role="group" aria-label="Vision connection actions">
+              <button id="btnVisionStop" class="smallBtn carrot-stage__loadingAction" type="button">중지</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="carrotReplayControls" class="carrot-replay-controls" hidden aria-label="Drive replay controls">
+          <div class="carrot-replay-controls__header">
+            <div class="carrot-replay-controls__heading">
+              <label id="carrotReplaySegmentPicker" class="carrot-replay-controls__segmentPicker carrot-replay-controls__segmentPicker--title" hidden>
+                <select id="carrotReplaySegmentSelect" class="carrot-replay-controls__segmentSelect smallBtn" aria-label="Replay record time"></select>
+              </label>
+            </div>
+            <div class="carrot-replay-controls__headerActions">
+              <button id="btnCarrotReplayClose" class="carrot-replay-controls__close smallBtn" type="button" aria-label="Close replay">닫기</button>
+            </div>
+          </div>
+          <div id="carrotReplaySegmentNav" class="carrot-replay-controls__segmentNav carrot-media-action-group" role="group" aria-label="Replay playback controls" hidden>
+            <button id="btnCarrotReplayPrevious" class="carrot-replay-controls__segmentBtn carrot-media-action-button carrot-media-action-button--previous" type="button" aria-label="Previous segment">
+              <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M11 10h3v16h-3zm4 8 12-8v16z"></path></svg>
+            </button>
+            <button id="btnCarrotReplayPlay" class="carrot-replay-controls__play carrot-media-action-button carrot-media-action-button--play" type="button" aria-label="Play replay" data-state="play">
+              <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M13 9v18l14-9z"></path></svg>
+            </button>
+            <button id="btnCarrotReplayNext" class="carrot-replay-controls__segmentBtn carrot-media-action-button carrot-media-action-button--next" type="button" aria-label="Next segment">
+              <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M22 10h3v16h-3zM9 10l12 8-12 8z"></path></svg>
+            </button>
+          </div>
+          <div class="carrot-replay-controls__transport">
+            <div id="carrotReplayEventSummary" class="carrot-replay-insights__summary" hidden>
+              <span id="carrotReplayEventSummaryIcon" class="carrot-replay-insights__summaryIcon" aria-hidden="true"></span>
+              <strong id="carrotReplayEventSummaryTitle"></strong>
+              <span id="carrotReplayEventSummaryMeta"></span>
+            </div>
+            <div class="carrot-replay-controls__timeline">
+              <div id="carrotReplayEventRail" class="carrot-replay-insights__rail" aria-label="Replay events"></div>
+              <div id="carrotReplayEventCluster" class="carrot-replay-insights__cluster" hidden>
+                <strong id="carrotReplayEventClusterTitle"></strong>
+                <div id="carrotReplayEventClusterItems"></div>
+              </div>
+              <div id="carrotReplayFilmstrip" class="carrot-replay-controls__filmstrip" aria-hidden="true">
+                <img id="carrotReplayThumbnail" class="carrot-replay-controls__thumbnail" alt="" draggable="false">
+              </div>
+              <div class="carrot-replay-controls__timelineShade" aria-hidden="true"></div>
+              <input id="carrotReplaySeek" class="carrot-replay-controls__seek" type="range" min="0" max="1000" step="1" value="0" aria-label="Replay position">
+              <div id="carrotReplayScrubPreview" class="carrot-replay-controls__scrubPreview" hidden aria-hidden="true">
+                <div id="carrotReplayScrubEventInfo" class="carrot-replay-controls__scrubEventInfo" hidden>
+                  <span id="carrotReplayScrubEventIcon" class="carrot-replay-controls__scrubEventIcon" aria-hidden="true"></span>
+                  <strong id="carrotReplayScrubEventTitle"></strong>
+                  <span id="carrotReplayScrubEventMeta"></span>
+                </div>
+                <img id="carrotReplayScrubImage" alt="" draggable="false">
+                <div id="carrotReplayScrubEvents" class="carrot-replay-controls__scrubEvents" hidden aria-label="Nearby replay events">
+                  <canvas id="carrotReplayScrubEventsCanvas" aria-hidden="true"></canvas>
+                </div>
+                <span id="carrotReplayScrubTime">0:00</span>
+              </div>
+            </div>
+          </div>
+          <div class="carrot-replay-controls__timeOverlay" aria-live="off">
+            <div class="carrot-replay-controls__timeGroup">
+              <span id="carrotReplayCurrentTime" class="carrot-replay-controls__time carrot-replay-controls__time--current">0:00</span>
+              <span class="carrot-replay-controls__timeSeparator" aria-hidden="true">/</span>
+              <span id="carrotReplayDuration" class="carrot-replay-controls__time">0:00</span>
+            </div>
+          </div>
+        </div>
+        <aside id="carrotReplayInsights" class="carrot-replay-insights" aria-label="Replay details" aria-hidden="true">
+          <div class="carrot-replay-insights__tabbar">
+            <div class="carrot-replay-insights__tabs c-segmented-control" role="tablist" aria-label="Replay detail type">
+              <button id="carrotReplayInsightsEventsTab" class="carrot-replay-insights__tab c-segmented-control__item smallBtn is-active" type="button" role="tab" aria-selected="true" aria-controls="carrotReplayInsightsEventsPanel" tabindex="0" data-replay-insights-tab="events">Events</button>
+              <button id="carrotReplayInsightsGraphsTab" class="carrot-replay-insights__tab c-segmented-control__item smallBtn" type="button" role="tab" aria-selected="false" aria-controls="carrotReplayInsightsGraphsPanel" tabindex="-1" data-replay-insights-tab="graphs">Graphs</button>
+              <button id="carrotReplayInsightsSensorsTab" class="carrot-replay-insights__tab c-segmented-control__item smallBtn" type="button" role="tab" aria-selected="false" aria-controls="carrotReplayInsightsSensorsPanel" tabindex="-1" data-replay-insights-tab="sensors">Forward</button>
+              <button id="carrotReplayInsightsAdvancedTab" class="carrot-replay-insights__tab c-segmented-control__item smallBtn" type="button" role="tab" aria-selected="false" aria-controls="carrotReplayInsightsAdvancedPanel" tabindex="-1" data-replay-insights-tab="advanced">Analysis</button>
+            </div>
+          </div>
+          <div class="carrot-replay-insights__body">
+            <section id="carrotReplayInsightsEventsPanel" class="carrot-replay-insights__panel is-active" role="tabpanel" aria-labelledby="carrotReplayInsightsEventsTab" aria-hidden="false" tabindex="0" data-replay-insights-panel="events">
+              <p id="carrotReplayEventDegraded" class="carrot-replay-insights__degraded" role="status" hidden></p>
+              <ol id="carrotReplayEventList" class="carrot-replay-insights__eventList"></ol>
+              <div id="carrotReplayEventEmpty" class="carrot-replay-insights__empty">No major events.</div>
+              <button id="btnCarrotReplayEventFollow" class="carrot-replay-insights__follow smallBtn" type="button" hidden>Jump to current</button>
+            </section>
+            <section id="carrotReplayInsightsGraphsPanel" class="carrot-replay-insights__panel" role="tabpanel" aria-labelledby="carrotReplayInsightsGraphsTab" aria-hidden="true" tabindex="0" data-replay-insights-panel="graphs">
+              <div class="carrot-replay-insights__graphs telemetry-graphs">
+                  <div class="carrot-replay-insights__graph telemetry-graph" data-replay-graph="speed" data-telemetry-metric="speed" data-telemetry-tone="info" aria-label="Speed graph">
+                    <div class="carrot-replay-insights__graphHead telemetry-graph__head"><strong id="carrotReplaySpeedGraphLabel">Speed</strong><output>--.- km/h</output></div>
+                    <svg class="telemetry-graph__plot" viewBox="0 0 600 90" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none" stroke-width="1.8"></polyline></svg>
+                    <i class="carrot-replay-insights__cursor telemetry-graph__cursor" aria-hidden="true"></i>
+                  </div>
+                  <div class="carrot-replay-insights__graph telemetry-graph" data-replay-graph="steer" data-telemetry-metric="steering" data-telemetry-tone="primary" aria-label="Steering angle graph">
+                    <div class="carrot-replay-insights__graphHead telemetry-graph__head"><strong id="carrotReplaySteerGraphLabel">Steering</strong><output>--.--°</output></div>
+                    <svg class="telemetry-graph__plot" viewBox="0 0 600 90" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none" stroke-width="1.6"></polyline></svg>
+                    <i class="carrot-replay-insights__cursor telemetry-graph__cursor" aria-hidden="true"></i>
+                  </div>
+                  <div class="carrot-replay-insights__graph telemetry-graph" data-replay-graph="accel" data-telemetry-metric="acceleration" data-telemetry-tone="success" aria-label="Acceleration graph">
+                    <div class="carrot-replay-insights__graphHead telemetry-graph__head"><strong id="carrotReplayAccelGraphLabel">Acceleration</strong><output>--.-- m/s²</output></div>
+                    <svg class="telemetry-graph__plot" viewBox="0 0 600 90" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none" stroke-width="1.6"></polyline></svg>
+                    <i class="carrot-replay-insights__cursor telemetry-graph__cursor" aria-hidden="true"></i>
+                  </div>
+                  <div class="carrot-replay-insights__graph telemetry-graph" data-replay-graph="lead" data-telemetry-metric="lead_distance" data-telemetry-tone="warning" aria-label="Lead distance graph">
+                    <div class="carrot-replay-insights__graphHead telemetry-graph__head"><strong id="carrotReplayLeadGraphLabel">Lead distance</strong><output>--.- m</output></div>
+                    <svg class="telemetry-graph__plot" viewBox="0 0 600 90" preserveAspectRatio="none" aria-hidden="true"><polyline points="" fill="none" stroke-width="1.6"></polyline></svg>
+                    <i class="carrot-replay-insights__cursor telemetry-graph__cursor" aria-hidden="true"></i>
+                  </div>
+              </div>
+            </section>
+            <section id="carrotReplayInsightsSensorsPanel" class="carrot-replay-insights__panel carrot-replay-insights__panel--sensors" role="tabpanel" aria-labelledby="carrotReplayInsightsSensorsTab" aria-hidden="true" tabindex="0" data-replay-insights-panel="sensors">
+              <div id="carrotReplaySensorTopview" class="carrot-replay-sensor telemetry-forward" aria-labelledby="carrotReplaySensorTitle">
+                <div class="carrot-replay-sensor__head telemetry-forward__head">
+                  <strong id="carrotReplaySensorTitle">Forward perception</strong>
+                  <span id="carrotReplaySensorStatus">--</span>
+                </div>
+                <div id="carrotReplaySensorLegend" class="carrot-replay-sensor__legend telemetry-forward__legend" aria-label="Sensor sources"></div>
+                <div id="carrotReplaySensorViewport" class="carrot-replay-sensor__viewport telemetry-forward__viewport" role="region" tabindex="0" aria-labelledby="carrotReplaySensorTitle">
+                  <div id="carrotReplaySensorPlot" class="carrot-replay-sensor__plot telemetry-forward__plot">
+                    <canvas id="carrotReplaySensorCanvas" class="telemetry-forward__canvas" aria-label="Forward perception"></canvas>
+                    <svg id="carrotReplaySensorEgo" class="carrot-replay-sensor__ego telemetry-forward__ego" viewBox="0 0 24 40" aria-hidden="true" focusable="false">
+                      <rect class="carrot-replay-sensor__egoMirror telemetry-forward__ego-mirror" x="1.4" y="11.4" width="2.9" height="3.2" rx="1.1" />
+                      <rect class="carrot-replay-sensor__egoMirror telemetry-forward__ego-mirror" x="19.7" y="11.4" width="2.9" height="3.2" rx="1.1" />
+                      <path d="M12 1.6c2.2 0 3.6.5 4.4 1.5l2.3 2.9c1 1.3 1.5 2.9 1.5 4.7v20.1c0 2.4-.6 4.1-1.9 5.2l-1.7 1.5c-1.2 1-2.8 1.4-4.6 1.4s-3.4-.4-4.6-1.4l-1.7-1.5c-1.3-1.1-1.9-2.8-1.9-5.2V10.7c0-1.8.5-3.4 1.5-4.7l2.3-2.9C8.4 2.1 9.8 1.6 12 1.6z" />
+                      <path class="carrot-replay-sensor__egoGlass telemetry-forward__ego-glass" d="M8.8 10.4h6.4l1.5 4.4H7.3z" />
+                      <path class="carrot-replay-sensor__egoGlass telemetry-forward__ego-glass" d="M7.7 28h8.6l-1.1 3.6H8.8z" />
+                    </svg>
+                    <div id="carrotReplaySensorTooltip" class="carrot-replay-sensor__tooltip telemetry-forward__tooltip" hidden>
+                      <span class="carrot-replay-sensor__tooltipIcon telemetry-forward__tooltip-icon" aria-hidden="true"></span>
+                      <strong class="carrot-replay-sensor__tooltipTitle telemetry-forward__tooltip-title"></strong>
+                      <span class="carrot-replay-sensor__tooltipState telemetry-forward__tooltip-state"></span>
+                      <dl class="carrot-replay-sensor__tooltipRows telemetry-forward__tooltip-rows"></dl>
+                    </div>
+                  </div>
+                </div>
+                <div id="carrotReplaySensorMessage" class="carrot-replay-sensor__message telemetry-forward__message" role="status">LOADING</div>
+              </div>
+            </section>
+            <section id="carrotReplayInsightsAdvancedPanel" class="carrot-replay-insights__panel" role="tabpanel" aria-labelledby="carrotReplayInsightsAdvancedTab" aria-hidden="true" tabindex="0" data-replay-insights-panel="advanced">
+              <div class="carrot-replay-insights__advanced">
+                <div class="carrot-replay-insights__advancedSelectors">
+                  <label>
+                    <span id="carrotReplayAdvancedServiceLabel">Data type</span>
+                    <select id="carrotReplayAdvancedService"></select>
+                  </label>
+                  <label>
+                    <span id="carrotReplayAdvancedFieldLabel">Measurement</span>
+                    <select id="carrotReplayAdvancedField"></select>
+                  </label>
+                </div>
+                <div class="carrot-replay-insights__advancedContext">
+                  <code id="carrotReplayAdvancedTechnicalPath">--</code>
+                  <div id="carrotReplayAdvancedStatus" class="carrot-replay-insights__advancedStatus" role="status" aria-live="polite" data-state="idle">Select a field.</div>
+                </div>
+                <div class="carrot-replay-insights__advancedMetrics">
+                  <article class="carrot-replay-insights__advancedMetric--current"><strong id="carrotReplayAdvancedCurrent">--</strong><span id="carrotReplayAdvancedCurrentLabel">Current value</span></article>
+                  <article><strong id="carrotReplayAdvancedMin">--</strong><span id="carrotReplayAdvancedMinLabel">Minimum</span></article>
+                  <article><strong id="carrotReplayAdvancedMax">--</strong><span id="carrotReplayAdvancedMaxLabel">Maximum</span></article>
+                  <article><strong id="carrotReplayAdvancedAverage">--</strong><span id="carrotReplayAdvancedAverageLabel">Average</span></article>
+                </div>
+                <div id="carrotReplayAdvancedTrack" class="carrot-replay-insights__advancedTrack" data-kind="empty">
+                  <canvas id="carrotReplayAdvancedCanvas" aria-hidden="true"></canvas>
+                  <i id="carrotReplayAdvancedCursor" class="carrot-replay-insights__cursor" aria-hidden="true"></i>
+                </div>
+                <div class="carrot-replay-insights__advancedActions">
+                  <button id="btnCarrotReplayAdvancedSnapshot" class="carrot-replay-insights__snapshotButton smallBtn" type="button" hidden>View current raw values</button>
+                  <p id="carrotReplayAdvancedHelp">Only the selected field is analyzed locally when needed.</p>
+                </div>
+                <div id="carrotReplayAdvancedSnapshot" class="carrot-replay-insights__snapshot" hidden></div>
+                <details id="carrotReplayAdvancedStatisticsDetails" class="carrot-replay-insights__advancedDisclosure" hidden>
+                  <summary><span id="carrotReplayAdvancedStatisticsTitle">Detailed statistics</span><small id="carrotReplayAdvancedStatisticsHint">Distribution and data quality</small></summary>
+                  <div id="carrotReplayAdvancedStatistics" class="carrot-replay-insights__advancedStatistics" hidden></div>
+                </details>
+                <details id="carrotReplayAdvancedSourceDetails" class="carrot-replay-insights__advancedDisclosure">
+                  <summary><span id="carrotReplayAdvancedSourceTitle">Recording information</span><small id="carrotReplayAdvancedSourceHint">Coverage and available data</small></summary>
+                  <div class="carrot-replay-insights__advancedDisclosureBody">
+                    <div class="carrot-replay-insights__advancedMeta">
+                      <span><b id="carrotReplayInsightsRecordCount">0</b><small id="carrotReplayInsightsRecordCountLabel">Records</small></span>
+                      <span><b id="carrotReplayInsightsServiceCount">0</b><small id="carrotReplayInsightsServiceCountLabel">Services</small></span>
+                      <span><b id="carrotReplayInsightsEventCount">0</b><small id="carrotReplayInsightsEventCountLabel">Events</small></span>
+                      <span><b id="carrotReplayInsightsGraphCount">0</b><small id="carrotReplayInsightsGraphCountLabel">Samples</small></span>
+                      <span><b id="carrotReplayInsightsInvalidCount">0</b><small id="carrotReplayInsightsInvalidCountLabel">Invalid</small></span>
+                    </div>
+                    <div id="carrotReplayAdvancedCatalog" class="carrot-replay-insights__catalog"></div>
+                  </div>
+                </details>
+              </div>
+            </section>
+          </div>
+        </aside>
+        <div class="carrot-stage__controls" role="group" aria-label="Sound, HUD and display controls">
+          <label id="carrotReplayHudControl" class="carrot-stage__controlBtn carrot-stage__controlBtn--hud carrot-replay-controls__hudToggle" for="carrotReplayHudToggle" hidden>
+            <input id="carrotReplayHudToggle" type="checkbox">
+            <span id="carrotReplayHudToggleLabel">HUD</span>
+          </label>
+          <button id="btnWebSound" class="carrot-stage__controlBtn carrot-stage__controlBtn--sound" type="button" aria-label="Web sound">Sound</button>
+          <button id="btnCarrotReplaySpeed" class="carrot-stage__controlBtn carrot-stage__controlBtn--replay-speed" type="button" aria-label="Replay speed" hidden>1×</button>
+          <button id="btnDisplayModeCycle" class="carrot-stage__controlBtn carrot-stage__controlBtn--display" type="button" aria-label="Display mode">Normal</button>
+        </div>
+        </div>
+        <div id="carrotNaviDivider" class="carrot-navi-divider" data-drive-workspace-divider role="separator" aria-orientation="vertical" aria-label="Resize Carrot Navi" aria-valuemin="30" aria-valuemax="70" aria-valuenow="70" tabindex="0" hidden>
+          <span aria-hidden="true"></span>
+        </div>
+        <aside id="carrotNaviPane" class="carrot-navi-pane" data-drive-workspace-slot="secondary" aria-label="Carrot Navi" aria-hidden="true">
+          <video id="carrotNaviVideo" class="carrot-navi-pane__video" muted autoplay playsinline webkit-playsinline disableremoteplayback preload="auto" aria-hidden="true"></video>
+          <canvas id="carrotNaviCanvas" class="carrot-navi-pane__canvas" aria-label="Carrot Navi map"></canvas>
+          <canvas id="carrotNaviOverlayCanvas" class="carrot-navi-pane__overlay" aria-label="Carrot Navi guidance"></canvas>
+          <div id="carrotNaviStatus" class="carrot-navi-pane__status" hidden></div>
+        </aside>
+      </div>
+      <div id="carrotDriveAuxPane" class="drive-workspace__aux"></div>
+    </div>
+  </div>
+
+  <section id="carrotMiniHud" class="carrot-mini-hud" hidden aria-label="Carrot compact driving HUD">
+    <div class="carrot-mini-hud__top">
+      <div class="carrot-mini-hud__top-cell">
+        <button class="carrot-mini-hud__cpu" type="button" data-mini-hud-cpu aria-label="CPU temperature">CPU:--°C</button>
+      </div>
+      <div class="carrot-mini-hud__top-cell">
+        <span data-mini-hud-source>STOCK</span>
+      </div>
+    </div>
+
+    <div class="carrot-mini-hud__main">
+      <div class="carrot-mini-hud__limit" data-mini-hud-limit-zone>
+        <div class="carrot-mini-hud__limit-visual">
+          <div class="carrot-mini-hud__limit-sign">
+            <div class="carrot-mini-hud__limit-us-caption" aria-hidden="true">
+              <span>SPEED</span><span>LIMIT</span>
+            </div>
+            <span data-mini-hud-limit>--</span>
+            <small data-mini-hud-limit-label hidden></small>
+          </div>
+          <img class="carrot-mini-hud__alert-badge" data-mini-hud-alert-badge alt="" hidden>
+        </div>
+        <div class="carrot-mini-hud__limit-badge" data-mini-hud-limit-badge hidden></div>
+      </div>
+
+      <div class="carrot-mini-hud__stock-mode" data-mini-hud-stock-mode hidden>
+        <div class="carrot-mini-hud__drive-mode" data-mini-hud-drive-kind="normal">
+          <span data-mini-hud-drive-mode>NORMAL</span>
+        </div>
+      </div>
+
+      <div class="carrot-mini-hud__alert" data-mini-hud-alert-zone>
+        <span class="carrot-mini-hud__chip" data-mini-hud-countdown-zone>
+          <small class="carrot-mini-hud__chip-label">TIM</small>
+          <b data-mini-hud-countdown></b>
+        </span>
+        <span class="carrot-mini-hud__chip" data-mini-hud-distance-zone>
+          <small class="carrot-mini-hud__chip-label">DST</small>
+          <b data-mini-hud-distance></b>
+        </span>
+        <span class="carrot-mini-hud__chip" data-mini-hud-gap-zone>
+          <small class="carrot-mini-hud__chip-label">GAP</small>
+          <b class="carrot-mini-hud__gap-value">
+            <span data-mini-hud-gap></span>
+            <span class="carrot-mini-hud__gap-signal" data-mini-hud-gap-signal aria-hidden="true">
+              <i></i><i></i><i></i><i></i>
+            </span>
+          </b>
+        </span>
+        <strong class="carrot-mini-hud__chip carrot-mini-hud__temp" data-mini-hud-temp-zone data-mini-hud-temp-decel="0">
+          <small class="carrot-mini-hud__chip-label" data-mini-hud-temp-label></small>
+          <b data-mini-hud-temp-speed></b>
+        </strong>
+      </div>
+
+    </div>
+
+    <div class="carrot-mini-hud__speed-row">
+      <div class="carrot-mini-hud__speed"><span data-mini-hud-speed>--</span></div>
+      <div class="carrot-mini-hud__set-speed">
+        <small class="carrot-mini-hud__gear-badge" data-mini-hud-gear-badge data-mini-hud-gear-known="0">
+          <span data-mini-hud-gear-label hidden></span><strong data-mini-hud-gear>--</strong>
+        </small>
+        <span data-mini-hud-set-speed>--</span>
+      </div>
+    </div>
+  </section>
+
+  <div id="driveHudCard">
+    <div id="carrotRtcPerfHud" class="carrot-rtc-perf" hidden>
+      <section id="carrotRtcPerfSummary" class="carrot-rtc-perf-summary" data-tone="offline" hidden aria-label="Carrot Vision live diagnostic summary">
+        <div class="carrot-rtc-perf-summary__head">
+          <span class="carrot-rtc-perf__dot" aria-hidden="true"></span>
+          <strong id="carrotRtcPerfTitle" class="carrot-rtc-perf-summary__title">VISION OFFLINE</strong>
+          <button id="carrotRtcPerfLogBtn" class="carrot-rtc-perf-summary__action" type="button">LOG</button>
+          <button id="carrotRtcPerfCloseBtn" class="carrot-rtc-perf-summary__close c-close c-close--sm" type="button" aria-label="Close Carrot Vision diagnostic summary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"></path></svg></button>
+        </div>
+        <div class="carrot-rtc-perf-summary__sub">RTC ROAD CAMERA / LIVE DIAGNOSTIC</div>
+        <div class="carrot-rtc-perf-summary__grid">
+          <span>Video</span><strong id="carrotRtcPerfVideo">-</strong>
+          <span>Codec</span><strong id="carrotRtcPerfCodec">-</strong>
+          <span>Bitrate</span><strong id="carrotRtcPerfBitrate">-</strong>
+          <span>RTT</span><strong id="carrotRtcPerfRtt">-</strong>
+          <span>Jitter</span><strong id="carrotRtcPerfJitter">-</strong>
+          <span>Loss</span><strong id="carrotRtcPerfLoss">-</strong>
+          <span>Freeze</span><strong id="carrotRtcPerfFreeze">-</strong>
+          <span class="carrot-rtc-perf-summary__path-label">Path</span><strong id="carrotRtcPerfPath" class="carrot-rtc-perf-summary__path-value">-</strong>
+        </div>
+      </section>
+      <div id="carrotRtcPerfGlance" class="carrot-rtc-perf-glance" data-tone="offline" aria-live="polite">
+        <span class="carrot-rtc-perf__dot" aria-hidden="true"></span>
+        <span id="carrotRtcPerfGlanceText" class="carrot-rtc-perf-glance__text">VISION OFFLINE</span>
+      </div>
+    </div>
+    <button id="carrotRtcPerfHoldTarget" class="carrot-rtc-perf-hold-target" type="button" aria-label="Hold HUD to toggle Carrot Vision diagnostic summary"></button>
+    <!-- 구 초록 HUD(#hudRoot)는 신규 Carrot HUD 오버레이로 대체되어 제거됨. #driveHudCard 셸은 boot(DriveVisionHudContent)에 필요해 유지. -->
+  </div>
+
+  <video id="rtcVideo" class="rtcVideo rtcVideo--shared" autoplay playsinline muted disablepictureinpicture></video>
+
+  <!-- Bottom Navigation (Material 3 style) -->
+  <nav class="topbar">
+    <button id="btnHome" class="nav-btn active">
+      <span id="navHomeStatusBadges" class="nav-status-badges" aria-hidden="true">
+        <span id="navRecordStatusBadge" class="nav-status-badge nav-status-badge--record" hidden>REC</span>
+      </span>
+      <span class="nav-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      </span>
+      <span>Drive</span>
+    </button>
+    <button id="btnSetting" class="nav-btn">
+      <span class="nav-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1115.6 12 3.611 3.611 0 0112 15.6z"/></svg>
+      </span>
+      <span>Setting</span>
+    </button>
+    <button id="btnTools" class="nav-btn">
+      <span class="nav-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+      </span>
+      <span>Tools</span>
+    </button>
+    <button id="btnLogs" class="nav-btn">
+      <span class="nav-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zm0 2.5L17.5 8H14zM8 13h8v2H8zm0 4h8v2H8zm0-8h4v2H8z"/></svg>
+      </span>
+      <span>Logs</span>
+    </button>
+    <button id="btnTerminal" class="nav-btn">
+      <span id="navTerminalStatusBadges" class="nav-status-badges" aria-hidden="true">
+        <span id="navRemoteStatusBadge" class="nav-status-badge nav-status-badge--remote" hidden>REMOTE</span>
+      </span>
+      <span class="nav-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2m0 2v10h16V7zm2.8 8.6 3.8-3.6-3.8-3.6 1.4-1.4 5.2 5-5.2 5zm7.7 0H18v2h-3.5z"/></svg>
+      </span>
+      <span>Terminal</span>
+    </button>
+  </nav>
+
+  <div id="appToastHost" class="app-toast-host" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="appDialog" class="app-dialog" hidden>
+    <button id="appDialogBackdrop" class="app-dialog__backdrop" type="button" aria-label="Close dialog"></button>
+    <div class="app-dialog__sheet" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle" aria-describedby="appDialogBody">
+      <div class="app-dialog__head">
+        <div id="appDialogTitle" class="app-dialog__title">알림</div>
+      </div>
+      <div id="appDialogBody" class="app-dialog__body">-</div>
+      <div id="appDialogChoices" class="app-dialog__choices" hidden></div>
+      <div id="appDialogInputWrap" class="app-dialog__inputWrap" hidden>
+        <input id="appDialogInput" type="text" class="input-text app-dialog__input" />
+        <div id="appDialogInputError" class="app-dialog__inputError" role="alert" hidden></div>
+      </div>
+      <div class="app-dialog__actions">
+        <button id="appDialogCopy" class="smallBtn" type="button" hidden>Copy</button>
+        <button id="appDialogDefault" class="smallBtn" type="button" hidden>기본값</button>
+        <button id="appDialogCancel" class="smallBtn" type="button">취소</button>
+        <button id="appDialogConfirm" class="smallBtn btn--filled" type="button">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="appBranchPicker" class="app-dialog app-branch-picker" hidden>
+    <button id="appBranchPickerBackdrop" class="app-dialog__backdrop" type="button" aria-label="Close branch picker"></button>
+    <div class="app-dialog__sheet app-branch-picker__sheet" role="dialog" aria-modal="true" aria-labelledby="appBranchPickerTitle" aria-describedby="appBranchPickerMeta">
+      <div class="app-branch-picker__head">
+        <div class="app-branch-picker__titles">
+          <div id="appBranchPickerTitle" class="app-dialog__title">Branch Select</div>
+          <div id="appBranchPickerMeta" class="muted app-branch-picker__meta">-</div>
+        </div>
+        <button id="appBranchPickerClose" class="smallBtn" type="button">Close</button>
+      </div>
+      <div id="appBranchPickerList" class="app-branch-picker__list"></div>
+    </div>
+  </div>
+
+  <div id="appCarPicker" class="app-dialog app-car-picker" hidden>
+    <button id="appCarPickerBackdrop" class="app-dialog__backdrop" type="button" aria-label="Close car picker"></button>
+    <div class="app-dialog__sheet app-branch-picker__sheet app-car-picker__sheet" role="dialog" aria-modal="true" aria-labelledby="appCarPickerTitle" aria-describedby="appCarPickerMeta">
+      <div class="app-branch-picker__head app-car-picker__head">
+        <div class="app-branch-picker__titles">
+          <div id="appCarPickerTitle" class="app-dialog__title">차량 선택</div>
+          <div id="appCarPickerMeta" class="muted app-branch-picker__meta">-</div>
+        </div>
+        <button id="appCarPickerClose" class="smallBtn" type="button">닫기</button>
+      </div>
+      <div id="appCarPickerList" class="app-branch-picker__list app-car-picker__list"></div>
+    </div>
+  </div>
+
+  <script src="/js/generated/app.js"></script>
+  <script src="/js/generated/drive.js"></script>
+  <script src="/js/vendor/plyr.min.js?v=3.7.8"></script>
+  <script src="/js/vendor/qrcode-generator.js?v=1.4.4"></script>
+  <script src="/js/vendor/jsQR.js?v=1.4.0"></script>
+  <script src="/js/translations/registry.js"></script>
+  <script src="/js/translations/ko.js"></script>
+  <script src="/js/translations/en.js"></script>
+  <script src="/js/translations/zh.js"></script>
+  <script src="/js/shared/constants.js"></script>
+  <script src="/js/shared/stream_identity.js"></script>
+  <script src="/js/shared/dom.js"></script>
+  <script src="/js/shared/utils.js"></script>
+  <script src="/js/shared/i18n.js"></script>
+  <script src="/js/shared/api.js"></script>
+  <script src="/js/generated/settings.js"></script>
+  <script src="/js/shared/setting_diff.js"></script>
+  <script src="/js/shared/activity.js"></script>
+  <script src="/js/shared/ui/setting_form.js"></script>
+  <script src="/js/shared/ui/viewport.js"></script>
+  <script src="/js/shared/ui/effects.js"></script>
+  <script src="/js/shared/ui/media_transport.js"></script>
+  <script src="/js/shared/ui/navigation.js"></script>
+  <script src="/js/pages/car.js"></script>
+  <script src="/js/pages/setting_mapbox_tokens.js"></script>
+  <script src="/js/shared/ui/nav_status_badges.js"></script>
+  <script src="/js/pages/setting.js"></script>
+  <script src="/js/pages/setting_device_config.js"></script>
+  <script src="/js/pages/setting_device_render.js"></script>
+  <script src="/js/pages/setting_device_network.js"></script>
+  <script src="/js/pages/setting_device_actions.js"></script>
+  <script src="/js/pages/setting_device.js"></script>
+  <script src="/js/realtime/web_sound.js"></script>
+  <script src="/js/generated/tools.js"></script>
+  <script src="/js/pages/branch.js"></script>
+  <script src="/js/generated/logs.js"></script>
+  <script src="/js/vendor/xterm-addon-shim.js?v=1"></script>
+  <script src="/js/vendor/xterm.js?v=553"></script>
+  <script src="/js/vendor/xterm-addon-webgl.js?v=016"></script>
+  <script src="/js/vendor/xterm-addon-canvas.js?v=005"></script>
+  <script src="/js/generated/terminal.js"></script>
+  <script src="/js/generated/terminal-shared.js"></script>
+  <script src="/js/generated/terminal-support.js"></script>
+  <script src="/js/realtime/mini_hud_model.js"></script>
+  <script src="/js/realtime/mini_hud_mode.js"></script>
+  <script src="/js/realtime/mini_hud.js"></script>
+  <script src="/js/realtime/vision_state.js"></script>
+  <script src="/js/realtime/vision_compact.js?v=026"></script>
+  <script src="/js/realtime/vision_rtc.js"></script>
+  <script src="/js/realtime/vision_raw.js"></script>
+  <script src="/js/realtime/app_realtime.js"></script>
+  <script src="/js/generated/replay.js"></script>
+  <script src="/js/realtime/replay_client.js"></script>
+  <script src="/js/realtime/vision_replay.js"></script>
+  <script src="/js/realtime/vision_diag.js"></script>
+  <script src="/js/pages/vision_background.js"></script>
+  <script src="/js/realtime/vision_webgl2.js"></script>
+  <script src="/js/realtime/drive_content_intro.js"></script>
+  <script src="/js/realtime/home_drive.js"></script>
+  <!-- 인트로 무대. 최초 1회만 쓰이며, 서버가 shouldShow 로 판단한다. -->
+  <div class="intro" id="introDeck" hidden></div>
+  <div class="intro-curtain" id="introCurtain"></div>
+
+  <script src="/js/generated/intro.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

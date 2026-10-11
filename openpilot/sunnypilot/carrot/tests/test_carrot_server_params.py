@@ -13,7 +13,7 @@ therefore run anywhere; the HTTP-level tests need aiohttp and the real `Params`.
 """
 import unittest
 
-from openpilot.sunnypilot.carrot.server.services.params import (
+from openpilot.sunnypilot.carrot.server.services.params_typed import (
   ParamWriteError,
   UnknownKeyName,
   coerce_for_type,

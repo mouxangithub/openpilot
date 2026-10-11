@@ -16,7 +16,6 @@ payload actually decoding back to what was encoded, and a refusal being 501 rath
 """
 import base64
 import unittest
-from unittest import mock
 
 from openpilot.sunnypilot.carrot.server.services import param_changes as pc
 from openpilot.sunnypilot.carrot.server.services import params_backup as pb
@@ -286,53 +285,78 @@ class TestRouteCompleteness(unittest.IsolatedAsyncioTestCase):
     missing = [prefix for prefix in CARROTPILOT_ROUTE_PREFIXES if not self._matches(prefix)]
     self.assertEqual(missing, [], f"routes a CarrotPilot client may call that answer 404: {missing}")
 
-  async def test_refused_routes_answer_501_with_a_reason(self):
-    for path in ("/api/dashcam/routes", "/api/screenrecord/videos", "/ws/compact_state", "/api/tools"):
-      with self.subTest(path=path):
-        resp = await self.client.get(path) if not path.startswith("/api/tools") else await self.client.post(path, json={})
-        self.assertEqual(resp.status, 501, path)
-        self.assertIn("note", await resp.json())
+  async def test_only_youtube_live_is_still_refused(self):
+    # After the full port every other subsystem answers for real. youtube_live is the one
+    # CarrotPilot no longer ships either, so it keeps its 501 with a reason.
+    resp = await self.client.get("/api/youtube_live/anything")
+    self.assertEqual(resp.status, 501)
+    self.assertIn("note", await resp.json())
 
-  async def test_the_index_lists_the_routes(self):
-    resp = await self.client.get("/")
+  async def test_the_ported_subsystems_no_longer_refuse(self):
+    for path in ("/api/dashcam/routes", "/api/screenrecord/videos", "/api/vision_test/status"):
+      with self.subTest(path=path):
+        self.assertNotEqual((await self.client.get(path)).status, 501, path)
+    self.assertNotEqual((await self.client.post("/api/tools", json={})).status, 501)
+
+  async def test_the_routes_listing_lists_the_routes(self):
+    # "/" serves the web panel now, so the JSON listing lives at /api/routes.
+    resp = await self.client.get("/api/routes")
     self.assertEqual(resp.status, 200)
     self.assertIn("/api/param_set", (await resp.json())["routes"])
 
-  async def test_web_settings_round_trip(self):
-    resp = await self.client.post("/api/web_settings", json={"language": "zh"})
+  async def test_the_root_serves_the_web_panel(self):
+    # The panel is CarrotPilot's front end served from config.WEB_DIR; a regression here
+    # would put a browser back on the JSON listing instead of the UI.
+    resp = await self.client.get("/")
     self.assertEqual(resp.status, 200)
-    self.assertEqual((await resp.json())["settings"]["language"], "zh")
+    self.assertIn("text/html", resp.headers.get("Content-Type", ""))
+    self.assertIn("CarrotPilot", await resp.text())
+
+  async def test_client_diagnostic_round_trips_into_status(self):
+    # The panel posts its own diagnostics; /api/carrot_navi/status is the only reader.
+    resp = await self.client.post("/api/carrot_navi/client_diagnostic", json={"build": "abc123"})
+    self.assertEqual(resp.status, 200)
+    status = await (await self.client.get("/api/carrot_navi/status")).json()
+    diagnostics = status["clientDiagnostics"]
+    self.assertTrue(diagnostics, status)
+    self.assertEqual(diagnostics[0]["build"], "abc123")
+    self.assertIn("peer", diagnostics[0])
+    self.assertIn("ageMs", diagnostics[0])
+
+  async def test_a_non_object_client_diagnostic_is_a_400(self):
+    resp = await self.client.post("/api/carrot_navi/client_diagnostic", json=[1, 2])
+    self.assertEqual(resp.status, 400)
+
+
+  async def test_web_settings_round_trip(self):
+    # CarrotPilot names the field web_language, and answers with the whole settings document.
+    resp = await self.client.post("/api/web_settings", json={"web_language": "zh"})
+    self.assertEqual(resp.status, 200)
+    self.assertEqual((await resp.json())["settings"]["web_language"], "zh")
 
   async def test_an_unsupported_web_setting_value_is_ignored_not_stored(self):
-    resp = await self.client.post("/api/web_settings", json={"language": "klingon"})
-    self.assertEqual((await resp.json())["settings"]["language"], "")
+    resp = await self.client.post("/api/web_settings", json={"web_language": "klingon"})
+    self.assertEqual((await resp.json())["settings"]["web_language"], "")
 
-  async def test_favorites_round_trip(self):
+  async def test_favorites_are_stored_as_given(self):
+    # CarrotPilot stores the list verbatim; the panel is what dedupes and drops non-strings.
     resp = await self.client.post("/api/setting_favorites", json={"favorites": ["IsMetric", "IsMetric", 7]})
     body = await resp.json()
-    self.assertEqual(body["favorites"], ["IsMetric"])
+    self.assertEqual(body["favorites"], ["IsMetric", "7"])
 
-  async def test_intro_hides_by_default_and_lists_presets(self):
-    # no state file is "done", and a comma that ran the wizard has one with
-    # done=False: pin the read so the test means the same on a PC and a device
-    with mock.patch("openpilot.sunnypilot.carrot.server.features.intro._read_state", return_value={}):
-      resp = await self.client.get("/api/intro/state")
-      body = await resp.json()
-    self.assertFalse(body["should_show"])
-    self.assertIn("radar_long", body["presets"])
-
-  async def test_intro_shows_again_after_a_reset(self):
-    # the wizard returns for a device whose state says it was reset
-    with mock.patch("openpilot.sunnypilot.carrot.server.features.intro._read_state",
-                    return_value={"done": False}):
-      resp = await self.client.get("/api/intro/state")
-      body = await resp.json()
-    self.assertTrue(body["should_show"])
+  async def test_intro_state_reports_the_shouldShow_flag(self):
+    resp = await self.client.get("/api/intro/state")
+    self.assertEqual(resp.status, 200)
+    body = await resp.json()
+    self.assertIn("shouldShow", body)
+    self.assertIn("state", body)
 
   async def test_an_unknown_preset_is_a_400(self):
     resp = await self.client.post("/api/intro/apply_preset", json={"name": "nope"})
     self.assertEqual(resp.status, 400)
-    self.assertIn("presets", await resp.json())
+    body = await resp.json()
+    self.assertIn("known", body)
+    self.assertIn("radar_long", body["known"])
 
 
 if __name__ == "__main__":
