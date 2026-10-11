@@ -225,7 +225,11 @@ void encoderd_thread(const LogCameraInfo (&cameras)[N], bool encode_on_demand = 
     for (auto stream : streams) {
       auto it = std::find_if(std::begin(cameras), std::end(cameras),
                              [stream](auto &cam) { return cam.stream_type == stream; });
-      assert(it != std::end(cameras));
+      // Carrot Vision requests one camera while camerad offers three; skip the
+      // streams this mode does not encode instead of asserting.
+      if (it == std::end(cameras)) {
+        continue;
+      }
       ++s.max_waiting;
       encoder_threads.push_back(std::thread(encoder_thread, &s, *it, encode_on_demand));
     }
