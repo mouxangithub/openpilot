@@ -290,6 +290,9 @@ PAGE_LABELS: dict[str, tuple[str, str, str]] = {
   "trips": ("주행 기록", "Trips", "行程"),
   "vehicle": ("차량", "Vehicle", "车辆"),
   "visuals": ("시각 효과", "Visuals", "视觉"),
+  # not on-device pages, but added params use them as their group
+  "maps": ("지도", "Maps", "地图"),
+  "imu": ("IMU", "IMU calibration", "IMU 惯性测量"),
 }
 
 # ---------------------------------------------------------------------------

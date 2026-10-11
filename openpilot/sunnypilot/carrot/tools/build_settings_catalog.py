@@ -179,6 +179,7 @@ def build() -> dict:
     """An added param entry with its label slots filled from sp_param_labels."""
     kind = _type_of(default) if name not in declared_map else declared_map[name][0]
     value = default if name in defaults else (declared_map.get(name, (kind, default))[1])
+    zh_group = PAGE_LABELS.get(group, (group,) * 3)[2]
     entry = {
       "group": group,
       "name": name,
@@ -187,7 +188,7 @@ def build() -> dict:
       "egroup": sp_subgroup(name) if group == "sunnypilot" else group.upper(),
       "etitle": humanize(name),
       "edescr": "sunnypilot",
-      "cgroup": group,
+      "cgroup": zh_group,
       "ctitle": humanize(name),
       "cdescr": "sunnypilot",
       "default": value,
