@@ -96,7 +96,7 @@ void encoder_request_keyframe(std::unique_ptr<Encoder> &e) {
   e->request_keyframe();
 }
 
-void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
+void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info, bool encode_on_demand = false) {
   util::set_thread_name(cam_info.thread_name);
 
   std::vector<std::unique_ptr<Encoder>> encoders;
@@ -105,7 +105,9 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
 
   std::unique_ptr<JpegEncoder> jpeg_encoder;
 
+  static Params params;
   int cur_seg = 0;
+  bool prewarm_pending = encode_on_demand;
   while (!do_exit) {
     if (!vipc_client.connect(false)) {
       util::sleep_for(5);
@@ -155,9 +157,21 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
       }
       if (do_exit) break;
 
+      // Carrot Vision parks its encoder between sessions: prime VIDC with one
+      // frame so firmware loading, DMA mapping, and codec headers are complete
+      // before a viewer requests the stream, then idle until a session opens.
+      const bool session_active = !encode_on_demand || params.getBool("CarrotVisionActive");
+      const bool idle = !session_active && !prewarm_pending;
+      for (auto &e : encoders) {
+        e->set_idle(idle);
+      }
+      if (idle) {
+        continue;
+      }
+
       // do rotation if required
       const int frames_per_seg = SEGMENT_LENGTH * MAIN_FPS;
-      if (cur_seg >= 0 && extra.frame_id >= ((cur_seg + 1) * frames_per_seg) + s->start_frame_id) {
+      if (!encode_on_demand && cur_seg >= 0 && extra.frame_id >= ((cur_seg + 1) * frames_per_seg) + s->start_frame_id) {
         for (auto &e : encoders) {
           e->encoder_close();
           e->encoder_open();
@@ -181,6 +195,7 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
           LOGE("Failed to encode frame. frame_id: %d", extra.frame_id);
         }
       }
+      prewarm_pending = false;
 
       if (jpeg_encoder && (extra.frame_id % 1200 == 100)) {
         jpeg_encoder->pushThumbnail(buf, extra);
@@ -190,7 +205,7 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
 }
 
 template <size_t N>
-void encoderd_thread(const LogCameraInfo (&cameras)[N]) {
+void encoderd_thread(const LogCameraInfo (&cameras)[N], bool encode_on_demand = false) {
   EncoderdState s;
 
   std::set<VisionStreamType> expected;
@@ -212,7 +227,7 @@ void encoderd_thread(const LogCameraInfo (&cameras)[N]) {
                              [stream](auto &cam) { return cam.stream_type == stream; });
       assert(it != std::end(cameras));
       ++s.max_waiting;
-      encoder_threads.push_back(std::thread(encoder_thread, &s, *it));
+      encoder_threads.push_back(std::thread(encoder_thread, &s, *it, encode_on_demand));
     }
 
     for (auto &t : encoder_threads) t.join();
@@ -252,16 +267,26 @@ int main(int argc, char* argv[]) {
   }
 #endif
   if (!Hardware::PC()) {
+    const bool carrot_vision_mode = argc > 1 && std::string(argv[1]) == "--carrot-vision-road";
+    // Carrot Vision is optional and may drop frames. Keeping its V4L setup and
+    // worker threads out of SCHED_FIFO prevents on-demand video work from
+    // delaying control and camera services.
     int ret;
-    ret = util::set_realtime_priority(52);
-    assert(ret == 0);
-    ret = util::set_core_affinity({3});
+    if (!carrot_vision_mode) {
+      ret = util::set_realtime_priority(52);
+      assert(ret == 0);
+    }
+    // Main/logging encoders keep their established core 3 placement. Keep the
+    // independent Carrot Vision encoder off the UI and camera/control cores.
+    ret = util::set_core_affinity({carrot_vision_mode ? 0 : 3});
     assert(ret == 0);
   }
   if (argc > 1) {
     std::string arg1(argv[1]);
     if (arg1 == "--stream") {
       encoderd_thread(stream_cameras_logged);
+    } else if (arg1 == "--carrot-vision-road") {
+      encoderd_thread(carrot_vision_cameras_logged, true);
     } else {
       LOGE("Argument '%s' is not supported", arg1.c_str());
     }

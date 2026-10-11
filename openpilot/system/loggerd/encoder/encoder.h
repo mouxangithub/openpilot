@@ -28,6 +28,9 @@ public:
   virtual void encoder_close() = 0;
   virtual void set_bitrate(int bitrate) = 0;
   virtual void request_keyframe() = 0;
+  // Carrot Vision parks its encoder between sessions; encoders that care can
+  // quiet their worker threads while idle. Default: nothing to do.
+  virtual void set_idle(bool) {}
 
   void publisher_publish(int segment_num, uint32_t idx, VisionIpcBufExtra &extra, unsigned int flags, kj::ArrayPtr<capnp::byte> header, kj::ArrayPtr<capnp::byte> dat);
 

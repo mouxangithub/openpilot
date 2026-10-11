@@ -85,6 +85,11 @@ def only_offroad(started: bool, params: Params, CP: car.CarParams) -> bool:
 def livestream(started: bool, params: Params, CP: car.CarParams) -> bool:
   return params.get_bool("IsLiveStreaming")
 
+def enable_webrtc(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # Cluster HUD and Carrot Vision can consume the road camera concurrently.
+  # The web encoder remains idle until a Carrot Vision session requests it.
+  return params.get_bool("CarrotVisionEnabled")
+
 def onroad_preview(started: bool, params: Params, CP: car.CarParams) -> bool:
   return params.get_bool("IsOnroadPreview")
 
@@ -220,6 +225,13 @@ procs = [
   NativeProcess("loggerd", "openpilot/system/loggerd", ["./loggerd"], logging),
   NativeProcess("encoderd", "openpilot/system/loggerd", ["./encoderd"], only_onroad),
   NativeProcess("stream_encoderd", "openpilot/system/loggerd", ["./encoderd", "--stream"], or_(livestream, notcar)),
+  # Carrot Vision WebRTC (port 5001, the /stream proxy target on 7000). Runs
+  # alongside the generic daemon (below, under debug procs), which keeps its
+  # own livestream lifecycle.
+  PythonProcess("carrot_webrtcd", "openpilot.system.webrtc.carrot_webrtcd", and_(iscar, enable_webrtc)),
+  # Carrot Vision: road-only encoder + WebRTC for the 7000 panel. The encoder
+  # stays idle until a viewer session opens (CarrotVisionActive).
+  NativeProcess("carrot_vision_encoderd", "openpilot/system/loggerd", ["./encoderd", "--carrot-vision-road"], and_(iscar, enable_webrtc)),
   PythonProcess("logmessaged", "openpilot.system.logmessaged", always_run),
 
   NativeProcess("camerad", "openpilot/system/camerad", ["./camerad"], or_(driverview, livestream, onroad_preview), enabled=not WEBCAM),

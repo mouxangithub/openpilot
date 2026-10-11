@@ -674,6 +674,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CarrotYouTubeLive", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"CarrotYouTubeQuality", {PERSISTENT | BACKUP, INT, "0"}},
     {"CarrotYouTubeTimestamp", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"CarrotVisionEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // serve the road camera to the 7000 panel while driving
+    {"CarrotVisionActive", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, BOOL}},  // a viewer session is open
     {"ClusterHud", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ClusterHudBrightness", {PERSISTENT | BACKUP, INT, "0"}},
     {"ClusterHudCameraViewMode", {PERSISTENT | BACKUP, BOOL, "0"}},

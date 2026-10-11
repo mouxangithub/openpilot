@@ -197,3 +197,13 @@ const LogCameraInfo stream_cabin_camera_info{
 
 const LogCameraInfo cameras_logged[] = {narrow_road_camera_info, wide_road_camera_info, cabin_camera_info};
 const LogCameraInfo stream_cameras_logged[] = {stream_road_camera_info, stream_wide_road_camera_info, stream_cabin_camera_info};
+
+// Carrot Vision only requests the narrow-road track. Keep the generic
+// three-camera --stream mode intact for other WebRTC users, while avoiding two
+// unused hardware encoder sessions on C3/C3X.
+const LogCameraInfo carrot_vision_road_camera_info{
+  .thread_name = "carrot_vision_road_encoder",
+  .stream_type = VISION_STREAM_NARROW_ROAD,
+  .encoder_infos = {stream_road_encoder_info},
+};
+const LogCameraInfo carrot_vision_cameras_logged[] = {carrot_vision_road_camera_info};
