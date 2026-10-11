@@ -318,3 +318,35 @@ bridge/ 约 1,400 行）。7000 新增 `features/opui_proxy.py`：任意方法 `
 下载动作，osm_api.py）、**行程统计**（trips_api.py）、**蓝牙配对管理**（bluetooth_api.py——
 修正此前「无参数面」的结论：5080 是经 daemon 而非参数实现的）、**开发者/备份**
 （developer_api.py、sunnylink）。SP 分区里枚举参数的文案选项表（目录 options）也值得补。
+
+## 12. 7000 vs 5080 设置对照与缺陷修复（2026-10-11）
+
+### 用户报告的四类问题与根因
+
+| 现象 | 根因（已定位） | 修法 |
+|---|---|---|
+| 模型选择弹窗「取消」「选择」都没用 | ① 弹窗里有两个 `.device-picker__close`（头部/底部），绑定用 `querySelector` 只命中第一个 → 底部取消从未绑定；② 模型行是 `<button>` 且行内又 append 收藏 `<button>`——**button 嵌套 button 非法**，浏览器提前闭合外层导致行点击失效 → `pick` 不更新 → 「选择」恒 disabled | 取消按钮改 `querySelectorAll` 全绑定；行改 `<div role="button">` |
+| 蓝牙一片空白 | `isSpDeviceGroup()` 只查 `SP_DEVICE_GROUP_IDS`，**不含** `SP_CAPABILITY_GROUP_IDS`（蓝牙无 catalog 参数、只有 daemon 状态，被归到后者）→ 走了 base 分区 fallback 分支而非 `renderDeviceSpItems` | `isSpDeviceGroup` 同时认两个 set |
+| Carrot Vision「显示 AR」「AR 调试」打不开 | 两项在 `services/web_settings.py` 声明 `requires_capability="web_lab"`，而 `web_lab` **只能由终端命令解锁**（`carrot web-lab on`，见 `terminal_commands/custom_commands/web_lab.py`）；UI 无任何提示 → 用户无从得知。设备实测 `web_lab_enabled=False` → `capabilities={'web_lab': False}` → `activation_gate.js` 的 `readVisionArEnabled()` 返回 false，AR runtime 根本不创建 | 不改 capability 机制；在 Web 设置 Carrot Vision 分组加锁定提示文案 |
+
+### 用法说明（代码取证）
+
+- **Web upload**：`web_upload.py` 的 `DEFAULT_WEB_UPLOAD_URL = ""` —— 本 fork **默认关闭第三方上传**（设计如此：relay 是给 operator 的，不是驾驶功能）。用法 = Web 设置 → 上传 → 填自建服务地址（必须 http(s)://），或设环境变量 `CARROT_WEB_UPLOAD_URL`；token 由服务端自动签发短期会话，普通用户不用配。
+- **终端远程支持**：功能完整。设备端 7000 → 终端 → 远程支持 → 启动会话（`POST /api/support_terminal/start`，可带 note/TTL）→ 生成协助链接 `/support/terminal/{session_id}` 发给协助者 → 协助者在浏览器打开即看到设备终端；**每条命令需设备端逐条批准**（approve/reject），另有 `/ws/support_terminal/owner` 与 guest WS。
+
+### 设置页系统性对照（7000 缺什么）
+
+5080 的 panels 共 20 个：`device network bluetooth sunnylink toggles software models steering cruise navigation carrot visuals display storage osm trips vehicle firehose imu_calibration developer`。
+
+7000 设备页已有：Device / Network / Toggles / Software / Models / Bluetooth(本轮) / Vehicle / Steering / Cruise / Visuals / Display / Navigation / Osm / Maps / Trips / Imu / Developer。
+
+**7000 仍缺 4 个**：
+
+| 5080 分区 | 内容 | 7000 现状 |
+|---|---|---|
+| `carrot` | 枢纽：`CarrotWebEnabled` + 9 个子面板（Start/Engage、Cruise & Following、Navigation、Turns & Curves、Lateral Tuning、Display & Sound、Vehicle、Developer、eGPU）+ 重置调参 | 无枢纽；但**其子面板参数已由 7000 的 SP 分区覆盖**（差异在组织入口，非功能缺失） |
+| `storage` | 磁盘总量/已用/空闲/百分比 + 分类占用（routes/models/maps/…）+ 清理 | 无（API `/api/opui/storage` 已通代理） |
+| `sunnylink` | 账户状态（enabled/paired/tier/sponsor）+ 备份/恢复进度 | 无（API 已通） |
+| `firehose` | 数据上传状态（active/segments/网络类型/计量） | 无（API 已通） |
+
+结论：**真正的功能缺口是 storage / sunnylink / firehose 三个分区**（API 全部就绪，纯前端接入）；`carrot` 枢纽是组织方式差异。
