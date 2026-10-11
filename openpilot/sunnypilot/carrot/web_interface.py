@@ -23,6 +23,7 @@ and can be torn down with :meth:`WebInterface.stop`.
 
 import json
 import logging
+import os
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -33,6 +34,7 @@ from collections.abc import Callable
 
 from openpilot.sunnypilot.carrot.amap_navi import AmapNaviServ
 from openpilot.sunnypilot.carrot.config import UnifiedParams
+from openpilot.sunnypilot.carrot import web_settings as ws
 from openpilot.sunnypilot.carrot.server.services.params import _USB_PORT_KEYS, _enforce_usb_port
 from openpilot.common.params import Params
 from openpilot.sunnypilot.models.mirror import (DEFAULT_HF_MIRROR, DIRECT_VALUE, GITHUB_PROXY_PARAM, HF_MIRROR_PARAM,
@@ -79,7 +81,7 @@ _HTML_NAVPARAMS_TAIL = """</tbody>
 </table>
 <p><input type="submit" value="保存"></p>
 </form>
-<p><a href="/models">模型下载镜像设置</a> · <a href="/radar">雷达视图</a></p>
+<p><a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/models">模型下载镜像设置</a> · <a href="/radar">雷达视图</a></p>
 </body>
 </html>
 """
@@ -106,7 +108,7 @@ body { font-family: -apple-system, system-ui, sans-serif; margin: 16px; }
 
 
 _HTML_RADAR_TAIL = """</div>
-<p><a href="/nav_params">导航参数</a></p>
+<p><a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/nav_params">导航参数</a></p>
 </body>
 </html>
 """
@@ -147,7 +149,7 @@ https://huggingface.co 前缀；填 <b>off</b> 表示直连。文件带 sha256 �
 也可填 ghproxy 类代理前缀（如 https://gh-proxy.com），将始终以 前缀 + 完整URL 的形式请求。改完请回车机「Refresh Model List」。</p>
 <p><input type="submit" value="保存"></p>
 </form>
-<p><a href="/nav_params">返回导航参数</a></p>
+<p><a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/nav_params">返回导航参数</a></p>
 </body>
 </html>
 """
@@ -161,16 +163,16 @@ class _CarrotHTTPServer(ThreadingHTTPServer):
   interface must be exposed through a dedicated attribute.
   """
 
-  def __init__(self, address: tuple[str, int], handler_cls, interface: "WebInterface") -> None:
+  def __init__(self, address: tuple[str, int], handler_cls, interface: WebInterface) -> None:
     super().__init__(address, handler_cls)
     self.interface = interface
 
 
 class _CarrotWebHandler(BaseHTTPRequestHandler):
-  interface: "WebInterface"
+  interface: WebInterface
 
   # Quieter access log.
-  def log_message(self, format, *args):  # noqa: A002 - signature is fixed
+  def log_message(self, format, *args):  # noqa: A002 - stdlib BaseHTTPRequestHandler signature
     return
 
   def _write(self, body: bytes, status: int = 200, content_type: str = "text/html; charset=utf-8") -> None:
@@ -208,6 +210,10 @@ class _CarrotWebHandler(BaseHTTPRequestHandler):
       self._write(body, content_type="application/json; charset=utf-8")
     elif path == "/models":
       self._write(self.server.interface.render_models_page(parse_qs(parsed.query)))
+    elif path == "/settings":
+      self._write(self.server.interface.render_settings_page(parse_qs(parsed.query)))
+    elif path == "/actions":
+      self._write(self.server.interface.render_actions_page(parse_qs(parsed.query)))
     elif path == "/health":
       self._write(b"ok", content_type="text/plain; charset=utf-8")
     else:
@@ -226,6 +232,22 @@ class _CarrotWebHandler(BaseHTTPRequestHandler):
       body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
       ok, message = self.server.interface.apply_models_form(parse_qs(body))
       self._redirect(f"/models?saved={'1' if ok else '0'}&msg={message}")
+      return
+    if parsed.path == "/settings_save":
+      length = int(self.headers.get("Content-Length", "0") or "0")
+      body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
+      form = parse_qs(body)
+      ok = self.server.interface.apply_settings_form(form)
+      from urllib.parse import quote
+      page = (form.get("page", [""])[0] or "").strip()
+      self._redirect(f"/settings?page={quote(page)}&saved={'1' if ok else '0'}")
+      return
+    if parsed.path == "/action_run":
+      length = int(self.headers.get("Content-Length", "0") or "0")
+      body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
+      ok, detail = self.server.interface.run_action(parse_qs(body))
+      from urllib.parse import quote
+      self._redirect(f"/actions?saved={'1' if ok else '0'}&detail={quote(detail)}")
       return
     self._write(b"<h1>404</h1>", status=404)
 
@@ -338,7 +360,7 @@ class WebInterface:
   def snapshot_radar_data(self) -> dict[str, Any]:
     sd = self._amap_navi.shared_data
     data: dict[str, Any] = {
-      "timestamp": time.time(),
+      "timestamp": time.time(),  # noqa: TID251
       "left_blind": sd.left_blind,
       "right_blind": sd.right_blind,
       "lidar_l": sd.lidar_left,
@@ -397,6 +419,74 @@ class WebInterface:
 
     if touched_usb_port:
       _enforce_usb_port()
+
+  # ---- settings (the on-device pages, in a browser) --------------------- #
+
+  def render_settings_page(self, query: dict[str, list[str]] | None = None) -> bytes:
+    """The index of on-device settings pages, or one page's controls."""
+    params = Params()
+    grouped, kinds, values = ws.collect(params)
+    page = (query or {}).get("page", [""])[0].strip()
+    if page not in grouped:
+      return ws.render_index(grouped).encode("utf-8")
+    saved_raw = (query or {}).get("saved", [""])[0]
+    saved = 1 if saved_raw == "1" else (0 if saved_raw == "0" else None)
+    return ws.render_page(page, grouped[page], kinds, values, saved=saved).encode("utf-8")
+
+  def apply_settings_form(self, form: dict[str, list[str]]) -> bool:
+    """Writes the keys the page carries, through the setter for each declared type."""
+    params = Params()
+    _, kinds, _ = ws.collect(params)
+    updates = ws.parse_form_updates(form, kinds)
+    _, skipped = ws.apply_updates(params, updates, kinds)
+    return skipped == 0
+
+  # ---- actions (the on-device buttons) ---------------------------------- #
+
+  def render_actions_page(self, query: dict[str, list[str]] | None = None) -> bytes:
+    from urllib.parse import unquote_plus
+    q = query or {}
+    saved_raw = q.get("saved", [""])[0]
+    saved = 1 if saved_raw == "1" else (0 if saved_raw == "0" else None)
+    return ws.render_actions(saved=saved, detail=unquote_plus(q.get("detail", [""])[0])).encode("utf-8")
+
+  def run_action(self, form: dict[str, list[str]]) -> tuple[bool, str]:
+    """Runs one of the on-device buttons' work. Returns (ok, detail)."""
+    action = (form.get("action", [""])[0] or "").strip()
+    if action == "view_error_log":
+      return self._read_error_log()
+
+    bool_actions = {
+      "refresh_models": "ModelManager_ClearCache",
+      "clear_mapd_cache": "Mapd_ClearCache",
+      "check_osm_updates": "OsmDbUpdatesCheck",
+      "backup_now": "BackupManager_CreateBackup",
+      "offroad_on": "OffroadMode",
+    }
+    if action == "offroad_off":
+      Params().put_bool("OffroadMode", False)
+      return True, "已写入 OffroadMode=0"
+    if action in bool_actions:
+      key = bool_actions[action]
+      Params().put_bool(key, True)
+      return True, f"已写入 {key}=1"
+    return False, f"未知操作：{action}"
+
+  @staticmethod
+  def _read_error_log() -> tuple[bool, str]:
+    try:
+      from openpilot.common.hardware.hw import Paths
+      path = os.path.join(Paths.crash_log_root(), "error.log")
+    except Exception as exc:  # the device paths are not importable on every host
+      return False, f"无法定位日志：{exc}"
+    try:
+      with open(path, encoding="utf-8", errors="ignore") as fh:
+        text = fh.read()
+    except FileNotFoundError:
+      return True, "（error.log 不存在，说明没有崩溃记录）"
+    except OSError as exc:
+      return False, f"读取失败：{exc}"
+    return True, text[-20000:]
 
   # ---- model download mirror ------------------------------------------- #
 
