@@ -923,3 +923,358 @@ async function loadDeviceModelManager(container) {
     });
   }
 }
+
+// ── Section manager blocks backed by the 5080 webui daemon ─────────────────
+// OSM downloads, trips, IMU calibration and bluetooth pairing live in the
+// daemon; each section gets a shell here plus a loader that fills it.
+
+DEVICE_SECTION_SHELLS.Models = () => renderDeviceModelManagerShell();
+DEVICE_SECTION_SHELLS.Osm = () => renderDeviceOsmShell();
+DEVICE_SECTION_SHELLS.Trips = () => renderDeviceTripsShell();
+DEVICE_SECTION_SHELLS.Imu = () => renderDeviceImuShell();
+
+function deviceManagerRow({ id, title, descr = "", value = "", button = "", buttonId = "", disabled = false }) {
+  const ctrl = [];
+  if (value !== "") ctrl.push(`<span class="title muted device-value"${id ? ` id="${id}-value"` : ""}>${escapeHtml(value)}</span>`);
+  if (button) ctrl.push(`<button type="button" class="smallBtn"${buttonId ? ` id="${buttonId}"` : ""} ${disabled ? "disabled" : ""}>${escapeHtml(button)}</button>`);
+  return `
+    <div class="setting device-setting"${id ? ` id="${id}"` : ""}>
+      <div class="settingTop">
+        <div>
+          <div class="title">${escapeHtml(title)}</div>
+          ${descr ? `<div class="descr"${id ? ` id="${id}-descr"` : ""}>${escapeHtml(descr)}</div>` : ""}
+        </div>
+        <div class="ctrl device-model-slot-ctrl">${ctrl.join("")}</div>
+      </div>
+    </div>`;
+}
+
+function bindOnce(element, event, handler) {
+  if (!element || element.dataset.bound) return;
+  element.dataset.bound = "1";
+  element.addEventListener(event, handler);
+}
+
+// ── OSM: region download, progress, size, delete ───────────────────────────
+
+function renderDeviceOsmShell() {
+  return `
+    ${deviceManagerRow({ id: "osmRegion", title: getUIText("osm_download_region", "Download map region"), descr: getUIText("osm_download_region_hint", "Pick a country, then a state or province"), button: getUIText("model_manager_select", "Select"), buttonId: "btnDeviceOsmRegion" })}
+    ${deviceManagerRow({ id: "osmProgress", title: getUIText("osm_progress", "Download progress"), value: "-" })}
+    ${deviceManagerRow({ id: "osmSize", title: getUIText("osm_size", "Downloaded map size"), value: "-" })}
+    ${deviceManagerRow({ id: "osmDelete", title: getUIText("osm_delete", "Delete downloaded maps"), descr: getUIText("osm_delete_hint", "Removes every OSM map on the device"), button: getUIText("model_manager_clear_btn", "CLEAR"), buttonId: "btnDeviceOsmDelete" })}`;
+}
+
+async function deviceOsmProgressText() {
+  try {
+    const progress = await requestJson("/api/opui/osm/progress", { cache: "no-store" });
+    const pct = Number(progress?.progress ?? 0);
+    const done = Number(progress?.done ?? 0);
+    const total = Number(progress?.total ?? 0);
+    if (progress?.downloading || progress?.active) return `${pct.toFixed(0)}% (${done}/${total})`;
+    return getUIText("osm_idle", "idle");
+  } catch {
+    return "-";
+  }
+}
+
+async function loadDeviceOsmManager(container) {
+  const progressValue = container.querySelector("#osmProgress-value");
+  if (progressValue) progressValue.textContent = await deviceOsmProgressText();
+  try {
+    const size = await requestJson("/api/opui/osm/size", { cache: "no-store" });
+    const sizeValue = container.querySelector("#osmSize-value");
+    if (sizeValue) sizeValue.textContent = `${Number(size?.size_mb ?? size?.mb ?? 0).toFixed(1)} MB`;
+  } catch {}
+
+  bindOnce(container.querySelector("#btnDeviceOsmRegion"), "click", async () => {
+    try {
+      const regions = await requestJson("/api/opui/osm/regions?type=Country", { cache: "no-store" });
+      const countries = (regions?.countries || []).map((c) => ({ value: c, label: String(c.title || c.name) }));
+      openDeviceListPicker({
+        title: getUIText("osm_pick_country", "Country"),
+        meta: `${countries.length}`,
+        groups: [{ items: countries }],
+        onPick: async (item) => {
+          const country = item.value;
+          let states = [];
+          try {
+            const stateRegions = await requestJson(`/api/opui/osm/regions?type=State&country=${encodeURIComponent(country.name)}`, { cache: "no-store" });
+            states = (stateRegions?.states || []).map((s) => ({ value: s, label: String(s.title || s.name) }));
+          } catch {}
+          if (!states.length) {
+            await deviceOsmSelect(country, null);
+            return;
+          }
+          openDeviceListPicker({
+            title: getUIText("osm_pick_state", "State / Province"),
+            meta: String(country.title || country.name),
+            groups: [{ items: states }],
+            onPick: async (stateItem) => deviceOsmSelect(country, stateItem.value),
+          });
+        },
+      });
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+
+  bindOnce(container.querySelector("#btnDeviceOsmDelete"), "click", async () => {
+    const ok = await appConfirm(getUIText("osm_delete_confirm", "Delete all downloaded OSM maps?"), {
+      title: getUIText("osm_delete", "Delete downloaded maps"),
+      confirmLabel: getUIText("model_manager_clear_btn", "CLEAR"),
+      cancelLabel: getUIText("cancel", "Cancel"),
+    });
+    if (!ok) return;
+    try {
+      await postJson("/api/opui/osm/delete", {});
+      showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+      await loadDeviceOsmManager(container);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+}
+
+async function deviceOsmSelect(country, state) {
+  const ok = await appConfirm(
+    `${getUIText("osm_download_confirm", "Download this region's map?")}\n\n${country.title || country.name}${state ? " · " + (state.title || state.name) : ""}`,
+    { title: getUIText("osm_download_region", "Download map region"), confirmLabel: getUIText("ok", "OK"), cancelLabel: getUIText("cancel", "Cancel") },
+  );
+  if (!ok) return;
+  try {
+    await postJson("/api/opui/osm/select", {
+      country: country.name,
+      country_title: country.title || country.name,
+      state: state?.name || "",
+      state_title: state?.title || "",
+    });
+    showAppToast(getUIText("osm_download_started", "Download started"), { tone: "info" });
+    const container = document.getElementById("deviceItems");
+    if (container) setTimeout(() => loadDeviceOsmManager(container).catch(() => {}), 2000);
+  } catch (err) {
+    showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+  }
+}
+
+// ── Trips: source + stats ──────────────────────────────────────────────────
+
+function renderDeviceTripsShell() {
+  return `
+    ${deviceManagerRow({ id: "tripsSource", title: getUIText("trips_source", "Trips data source"), value: "-", button: getUIText("model_manager_select", "Select"), buttonId: "btnDeviceTripsSource" })}
+    ${deviceManagerRow({ id: "tripsAll", title: getUIText("trips_all", "All time"), value: "-" })}
+    ${deviceManagerRow({ id: "tripsWeek", title: getUIText("trips_week", "This week"), value: "-" })}`;
+}
+
+function deviceTripsStatsText(stats) {
+  if (!stats) return "-";
+  return `${Number(stats.routes ?? 0)} ${getUIText("trips_routes", "drives")} · ${Number(stats.distance ?? 0).toFixed(0)} km · ${Number(stats.minutes ?? 0).toFixed(0)} min`;
+}
+
+async function loadDeviceTripsManager(container) {
+  const values = await bulkGet(["TripsDataSource"]).catch(() => ({}));
+  const source = String(values.TripsDataSource || "local");
+  const sourceValue = container.querySelector("#tripsSource-value");
+  if (sourceValue) sourceValue.textContent = source;
+  try {
+    const payload = await requestJson(`/api/opui/trips?source=${encodeURIComponent(source)}`, { cache: "no-store" });
+    const all = container.querySelector("#tripsAll-value");
+    const week = container.querySelector("#tripsWeek-value");
+    if (all) all.textContent = deviceTripsStatsText(payload?.stats?.all);
+    if (week) week.textContent = deviceTripsStatsText(payload?.stats?.week);
+  } catch {}
+
+  bindOnce(container.querySelector("#btnDeviceTripsSource"), "click", () => {
+    const options = ["local", "cloud", "all"];
+    openDeviceListPicker({
+      title: getUIText("trips_source", "Trips data source"),
+      meta: source,
+      groups: [{ items: options.map((value) => ({ value, label: value, current: value === source })) }],
+      onPick: async (item) => {
+        try {
+          await setParam("TripsDataSource", item.value);
+          const container2 = document.getElementById("deviceItems");
+          if (container2) await loadDeviceTripsManager(container2);
+        } catch (err) {
+          showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+        }
+      },
+    });
+  });
+}
+
+// ── IMU calibration: enable, status, start/cancel/reset ────────────────────
+
+function renderDeviceImuShell() {
+  return `
+    ${deviceManagerRow({ id: "imuState", title: getUIText("imu_state", "Calibration status"), value: "-" })}
+    ${deviceManagerRow({ id: "imuActions", title: getUIText("imu_actions", "Calibration actions"), descr: getUIText("imu_actions_hint", "Keep the vehicle parked and ignition on"), button: getUIText("imu_start", "START"), buttonId: "btnDeviceImuStart" })}
+    ${deviceManagerRow({ id: "imuReset", title: getUIText("imu_reset", "Reset calibration"), button: getUIText("reset", "Reset"), buttonId: "btnDeviceImuReset" })}`;
+}
+
+async function loadDeviceImuManager(container) {
+  try {
+    const payload = await requestJson("/api/opui/imu/calibration", { cache: "no-store" });
+    const stateValue = container.querySelector("#imuState-value");
+    const status = payload?.status || {};
+    if (stateValue) {
+      const state = String(status.state || "unknown");
+      const progress = Number(status.progress ?? 0);
+      stateValue.textContent = `${state}${progress ? ` ${progress}%` : ""}${status.error ? ` — ${status.error}` : ""}`;
+    }
+  } catch {
+    const stateValue = container.querySelector("#imuState-value");
+    if (stateValue) stateValue.textContent = getUIText("model_manager_unavailable", "Model manager (5080) unreachable");
+  }
+
+  bindOnce(container.querySelector("#btnDeviceImuStart"), "click", async () => {
+    try {
+      await postJson("/api/opui/imu/calibration/start", {});
+      showAppToast(getUIText("imu_started", "Calibration started"), { tone: "info" });
+      setTimeout(() => {
+        const container2 = document.getElementById("deviceItems");
+        if (container2) loadDeviceImuManager(container2).catch(() => {});
+      }, 2500);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+  bindOnce(container.querySelector("#btnDeviceImuReset"), "click", async () => {
+    const ok = await appConfirm(getUIText("imu_reset_confirm", "Reset IMU calibration? sunnypilot will recalibrate."), {
+      title: getUIText("imu_reset", "Reset calibration"),
+      confirmLabel: getUIText("reset", "Reset"),
+      cancelLabel: getUIText("cancel", "Cancel"),
+    });
+    if (!ok) return;
+    try {
+      await postJson("/api/opui/imu/calibration/reset", {});
+      const container2 = document.getElementById("deviceItems");
+      if (container2) await loadDeviceImuManager(container2);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+}
+
+// ── Bluetooth: pairing + HID button mapping ────────────────────────────────
+
+function renderDeviceBluetoothShell() {
+  return `
+    ${deviceManagerRow({ id: "btRuntime", title: getUIText("bt_status", "Bluetooth status"), value: "-" })}
+    ${deviceManagerRow({ id: "btDevices", title: getUIText("bt_devices", "Paired devices"), descr: getUIText("bt_devices_hint", "Tap to connect, disconnect or forget"), value: "-" })}
+    <div data-bt-device-list></div>
+    ${deviceManagerRow({ id: "btScan", title: getUIText("bt_scan", "Scan and pair"), descr: getUIText("bt_scan_hint", "Put the remote in pairing mode first"), button: getUIText("bt_scan_btn", "SCAN"), buttonId: "btnDeviceBtScan" })}
+    ${deviceManagerRow({ id: "btMapping", title: getUIText("bt_mapping", "Button mapping"), descr: getUIText("bt_mapping_hint", "Map the remote's buttons to driving actions"), value: "-", button: getUIText("model_manager_select", "Select"), buttonId: "btnDeviceBtMapping" })}`;
+}
+
+function deviceBluetoothDeviceRow(name, mac) {
+  return `
+    <div class="setting device-setting">
+      <div class="settingTop">
+        <div>
+          <div class="title">${escapeHtml(name || mac)}</div>
+          <div class="descr">${escapeHtml(mac)}</div>
+        </div>
+        <div class="ctrl device-model-actions">
+          <button type="button" class="smallBtn" data-bt-op="connect" data-bt-address="${escapeHtml(mac)}">${escapeHtml(getUIText("bt_connect", "CONNECT"))}</button>
+          <button type="button" class="smallBtn" data-bt-op="forget" data-bt-address="${escapeHtml(mac)}">${escapeHtml(getUIText("bt_forget", "FORGET"))}</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function loadDeviceBluetoothManager(container) {
+  let payload = null;
+  try {
+    payload = await requestJson("/api/opui/bluetooth", { cache: "no-store" });
+  } catch {}
+
+  const runtime = payload?.runtime || {};
+  const runtimeValue = container.querySelector("#btRuntime-value");
+  if (runtimeValue) {
+    runtimeValue.textContent = payload
+      ? `${runtime.alive ? getUIText("bt_alive", "service up") : getUIText("bt_dead", "service down")} · ${payload?.radioEnabled ? getUIText("on", "ON") : getUIText("off", "OFF")}`
+      : getUIText("model_manager_unavailable", "Model manager (5080) unreachable");
+  }
+
+  const devices = payload?.config?.devices || {};
+  const macs = Object.keys(devices);
+  const listRoot = container.querySelector("[data-bt-device-list]");
+  if (listRoot) {
+    listRoot.innerHTML = macs
+      .map((mac) => deviceBluetoothDeviceRow(devices[mac]?.name || devices[mac]?.alias || "", mac))
+      .join("");
+  }
+  const devicesValue = container.querySelector("#btDevices-value");
+  if (devicesValue) devicesValue.textContent = String(macs.length);
+
+  const mappingValue = container.querySelector("#btMapping-value");
+  const defaults = payload?.defaults || {};
+  if (mappingValue) mappingValue.textContent = Object.entries(defaults).map(([k, v]) => `${k}:${v}`).join(" ");
+
+  container.querySelectorAll("[data-bt-op]").forEach((button) => {
+    bindOnce(button, "click", async () => {
+      const op = button.dataset.btOp;
+      const address = button.dataset.btAddress;
+      const confirmText = op === "forget"
+        ? getUIText("bt_forget_confirm", "Forget this device?")
+        : getUIText("bt_connect_confirm", "Connect to this device?");
+      const ok = await appConfirm(confirmText, { title: getUIText("device_group_bluetooth", "Bluetooth"), confirmLabel: getUIText("ok", "OK"), cancelLabel: getUIText("cancel", "Cancel") });
+      if (!ok) return;
+      try {
+        await postJson(`/api/opui/bluetooth/${op}`, { address });
+        showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+        await loadDeviceBluetoothManager(container);
+      } catch (err) {
+        showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+      }
+    });
+  });
+
+  bindOnce(container.querySelector("#btnDeviceBtScan"), "click", async () => {
+    try {
+      await postJson("/api/opui/bluetooth/scan", {});
+      showAppToast(getUIText("bt_scanning", "Scanning…"), { tone: "info" });
+      await new Promise((r) => setTimeout(r, 6000));
+      const fresh = await requestJson("/api/opui/bluetooth", { cache: "no-store" });
+      const found = fresh?.runtime?.last_events?.scan || fresh?.runtime?.last_event || null;
+      if (found && found.address) {
+        await postJson("/api/opui/bluetooth/pair", { address: found.address });
+        showAppToast(getUIText("bt_pairing", "Pairing…"), { tone: "info" });
+      } else {
+        showAppToast(getUIText("bt_none_found", "No device found"), { tone: "error" });
+      }
+      await loadDeviceBluetoothManager(container);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+
+  bindOnce(container.querySelector("#btnDeviceBtMapping"), "click", () => {
+    const actions = payload?.actions || ["none"];
+    const defaults = payload?.defaults || {};
+    const keys = Object.keys(defaults);
+    openDeviceListPicker({
+      title: getUIText("bt_mapping", "Button mapping"),
+      meta: getUIText("bt_mapping_hint", "Map the remote's buttons to driving actions"),
+      groups: [{ items: keys.map((key) => ({ value: key, label: `${key} → ${defaults[key]}` })) }],
+      onPick: async (item) => {
+        openDeviceListPicker({
+          title: item.value,
+          meta: String(defaults[item.value] || ""),
+          groups: [{ items: actions.map((action) => ({ value: action, label: action, current: action === defaults[item.value] })) }],
+          onPick: async (actionItem) => {
+            try {
+              await postJson("/api/opui/bluetooth/config", { devices: {}, bindings: { [item.value]: actionItem.value } });
+              showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+              const container2 = document.getElementById("deviceItems");
+              if (container2) await loadDeviceBluetoothManager(container2);
+            } catch (err) {
+              showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+            }
+          },
+        });
+      },
+    });
+  });
+}

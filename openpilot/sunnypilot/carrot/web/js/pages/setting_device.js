@@ -94,6 +94,17 @@ function isSpDeviceGroup(groupId) {
   return SP_DEVICE_GROUP_IDS.has(groupId);
 }
 
+// Section -> async manager loader (defined in setting_device_actions.js, which
+// loads after this file). Each one fills a shell rendered by
+// renderDeviceSpItems from the 5080 webui API.
+const DEVICE_CAPABILITY_LOADERS = {
+  Models: (container) => loadDeviceModelManager(container),
+  Osm: (container) => loadDeviceOsmManager(container),
+  Trips: (container) => loadDeviceTripsManager(container),
+  Imu: (container) => loadDeviceImuManager(container),
+  Bluetooth: (container) => loadDeviceBluetoothManager(container),
+};
+
 function getCachedDeviceGroupValues(groupId) {
   const names = getDeviceGroupParamNames(groupId);
   if (!names.length || !names.every((name) => Object.prototype.hasOwnProperty.call(deviceParamValues, name))) {
@@ -142,6 +153,9 @@ function getVisibleDeviceGroups() {
     if (group.id === "Software") {
       return isTruthyDeviceFlag(deviceParamValues.SoftwareMenu ?? 1);
     }
+    // Capability sections (bluetooth) have no catalog params - they show
+    // whenever the panel can talk to the 5080 daemon.
+    if (SP_CAPABILITY_GROUP_IDS.has(group.id)) return true;
     // A sunnypilot section the server could not fill (catalog absent on a
     // cp-pure deployment) has no names - hiding it beats showing an empty page.
     if (isSpDeviceGroup(group.id)) return getDeviceGroupParamNames(group.id).length > 0;
@@ -511,8 +525,9 @@ async function renderDeviceItems(groupId, showItemsScreen = true, options = {}) 
     applyDeviceItemsStagger(itemsContainer);
   }
   bindDeviceTabEvents(itemsContainer);
-  if (groupId === "Models") {
-    loadDeviceModelManager(itemsContainer).catch((err) => console.error("[DeviceTab]", err));
+  const capabilityLoader = DEVICE_CAPABILITY_LOADERS[groupId];
+  if (capabilityLoader) {
+    capabilityLoader(itemsContainer).catch((err) => console.error("[DeviceTab]", err));
   }
   syncDeviceGroupActiveState(groupId);
   syncDeviceGroupChrome(groupId);

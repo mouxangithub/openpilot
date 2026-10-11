@@ -320,9 +320,15 @@ function renderDeviceSpToggleRow(param, title, descr, checked, needsConfirm) {
 function renderDeviceSpItems(groupId, values) {
   const names = getDeviceGroupParamNames(groupId);
   const data = { ...deviceParamValues, ...(values || {}) };
-  // The Models section leads with the model manager (5080 parity): a summary
-  // plus a picker dialog - the list itself never renders inline. The generic
-  // rows below keep the tuning knobs around it.
-  const manager = groupId === "Models" ? renderDeviceModelManagerShell() : "";
+  // Capability sections (5080 daemon state, no catalog params) render only
+  // their manager block.
+  if (groupId === "Bluetooth") return renderDeviceBluetoothShell();
+  // Sections with real interactive surfaces lead with their manager block; the
+  // generic rows below keep the tuning knobs around it.
+  const manager = DEVICE_SECTION_SHELLS[groupId] ? DEVICE_SECTION_SHELLS[groupId]() : "";
   return manager + names.map((name) => renderDeviceSpRow(name, spCatalogIndex?.[name], data[name])).join("");
 }
+
+// Filled by setting_device_actions.js (loaded after this file) - each returns
+// the shell HTML for that section's manager block.
+const DEVICE_SECTION_SHELLS = {};

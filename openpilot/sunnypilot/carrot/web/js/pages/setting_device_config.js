@@ -11,6 +11,7 @@ const DEVICE_GROUPS = [
   // settings snapshot (services/device_info.py reads them from the settings
   // catalog), and renderDeviceSpItems draws them from the catalog's labels.
   { id: "Models", labelKey: "device_group_models", defaultLabel: "Models" },
+  { id: "Bluetooth", labelKey: "device_group_bluetooth", defaultLabel: "Bluetooth" },
   { id: "Vehicle", labelKey: "device_group_vehicle", defaultLabel: "Vehicle" },
   { id: "Steering", labelKey: "device_group_steering", defaultLabel: "Steering" },
   { id: "Cruise", labelKey: "device_group_cruise", defaultLabel: "Cruise" },
@@ -31,6 +32,11 @@ const SP_DEVICE_GROUP_IDS = new Set([
   "Models", "Vehicle", "Steering", "Cruise", "Visuals", "Display",
   "Navigation", "Osm", "Maps", "Trips", "Imu",
 ]);
+
+// Sections that carry no catalog params at all: the 5080 webui daemon owns
+// them (bluetooth pairing is daemon state, not Params). They render a manager
+// block and are visible whenever the panel can reach that daemon.
+const SP_CAPABILITY_GROUP_IDS = new Set(["Bluetooth"]);
 
 // Bool params that make a process *do* something the moment they are written
 // (reboot, drop caches, recalibrate). A toggle is fine, but confirm first so a
