@@ -19,7 +19,6 @@ cluster_run.py 一致：把 cluster 目录加进 sys.path 即可解析。
 
 from __future__ import annotations
 
-import os
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,12 +26,10 @@ from pathlib import Path
 import pyray as rl
 
 # 本地纯逻辑模块（从 cp cluster/ 复制，无任何 USB/GPU 依赖）。
-from cluster_config import current_cluster_theme  # noqa: E402
-from cluster_display import (  # noqa: E402
+from cluster_config import current_cluster_theme
+from cluster_display import (
   display_speed,
   format_radar_distance,
-  format_navi_distance,
-  normalize_metric_setting,
   speed_unit,
 )
 
@@ -132,7 +129,7 @@ class ClusterOverlayRenderer:
   def _text_width(self, font, text: str, size: float) -> float:
     if font is None or not text:
       return 0.0
-    return float(rl.measure_text_ex(font, text, size, 0.0).x)
+    return float(rl.measure_text_ex(font, text, size, 0.0).x)  # noqa: TID251
 
   def _draw_text(self, font, text, x, y, size, color) -> None:
     if font is None or not text:

@@ -10,6 +10,7 @@ NOTE: importing cruise_helpers needs opendbc, so on a PC without the built opend
 package this module cannot be collected. The same assertions were run standalone against
 the extracted helpers while developing; run this on the device or a built tree.
 """
+import os
 import unittest
 
 from openpilot.sunnypilot.selfdrive.car.cruise_helpers import (
@@ -45,10 +46,8 @@ class TestGapHelpers(unittest.TestCase):
 
   def test_all_outputs_are_valid_enum_indices(self):
     """Whatever the cycle does, the result must be a value the MPC accepts."""
-    import openpilot.cereal.log as log
-    enum = log.LongitudinalPersonality.schema.enumerants
     for levels in (2, 3, 4):
-      for current in range(0, 5):
+      for current in range(5):
         value = next_gap_personality(current, levels)
         # the helper can return levels-1 which may exceed the enum if levels > enum size;
         # callers pass a clamped levels, and the adopt-from-car path clamps separately.
@@ -71,7 +70,7 @@ class TestPcmGapMapping(unittest.TestCase):
   def test_every_cluster_gap_maps_into_the_enum(self):
     import openpilot.cereal.log as log
     valid = set(log.LongitudinalPersonality.schema.enumerants.values())
-    for pcm_gap in range(0, 8):
+    for pcm_gap in range(8):
       self.assertIn(self._clamp(pcm_gap), valid,
                     f'gap {pcm_gap} mapped outside the enum')
 

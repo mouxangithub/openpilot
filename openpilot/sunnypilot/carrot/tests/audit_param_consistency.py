@@ -23,7 +23,6 @@ Exit code is non-zero if any check fails, so it can gate CI.
 """
 from __future__ import annotations
 
-import glob
 import json
 import os
 import re
@@ -419,8 +418,8 @@ def main() -> int:
   invisible_everywhere = [n for n in sorted(carrot)
                           if n not in all_surfaces and n not in hidden_webui
                           and not n.endswith('Migrated')]
-  print(f'  {len(invisible_everywhere)} carrot param(s) visible in no UI '
-        f'(informational; may be internal killswitches)')
+  print(f'  {len(invisible_everywhere)} carrot param(s) visible in no UI ' +
+        '(informational; may be internal killswitches)')
   print()
 
   print('=' * 68)

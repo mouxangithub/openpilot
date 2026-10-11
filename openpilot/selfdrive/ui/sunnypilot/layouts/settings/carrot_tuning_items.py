@@ -10,10 +10,9 @@ Each `_build_*_items()` supplies the contents of one page in `carrot_tuning.py`.
 Groups inside a page are separated by `LineSeparatorSP`, matching how the rest of
 the sunnypilot settings pages express grouping (see steering.py, models.py).
 """
-from openpilot.common.params import Params
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets.list_view import (
-  LineSeparatorSP, button_item_sp, option_item_sp, section_heading_sp, toggle_item_sp,
+  option_item_sp, section_heading_sp, toggle_item_sp,
 )
 
 def build_start_items():
@@ -85,14 +84,14 @@ def build_navi_items():
 
     section_heading_sp(tr('Road Speed Limits')),
     option_item_sp(title=tr('Speed Source PCM'), param='SpeedFromPCM', min_value=0, max_value=2, value_change_step=1,
-                   description=tr('1 = take the ACC set speed from the car (PCM). Required on Toyota: its PCM consumes the +/- buttons itself, so openpilot would otherwise keep its own set speed while the cluster moves.')),
+                   description=tr('1 = take the ACC set speed from the car (PCM). Required on Toyota: its PCM consumes the +/- buttons itself, so openpilot would otherwise keep its own set speed while the cluster moves.')),  # noqa: E501
     option_item_sp(title=tr('Road Speed Limit Offset'), param='AutoRoadSpeedLimitOffset', min_value=-20, max_value=20, value_change_step=1),
     option_item_sp(title=tr('Road Type'), param='RoadType', min_value=0, max_value=2, value_change_step=1),
 
     section_heading_sp(tr('Vehicle CAN Speed Arbitration')),
     option_item_sp(title=tr('Speed Camera Alert Time'), param='VehicleSpeedCameraDistanceTime', min_value=10, max_value=200, value_change_step=1,
                    description=tr('Synthesises a camera distance when the car sends only an enforcement speed. 0.1 s units; 60 = 6.0 s.')),
-    option_item_sp(title=tr('Vehicle Navi CAN Control'), param='VehicleNaviCanControl', min_value=0, max_value=3, value_change_step=1, description=tr('Send navigation-based speed limits to the car over CAN.')),
+    option_item_sp(title=tr('Vehicle Navi CAN Control'), param='VehicleNaviCanControl', min_value=0, max_value=3, value_change_step=1, description=tr('Send navigation-based speed limits to the car over CAN.')),  # noqa: E501
     toggle_item_sp(title=tr('School Zone CAN Control'), param='VehicleNaviSchoolZoneControl'),
     option_item_sp(title=tr('Speed Camera Control Mode'), param='VehicleSpeedCameraControlMode', min_value=0, max_value=3, value_change_step=1),
 
@@ -138,16 +137,16 @@ def build_speed_items():
     option_item_sp(title=tr('Turn Speed Control Mode'), param='TurnSpeedControlMode', min_value=0, max_value=3, value_change_step=1),
     section_heading_sp(tr('Curve Speed')),
     option_item_sp(title=tr('Curve Speed Factor'), param='AutoCurveSpeedFactor', min_value=50, max_value=200, value_change_step=5,
-                   description=tr('How much lateral acceleration to allow below 80 km/h, in percent. '
+                   description=tr('How much lateral acceleration to allow below 80 km/h, in percent. ' +
                                   'Higher takes curves faster. 100 is neutral.')),
     option_item_sp(title=tr('Normal Road Curve Aggressiveness'), param='AutoCurveSpeedAggressiveness', min_value=0, max_value=200, value_change_step=5,
-                   description=tr('How early to react to curves on normal roads. Lower reacts to gentler '
+                   description=tr('How early to react to curves on normal roads. Lower reacts to gentler ' +
                                   'curves. Only applies while Smart Cruise Control (Vision) is on.')),
     option_item_sp(title=tr('Curve Speed Factor (Highway)'), param='AutoCurveSpeedFactorH', min_value=50, max_value=200, value_change_step=5,
-                   description=tr('How much lateral acceleration to allow at or above 80 km/h, in percent. '
+                   description=tr('How much lateral acceleration to allow at or above 80 km/h, in percent. ' +
                                   'Higher takes curves faster. 100 is neutral.')),
     option_item_sp(title=tr('Highway Curve Aggressiveness'), param='AutoCurveSpeedAggressivenessH', min_value=0, max_value=200, value_change_step=5,
-                   description=tr('How early to react to curves on the highway. Lower reacts to gentler '
+                   description=tr('How early to react to curves on the highway. Lower reacts to gentler ' +
                                   'curves. Only applies while Smart Cruise Control (Vision) is on.')),
     option_item_sp(title=tr('Curve Speed Lower Limit'), param='AutoCurveSpeedLowerLimit', min_value=0, max_value=100, value_change_step=5),
 
@@ -177,9 +176,9 @@ def build_display_items():
     section_heading_sp(tr('Steering Suspend')),
     option_item_sp(title=tr('Lateral Suspend Angle'), param='LatSuspendAngleDeg', min_value=45, max_value=300, value_change_step=1,
                    label_callback=lambda v, *_: f'{v}\u00b0',
-                   description=tr('Steering angle at which lateral control pauses while you steer. '
-                                  '300\u00b0 effectively disables it. CarrotPilot stores 0.1-degree units for this '
-                                   'parameter but its code, like this port, compares the raw value against the '
+                   description=tr('Steering angle at which lateral control pauses while you steer. ' +
+                                  '300\u00b0 effectively disables it. CarrotPilot stores 0.1-degree units for this ' +
+                                   'parameter but its code, like this port, compares the raw value against the ' +
                                    'steering angle, so the number reads as degrees here.')),
     section_heading_sp(tr('Cluster Map')),
     option_item_sp(title=tr('Cluster Navigation Map Theme'), param='ClusterNaviMapTheme', min_value=0, max_value=2, value_change_step=1,
@@ -243,7 +242,7 @@ def build_vehicle_items():
     option_item_sp(title=tr('Speed-dependent Follow Time'), param='EnableSpeedTF', min_value=-3, max_value=1, value_change_step=1,
                    label_callback=lambda v, *_: {1: tr('Linear'), 0: tr('Off'),
                                                 -1: '30/60/90', -2: '40/80/120', -3: '50/100/150'}.get(v, str(v)),
-                   description=tr('Shrink the follow distance as speed rises. Off disables it; the three '
+                   description=tr('Shrink the follow distance as speed rises. Off disables it; the three ' +
                                   'profiles differ in how far up the speed range the gap keeps tightening.')),
     section_heading_sp(tr('Driving Mode')),
     option_item_sp(title=tr('My Driving Mode'), param='MyDrivingMode', min_value=1, max_value=4, value_change_step=1),
@@ -259,11 +258,11 @@ def build_dev_items():
     # behaviour, so they are grouped here and opt-in.
     section_heading_sp(tr('Navigation Control (advanced)')),
     toggle_item_sp(title=tr('Traffic Congestion Slowdown'), param='CarrotTrafficCongestionEnabled',
-                   description=tr('Fold the phone app traffic congestion report into map-based cruise '
-                                   'control. Only ever lowers the target speed. Needs Smart Cruise '
+                   description=tr('Fold the phone app traffic congestion report into map-based cruise ' +
+                                   'control. Only ever lowers the target speed. Needs Smart Cruise ' +
                                    'Control - Map to be on as well.')),
     toggle_item_sp(title=tr('Lane Guide Blocking'), param='CarrotNavLaneGuideBlockEnabled',
-                   description=tr('Let the phone app guided-lane arrows block lane changes toward '
+                   description=tr('Let the phone app guided-lane arrows block lane changes toward ' +
                                    'non-guided lanes. Only ever adds blocking.')),
 
   ]

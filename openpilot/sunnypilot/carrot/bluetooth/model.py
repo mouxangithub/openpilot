@@ -29,7 +29,7 @@ DEFAULT_MAPPING = {
 }
 MAC_RE = re.compile(r'^(?:[0-9A-F]{2}:){5}[0-9A-F]{2}$')
 TOKEN_RE = re.compile(
-  r'^(?:up|down|left|right|center|1|2|key:[0-9]{1,4}|swipe:[xy][+-]|tap:[0-9]{1,5}:[0-9]{1,5})'
+  r'^(?:up|down|left|right|center|1|2|key:[0-9]{1,4}|swipe:[xy][+-]|tap:[0-9]{1,5}:[0-9]{1,5})' +
   r'(?:@double|@long)?$'
 )
 

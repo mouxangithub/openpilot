@@ -15,7 +15,7 @@ from openpilot.common.realtime import DT_MDL
 from openpilot.selfdrive.locationd.torqued import TorqueEstimator, VERSION, MIN_FILTER_DECAY
 from openpilot.sunnypilot.selfdrive.locationd.torqued_ext import LIVE_TORQUE_PARAMETERS_SP_KEY, LIVE_TORQUE_PARAMETERS_SP_SERVICE
 from openpilot.sunnypilot.selfdrive.locationd.tests.speed_dep_helpers import (
-  SPEED_DEP_FINGERPRINT, NON_SPEED_DEP_FINGERPRINT, FakePubMaster, get_car_bins, make_cp, make_cache, make_cache_sp,
+  SPEED_DEP_FINGERPRINT, NON_SPEED_DEP_FINGERPRINT, FakeParams, FakePubMaster, get_car_bins, make_cp, make_cache, make_cache_sp,
   in_bounds_values, seed_values, assert_untouched, seed_version_of,
 )
 from openpilot.common.test import OpenpilotTestCase
@@ -490,6 +490,6 @@ class TestPointsCacheWrite(OpenpilotTestCase):
     self.fake_params.store["LiveTorqueParameters"] = cache
     self.fake_params.store["CarParamsPrevRoute"] = CP.to_bytes()
     restored = TorqueEstimator(CP)
-    for want, bucket in zip(written, restored.speed_bin_points):
+    for want, bucket in zip(written, restored.speed_bin_points, strict=True):
       got = np.asarray(bucket.get_points()[:, [0, 2]], dtype=float).reshape(-1, 2)
       np.testing.assert_allclose(got, np.asarray(want, dtype=float).reshape(-1, 2), rtol=1e-6)  # one Float32 trip

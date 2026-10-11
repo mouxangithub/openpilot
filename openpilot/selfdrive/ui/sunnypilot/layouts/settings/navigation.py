@@ -10,7 +10,7 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
-from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, button_item_sp, option_item_sp, multiple_button_item_sp
+from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, button_item_sp, option_item_sp
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
@@ -27,8 +27,8 @@ class NavigationLayout(Widget):
   def _initialize_items(self):
     self._osm_map_data_enabled = toggle_item_sp(
       title=tr("Enable OSM Map Data"),
-      description=tr("Use offline OSM map data for speed limits and road names. Turn off "
-                     "to ignore the offline map entirely - useful when navigation is the "
+      description=tr("Use offline OSM map data for speed limits and road names. Turn off " +
+                     "to ignore the offline map entirely - useful when navigation is the " +
                      "source you trust, since the offline data can be out of date."),
       param="OsmMapDataEnabled",
     )
@@ -50,7 +50,7 @@ class NavigationLayout(Widget):
     # whether what it produces is merged into the driving stack (card.py).
     self._carrot_navi_v2_enabled = toggle_item_sp(
       title=tr("Enable Carrot Navi v2 (7714)"),
-      description=tr("Use the 7714 WebSocket v2 rich navigation stream (traffic, lanes, crossroad images). "
+      description=tr("Use the 7714 WebSocket v2 rich navigation stream (traffic, lanes, crossroad images). " +
                      "The 7714 link always runs; this only decides whether its data is used."),
       param="CarrotNaviV2Enabled",
     )
@@ -59,7 +59,7 @@ class NavigationLayout(Widget):
     # synthetic blinker reaches the vehicle's own turn-signal CAN message.
     self._carrot_atc_blinker = toggle_item_sp(
       title=tr("Carrot ATC Turn Signal"),
-      description=tr("Let the Carrot app's turn instruction act as a turn signal. "
+      description=tr("Let the Carrot app's turn instruction act as a turn signal. " +
                      "This reaches the car's real turn signal, so it is off by default."),
       param="CarrotAtcBlinkerEnabled",
     )

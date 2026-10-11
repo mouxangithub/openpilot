@@ -122,7 +122,7 @@ class TestTFollowUserScale(OpenpilotTestCase):
       m = re.search(r'\{"' + key + r'",\s*\{\s*PERSISTENT \| BACKUP,\s*FLOAT,\s*"([\d.]+)"\s*\}\}', keys_src)
       assert m is not None, f"{key} is not registered"
       assert declared.get(personality) == float(m.group(1)), (
-        f"{personality}: T_FOLLOW_DEFAULTS={declared.get(personality)} but {key} defaults to "
+        f"{personality}: T_FOLLOW_DEFAULTS={declared.get(personality)} but {key} defaults to " +
         f"{m.group(1)} - the user scale would not be 1.0 on an untouched device")
 
   def test_scale_is_exactly_one_on_defaults(self) -> None:

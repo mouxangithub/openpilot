@@ -18,9 +18,10 @@ from openpilot.sunnypilot.selfdrive.locationd.torqued_ext import (
   TorqueEstimatorExt,
 )
 from openpilot.sunnypilot.selfdrive.locationd.tests.speed_dep_helpers import (
-  SPEED_DEP_CARS, SPEED_DEP_FINGERPRINT, NON_SPEED_DEP_FINGERPRINT, FakePubMaster, get_car_bins, make_cp,
+  SPEED_DEP_CARS, SPEED_DEP_FINGERPRINT, NON_SPEED_DEP_FINGERPRINT, FakeParams, FakePubMaster, get_car_bins, make_cp,
 )
 from openpilot.common.test import OpenpilotTestCase
+import unittest
 
 
 def _published(est, **kwargs):
@@ -37,7 +38,7 @@ def _make_estimator(CP=None, fake_params=None):
   """Helper to construct a TorqueEstimator with FakeParams routed."""
   if fake_params is None:
     fake_params = FakeParams()
-  with mock.patch.object(TorqueEstimator.__bases__[0].__bases__[0], 'Params', return_value=fake_params) if hasattr(TorqueEstimator.__bases__[0], '__bases__') else None:
+  with mock.patch.object(TorqueEstimator.__bases__[0].__bases__[0], 'Params', return_value=fake_params) if hasattr(TorqueEstimator.__bases__[0], '__bases__') else None:  # noqa: E501
     pass
   # Route Params for both torqued and torqued_ext
   import openpilot.selfdrive.locationd.torqued as torqued_mod
@@ -71,7 +72,7 @@ class TestSpeedDepConfig(OpenpilotTestCase):
     self.assertGreaterEqual(max(all_bounds), 35)
 
   def test_speed_bin_centers_match_bounds(self):
-    for center, (lo, hi) in zip(SPEED_BIN_CENTERS, SPEED_BIN_BOUNDS):
+    for center, (lo, hi) in zip(SPEED_BIN_CENTERS, SPEED_BIN_BOUNDS, strict=True):
       self.assertGreaterEqual(center, lo)
       self.assertLessEqual(center, hi)
 
@@ -453,7 +454,6 @@ class TestFullBinKeepsLearning(OpenpilotTestCase):
     self.assertEqual(est.speed_bin_filtered[0]['latAccelFactor'].x, before)
 
 
-import unittest
 
 
 class TestLegacyFirmwareBins(OpenpilotTestCase):

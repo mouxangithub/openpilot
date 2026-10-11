@@ -9,11 +9,11 @@ import threading
 import time
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Callable
+from collections.abc import Callable
 
 import pyray as rl
 
-from openpilot.system.ui.lib.application import gui_app, MousePos, TextAlignment
+from openpilot.system.ui.lib.application import gui_app, TextAlignment
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.scroll_panel import GuiScrollPanel
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -377,7 +377,6 @@ class CarrotBluetoothLayout(Widget):
     self._http_async('scan')
 
   def _render_main(self, rect: rl.Rectangle, state: BTState, error_text: str, status_text: str) -> None:
-    y = rect.y
 
     # Not installed
     if not state.has_bluez:
@@ -524,7 +523,7 @@ class CarrotBluetoothLayout(Widget):
     the text area so it never swallows clicks meant for the action buttons.
     """
     mouse_pos = rl.get_mouse_position()
-    clicked = rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
+    clicked = rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)  # noqa: TID251
     btn_gap = 16
     can_pair = state.available
 
@@ -700,7 +699,7 @@ class CarrotBluetoothLayout(Widget):
       return
 
     mouse_pos = rl.get_mouse_position()
-    clicked = rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)
+    clicked = rl.is_mouse_button_pressed(rl.MouseButton.MOUSE_BUTTON_LEFT)  # noqa: TID251
     text_x = rect.x + self._padding
 
     # The mapping grid + actions are taller than the panel, so the editor
@@ -896,7 +895,7 @@ class CarrotBluetoothLayout(Widget):
     text_x = name_rect.x + 15
     text_y = name_rect.y + (70 - name_size.y) / 2
     if name_size.x > name_max_w - 30:
-      rl.begin_scissor_mode(int(name_rect.x), int(name_rect.y), int(name_max_w), int(70))
+      rl.begin_scissor_mode(int(name_rect.x), int(name_rect.y), int(name_max_w), 70)
       rl.draw_text_ex(gui_app.font(), name_text, rl.Vector2(text_x, text_y), 40, 0, rl.WHITE)
       rl.end_scissor_mode()
     else:

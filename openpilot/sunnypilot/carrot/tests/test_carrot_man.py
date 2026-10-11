@@ -1031,16 +1031,16 @@ class TestCarrotManager(unittest.TestCase):
   @staticmethod
   def _fake_speed(**kw):
     """A stand-in _NaviSpeedControl carrying only what _apply_carrot_navi_speed reads."""
-    d = dict(
-      road_limit_kph=None, section_active=False, section_speed_limit_kph=0,
-      section_remaining_distance_m=0, sdi_present=False, sdi_type=-1,
-      sdi_speed_limit_kph=0, sdi_distance_m=0, sdi_section_type=-1,
-      sdi_block_type=-1, sdi_block_speed_kph=0, sdi_block_distance_m=0,
-      secondary_sdi_present=False, secondary_sdi_type=-1,
-      secondary_sdi_speed_limit_kph=0, secondary_sdi_distance_m=0,
-      secondary_sdi_section_type=-1, secondary_sdi_block_type=-1,
-      secondary_sdi_block_speed_kph=0, secondary_sdi_block_distance_m=0,
-    )
+    d = {
+      "road_limit_kph": None, "section_active": False, "section_speed_limit_kph": 0,
+      "section_remaining_distance_m": 0, "sdi_present": False, "sdi_type": -1,
+      "sdi_speed_limit_kph": 0, "sdi_distance_m": 0, "sdi_section_type": -1,
+      "sdi_block_type": -1, "sdi_block_speed_kph": 0, "sdi_block_distance_m": 0,
+      "secondary_sdi_present": False, "secondary_sdi_type": -1,
+      "secondary_sdi_speed_limit_kph": 0, "secondary_sdi_distance_m": 0,
+      "secondary_sdi_section_type": -1, "secondary_sdi_block_type": -1,
+      "secondary_sdi_block_speed_kph": 0, "secondary_sdi_block_distance_m": 0,
+    }
     d.update(kw)
     return MagicMock(**d)
 
@@ -1375,7 +1375,6 @@ class TestCarrotManager(unittest.TestCase):
     serv = self.mgr._carrot_serv
     serv.vehicle_speed_camera_control_mode = 1
     serv.vehicle_navi_school_zone_control = True
-    cs = MagicMock(schoolZoneActive=True, gasPressed=False)
     # Start override timer far in the past.
     serv.school_zone_gas_override_started_at = time.monotonic() - 10.0
     serv._update_school_zone_gas_override(True)
@@ -1410,7 +1409,7 @@ class TestCarrotManager(unittest.TestCase):
     serv = self.mgr._carrot_serv
     with patch.object(serv._params, "get_bool", return_value=False), \
          patch("openpilot.sunnypilot.carrot.carrot_serv.subprocess.run") as mock_run:
-      serv._maybe_sync_system_time(int(time.time()) + 600, "Asia/Seoul")
+      serv._maybe_sync_system_time(int(time.time()) + 600, "Asia/Seoul")  # noqa: TID251
     # Default-off: no system clock command may run.
     assert mock_run.call_count == 0
 
@@ -1419,7 +1418,7 @@ class TestCarrotManager(unittest.TestCase):
     with patch.object(serv._params, "get_bool", return_value=True), \
          patch("openpilot.system.hardware.PC", False, create=True), \
          patch("openpilot.sunnypilot.carrot.carrot_serv.subprocess.run") as mock_run:
-      serv._maybe_sync_system_time(int(time.time()) + 30, "Asia/Seoul")
+      serv._maybe_sync_system_time(int(time.time()) + 30, "Asia/Seoul")  # noqa: TID251
     # Within the 60s limited-drift window: no clock change.
     assert mock_run.call_count == 0
 
@@ -1439,7 +1438,7 @@ class TestCarrotManager(unittest.TestCase):
          patch("openpilot.system.hardware.PC", False, create=True), \
          patch.object(serv._params, "put") as mock_put, \
          patch("openpilot.sunnypilot.carrot.carrot_serv.subprocess.run") as mock_run:
-      serv._maybe_sync_system_time(int(time.time()) + 120, "Asia/Seoul")
+      serv._maybe_sync_system_time(int(time.time()) + 120, "Asia/Seoul")  # noqa: TID251
     assert mock_run.call_count >= 1
     put_keys = [c.args[0] for c in mock_put.call_args_list]
     assert "TimezoneName" in put_keys
@@ -1942,7 +1941,6 @@ class TestAtcSpeedReachesSla(unittest.TestCase):
       self.assertIn(name, src, f'{name} was removed; ATC speed cannot reach SLA')
 
   def test_locals_are_no_longer_discarded(self):
-    import re
 
     from openpilot.sunnypilot.carrot.carrot_serv import CarrotServ
 

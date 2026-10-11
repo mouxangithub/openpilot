@@ -152,6 +152,10 @@ exclude = [
 ]
 lint.flake8-implicit-str-concat.allow-multiline = false
 
+# qcomgpsd/structs.py embeds C struct layouts verbatim as triple-quoted strings
+# (dict_unpacker parses them); those lines exceed the line limit by design.
+lint.per-file-ignores = { "openpilot/system/qcomgpsd/structs.py" = ["E501"] }
+
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "time.time".msg = "Use time.monotonic. time.time can skip due to its reference clock, you probably want a monotonic clock"
 "pyray.measure_text_ex".msg = "Use openpilot.system.ui.lib.text_measure"

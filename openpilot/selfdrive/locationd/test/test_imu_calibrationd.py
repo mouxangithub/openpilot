@@ -4,7 +4,7 @@ import time
 import numpy as np
 
 from openpilot.common.test import OpenpilotTestCase
-from openpilot.common.transformations.orientation import euler_from_rot, rot_from_euler, sensor_to_device_frame
+from openpilot.common.transformations.orientation import rot_from_euler, sensor_to_device_frame
 from openpilot.common.transformations.transformations import axis_angle_to_rot
 import openpilot.cereal.messaging as messaging
 from openpilot.selfdrive.locationd.imu_calibrationd import (

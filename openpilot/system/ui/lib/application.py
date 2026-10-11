@@ -883,7 +883,7 @@ class GuiApplication(GuiApplicationExt):
       self.font(weight)
     # Carry forward existing remap + add new entries (weights are stable across switches)
     existing_remap = getattr(self, "_font_remap", {})
-    self._font_remap = dict(existing_remap) | {tid: w for tid, w in old_weight_by_texture.items()}
+    self._font_remap = dict(existing_remap) | dict(old_weight_by_texture.items())
     # Now safe to unload old fonts
     for f in old_fonts:
       rl.unload_font(f)

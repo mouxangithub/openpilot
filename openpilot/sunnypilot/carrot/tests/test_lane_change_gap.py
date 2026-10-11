@@ -12,7 +12,6 @@ Covers ``GapLead.read``, ``LaneChangeGapPlan.credit`` and
 ``CarrotPlanner._update_lane_change_gap`` wiring. Everything is mocked so no
 cereal runtime / zmq / SubMaster is required.
 """
-import math
 import unittest
 from types import SimpleNamespace
 from typing import Any
@@ -22,7 +21,6 @@ import numpy as np
 from openpilot.sunnypilot.carrot.carrot_functions import CarrotPlanner
 from openpilot.sunnypilot.carrot.config import UnifiedParams
 from openpilot.sunnypilot.carrot.radar_motion.lane_change_gap import (
-  CHECK_TIMES,
   GapLead,
   LaneChangeGapPlan,
   LaneChangeGapTracker,
@@ -120,8 +118,8 @@ class _FakeSM:
       "radarState": now_ns,
       "livePose": now_ns,
     }
-    self.valid = {k: valid for k in self._data}
-    self.alive = {k: alive for k in self._data}
+    self.valid = dict.fromkeys(self._data, valid)
+    self.alive = dict.fromkeys(self._data, alive)
 
   def __getitem__(self, key: str) -> Any:
     return self._data[key]

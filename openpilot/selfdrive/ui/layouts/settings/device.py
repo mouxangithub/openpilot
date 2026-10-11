@@ -185,7 +185,7 @@ class DeviceLayout(Widget):
         cloudlog.exception("invalid LiveTorqueParameters")
 
     desc += "<br><br>"
-    desc += tr("sunnypilot is continuously calibrating, resetting is rarely required. "
+    desc += tr("sunnypilot is continuously calibrating, resetting is rarely required. " +
                "Resetting calibration will restart sunnypilot if the car is powered on.")
 
     self._reset_calib_btn.set_description(desc)

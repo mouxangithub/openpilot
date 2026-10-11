@@ -12,7 +12,6 @@ Ported from CarrotPilot's selfdrive/carrot/carrot_man_input.py. The helper
 guards against using a stale or zero-initialized SubMaster value.
 """
 
-import time
 
 
 CARROT_MAN_TIMEOUT = 1.0

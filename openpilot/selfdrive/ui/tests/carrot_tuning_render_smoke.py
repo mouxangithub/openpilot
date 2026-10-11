@@ -357,11 +357,11 @@ def install_stubs() -> None:
 def main() -> int:
   install_stubs()
 
-  from openpilot.selfdrive.ui.sunnypilot.layouts.settings.carrot_tuning import (  # noqa: E402
+  from openpilot.selfdrive.ui.sunnypilot.layouts.settings.carrot_tuning import (
     CARROT_GROUPS, CarrotGroupKey, CarrotTuningLayout,
   )
-  from openpilot.system.ui.sunnypilot.lib.styles import style  # noqa: E402
-  from openpilot.system.ui.sunnypilot.widgets.list_view import LineSeparatorSP  # noqa: E402
+  from openpilot.system.ui.sunnypilot.lib.styles import style
+  from openpilot.system.ui.sunnypilot.widgets.list_view import LineSeparatorSP
 
   failures: list[str] = []
   checks = 0
@@ -372,7 +372,7 @@ def main() -> int:
     try:
       fn()
       print(f"  ok  {label}")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
       failures.append(f"{label}: {type(exc).__name__}: {exc}")
       print(f"  FAIL {label}: {type(exc).__name__}: {exc}")
 
@@ -431,7 +431,6 @@ def main() -> int:
 
       page = root._group_layouts[key]
       items = page._scroller._items
-      dividers = [i for i in items if isinstance(i, LineSeparatorSP)]
       settings = [i for i in items if not isinstance(i, LineSeparatorSP)]
       assert settings, "group page has no settings items"
       assert not isinstance(items[0], LineSeparatorSP), "page must not start with a divider"
@@ -454,8 +453,8 @@ def main() -> int:
   print("== typography ==")
   # Every size must come from a shared sunnypilot token. This is the assertion
   # that catches the previous design's drift (24px tab labels among 40/50px rows).
-  from openpilot.system.ui.widgets.list_view import BUTTON_FONT_SIZE  # noqa: E402
-  from openpilot.system.ui.sunnypilot.widgets.option_control import (  # noqa: E402
+  from openpilot.system.ui.widgets.list_view import BUTTON_FONT_SIZE
+  from openpilot.system.ui.sunnypilot.widgets.option_control import (
     BUTTON_FONT_SIZE as OPTION_BUTTON_FONT_SIZE,
   )
   allowed_sizes = {
@@ -469,13 +468,13 @@ def main() -> int:
     sizes = {}
     root.show_event()
     root.render(content)
-    for font_id, text, _x, _y, size in DRAWN:
+    for _font_id, text, _x, _y, size in DRAWN:
       sizes.setdefault(int(size), set()).add(text[:24])
     for key in CarrotGroupKey:
       root._set_current_group(key)
       DRAWN.clear()
       root.render(content)
-      for font_id, text, _x, _y, size in DRAWN:
+      for _font_id, text, _x, _y, size in DRAWN:
         sizes.setdefault(int(size), set()).add(text[:24])
     root._set_current_group(None)
     return sizes
@@ -499,7 +498,7 @@ def main() -> int:
   # the wrong reason.
   print("== input handling ==")
 
-  from openpilot.system.ui.lib.application import gui_app  # noqa: E402
+  from openpilot.system.ui.lib.application import gui_app
   Event = namedtuple("Event", "pos slot left_pressed left_released left_down t")
 
   def frame(events):

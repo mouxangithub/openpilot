@@ -25,7 +25,7 @@ import uuid
 
 from openpilot.cereal import messaging
 from openpilot.sunnypilot.carrot.bluetooth.model import (
-  RUNTIME, ACTIONS, BLUETOOTH_CANCEL, CommandWriter, Decoder,
+  RUNTIME, CommandWriter, Decoder,
   AddressValidator, atomic_json, config, read_json,
 )
 

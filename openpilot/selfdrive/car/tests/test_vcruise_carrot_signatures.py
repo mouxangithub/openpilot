@@ -62,15 +62,15 @@ def test_vcruise_carrot_overrides_accept_the_card_call_site():
 
     base_mandatory, base_total = _arg_bounds(base[name])
     assert base_mandatory <= call_args <= base_total, (
-      f'VCruiseHelper.{name} cannot accept {call_args} positional args '
+      f'VCruiseHelper.{name} cannot accept {call_args} positional args ' +
       f'(mandatory={base_mandatory}, total={base_total})'
     )
 
     mandatory, total = _arg_bounds(overrides[name])
     assert mandatory <= call_args <= total, (
-      f'VCruiseCarrot.{name} narrows the base signature: cannot accept '
-      f'{call_args} positional args (mandatory={mandatory}, total={total}). '
-      f'card.py calls it polymorphically, so this raises TypeError on engage.'
+      f'VCruiseCarrot.{name} narrows the base signature: cannot accept ' +
+      f'{call_args} positional args (mandatory={mandatory}, total={total}). ' +
+      'card.py calls it polymorphically, so this raises TypeError on engage.'
     )
 
 

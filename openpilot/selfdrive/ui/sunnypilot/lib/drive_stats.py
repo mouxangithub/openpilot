@@ -92,7 +92,7 @@ def compute_local_drive_stats(log_root: str | None = None, cache: dict | None = 
   seen_routes: dict[str, set[str]] = {"all": set(), "week": set()}
 
   if not os.path.isdir(log_root):
-    return {"all": buckets["all"], "week": buckets["week"], "segments": segment_cache, "updated_at": time.time()}
+    return {"all": buckets["all"], "week": buckets["week"], "segments": segment_cache, "updated_at": time.time()}  # noqa: TID251
 
   route_segments: dict[str, list[str]] = {}
   active_segments: set[str] = set()
@@ -140,7 +140,7 @@ def compute_local_drive_stats(log_root: str | None = None, cache: dict | None = 
     "all": buckets["all"],
     "week": buckets["week"],
     "segments": segment_cache,
-    "updated_at": time.time(),
+    "updated_at": time.time(),  # noqa: TID251
   }
 
 

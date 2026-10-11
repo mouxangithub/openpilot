@@ -15,8 +15,8 @@ socks = {name: messaging.sub_sock(topic, conflate=False) for name, topic in stre
 print("Subscribed to", list(streams.values()))
 
 deadline = time.monotonic() + 10.0
-seen = {name: 0 for name in streams}
-last = {name: None for name in streams}
+seen = dict.fromkeys(streams, 0)
+last = dict.fromkeys(streams)
 
 while time.monotonic() < deadline:
   for name, sock in socks.items():

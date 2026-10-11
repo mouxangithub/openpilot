@@ -178,11 +178,13 @@ class PoseCalibrator:
     self._imu_source_last_ts: float | None = None
 
   def feed_extrinsics_calibration(self, extrinsics_calibration: log.ExtrinsicsCalibration):
+    # the IMU stickiness decays: see the __init__ block above. Turning ImuCalibrationEnabled
+    # off swaps the publisher back to calibrationd (rpyCalib frames only), and a permanent
+    # latch would freeze calib_from_device on the stale IMU matrix and keep calib_valid
+    # false for the rest of the drive
     if self._imu_source_last_ts is not None and time.monotonic() - self._imu_source_last_ts > IMU_SOURCE_HOLD_S:
       self._imu_source_seen = False
       self._imu_source_last_ts = None
-
-  def feed_extrinsics_calibration(self, extrinsics_calibration: log.ExtrinsicsCalibration):
     if len(extrinsics_calibration.imuCalibMatrix) == 9:
       self._imu_source_seen = True
       self._imu_source_last_ts = time.monotonic()

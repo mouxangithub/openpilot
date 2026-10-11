@@ -49,7 +49,7 @@ class FakeSM(dict):
   def __init__(self, data: dict):
     super().__init__(data)
     # Default every present service to a fresh timestamp (1 ms).
-    self.logMonoTime = {k: 1_000_000 for k in data}
+    self.logMonoTime = dict.fromkeys(data, 1000000)
 
 
 def _make_carrot(x_state: XState = XState.cruise, v_cruise: float = 30.0,

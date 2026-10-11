@@ -16,7 +16,7 @@ import time
 from typing import Any
 
 from openpilot.common.params import Params
-from openpilot.common.realtime import Ratekeeper, config_realtime_process, set_core_affinity
+from openpilot.common.realtime import Ratekeeper, set_core_affinity
 from openpilot.common.swaglog import cloudlog
 import openpilot.cereal.messaging as messaging
 
@@ -1219,7 +1219,7 @@ class CarrotManager:
       "points": [],
       "tracks": [],
       "leads": [],
-      "timestamp": time.time(),
+      "timestamp": time.time(),  # noqa: TID251
     }
 
     try:
@@ -1442,7 +1442,7 @@ class CarrotManager:
           cloudlog.error(f"carrot_man: broadcast loop error: {e}")
           import time
           time.sleep(1)
-    except Exception as e:
+    except Exception:
       cloudlog.exception("carrot_man: broadcast thread error")
     finally:
       self._is_running = False
@@ -1819,7 +1819,7 @@ class CarrotManager:
             }, ensure_ascii=False)
             socket.send(echo.encode())
 
-        except Exception as e:
+        except Exception:
           cloudlog.exception("carrot_man: ZMQ error")
           try:
             socket.close()
@@ -1844,7 +1844,6 @@ class CarrotManager:
 
   def carrot_route(self) -> None:
     """Navigation route TCP server for phone app."""
-    import json
     import struct
 
     host = '0.0.0.0'
@@ -1907,7 +1906,7 @@ class CarrotManager:
             cloudlog.error(f"carrot_man: route connection error: {e}")
             continue
 
-    except Exception as e:
+    except Exception:
       cloudlog.exception("carrot_man: route server error")
     finally:
       self._route_running = False
@@ -2819,7 +2818,7 @@ class CarrotManager:
         while self._navi_tcp_running:
           try:
             conn, addr = server.accept()
-          except socket.timeout:
+          except TimeoutError:
             continue
           self._remote_addr = f"{addr[0]}:{addr[1]}"
           cloudlog.info(f"carrot_man: navi TCP connection from {self._remote_addr}")
@@ -2847,7 +2846,7 @@ class CarrotManager:
             except Exception:
               pass
             self._remote_addr = ""
-      except Exception as e:
+      except Exception:
         cloudlog.exception("carrot_man: navi TCP server error")
       finally:
         if server is not None:
@@ -2914,7 +2913,7 @@ class CarrotManager:
 
         while self._navi_http_running:
           loop.run_until_complete(asyncio.sleep(1))
-      except Exception as e:
+      except Exception:
         cloudlog.exception("carrot_man: navi HTTP server error")
       finally:
         try:
@@ -3058,7 +3057,7 @@ class CarrotManager:
               break
 
           time.sleep(1)
-      except Exception as e:
+      except Exception:
         cloudlog.exception("carrot_man: kisa thread error")
         time.sleep(2)
       finally:
@@ -3082,7 +3081,7 @@ class CarrotManager:
               subprocess.run([debug_script], shell=True, timeout=30)
             else:
               cloudlog.debug("carrot_man: debug_console_carrot.py not found, skipping")
-          except Exception as e:
+          except Exception:
             cloudlog.exception("carrot_man: debug_console error")
             time.sleep(2)
         else:
@@ -3210,7 +3209,7 @@ def _thread_excepthook(args):
   # root cause so the next "exits after CP navigation" report produces a real
   # traceback instead of silence.
   cloudlog.error(
-    f"carrot_man: unhandled exception in thread {args.thread.name!r}: "
+    f"carrot_man: unhandled exception in thread {args.thread.name!r}: " +
     f"{''.join(args.exc_traceback) if args.exc_traceback else args.exc_value}"
   )
 

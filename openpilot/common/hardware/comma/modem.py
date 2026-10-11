@@ -68,19 +68,18 @@ def query_imei_at_port() -> str:
   """Read IMEI directly from the modem AT port (no SIM / ModemManager required)."""
   if not os.path.exists(AT_PORT):
     return ""
-  fd = os.open(AT_LOCK, os.O_CREAT | os.O_RDWR, 0o666)
+  fd_lock = os.open(AT_LOCK, os.O_CREAT | os.O_RDWR, 0o666)
   try:
-    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    fcntl.flock(fd_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
   except OSError:
-    os.close(fd)
+    os.close(fd_lock)
     return ""
   try:
-    with Serial(AT_PORT, baudrate=9600, timeout=5) as ser:
-      ser.reset_input_buffer()
-      ser.write(b"AT+CGSN\r")
+    with _serial_port(AT_PORT, 9600) as serial_fd:
+      os.write(serial_fd, b"AT+CGSN\r")
       lines: list[str] = []
       while True:
-        raw = ser.readline()
+        raw = _read_line(serial_fd, 5)
         if not raw:
           break
         line = raw.decode(errors="ignore").strip()
@@ -95,8 +94,8 @@ def query_imei_at_port() -> str:
   except (OSError, TimeoutError):
     return ""
   finally:
-    fcntl.flock(fd, fcntl.LOCK_UN)
-    os.close(fd)
+    fcntl.flock(fd_lock, fcntl.LOCK_UN)
+    os.close(fd_lock)
 
 PPPD_CMD = [
   "sudo", "pppd", PPP_PORT, "460800", "noauth", "nodetach", "noipdefault", "usepeerdns",

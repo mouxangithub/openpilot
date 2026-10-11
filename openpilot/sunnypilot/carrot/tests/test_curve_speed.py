@@ -24,7 +24,6 @@ separate this envelope from a bare v = sqrt(a_lat / kappa) lookup:
 import math
 import unittest
 
-import numpy as np
 
 from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.sunnypilot.carrot.curve_speed import (
@@ -193,7 +192,8 @@ class TestNoLimitSentinel(unittest.TestCase):
     self.assertEqual(d.distance, 0.0)
 
   def test_frozen(self):
-    with self.assertRaises(Exception):
+    from dataclasses import FrozenInstanceError
+    with self.assertRaises(FrozenInstanceError):
       CurveSpeed().approach_kph = 1.0
 
 

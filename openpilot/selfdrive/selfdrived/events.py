@@ -15,7 +15,6 @@ from openpilot.common.dm import is_dm_disabled
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EventsBase, Priority, ET, Alert, \
   NoEntryAlert, SoftDisableAlert, UserSoftDisableAlert, ImmediateDisableAlert, EngagementAlert, NormalPermanentAlert, \
   StartupAlert, AlertCallbackType, wrong_car_mode_alert
-from openpilot.system.ui.lib.multilang import tr, tr_noop
 
 
 AlertSize = log.SelfdriveState.AlertSize
@@ -108,10 +107,9 @@ def too_distracted_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubM
 
 
 def audio_feedback_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
-  duration = FEEDBACK_MAX_DURATION - ((sm['audioFeedback'].blockNum + 1) * SAMPLE_BUFFER / SAMPLE_RATE)
   return NormalPermanentAlert(
     "正在录制音频反馈",
-    f"剩余 {round(duration)} 秒。再次按下可提前保存。",
+    "剩余 30 秒。再次按下可提前保存。",
     priority=Priority.LOW)
 
 

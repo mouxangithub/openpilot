@@ -45,18 +45,18 @@ from openpilot.sunnypilot.carrot.traffic_stop import (
 
 class TestTrafficStopModelLeadMatcher(unittest.TestCase):
   def _valid_kwargs(self, **overrides):
-    kw = dict(
-      stop_active=True,
-      allow_confirmation=True,
-      active_lead=False,
-      stop_distance=10.0,
-      lead_probability=0.99,
-      lead_distance=12.0,        # ~2 m behind the stop point (12 - 10)
-      lead_velocity=0.0,
-      lead_x_std=0.5,
-      lead_y_std=0.1,
-      lead_v_std=0.1,
-    )
+    kw = {
+      "stop_active": True,
+      "allow_confirmation": True,
+      "active_lead": False,
+      "stop_distance": 10.0,
+      "lead_probability": 0.99,
+      "lead_distance": 12.0,        # ~2 m behind the stop point (12 - 10)
+      "lead_velocity": 0.0,
+      "lead_x_std": 0.5,
+      "lead_y_std": 0.1,
+      "lead_v_std": 0.1,
+    }
     kw.update(overrides)
     return kw
 
@@ -78,7 +78,7 @@ class TestTrafficStopModelLeadMatcher(unittest.TestCase):
 
   def test_confirmation_disabled_clears_pending(self):
     m = TrafficStopModelLeadMatcher()
-    m.update(**self._valid_kwargs(allow_confirmation=False)) == 0.0
+    m.update(**self._valid_kwargs(allow_confirmation=False))
     # A later valid frame must still start from scratch (pending was cleared).
     for _ in range(MODEL_LEAD_STOP_CONFIRM_FRAMES - 1):
       m.update(**self._valid_kwargs())
@@ -92,7 +92,7 @@ class TestTrafficStopModelLeadMatcher(unittest.TestCase):
 
   def test_requires_confirm_frames_then_locks_offset(self):
     m = TrafficStopModelLeadMatcher()
-    for i in range(MODEL_LEAD_STOP_CONFIRM_FRAMES - 1):
+    for _i in range(MODEL_LEAD_STOP_CONFIRM_FRAMES - 1):
       assert m.update(**self._valid_kwargs()) == 0.0
     # Final confirming frame returns the offset and locks it in.
     assert m.update(**self._valid_kwargs()) == MODEL_LEAD_STOP_OFFSET_M
@@ -261,8 +261,8 @@ class _FakeSM:
 
   def __init__(self, data):
     self._data = data
-    self.valid = {k: True for k in data}
-    self.alive = {k: True for k in data}
+    self.valid = dict.fromkeys(data, True)
+    self.alive = dict.fromkeys(data, True)
     self.logMonoTime = {"modelV2": 0, "radarState": 0, "livePose": 0, "carState": 0}
 
   def __getitem__(self, key):

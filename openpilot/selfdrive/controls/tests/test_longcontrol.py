@@ -4,6 +4,7 @@ from openpilot.common.test import OpenpilotTestCase
 from openpilot.cereal import custom
 from openpilot.selfdrive.controls.lib.drive_helpers import STOPPING_SPEED, should_stop
 from openpilot.selfdrive.controls.lib.longcontrol import LongControl, STOPPING_DECEL_RATE, LongCtrlState, long_control_state_trans
+from openpilot.sunnypilot.selfdrive.controls.lib.longcontrol import LongControlSP
 from openpilot.sunnypilot.selfdrive.controls.lib.stopping_controller import StoppingController
 
 
@@ -196,7 +197,8 @@ class TestTerminalStop(OpenpilotTestCase):
     # a sustained go leaves the hold after the debounce
     n = 0
     while LoC.long_control_state == LongCtrlState.stopping and n < 100:
-      update_long_control(LoC, StopC, True, still, 1.2, False, (-3.5, 1.5), has_lead=True); n += 1
+      update_long_control(LoC, StopC, True, still, 1.2, False, (-3.5, 1.5), has_lead=True)
+      n += 1
     assert abs(n * DT_CTRL - StoppingController.STOPPING_EXIT_DEBOUNCE) < 0.03, n
 
   def test_terminal_support_is_soft_and_rate_limited(self):

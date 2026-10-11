@@ -3,7 +3,7 @@ import math
 
 import pyray as rl
 
-from openpilot.cereal import custom, log
+from openpilot.cereal import custom
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigParamControl

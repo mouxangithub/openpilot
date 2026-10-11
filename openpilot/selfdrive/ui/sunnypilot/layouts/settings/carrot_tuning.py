@@ -160,7 +160,7 @@ class CarrotTuningLayout(Widget):
 
     self._carrot_web_enabled = toggle_item_sp(
       title=tr("Carrot Web Panel"),
-      description=tr("Serve the carrot tuning page (/nav_params) and four-corner radar "
+      description=tr("Serve the carrot tuning page (/nav_params) and four-corner radar " +
                       "visualisation (/radar) on port 8088."),
       param="CarrotWebEnabled",
     )

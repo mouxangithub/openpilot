@@ -121,8 +121,8 @@ def _migrate_carrot_stop_distance(_params):
       if legacy_cm > 0 and legacy_cm != 600:
         metres = legacy_cm / 100.0
         _params.put("LongitudinalMpcTuningStopDistance", metres, block=True)
-        cloudlog.info("params_migration: merged StopDistanceCarrot=%dcm into "
-                      "LongitudinalMpcTuningStopDistance=%sm" % (legacy_cm, metres))
+        cloudlog.info(f"params_migration: merged StopDistanceCarrot={legacy_cm}cm into " +
+                f"LongitudinalMpcTuningStopDistance={metres}m")
       else:
         cloudlog.info("params_migration: StopDistanceCarrot was at its default; nothing to merge.")
       _params.remove("StopDistanceCarrot")
@@ -146,8 +146,8 @@ def _migrate_carrot_udp_port(_params):
 
     legacy = _params.get("CarrotManUdpPort")
     if legacy is not None:
-      cloudlog.info("params_migration: clearing retired CarrotManUdpPort=%s; the listen "
-                    "port is now the fixed 7706 constant" % (legacy,))
+      cloudlog.info(f"params_migration: clearing retired CarrotManUdpPort={legacy}; the listen " +
+                "port is now the fixed 7706 constant")
       _params.remove("CarrotManUdpPort")
 
     _params.put("CarrotUdpPortMigrated", CARROT_UDP_PORT_MIGRATION_VERSION, block=True)

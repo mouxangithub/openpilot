@@ -605,7 +605,7 @@ class CarrotServ:
     if not (self._TIME_SYNC_MIN_YEAR <= target_year <= self._TIME_SYNC_MAX_YEAR):
       cloudlog.warning(f"carrot_serv: refusing time sync, year {target_year} out of range")
       return
-    now_epoch = int(time.time())
+    now_epoch = int(time.time())  # noqa: TID251
     offset = epoch_time - now_epoch
     if abs(offset) <= 60:
       return
@@ -899,7 +899,7 @@ class CarrotServ:
     """
     self.map_traffic_state = max(0, _safe_int(state, 0))
     self.map_traffic_countdown = max(0, _safe_int(countdown, 0))
-    self.map_traffic_time = time.time()
+    self.map_traffic_time = time.time()  # noqa: TID251
     # Immediately update the published state while fresh.
     self._traffic_state = self.map_traffic_state
 
@@ -1406,7 +1406,7 @@ class CarrotServ:
     """Incremental traffic-light detection: accumulate confidence per color."""
     traffic_red = traffic_green = traffic_left = 0.0
     traffic_red_trig = traffic_green_trig = traffic_left_trig = 0.0
-    for px, py, pcolor, pcnf in self._traffic_light_q:
+    for px, py, pcolor, _pcnf in self._traffic_light_q:
       if abs(x - px) < 0.2 and abs(y - py) < 0.2:
         if pcolor in ("Green Light", "Left turn"):
           if color in ("Red Light", "Yellow Light"):
@@ -1502,7 +1502,6 @@ class CarrotServ:
     atc_dist = float(mapping["dist"])
     atc_start_dist = float(mapping["start"])
     atc_type_org = atc_type
-    atc_speed_org = atc_speed
 
     if x_dist_to_turn > atc_start_dist:
       atc_type += " prepare"
@@ -1910,7 +1909,7 @@ class CarrotServ:
 
     # Traffic light state machine.
     self._update_cmd()
-    if self.map_traffic_state > 0 and time.time() - self.map_traffic_time < 5.0:
+    if self.map_traffic_state > 0 and time.time() - self.map_traffic_time < 5.0:  # noqa: TID251
       self._traffic_state = self.map_traffic_state
 
     # Store navi path for the publisher.

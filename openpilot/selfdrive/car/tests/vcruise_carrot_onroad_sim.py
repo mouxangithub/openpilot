@@ -178,7 +178,7 @@ _events_mod.EventsSP = _EventsSP
 _events_mod.EventNameSP = types.SimpleNamespace()
 sys.modules['openpilot.sunnypilot.selfdrive.selfdrived.events'] = _events_mod
 
-from openpilot.selfdrive.car.cruise import VCruiseCarrot, ButtonType, GearShifter  # noqa: E402
+from openpilot.selfdrive.car.cruise import VCruiseCarrot, ButtonType, GearShifter
 
 # NO capnp.load() in this process, by design.
 #
@@ -202,7 +202,7 @@ def step(name, fn):
   global PASS, FAIL
   try:
     fn()
-  except Exception as e:  # noqa: BLE001
+  except Exception as e:
     FAIL += 1
     print(f'  FAIL  {name}: {type(e).__name__}: {e}')
   else:

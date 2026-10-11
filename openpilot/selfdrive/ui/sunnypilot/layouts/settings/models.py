@@ -113,8 +113,8 @@ class ModelsLayout(Widget):
                                                             f" {tr('km/h') if ui_state.is_metric else tr('mph')}")
 
     self.lane_turn_desire_toggle = toggle_item_sp(tr("Use Lane Turn Desires"),
-                                                  tr("If you're driving at 20 mph (32 km/h) or below and have your blinker on, "
-                                                     "the car will plan a turn in that direction at the nearest drivable path. "
+                                                  tr("If you're driving at 20 mph (32 km/h) or below and have your blinker on, " +
+                                                     "the car will plan a turn in that direction at the nearest drivable path. " +
                                                      "This prevents situations (like at red lights) where the car might plan the wrong turn direction."),
                                                   param="LaneTurnDesire")
 
@@ -162,7 +162,7 @@ class ModelsLayout(Widget):
       self.accelerator_link_item.set_description(self._link_description(status))
 
   def _update_lagd_description(self, lagd_toggle: bool):
-    desc = tr("Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. "
+    desc = tr("Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. " +
               "Keeping this on provides the stock openpilot experience.")
     if lagd_toggle:
       desc += f"<br>{tr('Live Steer Delay:')} {ui_state.sm['lateralDelay'].lateralDelay:.3f} s"

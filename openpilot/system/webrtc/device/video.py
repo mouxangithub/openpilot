@@ -122,8 +122,8 @@ class LiveStreamVideoStreamTrack(TiciVideoStreamTrack):
     encode_data = getattr(msg, msg.which())
     is_keyframe = bool(encode_data.idx.flags & V4L2_BUF_FLAG_KEYFRAME)
     cloudlog.warning(
-      f"LiveStreamVideoStreamTrack: sending frame camera={self._camera_type} "
-      f"pts={self._pts} keyframe={is_keyframe} data_len={len(encode_data.data)} "
+      f"LiveStreamVideoStreamTrack: sending frame camera={self._camera_type} " +
+      f"pts={self._pts} keyframe={is_keyframe} data_len={len(encode_data.data)} " +
       f"header_len={len(encode_data.header)} width={encode_data.width} height={encode_data.height}"
     )
 

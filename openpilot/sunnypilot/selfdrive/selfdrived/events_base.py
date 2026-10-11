@@ -8,7 +8,6 @@ from opendbc.car.structs import car
 import openpilot.cereal.messaging as messaging
 from openpilot.common.realtime import DT_CTRL
 from openpilot.common.hardware import HARDWARE
-from openpilot.system.ui.lib.multilang import tr_noop
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus

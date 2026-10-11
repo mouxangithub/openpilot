@@ -24,7 +24,6 @@ from __future__ import annotations
 import sys
 import types
 from pathlib import Path
-from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -250,13 +249,13 @@ def main() -> int:
     try:
       fn()
       print(f"  ok  {label}")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
       failures.append(f"{label}: {type(exc).__name__}: {exc}")
       print(f"  FAIL {label}: {type(exc).__name__}: {exc}")
 
   # === 渲染核空状态渲染不崩（方案X） ===
   _store = install_stubs({})
-  from openpilot.sunnypilot.carrot.cluster_view.cluster_overlay_renderer import (  # noqa: E402
+  from openpilot.sunnypilot.carrot.cluster_view.cluster_overlay_renderer import (
     ClusterOverlayRenderer, ClusterOverlayState,
   )
 
@@ -274,7 +273,7 @@ def main() -> int:
   check("renderer renders an empty state to a target", renderer_empty_state_ok)
 
   # === ClusterOverlay：ClusterHud=false 不可见/不画 ===
-  from openpilot.sunnypilot.carrot.cluster_view.cluster_overlay import ClusterOverlay  # noqa: E402
+  from openpilot.sunnypilot.carrot.cluster_view.cluster_overlay import ClusterOverlay
 
   def overlay_hidden_when_disabled():
     _store.clear()

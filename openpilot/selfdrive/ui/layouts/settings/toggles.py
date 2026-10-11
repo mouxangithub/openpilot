@@ -22,13 +22,13 @@ PERSONALITY_TO_INT = log.LongitudinalPersonality.schema.enumerants
 # Description constants
 DESCRIPTIONS = {
   "OpenpilotEnabledToggle": tr_noop(
-    "Use the sunnypilot system for adaptive cruise control and lane keep driver assistance. "
+    "Use the sunnypilot system for adaptive cruise control and lane keep driver assistance. " +
     "Your attention is required at all times to use this feature."
   ),
   "DisengageOnAccelerator": tr_noop("When enabled, pressing the accelerator pedal will disengage sunnypilot."),
   "LongitudinalPersonality": tr_noop(
-    "Standard is recommended. In aggressive mode, sunnypilot will follow lead cars closer and be more aggressive with the gas and brake. "
-    "In relaxed mode sunnypilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with "
+    "Standard is recommended. In aggressive mode, sunnypilot will follow lead cars closer and be more aggressive with the gas and brake. " +
+    "In relaxed mode sunnypilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with " +
     "your steering wheel distance button."
   ),
   "AccelPersonalityEnabled": tr_noop(
@@ -38,14 +38,14 @@ DESCRIPTIONS = {
     "Eco is gentlest, Normal balances a prompt start with smooth catch-up, and Sport is more responsive."
   ),
   "IsLdwEnabled": tr_noop(
-    "Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line "
+    "Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line " +
     "without a turn signal activated while driving over 31 mph (50 km/h)."
   ),
   "AlwaysOnDM": tr_noop("The driver monitoring system can be toggled on/off, but long-term activation is recommended"),
   "DistractionDetectionLevel": tr_noop(
-    "Set how sensitive the driver distraction detection should be. "
-    "Strict: Very sensitive, warns on minor distractions. "
-    "Moderate: Balanced between sensitivity and false positives. "
+    "Set how sensitive the driver distraction detection should be. " +
+    "Strict: Very sensitive, warns on minor distractions. " +
+    "Moderate: Balanced between sensitivity and false positives. " +
     "Lenient: Only alerts on clear distractions. "
   ),
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
@@ -223,14 +223,14 @@ class TogglesLayout(Widget):
     accel_controller_enabled = self._params.get_bool("AccelPersonalityEnabled")
 
     e2e_description = tr(
-      "sunnypilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. "
-      "Experimental features are listed below:<br>"
-      "<h4>End-to-End Longitudinal Control</h4><br>"
-      "Let the driving model control the gas and brakes. sunnypilot will drive as it thinks a human would, including stopping for red lights and stop signs. "
-      "Since the driving model decides the speed to drive, the set speed will only act as an upper bound. This is an alpha quality feature; "
-      "mistakes should be expected.<br>"
-      "<h4>New Driving Visualization</h4><br>"
-      "The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. "
+      "sunnypilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. " +
+      "Experimental features are listed below:<br>" +
+      "<h4>End-to-End Longitudinal Control</h4><br>" +
+      "Let the driving model control the gas and brakes. sunnypilot will drive as it thinks a human would, including stopping for red lights and stop signs. " +
+      "Since the driving model decides the speed to drive, the set speed will only act as an upper bound. This is an alpha quality feature; " +
+      "mistakes should be expected.<br>" +
+      "<h4>New Driving Visualization</h4><br>" +
+      "The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. " +
       "The Experimental mode logo will also be shown in the top right corner."
     )
 
@@ -255,7 +255,7 @@ class TogglesLayout(Widget):
         long_desc = unavailable + " " + tr("sunnypilot longitudinal control may come in a future update.")
         if ui_state.CP.alphaLongitudinalAvailable:
           if self._is_release:
-            long_desc = unavailable + " " + tr("An alpha version of sunnypilot longitudinal control can be tested, along with "
+            long_desc = unavailable + " " + tr("An alpha version of sunnypilot longitudinal control can be tested, along with " +
                                                "Experimental mode, on non-release branches.")
           else:
             long_desc = tr("Enable the sunnypilot longitudinal control (alpha) toggle to allow Experimental mode.")

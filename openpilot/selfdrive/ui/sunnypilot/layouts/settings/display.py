@@ -61,8 +61,8 @@ class DisplayLayout(Widget):
     self._interactivity_timeout = option_item_sp(
       param="InteractivityTimeout",
       title=lambda: tr("Interactivity Timeout"),
-      description=lambda: tr("Apply a custom timeout for settings UI."
-                             "<br>This is the time after which settings UI closes automatically "
+      description=lambda: tr("Apply a custom timeout for settings UI." +
+                             "<br>This is the time after which settings UI closes automatically " +
                              "if user is not interacting with the screen."),
       min_value=0,
       max_value=120,

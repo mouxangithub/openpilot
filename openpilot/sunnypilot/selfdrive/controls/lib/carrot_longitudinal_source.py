@@ -78,11 +78,6 @@ class CarrotLongitudinalSource:
     return self.carrot.x_state in (XState.e2eStop, XState.e2eStopped)
 
   @property
-  def stop_dist(self) -> float:
-    """Remaining distance to the planned stop, in meters."""
-    return float(self.carrot.stop_distance)
-
-  @property
   def t_follow(self) -> float:
     """Dynamic following-time gap requested by the planner (s)."""
     return float(self.carrot.get_T_FOLLOW())

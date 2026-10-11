@@ -126,7 +126,7 @@ class TestPcmOwnedSetSpeed(unittest.TestCase):
     helper.update_v_cruise(cs, True, True, _make_sm(), SimpleNamespace())  # consumes the available edge
     helper.update_v_cruise(cs, True, True, _make_sm(), SimpleNamespace())
     self.assertAlmostEqual(helper.v_cruise_kph, 40.0, places=1,
-                           msg="carrot's own state machine must stay authoritative for brands "
+                           msg="carrot's own state machine must stay authoritative for brands " +
                                "whose button events openpilot receives")
 
   def test_missing_pcm_set_speed_does_not_zero_the_target(self):

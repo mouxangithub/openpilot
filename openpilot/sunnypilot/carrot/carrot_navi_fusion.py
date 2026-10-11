@@ -5,7 +5,6 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-from opendbc.car.structs import car
 
 
 # Index offsets relative to the 1-based currentLane index reported by the

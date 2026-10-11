@@ -13,7 +13,6 @@ capnp runtime. The core ``fuse`` method is exercised with primitive inputs and
 """
 from types import SimpleNamespace
 
-import numpy as np
 from openpilot.common.test import OpenpilotTestCase
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode
 

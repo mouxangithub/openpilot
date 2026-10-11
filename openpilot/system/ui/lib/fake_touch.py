@@ -14,7 +14,7 @@ import time
 try:
   from evdev import UInput, AbsInfo, ecodes as e
 except ImportError:
-  logging.error("fake_touch: evdev not installed")
+  logging.exception("fake_touch: evdev not installed")
   raise
 
 

@@ -218,7 +218,6 @@ class EgpuPanelWidget(Widget):
       lines.append(current)
 
     line_height = font_size + 8
-    total_h = len(lines) * line_height
     start_y = y
     for i, line in enumerate(lines):
       size = measure_text_cached(font, line, font_size)

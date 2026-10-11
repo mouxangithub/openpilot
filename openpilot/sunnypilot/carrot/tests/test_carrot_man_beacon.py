@@ -63,7 +63,7 @@ class TestBeaconProcessGate(unittest.TestCase):
     self.assertIsNotNone(match, "carrot_man PythonProcess entry not found")
     self.assertEqual(
       match.group(1), "always_run",
-      "carrot_man must use always_run: it is the only 7705 discovery advertiser on this fork, "
+      "carrot_man must use always_run: it is the only 7705 discovery advertiser on this fork, " +
       "and the app cannot enable anything until it has found the unit. CarrotEnabled defaults to off.")
 
 
@@ -89,28 +89,28 @@ class TestCarrotProcessFleetIsUngated(unittest.TestCase):
     args = self._process_args("carrot_navi")
     self.assertTrue(
       args.startswith("always_run"),
-      f"carrot_navi must use always_run (CarrotPilot: 'carrot_navi permanently owns TCP 7714'), "
-      f"got {args!r}. Whether its stream reaches the driving stack is the CarrotNaviV2Enabled "
-      f"behaviour switch in card.py, not a process gate.")
+      "carrot_navi must use always_run (CarrotPilot: 'carrot_navi permanently owns TCP 7714'), " +
+      f"got {args!r}. Whether its stream reaches the driving stack is the CarrotNaviV2Enabled " +
+      "behaviour switch in card.py, not a process gate.")
 
   def test_carrot_bluetooth_is_always_run_on_comma_hardware(self):
     args = self._process_args("carrot_bluetooth")
     self.assertTrue(
       args.startswith("always_run"),
-      f"carrot_bluetooth must use always_run (CarrotPilot: 'always_run, enabled=TICI'), got {args!r}. "
-      f"Gating it on CarrotEnabled meant a unit with the master switch off could not pair its remote.")
+      f"carrot_bluetooth must use always_run (CarrotPilot: 'always_run, enabled=TICI'), got {args!r}. " +
+      "Gating it on CarrotEnabled meant a unit with the master switch off could not pair its remote.")
     self.assertIn(
       "enabled=COMMA_HARDWARE", args,
-      "CarrotPilot restricts the Bluetooth daemon to TICI hardware; this fork has no TICI symbol, "
-      "so COMMA_HARDWARE (AGNOS present) is the equivalent - without it the daemon would also try "
+      "CarrotPilot restricts the Bluetooth daemon to TICI hardware; this fork has no TICI symbol, " +
+      "so COMMA_HARDWARE (AGNOS present) is the equivalent - without it the daemon would also try " +
       "to run on PC dev machines, where evdev Bluetooth HID nodes do not exist.")
 
   def test_v2_killswitch_is_no_longer_a_process_gate(self):
     src = PROCESS_CONFIG.read_text(encoding="utf-8")
     self.assertNotIn(
       "carrot_navi_v2_enabled", src,
-      "the CarrotNaviV2Enabled process gate must stay deleted: carrot_navi is always_run now, and "
-      "carrot_man.carrot_man.process_config must not grow a second, contradicting definition of "
+      "the CarrotNaviV2Enabled process gate must stay deleted: carrot_navi is always_run now, and " +
+      "carrot_man.carrot_man.process_config must not grow a second, contradicting definition of " +
       "what that param means.")
 
 
@@ -121,7 +121,7 @@ class TestBeaconThreadIsNotGated(unittest.TestCase):
     self.assertLess(
       code.index("_start_background_threads()"),
       code.index("if not self._enabled:"),
-      "the broadcast / ZMQ / route threads must be started before the `if not self._enabled` "
+      "the broadcast / ZMQ / route threads must be started before the `if not self._enabled` " +
       "early return, otherwise a disabled device is silent on UDP 7705")
 
   def test_disabled_branch_does_not_stop_the_beacon(self):
@@ -136,7 +136,7 @@ class TestBeaconThreadIsNotGated(unittest.TestCase):
       branch.append(line)
     self.assertNotIn(
       "_is_running = False", "\n".join(branch),
-      "the disabled branch must not clear _is_running: the beacon thread returns immediately "
+      "the disabled branch must not clear _is_running: the beacon thread returns immediately " +
       "while that flag is false")
 
   def test_helper_starts_the_discovery_threads(self):
@@ -151,17 +151,17 @@ class TestBeaconReachability(unittest.TestCase):
   def test_broadcast_address_enumerates_all_interfaces(self):
     code = _method_code("get_broadcast_address")
     self.assertIn("psutil.net_if_addrs", code,
-                  "the beacon must enumerate every interface; a hard-coded interface list "
+                  "the beacon must enumerate every interface; a hard-coded interface list " +
                   "misses USB / tethering links and the app never sees UDP 7705")
     self.assertNotIn("wlan0", code, "the hard-coded interface list must not come back")
     self.assertIn("netmask", code,
-                  "interfaces without an explicit broadcast address must fall back to "
+                  "interfaces without an explicit broadcast address must fall back to " +
                   "computing it from the netmask")
 
   def test_network_address_is_published_for_the_web_panel(self):
     code = _method_code("broadcast_version_info")
     self.assertIn("NetworkAddress", code,
-                  "the carrot web QR dialog reads NetworkAddress from Params; nothing wrote it, "
+                  "the carrot web QR dialog reads NetworkAddress from Params; nothing wrote it, " +
                   "so the QR code rendered empty")
 
 

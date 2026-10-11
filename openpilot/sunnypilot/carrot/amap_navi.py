@@ -156,9 +156,6 @@ class SharedData:
   map_traffic_countdown: int = 0
   map_traffic_time: float = 0.0
 
-  # Client tracking.
-  ext_state: int = 0
-
 
 @dataclass
 class RadarSpeedEstimator:
@@ -547,7 +544,7 @@ class AmapNaviServ:
                 self._client_active[ip] = True
                 threading.Thread(target=self._client_worker, args=(ip,), daemon=True).start()
               self._client_queues[ip].put((data, addr))
-          except socket.timeout:
+          except TimeoutError:
             continue
           except Exception:
             time.sleep(1)
@@ -694,7 +691,7 @@ class AmapNaviServ:
           ip: info for ip, info in self._clients.items()
           if now_mono - info.get("last_seen", 0) < 1.0
         }
-        for ip, info in self._clients.items():
+        for ip, _info in self._clients.items():
           if ip not in active_clients and ip in self._client_active:
             self._client_active[ip] = False
         self._clients = active_clients
@@ -740,7 +737,6 @@ class AmapNaviServ:
                   port_val = info.get("port", self._broadcast_port)
                   port = int(port_val) if port_val is not None else self._broadcast_port
                   device_type = info.get("device")
-                  detect_side = info.get("detect_side", 0)
 
                   if device_type in ("overtake", "navi"):
                     if navi_msg is None:
@@ -880,7 +876,6 @@ class AmapNaviServ:
     lf_drel_alive = lb_drel_alive = rf_drel_alive = rb_drel_alive = False
     lf_xrel_alive = lb_xrel_alive = rf_xrel_alive = rb_xrel_alive = False
 
-    camera_data = False
     lidar_data = False
     dist_timems: int | None = None
 
@@ -890,7 +885,6 @@ class AmapNaviServ:
       resp = json_obj.get("resp")
 
       if resp == "cam_blind":
-        camera_data = True
         left_blind = json_obj.get("left_blind")
         right_blind = json_obj.get("right_blind")
 
@@ -1255,10 +1249,10 @@ class AmapNaviServ:
     for f in fields:
       all_lidar_ids.update(getattr(sd, f).keys())
     for idx in sorted(all_lidar_ids):
-      for field in fields:
-        d = getattr(sd, field)
+      for fld in fields:
+        d = getattr(sd, fld)
         if idx in d and d[idx] is not None:
-          key = field if idx == 0 else f"{field}{idx}"
+          key = fld if idx == 0 else f"{fld}{idx}"
           msg[key] = d[idx]
 
     # Device presence flags.

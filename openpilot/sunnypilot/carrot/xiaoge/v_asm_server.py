@@ -37,7 +37,7 @@ try:
 except ModuleNotFoundError as error:
   if error.name == "cv2":
     raise SystemExit(
-        "V-ASM requires OpenCV. Restart openpilot through its normal launcher to install the bundled wheel into pydeps. "
+        "V-ASM requires OpenCV. Restart openpilot through its normal launcher to install the bundled wheel into pydeps. " +
       "For development, install xiaoge/requirements.txt in a writable virtual environment."
     ) from None
   raise

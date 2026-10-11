@@ -8,7 +8,6 @@ import traceback
 
 from openpilot.cereal import messaging
 from openpilot.common.hardware.usb import get_usb_state, is_chestnut_usb_id
-from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.ui_state import ChestnutState, ui_state
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets import Widget

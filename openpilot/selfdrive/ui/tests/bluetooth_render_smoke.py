@@ -259,10 +259,8 @@ def install_stubs():
 
   # Stub urllib so the panel can fetch state without a real server.
   import json
-  real_urlopen = None
   try:
-    import urllib.request as _ur
-    real_urlopen = _ur.urlopen
+    pass
   except Exception:
     pass
 

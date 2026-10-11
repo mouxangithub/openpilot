@@ -303,7 +303,7 @@ class DrivingModeDetector:
     elif self.stop_time >= self.STOP_ENTRY_TIME or self.slow_time >= self.SLOW_ENTRY_TIME:
       self.congested = True
 
-  def get_mode(self, cruise_mode: "DrivingMode | None" = None) -> DrivingMode:
+  def get_mode(self, cruise_mode: DrivingMode | None = None) -> DrivingMode:
     """Return the effective mode.
 
     ``cruise_mode`` is the driver's selected non-congested mode. It defaults to

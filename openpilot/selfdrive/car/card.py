@@ -76,7 +76,10 @@ class Car:
 
   def __init__(self, CI=None, RI=None) -> None:
     self.can_sock = messaging.sub_sock('can', timeout=20)
-    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents', 'longitudinalPlan', 'radarState', 'drivingModelData'] + ['carControlSP', 'longitudinalPlanSP', 'carrotManSP', 'carrotNaviSP'] + ['customReservedRawData0'])
+    self.sm = messaging.SubMaster(
+      ['pandaStates', 'carControl', 'onroadEvents', 'longitudinalPlan', 'radarState', 'drivingModelData']
+      + ['carControlSP', 'longitudinalPlanSP', 'carrotManSP', 'carrotNaviSP']
+      + ['customReservedRawData0'])
     self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'radarTracks'] + ['carParamsSP', 'carStateSP'])
 
     self.can_rcv_cum_timeout_counter = 0

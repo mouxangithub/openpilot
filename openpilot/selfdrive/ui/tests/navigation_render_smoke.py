@@ -38,7 +38,7 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / 'opendbc_repo'))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import carrot_tuning_render_smoke as _harness  # noqa: E402
+import carrot_tuning_render_smoke as _harness
 
 _harness.install_stubs()
 
@@ -64,9 +64,8 @@ class _FakeUiState:
 _ui_mod.ui_state = _FakeUiState()
 sys.modules['openpilot.selfdrive.ui.ui_state'] = _ui_mod
 
-from openpilot.selfdrive.ui.sunnypilot.layouts.settings import navigation as page_module  # noqa: E402
-from openpilot.selfdrive.ui.sunnypilot.layouts.settings.navigation import NavigationLayout  # noqa: E402
-from openpilot.system.ui.widgets import DialogResult  # noqa: E402
+from openpilot.selfdrive.ui.sunnypilot.layouts.settings import navigation as page_module
+from openpilot.selfdrive.ui.sunnypilot.layouts.settings.navigation import NavigationLayout
 
 CHECKS = 0
 FAILURES: list[str] = []
@@ -78,7 +77,7 @@ def check(name: str, fn) -> None:
   try:
     fn()
     print(f'  ok  {name}')
-  except Exception as e:  # noqa: BLE001
+  except Exception as e:
     FAILURES.append(f'{name}: {type(e).__name__}: {e}')
     print(f'  FAIL {name}: {type(e).__name__}: {e}')
 

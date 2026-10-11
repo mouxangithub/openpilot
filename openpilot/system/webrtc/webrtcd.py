@@ -327,7 +327,7 @@ class StreamSession:
               self.params.put("LivestreamRequestKeyframe", True)
           case "clockSync":
             pong = json.dumps({"type": "clockSync", "data": {
-              "action": "pong", "browserSendTime": payload["data"]["browserSendTime"], "deviceTime": time.time() * 1000, # noqa: TID251
+              "action": "pong", "browserSendTime": payload["data"]["browserSendTime"], "deviceTime": time.time() * 1000,  # noqa: TID251
             }})
             self.stream.get_messaging_channel().send(pong)
           case "enableTimingSei":
@@ -594,7 +594,7 @@ class WebrtcdHandler(BaseHTTPRequestHandler):
   def do_OPTIONS(self) -> None:
     self._dispatch_request()
 
-  def log_message(self, format: str, *args: object) -> None:  # noqa: A002  # stdlib override
+  def log_message(self, format: str, *args: object) -> None:  # noqa: A002 - stdlib override
     # silence default access logging; errors are logged explicitly in _dispatch_request
     pass
 

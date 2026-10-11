@@ -535,7 +535,7 @@ class VCruiseCarrot(VCruiseHelper):
           self.v_cruise_cluster_kph = self.v_cruise_kph
     else:
       self.v_cruise_kph = np.clip(v_cruise_kph, self._cruise_speed_min, self._cruise_speed_max) #max(20, self.v_ego_kph_set) #V_CRUISE_UNSET
-      self.v_cruise_cluster_kph = self.v_cruise_kph #V_CRUISE_UNSET  # noqa: E262
+      self.v_cruise_cluster_kph = self.v_cruise_kph #V_CRUISE_UNSET
       #if self.cruise_state_available_last: # 최초 한번이라도 cruiseState.available이 True였다면
       #  self._lat_enabled = False
 
@@ -605,7 +605,7 @@ class VCruiseCarrot(VCruiseHelper):
         self.button_prev = bt
         # VW 쓸어올리기(2단): 누르기 시작 시점의 GRA_Tip_Stufe_2 샘플 (이후 유지 중 래치로 보강)
         self.button_big_step = bt in [ButtonType.accelCruise, ButtonType.decelCruise] and big_step_available
-        self.button_long_time = self._cruise_button_long_delay if bt in [ButtonType.accelCruise, ButtonType.decelCruise] else self._cruise_button_long_delay + 30
+        self.button_long_time = self._cruise_button_long_delay if bt in [ButtonType.accelCruise, ButtonType.decelCruise] else self._cruise_button_long_delay + 30  # noqa: E501
 
       elif not b.pressed and self.button_cnt > 0 and bt == self.button_prev:
         # VW 쓸어올리기: 래치된 self.button_big_step 사용 (뗄 때 신호를 다시 읽으면 이미 0)
@@ -685,8 +685,8 @@ class VCruiseCarrot(VCruiseHelper):
           speed_kph = int(self.carrot_arg)
           if 0 < speed_kph < 200:
             v_cruise_kph = speed_kph
-            self._add_log(f"Cruise speed set to {v_cruise_kph} (carrot command)")       
-    
+            self._add_log(f"Cruise speed set to {v_cruise_kph} (carrot command)")
+
     return v_cruise_kph, button_type, long_pressed
 
   def _update_cruise_buttons(self, CS, CC, v_cruise_kph, CS_SP=None):
@@ -760,7 +760,6 @@ class VCruiseCarrot(VCruiseHelper):
           self._cruise_control(-1, -1, "Cruise off,softhold mode (decelCruise)")
         elif self._cruise_ready:
           self._paddle_decel_active = True
-          pass
         elif not CC.enabled:
           v_cruise_kph = max(self.v_ego_kph_set, self._cruise_speed_min)
         elif self.v_ego_kph_set > v_cruise_kph + 2 and self._cruise_button_mode in [2, 3]:
@@ -798,7 +797,7 @@ class VCruiseCarrot(VCruiseHelper):
         else:
           if False: #CC.enabled and self._paddle_decel_active:  # 수정필요...
             self._paddle_decel_active = False
-          else:          
+          else:
             self._paddle_decel_active = True
       elif button_type == ButtonType.cancel:
         self._paddle_decel_active = False
@@ -1001,7 +1000,7 @@ class VCruiseCarrot(VCruiseHelper):
           if self.xState == 3:  # 감속중
             v_cruise_kph = self.v_ego_kph_set
           self._cruise_control(1, 0, "Cruise on (traffic sign)")
-        elif 0 < self.d_rel < 20: 
+        elif 0 < self.d_rel < 20:
           # v_cruise_kph = self.v_ego_kph_set # 전방에 차가 가까이 있을때, 기존속도 유지
           self._cruise_control(1, -1 if self.v_ego_kph_set < 1 else 0, "Cruise on (lead car)")
 
@@ -1035,7 +1034,7 @@ class VCruiseCarrot(VCruiseHelper):
         elif self.d_rel > 0:
           self._paddle_decel_active = False
           v_cruise_kph = self.v_ego_kph_set
-          
+
 
     if self._gas_pressed_count > self._gas_tok_timer:
       if CS.aEgo < -0.5:

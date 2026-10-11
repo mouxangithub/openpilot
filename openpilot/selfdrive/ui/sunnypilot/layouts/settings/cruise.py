@@ -22,7 +22,7 @@ class PanelType(IntEnum):
   LONGITUDINAL_MPC_TUNING = 2
 
 
-ICBM_DESC = tr_noop("When enabled, sunnypilot will attempt to manage the built-in cruise control buttons "
+ICBM_DESC = tr_noop("When enabled, sunnypilot will attempt to manage the built-in cruise control buttons " +
                     "by emulating button presses for limited longitudinal control.")
 ICMB_UNAVAILABLE = tr_noop("Intelligent Cruise Button Management is currently unavailable on this platform.")
 ICMB_UNAVAILABLE_LONG_AVAILABLE = tr_noop("Disable the Alpha Longitudinal toggle to allow Intelligent Cruise Button Management.")

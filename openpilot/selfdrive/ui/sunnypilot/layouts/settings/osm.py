@@ -8,6 +8,7 @@ import datetime
 import os
 import platform
 import requests
+import shutil
 import threading
 from pathlib import Path
 from time import monotonic
