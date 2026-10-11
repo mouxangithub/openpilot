@@ -10,6 +10,9 @@ const DEVICE_GROUPS = [
   // sunnypilot sections - the server ships each group's parameter names in the
   // settings snapshot (services/device_info.py reads them from the settings
   // catalog), and renderDeviceSpItems draws them from the catalog's labels.
+  { id: "Storage", labelKey: "device_group_storage", defaultLabel: "Storage" },
+  { id: "Sunnylink", labelKey: "device_group_sunnylink", defaultLabel: "sunnylink" },
+  { id: "Firehose", labelKey: "device_group_firehose", defaultLabel: "Data" },
   { id: "Models", labelKey: "device_group_models", defaultLabel: "Models" },
   { id: "Bluetooth", labelKey: "device_group_bluetooth", defaultLabel: "Bluetooth" },
   { id: "Vehicle", labelKey: "device_group_vehicle", defaultLabel: "Vehicle" },
@@ -36,7 +39,7 @@ const SP_DEVICE_GROUP_IDS = new Set([
 // Sections that carry no catalog params at all: the 5080 webui daemon owns
 // them (bluetooth pairing is daemon state, not Params). They render a manager
 // block and are visible whenever the panel can reach that daemon.
-const SP_CAPABILITY_GROUP_IDS = new Set(["Bluetooth"]);
+const SP_CAPABILITY_GROUP_IDS = new Set(["Bluetooth", "Storage", "Sunnylink", "Firehose"]);
 
 // Bool params that make a process *do* something the moment they are written
 // (reboot, drop caches, recalibrate). A toggle is fine, but confirm first so a

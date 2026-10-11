@@ -409,3 +409,10 @@
   white-space: normal;
   overflow: auto;
 }
+
+/* Capability lock hint: a gated row explains how to unlock instead of
+   showing a dead grey switch. */
+.web-settings-row__lock {
+  color: var(--warn, #e7a34b);
+  font-weight: 600;
+}

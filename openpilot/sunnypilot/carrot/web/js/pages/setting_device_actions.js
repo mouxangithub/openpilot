@@ -718,7 +718,11 @@ function openDeviceTreeDialog({ title, folders, selectedRef, source }) {
       resolve(null);
     };
     overlay.querySelector(".app-dialog__backdrop").onclick = overlay_close;
-    overlay.querySelector(".device-picker__close").onclick = overlay_close;
+    // Two close buttons exist (header + footer) - querySelector would bind only
+    // the first and leave the footer Cancel dead.
+    overlay.querySelectorAll(".device-picker__close").forEach((btn) => {
+      btn.onclick = overlay_close;
+    });
 
     const searchInput = overlay.querySelector(".device-picker__search input");
     searchInput.addEventListener("input", () => {
@@ -739,8 +743,12 @@ function openDeviceTreeDialog({ title, folders, selectedRef, source }) {
     };
 
     const bundleRow = (bundle, { pinned = false, indent = false }) => {
-      const row = document.createElement("button");
-      row.type = "button";
+      // A div, not a button: the favourite star inside is a real <button>, and
+      // nesting buttons makes the parser close the outer one early - the row
+      // click then never fires and Select stays disabled forever.
+      const row = document.createElement("div");
+      row.setAttribute("role", "button");
+      row.tabIndex = 0;
       row.className = `btn groupBtn device-picker__item${indent ? " device-picker__item--child" : ""}`
         + (pinned ? " device-picker__item--pinned" : "")
         + (bundle.ref === pick || (pick === "" && bundle.ref === "Default") ? " is-current" : "");
@@ -1277,4 +1285,139 @@ async function loadDeviceBluetoothManager(container) {
       },
     });
   });
+}
+
+// ── Storage / sunnylink / firehose: the three 5080 sections this panel was
+// missing. All read-only summaries plus the actions the daemon exposes. ─────
+
+DEVICE_SECTION_SHELLS.Storage = () => renderDeviceStorageShell();
+DEVICE_SECTION_SHELLS.Sunnylink = () => renderDeviceSunnylinkShell();
+DEVICE_SECTION_SHELLS.Firehose = () => renderDeviceFirehoseShell();
+
+const DEVICE_STORAGE_CATEGORY_LABELS = {
+  routes: "Routes",
+  models: "Models",
+  maps: "Maps",
+  software: "Software",
+  logs: "Logs",
+  ota_staging: "OTA staging",
+  scons_cache: "Build cache",
+  other: "Other",
+};
+
+function deviceBytesText(bytes) {
+  const value = Number(bytes || 0);
+  if (!Number.isFinite(value) || value <= 0) return "0 MB";
+  const gb = value / (1024 ** 3);
+  return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(value / (1024 ** 2)).toFixed(0)} MB`;
+}
+
+// ── Storage ────────────────────────────────────────────────────────────────
+
+function renderDeviceStorageShell() {
+  return `
+    ${deviceManagerRow({ id: "stUsage", title: getUIText("storage_usage", "Storage usage"), descr: getUIText("storage_usage_hint", "Reading device storage"), value: "-" })}
+    <div data-storage-categories></div>
+    ${deviceManagerRow({ id: "stRefresh", title: getUIText("storage_rescan", "Rescan storage"), button: getUIText("refresh", "Refresh"), buttonId: "btnDeviceStorageRefresh" })}`;
+}
+
+async function loadDeviceStorageManager(container) {
+  const usageValue = container.querySelector("#stUsage-value");
+  const usageDescr = container.querySelector("#stUsage-descr");
+  const catRoot = container.querySelector("[data-storage-categories]");
+  try {
+    const data = await requestJson("/api/opui/storage", { cache: "no-store" });
+    if (!data?.ok) throw new Error(data?.error || "storage unavailable");
+    if (usageValue) {
+      usageValue.textContent = `${deviceBytesText(data.used_bytes)} / ${deviceBytesText(data.total_bytes)} (${Number(data.free_percent ?? 0).toFixed(0)}% ${getUIText("storage_free", "free")})`;
+    }
+    if (usageDescr) {
+      const warn = data.critical_space ? getUIText("storage_critical", "Critically low on space")
+        : (data.low_space ? getUIText("storage_low", "Low on space") : "");
+      usageDescr.textContent = warn || getUIText("storage_ok", "Enough space available");
+    }
+    if (catRoot) {
+      const cats = Array.isArray(data.categories) ? data.categories : [];
+      catRoot.innerHTML = cats
+        .filter((c) => Number(c?.bytes || 0) > 0)
+        .map((c) => deviceManagerRow({
+          id: `stCat-${String(c.id)}`,
+          // Friendly names - the daemon reports raw ids (ota_staging, scons_cache).
+          title: getUIText(`storage_cat_${String(c.id)}`, DEVICE_STORAGE_CATEGORY_LABELS[String(c.id)] || String(c.id)),
+          value: `${deviceBytesText(c.bytes)} · ${Number(c.percent ?? 0).toFixed(1)}%`,
+        }))
+        .join("");
+    }
+  } catch (err) {
+    if (usageValue) usageValue.textContent = "-";
+    if (usageDescr) usageDescr.textContent = err.message || getUIText("failed", "Failed");
+  }
+
+  bindOnce(container.querySelector("#btnDeviceStorageRefresh"), "click", () => {
+    loadDeviceStorageManager(container).catch(() => {});
+  });
+}
+
+// ── sunnylink ──────────────────────────────────────────────────────────────
+
+function renderDeviceSunnylinkShell() {
+  return `
+    ${deviceManagerRow({ id: "slStatus", title: getUIText("sunnylink_status", "sunnylink status"), value: "-" })}
+    ${deviceManagerRow({ id: "slAccount", title: getUIText("sunnylink_account", "Account"), value: "-" })}
+    ${deviceManagerRow({ id: "slBackup", title: getUIText("sunnylink_backup", "Backup / restore"), value: "-" })}`;
+}
+
+async function loadDeviceSunnylinkManager(container) {
+  const statusValue = container.querySelector("#slStatus-value");
+  const accountValue = container.querySelector("#slAccount-value");
+  const backupValue = container.querySelector("#slBackup-value");
+  try {
+    const data = await requestJson("/api/opui/sunnylink/status", { cache: "no-store" });
+    if (!data?.ok) throw new Error(data?.error || "sunnylink unavailable");
+    if (statusValue) {
+      statusValue.textContent = data.enabled
+        ? getUIText("on", "ON")
+        : getUIText("off", "OFF");
+    }
+    if (accountValue) {
+      const parts = [];
+      if (data.tier) parts.push(String(data.tier));
+      parts.push(data.paired ? getUIText("sunnylink_paired", "paired") : getUIText("sunnylink_unpaired", "not paired"));
+      if (data.is_sponsor) parts.push(getUIText("sunnylink_sponsor", "sponsor"));
+      accountValue.textContent = parts.join(" · ");
+    }
+    if (backupValue) {
+      const backup = data.backup || {};
+      backupValue.textContent = `${getUIText("sunnylink_backup_label", "backup")}: ${backup.backup_status ?? "-"} · ${getUIText("sunnylink_restore_label", "restore")}: ${backup.restore_status ?? "-"}`;
+    }
+  } catch (err) {
+    if (statusValue) statusValue.textContent = err.message || getUIText("failed", "Failed");
+  }
+}
+
+// ── firehose (Data) ────────────────────────────────────────────────────────
+
+function renderDeviceFirehoseShell() {
+  return `
+    ${deviceManagerRow({ id: "fhState", title: getUIText("firehose_state", "Data upload"), value: "-" })}
+    ${deviceManagerRow({ id: "fhNetwork", title: getUIText("firehose_network", "Network"), value: "-" })}`;
+}
+
+async function loadDeviceFirehoseManager(container) {
+  const stateValue = container.querySelector("#fhState-value");
+  const networkValue = container.querySelector("#fhNetwork-value");
+  try {
+    const data = await requestJson("/api/opui/firehose", { cache: "no-store" });
+    if (!data?.ok) throw new Error(data?.error || "firehose unavailable");
+    if (stateValue) {
+      stateValue.textContent = data.active
+        ? `${getUIText("firehose_active", "uploading")} · ${Number(data.segments ?? 0)} ${getUIText("firehose_segments", "segments")}`
+        : getUIText("firehose_idle", "idle");
+    }
+    if (networkValue) {
+      networkValue.textContent = `${data.network_type || "-"}${data.metered ? ` · ${getUIText("firehose_metered", "metered")}` : ""}`;
+    }
+  } catch (err) {
+    if (stateValue) stateValue.textContent = err.message || getUIText("failed", "Failed");
+  }
 }

@@ -91,7 +91,10 @@ function spLocalizedText(item, field) {
 }
 
 function isSpDeviceGroup(groupId) {
-  return SP_DEVICE_GROUP_IDS.has(groupId);
+  // Capability sections (bluetooth) have no catalog params but still render
+  // through the SP path - without them here the section fell through to the
+  // base-group fallback and showed up blank.
+  return SP_DEVICE_GROUP_IDS.has(groupId) || SP_CAPABILITY_GROUP_IDS.has(groupId);
 }
 
 // Section -> async manager loader (defined in setting_device_actions.js, which
@@ -103,6 +106,9 @@ const DEVICE_CAPABILITY_LOADERS = {
   Trips: (container) => loadDeviceTripsManager(container),
   Imu: (container) => loadDeviceImuManager(container),
   Bluetooth: (container) => loadDeviceBluetoothManager(container),
+  Storage: (container) => loadDeviceStorageManager(container),
+  Sunnylink: (container) => loadDeviceSunnylinkManager(container),
+  Firehose: (container) => loadDeviceFirehoseManager(container),
 };
 
 function getCachedDeviceGroupValues(groupId) {

@@ -65,12 +65,15 @@ function webSettingLockLabel(item) {
 }
 
 function renderWebSettingsCopy(title, desc, lockLabel = "") {
+  // The lock label was being passed in and then dropped, so a capability-gated
+  // row rendered as a dead grey switch with no explanation. Show it.
   return `
     <span class="web-settings-row__copy">
       <span class="web-settings-row__title-line">
         <span class="web-settings-row__title">${escapeHtml(title)}</span>
       </span>
       ${desc ? `<span class="web-settings-row__desc">${escapeHtml(desc)}</span>` : ""}
+      ${lockLabel ? `<span class="web-settings-row__desc web-settings-row__lock">${escapeHtml(lockLabel)}</span>` : ""}
     </span>`;
 }
 
