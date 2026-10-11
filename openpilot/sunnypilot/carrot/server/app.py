@@ -13,7 +13,7 @@ import time - `carrot_server.py` decides when the real store is needed.
 
 import logging
 
-from aiohttp import web
+from aiohttp import ClientSession, web
 
 from . import config
 from .features import bluetooth as bluetooth_feature
@@ -129,6 +129,19 @@ def create_app(params=None) -> web.Application:
   # show_index is off, unlike CarrotPilot: nothing in the panel needs a directory listing,
   # and one would expose web/src and web/tests over the LAN.
   app.router.add_static("/", config.WEB_DIR, show_index=False)
+
+  # Shared outbound ClientSession (stream proxy, ssh key checks, popular-value
+  # upload, the xiaoge proxy). cp parity: created on startup, closed on cleanup.
+  async def _http_session_ctx(app: web.Application):
+    app["http"] = ClientSession()
+    try:
+      yield
+    finally:
+      session = app.pop("http", None)
+      if session is not None:
+        await session.close()
+
+  app.cleanup_ctx.append(_http_session_ctx)
   return app
 
 
