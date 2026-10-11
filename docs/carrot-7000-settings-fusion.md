@@ -133,3 +133,50 @@ C 组都在 sp 的 carrot 默认表里、只是 cp 目录没有。做法：在�
 
 - 第 1 步会把面板从"按前缀分组的 187 项"变成"cp 菜单树的 184 项 + B 组" —— 是否接受分组变化？
 - 第 3 步的 sunnypilot 分组要不要**默认折叠**（348 项一次铺开对手机端偏重）？
+
+---
+
+## 7. 落地结果（2026-10-11，已 push `933d2230e`，设备实测）
+
+三步全部实现，设备重启后实测：
+
+| 指标 | 之前 | 之后 |
+|---|---|---|
+| 面板可见参数 | 187 | **330**（本车经品牌过滤后；生成时 338） |
+| 面板分组 | 6 个前缀桶 | **34 组**，菜单树 5 个顶级节点 |
+| `categories`（菜单树） | **缺失** | ✅ `DRIVING / VEHICLE / DISPLAY / SYSTEM / SUNNYPILOT` |
+| 面板目录 == 档案/热门值目录 | ❌ 187 vs 184 | ✅ **330 == 330，identical** |
+| sp 特有 carrot 参数可进档案 | ❌ 46 个不行 | ✅ |
+| cp 目录里 sp 未声明的参数 | 43 个会 400 | ✅ 已滤除 |
+
+### 做了什么
+
+1. **`carrot/tools/build_settings_catalog.py`**（新）生成 `carrot_settings_sp.json`：以 cp 的
+   `carrot_settings.json` 为骨架（保留 ko/en/zh 标签、min/max/unit、菜单树），做三处改动——
+   删掉 sp 未声明的 33 个、补入 sp 特有的 46 个 carrot 参数、补入车机 16 个设置页的 141 个参数。
+2. **`DEFAULT_SETTINGS_PATH` 指向新文件**，`features/settings.py` 换成 cp 的版本 →
+   面板、档案、热门值、预设、intro 五者读同一份。
+3. **车机页面扫描复用**：直接调 8088 面板用的 `carrot/web_settings.py::scan_ui_pages()`，
+   两个面板对「某设置属于哪一页」不可能不一致；扫出的 348 个字符串按 `params_keys.h` 过滤成 141 个真实参数，
+   类型与默认值同样取自声明。
+
+菜单里 `SUNNYPILOT` 节点分两支：`carrot (sp)`（sp 特有的 46 个，按族分组）与
+`On-device settings`（16 个车机页：steering 22、cruise 21、vehicle 14、visuals 13、osm 12…）。
+
+### 覆盖与安全边界
+
+- 覆盖 **338 / 580** 已声明参数（生成时）。剩下的 242 个是**状态类**（`Is*`、`Last*`、`Updater*`、
+  `Live*`、`Offroad*`）与未被任何车机页面引用的内部键 —— **有意不暴露**。
+- 任何控件都只能由**已声明**的键构建，杜绝「点了写不进去」。
+
+### 与既有三个设置面的关系
+
+车机大 UI、`webui`（5080）、8088 面板均未改动；7000 现在**复用** 8088 的扫描逻辑而非另造一份目录。
+
+### 维护
+
+改完 `params_keys.h`、`carrot/config.py::_DEFAULT_NAV_PARAMS` 或车机设置页之后，重跑：
+
+```bash
+python -m openpilot.sunnypilot.carrot.tools.build_settings_catalog
+```
