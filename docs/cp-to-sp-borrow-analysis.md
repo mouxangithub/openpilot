@@ -156,3 +156,68 @@ sp 已注册但无 UI 入口:       84 项  ← 需要补 UI 暴露（当前 UI 
 ---
 
 *查证时间：2026-09-30；所有结论均有文件路径级代码证据。*
+
+---
+
+## 7. 复核与新增（2026-10-11）
+
+对 `E:/cp`（`carrot-wip`）的 `selfdrive/carrot` 做了一次全量文件级 diff：cp 903 文件 / sp 101 文件，
+**共 53、cp 独有 850、sp 独有 48**。按目录归并后，cp 独有部分几乎全部落在下面这张表里——
+也就是说，**除本节新增的第 1 项外，其余都已被既有决策覆盖**。
+
+| cp 独有 | 规模 | 状态 |
+|---|---|---|
+| `web/` | 566 文件 / 8.1 MB | 面板前端。见 `docs/carrot-port-parity.md` §6（能否照搬的完整评估） |
+| `server/` 剩余部分 | 123 文件 / 1.0 MB | dashcam / screenrecord / vision / terminal / tools 写操作 / static —— 已在 `features/unsupported.py` 逐项回 501 |
+| `cluster/` | 44 文件 / 2.8 MB | 外接屏 HUD 应用。不做（本 fork 用 `cluster_view/`，1,151 行） |
+| `radar/` | 15 文件 / 309 KB | cp 的替代 radard（`radard_dpath.py`）。不做（本 fork 用 stock radard） |
+| **`radar_motion/`** | **14 文件 / 11,493 行** | ⭐ **本节新增，见下** |
+| `realtime/` | 12 文件 / 92 KB | compact_state（C++/Cython）。不做（无 cereal 对应） |
+| `kmap/` | 3 文件 / 57 KB | 地图控件，只被 `web/` 消费 → 随 `web/` 一起决定 |
+| `recovery/` | 2 文件 / 99 KB | 6999 无鉴权 PTY shell。不做（安全） |
+| `tests/` | 54 文件 / 828 KB | cp 自己的测试套件；sp 有对应的 22 个测试文件 |
+| `xiaoge/README.md`、`bluetooth/tests/{test_api,test_daemon}.py` | — | 已在 `carrot/README.md` 说明为有意不移植 |
+
+### 7.1 ⭐ `radar_motion/` —— 唯一尚未决策的大项，且**可整包移植**
+
+**为什么它是缺口**：cp 的 `radar_motion/` 是**前车运动预测 / cut-in 判定**栈，
+公开 API 有 `DPathRadarController`、`DPathRadarOutput`、`RadarLeadDynamics`、
+`DPathLeadSelection`、`front_cutin_motion_supported`、`trajectory_cutin` / `trajectory_cutout`、
+`occupancy_v2/v3`、以及 `CUT_IN_CONFIRMATION_S` / `FRONT_CUT_IN_THRESHOLD` 等一整套常量。
+本 fork 只取了其中 1 个文件（`lane_change_gap.py`，`carrot_functions.py` 在用），
+**cut-in 相关部分全无**——这与「cp 纵向栈 sp 空白（cutin/radar/…）」的既有判断一致。
+
+**为什么可移植（关键证据）**：
+
+- **零外部依赖**：14 个文件的全部 import 都在包内（`radar_motion.*`），
+  **没有任何 `openpilot.*` 导入**，也不依赖 cp 的 `radar/`（反向依赖为 0）。
+- **第三方依赖只有 stdlib**：`math` / `dataclasses` / `collections` / `typing` / `enum` /
+  `statistics` / `os` / `bisect`；`numpy` 只出现在 `lane_change_gap.py`（sp 已有该文件）。
+- **Cython 可选**：`native.py` 是 `try: from ._motion_native import …`，
+  失败则 `BACKEND = "python"` —— **不搬 `SConscript` / `.pyx` 也能跑**（纯 Python 回退）。
+- **无品牌耦合**：全包只有 1 处品牌分支（`timing.py` 的 VW MEB `radarDelay` 策略）和 1 处注释。
+
+**移植方式（建议）**：
+
+1. 整包复制到 `openpilot/sunnypilot/carrot/radar_motion/`，import 前缀
+   `openpilot.selfdrive.carrot.radar_motion` → `openpilot.sunnypilot.carrot.radar_motion`。
+2. **不带** `SConscript` / `_motion_native.pyx`（保留 Python 回退；设备端若确认 CPU 吃紧再加）。
+3. `timing.py` 的 VW 分支保留即可（对 Toyota/Mazda 走 `max(0, CP.radarDelay)`，行为等价）。
+4. 先只接 `carrot_functions.py` 里 `lane_change_gap` 的相邻能力（cut-in 判定），
+   **不要**顺带去动 sp 的 radard —— cp 的 `radard_dpath.py` 是另一套，已决定不移植。
+5. 验证：该包纯函数多，可先跑本地单测（无需设备）；再在设备上对比 cut-in 触发日志。
+
+**风险**：中低。唯一要小心的是它消费的是「dPath 历史」这类输入，接错输入会得到
+「看起来合理但语义不对」的输出 —— 接的时候要对着 cp 的 `radard_dpath.py` 调用点核对字段含义，
+而不是照搬参数。
+
+### 7.2 既有结论复核（未变）
+
+第 1–5 节的结论（HUD 不做 / eGPU 管线不照搬 / overlay 部分做且落 webui / 调参项应补 UI 入口 /
+IMU 已完整）本次复核**仍然成立**，无新增反证。第 4 节的 32 项未注册键审计仍待执行。
+
+### 7.3 不要碰的三样（复述，因为它们是「盲抄必错」的典型）
+
+1. **`cweb_push.py`** —— 每 5 s 把设备 IP POST 到第三方中继（URL 以 XOR 混淆内嵌）。产品/隐私决策，不是移植任务。
+2. **`recovery/server.py` + `features/terminal.py` + `support_terminal`** —— 7000/6999 上**无鉴权**的远程 shell；cp 与 sp 的 server 都没有 auth。补它等于开一个「同网段任意设备可在控车计算机上执行命令」的口子。
+3. **`realtime/compact_state`（C++/Cython）** —— 字节打包 HUD 协议，sp 无对应 cereal 消息，猜一个会给出解码成错误数字的流。
