@@ -217,3 +217,33 @@ zh 直接用英文页面名。此轮补齐：
   `SUNNYPILOT → CARROT_SP(46) + CARROT_SP_UI(144, 16 页) + CARROT_SP_MAPS(9) + CARROT_SP_IMU(4)`；
 - 抽查标注：`Mads → MADS 开关`、`AutoUpRoadLimit40KMH → 道路限速上调幅度`、
   `ImuCalibrationEnabled → IMU 校准`、`ModelManager_MirrorUrl → 模型下载镜像`。
+
+## 9. 设备页 SP 分区与三服务二维码（2026-10-11，已 push `ded58d548` + `751b64133`，设备实测）
+
+### 设备页侧栏补齐 sunnypilot 分区
+
+`设置 → 设备` 的侧栏从 5 项扩到 16 项：设备信息/网络/开关之后是
+**模型选择/车辆/转向/巡航/视觉/显示/导航/OSM 地图/地图/行程/IMU 惯性测量**，再接软件/开发者。
+
+- **成员来源**：`services/device_info.py::SP_DEVICE_MENU_GROUPS` 声明（侧栏 id → 目录菜单 id），
+  `_sp_device_setting_groups()` 读 `carrot_settings_sp.json` 的 SUNNYPILOT 节点取参数名，
+  经 snapshot 的 `device_groups` 下发 —— 与 CarrotPilot 页签共用一份目录，不可能不一致。
+- **渲染**：`renderDeviceSpItems` 从 snapshot 的 `items_by_group` 建 name→meta 索引，按类型画控件：
+  bool→开关（`DoReboot`/`ModelManager_ClearCache`/`ImuCalibrationRequested` 等动作参数先弹确认）、
+  带 `options`→循环选择按钮、有 min/max→共享提交手势的 −/+ 步进器、无范围整数→点按输入、
+  其余（ID/版本/状态串）→只读行。标签走目录的 ko/en/zh 槽位，中文用户看到与 CarrotPilot 页签相同的文案。
+- **空分区隐藏**：目录缺失（如 cp 纯净部署）时服务端不下发名字，前端自动隐藏该分组。
+- 蓝牙仍无栏位：无参数面（见 §8）。
+
+### 设备屏二维码：8088 单码 → 三服务码
+
+`selfdrive/ui/carrot_web.py` + `widgets/carrot_web_dialog.py`：离屏弹窗改为三列，
+**Carrot Web(7000) / WebUI(5080) / OP 助手(5090)**，每列二维码+服务名+地址，共享
+NetworkAddress 监听与 30s 自动关闭；8088 不再出现在二维码里（面板已由 7000 承载）。
+
+### 实测（192.168.2.233 @ 751b64133）
+
+- snapshot `device_groups`：Models 11 / Vehicle 14 / Steering 22 / Cruise 21 / Visuals 13 /
+  Display 7 / Navigation 8 / Osm 12 / Maps 9 / Trips 3 / Imu 4；
+- 静态 JS 新内容已生效（`SP_DEVICE_GROUP_IDS`、中文标签在服务端下发）；
+- ui 进程携带新二维码代码稳定运行无重启循环；本地渲染冒烟 10/10、web 测试失败集与基线一致。
