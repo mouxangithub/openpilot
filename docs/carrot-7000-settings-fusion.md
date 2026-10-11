@@ -281,3 +281,40 @@ NetworkAddress 监听与 30s 自动关闭；8088 不再出现在二维码里（�
 - 本 fork Params 无 `put_bool_nonblocking` 别名 → 用 `put_nonblocking(key, "1"/"0")`；
 - sp `encoderd_thread` 对未知流是 assert（cp 是 continue）——on-demand 模式必须跳过；
 - `carrot/` 子包刻意不 import 上游 webrtcd，两套实现互不影响。
+
+## 11. 模型管理、车辆选择与 /api/opui 通道（2026-10-11，已 push `15d03795b`，设备实测）
+
+### 通道：/api/opui/* → 5080 webui
+
+webui 子模块已实现 sunnypilot 车机设置的交互面（modelManagerSP 的模型树、车辆平台树等，
+bridge/ 约 1,400 行）。7000 新增 `features/opui_proxy.py`：任意方法 `/api/opui/{tail}` 原样
+转发到 `127.0.0.1:5080`（可选依赖：daemon 不在时统一 502，页面回退通用渲染）。
+
+### 模型页（侧栏更名：模型选择 → 模型，OSM 地图 → OSM）
+
+- 顶部「模型管理」块：当前选择 + 大模型运行位置（设备端/eGPU/外置算力）+ 下载状态；
+  按 modelManagerSP 的树分组列出全部 bundle（9 组 77 个），每组可 **选择**（确认后经
+  models/select 下发，设备端下载后生效）、**收藏**（★/☆）、刷新；5080 不可达时显示
+  不可用提示并回退参数行。
+- 其余调校参数（车道转弯阈值/LaGD/相机偏移等）保留通用行渲染。
+
+### 工具 → 车辆选择：对齐 sunnypilot
+
+- 选车数据源改为 `/api/opui/vehicle/platforms`（31 品牌 → 平台树，来自 opendbc 平台资产），
+  选中经 `/api/opui/vehicle/select` 写 **CarPlatformBundle**——sunnypilot 的指纹选择，
+  下次行车由 fingerprint manager 生效，**无需重启**；
+- 当前车辆显示优先读平台的 active/display；5080 不可达时回退 cp 的 `/api/cars`
+  （CarSelected3 + 重启）旧路径。
+
+### 设备实测
+
+- `/api/opui/models`：9 组、选中项正确回显；`/api/opui/vehicle/platforms`：31 品牌；
+- 新 JS 已在服务端下发（loadDeviceModelManager / vehicle/platforms 引用确认）；
+- web 测试 816 过（依赖补齐后失败从 9 降到 2，均为既有环境项）。
+
+### 遗留审计（后续逐个接入）
+
+`/api/opui` 通道已铺好，以下 5080 已有能力可逐页接入 7000：**OSM 下载管理**（国家/省份选择、
+下载动作，osm_api.py）、**行程统计**（trips_api.py）、**蓝牙配对管理**（bluetooth_api.py——
+修正此前「无参数面」的结论：5080 是经 daemon 而非参数实现的）、**开发者/备份**
+（developer_api.py、sunnylink）。SP 分区里枚举参数的文案选项表（目录 options）也值得补。
