@@ -23,7 +23,10 @@ import {
   finalizeDriveVisionCompatibility,
   finalizeDriveVisionContent,
 } from "./content.js";
-import { installCarrotHudOverlay } from "./hud/index.js";
+// sunnypilot HUD overlay (webui onroad look). The cluster-style carrot overlay
+// stays importable at ./hud/index.js for tests but is no longer the default
+// driving view on this fork.
+import { installSpHudOverlay } from "./hud_sp/index.js";
 
 const installedTargets = new WeakMap();
 const finalizedTargets = new WeakMap();
@@ -60,9 +63,9 @@ export function installDriveVisionLeafFacades(target = globalThis, options = {})
   });
   installedTargets.set(target, installed);
 
-  // 신규 Carrot HUD 오버레이(클러스터 룩) 마운트. 스테이지 DOM 준비 전이면 내부에서 지연 재시도.
-  try { installCarrotHudOverlay(target, options.hudOverlay || {}); }
-  catch (e) { target.console?.error?.("[carrot hud overlay] install failed", e); }
+  // sunnypilot HUD 오버레이(웹UI 온로드 룩) 마운트. 스테이지 DOM 준비 전이면 내부에서 지연 재시도.
+  try { installSpHudOverlay(target, options.hudOverlay || {}); }
+  catch (e) { target.console?.error?.("[sunnypilot hud overlay] install failed", e); }
 
   return installed;
 }
