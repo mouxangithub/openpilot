@@ -276,7 +276,7 @@ function renderDeviceSpRow(name, item, value) {
             ${descr ? `<div class="descr">${escapeHtml(descr)}</div>` : ""}
           </div>
           <div class="ctrl">
-            <button type="button" class="val value-surface sp-choice" data-sp-choice="${escapeHtml(name)}" data-sp-options="${escapeHtml(JSON.stringify(labels))}">${escapeHtml(display)}</button>
+            <button type="button" class="val value-surface sp-choice" data-sp-choice="${escapeHtml(name)}" data-sp-title="${escapeHtml(title)}" data-sp-options="${escapeHtml(JSON.stringify(labels))}">${escapeHtml(display)}</button>
           </div>
         </div>
       </div>`;
@@ -320,27 +320,9 @@ function renderDeviceSpToggleRow(param, title, descr, checked, needsConfirm) {
 function renderDeviceSpItems(groupId, values) {
   const names = getDeviceGroupParamNames(groupId);
   const data = { ...deviceParamValues, ...(values || {}) };
-  // The Models section leads with the real model manager (5080 webui parity):
-  // bundle tree, selection, favorites, download state. The generic rows below
-  // keep the tuning knobs the on-device page has around the manager.
+  // The Models section leads with the model manager (5080 parity): a summary
+  // plus a picker dialog - the list itself never renders inline. The generic
+  // rows below keep the tuning knobs around it.
   const manager = groupId === "Models" ? renderDeviceModelManagerShell() : "";
   return manager + names.map((name) => renderDeviceSpRow(name, spCatalogIndex?.[name], data[name])).join("");
-}
-
-function renderDeviceModelManagerShell() {
-  return `
-    <div class="setting device-setting device-model-manager" id="deviceModelManager">
-      <div class="settingTop">
-        <div>
-          <div class="title">${escapeHtml(getUIText("model_manager", "Model manager"))}</div>
-          <div class="descr" id="deviceModelManagerStatus">${escapeHtml(getUIText("loading", "Loading..."))}</div>
-        </div>
-        <div class="ctrl">
-          <button type="button" class="smallBtn" id="btnDeviceModelRefresh">${escapeHtml(getUIText("refresh", "Refresh"))}</button>
-        </div>
-      </div>
-      <div id="deviceModelManagerBody" class="device-model-manager__body">
-        <div class="descr">${escapeHtml(getUIText("loading", "Loading..."))}</div>
-      </div>
-    </div>`;
 }

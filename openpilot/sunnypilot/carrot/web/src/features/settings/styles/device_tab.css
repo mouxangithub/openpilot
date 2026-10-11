@@ -458,3 +458,35 @@
   gap: 6px;
   align-items: center;
 }
+
+/* Generic list picker (car-picker dialog pattern) */
+.device-picker__sheet {
+  width: min(560px, 92vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+}
+.device-picker__list {
+  overflow-y: auto;
+  min-height: 0;
+}
+.device-picker__group {
+  padding: 12px 4px 4px;
+  font-weight: 600;
+  color: var(--text-muted, #999);
+}
+.device-picker__item {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  gap: 8px;
+}
+.device-picker__item.is-current {
+  outline: 1px solid var(--accent, #e7a34b);
+}
+.device-picker__item-label {
+  flex: 1;
+  min-width: 0;
+}
