@@ -1636,26 +1636,56 @@ function renderDeviceBluetoothShell() {
     ${deviceManagerRow({ id: "btMapping", title: getUIText("bt_mapping", "Button mapping"), descr: getUIText("bt_mapping_hint", "Map the remote's buttons to driving actions"), value: "-", button: getUIText("model_manager_select", "Select"), buttonId: "btnDeviceBtMapping" })}`;
 }
 
-function deviceBluetoothDeviceRow(name, mac) {
+function deviceBluetoothDeviceRow(device) {
+  const mac = String(device.mac || "");
+  const connected = !!device.connected;
+  const action = connected ? "disconnect" : "connect";
+  const actionLabel = connected ? getUIText("bt_disconnect", "DISCONNECT") : getUIText("bt_connect", "CONNECT");
+  const detail = device.paired ? getUIText("bt_paired", "paired") : getUIText("bt_not_paired", "not paired");
   return `
     <div class="setting device-setting">
       <div class="settingTop">
         <div>
-          <div class="title">${escapeHtml(name || mac)}</div>
-          <div class="descr">${escapeHtml(mac)}</div>
+          <div class="title">${escapeHtml(device.name || mac)}</div>
+          <div class="descr">${escapeHtml(mac)} · ${escapeHtml(detail)}</div>
         </div>
         <div class="ctrl device-model-actions">
-          <button type="button" class="smallBtn" data-bt-op="connect" data-bt-address="${escapeHtml(mac)}">${escapeHtml(getUIText("bt_connect", "CONNECT"))}</button>
+          <button type="button" class="smallBtn" data-bt-op="${escapeHtml(action)}" data-bt-address="${escapeHtml(mac)}">${escapeHtml(actionLabel)}</button>
           <button type="button" class="smallBtn" data-bt-op="forget" data-bt-address="${escapeHtml(mac)}">${escapeHtml(getUIText("bt_forget", "FORGET"))}</button>
         </div>
       </div>
     </div>`;
 }
 
+// The daemon answers with two device views: `devices` is the live bluez
+// snapshot (address/name/paired/connected), `config.devices` is what has been
+// saved. A remote can be in either, so merge them on MAC - showing only the
+// saved ones left a freshly scanned remote invisible.
+function bluetoothDeviceEntries(payload) {
+  const saved = payload?.config?.devices || {};
+  const byMac = new Map();
+  (Array.isArray(payload?.devices) ? payload.devices : []).forEach((entry) => {
+    const mac = String(entry?.address || "").toUpperCase();
+    if (!mac) return;
+    byMac.set(mac, {
+      mac,
+      name: entry?.name || saved[mac]?.name || "",
+      paired: !!entry?.paired,
+      connected: !!entry?.connected,
+    });
+  });
+  Object.keys(saved).forEach((key) => {
+    const mac = String(key || "").toUpperCase();
+    if (!mac || byMac.has(mac)) return;
+    byMac.set(mac, { mac, name: saved[key]?.name || "", paired: false, connected: false });
+  });
+  return [...byMac.values()];
+}
+
 async function loadDeviceBluetoothManager(container) {
   let payload = null;
   try {
-    payload = await requestJson("/api/opui/bluetooth", { cache: "no-store" });
+    payload = await requestJson("/api/bluetooth", { cache: "no-store" });
   } catch {}
 
   const runtime = payload?.runtime || {};
@@ -1663,23 +1693,23 @@ async function loadDeviceBluetoothManager(container) {
   if (runtimeValue) {
     runtimeValue.textContent = payload
       ? `${runtime.alive ? getUIText("bt_alive", "service up") : getUIText("bt_dead", "service down")} · ${payload?.radioEnabled ? getUIText("on", "ON") : getUIText("off", "OFF")}`
-      : getUIText("model_manager_unavailable", "Model manager (5080) unreachable");
+      : getUIText("bt_unavailable", "Bluetooth service unavailable");
   }
 
-  const devices = payload?.config?.devices || {};
-  const macs = Object.keys(devices);
+  const devices = bluetoothDeviceEntries(payload);
   const listRoot = container.querySelector("[data-bt-device-list]");
-  if (listRoot) {
-    listRoot.innerHTML = macs
-      .map((mac) => deviceBluetoothDeviceRow(devices[mac]?.name || devices[mac]?.alias || "", mac))
-      .join("");
-  }
+  if (listRoot) listRoot.innerHTML = devices.map((device) => deviceBluetoothDeviceRow(device)).join("");
   const devicesValue = container.querySelector("#btDevices-value");
-  if (devicesValue) devicesValue.textContent = String(macs.length);
+  if (devicesValue) devicesValue.textContent = String(devices.length);
 
+  const saved = payload?.config?.devices || {};
   const mappingValue = container.querySelector("#btMapping-value");
-  const defaults = payload?.defaults || {};
-  if (mappingValue) mappingValue.textContent = Object.entries(defaults).map(([k, v]) => `${k}:${v}`).join(" ");
+  if (mappingValue) {
+    const summary = Object.entries(saved)
+      .map(([mac, entry]) => `${entry?.name || mac}: ${Object.keys(entry?.mapping || {}).length}`)
+      .join(" · ");
+    mappingValue.textContent = summary || getUIText("bt_none_found", "No device found");
+  }
 
   container.querySelectorAll("[data-bt-op]").forEach((button) => {
     bindOnce(button, "click", async () => {
@@ -1687,11 +1717,13 @@ async function loadDeviceBluetoothManager(container) {
       const address = button.dataset.btAddress;
       const confirmText = op === "forget"
         ? getUIText("bt_forget_confirm", "Forget this device?")
-        : getUIText("bt_connect_confirm", "Connect to this device?");
+        : op === "disconnect"
+          ? getUIText("bt_disconnect_confirm", "Disconnect this device?")
+          : getUIText("bt_connect_confirm", "Connect to this device?");
       const ok = await appConfirm(confirmText, { title: getUIText("device_group_bluetooth", "Bluetooth"), confirmLabel: getUIText("ok", "OK"), cancelLabel: getUIText("cancel", "Cancel") });
       if (!ok) return;
       try {
-        await postJson(`/api/opui/bluetooth/${op}`, { address });
+        await postJson(`/api/bluetooth/${op}`, { address });
         showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
         await loadDeviceBluetoothManager(container);
       } catch (err) {
@@ -1702,45 +1734,78 @@ async function loadDeviceBluetoothManager(container) {
 
   bindOnce(container.querySelector("#btnDeviceBtScan"), "click", async () => {
     try {
-      await postJson("/api/opui/bluetooth/scan", {});
+      await postJson("/api/bluetooth/scan", {});
       showAppToast(getUIText("bt_scanning", "Scanning…"), { tone: "info" });
       await new Promise((r) => setTimeout(r, 6000));
-      const fresh = await requestJson("/api/opui/bluetooth", { cache: "no-store" });
-      const found = fresh?.runtime?.last_events?.scan || fresh?.runtime?.last_event || null;
-      if (found && found.address) {
-        await postJson("/api/opui/bluetooth/pair", { address: found.address });
-        showAppToast(getUIText("bt_pairing", "Pairing…"), { tone: "info" });
-      } else {
+      const fresh = await requestJson("/api/bluetooth", { cache: "no-store" });
+      const found = bluetoothDeviceEntries(fresh).filter((device) => !device.paired);
+      if (!found.length) {
         showAppToast(getUIText("bt_none_found", "No device found"), { tone: "error" });
+        return;
       }
-      await loadDeviceBluetoothManager(container);
+      openDeviceListPicker({
+        title: getUIText("bt_scan", "Scan and pair"),
+        meta: getUIText("bt_scan_hint", "Put the remote in pairing mode first"),
+        groups: [{ items: found.map((device) => ({ value: device.mac, label: device.name || device.mac, badge: device.mac })) }],
+        onPick: async (item) => {
+          try {
+            await postJson("/api/bluetooth/pair", { address: item.value });
+            showAppToast(getUIText("bt_pairing", "Pairing…"), { tone: "info" });
+            await loadDeviceBluetoothManager(container);
+          } catch (err) {
+            showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+          }
+        },
+      });
     } catch (err) {
       showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
     }
   });
 
+  // Mapping is per remote, not global: the daemon stores
+  // config.devices[MAC].mapping[button] = action, so the picker walks
+  // remote -> button -> action and rewrites only that one device entry.
   bindOnce(container.querySelector("#btnDeviceBtMapping"), "click", () => {
-    const actions = payload?.actions || ["none"];
-    const defaults = payload?.defaults || {};
-    const keys = Object.keys(defaults);
+    if (!devices.length) {
+      showAppToast(getUIText("bt_pair_first", "Pair a remote first"), { tone: "error" });
+      return;
+    }
     openDeviceListPicker({
       title: getUIText("bt_mapping", "Button mapping"),
       meta: getUIText("bt_mapping_hint", "Map the remote's buttons to driving actions"),
-      groups: [{ items: keys.map((key) => ({ value: key, label: `${key} → ${defaults[key]}` })) }],
-      onPick: async (item) => {
+      groups: [{ items: devices.map((device) => ({ value: device.mac, label: device.name || device.mac, badge: device.mac })) }],
+      onPick: (deviceItem) => {
+        const entry = saved[deviceItem.value] || {};
+        const mapping = entry.mapping || {};
+        const keys = Object.keys(mapping).length ? Object.keys(mapping) : Object.keys(payload?.defaults || {});
         openDeviceListPicker({
-          title: item.value,
-          meta: String(defaults[item.value] || ""),
-          groups: [{ items: actions.map((action) => ({ value: action, label: action, current: action === defaults[item.value] })) }],
-          onPick: async (actionItem) => {
-            try {
-              await postJson("/api/opui/bluetooth/config", { devices: {}, bindings: { [item.value]: actionItem.value } });
-              showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
-              const container2 = document.getElementById("deviceItems");
-              if (container2) await loadDeviceBluetoothManager(container2);
-            } catch (err) {
-              showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
-            }
+          title: getUIText("bt_button", "Button"),
+          meta: entry.name || deviceItem.value,
+          groups: [{ items: keys.map((key) => ({ value: key, label: key, badge: String(mapping[key] || "") })) }],
+          onPick: (keyItem) => {
+            const actions = payload?.actions || ["none"];
+            openDeviceListPicker({
+              title: getUIText("bt_action", "Action"),
+              meta: `${keyItem.value} → ${mapping[keyItem.value] || "-"}`,
+              groups: [{ items: actions.map((action) => ({ value: action, label: action, current: action === mapping[keyItem.value] })) }],
+              onPick: async (actionItem) => {
+                try {
+                  await postJson("/api/bluetooth/device-config", {
+                    address: deviceItem.value,
+                    device: {
+                      name: entry.name || deviceItem.value,
+                      profile: entry.profile || "generic",
+                      enabled: entry.enabled !== false,
+                      mapping: { ...mapping, [keyItem.value]: actionItem.value },
+                    },
+                  });
+                  showAppToast(getUIText("bt_mapping_saved", "Mapping saved"), { tone: "info" });
+                  await loadDeviceBluetoothManager(container);
+                } catch (err) {
+                  showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+                }
+              },
+            });
           },
         });
       },
