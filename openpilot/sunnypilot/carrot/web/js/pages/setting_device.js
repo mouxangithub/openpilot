@@ -62,7 +62,19 @@ function getLocalDeviceGroupParamNames(groupId) {
 
 function getDeviceGroupParamNames(groupId) {
   const fromServer = deviceGroupParamNames?.[groupId];
-  return Array.isArray(fromServer) ? fromServer.slice() : getLocalDeviceGroupParamNames(groupId);
+  const base = Array.isArray(fromServer) ? fromServer.slice() : getLocalDeviceGroupParamNames(groupId);
+  // The catalog-owned extras merge into their base section, so their values are
+  // read with it and the section renders one continuous list.
+  return deviceExtrasGroupIds(groupId).reduce(
+    (names, extrasId) => names.concat(deviceGroupParamNames?.[extrasId] || []),
+    base,
+  );
+}
+
+function renderDeviceExtrasItems(groupId, data) {
+  return deviceExtrasGroupIds(groupId)
+    .map((extrasId) => (deviceGroupParamNames?.[extrasId]?.length ? renderDeviceSpItems(extrasId, data) : ""))
+    .join("");
 }
 
 // ── sunnypilot sections: catalog metadata ─────────────────────────────────
@@ -110,6 +122,14 @@ const DEVICE_CAPABILITY_LOADERS = {
   Storage: (container) => loadDeviceStorageManager(container),
   Sunnylink: (container) => loadDeviceSunnylinkManager(container),
   Firehose: (container) => loadDeviceFirehoseManager(container),
+  Steering: (container) => loadDeviceTorqueTuneManager(container),
+};
+
+// Base groups that gained a 5080-backed block keep their hand-built rows; the
+// loader only fills the added rows.
+const DEVICE_EXTRA_LOADERS = {
+  Software: (container) => bindDeviceSoftwareActions(container),
+  Developer: (container) => loadDeviceDeveloperExtras(container),
 };
 
 function getCachedDeviceGroupValues(groupId) {
@@ -536,6 +556,10 @@ async function renderDeviceItems(groupId, showItemsScreen = true, options = {}) 
   if (capabilityLoader) {
     capabilityLoader(itemsContainer).catch((err) => console.error("[DeviceTab]", err));
   }
+  const extraLoader = DEVICE_EXTRA_LOADERS[groupId];
+  if (extraLoader) {
+    extraLoader(itemsContainer).catch((err) => console.error("[DeviceTab]", err));
+  }
   syncDeviceGroupActiveState(groupId);
   syncDeviceGroupChrome(groupId);
   syncDeviceNetworkRefresh();
@@ -563,22 +587,22 @@ function renderDeviceGroupItems(groupId, values) {
       language: data.LanguageSetting || "main_en",
       languages: DEVICE_LANGUAGES,
     });
-    return html;
+    return html + renderDeviceExtrasItems(groupId, data);
   }
 
   if (groupId === "Network") return renderNetworkPanel(deviceNetworkInfo || {});
-  if (groupId === "Toggles") return renderDeviceToggleItems(data);
-  if (groupId === "Developer") return renderDeviceDeveloperItems(data);
-  if (isSpDeviceGroup(groupId)) return renderDeviceSpItems(groupId, data);
+  if (groupId === "Toggles") return renderDeviceToggleItems(data) + renderDeviceExtrasItems(groupId, data);
+  if (groupId === "Developer") return renderDeviceDeveloperItems(data) + renderDeviceExtrasItems(groupId, data);
+  if (isSpDeviceGroup(groupId)) return renderDeviceSpItems(groupId, data) + renderDeviceExtrasItems(groupId, data);
   if (groupId === "Software") {
     let html = "";
     html += renderDeviceInfoRow(getUIText("updates_offroad_only", "Updates are only downloaded while the car is off."), "");
     html += renderDeviceVersionRow(getUIText("current_version", "Current Version"), data.UpdaterCurrentDescription || "-");
     html += renderDeviceActionRow(getUIText("download", "Download"), data.UpdaterState || "-", getUIText("check_upper", "CHECK"), "btnDeviceUpdateCheck", "smallBtn", true);
     html += renderDeviceActionRow(getUIText("install_update", "Install Update"), data.UpdaterNewDescription || "-", getUIText("install_upper", "INSTALL"), "btnDeviceInstallUpdate", "smallBtn", true);
-    html += renderDeviceActionRow(getUIText("target_branch", "Target Branch"), data.UpdaterTargetBranch || data.GitBranch || "-", getUIText("select_upper", "SELECT"), "btnDeviceTargetBranch", "smallBtn", true);
+    html += renderDeviceActionRow(getUIText("target_branch", "Target Branch"), data.UpdaterTargetBranch || data.GitBranch || "-", getUIText("select_upper", "SELECT"), "btnDeviceTargetBranch");
     html += renderDeviceActionRow(getUIText("uninstall_openpilot", "Uninstall openpilot"), "", getUIText("uninstall_upper", "UNINSTALL"), "btnDeviceUninstall", "smallBtn btn--danger", true);
-    return html;
+    return html + renderDeviceExtrasItems(groupId, data);
   }
 
   return "";
@@ -612,7 +636,11 @@ function renderDeviceToggleItems(values) {
 }
 
 function renderDeviceDeveloperItems(values) {
-  let html = renderSshKeysRow(values.SshKeyStatus || values.GithubUsername || "", Boolean(values.GithubSshKeys));
+  // The 5080 developer panel's actions (error log, reset params/calibration,
+  // onroad preview, driver view) lead the section; the SSH row and the local
+  // toggles follow.
+  let html = renderDeviceDeveloperExtrasShell();
+  html += renderSshKeysRow(values.SshKeyStatus || values.GithubUsername || "", Boolean(values.GithubSshKeys));
   DEVICE_DEVELOPER_TOGGLES.forEach((toggle) => {
     html += renderDeviceToggleRow(
       toggle.param,

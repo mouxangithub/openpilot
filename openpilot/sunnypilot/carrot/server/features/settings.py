@@ -5,6 +5,7 @@ from aiohttp import web
 
 from ..config import UNIT_CYCLE
 from ..services.device_info import (
+  device_owned_param_names,
   get_device_network_snapshot,
   get_device_setting_group_names,
   get_device_setting_values,
@@ -32,6 +33,9 @@ def _settings_catalog_payload(cache_parts: tuple | None = None, vehicle_brand: s
     "groups": groups_list,
     "items_by_group": dict(groups),
     "categories": categories,
+    # Names the Device tab already renders. The CarrotPilot tab drops them so a
+    # sunnypilot device setting is never listed on both tabs.
+    "device_owned": sorted(device_owned_param_names()),
     "unit_cycle": UNIT_CYCLE,
     "has_params": HAS_PARAMS,
     "has_param_type": bool(ParamKeyType is not None and hasattr(Params(), "get_type")) if HAS_PARAMS else False,

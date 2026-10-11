@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from copy import deepcopy
 from typing import Any
 
@@ -19,6 +20,10 @@ settings_cache: dict = {
   "groups_list": None, # [{group, egroup, count}, ...]
   "categories": None,  # 대>중>소 트리 ([{id,ko,en,zh,groups:[...]}]) or None when no "menu"
 }
+
+
+# The catalog marks status-only entries in their own descriptions.
+READ_ONLY_MARKER = re.compile(r"\(read-?only\)", re.IGNORECASE)
 
 
 def _param_text(value) -> str:
@@ -123,6 +128,15 @@ def build_menu_categories(data: dict[str, Any], by_name: dict[str, dict[str, Any
   if not menu:
     return None
 
+  # Status-only entries are marked by the catalog itself ("... (read-only).").
+  # They are not settings: every one of them already has a home in a hand-built
+  # or manager block (dongle id under Device, OSM progress under Maps, sunnylink
+  # id under sunnylink). Listing them as rows produced a page of uneditable
+  # entries, so they never enter the tree.
+  def is_status_only(name: str) -> bool:
+    entry = by_name.get(name) or {}
+    return bool(READ_ONLY_MARKER.search(f"{entry.get('descr') or ''} {entry.get('edescr') or ''}"))
+
   def join_labels(nodes: list[dict[str, Any]], key: str) -> str | None:
     parts = [str(n.get(key) or "").strip() for n in nodes]
     parts = [p for p in parts if p]
@@ -137,7 +151,7 @@ def build_menu_categories(data: dict[str, Any], by_name: dict[str, dict[str, Any
       if children:
         sections.extend(sections_from(children, path))
         continue
-      items = [n for n in node.get("params", []) if n in by_name]
+      items = [n for n in node.get("params", []) if n in by_name and not is_status_only(n)]
       if not items:
         continue
       sections.append({
@@ -150,6 +164,11 @@ def build_menu_categories(data: dict[str, Any], by_name: dict[str, dict[str, Any
     return sections
 
   cats: list[dict[str, Any]] = []
+  # Several params are listed under two menu nodes (ClusterNaviMapFps under
+  # DISPLAY/HUD and SUNNYPILOT/Maps, ShowAdvancedControls under three). Rendering
+  # every node faithfully drew the same row in two or three groups - which reads
+  # as a duplicated setting. First node in menu order wins.
+  claimed: set[str] = set()
   for cat in menu:
     groups_out: list[dict[str, Any]] = []
     for grp in cat.get("groups", []):
@@ -158,14 +177,22 @@ def build_menu_categories(data: dict[str, Any], by_name: dict[str, dict[str, Any
       else:
         # params directly under the 중-group → single label-less section
         sections = [{"id": grp.get("id"), "ko": None, "en": None, "zh": None,
-                     "items": [n for n in grp.get("params", []) if n in by_name]}]
+                     "items": [n for n in grp.get("params", []) if n in by_name and not is_status_only(n)]}]
+      for section in sections:
+        section["items"] = [n for n in section["items"] if n not in claimed]
+        claimed.update(section["items"])
+      sections = [section for section in sections if section["items"]]
       count = sum(
         1
         for section in sections
         for name in section["items"]
         if not by_name[name].get("detail_parent") and not by_name[name].get("search_only")
       )
+      if not count:
+        continue
       groups_out.append({**_label(grp), "id": grp.get("id"), "count": count, "sections": sections})
+    if not groups_out:
+      continue
     cats.append({**_label(cat), "id": cat.get("id"), "groups": groups_out})
   return cats
 

@@ -320,11 +320,10 @@ function renderDeviceSpToggleRow(param, title, descr, checked, needsConfirm) {
 function renderDeviceSpItems(groupId, values) {
   const names = getDeviceGroupParamNames(groupId);
   const data = { ...deviceParamValues, ...(values || {}) };
-  // Capability sections (5080 daemon state, no catalog params) render only
-  // their manager block.
-  if (groupId === "Bluetooth") return renderDeviceBluetoothShell();
   // Sections with real interactive surfaces lead with their manager block; the
-  // generic rows below keep the tuning knobs around it.
+  // generic rows below keep the tuning knobs around it. Capability sections
+  // (Bluetooth, Storage, sunnylink, firehose) have no catalog params, so the
+  // manager block is the whole section.
   const manager = DEVICE_SECTION_SHELLS[groupId] ? DEVICE_SECTION_SHELLS[groupId]() : "";
   return manager + names.map((name) => renderDeviceSpRow(name, spCatalogIndex?.[name], data[name])).join("");
 }

@@ -489,7 +489,17 @@ function bindDeviceSpControls(container) {
 }
 
 
-// ── Generic list picker: the car-picker dialog pattern, for any list choice ─
+// ── Searchable picker foundation ──────────────────────────────────────────
+// 5080's `showTree` is the reference: a dialog with a search field, the current
+// item pinned on top, folders that auto-expand while a query is active, and a
+// footer whose Select stays disabled until the pick actually changes. Every
+// picker on this panel (vehicle, map region, model, branch, torque tune,
+// bluetooth mapping) is built on the two helpers below so the interaction is
+// identical everywhere instead of one dialog per call site.
+
+// Below this many rows a search box is noise; above it, it is the only way to
+// find anything (the vehicle list is 31 brands, the region list is 200+).
+const DEVICE_PICKER_SEARCH_MIN_ITEMS = 8;
 
 function closeDevicePicker(overlay) {
   if (!overlay) return;
@@ -498,10 +508,15 @@ function closeDevicePicker(overlay) {
   overlay.remove();
 }
 
-// groups: [{ name, items: [{ value, label, badge, current, actions: [{label, onClick}] }] }]
-// onPick(item) runs when an item row (not its actions) is tapped; the overlay
-// closes first unless onPick returns the string "keep-open".
-function openDeviceListPicker({ title, meta, groups, onPick }) {
+// Haystack for one row: what the user sees plus the group it sits under, so
+// "hyundai" finds a platform even when the brand folder is collapsed.
+function devicePickerHaystack(item, groupName) {
+  const parts = [item?.label, item?.badge, item?.keywords, groupName];
+  if (item && typeof item.value === "string") parts.push(item.value);
+  return parts.map((value) => String(value == null ? "" : value).toLowerCase()).join(" ");
+}
+
+function devicePickerBuildSheet({ title, meta, showSearch, showFooter, confirmLabel }) {
   const overlay = document.createElement("div");
   overlay.className = "app-dialog device-picker";
   overlay.hidden = true;
@@ -511,58 +526,193 @@ function openDeviceListPicker({ title, meta, groups, onPick }) {
       <div class="app-branch-picker__head">
         <div class="app-branch-picker__titles">
           <div class="app-dialog__title">${escapeHtml(title)}</div>
-          <div class="muted app-branch-picker__meta">${escapeHtml(meta || "-")}</div>
+          <div class="muted app-branch-picker__meta" data-picker-meta>${escapeHtml(meta || "-")}</div>
         </div>
         <button type="button" class="smallBtn device-picker__close">${escapeHtml(getUIText("close", "Close"))}</button>
       </div>
+      ${showSearch ? `<div class="device-picker__search">
+        <input type="text" class="input-text" data-picker-search autocomplete="off"
+               placeholder="${escapeHtml(getUIText("picker_search", "Search"))}" />
+      </div>` : ""}
       <div class="app-branch-picker__list device-picker__list"></div>
+      ${showFooter ? `<div class="device-picker__footer">
+        <button type="button" class="smallBtn device-picker__close">${escapeHtml(getUIText("cancel", "Cancel"))}</button>
+        <button type="button" class="smallBtn device-picker__ok" disabled>${escapeHtml(confirmLabel || getUIText("model_manager_select", "Select"))}</button>
+      </div>` : ""}
     </div>`;
+  return overlay;
+}
+
+// Every close affordance (backdrop, header X, footer Cancel) plus Escape.
+function devicePickerBindClose(overlay, close) {
+  overlay.querySelector(".app-dialog__backdrop").onclick = close;
+  // querySelector would bind only the header button and leave footer Cancel dead.
+  overlay.querySelectorAll(".device-picker__close").forEach((btn) => {
+    btn.onclick = close;
+  });
+  overlay.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") close();
+  });
+}
+
+// One row. A div[role=button] when the row carries action buttons - nesting a
+// <button> inside a <button> makes the parser close the outer one early and the
+// row click silently dies.
+function devicePickerRow(item, { hasActions, current, indent, pinned, onActivate }) {
+  const row = document.createElement(hasActions ? "div" : "button");
+  row.type = "button";
+  const classes = ["btn", "groupBtn", "device-picker__item"];
+  if (current) classes.push("is-current");
+  if (indent) classes.push("device-picker__item--child");
+  if (pinned) classes.push("device-picker__item--pinned");
+  row.className = classes.join(" ");
+  const label = document.createElement("span");
+  label.className = "device-picker__item-label";
+  label.textContent = String(item.label ?? item.value ?? "-") + (item.badge ? ` (${item.badge})` : "");
+  row.appendChild(label);
+  (item.actions || []).forEach((action) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "smallBtn";
+    if (action.id) btn.dataset.modelFav = action.id;
+    btn.textContent = action.label;
+    btn.onclick = (event) => {
+      event.stopPropagation();
+      action.onClick?.(item);
+    };
+    row.appendChild(btn);
+  });
+  if (hasActions) {
+    row.setAttribute("role", "button");
+    row.tabIndex = 0;
+    row.onclick = onActivate;
+    row.onkeydown = (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onActivate();
+      }
+    };
+  } else {
+    row.onclick = onActivate;
+  }
+  return row;
+}
+
+// groups: [{ name, items: [{ value, label, badge, keywords, current, actions }] }]
+// onPick(item) runs when an item row (not its actions) is tapped. The overlay
+// closes first unless onPick returns the string "keep-open".
+//
+// Pass `selectedValue` to get 5080's confirm footer: the current row is pinned
+// on top and Select stays disabled until a *different* row is picked.
+function openDeviceListPicker(options) {
+  const {
+    title, meta, groups, onPick,
+    searchable, selectedValue, confirmLabel, emptyText,
+  } = options;
+
+  const sourceGroups = (groups || []).map((group) => ({
+    name: group?.name || "",
+    items: (group?.items || []).map((item) => ({ ...item })),
+  }));
+  const totalItems = sourceGroups.reduce((sum, group) => sum + group.items.length, 0);
+  const showSearch = searchable === true
+    || (searchable !== false && totalItems >= DEVICE_PICKER_SEARCH_MIN_ITEMS);
+  // A pinned current item only makes sense when the caller told us what it is.
+  const showFooter = selectedValue !== undefined && selectedValue !== null;
+  const currentValue = showFooter ? selectedValue : undefined;
+
+  const overlay = devicePickerBuildSheet({ title, meta, showSearch, showFooter, confirmLabel });
+  const list = overlay.querySelector(".device-picker__list");
+  const metaEl = overlay.querySelector("[data-picker-meta]");
+  const searchInput = overlay.querySelector("[data-picker-search]");
+  const selectBtn = overlay.querySelector(".device-picker__ok");
+  let query = "";
+  let pick = currentValue;
 
   const close = () => closeDevicePicker(overlay);
-  overlay.querySelector(".app-dialog__backdrop").onclick = close;
-  overlay.querySelector(".device-picker__close").onclick = close;
+  devicePickerBindClose(overlay, close);
 
-  const list = overlay.querySelector(".device-picker__list");
-  (groups || []).forEach((group) => {
-    if (group?.name) {
-      const head = document.createElement("div");
-      head.className = "device-picker__group";
-      head.textContent = group.name;
-      list.appendChild(head);
-    }
-    (group?.items || []).forEach((item) => {
-      const row = document.createElement(item.actions && item.actions.length ? "div" : "button");
-      row.type = "button";
-      row.className = `btn groupBtn device-picker__item${item.current ? " is-current" : ""}`;
-      const labelSpan = document.createElement("span");
-      labelSpan.className = "device-picker__item-label";
-      labelSpan.textContent = item.label + (item.badge ? ` (${item.badge})` : "");
-      row.appendChild(labelSpan);
-      (item.actions || []).forEach((action) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "smallBtn";
-        if (action.id) btn.dataset.modelFav = action.id;
-        btn.textContent = action.label;
-        btn.onclick = (event) => {
-          event.stopPropagation();
-          action.onClick(item, overlay);
-        };
-        row.appendChild(btn);
-      });
-      if (!row.tagName || row.tagName !== "DIV") {
-        row.onclick = async () => {
-          close();
-          await onPick?.(item);
-        };
+  const syncSelectBtn = () => {
+    if (!selectBtn) return;
+    const changed = pick !== undefined && pick !== currentValue;
+    selectBtn.disabled = !changed;
+  };
+
+  const renderList = () => {
+    list.innerHTML = "";
+    const queryLower = query.trim().toLowerCase();
+    let shown = 0;
+
+    sourceGroups.forEach((group) => {
+      const visible = group.items.filter((item) => (
+        !queryLower || devicePickerHaystack(item, group.name).includes(queryLower)
+      ));
+      if (!visible.length) return;
+      if (group.name) {
+        const head = document.createElement("div");
+        head.className = "device-picker__group";
+        head.textContent = group.name;
+        list.appendChild(head);
       }
-      list.appendChild(row);
+      visible.forEach((item) => {
+        shown += 1;
+        const isCurrent = currentValue !== undefined && item.value === currentValue;
+        list.appendChild(devicePickerRow(item, {
+          hasActions: Boolean(item.actions && item.actions.length),
+          current: isCurrent,
+          onActivate: async () => {
+            pick = item.value;
+            if (showFooter) {
+              syncSelectBtn();
+              renderList();
+              return;
+            }
+            close();
+            const result = await onPick?.(item);
+            if (result === "keep-open" && overlay.isConnected) {
+              overlay.hidden = false;
+              requestAnimationFrame(() => overlay.classList.add("is-open"));
+            }
+          },
+        }));
+      });
     });
-  });
 
+    if (!shown) {
+      const empty = document.createElement("div");
+      empty.className = "muted text-center device-picker__empty";
+      empty.textContent = emptyText || getUIText("picker_no_results", "No matches");
+      list.appendChild(empty);
+    }
+    if (metaEl) {
+      metaEl.textContent = query.trim() && shown !== totalItems
+        ? `${shown} / ${totalItems}`
+        : (meta || String(totalItems));
+    }
+  };
+
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      query = searchInput.value;
+      renderList();
+    });
+  }
+  if (selectBtn) {
+    selectBtn.onclick = async () => {
+      overlay.remove();
+      const item = sourceGroups
+        .flatMap((group) => group.items)
+        .find((entry) => entry.value === pick);
+      if (item) await onPick?.(item);
+    };
+  }
+
+  syncSelectBtn();
   document.body.appendChild(overlay);
   overlay.hidden = false;
   requestAnimationFrame(() => overlay.classList.add("is-open"));
+  if (searchInput) searchInput.focus();
+  renderList();
   return { close, overlay };
 }
 
@@ -680,58 +830,54 @@ async function refreshDeviceModelManager() {
   paintDeviceModelRows();
 }
 
-// Tree dialog, showTree parity: folders with +/- collapse, the current model
-// pinned on top, star favorites that refresh the tree, search, footer buttons.
-function openDeviceTreeDialog({ title, folders, selectedRef, source }) {
+// Tree dialog, showTree parity: folders with +/- collapse, the current node
+// pinned on top, optional star favorites, search, footer Cancel/Select.
+//
+// `folders` is `[{name, bundles:[{ref, name, internal, fav}]}]`. Anything with
+// a single flat list passes `name: ""` and gets a folder-less tree - that is
+// how 5080 renders countries, states, branches and torque versions.
+//
+// `onFavorite(ref)` toggles the star and `getFolders()` refetches the tree
+// afterwards (models only). Both optional - without them no star is drawn.
+function openDeviceTreeDialog({ title, meta, folders, selectedRef = "", onFavorite, getFolders, confirmLabel }) {
   return new Promise((resolve) => {
-    const overlay = document.createElement("div");
-    overlay.className = "app-dialog device-picker";
-    overlay.hidden = true;
-    overlay.innerHTML = `
-      <button type="button" class="app-dialog__backdrop" aria-label="Close"></button>
-      <div class="app-dialog__sheet app-branch-picker__sheet device-picker__sheet" role="dialog" aria-modal="true">
-        <div class="app-branch-picker__head">
-          <div class="app-branch-picker__titles">
-            <div class="app-dialog__title">${escapeHtml(title)}</div>
-          </div>
-          <button type="button" class="smallBtn device-picker__close">${escapeHtml(getUIText("cancel", "Cancel"))}</button>
-        </div>
-        <div class="device-picker__search">
-          <input type="text" class="input-text" placeholder="${escapeHtml(getUIText("model_manager_search", "Search"))}" />
-        </div>
-        <div class="app-branch-picker__list device-picker__list"></div>
-        <div class="device-picker__footer">
-          <button type="button" class="smallBtn device-picker__close">${escapeHtml(getUIText("cancel", "Cancel"))}</button>
-          <button type="button" class="smallBtn device-picker__ok" disabled>${escapeHtml(getUIText("model_manager_select", "Select"))}</button>
-        </div>
-      </div>`;
+    const overlay = devicePickerBuildSheet({
+      title,
+      meta,
+      showSearch: true,
+      showFooter: true,
+      confirmLabel,
+    });
+    const listEl = overlay.querySelector(".device-picker__list");
+    const selectBtn = overlay.querySelector(".device-picker__ok");
+    const searchInput = overlay.querySelector("[data-picker-search]");
+    const metaEl = overlay.querySelector("[data-picker-meta]");
 
-    let treeFolders = folders.map((f) => ({ ...f, bundles: [...(f.bundles || [])] }));
+    let treeFolders = (folders || []).map((f) => ({ ...f, bundles: [...(f.bundles || [])] }));
     let pick = selectedRef;
     let query = "";
     const expanded = new Set(treeFolders.filter((f) => f.name).map((f) => f.name));
-    const sourceSlot = deviceModelSlot(DEVICE_MODEL_PAYLOAD, source);
 
-    const overlay_close = () => {
-      overlay.classList.remove("is-open");
-      overlay.remove();
+    const close = () => {
+      closeDevicePicker(overlay);
       resolve(null);
     };
-    overlay.querySelector(".app-dialog__backdrop").onclick = overlay_close;
-    // Two close buttons exist (header + footer) - querySelector would bind only
-    // the first and leave the footer Cancel dead.
-    overlay.querySelectorAll(".device-picker__close").forEach((btn) => {
-      btn.onclick = overlay_close;
-    });
+    devicePickerBindClose(overlay, close);
 
-    const searchInput = overlay.querySelector(".device-picker__search input");
-    searchInput.addEventListener("input", () => {
-      query = searchInput.value;
-      renderList();
-    });
+    if (searchInput) {
+      searchInput.addEventListener("input", () => {
+        query = searchInput.value;
+        renderList();
+      });
+    }
 
-    const listEl = overlay.querySelector(".device-picker__list");
-    const selectBtn = overlay.querySelector(".device-picker__ok");
+    const syncSelectBtn = () => {
+      if (!selectBtn) return;
+      const enabled = Boolean(pick) && pick !== selectedRef;
+      selectBtn.disabled = !enabled;
+    };
+
+    const folderLabel = (name) => (name == null || name === "" ? getUIText("picker_default_folder", "Default") : String(name));
 
     const findSelectedBundle = () => {
       for (const folder of treeFolders) {
@@ -742,81 +888,92 @@ function openDeviceTreeDialog({ title, folders, selectedRef, source }) {
       return null;
     };
 
-    const bundleRow = (bundle, { pinned = false, indent = false }) => {
-      // A div, not a button: the favourite star inside is a real <button>, and
-      // nesting buttons makes the parser close the outer one early - the row
-      // click then never fires and Select stays disabled forever.
-      const row = document.createElement("div");
-      row.setAttribute("role", "button");
-      row.tabIndex = 0;
-      row.className = `btn groupBtn device-picker__item${indent ? " device-picker__item--child" : ""}`
-        + (pinned ? " device-picker__item--pinned" : "")
-        + (bundle.ref === pick || (pick === "" && bundle.ref === "Default") ? " is-current" : "");
-      const label = document.createElement("span");
-      label.className = "device-picker__item-label";
-      label.textContent = String(bundle.name || bundle.ref || "-");
-      row.appendChild(label);
-      if (bundle.ref && bundle.ref !== "Default" && sourceSlot) {
-        const star = document.createElement("button");
-        star.type = "button";
-        star.className = "smallBtn";
-        star.dataset.modelFav = bundle.ref;
-        star.textContent = bundle.fav ? "★" : "☆";
-        star.onclick = async (event) => {
-          event.stopPropagation();
-          try {
-            await postJson("/api/opui/models/favorite", { ref: bundle.ref });
-            bundle.fav = !bundle.fav;
-            star.textContent = bundle.fav ? "★" : "☆";
-            const fresh = await requestJson("/api/opui/models", { cache: "no-store" });
-            if (fresh?.ok) {
-              DEVICE_MODEL_PAYLOAD = fresh;
-              treeFolders = (deviceModelSlot(fresh, source).tree || []).map((f) => ({ ...f, bundles: [...(f.bundles || [])] }));
+    const starFor = (bundle) => {
+      const star = document.createElement("button");
+      star.type = "button";
+      star.className = "smallBtn";
+      star.dataset.modelFav = bundle.ref;
+      star.textContent = bundle.fav ? "★" : "☆";
+      star.onclick = async (event) => {
+        event.stopPropagation();
+        try {
+          const result = await onFavorite(bundle.ref);
+          if (result === false) return;
+          bundle.fav = !bundle.fav;
+          star.textContent = bundle.fav ? "★" : "☆";
+          if (typeof getFolders === "function") {
+            const fresh = await getFolders();
+            if (fresh?.length) {
+              treeFolders = fresh.map((f) => ({ ...f, bundles: [...(f.bundles || [])] }));
               renderList();
             }
-          } catch (err) {
-            showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
           }
-        };
-        row.appendChild(star);
-      }
-      row.onclick = () => {
-        pick = bundle.ref;
-        selectBtn.disabled = pick === selectedRef;
-        renderList();
+        } catch (err) {
+          showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+        }
       };
+      return star;
+    };
+
+    const bundleRow = (bundle, { pinned = false, indent = false }) => {
+      const row = devicePickerRow(
+        { label: String(bundle.name || bundle.ref || "-"), actions: [] },
+        {
+          // A div, not a button: the favourite star inside is a real <button>,
+          // and nesting buttons makes the parser close the outer one early -
+          // the row click then never fires and Select stays disabled forever.
+          hasActions: true,
+          current: bundle.ref === pick || (pick === "" && bundle.ref === "Default"),
+          indent,
+          pinned,
+          onActivate: () => {
+            pick = bundle.ref;
+            syncSelectBtn();
+            renderList();
+          },
+        },
+      );
+      if (typeof onFavorite === "function" && bundle.ref && bundle.ref !== "Default") {
+        row.appendChild(starFor(bundle));
+      }
       return row;
     };
 
     function renderList() {
       listEl.innerHTML = "";
       const queryLower = query.toLowerCase().trim();
-      const searching = !!queryLower;
+      const searching = Boolean(queryLower);
       const selectedNode = findSelectedBundle();
+      let shown = 0;
 
-      if (selectedNode?.bundle) {
+      // Pin the currently selected item at the very top, matching the GUI
+      // TreeOptionDialog and 5080's showTree.
+      if (selectedNode?.bundle && !searching) {
         listEl.appendChild(bundleRow(selectedNode.bundle, { pinned: true }));
       }
       for (const folder of treeFolders) {
         const folderName = String(folder.name || "");
-        const all = folder.bundles || [];
-        const bundles = all.filter((b) => {
+        const bundles = (folder.bundles || []).filter((b) => {
           if (!queryLower) return true;
-          return (b.name || "").toLowerCase().includes(queryLower)
-            || (b.internal || "").toLowerCase().includes(queryLower)
-            || folderName.toLowerCase().includes(queryLower);
+          return String(b.name || b.ref || "").toLowerCase().includes(queryLower)
+            || String(b.internal || "").toLowerCase().includes(queryLower)
+            || folderLabel(folder.name).toLowerCase().includes(queryLower);
         });
-        const visible = selectedNode?.bundle
+        // Skip the pinned node inside its own folder so it is not listed twice.
+        const visible = selectedNode?.bundle && !searching
           ? bundles.filter((b) => !(b.ref === selectedNode.bundle.ref && b.name === selectedNode.bundle.name))
           : bundles;
         if (!visible.length) continue;
-        const hasFolder = !!folderName;
+        shown += visible.length;
+        const hasFolder = Boolean(folderName);
+        // Searching force-expands every folder: matches would otherwise hide
+        // inside collapsed branches and look like "no results".
         const isOpen = searching || !hasFolder || expanded.has(folderName);
         if (hasFolder) {
           const header = document.createElement("button");
           header.type = "button";
           header.className = "btn groupBtn device-picker__item device-picker__folder";
-          header.textContent = `${isOpen ? "−" : "+"} ${folderName}`;
+          header.textContent = `${isOpen ? "−" : "+"} ${folderLabel(folder.name)}`;
           header.onclick = () => {
             if (expanded.has(folderName)) expanded.delete(folderName);
             else expanded.add(folderName);
@@ -829,16 +986,29 @@ function openDeviceTreeDialog({ title, folders, selectedRef, source }) {
           listEl.appendChild(bundleRow(bundle, { indent: hasFolder }));
         }
       }
+      if (!shown) {
+        const empty = document.createElement("div");
+        empty.className = "muted text-center device-picker__empty";
+        empty.textContent = getUIText("picker_no_results", "No matches");
+        listEl.appendChild(empty);
+      }
+      if (metaEl) {
+        metaEl.textContent = searching ? `${shown}` : (meta || String(shown));
+      }
     }
 
-    selectBtn.onclick = () => {
-      overlay.remove();
-      resolve(pick);
-    };
+    if (selectBtn) {
+      selectBtn.onclick = () => {
+        overlay.remove();
+        resolve(pick);
+      };
+    }
 
+    syncSelectBtn();
     document.body.appendChild(overlay);
     overlay.hidden = false;
     requestAnimationFrame(() => overlay.classList.add("is-open"));
+    if (searchInput) searchInput.focus();
     renderList();
   });
 }
@@ -856,17 +1026,41 @@ async function deviceModelIndexForRef(source, ref) {
 async function openDeviceModelSlotPicker(source, title) {
   if (!DEVICE_MODEL_PAYLOAD?.ok) return;
   const slot = deviceModelSlot(DEVICE_MODEL_PAYLOAD, source);
+  const treeOf = (payload) => (deviceModelSlot(payload, source).tree || [])
+    .map((f) => ({ ...f, bundles: [...(f.bundles || [])] }));
   const ref = await openDeviceTreeDialog({
     title,
-    folders: (slot?.tree || []).map((f) => ({ ...f, bundles: [...(f.bundles || [])] })),
+    meta: deviceModelSlotSelectedName(slot),
+    folders: treeOf(DEVICE_MODEL_PAYLOAD),
     selectedRef: String(slot?.active_ref || "Default"),
-    source,
+    onFavorite: async (ref2) => {
+      const res = await postJson("/api/opui/models/favorite", { ref: ref2 });
+      if (res && res.ok === false) {
+        showAppToast(res.error || getUIText("failed", "Failed"), { tone: "error" });
+        return false;
+      }
+      return true;
+    },
+    getFolders: async () => {
+      const fresh = await requestJson("/api/opui/models", { cache: "no-store" });
+      if (fresh?.ok) DEVICE_MODEL_PAYLOAD = fresh;
+      return fresh?.ok ? treeOf(fresh) : [];
+    },
   });
   if (ref === null || ref === undefined) return;
   const index = await deviceModelIndexForRef(source, ref);
   try {
-    await postJson("/api/opui/models/select", { ref, index, source });
-    showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+    const res = await postJson("/api/opui/models/select", { ref, index, source });
+    if (res?.needs_reset_cal) {
+      const ok = await appConfirm(getUIText("model_manager_reset_cal", "Model download has started in the background. We suggest resetting calibration. Would you like to do that now?"), {
+        title,
+        confirmLabel: getUIText("ok", "OK"),
+        cancelLabel: getUIText("cancel", "Cancel"),
+      });
+      if (ok) await postJson("/api/recalibrate", {});
+    } else {
+      showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+    }
     await refreshDeviceModelManager();
   } catch (err) {
     showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
@@ -963,65 +1157,161 @@ function bindOnce(element, event, handler) {
   element.addEventListener(event, handler);
 }
 
-// ── OSM: region download, progress, size, delete ───────────────────────────
+// ── OSM (Maps): 5080's panel is Country / State / Database Update / size ────
+// 5080 keeps the region as two independent rows (so the state can be changed
+// without re-picking the country) and only shows the State row for countries
+// that are split by region (US states, CN provinces). Both open a searchable
+// tree - the country list is ~200 entries.
+
+const DEVICE_OSM_STATE_COUNTRIES = new Set(["US", "CN"]);
 
 function renderDeviceOsmShell() {
   return `
-    ${deviceManagerRow({ id: "osmRegion", title: getUIText("osm_download_region", "Download map region"), descr: getUIText("osm_download_region_hint", "Pick a country, then a state or province"), button: getUIText("model_manager_select", "Select"), buttonId: "btnDeviceOsmRegion" })}
+    ${deviceManagerRow({ id: "osmRegion", title: getUIText("osm_download_region", "Download map region"), descr: getUIText("osm_download_region_hint", "Pick a country, then a state or province"), value: "-", button: getUIText("model_manager_select", "Select"), buttonId: "btnDeviceOsmRegion" })}
+    ${deviceManagerRow({ id: "osmState", title: getUIText("osm_pick_state", "State / Province"), value: "-", button: getUIText("model_manager_select", "Select"), buttonId: "btnDeviceOsmState" })}
     ${deviceManagerRow({ id: "osmProgress", title: getUIText("osm_progress", "Download progress"), value: "-" })}
+    ${deviceManagerRow({ id: "osmUpdate", title: getUIText("osm_update", "Database update"), descr: getUIText("osm_update_hint", "Last time the map database was refreshed"), value: "-", button: getUIText("osm_check_btn", "CHECK"), buttonId: "btnDeviceOsmCheck" })}
     ${deviceManagerRow({ id: "osmSize", title: getUIText("osm_size", "Downloaded map size"), value: "-" })}
     ${deviceManagerRow({ id: "osmDelete", title: getUIText("osm_delete", "Delete downloaded maps"), descr: getUIText("osm_delete_hint", "Removes every OSM map on the device"), button: getUIText("model_manager_clear_btn", "CLEAR"), buttonId: "btnDeviceOsmDelete" })}`;
 }
 
-async function deviceOsmProgressText() {
+// OsmLocationName / OsmStateName / OsmDownloadedDate are the params the daemon
+// writes; they are the same source 5080 reads for its labels.
+async function deviceOsmReadLocation() {
+  const values = await bulkGet(["OsmLocationName", "OsmLocationTitle", "OsmStateName", "OsmStateTitle", "OsmDownloadedDate"]).catch(() => ({}));
+  return {
+    country: String(values.OsmLocationName || ""),
+    countryTitle: String(values.OsmLocationTitle || ""),
+    state: String(values.OsmStateName || ""),
+    stateTitle: String(values.OsmStateTitle || ""),
+    downloaded: String(values.OsmDownloadedDate || ""),
+  };
+}
+
+function deviceOsmNeedsState(country) {
+  return DEVICE_OSM_STATE_COUNTRIES.has(String(country || "").toUpperCase());
+}
+
+function deviceOsmStateTitle(country) {
+  return String(country || "").toUpperCase() === "CN"
+    ? getUIText("osm_province", "Province")
+    : getUIText("osm_state", "State");
+}
+
+function deviceOsmFormatDate(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return getUIText("osm_never", "never");
+  const seconds = Number(text);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return new Date(seconds * 1000).toLocaleString();
+  }
+  return text;
+}
+
+async function deviceOsmApplyProgress(container) {
+  const progressValue = container.querySelector("#osmProgress-value");
+  if (!progressValue) return false;
   try {
     const progress = await requestJson("/api/opui/osm/progress", { cache: "no-store" });
     const pct = Number(progress?.progress ?? 0);
     const done = Number(progress?.done ?? 0);
     const total = Number(progress?.total ?? 0);
-    if (progress?.downloading || progress?.active) return `${pct.toFixed(0)}% (${done}/${total})`;
-    return getUIText("osm_idle", "idle");
+    if (progress?.downloading || progress?.active) {
+      progressValue.textContent = total > 0 ? `${pct.toFixed(0)}% (${done}/${total})` : `${pct.toFixed(0)}%`;
+      return true;
+    }
+    progressValue.textContent = getUIText("osm_idle", "idle");
+    return false;
   } catch {
-    return "-";
+    progressValue.textContent = "-";
+    return false;
   }
 }
 
+// While a download runs the panel re-reads progress until it finishes, so the
+// row is live instead of a snapshot taken when the section opened.
+let deviceOsmPollTimer = null;
+
+function deviceOsmStopPolling() {
+  if (!deviceOsmPollTimer) return;
+  window.clearTimeout(deviceOsmPollTimer);
+  deviceOsmPollTimer = null;
+}
+
+function deviceOsmPoll(container) {
+  deviceOsmStopPolling();
+  const step = async () => {
+    const container2 = document.getElementById("deviceItems");
+    if (!container2 || !container2.querySelector("#osmProgress-value")) {
+      deviceOsmStopPolling();
+      return;
+    }
+    const active = await deviceOsmApplyProgress(container2);
+    if (!active) {
+      deviceOsmStopPolling();
+      await loadDeviceOsmManager(container2);
+      return;
+    }
+    deviceOsmPollTimer = window.setTimeout(step, 3000);
+  };
+  deviceOsmPollTimer = window.setTimeout(step, 3000);
+}
+
 async function loadDeviceOsmManager(container) {
-  const progressValue = container.querySelector("#osmProgress-value");
-  if (progressValue) progressValue.textContent = await deviceOsmProgressText();
+  const location = await deviceOsmReadLocation();
+  const regionValue = container.querySelector("#osmRegion-value");
+  if (regionValue) regionValue.textContent = location.countryTitle || location.country || getUIText("osm_not_selected", "Not selected");
+
+  const stateRow = container.querySelector("#osmState");
+  const stateButton = container.querySelector("#btnDeviceOsmState");
+  const stateValue = container.querySelector("#osmState-value");
+  const needsState = deviceOsmNeedsState(location.country);
+  if (stateRow) stateRow.hidden = !needsState;
+  if (stateValue) stateValue.textContent = location.stateTitle || location.state || getUIText("osm_not_selected", "Not selected");
+  if (stateButton) {
+    stateButton.textContent = getUIText("model_manager_select", "Select");
+    stateButton.disabled = !location.country;
+  }
+  const stateTitleEl = container.querySelector("#osmState .title");
+  if (stateTitleEl) stateTitleEl.textContent = deviceOsmStateTitle(location.country);
+
+  const updateRow = container.querySelector("#osmUpdate");
+  if (updateRow) updateRow.hidden = !location.country;
+  const updateValue = container.querySelector("#osmUpdate-value");
+  if (updateValue) updateValue.textContent = deviceOsmFormatDate(location.downloaded);
+
   try {
     const size = await requestJson("/api/opui/osm/size", { cache: "no-store" });
     const sizeValue = container.querySelector("#osmSize-value");
-    if (sizeValue) sizeValue.textContent = `${Number(size?.size_mb ?? size?.mb ?? 0).toFixed(1)} MB`;
-  } catch {}
+    if (sizeValue) {
+      const mb = Number(size?.size_mb ?? size?.mb ?? 0);
+      sizeValue.textContent = size?.pending
+        ? getUIText("osm_calculating", "Calculating…")
+        : (mb >= 1024 ? `${(mb / 1024).toFixed(2)} GB` : `${mb.toFixed(1)} MB`);
+    }
+  } catch {
+    const sizeValue = container.querySelector("#osmSize-value");
+    if (sizeValue) sizeValue.textContent = "-";
+  }
 
-  bindOnce(container.querySelector("#btnDeviceOsmRegion"), "click", async () => {
+  const active = await deviceOsmApplyProgress(container);
+  if (active) deviceOsmPoll(container);
+  else deviceOsmStopPolling();
+
+  bindOnce(container.querySelector("#btnDeviceOsmRegion"), "click", () => deviceOsmPickRegion(container, "Country"));
+  bindOnce(container.querySelector("#btnDeviceOsmState"), "click", () => deviceOsmPickRegion(container, "State"));
+
+  bindOnce(container.querySelector("#btnDeviceOsmCheck"), "click", async () => {
+    const ok = await appConfirm(getUIText("osm_check_confirm", "This will start the download process and it might take a while to complete."), {
+      title: getUIText("osm_update", "Database update"),
+      confirmLabel: getUIText("osm_start_download", "Start Download"),
+      cancelLabel: getUIText("cancel", "Cancel"),
+    });
+    if (!ok) return;
     try {
-      const regions = await requestJson("/api/opui/osm/regions?type=Country", { cache: "no-store" });
-      const countries = (regions?.countries || []).map((c) => ({ value: c, label: String(c.title || c.name) }));
-      openDeviceListPicker({
-        title: getUIText("osm_pick_country", "Country"),
-        meta: `${countries.length}`,
-        groups: [{ items: countries }],
-        onPick: async (item) => {
-          const country = item.value;
-          let states = [];
-          try {
-            const stateRegions = await requestJson(`/api/opui/osm/regions?type=State&country=${encodeURIComponent(country.name)}`, { cache: "no-store" });
-            states = (stateRegions?.states || []).map((s) => ({ value: s, label: String(s.title || s.name) }));
-          } catch {}
-          if (!states.length) {
-            await deviceOsmSelect(country, null);
-            return;
-          }
-          openDeviceListPicker({
-            title: getUIText("osm_pick_state", "State / Province"),
-            meta: String(country.title || country.name),
-            groups: [{ items: states }],
-            onPick: async (stateItem) => deviceOsmSelect(country, stateItem.value),
-          });
-        },
-      });
+      await postJson("/api/opui/action/osm_check_updates", {});
+      showAppToast(getUIText("osm_download_started", "Download started"), { tone: "info" });
+      deviceOsmPoll(container);
     } catch (err) {
       showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
     }
@@ -1034,32 +1324,110 @@ async function loadDeviceOsmManager(container) {
       cancelLabel: getUIText("cancel", "Cancel"),
     });
     if (!ok) return;
+    const btn = container.querySelector("#btnDeviceOsmDelete");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = getUIText("osm_deleting", "DELETING…");
+    }
     try {
       await postJson("/api/opui/osm/delete", {});
       showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
       await loadDeviceOsmManager(container);
     } catch (err) {
       showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = getUIText("model_manager_clear_btn", "CLEAR");
+      }
     }
   });
 }
 
-async function deviceOsmSelect(country, state) {
+// 5080's pickOsmRegion: one searchable tree per level, then the download
+// prompt. Cancelling the state dialog clears the country when a split country
+// has no state yet.
+async function deviceOsmPickRegion(container, regionType) {
+  const button = container.querySelector(regionType === "Country" ? "#btnDeviceOsmRegion" : "#btnDeviceOsmState");
+  const label = button?.textContent || "";
+  if (button) {
+    button.disabled = true;
+    button.textContent = getUIText("osm_fetching", "FETCHING…");
+  }
+  let regions = null;
+  try {
+    const location = await deviceOsmReadLocation();
+    const country = regionType === "Country" ? "" : location.country;
+    if (regionType !== "Country" && !country) {
+      showAppToast(getUIText("osm_select_country_first", "Select a country first"), { tone: "error" });
+      return;
+    }
+    regions = await requestJson(
+      `/api/opui/osm/regions?type=${encodeURIComponent(regionType)}&country=${encodeURIComponent(country)}`,
+      { cache: "no-store" },
+    );
+    if (!regions?.ok) throw new Error(regions?.error || getUIText("failed", "Failed"));
+
+    const entries = regionType === "Country" ? (regions.countries || []) : (regions.states || []);
+    const folders = [{ name: "", bundles: entries.map((e) => ({ ref: e.name, name: e.title || e.name })) }];
+    const selectedRef = regionType === "Country" ? location.country : location.state;
+    const ref = await openDeviceTreeDialog({
+      title: regionType === "Country" ? getUIText("osm_pick_country", "Country") : deviceOsmStateTitle(location.country),
+      meta: `${entries.length}`,
+      folders,
+      selectedRef,
+    });
+    if (ref === null || ref === undefined) {
+      // Cancelled the state dialog on a split country with no state yet:
+      // drop the half-made selection like 5080 does with osm/clear.
+      if (regionType === "State" && deviceOsmNeedsState(location.country) && !location.state) {
+        await postJson("/api/opui/osm/clear", {}).catch(() => {});
+      }
+      return;
+    }
+    await deviceOsmSelect(location, regionType, ref, entries);
+  } catch (err) {
+    showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.textContent = label || getUIText("model_manager_select", "Select");
+    }
+  }
+}
+
+async function deviceOsmSelect(location, regionType, ref, entries) {
+  const entry = entries.find((e) => e.name === ref) || { name: ref, title: ref };
+  const country = regionType === "Country" ? ref : location.country;
+  const countryTitle = regionType === "Country" ? (entry.title || ref) : location.countryTitle;
+  const state = regionType === "State" ? ref : "";
+  const stateTitle = regionType === "State" ? (entry.title || ref) : "";
+  const summary = regionType === "Country"
+    ? (entry.title || ref)
+    : `${location.countryTitle || location.country} · ${stateTitle}`;
   const ok = await appConfirm(
-    `${getUIText("osm_download_confirm", "Download this region's map?")}\n\n${country.title || country.name}${state ? " · " + (state.title || state.name) : ""}`,
+    `${getUIText("osm_download_confirm", "Download this region's map?")}\n\n${summary}`,
     { title: getUIText("osm_download_region", "Download map region"), confirmLabel: getUIText("ok", "OK"), cancelLabel: getUIText("cancel", "Cancel") },
   );
   if (!ok) return;
   try {
     await postJson("/api/opui/osm/select", {
-      country: country.name,
-      country_title: country.title || country.name,
-      state: state?.name || "",
-      state_title: state?.title || "",
+      country,
+      country_title: countryTitle,
+      state,
+      state_title: stateTitle,
     });
     showAppToast(getUIText("osm_download_started", "Download started"), { tone: "info" });
     const container = document.getElementById("deviceItems");
-    if (container) setTimeout(() => loadDeviceOsmManager(container).catch(() => {}), 2000);
+    if (container) {
+      await loadDeviceOsmManager(container);
+      deviceOsmPoll(container);
+    }
+    // A freshly picked US/CN country has no state yet - prompt for it like
+    // 5080 does instead of leaving the selection half-made.
+    if (regionType === "Country" && deviceOsmNeedsState(country) && container) {
+      await deviceOsmPickRegion(container, "State");
+    }
   } catch (err) {
     showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
   }
@@ -1111,42 +1479,135 @@ async function loadDeviceTripsManager(container) {
   });
 }
 
-// ── IMU calibration: enable, status, start/cancel/reset ────────────────────
+// ── IMU calibration ───────────────────────────────────────────────────────
+// 5080's block is status + progress + estimated orientation + error + a CANCEL
+// that only exists while a run is in progress. Calibration is a multi-minute
+// process, so the section polls while it runs.
+
+const DEVICE_IMU_STATE_KEYS = {
+  idle: ["imu_state_idle", "Idle"],
+  static_collecting: ["imu_state_static", "Collecting static data — keep parked"],
+  dynamic_collecting: ["imu_state_dynamic", "Collecting dynamic data — drive straight"],
+  computing: ["imu_state_computing", "Computing calibration..."],
+  completed: ["imu_state_completed", "Calibration completed"],
+  failed: ["imu_state_failed", "Calibration failed"],
+  cancelled: ["imu_state_cancelled", "Calibration cancelled"],
+};
 
 function renderDeviceImuShell() {
   return `
     ${deviceManagerRow({ id: "imuState", title: getUIText("imu_state", "Calibration status"), value: "-" })}
+    ${deviceManagerRow({ id: "imuAngles", title: getUIText("imu_angles", "Estimated orientation"), value: "-" })}
+    ${deviceManagerRow({ id: "imuError", title: getUIText("imu_error", "Error"), value: "-" })}
     ${deviceManagerRow({ id: "imuActions", title: getUIText("imu_actions", "Calibration actions"), descr: getUIText("imu_actions_hint", "Keep the vehicle parked and ignition on"), button: getUIText("imu_start", "START"), buttonId: "btnDeviceImuStart" })}
+    ${deviceManagerRow({ id: "imuCancel", title: getUIText("imu_in_progress", "Calibration in progress"), button: getUIText("cancel", "Cancel"), buttonId: "btnDeviceImuCancel" })}
     ${deviceManagerRow({ id: "imuReset", title: getUIText("imu_reset", "Reset calibration"), button: getUIText("reset", "Reset"), buttonId: "btnDeviceImuReset" })}`;
 }
 
+function deviceImuStateText(state) {
+  const [key, fallback] = DEVICE_IMU_STATE_KEYS[String(state || "")] || ["imu_state_unknown", String(state || "unknown")];
+  return getUIText(key, fallback);
+}
+
+function deviceImuAnglesText(status) {
+  const angles = status?.angles || status?.estimated_angles || status?.orientation;
+  if (!angles) return "-";
+  if (Array.isArray(angles)) return angles.map((v) => `${Number(v || 0).toFixed(2)}°`).join(" · ");
+  if (typeof angles === "object") {
+    return Object.entries(angles).map(([k, v]) => `${k} ${Number(v || 0).toFixed(2)}°`).join(" · ");
+  }
+  return String(angles);
+}
+
+let deviceImuPollTimer = null;
+
+function deviceImuStopPolling() {
+  if (!deviceImuPollTimer) return;
+  window.clearTimeout(deviceImuPollTimer);
+  deviceImuPollTimer = null;
+}
+
+const DEVICE_IMU_RUNNING_STATES = new Set(["static_collecting", "dynamic_collecting", "computing"]);
+
 async function loadDeviceImuManager(container) {
+  let status = null;
   try {
     const payload = await requestJson("/api/opui/imu/calibration", { cache: "no-store" });
-    const stateValue = container.querySelector("#imuState-value");
-    const status = payload?.status || {};
-    if (stateValue) {
-      const state = String(status.state || "unknown");
-      const progress = Number(status.progress ?? 0);
-      stateValue.textContent = `${state}${progress ? ` ${progress}%` : ""}${status.error ? ` — ${status.error}` : ""}`;
-    }
-  } catch {
-    const stateValue = container.querySelector("#imuState-value");
+    status = payload?.status || null;
+  } catch {}
+
+  const stateValue = container.querySelector("#imuState-value");
+  const anglesRow = container.querySelector("#imuAngles");
+  const anglesValue = container.querySelector("#imuAngles-value");
+  const errorRow = container.querySelector("#imuError");
+  const errorValue = container.querySelector("#imuError-value");
+  const cancelRow = container.querySelector("#imuCancel");
+  const startButton = container.querySelector("#btnDeviceImuStart");
+
+  if (!status) {
     if (stateValue) stateValue.textContent = getUIText("model_manager_unavailable", "Model manager (5080) unreachable");
+    deviceImuStopPolling();
+    if (startButton) startButton.disabled = true;
+    if (cancelRow) cancelRow.hidden = true;
+    return;
+  }
+
+  const state = String(status.state || "unknown");
+  const progress = Number(status.progress ?? 0);
+  if (stateValue) {
+    stateValue.textContent = progress > 0
+      ? `${deviceImuStateText(state)} ${progress}%`
+      : deviceImuStateText(state);
+  }
+  const angles = deviceImuAnglesText(status);
+  if (anglesRow) anglesRow.hidden = angles === "-";
+  if (anglesValue) anglesValue.textContent = angles;
+
+  const error = String(status.error || "");
+  if (errorRow) errorRow.hidden = !error;
+  if (errorValue) errorValue.textContent = error || "-";
+
+  const running = DEVICE_IMU_RUNNING_STATES.has(state);
+  if (cancelRow) cancelRow.hidden = !running;
+  if (startButton) {
+    startButton.disabled = running;
+    startButton.textContent = running ? getUIText("imu_running", "RUNNING") : getUIText("imu_start", "START");
+  }
+
+  // Keep polling while a run is live; stop as soon as it settles.
+  deviceImuStopPolling();
+  if (running) {
+    deviceImuPollTimer = window.setTimeout(async () => {
+      deviceImuPollTimer = null;
+      const container2 = document.getElementById("deviceItems");
+      if (container2 && container2.querySelector("#imuState-value")) {
+        await loadDeviceImuManager(container2).catch(() => {});
+      }
+    }, 3000);
   }
 
   bindOnce(container.querySelector("#btnDeviceImuStart"), "click", async () => {
     try {
       await postJson("/api/opui/imu/calibration/start", {});
       showAppToast(getUIText("imu_started", "Calibration started"), { tone: "info" });
-      setTimeout(() => {
-        const container2 = document.getElementById("deviceItems");
-        if (container2) loadDeviceImuManager(container2).catch(() => {});
-      }, 2500);
+      const container2 = document.getElementById("deviceItems");
+      if (container2) await loadDeviceImuManager(container2);
     } catch (err) {
       showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
     }
   });
+
+  bindOnce(container.querySelector("#btnDeviceImuCancel"), "click", async () => {
+    try {
+      await postJson("/api/opui/imu/calibration/cancel", {});
+      showAppToast(getUIText("imu_cancelled", "Calibration cancelled"), { tone: "info" });
+      const container2 = document.getElementById("deviceItems");
+      if (container2) await loadDeviceImuManager(container2);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+
   bindOnce(container.querySelector("#btnDeviceImuReset"), "click", async () => {
     const ok = await appConfirm(getUIText("imu_reset_confirm", "Reset IMU calibration? sunnypilot will recalibrate."), {
       title: getUIText("imu_reset", "Reset calibration"),
@@ -1293,6 +1754,7 @@ async function loadDeviceBluetoothManager(container) {
 DEVICE_SECTION_SHELLS.Storage = () => renderDeviceStorageShell();
 DEVICE_SECTION_SHELLS.Sunnylink = () => renderDeviceSunnylinkShell();
 DEVICE_SECTION_SHELLS.Firehose = () => renderDeviceFirehoseShell();
+DEVICE_SECTION_SHELLS.Bluetooth = () => renderDeviceBluetoothShell();
 
 const DEVICE_STORAGE_CATEGORY_LABELS = {
   routes: "Routes",
@@ -1424,20 +1886,17 @@ async function loadDeviceSunnylinkManager(container) {
       const qr = String(pair?.qr_data_url || "").trim();
       if (!url && !qr) throw new Error(pair?.error || getUIText("sunnylink_pair_failed", "No pairing link returned"));
       // The daemon renders the QR itself (qr_data_url); the URL is the fallback.
-      openDeviceListPicker({
+      // A real dialog, not a hijacked picker: the picker's list is virtualised
+      // for rows and the QR ended up clipped behind the search box.
+      await openAppDialog({
+        mode: "alert",
         title: getUIText("sunnylink_pair", "Pair this device"),
-        meta: getUIText("sunnylink_pair_hint", "Open the link on your phone to sign in"),
-        groups: [],
-        onPick: async () => {},
+        messageHtml: `
+          ${qr ? `<img src="${escapeHtml(qr)}" alt="QR" style="display:block;margin:0 auto 12px;width:220px;height:220px;background:#fff;border-radius:8px" />` : ""}
+          <div style="word-break:break-all;text-align:center">${escapeHtml(url)}</div>`,
+        html: true,
+        confirmLabel: getUIText("close", "Close"),
       });
-      const dialogs = document.querySelectorAll(".device-picker");
-      const dialog = dialogs[dialogs.length - 1];
-      const list = dialog?.querySelector(".device-picker__list");
-      if (list) {
-        list.innerHTML = `
-          ${qr ? `<img src="${qr}" alt="QR" style="display:block;margin:0 auto 12px;width:220px;height:220px;background:#fff;border-radius:8px" />` : ""}
-          <div class="descr" style="word-break:break-all;text-align:center">${escapeHtml(url)}</div>`;
-      }
     } catch (err) {
       showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
     }
@@ -1563,36 +2022,227 @@ async function loadDeviceVehicleManager(container) {
       return;
     }
 
-    // Brand -> platform, the same two-step tree the tools picker uses.
-    const brands = Array.isArray(payload.tree) ? payload.tree : [];
-    openDeviceListPicker({
+    // 5080 opens ONE tree: brands are folders, platforms are leaves, and the
+    // search box matches brand + platform. Two nested dialogs (the old shape)
+    // made "find my Toyota" a two-screen treasure hunt with no search at all.
+    const latest = await requestJson("/api/opui/vehicle/platforms", { cache: "no-store" }).catch(() => payload);
+    if (!latest?.ok) return;
+    const folders = (latest.tree || []).map((brand) => ({
+      name: brand.name,
+      bundles: (brand.platforms || []).map((p) => ({
+        ref: p.bundle,
+        name: p.label || p.bundle,
+        internal: p.bundle,
+      })),
+    }));
+    const total = folders.reduce((sum, f) => sum + f.bundles.length, 0);
+    const ref = await openDeviceTreeDialog({
       title: getUIText("vehicle_select", "Select a vehicle"),
-      meta: `${brands.length}`,
-      groups: [{ items: brands.map((b) => ({ value: b, label: `${b.name} (${(b.platforms || []).length})` })) }],
-      onPick: async (brandItem) => {
-        const platforms = Array.isArray(brandItem.value.platforms) ? brandItem.value.platforms : [];
-        openDeviceListPicker({
-          title: brandItem.value.name,
-          meta: `${platforms.length}`,
-          groups: [{ items: platforms.map((p) => ({ value: p.bundle, label: p.label || p.bundle })) }],
-          onPick: async (platformItem) => {
-            const ok = await appConfirm(getUIText("vehicle_select_confirm", "Select this vehicle? It will be fingerprinted as this platform."), {
-              title: getUIText("vehicle_select", "Select a vehicle"),
-              confirmLabel: getUIText("ok", "OK"),
-              cancelLabel: getUIText("cancel", "Cancel"),
-            });
-            if (!ok) return;
-            try {
-              await postJson("/api/opui/vehicle/select", { bundle: platformItem.value });
-              showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
-              const container2 = document.getElementById("deviceItems");
-              if (container2) await loadDeviceVehicleManager(container2);
-            } catch (err) {
-              showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
-            }
-          },
-        });
-      },
+      meta: `${folders.length} · ${total}`,
+      folders,
+      selectedRef: "",
+      confirmLabel: getUIText("model_manager_select", "Select"),
     });
+    if (ref === null || ref === undefined) return;
+    const offroadMsg = deviceIsOffroad()
+      ? getUIText("vehicle_apply_now", "This setting will take effect immediately.")
+      : getUIText("vehicle_apply_offroad", "This setting will take effect once the device enters offroad state.");
+    const ok = await appConfirm(offroadMsg, {
+      title: getUIText("vehicle_select", "Select a vehicle"),
+      confirmLabel: getUIText("ok", "OK"),
+      cancelLabel: getUIText("cancel", "Cancel"),
+    });
+    if (!ok) return;
+    try {
+      const res = await postJson("/api/opui/vehicle/select", { bundle: ref });
+      showAppToast(String(res?.display || ref), { tone: "info" });
+      const container2 = document.getElementById("deviceItems");
+      if (container2) await loadDeviceVehicleManager(container2);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+}
+
+function deviceIsOffroad() {
+  return isTruthyDeviceFlag(deviceParamValues?.IsOffroad);
+}
+
+// ── Steering: torque control tune version ─────────────────────────────────
+// 5080 exposes this as a searchable tree over /api/opui/steering/torque-versions
+// rather than a raw number, so the user picks a named tune instead of typing a
+// version. "Default" clears the param back to the car's own tune.
+
+DEVICE_SECTION_SHELLS.Steering = () => renderDeviceTorqueTuneShell();
+
+function renderDeviceTorqueTuneShell() {
+  return deviceManagerRow({
+    id: "torqueTune",
+    title: getUIText("torque_tune_version", "Torque Control Tune Version"),
+    descr: getUIText("torque_tune_version_hint", "Pick a named tune; Default uses the platform default"),
+    value: "-",
+    button: getUIText("model_manager_select", "Select"),
+    buttonId: "btnDeviceTorqueTune",
+  });
+}
+
+async function loadDeviceTorqueTuneManager(container) {
+  const button = container.querySelector("#btnDeviceTorqueTune");
+  const valueEl = container.querySelector("#torqueTune-value");
+  let payload = null;
+  try {
+    payload = await requestJson("/api/opui/steering/torque-versions", { cache: "no-store" });
+  } catch {}
+  if (!payload?.ok) {
+    // No daemon: keep the row but make it clear why the picker cannot open.
+    if (valueEl) valueEl.textContent = "-";
+    if (button) button.disabled = true;
+    return;
+  }
+  if (valueEl) valueEl.textContent = String(payload.current_label || getUIText("torque_tune_default", "Default"));
+  bindOnce(button, "click", async () => {
+    const options = payload.options || [];
+    const folders = [{
+      name: "",
+      bundles: [
+        { ref: "Default", name: getUIText("torque_tune_default", "Default") },
+        ...options.map((o) => ({ ref: o.label, name: o.label })),
+      ],
+    }];
+    const ref = await openDeviceTreeDialog({
+      title: getUIText("torque_tune_version", "Torque Control Tune Version"),
+      meta: `${options.length}`,
+      folders,
+      selectedRef: String(payload.current_label || "Default"),
+    });
+    if (ref === null || ref === undefined) return;
+    const pick = options.find((o) => o.label === ref);
+    try {
+      if (!pick || pick.version == null) await setParam("TorqueControlTune", "");
+      else await setParam("TorqueControlTune", String(pick.version));
+      showAppToast(getUIText("torque_tune_updated", "Torque tune updated"), { tone: "info" });
+      const container2 = document.getElementById("deviceItems");
+      if (container2) await loadDeviceTorqueTuneManager(container2);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+}
+
+// ── Software: target branch ───────────────────────────────────────────────
+// The branch row shipped disabled (no handler). It opens this fork's git branch
+// picker, which does checkout + reboot - the same flow Tools > git branch uses.
+
+function bindDeviceSoftwareActions(container) {
+  bindOnce(container.querySelector("#btnDeviceTargetBranch"), "click", () => {
+    if (typeof loadBranchesAndShow === "function") {
+      loadBranchesAndShow().catch((err) => {
+        showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+      });
+      return;
+    }
+    showAppToast(getUIText("failed", "Failed"), { tone: "error" });
+  });
+}
+
+// ── Developer: the actions 5080's developer panel exposes ─────────────────
+// Error log (view + delete), reset all params, reset calibration, onroad
+// preview and driver view. Each is a 5080 endpoint; the proxy returns 502 when
+// the daemon is absent and the toast says so.
+
+function renderDeviceDeveloperExtrasShell() {
+  return `
+    ${deviceManagerRow({ id: "devErrorLog", title: getUIText("dev_error_log", "Error log"), descr: getUIText("dev_error_log_hint", "Show the last crash log, then optionally delete it"), button: getUIText("view_upper", "VIEW"), buttonId: "btnDeviceErrorLog" })}
+    ${deviceManagerRow({ id: "devResetParams", title: getUIText("dev_reset_params", "Reset all params"), descr: getUIText("dev_reset_params_hint", "Restores every openpilot parameter to its default"), button: getUIText("reset", "Reset"), buttonId: "btnDeviceResetParams" })}
+    ${deviceManagerRow({ id: "devResetCalib", title: getUIText("dev_reset_calib", "Reset calibration"), descr: getUIText("dev_reset_calib_hint", "Clears camera calibration and reboots"), button: getUIText("reset", "Reset"), buttonId: "btnDeviceResetCalib" })}
+    ${deviceManagerRow({ id: "devOnroadPreview", title: getUIText("dev_onroad_preview", "Onroad preview"), descr: getUIText("dev_onroad_preview_hint", "Stream the road camera while driving"), value: "-", button: getUIText("model_manager_select", "Select"), buttonId: "btnDeviceOnroadPreview" })}
+    ${deviceManagerRow({ id: "devDriverView", title: getUIText("driver_camera", "Driver Camera"), descr: getUIText("driver_camera_desc", "Preview the driver facing camera to ensure that driver monitoring has good visibility. (vehicle must be off)"), value: "-", button: getUIText("preview", "PREVIEW"), buttonId: "btnDeviceDriverView" })}`;
+}
+
+async function loadDeviceDeveloperExtras(container) {
+  const previewValue = container.querySelector("#devOnroadPreview-value");
+  const driverValue = container.querySelector("#devDriverView-value");
+  let extras = null;
+  try {
+    extras = await requestJson("/api/opui/device/extras", { cache: "no-store" });
+  } catch {}
+  if (previewValue) {
+    previewValue.textContent = extras?.ok
+      ? (extras.onroad_preview ? getUIText("on", "ON") : getUIText("off", "OFF"))
+      : "-";
+  }
+  if (driverValue) {
+    driverValue.textContent = extras?.ok
+      ? (extras.driver_view_enabled ? getUIText("on", "ON") : getUIText("off", "OFF"))
+      : "-";
+  }
+
+  bindOnce(container.querySelector("#btnDeviceErrorLog"), "click", async () => {
+    try {
+      const log = await requestJson("/api/opui/developer/error-log", { cache: "no-store" });
+      if (!log?.ok) throw new Error(log?.error || getUIText("failed", "Failed"));
+      await openAppDialog({
+        mode: "alert",
+        title: getUIText("dev_error_log", "Error log"),
+        messageHtml: String(log.html || getUIText("dev_error_log_empty", "No error log")),
+        html: true,
+        confirmLabel: getUIText("close", "Close"),
+      });
+      if (!log.exists) return;
+      const ok = await appConfirm(getUIText("dev_error_log_delete", "Would you like to delete this log?"), {
+        title: getUIText("dev_error_log", "Error log"),
+        confirmLabel: getUIText("delete", "Delete"),
+        cancelLabel: getUIText("cancel", "Cancel"),
+      });
+      if (!ok) return;
+      await postJson("/api/opui/action/developer_delete_error_log", {});
+      showAppToast(getUIText("dev_error_log_deleted", "Log deleted"), { tone: "info" });
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+
+  const runAction = (id, endpoint, label, danger) => bindOnce(container.querySelector(id), "click", async () => {
+    const ok = await appConfirm(`${label}?`, {
+      title: getUIText("device_group_developer", "Developer"),
+      confirmLabel: getUIText("ok", "OK"),
+      cancelLabel: getUIText("cancel", "Cancel"),
+    });
+    if (!ok) return;
+    try {
+      await postJson(endpoint, {});
+      showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+      const container2 = document.getElementById("deviceItems");
+      if (container2) await loadDeviceDeveloperExtras(container2);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+    void danger;
+  });
+  runAction("#btnDeviceResetParams", "/api/opui/action/reset_all_params", getUIText("dev_reset_params", "Reset all params"), true);
+  runAction("#btnDeviceResetCalib", "/api/opui/action/reset_calibration", getUIText("dev_reset_calib", "Reset calibration"), true);
+
+  bindOnce(container.querySelector("#btnDeviceOnroadPreview"), "click", async () => {
+    try {
+      await postJson("/api/opui/action/onroad_preview", {});
+      showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+      const container2 = document.getElementById("deviceItems");
+      if (container2) await loadDeviceDeveloperExtras(container2);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
+  });
+
+  bindOnce(container.querySelector("#btnDeviceDriverView"), "click", async () => {
+    try {
+      const enabled = !(extras?.driver_view_enabled);
+      const res = await postJson("/api/opui/device/driver_view", { enabled });
+      if (res?.ok === false) throw new Error(res.error || getUIText("failed", "Failed"));
+      showAppToast(getUIText("model_manager_applied", "Applied"), { tone: "info" });
+      const container2 = document.getElementById("deviceItems");
+      if (container2) await loadDeviceDeveloperExtras(container2);
+    } catch (err) {
+      showAppToast(err.message || getUIText("failed", "Failed"), { tone: "error" });
+    }
   });
 }

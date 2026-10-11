@@ -323,6 +323,21 @@
           <button id="btnToolsBluetooth" class="btn" type="button" aria-haspopup="dialog">Bluetooth</button>
         </div>
 
+        <div class="section tools-group" data-tools-group="services">
+          <button class="tools-group__toggle" type="button" aria-expanded="false" aria-controls="toolsGroupBodyServices">
+            <span id="lanServicesTitle" class="section-title tools-group__title">LAN Services</span>
+            <span class="tools-group__chevron" aria-hidden="true"></span>
+          </button>
+          <div id="toolsGroupBodyServices" class="tools-group__body">
+            <div class="tools-group__bodyInner">
+              <div id="toolsLanServices" class="lan-services" role="list" aria-label="LAN services"></div>
+              <div class="muted lan-services__hint" id="lanServicesHint">Opens in a new tab. Every service runs on this device.</div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="divider">
+
         <div class="section tools-group is-open" data-tools-group="git">
           <button class="tools-group__toggle" type="button" aria-expanded="true" aria-controls="toolsGroupBodyGit">
             <span id="gitCommandsTitle" class="section-title tools-group__title">Git Commands</span>

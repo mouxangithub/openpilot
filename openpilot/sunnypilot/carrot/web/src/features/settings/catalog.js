@@ -8,19 +8,17 @@ export function normalizeSettingsCatalog(catalog) {
     });
   });
 
+  // `device_owned` lists the params the Device tab renders. Both tabs read the
+  // same catalog menu, so without this filter every sunnypilot device setting
+  // (models, vehicle, steering, maps, sunnylink...) was listed twice.
+  const deviceOwned = new Set(Array.isArray(catalog.device_owned) ? catalog.device_owned : []);
+
   const groups = [];
   const itemsByGroup = {};
+  const categories = [];
   catalog.categories.forEach((category) => {
+    const categoryGroups = [];
     (category.groups || []).forEach((group) => {
-      groups.push({
-        group: group.id,
-        ko: group.ko,
-        en: group.en,
-        zh: group.zh,
-        count: group.count,
-        category: category.id,
-      });
-
       const items = [];
       (group.sections || []).forEach((section) => {
         const sectionLabel = {
@@ -30,14 +28,38 @@ export function normalizeSettingsCatalog(catalog) {
           zh: section.zh,
         };
         (section.items || []).forEach((name) => {
+          if (deviceOwned.has(name)) return;
           const item = itemIndex.get(name);
           if (item) items.push({ ...item, __section: sectionLabel });
         });
       });
+      // The server counts the raw menu; recount after the Device-tab filter so
+      // the group list never advertises rows that are not there.
+      const count = items.filter((item) => !item.detail_parent && !item.search_only).length;
+      if (!count) return;
+      categoryGroups.push({
+        id: group.id,
+        ko: group.ko,
+        en: group.en,
+        zh: group.zh,
+        count,
+      });
+      groups.push({
+        group: group.id,
+        ko: group.ko,
+        en: group.en,
+        zh: group.zh,
+        count,
+        category: category.id,
+      });
       itemsByGroup[group.id] = items;
     });
+    // A category whose every group belongs to the Device tab would otherwise
+    // render as an empty divider.
+    if (categoryGroups.length) categories.push({ ...category, groups: categoryGroups });
   });
 
+  catalog.categories = categories;
   catalog.groups = groups;
   catalog.items_by_group = itemsByGroup;
   return catalog;

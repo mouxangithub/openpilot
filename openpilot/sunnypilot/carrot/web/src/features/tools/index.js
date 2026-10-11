@@ -8,5 +8,8 @@ import "./web_settings/controller.js";
 import "./notifications.js";
 import "./egpu_model.js";
 import "./bluetooth.js";
+// Before runtime.js: it exposes initLanServices, which runtime.js calls from
+// initToolsPage once the Tools DOM is in place.
+import "./lan_services.js";
 import "./runtime.js";
 import "./settings_qr.js";

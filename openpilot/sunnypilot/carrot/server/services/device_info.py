@@ -121,6 +121,17 @@ SP_DEVICE_MENU_GROUPS: tuple[tuple[str, str], ...] = (
   ("Maps", "CARROT_SP_MAPS"),
   ("Trips", "CARROT_SP_UI_TRIPS"),
   ("Imu", "CARROT_SP_IMU"),
+  # Device / sunnylink / developer / branch / toggles: sunnypilot settings that
+  # had no Device-tab home, so they only existed in the CarrotPilot tab. They
+  # belong next to the rest of the device settings; the "*Extras" suffix keeps
+  # them out of the sidebar (the client merges each into its base section).
+  ("DeviceExtras", "CARROT_SP_UI_DEVICE"),
+  ("WebExtras", "CARROT_SP_UI_CARROT_TUNING"),
+  ("SunnylinkExtras", "CARROT_SP_UI_SUNNYLINK"),
+  ("DeveloperExtras", "CARROT_SP_UI_DEVELOPER"),
+  ("SoftwareExtras", "CARROT_SP_UI_SOFTWARE"),
+  ("TogglesExtras", "CARROT_SP_UI_TOGGLES"),
+  ("AlphaTogglesExtras", "CARROT_SP_UI_ALPHA_LONGITUDINAL_TOGGLES"),
 )
 
 _sp_device_groups_cache: dict[str, list[str]] | None = None
@@ -139,15 +150,46 @@ _MANAGED_ELSEWHERE = frozenset({
   "OsmStateName",
   "TripsDataSource",
   "ImuCalibrationRequested",
+  # the sunnylink manager block owns pairing / backup / restore
+  "BackupManager_CreateBackup",
+  "BackupManager_RestoreVersion",
+})
+
+# Names the base Device sections already draw with a hand-built control. A
+# second, catalog-generated copy of the same toggle is the "duplicate setting"
+# the panel used to show, so the sunnypilot groups skip them.
+_BASE_OWNED_PARAMS = frozenset({
+  # Device
+  "DeviceType", "DongleId", "HardwareSerial", "LanguageSetting", "SoftwareMenu",
+  # Software
+  "UpdaterCurrentDescription", "UpdaterState", "UpdateAvailable", "UpdaterFetchAvailable",
+  "UpdateFailedCount", "UpdaterTargetBranch", "GitBranch", "UpdaterAvailableBranches",
+  "LastUpdateTime", "UpdaterNewDescription",
+  # Toggles
+  "OpenpilotEnabledToggle", "ExperimentalMode", "ExperimentalModeConfirmed",
+  "DisengageOnAccelerator", "IsLdwEnabled", "AlwaysOnDM", "RecordFront", "RecordAudio",
+  "IsMetric", "LongitudinalPersonality",
+  # Developer
+  "AdbEnabled", "SshEnabled", "JoystickDebugMode", "LongitudinalManeuverMode",
+  "AlphaLongitudinalEnabled", "GithubUsername", "GithubSshKeys",
 })
 
 
 def _is_device_setting(entry: dict[str, Any]) -> bool:
   name = entry.get("name")
-  if not name or name in _MANAGED_ELSEWHERE:
+  if not name or name in _MANAGED_ELSEWHERE or name in _BASE_OWNED_PARAMS:
     return False
   text = f"{entry.get('descr') or ''} {entry.get('edescr') or ''}"
   return not _READ_ONLY_MARKER.search(text)
+
+
+def device_owned_param_names() -> set[str]:
+  """Every param the Device tab draws, so the CarrotPilot tab can skip them.
+
+  Both tabs read the same catalog menu; without this the SUNNYPILOT node's
+  device params were listed twice - once under CarrotPilot, once under Device.
+  """
+  return {name for names in _sp_device_setting_groups().values() for name in names}
 
 
 def _sp_device_setting_groups() -> dict[str, list[str]]:

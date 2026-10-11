@@ -82,6 +82,28 @@ test("normalizing preserves search-only items referenced by the menu", () => {
   assert.equal(item.search_only, true);
 });
 
+test("params owned by the Device tab are dropped so the two tabs never list the same row twice", () => {
+  const raw = createCatalog();
+  raw.device_owned = ["ApplyModelSpeed"];
+
+  const catalog = normalizeSettingsCatalog(raw);
+  assert.deepEqual(
+    catalog.items_by_group.SPEED.map((item) => item.name),
+    ["AutoNaviSpeedCtrlEnd"],
+  );
+  assert.equal(catalog.groups[0].count, 1, "the advertised count follows the filtered rows");
+});
+
+test("a group whose every param belongs to the Device tab disappears with its category", () => {
+  const raw = createCatalog();
+  raw.device_owned = ["AutoNaviSpeedCtrlEnd", "ApplyModelSpeed"];
+
+  const catalog = normalizeSettingsCatalog(raw);
+  assert.deepEqual(catalog.groups, []);
+  assert.deepEqual(catalog.categories, [], "an empty category would render as a stray divider");
+  assert.equal(catalog.items_by_group.SPEED, undefined);
+});
+
 test("commit normalizes once and reports whether anything changed", () => {
   const state = createSettingsCatalogState();
   const raw = createCatalog();

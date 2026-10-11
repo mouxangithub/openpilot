@@ -1118,6 +1118,7 @@ function initToolsPage() {
   initToolsLogPanel();
   globalThis.CarrotEgpuModel?.init?.();
   globalThis.CarrotBluetooth?.init?.();
+  globalThis.initLanServices?.();
 
   bindOnce("btnToolsCarSelect", () => {
     if (typeof window.openCarPickerFlow === "function") window.openCarPickerFlow();

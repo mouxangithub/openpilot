@@ -41,6 +41,22 @@ const SP_DEVICE_GROUP_IDS = new Set([
 // block and are visible whenever the panel can reach that daemon.
 const SP_CAPABILITY_GROUP_IDS = new Set(["Bluetooth", "Storage", "Sunnylink", "Firehose"]);
 
+// Catalog groups that are not sidebar entries of their own: each is merged into
+// the hand-built base section named by the key. They exist so the sunnypilot
+// device params they hold live on the Device tab instead of being listed a
+// second time on the CarrotPilot tab.
+const DEVICE_EXTRAS_BY_GROUP = {
+  Device: ["DeviceExtras", "WebExtras"],
+  Software: ["SoftwareExtras"],
+  Toggles: ["TogglesExtras", "AlphaTogglesExtras"],
+  Developer: ["DeveloperExtras"],
+  Sunnylink: ["SunnylinkExtras"],
+};
+
+function deviceExtrasGroupIds(groupId) {
+  return DEVICE_EXTRAS_BY_GROUP[groupId] || [];
+}
+
 // Bool params that make a process *do* something the moment they are written
 // (reboot, drop caches, recalibrate). A toggle is fine, but confirm first so a
 // mis-tap cannot reboot the device or wipe a cache.

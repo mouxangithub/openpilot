@@ -24,6 +24,7 @@ from .features import cars as cars_feature
 from .features import dashcam as dashcam_feature
 from .features import egpu as egpu_feature
 from .features import intro as intro_feature
+from .features import lan_services as lan_services_feature
 from .features import mapbox_tokens as mapbox_tokens_feature
 from .features import params as params_feature
 from .features import params_extra as params_extra_feature
@@ -112,6 +113,7 @@ def create_app(params=None) -> web.Application:
   web_sound_feature.register(app)
   bluetooth_feature.register(app)
   camera_feature.register(app)
+  lan_services_feature.register(app)
   # The 5080 webui daemon's API (model manager, vehicle selection), pass-through.
   opui_proxy_feature.register(app)
   # Registered last: it claims the wildcard prefixes for the subsystems this fork still does
