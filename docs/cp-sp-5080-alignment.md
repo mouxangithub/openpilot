@@ -33,6 +33,21 @@
 - **Hyundai CAN-FD**（aReq 置零试验）、**RAV4 转向激活**
 - **radar 验证工具链**（radar_web_export / replay 工具，配合 radarcan 移植一起抄）
 
+## 一·五、实施结果（2026-10-11 全部落地，设备实测）
+
+| 项 | 状态 | 证据 |
+|---|---|---|
+| 7000 接入 OSM/蓝牙/行程/IMU | ✅ 已实现 | 四页走 /api/opui；蓝牙成为侧栏能力分区；web 构建 + settings 测试 242 通过 |
+| radarcan（CAN→liveTracks） | ✅ 已实现 | `carrot/radar/radarcan.py` + can_batch/lateral + cereal `liveTracks @153` + `RadarData.radarTrackFlipped @4`；设备实测 `EnableRadarTracks=1` 时 radard 关、radard_dpath+radarcan 开（分进程验证），`new_message('liveTracks')` 可用 |
+| radar_motion 全套 + radard_dpath | ✅ 已实现 | 15 文件 11.6k 行整包移植（零外部依赖），`_motion_native.so` 设备编译成功、BACKEND=cython；radard_dpath 消费 liveTracks 产出 radarState（planner 侧零改动） |
+| signal_assist 信号灯观测 | ✅ 已实现（库层） | 5 模块 + 4 测试 + tools/signal_analysis 移植；设备 104 passed；daemon 由 cp 同款文件系统 opt-in 门控（默认关）。**未接 sp planner**：cp 的挂钩需要不同的 CarrotPlanner 签名，且上游仍在重验证 |
+| EnableRadarTracks 死开关 | ✅ 已点亮 | 参数+UI 原本就在；现在有真实消费者 |
+
+### 与 cp 的差异（有意保留）
+
+- radard 只在 `EnableRadarTracks` 开启时才换成 radard_dpath；cp 是无条件替换。sp 默认路径零变化。
+- signal 不接 planner/cluster（cp 的集成点形状不同）；planner 集成测试以明确原因 skip。
+
 ## 二、与当前项目的结合方式
 
 1. **radarcan 优先**：它是 cp 纵向能力的地基，且 sp 已有死开关（EnableRadarTracks）。路线：
@@ -57,6 +72,8 @@
 ### 结合现状与路线
 
 **已做**：`/api/opui/*` 透传 → 模型管理、车辆选择已用 5080 实现；5001 视觉链与 5080 的 webrtc_api 各自独立。
+
+**已完成**：模型管理、车辆选择（前一轮）；**OSM 管理、蓝牙配对、行程统计、IMU 校准（本轮）**。
 
 **下一步（按性价比排序）**：
 1. **OSM 管理页**（regions 树 + 下载进度 + 删除）— 纯前端，API 已通代理；替换掉 OSM 分区的只读参数行。
