@@ -258,8 +258,11 @@ class SmartCruiseControlMap:
     Handles the map-derived "slow down for something ahead" sources from the carrot
     phone navigation stream:
       * ``atcSpeed``    - ATC turn speed (auto turn control)
-      * ``vTurnSpeedMs``- the turn-table curve speed
+      * ``vTurnSpeedMs``- the vision curve-speed envelope (``curve_speed.py``)
       * ``routeSpeed``  - route-curvature speed from the nav polyline
+
+    Each is paired with its own distance (``atcDist`` / ``curveDist`` /
+    ``routeDist``); none of them borrows ``xDistToTurn``.
 
     Why here and not in SLA: SLA owns speed-limit *signs* - absolute constraints the
     driver can see - while navigation-driven deceleration for a point ahead is what this
@@ -330,11 +333,17 @@ class SmartCruiseControlMap:
       return []
 
     # A zero speed means "no value", and 250.0 is carrot's "no limit" sentinel for ATC.
+    # Each source carries its OWN distance. In particular the curve source must use
+    # curveDist (the model distance the vision envelope was sized for) and not
+    # xDistToTurn, which is the phone's turn-by-turn maneuver distance: it is 0 or
+    # stale whenever no navigation turn is queued, and with a non-positive distance
+    # the loop above drops the candidate entirely - so a purely visual curve decel
+    # would never reach the controller.
     return [
       (float(getattr(carrot, "atcSpeed", 0.0) or 0.0),
        float(getattr(carrot, "atcDist", 0.0) or 0.0), "atc"),
       (float(getattr(carrot, "vTurnSpeedMs", 0.0) or 0.0),
-       float(getattr(carrot, "xDistToTurn", 0) or 0), "curve"),
+       float(getattr(carrot, "curveDist", 0.0) or 0.0), "curve"),
       (float(getattr(carrot, "routeSpeed", 0.0) or 0.0),
        float(getattr(carrot, "routeDist", 0.0) or 0.0), "route"),
     ]

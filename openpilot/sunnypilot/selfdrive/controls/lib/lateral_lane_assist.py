@@ -139,11 +139,46 @@ class LateralLaneAssist:
     self.curve_bias_enabled = params.get_bool("LateralCurveCuttingCorrection")
     self.lane_centering_enabled = params.get_bool("LateralLaneCentering")
     self.lane_centering = LaneCentering(dt)
+    # Carrot's lane-line mode is meant to be suppressed in slow curves: below this
+    # speed (km/h) the curvature correction is not applied. Ported from cp's
+    # `lanefull_mode_enabled = ... and curve_speed_abs > UseLaneLineCurveSpeed`
+    # (cp controls/controlsd.py:215). 0 disables the gate entirely.
+    self.lane_line_curve_speed = self._read_curve_speed_gate(params)
 
-  def update(self, desired_curvature: float, v_ego: float, active: bool, steering_pressed: bool, model_v2) -> float:
+  @staticmethod
+  def _read_curve_speed_gate(params: Params) -> float:
+    try:
+      value = float(params.get_int("UseLaneLineCurveSpeed"))
+    except (TypeError, ValueError):
+      return 0.0
+    return value if value > 0.0 else 0.0
+
+  def update_curve_speed_gate(self, curve_speed_kph: float) -> None:
+    """Feed the current carrot curve speed so the slow-curve gate can act.
+
+    ``curve_speed_kph`` is carrot's `vTurnSpeed` (signed). Only its magnitude is
+    used: the gate is about how tight the bend is, not which way it turns.
+    """
+    if self.lane_line_curve_speed <= 0.0:
+      return
+    if not math.isfinite(curve_speed_kph):
+      return
+    if abs(curve_speed_kph) <= self.lane_line_curve_speed:
+      # Below the threshold the car is in a slow bend. Release the centering
+      # integral so the correction cannot keep pushing into the turn.
+      self.lane_centering.integral = 0.0
+
+  def update(self, desired_curvature: float, v_ego: float, active: bool, steering_pressed: bool, model_v2,
+             curve_speed_kph: float = 0.0) -> float:
     lane_change = model_v2 is not None and model_v2.meta.laneChangeState != 0
-    if self.curve_bias_enabled and active and not steering_pressed and not lane_change:
+    # Carrot's `UseLaneLineCurveSpeed` gate: in a slow bend the lane-line-derived
+    # correction is not wanted, because the model path is the better guide there and
+    # the extra curvature fights the turn. 0 keeps the gate permanently open.
+    gate_open = (self.lane_line_curve_speed <= 0.0
+                 or not math.isfinite(curve_speed_kph)
+                 or abs(curve_speed_kph) > self.lane_line_curve_speed)
+    if self.curve_bias_enabled and active and not steering_pressed and not lane_change and gate_open:
       desired_curvature = apply_curve_outward_bias(desired_curvature, v_ego)
-    if self.lane_centering_enabled:
+    if self.lane_centering_enabled and gate_open:
       desired_curvature += self.lane_centering.update(model_v2, v_ego, active, steering_pressed)
     return desired_curvature

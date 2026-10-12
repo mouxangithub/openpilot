@@ -315,7 +315,7 @@ def main() -> int:
       'AutoEngage', 'AutoTurnInNotRoadEdge', 'CameraYawTrimDeg', 'CancelButtonMode',
       'ContinuousLaneChange', 'NewLaneWidthDiff', 'StockBlinkerCtrl', 'BsdDelayTime',
       'SideRadarMinDist', 'CruiseGapLevels', 'LaneChangeBsd', 'UseLaneLineSpeed',
-      'UseLaneLineCurveSpeed', 'AutoGas', 'Canfd',
+      'AutoGas', 'Canfd',
     )
     UNPORTED_EXACT = frozenset((
       'HDPuse', 'IsLdwsCar', 'HyundaiCameraSCC', 'EnableCornerRadar', 'MaxAngleFrames',

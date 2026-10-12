@@ -2010,6 +2010,39 @@ class TestAtcSpeedReachesSla(unittest.TestCase):
     self.assertIn('cm.routeSpeed =', man)
     self.assertIn('cm.vTurnSpeedMs =', man)
 
+  def test_curve_distance_travels_with_the_curve_speed(self):
+    """The curve speed must ship its own distance, not borrow xDistToTurn.
+
+    `curveDist` is the model distance the vision envelope was sized for. SCC-M skips
+    any candidate whose distance is not positive, so when the curve source was paired
+    with `xDistToTurn` - the phone's turn-by-turn maneuver distance, 0 with nothing
+    queued - a purely visual curve decel never reached the controller.
+    """
+    capnp = self._read('openpilot/cereal/custom.capnp')
+    self.assertIn('curveDist @', capnp, 'curveDist missing from CarrotManSP')
+
+    planner = self._read('openpilot/sunnypilot/carrot/carrot_functions.py')
+    self.assertIn('self._curve_dist = float(result.distance)', planner)
+    self.assertIn('def curve_distance', planner)
+
+    serv = self._read('openpilot/sunnypilot/carrot/carrot_serv.py')
+    self.assertIn('self.v_turn_speed_dist', serv)
+
+    man = self._read('openpilot/sunnypilot/carrot/carrot_man.py')
+    self.assertIn('cm.curveDist =', man)
+
+  def test_map_controller_curve_source_does_not_use_the_maneuver_distance(self):
+    """The whole point of curveDist: the curve candidate stops using xDistToTurn."""
+    src = self._read('openpilot/sunnypilot/selfdrive/controls/lib/smart_cruise_control/map_controller.py')
+    start = src.index('def _carrot_decel_candidates')
+    block = src[start:start + 2000]
+    self.assertIn('"curveDist"', block, 'the curve candidate no longer reads curveDist')
+    # Compare code only: the prose above the return value explains what *not* to do
+    # and legitimately names xDistToTurn.
+    code = '\n'.join(line.split('#')[0] for line in block.splitlines())
+    self.assertNotIn('xDistToTurn', code,
+                     'the curve candidate is back on the maneuver distance')
+
 
 class TestNoWriteToSubscriptionReaders(unittest.TestCase):
   """carrot must never assign to anything SubMaster hands out.

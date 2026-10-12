@@ -467,15 +467,20 @@ class CarrotPlanner:
     self._atc_type = ""
     self._atc_active = False
 
-    # Curve speed tuning (P0-2/P0-3).
+    # Curve speed tuning (P0-2/P0-3). The highway/surface split is a pair of
+    # factor knobs; see carrot_curve_speed_params() for why the aggressiveness
+    # pair is not consumed on this path.
     self._auto_curve_speed_factor = 1.0
-    self._auto_curve_speed_aggressiveness = 1.0
     self._auto_curve_speed_factor_h = 0.8
-    self._auto_curve_speed_aggressiveness_h = 1.2
     self._auto_curve_speed_lower_limit = 30
     self._curvature_filter = _MovingAverage(20)
     self._lat_a = 0.0
     self._max_curve = 0.0
+    # Distance to the point the vision envelope is currently sized for, in metres.
+    # Published alongside the curve speed so SmartCruiseControlMap can place the
+    # constraint on its own lookahead instead of borrowing the phone's turn
+    # distance, which is zero whenever no navigation maneuver is queued.
+    self._curve_dist = 0.0
     # Holds the curve ceiling between frames and releases it only against fresh
     # geometry. One instance per planner so its history tracks the same model path
     # the calls do; it is not shared between ticks of different objects.
@@ -1076,12 +1081,31 @@ class CarrotPlanner:
     self._roadcate = roadcate
 
   def carrot_curve_speed_params(self) -> None:
-    """Load curve-speed tuning parameters from UnifiedParams."""
+    """Load curve-speed tuning parameters from UnifiedParams.
+
+    Only the *factor* knobs are read. ``AutoCurveSpeedAggressiveness`` and its
+    highway twin are deliberately not consumed here: in the Carrot curve-speed
+    envelope the sensitivity is a single multiplier on the lateral-acceleration
+    budget (``curve_speed``'s ``sensitivity``), and ``AutoCurveSpeedFactor``
+    already carries it. The aggressiveness pair drives
+    ``SmartCruiseControlVision`` (where a higher value means a *higher* permitted
+    lateral acceleration, i.e. faster), so reading it here as well would apply one
+    user setting to two controllers with opposite polarity. It used to be assigned
+    to ``self._auto_curve_speed_*_aggressiveness*`` and never read again - a
+    silent no-op that made the UI look like it tuned this path.
+    """
     self._auto_curve_speed_factor = self._params.get_float("AutoCurveSpeedFactor") * 0.01
-    self._auto_curve_speed_aggressiveness = self._params.get_float("AutoCurveSpeedAggressiveness") * 0.01
     self._auto_curve_speed_factor_h = self._params.get_float("AutoCurveSpeedFactorH") * 0.01
-    self._auto_curve_speed_aggressiveness_h = self._params.get_float("AutoCurveSpeedAggressivenessH") * 0.01
     self._auto_curve_speed_lower_limit = self._params.get_int("AutoCurveSpeedLowerLimit") or 30
+
+  @property
+  def curve_distance(self) -> float:
+    """Metres to the point the vision curve envelope is currently sized for.
+
+    0.0 means "no usable geometry", which is also what SCC-M treats as
+    "do not place this constraint".
+    """
+    return self._curve_dist
 
   def carrot_curve_speed(self, sm: Any) -> float:
     """Curve speed ceiling from the model path, in km/h, signed by curvature.
@@ -1130,9 +1154,14 @@ class CarrotPlanner:
     if result is not None:
       self._max_curve = result.curve_kph
       self._lat_a = TARGET_LAT_ACCEL / sensitivity if sensitivity > 0 else 0.0
+      # The model-frame distance the envelope chose, so SCC-M can place the
+      # constraint. Kept even when the envelope is not (yet) binding, because the
+      # distance is what tells the controller *when* to start slowing.
+      self._curve_dist = float(result.distance)
     else:
       self._max_curve = 0.0
       self._lat_a = 0.0
+      self._curve_dist = 0.0
 
     model_time = sm.logMonoTime['modelV2'] if sm.alive.get('modelV2', False) else None
     return self._vision_curve_speed.update(result, time.monotonic(), model_time=model_time)

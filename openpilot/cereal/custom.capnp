@@ -956,9 +956,17 @@ struct CarrotManSP @0xcd96dafb67a082d0 {
   atcDist @69 :Float32 = 0;
 
   # Curve speed from the turn table (v_turn_speed, already @11 as Int32 kph) and the
-  # route-curvature speed. Both in m/s; 0 means "no value". vTurnSpeed is paired with
-  # xDistToTurn, so no separate distance is needed for it.
+  # route-curvature speed. Both in m/s; 0 means "no value".
+  #
+  # curveDist is the *model* distance at which the vision curve envelope
+  # (curve_speed.py, feeding vTurnSpeedMs) says the constraint becomes binding.
+  # It is deliberately NOT xDistToTurn: that one is the phone's turn-by-turn
+  # maneuver distance, so with no navigation turn queued it is 0 or stale, and
+  # SmartCruiseControlMap skips any source whose distance is not positive
+  # (map_controller._update_carrot_map_decel). Pairing the two made a purely
+  # visual curve decel get dropped whenever the router had nothing to say.
   vTurnSpeedMs @70 :Float32 = 0;
+  curveDist @75 :Float32 = 0;
   routeSpeed @71 :Float32 = 0;
   routeDist @72 :Float32 = 0;
 

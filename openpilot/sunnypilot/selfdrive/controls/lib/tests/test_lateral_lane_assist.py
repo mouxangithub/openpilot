@@ -14,13 +14,17 @@ from openpilot.sunnypilot.selfdrive.controls.lib.lateral_lane_assist import (
 
 
 class FakeParams:
-  def __init__(self, curve=False, centering=False):
+  def __init__(self, curve=False, centering=False, lane_line_curve_speed=0):
     self.values = {
       "LateralCurveCuttingCorrection": curve,
       "LateralLaneCentering": centering,
+      "UseLaneLineCurveSpeed": lane_line_curve_speed,
     }
 
   def get_bool(self, key):
+    return self.values[key]
+
+  def get_int(self, key):
     return self.values[key]
 
 
@@ -84,3 +88,62 @@ def test_assist_settings_are_independent_and_off_by_default():
   curve_only = LateralLaneAssist(dt=0.01, params=FakeParams(curve=True))
   assert curve_only.update(curvature, 100 * CV.KPH_TO_MS, True, False, make_model()) != curvature
   assert curve_only.update(curvature, 100 * CV.KPH_TO_MS, True, False, make_model(lane_change=1)) == curvature
+
+
+def test_use_lane_line_curve_speed_gates_the_assist_in_slow_bends():
+  """Ported from cp's `lanefull_mode_enabled` coupling.
+
+  `UseLaneLineCurveSpeed` is a km/h threshold on carrot's curve speed. Above it (a
+  fast, shallow bend) the lane-line correction still applies; at or below it (a slow,
+  tight bend) the model path guides and the correction is suppressed. 0 disables the
+  gate, which is the stock default.
+  """
+  curvature = 0.01
+  speed = 100 * CV.KPH_TO_MS
+  gate = 30.0  # km/h
+
+  assist = LateralLaneAssist(dt=0.01, params=FakeParams(curve=True, lane_line_curve_speed=gate))
+  assert assist.lane_line_curve_speed == gate
+  # Fast bend: curve speed above the threshold -> correction still applies.
+  assert assist.update(curvature, speed, True, False, make_model(), curve_speed_kph=gate + 20.0) != curvature
+  # Slow bend: at or below the threshold -> suppressed, curvature passes through.
+  assert assist.update(curvature, speed, True, False, make_model(), curve_speed_kph=gate) == curvature
+  assert assist.update(curvature, speed, True, False, make_model(), curve_speed_kph=gate - 20.0) == curvature
+  # Sign is irrelevant: only the magnitude of carrot's signed curve speed matters.
+  assert assist.update(curvature, speed, True, False, make_model(), curve_speed_kph=-(gate - 20.0)) == curvature
+  assert assist.update(-curvature, speed, True, False, make_model(), curve_speed_kph=-(gate + 20.0)) != -curvature
+
+
+def test_use_lane_line_curve_speed_zero_disables_the_gate():
+  """0 (the default) must behave exactly as before the coupling existed."""
+  curvature = 0.01
+  speed = 100 * CV.KPH_TO_MS
+  assist = LateralLaneAssist(dt=0.01, params=FakeParams(curve=True))
+  assert assist.lane_line_curve_speed == 0.0
+  for curve_kph in (0.0, 5.0, 1e6, float('nan')):
+    assert assist.update(curvature, speed, True, False, make_model(), curve_speed_kph=curve_kph) != curvature
+
+
+def test_curve_speed_gate_reader_tolerates_a_missing_or_bogus_value():
+  """An unset param reads back as 0/None on some stores; the gate must stay open."""
+  class BadParams(FakeParams):
+    def get_int(self, key):
+      raise TypeError("not an int")
+
+  assert LateralLaneAssist(dt=0.01, params=BadParams(curve=True)).lane_line_curve_speed == 0.0
+
+
+def test_update_curve_speed_gate_releases_the_integral_in_slow_bends():
+  """A slow bend must not leave the centering integral pushing into the turn."""
+  speed = 100 * CV.KPH_TO_MS
+  assist = LateralLaneAssist(dt=0.01, params=FakeParams(centering=True, lane_line_curve_speed=30.0))
+  for _ in range(200):
+    assist.update(0.0, speed, True, False, make_model(offset_left=0.4), curve_speed_kph=90.0)
+  assert assist.lane_centering.integral != 0.0
+  assist.update_curve_speed_gate(10.0)
+  assert assist.lane_centering.integral == 0.0
+  # A gate-less configuration is a no-op, so it cannot disturb an untouched device.
+  ungated = LateralLaneAssist(dt=0.01, params=FakeParams(centering=True))
+  ungated.lane_centering.integral = 0.5
+  ungated.update_curve_speed_gate(10.0)
+  assert ungated.lane_centering.integral == 0.5

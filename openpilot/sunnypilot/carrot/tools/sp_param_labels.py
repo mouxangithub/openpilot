@@ -24,9 +24,22 @@ Descriptions follow what the code actually does with each key (`carrot_serv.py`,
 
 PARAM_LABELS: dict[str, tuple[str, str, str, str]] = {
   # ---- carrot fork surface: AUTO_FORK family ------------------------------
-  "AutoCurveSpeedAggressiveness": ("Curve speed aggressiveness", "How hard the fork slows for curves on ordinary roads (100 = cp default).", "弯道速度激进程度", "普通道路弯道减速的激进程度（100 = 默认）。"),
-  "AutoCurveSpeedAggressivenessH": ("Curve speed aggressiveness (highway)", "Curve slowdown aggressiveness on highways.", "弯道速度激进程度（高速）", "高速公路弯道减速的激进程度。"),
-  "AutoCurveSpeedFactorH": ("Curve speed factor (highway)", "Multiplier applied to the curve target speed on highways.", "弯道速度系数（高速）", "高速公路弯道目标速度的系数。"),
+  # NOTE on the two curve-speed families. These names come from CarrotPilot, and the two
+  # families are consumed by DIFFERENT controllers with OPPOSITE polarity:
+  #   * Factor            -> the Carrot envelope (carrot_functions.carrot_curve_speed_params
+  #                          -> curve_speed.py). There `lateral_budget = TARGET_LAT_ACCEL /
+  #                          sensitivity`, so a HIGHER factor means a LOWER speed budget and
+  #                          a SLOWER curve. Upstream's own Factor labels say exactly this;
+  #                          they already live in carrot_settings.json, so only the H
+  #                          variant is added here for consistency.
+  #   * Aggressiveness    -> SmartCruiseControlVision (vision_controller._load_curve_tuning),
+  #                          where `th_scale = 1 / aggressiveness`: a LOWER value arms the
+  #                          turn cycle on gentler curves, i.e. slows earlier.
+  # The labels below follow the code, not the CarrotPilot name.
+  "AutoCurveSpeedAggressiveness": ("Curve speed aggression (SCC-V)", "Smart Cruise Control Vision only: how early it reacts to a curve on ordinary roads. Lower slows earlier for gentler curves; 100 = neutral.", "弯道减速积极度（SCC-V）", "仅作用于视觉智能巡航（SCC-V）：普通道路上的弯道反应早晚。数值越低，越早对缓弯减速；100 为中性。"),
+  "AutoCurveSpeedAggressivenessH": ("Curve speed aggression (SCC-V, highway)", "Highway variant of the SCC-V curve reaction threshold. Lower slows earlier; 100 = neutral.", "弯道减速积极度（SCC-V，高速）", "SCC-V 弯道反应阈值的高速档。数值越低减速越早；100 为中性。"),
+  "AutoCurveSpeedFactor": ("Curve speed factor", "Higher values lower the lateral-acceleration budget and the curve target speed, so the car slows more. Slowing starts according to the distance to the curve; 100 = Carrot default.", "弯道速度系数", "数值越高，允许的横向加速度和弯道目标速度越低，减速越明显。根据距弯道的距离提前减速；100 为 Carrot 默认值。"),
+  "AutoCurveSpeedFactorH": ("Curve speed factor (highway)", "Highway variant of the Carrot curve-speed factor. Higher lowers the curve target speed (slower); 100 = Carrot default.", "弯道速度系数（高速）", "Carrot 弯道速度系数的高速档。数值越高弯道目标速度越低（更慢）；100 为 Carrot 默认值。"),
   "AutoDoForkBlinkerDist": ("Fork auto-blinker distance", "Distance before a fork at which the auto turn signal fires.", "岔路自动转向灯距离", "到达岔路前多远自动打转向灯。"),
   "AutoDoForkBlinkerDistH": ("Fork auto-blinker distance (highway)", "Highway variant of the fork auto-blinker distance.", "岔路自动转向灯距离（高速）", "高速公路岔路自动转向灯的触发距离。"),
   "AutoDoForkDecalDist": ("Fork decal braking distance", "Distance before deceleration markings (decal) where fork braking begins.", "岔路导流线减速距离", "距导流线（减速标线）多远开始岔路制动。"),

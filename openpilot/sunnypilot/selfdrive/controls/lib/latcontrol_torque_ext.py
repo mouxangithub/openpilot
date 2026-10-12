@@ -18,6 +18,10 @@ class LatControlTorqueExt(NeuralNetworkLateralControl, LatControlTorqueExtOverri
     NeuralNetworkLateralControl.__init__(self, lac_torque, CP, CP_SP, CI)
     LatControlTorqueExtOverride.__init__(self, CP)
     self.lateral_lane_assist = LateralLaneAssist(lac_torque.dt)
+    # Carrot's signed curve speed (km/h), refreshed each active frame by
+    # update_curve_speed(); 0.0 until carrotManSP checks out, which the lane
+    # assist's gate reads as "no curve", i.e. gate open.
+    self._curve_speed_kph = 0.0
     self._output_overrides_disabled = False
     # EPS ceiling as a fraction of the carcontroller's scale, by speed (None: full scale
     # everywhere). Applied to the host as steer_max, so every tune's own update_limits() and
@@ -31,7 +35,18 @@ class LatControlTorqueExt(NeuralNetworkLateralControl, LatControlTorqueExtOverri
     self._at_rail = False
 
   def adjust_desired_curvature(self, desired_curvature, CS, active):
-    return self.lateral_lane_assist.update(desired_curvature, CS.vEgo, active, CS.steeringPressed, self.model_v2)
+    return self.lateral_lane_assist.update(desired_curvature, CS.vEgo, active, CS.steeringPressed, self.model_v2,
+                                           self._curve_speed_kph)
+
+  def update_curve_speed(self, curve_speed_kph: float) -> None:
+    """Hand carrot's signed curve speed to the lane assist's slow-curve gate.
+
+    Kept on the extension rather than threaded through LaC.update() because the
+    lateral controller has no SubMaster and the value arrives from carrotManSP,
+    which controlsd already subscribes to.
+    """
+    self._curve_speed_kph = float(curve_speed_kph) if curve_speed_kph is not None else 0.0
+    self.lateral_lane_assist.update_curve_speed_gate(self._curve_speed_kph)
 
   def rail_scale_at(self, v_ego: float) -> float:
     if self.steer_rail_schedule is None:

@@ -194,6 +194,9 @@ class CarrotServ:
     self.x_spd_limit: int = 0
     self.x_spd_dist: int = 0
     self.v_turn_speed: int = 0
+    # Metres to the point the vision curve envelope is sized for, pushed in with the
+    # curve speed itself. 0.0 = no usable geometry.
+    self.v_turn_speed_dist: float = 0.0
     self.sz_sdi_descr: str = ""
     self.active_carrot: int = 0
     self.desired_speed: int = 0
@@ -1686,10 +1689,14 @@ class CarrotServ:
       cloudlog.warning(f"carrot_serv: failed to read stock navInstruction: {e}")
 
   def update_navi(self, remote_ip: str, sm, pm, vturn_speed: float,
-                  coords: list, distances: list, route_speed: float) -> None:
+                  coords: list, distances: list, route_speed: float,
+                  vturn_dist: float = 0.0) -> None:
     """Full navigation update (reference-carrot semantics, no publish).
 
     ``pm`` is accepted for API compatibility; the caller owns publishing.
+    ``vturn_dist`` is the model distance the vision curve envelope was sized for;
+    it rides along with ``vturn_speed`` so SmartCruiseControlMap can place the
+    curve constraint instead of borrowing the phone's maneuver distance.
     """
     self.update_params()
 
@@ -1698,6 +1705,12 @@ class CarrotServ:
     # carrot_man can publish them for SmartCruiseControlMap.
     self.route_speed = float(route_speed) if route_speed and route_speed > 0.0 else 0.0
     self.route_speed_dist = float(self.x_dist_to_turn) if self.route_speed > 0.0 else 0.0
+
+    # The vision curve envelope's own distance, carried alongside its speed. Pairing
+    # it with xDistToTurn (the phone's turn-by-turn maneuver distance) instead meant a
+    # purely visual curve decel was dropped whenever no maneuver was queued, because
+    # SCC-M skips any candidate whose distance is not positive.
+    self.v_turn_speed_dist = float(vturn_dist) if vturn_dist and vturn_dist > 0.0 else 0.0
 
     # Distance-travelled clock for the rear-camera hold, and the off-route flag that
     # suppresses it. Both come from the same subscriptions cp uses

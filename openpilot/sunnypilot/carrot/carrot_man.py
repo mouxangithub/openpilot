@@ -1053,6 +1053,11 @@ class CarrotManager:
     # published in kph for the HUD; the m/s copy exists because SCC-M works in m/s and
     # dividing by 3.6 at the consumer would scatter unit conversions.
     cm.vTurnSpeedMs = float(self._carrot_serv.v_turn_speed) / 3.6 if self._carrot_serv.v_turn_speed > 0 else 0.0
+    # The distance belongs to the vision envelope above, NOT to xDistToTurn (the
+    # phone's maneuver distance). SCC-M skips any candidate at a non-positive
+    # distance, so pairing the curve speed with the maneuver distance silently
+    # dropped visual curve decel on any stretch with no turn queued.
+    cm.curveDist = float(self._carrot_serv.v_turn_speed_dist)
     cm.routeSpeed = float(self._carrot_serv.route_speed)
     cm.routeDist = float(self._carrot_serv.route_speed_dist)
     cm.vTurnSpeed = v_turn_speed
@@ -1385,6 +1390,7 @@ class CarrotManager:
           # to a per-frame lookup. The road class is refreshed on the live instance
           # for the same reason - it is read from the navi packet, which changes.
           vturn_speed = 0.0
+          vturn_dist = 0.0
           if self.sm.valid.get('carState', False) and self.sm.valid.get('modelV2', False):
             try:
               if self._curve_planner is None:
@@ -1392,6 +1398,10 @@ class CarrotManager:
                 self._curve_planner = CarrotPlanner(self._unified, roadcate=self._carrot_serv.roadcate)
               self._curve_planner.set_roadcate(self._carrot_serv.roadcate)
               vturn_speed = self._curve_planner.carrot_curve_speed(self.sm)
+              # Read the distance the envelope chose for that speed. Published with it
+              # so SCC-M does not have to substitute the navigation turn distance,
+              # which is 0 whenever no maneuver is queued.
+              vturn_dist = self._curve_planner.curve_distance
             except Exception as e:
               # Was a bare `pass`, which hid a broken curve pipeline completely.
               cloudlog.warning(f"carrot_man: curve speed failed: {e}")
@@ -1400,7 +1410,8 @@ class CarrotManager:
           coords, distances, route_speed = self.carrot_navi_route()
 
           # Update navi
-          self._carrot_serv.update_navi(remote_ip, self.sm, self.pm, vturn_speed, coords, distances, route_speed)
+          self._carrot_serv.update_navi(remote_ip, self.sm, self.pm, vturn_speed, coords, distances,
+                                        route_speed, vturn_dist)
           self._write_navi_debug()
 
           # Broadcast every 2 seconds or when remote addr is set
