@@ -74,8 +74,8 @@ class SpeedLimitAlertRenderer:
       speed_conv = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
       speed_limit_final_last = ui_state.sm['longitudinalPlanSP'].speedLimit.resolver.speedLimitFinalLast
 
-      v_cruise_cluster = ui_state.sm['carState'].vCruiseCluster
-      set_speed = ui_state.sm['controlsState'].deprecated.vCruise if v_cruise_cluster == 0.0 else v_cruise_cluster
+      # Cluster value alone; deprecated.vCruise keeps a stale value when cruise is off.
+      set_speed = ui_state.sm['carState'].vCruiseCluster
       if not ui_state.is_metric:
         set_speed *= KM_TO_MILE
 
@@ -172,13 +172,11 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
 
       self.speed_limit_ahead_dist_prev = self.speed_limit_ahead_dist
 
-    controls_state = sm['controlsState']
     car_state = sm["carState"]
 
-    v_cruise_cluster = car_state.vCruiseCluster
-    self.set_speed = (
-      controls_state.deprecated.vCruise if v_cruise_cluster == 0.0 else v_cruise_cluster
-    )
+    # Set speed comes from the cluster value alone; deprecated.vCruise keeps a
+    # stale value when cruise is off and would invent a phantom set speed.
+    self.set_speed = car_state.vCruiseCluster
     self.is_cruise_set = 0 < self.set_speed < SET_SPEED_NA
     self.is_cruise_available = self.set_speed != -1
 
