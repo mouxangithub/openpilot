@@ -24,12 +24,25 @@ Changing it makes the two presets identical — do not "tidy" it away.
 
 CanfdHDA2 is NOT part of a preset. It comes from the HDA step and is only
 written for Hyundai/Kia/Genesis; other brands keep whatever they had.
+
+Every key below MUST be declared in `openpilot/common/params_keys.h`. `set_param_value`
+re-raises `UnknownKeyName` when the key is in neither the key table nor the settings
+catalog, so an undeclared key does not merely fail to take effect - it makes the whole
+`/api/intro/apply_preset` request answer 500 *after* the earlier params of the loop have
+already been written. `tests/test_carrot_intro_presets.py` pins this invariant.
+
+Two of the keys are recorded but inert in this fork, because their consumers live in
+CarrotPilot's opendbc / monitoring layer which is not ported here: sp derives
+`HyundaiFlags.CAMERA_SCC` from the fingerprint rather than from `HyundaiCameraSCC`, and
+gates driver monitoring with `AlwaysOnDM` rather than `DriverMonitoringMode`. They are
+registered so the write lands and survives a backup; porting that layer later needs no
+parameter migration.
 """
 from __future__ import annotations
 
 
-# Param -> value. Keys must exist in selfdrive/carrot_settings.json so the
-# clamp in services.params can validate them.
+# Param -> value. Keys must be declared in openpilot/common/params_keys.h - see the
+# module docstring for why an undeclared key turns the whole request into a 500.
 PRESETS: dict[str, dict[str, int]] = {
   "radar_long": {
     "HyundaiCameraSCC": 1,   # 1: long-con vehicle (interface.py forces OP long)

@@ -1,7 +1,11 @@
-# cp → sp 功能借鉴分析（2026-09-30）
+# cp → sp 功能借鉴分析（2026-09-30，2026-10-12 复核）
 
 > 只调研、未改码。本文件为决策输入，供分析后确定移植范围。
 > 基准：cp = `E:/cp`（CarrotPilot，分支 carrot-wip）；sp = `E:/sp`（本 fork，分支 test）。
+>
+> **2026-10-12 复核**：§4 与 §7.1 的数字已用当前仓库状态重算（原数字来自 09-30，已失效）。
+> 复核报告与逐项 grep 记录见 `artifacts/cp_sp_overall_gap_2026-10-12.md`。
+> 总体结论更新为：**文件/端口层已基本追平，唯一真·未移植大项只剩 `cluster/`（产品决策）。**
 
 ---
 
@@ -9,11 +13,14 @@
 
 | # | 主题 | 结论 | 工作量 |
 |---|---|---|---|
-| 1 | HUD（native onroad） | **不做**。cp 1614 行 vs sp 180 行，sp 更简洁；尊重现有设计 | 0 |
+| 1 | HUD（native onroad） | **不做**。cp 1614 行 vs sp 146+347 行，sp 更简洁；尊重现有设计 | 0 |
 | 2 | 大模型 / eGPU 全链路 | **不建议照搬**。sp 已有大/小模型双 runner + 模型下载管理；cp 的 big_model+jetlink 是 USB eGPU 专用管线，sp 无对应硬件支持层 | 评估后单独立项 |
 | 3 | path/lanes/radar/标线 overlay | **部分可做**：`road_markings.py`（163 行，纯几何）可低风险移植；radar overlay 建议做；path/lanes 的「Carrot 专属绘制」**建议在 webui 简洁行车画面实现**而非 native | 中 |
-| 4 | 调参项 186 项对齐 | **应做**。cp 186 项 → sp 已注册 154、**未注册 32**、已注册但无 UI 入口 84 | 中 |
+| 4 | 调参项对齐 | **数量已反超**（sp 340 vs cp 184）。cp 独有 **30 项**（2026-10-12 重算，原 32）：4 项 sp 已引用应补键、4 项保持退役、26 项跳过（消费者模块不在 sp）。**无 UI 入口 48 项且 0 死旋钮**（原报 84） | 小 |
 | 5 | IMU 自动校准 | **已完整**。无重大缺口，仅建议补可观测性 | 小 |
+| 6 | `radar/` + `radar_motion/` | **已移植**（2026-10-12 更正）。整包在 sp 且被 `radard_dpath`/`carrot_functions`/radar tools 引用。注意 cp 自己的 radar 树也是离线工具链，**两侧均未接行车 radard**，属对等 | 0 |
+| 7 | `realtime/` | **已移植**（2026-10-12 更正）。`compact_state`(+C++/pyx) 接入 7000；raw 传输改装为 `server/services/raw_*.py` + `camera_relay.py` | 0 |
+| 8 | `cluster/` | **产品决策：不做**。36 py / 33,142 行独立外接屏 App，需 C3X 副屏硬件 | — |
 
 ---
 
@@ -75,47 +82,81 @@ sp 已把「限速」等核心信息拆成独立组件（`speed_limit.py`、`spe
 
 ---
 
-## 4. 调参项 186 项对齐 — 应做
+## 4. 调参项对齐 — 数字已于 2026-10-12 重算
 
-### 4.1 数据（精确对比结果）
+> ⚠️ **本节数据在 2026-10-12 全面重算**。原数字（cp 186 / sp 已注册 154 / 未注册 32 /
+> 无 UI 入口 84）取自 2026-09-30，此后 sp 的目录已扩到 340 项，多个数字已失效。
+> 重算方法见本报告末尾的「复核方法」，可复现。
+
+### 4.1 数据（2026-10-12 实测）
 
 ```
-cp carrot_settings.json:  186 项参数
-sp params_keys.h 已注册:   154 项（cp∩sp）
-sp 未注册:                  32 项  ← 需要补
-sp 已注册但无 UI 入口:       84 项  ← 需要补 UI 暴露（当前 UI 只暴露 108）
+cp carrot_settings.json:        184 项参数
+sp carrot_settings_sp.json:     340 项参数         ← 已远超 cp
+sp params_keys.h 中 carrot 参数: 239 项
+cp 有而 sp 无（未注册）:          30 项  ← 见 4.2
+native UI 暴露:                  108 项
+UI 总可达（native + webui 面板）:  297 项
+carrot 参数但无 UI 入口:           48 项  ← 见 4.3（原报告 84 项）
+其中属于「用户可调却无入口」:        0 项  ← 其余 48 项是运行时/状态参数，本就不该有旋钮
 ```
 
-### 4.2 未注册的 32 项（需先补 `params_keys.h` + 消费逻辑）
+关键变化：**参数数量已经反超**（340 vs 184）。差距从「数量不足」变成了「少数 cp 专属键」。
 
-按类别分组：
+### 4.2 未注册的 30 项 —— 已逐项分类，不必全补
 
-| 类别 | 键 |
-|---|---|
-| 转向/力矩 | `CustomSteerMax`、`CustomSteerDeltaUp/Down/UpLC/DownLC`、`DisableMinSteerSpeed`、`MaxAngleFrames` |
-| 纵向/巡航 | `AChangeCostStarting`、`CarrotCruiseDecel`、`CarrotCruiseAtcDecel`、`CruiseCoastingPercent`、`StoppingAccel`、`VEgoStopping`、`SpeedTFFactor` |
-| 车道/变道 | `AdjustLaneOffset`、`LaneChangeBsd`、`CarrotTireTrajectory` |
-| 视觉/雷达 | `CarrotVisionEnabled`、`EnableCornerRadar`、`RadarTrackFlip`、`DriverMonitoringEnabled/Mode` |
-| 车辆/硬件 | `CanfdDebug`、`CanfdHDA2`、`HDPuse`、`HardwareC3xLite`、`HyundaiCameraSCC`、`IsLdwsCar` |
-| 测试/杂项 | `CruiseButtonTest1/2/3`、`MaxTimeOffroadMin` |
+| 类别 | 键 | 判定 |
+|---|---|---|
+| **A. sp 内已有引用**（键未注册但代码在别处读） | `CanfdHDA2`、`HyundaiCameraSCC`、`DriverMonitoringEnabled`、`DriverMonitoringMode` | 出现在 `carrot/server/features/intro/presets.py`（引导预置）与 `server/services/params.py`（备份排除 / 在线校验）。**建议补注册**，否则 `Params.get` 无默认值 |
+| **B. 已明确退役** | `AChangeCostStarting`、`SpeedTFFactor`、`StoppingAccel`、（`DynamicTFollow`） | cp 自身也已删除；sp 有 `TestRetiredParamsStayRetired`（`tests/test_carrot_man.py:1866`）断言其**不得回归**。`AChangeCostStarting`/`SpeedTFFactor` 被 sp 自己的 `LongitudinalMpcTuningAChangeCost` / `EnableSpeedTF` 取代，`StoppingAccel` 并入 `LongitudinalMpcTuningStopDistance`。**保持退役** |
+| **C. cp 专属硬件 / 车型 / 测试项** | `CanfdDebug`、`CruiseButtonTest1/2/3`、`CustomSteerDelta{Up,Down,UpLC,DownLC}`、`CustomSteerMax`、`HyundaiCanfdClusterDirectTx`、`IsLdwsCar`、`HardwareC3xLite`、`MaxAngleFrames`、`MaxTimeOffroadMin`、`CarrotTireTrajectory`、`HDPuse`、`VEgoStopping` | sp 内无读取方，消费逻辑位于 cp 的 opendbc 接入层（本 fork 未携带）。**跳过** |
+| **D. 有真实消费方，但消费者在 sp 不存在的模块** | `AdjustLaneOffset`、`LaneChangeBsd`、`CruiseCoastingPercent`、`CarrotCruiseDecel`、`CarrotCruiseAtcDecel`、`DisableMinSteerSpeed` | 见 4.2.1 —— 这 6 项不是「通用调参」，但**移植成本等于移植整个消费模块**，故同样跳过 |
 
-⚠️ 关键判断：**这 32 项大多是 cp 特有的硬件/车型能力（CanfdHDA2、HyundaiCameraSCC、HDPuse、C3xLite）或测试项（CruiseButtonTest*）**。**不是每一项都该无脑补**——建议先逐项确认 sp 消费逻辑是否存在，只补「sp 确实会用」的键，纯 cp 硬件相关的可以跳过。
+原判断「大多是 cp 特有硬件/车型能力或测试项」**基本正确**。30 项里只有 A 类 4 项值得补键，
+B 类保持退役，C/D 类共 26 项跳过。
 
-### 4.3 已注册但无 UI 入口的 84 项
+#### 4.2.1 D 类 6 项：消费者全部落在 sp 没有的模块
 
-已注册（params_keys.h 有）但 `carrot_tuning_items.py` 没暴露，**只差 UI 入口**，价值高、风险低：
+最初怀疑这 6 项是「通用调参」，实测**每一项在 cp 都有真实消费方，但消费者都在 sp 不存在的文件里**：
 
-重点子集（用户可感知）：
-- 横向力矩：`LateralTorqueCustom/AccelFactor/Friction/KpV/KiV/Kf/Kd`、`LatMpcPathCost/MotionCost/AccelCost/JerkCost/SteeringRateCost/InputOffset`、`CustomSR`、`SteerRatioRate`、`SteerActuatorDelay`
-- 纵向：`LongTuningKpV/KiV/Kf`、`LongActuatorDelay`、`CruiseMaxVals0-6`、`LeadAccelResponseTF1-4`
-- 显示：`ShowTpms`、`ShowDateTime`、`ShowDeviceState`、`ShowRadarInfo`、`ShowLaneInfo`、`ShowPathEnd`、`ShowPathMode/Color*`、`ShowCustomBrightness`、`ShowModelView`
-- 音/提醒：`MuteDoor`、`MuteSeatbelt`、`SoundLanguageSetting`、`HapticFeedbackWhenSpeedCamera`
+| 参数 | cp 的消费者 | sp 对应模块 | 判定 |
+|---|---|---|---|
+| `AdjustLaneOffset` | `selfdrive/controls/lib/lane_planner_2.py:161` → `self.adjustLaneOffset` | **`lane_planner_2.py` 不存在**（sp 无 cp 横向栈） | 跳过。注：sp 的等价物是 `PathOffset`（已注册、已接 UI），语义为「车道偏移左右修正」，与此参数重叠 |
+| `LaneChangeBsd` | `selfdrive/controls/lib/desire_helper.py:77` → `self.laneChangeBsd` | `desire_helper.py` **存在**，但无 `laneChangeBsd` 字段；sp 该文件走 `AutoLaneChangeController`（另一套设计） | 跳过。sp 的 BSD 逻辑在 `carrot` 侧（`DisableBlindSpot`/`DynamicBlindRange` 等已注册） |
+| `CruiseCoastingPercent` | `longitudinal_planner.py:128` → `coasting_percent(...)` | sp 的 `longitudinal_planner.py` **无 coasting 分支**，只有 stock 的 `get_coast_accel`（物理滑行，非滑行的巡航百分比） | 跳过。属功能缺失而非参数缺失；要做得先移植该滑行策略 |
+| `CarrotCruiseDecel` | `opendbc/car/hyundai/carcontroller.py:860` | **韩系车型专属**（sp `TOYOTA_WILDLANDER_PHEV` 无关） | 跳过 |
+| `CarrotCruiseAtcDecel` | `opendbc/car/hyundai/carcontroller.py:861` | 同上，韩系专属 | 跳过 |
+| `DisableMinSteerSpeed` | `opendbc/car/interfaces.py:376` | sp 的 `interfaces.py` 无此分支 | 跳过。属 ATC/转向低速逻辑，随 opendbc 层一起 |
 
-### 4.4 推荐做法（「用 sunnypilot 统一控制」）
+**结论：确认 6 项全部跳过**——没有一项是「补个键就能用」的通用调参。这一节的判断与
+原 §4.2 的「先审计后补」一致，但理由更精确：不是「cp 硬件专属」，而是**消费者模块不在 sp**。
 
-1. **补 UI 入口为主**：84 项已注册，在 `carrot_tuning_items.py` 对应分组补 `option_item_sp(...)` 行即可（参考现有 108 项写法，含 min/max/step 与翻译）
-2. **32 项先审计后补**：只补 sp 有消费逻辑的（如 `StoppingAccel`、`LaneChangeBsd` 若有对应代码），纯 cp 硬件项不补
-3. 补完后跑 `carrot_tuning_render_smoke.py` + `test_translations` 验证
+逐项 grep 记录见 `artifacts/cp_sp_overall_gap_2026-10-12.md` §3。
+
+### 4.3 无 UI 入口的 48 项 —— 0 项是坏旋钮
+
+原报告称 84 项「只差 UI 入口，价值高、风险低」，**这个判断需要修正**。实测 48 项里：
+
+- **绝大多数是运行时/状态参数**，本就不应该有用户旋钮：`CarrotNaviAppStatus`、`CarrotVisionActive`、
+  `EnableRadarTracksResult`、`CarrotException`、`CarrotNavFeaturesSeeded`、
+  `CarrotStopDistanceMigrated` / `CarrotUdpPortMigrated`（一次性迁移标记）、`RecordFrontLock`、
+  `CarrotManUdpPort`、`CarrotSourceTimeoutMs` 等。
+- **看起来像用户可调、实际已另有入口**：`LongitudinalMpcTuning*`（11 项）有专门的设置页
+  `selfdrive/ui/sunnypilot/layouts/settings/cruise_sub_layouts/longitudinal_mpc_tuning.py`，
+  只是参数审计脚本此前不认 `_read_tuning_float()` 间接读取而误报（2026-10-12 已修复该脚本）。
+- 真正「用户可调但无专页」的残余候选很少：`AutoRoadSpeedAdjust`、`AutoSpeedUptoRoadSpeedLimit`、
+  `JLeadFactor3`、`LeadForecast`、`LaneChangeSmoothing`、`PaddleMode`、`SoftHoldOnCancel`、
+  `UseLaneLineSpeed`、`TrafficLightNavCautionOnly`。这些是否要补入口是**产品取舍**，不是缺陷。
+
+**结论：不存在「死旋钮」。** 参数审计（`carrot/tests/audit_param_consistency.py`）当前
+PASSED，84 条「无读取方」全部落在已声明未移植族内，0 条待调查。
+
+### 4.4 推荐做法
+
+1. **A 类 4 项补注册**（`params_keys.h` 加键，默认值与 cp 对齐），其余 26 项不动。
+2. 无 UI 入口的 48 项**不做批量补**——原「84 项只差 UI」的前提已不成立。
+3. 若要给 4.3 末尾的残余候选补入口，逐个人工判断，并同步 `sp_param_labels.py` 与各 `.po`。
+4. 任何参数改动后跑：`audit_param_consistency.py` + `carrot_tuning_render_smoke.py` + `test_translations`。
 
 ---
 
@@ -159,53 +200,113 @@ sp 已注册但无 UI 入口:       84 项  ← 需要补 UI 暴露（当前 UI 
 
 ---
 
-## 7. 复核与新增（2026-10-11）
+## 7. 复核与更新（2026-10-11 首版 / **2026-10-12 更正**）
 
-对 `E:/cp`（`carrot-wip`）的 `selfdrive/carrot` 做了一次全量文件级 diff：cp 903 文件 / sp 101 文件，
-**共 53、cp 独有 850、sp 独有 48**。按目录归并后，cp 独有部分几乎全部落在下面这张表里——
-也就是说，**除本节新增的第 1 项外，其余都已被既有决策覆盖**。
+> ⚠️ **2026-10-11 的首版本节判断有误**：当时用的是「sp 101 文件」的旧快照，得出
+> 「cp 独有 850」并据此认为多个子系统未移植。实际 sp `carrot/` 当时已有 297 文件，
+> 相关子系统**早已移植并接入**。下表为 2026-10-12 用当前仓库重做的结论。
 
-| cp 独有 | 规模 | 状态 |
-|---|---|---|
-| `web/` | 566 文件 / 8.1 MB | 面板前端。见 `docs/carrot-port-parity.md` §6（能否照搬的完整评估） |
-| `server/` 剩余部分 | 123 文件 / 1.0 MB | dashcam / screenrecord / vision / terminal / tools 写操作 / static —— 已在 `features/unsupported.py` 逐项回 501 |
-| `cluster/` | 44 文件 / 2.8 MB | 外接屏 HUD 应用。不做（本 fork 用 `cluster_view/`，1,151 行） |
-| `radar/` | 15 文件 / 309 KB | cp 的替代 radard（`radard_dpath.py`）。不做（本 fork 用 stock radard） |
-| **`radar_motion/`** | **14 文件 / 11,493 行** | ⭐ **本节新增，见下** |
-| `realtime/` | 12 文件 / 92 KB | compact_state（C++/Cython）。不做（无 cereal 对应） |
-| `kmap/` | 3 文件 / 57 KB | 地图控件，只被 `web/` 消费 → 随 `web/` 一起决定 |
-| `recovery/` | 2 文件 / 99 KB | 6999 无鉴权 PTY shell。不做（安全） |
-| `tests/` | 54 文件 / 828 KB | cp 自己的测试套件；sp 有对应的 22 个测试文件 |
-| `xiaoge/README.md`、`bluetooth/tests/{test_api,test_daemon}.py` | — | 已在 `carrot/README.md` 说明为有意不移植 |
+对 `E:/cp/openpilot/selfdrive/carrot` 与 `E:/sp/openpilot/sunnypilot/carrot` 做文件级 diff
+（只计 `*.py` / `*.pyx` / `*.json` / `*.md`）：
 
-### 7.1 ⭐ `radar_motion/` —— 唯一尚未决策的大项，且**可整包移植**
+```
+cp 331 文件 | sp 297 文件 | cp 独有 115
+```
 
-**为什么它是缺口**：cp 的 `radar_motion/` 是**前车运动预测 / cut-in 判定**栈，
-公开 API 有 `DPathRadarController`、`DPathRadarOutput`、`RadarLeadDynamics`、
-`DPathLeadSelection`、`front_cutin_motion_supported`、`trajectory_cutin` / `trajectory_cutout`、
-`occupancy_v2/v3`、以及 `CUT_IN_CONFIRMATION_S` / `FRONT_CUT_IN_THRESHOLD` 等一整套常量。
-本 fork 只取了其中 1 个文件（`lane_change_gap.py`，`carrot_functions.py` 在用），
-**cut-in 相关部分全无**——这与「cp 纵向栈 sp 空白（cutin/radar/…）」的既有判断一致。
+**cp 独有 115 项的去向：**
 
-**为什么可移植（关键证据）**：
+| cp 独有 | 数量 | 状态 |
+|---|---:|---|
+| `tests/`（cp 自有 pytest 套件） | 51 | 不移植；sp 有自己的 `unittest` 套件 |
+| `cluster/` | 40 | **产品决策：不做**（见 §8） |
+| `realtime/` raw 传输 | 6 | **已移植**（改装进 `server/services/raw_*.py` + `camera_relay.py`） |
+| `server/` 片段 | 5 | 4 个是测试；`features/egpu_model.py` 有意不取 |
+| `bluetooth/tests/` | 2 | 有意不移植（见 `carrot/README.md`） |
+| `xiaoge/README.md` | 1 | 文档，可选 |
+| 根级启动器 / 工具 | 11 | 全部已处置，见下 |
 
-- **零外部依赖**：14 个文件的全部 import 都在包内（`radar_motion.*`），
-  **没有任何 `openpilot.*` 导入**，也不依赖 cp 的 `radar/`（反向依赖为 0）。
-- **第三方依赖只有 stdlib**：`math` / `dataclasses` / `collections` / `typing` / `enum` /
-  `statistics` / `os` / `bisect`；`numpy` 只出现在 `lane_change_gap.py`（sp 已有该文件）。
-- **Cython 可选**：`native.py` 是 `try: from ._motion_native import …`，
-  失败则 `BACKEND = "python"` —— **不搬 `SConscript` / `.pyx` 也能跑**（纯 Python 回退）。
-- **无品牌耦合**：全包只有 1 处品牌分支（`timing.py` 的 VW MEB `radarDelay` 策略）和 1 处注释。
+**根级 11 项逐项判定：**
 
-**移植方式（建议）**：
+| 文件 | 行数 | 判定 |
+|---|---:|---|
+| `cruise_gap.py` | 15 | **已移植** → `sunnypilot/selfdrive/car/cruise_helpers.py`（3 helper 同名同义，有测试） |
+| `driving_mode.py` | 108 | **已移植** → 并入 `carrot/carrot_functions.py` |
+| `radar_lead_simulator.py`、`radar_lead_validation_review.py`、`radar_lead_video_review.py`、`validate_radar_lead_model.py` | 15 each | 都是 15 行 shim，`raise SystemExit(main())` 指向 `radar/tools/`（**该工具链已移植**，commit `adfa4d806`）。不拷 shim 不丢行为 |
+| `cluster_run.py`、`cluster_autorun.py`、`cluster_replay_usb.py` | — | 属 `cluster/`，不做 |
+| `cweb_push.py` | 310 | 有意不移植（XOR 混淆的第三方 phone-home，隐私红线） |
 
-1. 整包复制到 `openpilot/sunnypilot/carrot/radar_motion/`，import 前缀
-   `openpilot.selfdrive.carrot.radar_motion` → `openpilot.sunnypilot.carrot.radar_motion`。
-2. **不带** `SConscript` / `_motion_native.pyx`（保留 Python 回退；设备端若确认 CPU 吃紧再加）。
-3. `timing.py` 的 VW 分支保留即可（对 Toyota/Mazda 走 `max(0, CP.radarDelay)`，行为等价）。
-4. 先只接 `carrot_functions.py` 里 `lane_change_gap` 的相邻能力（cut-in 判定），
-   **不要**顺带去动 sp 的 radard —— cp 的 `radard_dpath.py` 是另一套，已决定不移植。
-5. 验证：该包纯函数多，可先跑本地单测（无需设备）；再在设备上对比 cut-in 触发日志。
+**结论：除 `cluster/` 外，文件层没有遗漏。**
+
+### 7.1 ~~`radar_motion/` 是唯一尚未决策的大项~~ → **已移植，见下**
+
+原判断（sp 只取了 `lane_change_gap.py` 1 个文件、cut-in 全无）**已失效**。实测：
+
+- `openpilot/sunnypilot/carrot/radar_motion/` = **14 文件 / 12,158 行**（cp 为 11,493 行，
+  sp 还多出 `cutin_alert.py`、`cutin_helpers.py`），含 `controller.py`（`DPathRadarController`）、
+  `trajectory_cutin` / `trajectory_cutout`、`occupancy_v2` / `occupancy_v3`、`predictor`、
+  `primary`、`lead_selection`、`lead_dynamics`、`timing`、`coordinates`、`native`，以及
+  `_motion_native.pyx` + `SConscript`（Cython 加速也在）。
+- 被 `radar/radard_dpath.py`、`carrot_functions.py`、`radar/tools/radar_validation_replay.py`
+  等引用——**已接入**，不是死代码。
+- `radar/` 整树（15,839 行）同样在 sp：`radard_dpath`、`radarcan`、`can_batch`、`lateral`、
+  `route_replay/`、`tools/`。
+
+**唯一需要注意的定性事实**：cp 自己的 `radar/` 树**也是离线工具链，没有接进行车 `radard`**
+（两个仓库里 `carrot/radar/` 之外都没有导入 `radard_dpath`）。所以这不是 sp 的差距，
+而是一个仍然开放的产品问题：**要不要把行车雷达路径切换成 `DPathRadarController`**。
+
+### 7.2 `realtime/` —— 同样已移植
+
+- `compact_state`（`compact_state.py` + `compact_state_native.cc/.h` + `compact_state_pyx.pyx`）
+  逐字移植，并已接入 7000 的 `/ws/compact_state` 与 dashcam replay。
+- cp 的 raw 传输（`raw_protocol.py` / `raw_runner.py` / `raw_services.py` / `transports/`）
+  **未按文件拷贝，而是并入** `server/services/`：`raw_protocol.py`、`raw_services.py`、
+  `raw_relay.py`、`camera_relay.py`（合计 949 行）。原因：本 fork 里唯一消费者是 7000 面板，
+  cluster 不移植，没有第二个消费者需要那个独立包。`/ws/raw_multiplex`、`/ws/raw/{service}`、
+  `/ws/compact_state` 均已实现。
+
+### 7.3 仍然成立：不要碰的三样
+
+1. `cweb_push.py` —— 第三方 phone-home，隐私红线（见 §3 与 `carrot/README.md`）
+2. `recovery/server.py` + `terminal.py` + `support_terminal` —— 6999 无鉴权 PTY shell
+   （sp 已移植但**默认关闭**，且第三方目的地清空）
+3. cp 的 `kmap/` —— 韩国 Kakao 地图、作者个人 key、默认首尔；sp 已用 `web/map/` 自研替代
+
+---
+
+## 8. `cluster/` —— 记录为产品决策：不移植（2026-10-12）
+
+cp 的 `cluster/` 是 **36 个 py / 33,142 行**的完整独立应用：C3X 手柄 + USB 外接屏 +
+H.264 管线 + 场景渲染器 + 回放工具 + `main.py`。它与驾驶链解耦，需要外接副屏硬件才有意义。
+
+sp 现有的 `cluster_view/`（5 文件 / 1,151 行 = `cluster_config` / `cluster_display` /
+`cluster_overlay` / `cluster_overlay_renderer`）是同一套 HUD 的**轻量子集**，方向一致。
+
+**决策：不移植，除非确定要支持 C3X 外接副屏硬件。**
+
+---
+
+## 9. 复核方法（可复现）
+
+```bash
+# 文件层差集（cp 相对 sp）
+cd E:/cp/openpilot/selfdrive/carrot && \
+  find . \( -name '*.py' -o -name '*.pyx' -o -name '*.json' -o -name '*.md' \) | sed 's|^\./||' | sort > /tmp/cp.txt
+cd E:/sp/openpilot/sunnypilot/carrot && \
+  find . \( -name '*.py' -o -name '*.pyx' -o -name '*.json' -o -name '*.md' \) | sed 's|^\./||' | sort > /tmp/sp.txt
+comm -23 /tmp/cp.txt /tmp/sp.txt          # 115 项
+
+# 参数差集
+python -c "import json;a={i['name'] for i in json.load(open('openpilot/sunnypilot/carrot_settings.json'))['params']};\
+b={i['name'] for i in json.load(open('openpilot/sunnypilot/carrot_settings_sp.json'))['params']};print(len(a),len(b),sorted(a-b))"
+
+# 参数一致性审计（UI 覆盖 / 无读取方 / 默认值三表对齐）
+python openpilot/sunnypilot/carrot/tests/audit_param_consistency.py
+```
+
+⚠️ 审计脚本会遍历整仓，**Windows 上直接跑会卡住**；用 `importlib` 加载后 monkeypatch
+`os.walk` 跳过 `webui/` 与 `tinygrad_repo/` 即可（2026-10-12 起脚本内部已做单次索引，
+2.7 秒可完成）。
 
 **风险**：中低。唯一要小心的是它消费的是「dPath 历史」这类输入，接错输入会得到
 「看起来合理但语义不对」的输出 —— 接的时候要对着 cp 的 `radard_dpath.py` 调用点核对字段含义，

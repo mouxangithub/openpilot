@@ -60,7 +60,11 @@ ENUM_BOUNDS: dict[str, tuple[int, int, str]] = {
   'MyDrivingModeAuto': (0, 2, 'auto driving-mode detector: 0/1/2'),
 }
 
-SKIP_DIRS = ('__pycache__', '.git', 'node_modules', 'tinygrad_repo', 'third_party')
+SKIP_DIRS = ('__pycache__', '.git', 'node_modules', 'tinygrad_repo', 'third_party',
+             # Not the fork's driving source: the `ai/` workbench tree and the tool's own
+             # scratch state both write params of their own, and neither is part of the
+             # carrot surface this audit governs.
+             'ai', '.workbuddy', 'artifacts', 'sessions')
 
 # A one-shot migration read is not a consumer for this purpose.
 #
@@ -71,6 +75,25 @@ SKIP_DIRS = ('__pycache__', '.git', 'node_modules', 'tinygrad_repo', 'third_part
 # to retire them must not mask a dead UI control.
 MIGRATION_FILES = ('params_migration.py',)
 
+# Helpers that read a param whose name is passed as a literal argument. Listed
+# explicitly rather than matched as "any call with a quoted argument": the loose form
+# also swallows declaration tables such as `_Field("kmap_enabled", ...)` and
+# `option_item_sp(param='X')`, and would re-report a dead knob as healthy.
+#
+#   long_mpc.py::_read_tuning_float(_TUNING_PARAMS, "LongitudinalMpcTuningX", default)
+#   hardware/comma/modem.py::_read_param("GsmApn") / self._param("GsmApn")
+#   recovery/server.py::_read_param("DongleId")
+#
+# Add a name here when a new indirect access pattern appears, and say where it lives.
+READER_HELPERS = (
+  '_read_tuning_float',
+  '_read_tuning_int',
+  '_read_tuning_bool',
+  '_read_param',
+  '_read_param_value',
+  '_param',
+)
+
 
 def read(path: str) -> str:
   with open(path, encoding='utf-8') as f:
@@ -78,11 +101,18 @@ def read(path: str) -> str:
 
 
 def parse_params_keys() -> dict[str, str]:
-  """name -> registered default (as written in params_keys.h)."""
+  """name -> registered default (as written in params_keys.h).
+
+  The body alternates runs of non-brace/non-quote characters with quoted strings, so a
+  default that itself contains a brace is still parsed. The naive `[^}]*` form silently
+  dropped every such entry - `NavDestination` defaults to `"{}"` and was reported as
+  unregistered by the write-side check, which is what surfaced this.
+  """
   out: dict[str, str] = {}
-  for m in re.finditer(r'\{"([A-Za-z_][A-Za-z0-9_]*)",\s*\{([^}]*)\}\}', read(PARAMS_KEYS)):
-    name, body = m.group(1), m.group(2)
-    d = re.search(r'"([^"]*)"\s*$', body.strip().rstrip(','))
+  body = r'[^{}"]*(?:"[^"]*"[^{}"]*)*'
+  for m in re.finditer(r'\{"([A-Za-z_][A-Za-z0-9_]*)",\s*\{(' + body + r')\}\}', read(PARAMS_KEYS)):
+    name, inner = m.group(1), m.group(2)
+    d = re.search(r'"([^"]*)"\s*$', inner.strip().rstrip(','))
     out[name] = d.group(1) if d else ''
   return out
 
@@ -185,36 +215,78 @@ def ui_exposed_params() -> set[str]:
   return exposed
 
 
-def has_reader(name: str) -> bool:
-  """True if any non-surface file reads this param."""
+_READ_INDEX: set[str] | None = None
+
+
+def _build_read_index() -> set[str]:
+  """Every param name this tree reads, in one pass over the repo.
+
+  Built once and cached. The per-name version of this walked the whole tree for each
+  of ~300 params, which on Windows never finished; the index makes has_reader() a set
+  lookup and keeps the semantics identical.
+  """
   surface = (os.path.basename(PARAMS_KEYS), os.path.basename(CONFIG_PY), os.path.basename(NAV_JSON),
              os.path.basename(TUNING_API), os.path.basename(NATIVE_ITEMS),
              os.path.basename(PANEL_CATALOG))
   # Python accessors AND the C++ ones. Several params are consumed only from C++
   # (RecordFront is read in loggerd.h), so a Python-only scan reports a false
   # positive and would push a working setting out of the UI.
-  py_pat = re.compile(r'\.(?:get|get_bool|get_int|get_float|get_str)\s*\(\s*["\']' + re.escape(name) + r'["\']')
-  cpp_pat = re.compile(r'(?:getBool|getInt|getFloat|get)\s*\(\s*"' + re.escape(name) + r'"')
+  py_pat = re.compile(r'\.(?:get|get_bool|get_int|get_float|get_str)\s*\(\s*["\']([A-Za-z_][A-Za-z0-9_]*)["\']')
+  cpp_pat = re.compile(r'(?:getBool|getInt|getFloat|get)\s*\(\s*"([A-Za-z_][A-Za-z0-9_]*)"')
+  helper_pat = re.compile(r'\b(?:' + '|'.join(READER_HELPERS) +
+                          r')\s*\(\s*[^()\n]*["\']([A-Za-z_][A-Za-z0-9_]*)["\']')
+  const_def_pat = re.compile(r'^([A-Z_][A-Z0-9_]*)\s*=\s*["\']([A-Za-z_][A-Za-z0-9_]*)["\']', re.M)
+  const_use_pat = re.compile(r'\.(?:get|get_bool|get_int|get_float|get_str)\s*\(\s*([A-Z_][A-Z0-9_]*)\b')
+
+  found: set[str] = set()
   for root, dirs, files in os.walk(REPO):
     dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
     for fn in files:
-      if fn in surface:
+      if fn in surface or fn in MIGRATION_FILES:
         continue
       is_py, is_cpp = fn.endswith('.py'), fn.endswith(('.h', '.cc', '.cpp'))
       if not (is_py or is_cpp):
         continue
-      if fn in MIGRATION_FILES:
-        continue
-      pat = py_pat if is_py else cpp_pat
       p = os.path.join(root, fn)
       if '/tests/' in p.replace(os.sep, '/') or fn.startswith('test_'):
         continue
       try:
-        if pat.search(read(p)):
-          return True
+        src = read(p)
       except (OSError, UnicodeDecodeError):
         continue
-  return False
+      found.update((py_pat if is_py else cpp_pat).findall(src))
+      if is_py:
+        found.update(helper_pat.findall(src))
+        # `PARAM = "X"` at module scope, handed to an accessor by name.
+        by_const = dict(const_def_pat.findall(src))
+        if by_const:
+          found.update(by_const[c] for c in const_use_pat.findall(src) if c in by_const)
+  return found
+
+
+def has_reader(name: str) -> bool:
+  """True if any non-surface file reads this param.
+
+  Three access forms are recognised, because this tree uses all three and an audit
+  that understands only the first one reports working settings as dead:
+
+    1. direct accessor   ``params.get_int("X")`` / ``getBool("X")`` (C++)
+    2. reader helper     ``_read_tuning_float(p, "X", default)``, ``_read_param("X")``
+    3. module constant   ``PARAM = "X"`` ... ``params.get_bool(PARAM)``
+
+  Forms 2 and 3 exist for ``long_mpc.py``'s ``LongitudinalMpcTuning*`` block and
+  ``lead_forecast/forecast.py``'s ``LeadForecast``; both used to be reported as orphans.
+
+  The helper list is an explicit allowlist on purpose. Matching "any call with a
+  quoted argument" would swallow declaration tables - ``_Field("kmap_enabled", ...)``
+  in ``web_settings.py``, ``option_item_sp(param='X')`` - and re-report a genuinely
+  dead knob as healthy. A false negative is worse here than a false positive, so a
+  new indirect access pattern must be added to READER_HELPERS deliberately.
+  """
+  global _READ_INDEX
+  if _READ_INDEX is None:
+    _READ_INDEX = _build_read_index()
+  return name in _READ_INDEX
 
 
 def main() -> int:
@@ -420,6 +492,63 @@ def main() -> int:
                           and not n.endswith('Migrated')]
   print(f'  {len(invisible_everywhere)} carrot param(s) visible in no UI ' +
         '(informational; may be internal killswitches)')
+  print()
+
+  # ---- 6. writers must not name an unregistered param ----
+  print('== 6. params written by code but not registered ==')
+  #
+  # The mirror image of section 3. There, a knob nothing reads is useless; here, a write
+  # to a key that is not in params_keys.h is worse than useless - `check_key()` raises
+  # UnknownKeyName, and set_param_value() only falls back to the raw-file writer when it
+  # has a settings definition (`p is not None`). With no definition it re-raises, so the
+  # caller reports failure *after* the other writes in its loop have already landed.
+  #
+  # That is exactly how /api/intro/apply_preset came to answer 500 on every device while
+  # half-applying the preset. See tests/test_carrot_intro_presets.py.
+  #
+  # Only literal key names are matched. A write through a variable cannot be resolved
+  # statically, and guessing would produce noise that gets ignored.
+  write_pat = re.compile(r'\.(?:put|put_bool|put_int|put_float|put_str)\(\s*["\']([A-Za-z_][A-Za-z0-9_]*)["\']')
+  write_cpp_pat = re.compile(r'(?:putBool|putInt|putFloat|put)\(\s*"([A-Za-z_][A-Za-z0-9_]*)"')
+  # set_param_value("X", ...) / set_param_value(name=... ) - only the literal form.
+  spv_pat = re.compile(r'set_param_value\(\s*["\']([A-Za-z_][A-Za-z0-9_]*)["\']')
+  write_const_use = re.compile(r'\.(?:put|put_bool|put_int|put_float|put_str)\(\s*([A-Z_][A-Z0-9_]*)\b')
+  const_def = re.compile(r'^([A-Z_][A-Z0-9_]*)\s*=\s*["\']([A-Za-z_][A-Za-z0-9_]*)["\']', re.M)
+
+  unregistered: dict[str, list[str]] = {}
+  for root, dirs, files in os.walk(REPO):
+    dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+    for fn in files:
+      if fn == os.path.basename(PARAMS_KEYS):
+        continue
+      is_py, is_cpp = fn.endswith('.py'), fn.endswith(('.h', '.cc', '.cpp'))
+      if not (is_py or is_cpp):
+        continue
+      path = os.path.join(root, fn)
+      if '/tests/' in path.replace(os.sep, '/') or fn.startswith('test_'):
+        continue
+      try:
+        src = read(path)
+      except (OSError, UnicodeDecodeError):
+        continue
+      names = set(write_pat.findall(src)) | set(spv_pat.findall(src))
+      if is_cpp:
+        names |= set(write_cpp_pat.findall(src))
+      else:
+        by_const = dict(const_def.findall(src))
+        if by_const:
+          names |= {by_const[c] for c in write_const_use.findall(src) if c in by_const}
+      for n in names:
+        if n not in pk:
+          unregistered.setdefault(n, []).append(os.path.relpath(path, REPO).replace(os.sep, '/'))
+
+  if unregistered:
+    print(f'  {len(unregistered)} param(s) are written but not declared in params_keys.h:')
+    for n in sorted(unregistered):
+      print(f'    {n:34s} {unregistered[n][0]}')
+      failures.append(f'unregistered writer: {n} (written in {unregistered[n][0]})')
+  else:
+    print('  every param written through a literal key name is declared')
   print()
 
   print('=' * 68)

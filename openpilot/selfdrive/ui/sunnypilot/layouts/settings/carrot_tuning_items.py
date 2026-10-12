@@ -138,13 +138,13 @@ def build_speed_items():
     section_heading_sp(tr('Curve Speed')),
     option_item_sp(title=tr('Curve Speed Factor'), param='AutoCurveSpeedFactor', min_value=50, max_value=200, value_change_step=5,
                    description=tr('How much lateral acceleration to allow below 80 km/h, in percent. ' +
-                                  'Higher takes curves faster. 100 is neutral.')),
+                                  'Higher slows more for curves. 100 is neutral.')),
     option_item_sp(title=tr('Normal Road Curve Aggressiveness'), param='AutoCurveSpeedAggressiveness', min_value=0, max_value=200, value_change_step=5,
                    description=tr('How early to react to curves on normal roads. Lower reacts to gentler ' +
                                   'curves. Only applies while Smart Cruise Control (Vision) is on.')),
     option_item_sp(title=tr('Curve Speed Factor (Highway)'), param='AutoCurveSpeedFactorH', min_value=50, max_value=200, value_change_step=5,
                    description=tr('How much lateral acceleration to allow at or above 80 km/h, in percent. ' +
-                                  'Higher takes curves faster. 100 is neutral.')),
+                                  'Higher slows more for curves. 100 is neutral.')),
     option_item_sp(title=tr('Highway Curve Aggressiveness'), param='AutoCurveSpeedAggressivenessH', min_value=0, max_value=200, value_change_step=5,
                    description=tr('How early to react to curves on the highway. Lower reacts to gentler ' +
                                   'curves. Only applies while Smart Cruise Control (Vision) is on.')),

@@ -49,6 +49,12 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"GitDiff", {PERSISTENT, STRING}},
     {"GithubSshKeys", {PERSISTENT | BACKUP, STRING}},
     {"GithubUsername", {PERSISTENT | BACKUP, STRING}},
+    // Timestamp (ms since epoch, as a string) of the last successful "add GitHub SSH
+    // keys" fetch. Written and read by carrot/server/services/ssh_keys.py but never
+    // declared, so the write raised UnknownKeyName - and because it happens *after*
+    // GithubUsername and GithubSshKeys are committed, the flow reported an error with
+    // the keys already half-applied. Found by the audit's write-side check.
+    {"GithubSshKeysUpdatedAt", {PERSISTENT | BACKUP, STRING}},
     {"GitRemote", {PERSISTENT, STRING}},
     {"GsmApn", {PERSISTENT | BACKUP, STRING}},
     {"GsmMetered", {PERSISTENT | BACKUP, BOOL, "1"}},
@@ -545,6 +551,22 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"VehicleNaviCanControl", {PERSISTENT | BACKUP, INT, "0"}},
     {"VehicleNaviSchoolZoneControl", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"VehicleSpeedCameraControlMode", {PERSISTENT | BACKUP, INT, "1"}},
+    // Written by the intro wizard's preset table (server/features/intro/presets.py) and
+    // by the web panel's HDA step. Registering them is the fix for the preset endpoint
+    // returning 500: set_param_value() re-raises UnknownKeyName when the key is in
+    // neither params_keys.h nor the settings catalog, so a preset could never apply.
+    // Same remedy as NavDestination above and the Byd* block before it.
+    //
+    // The consumers for these live in CarrotPilot's opendbc/monitoring layer, which this
+    // fork does not carry (sp derives HyundaiFlags.CAMERA_SCC from the fingerprint, and
+    // has no monitoring/config.py), so a value written here does not yet change driving
+    // behaviour. Defaults match cp; nothing changes until a value is written. Registering
+    // them keeps the write readable/backupable and means porting that layer later needs no
+    // parameter migration.
+    {"HyundaiCameraSCC", {PERSISTENT, INT, "0"}},   // cp: force HyundaiFlags.CAMERA_SCC
+    {"CanfdHDA2", {PERSISTENT, INT, "0"}},          // cp: HDA1/HDA2 step (HKG only)
+    {"DriverMonitoringMode", {PERSISTENT, INT, "0"}},        // cp: 1 = experimental DM
+    {"DriverMonitoringEnabled", {PERSISTENT, BOOL, "1"}},    // cp: master DM switch
     {"VehicleSpeedCameraDistanceTime", {PERSISTENT | BACKUP, INT, "60"}},
     {"AutoRoadSpeedLimitOffset", {PERSISTENT | BACKUP, INT, "-1"}},
     {"AutoNaviSpeedBumpTime", {PERSISTENT | BACKUP, INT, "1"}},
