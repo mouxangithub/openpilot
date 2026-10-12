@@ -14,18 +14,18 @@ class AlphaLongConfirmPage(NavScroller):
   def __init__(self, on_confirm: Callable[[], None]):
     super().__init__()
 
-    accept = BigConfirmationCircleButton("enable alpha\nlongitudinal",
+    accept = BigConfirmationCircleButton(tr("enable alpha\nlongitudinal"),
                                          gui_app.texture("icons_mici/setup/driver_monitoring/dm_check.png", 64, 64),
                                          lambda: self.dismiss(on_confirm))
 
     self._scroller.add_widgets([
-      GreyBigButton("enabling alpha longitudinal", "scroll to continue",
+      GreyBigButton(tr("enabling alpha longitudinal"), tr("scroll to continue"),
                     gui_app.texture("icons_mici/setup/warning.png", 64, 64)),
-      GreyBigButton("", "WARNING: alpha longitudinal control may disable Automatic Emergency Braking (AEB)"),
-      GreyBigButton("", "On this car, openpilot defaults to the stock system's built-in ACC."),
-      GreyBigButton("", "Enabling this will switch to openpilot longitudinal control."),
-      GreyBigButton("", "Using Experimental mode is recommended with openpilot longitudinal control alpha."),
-      GreyBigButton("", "Changing this setting will restart openpilot if the car is powered on."),
+      GreyBigButton("", tr("WARNING: alpha longitudinal control may disable Automatic Emergency Braking (AEB)")),
+      GreyBigButton("", tr("On this car, openpilot defaults to the stock system's built-in ACC.")),
+      GreyBigButton("", tr("Enabling this will switch to openpilot longitudinal control.")),
+      GreyBigButton("", tr("Using Experimental mode is recommended with openpilot longitudinal control alpha.")),
+      GreyBigButton("", tr("Changing this setting will restart openpilot if the car is powered on.")),
       accept,
     ])
 

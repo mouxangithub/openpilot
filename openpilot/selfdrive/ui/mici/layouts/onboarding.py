@@ -60,11 +60,11 @@ class TrainingGuidePreDMTutorial(NavScroller):
     continue_button.set_click_callback(continue_callback)
 
     self._scroller.add_widgets([
-      GreyBigButton("driver monitoring\ncheck", "scroll to continue",
+      GreyBigButton(tr("driver monitoring\ncheck"), tr("scroll to continue"),
                     gui_app.texture("icons_mici/setup/green_dm.png", 64, 64)),
-      GreyBigButton("", "Next, we'll check if comma four can detect the driver properly."),
-      GreyBigButton("", "sunnypilot uses the cabin camera to check if the driver is distracted."),
-      GreyBigButton("", "If it does not have a clear view of the driver, unplug and remount before continuing."),
+      GreyBigButton("", tr("Next, we'll check if comma four can detect the driver properly.")),
+      GreyBigButton("", tr("sunnypilot uses the cabin camera to check if the driver is distracted.")),
+      GreyBigButton("", tr("If it does not have a clear view of the driver, unplug and remount before continuing.")),
       continue_button,
     ])
 
@@ -82,9 +82,9 @@ class DMBadFaceDetected(NavScroller):
     back_button.set_click_callback(self.dismiss)
 
     self._scroller.add_widgets([
-      GreyBigButton("looking for driver", "make sure comma\nfour can see your face",
+      GreyBigButton(tr("looking for driver"), tr("make sure comma\nfour can see your face"),
                     gui_app.texture("icons_mici/setup/orange_dm.png", 64, 64)),
-      GreyBigButton("", "Remount if your face is blocked, or driver monitoring has difficulty tracking your face."),
+      GreyBigButton("", tr("Remount if your face is blocked, or driver monitoring has difficulty tracking your face.")),
       back_button,
     ])
 

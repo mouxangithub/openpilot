@@ -17,23 +17,23 @@ class ExperimentalModeConfirmPage(NavScroller):
   def __init__(self, on_confirm: Callable[[], None]):
     super().__init__()
 
-    accept = BigConfirmationCircleButton("enable\nexperimental mode",
+    accept = BigConfirmationCircleButton(tr("enable\nexperimental mode"),
                                          gui_app.texture("icons_mici/setup/driver_monitoring/dm_check.png", 64, 64),
                                          lambda: self.dismiss(on_confirm))
 
     self._scroller.add_widgets([
-      GreyBigButton("enabling\nexperimental mode", "scroll to continue",
+      GreyBigButton(tr("enabling\nexperimental mode"), tr("scroll to continue"),
                     gui_app.texture("icons_mici/setup/warning.png", 64, 64)),
-      GreyBigButton("", "openpilot defaults to driving in chill mode."),
-      GreyBigButton("", "Experimental mode enables alpha-level features that aren't ready for chill mode."),
-      GreyBigButton("End-to-End Longitudinal Control"),
-      GreyBigButton("", "Let the driving model control the gas and brakes."),
-      GreyBigButton("", "openpilot will drive as it thinks a human would, including stopping for red lights and stop signs."),
-      GreyBigButton("", "The set speed will only act as an upper bound."),
-      GreyBigButton("", "This is an alpha quality feature; mistakes should be expected."),
-      GreyBigButton("New Driving Visualization"),
-      GreyBigButton("", "The path will change colors to communicate acceleration intent."),
-      GreyBigButton("", "Red for braking, green for acceleration, and gray for coasting."),
+      GreyBigButton("", tr("openpilot defaults to driving in chill mode.")),
+      GreyBigButton("", tr("Experimental mode enables alpha-level features that aren't ready for chill mode.")),
+      GreyBigButton(tr("End-to-End Longitudinal Control")),
+      GreyBigButton("", tr("Let the driving model control the gas and brakes.")),
+      GreyBigButton("", tr("openpilot will drive as it thinks a human would, including stopping for red lights and stop signs.")),
+      GreyBigButton("", tr("The set speed will only act as an upper bound.")),
+      GreyBigButton("", tr("This is an alpha quality feature; mistakes should be expected.")),
+      GreyBigButton(tr("New Driving Visualization")),
+      GreyBigButton("", tr("The path will change colors to communicate acceleration intent.")),
+      GreyBigButton("", tr("Red for braking, green for acceleration, and gray for coasting.")),
       accept,
     ])
 

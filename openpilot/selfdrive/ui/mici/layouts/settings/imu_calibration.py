@@ -60,13 +60,13 @@ class ImuCalibrationLayoutMici(NavScroller):
     self._params = Params()
     self._status_widget = ImuCalibrationInfo()
 
-    self._enabled_toggle = BigParamControl("use imu calibration", "ImuCalibrationEnabled",
+    self._enabled_toggle = BigParamControl(tr("use imu calibration"), "ImuCalibrationEnabled",
                                            toggle_callback=self._on_enabled_changed)
 
-    self._start_btn = BigButton("start imu calibration", "", gui_app.texture("icons_mici/settings/developer_icon.png", 64, 60))
+    self._start_btn = BigButton(tr("start imu calibration"), "", gui_app.texture("icons_mici/settings/developer_icon.png", 64, 60))
     self._start_btn.set_click_callback(self._start_calibration)
 
-    self._reset_btn = BigButton("reset imu calibration", "", gui_app.texture("icons_mici/settings/device/lkas.png", 64, 64))
+    self._reset_btn = BigButton(tr("reset imu calibration"), "", gui_app.texture("icons_mici/settings/device/lkas.png", 64, 64))
     self._reset_btn.set_click_callback(self._reset_calibration)
 
     self._scroller.add_widgets([
