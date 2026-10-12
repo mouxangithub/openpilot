@@ -286,6 +286,13 @@ class Car:
     if can_rcv_valid and REPLAY:
       self.can_log_mono_time = messaging.log_from_bytes(can_strs[0]).logMonoTime
 
+    # radarcan consumes the CAN stream independently. Bind its decode to the exact
+    # CAN batch and ego state used here, matching cp's update_carrot association.
+    CS.radarInput.firstCanMonoTime = can_list[0][0] if can_list else 0
+    CS.radarInput.lastCanMonoTime = can_list[-1][0] if can_list else 0
+    CS.radarInput.canPacketCount = len(can_list)
+    CS.radarInput.receiveMonoTime = self.can_log_mono_time if REPLAY and can_rcv_valid else time.monotonic_ns()
+
     self.v_cruise_helper.update_speed_limit_assist(self.is_metric, self.sm['longitudinalPlanSP'])
     # CS_SP is passed explicitly: card.py is the PUBLISHER of carStateSP, it is not
     # in this SubMaster, so `self.sm['carStateSP']` would raise KeyError.
