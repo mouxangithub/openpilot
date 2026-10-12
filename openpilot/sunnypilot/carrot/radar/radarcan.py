@@ -4,6 +4,7 @@ import os
 import time
 
 from opendbc.car.structs import car
+from openpilot.cereal import custom
 import openpilot.cereal.messaging as messaging
 from openpilot.common.params import Params
 from openpilot.common.realtime import Priority, config_realtime_process
@@ -24,8 +25,9 @@ def main():
   state_sock = messaging.sub_sock('carState', poller=poller, conflate=False)
   pm = messaging.PubMaster(['liveTracks'])
   CP = messaging.log_from_bytes(Params().get('CarParams', block=True), car.CarParams)
+  CP_SP = messaging.log_from_bytes(Params().get('CarParamsSP', block=True), custom.CarParamsSP)
   radar_interface = interfaces[CP.carFingerprint].RadarInterface
-  radar = radar_interface(CP)
+  radar = radar_interface(CP, CP_SP)
   # Latch once per onroad start; never change a track's side during a drive.
   radar_track_flip = Params().get_bool('RadarTrackFlip')
   batches = RadarCanBatches()
@@ -81,7 +83,7 @@ def main():
         continue
       if needs_reset:
         # Never bridge missing CAN with stale object IDs or filter histories.
-        radar = radar_interface(CP)
+        radar = radar_interface(CP, CP_SP)
         needs_reset = False
       last_input_ns = ego.receive_ns
       max_input_age_ms = max(max_input_age_ms, (now_ns - ego.receive_ns) / 1e6)
