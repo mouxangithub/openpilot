@@ -267,6 +267,14 @@ lint.flake8-implicit-str-concat.allow-multiline = false
 "openpilot/sunnypilot/carrot/server/services/vision_test.py" = ["TID251"]
 "openpilot/sunnypilot/carrot/server/services/web_settings.py" = ["A002"]
 "openpilot/sunnypilot/carrot/server/terminal_commands/bridge.py" = ["ISC002"]
+# Offline radar validation toolchain ported verbatim from CarrotPilot's
+# `selfdrive/carrot/radar/tools` + the UI-independent slice of `cluster`
+# (route_replay). No manager registration, no CAN, off-device only. Kept close
+# to upstream so re-syncs stay mechanical: ISC002/C004/C409/E501/RUF009 are
+# upstream formatting/dataclass habits (TpmsInfo default is frozen/safe),
+# B904/B905 are stdlib-signature style.
+"openpilot/sunnypilot/carrot/radar/route_replay/*.py" = ["ISC002", "ISC004", "C409", "E501", "B904", "B905", "RUF009"]
+"openpilot/sunnypilot/carrot/radar_motion/cutin_helpers.py" = ["C420"]
 "openpilot/sunnypilot/carrot/server/tests/test_auto_update.py" = ["ASYNC109"]
 "openpilot/sunnypilot/carrot/server/tests/test_git_config.py" = ["ISC002"]
 "openpilot/sunnypilot/carrot/server/tests/test_setting_profiles.py" = ["PIE807"]
