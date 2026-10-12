@@ -225,14 +225,17 @@ export function createSpHudOverlay(doc) {
     setHidden(unitNode, !speedOn);
     if (speedOn) setText(unitNode, data.unit || (data.isMetric === false ? "mph" : "km/h"));
 
-    /* cruise set */
-    const cruiseOn = data.started && data.setSpeed != null;
+    /* cruise set chip - mirrors webui onroad.js:
+     *   shown while started and cruise is available; the value reads "--" until
+     *   a set speed exists (openpilot is_cruise_set), so an unset cruise never
+     *   renders a phantom number. */
+    const cruiseOn = data.started && data.isCruiseAvailable !== false;
     setHidden(cruise, !cruiseOn);
     if (cruiseOn) {
-      cruise.classList.toggle("is-set", data.setSpeed != null);
-      cruiseMax.classList.toggle("is-set", Boolean(data.slaAssistActive));
-      setText(cruiseMax, data.uiStatus === "engaged" && !data.slaAssistActive ? "MAX" : "MAX");
-      setText(cruiseVal, data.setSpeed != null ? String(data.setSpeed) : "–");
+      const cruiseSet = Boolean(data.isCruiseSet) && data.setSpeed != null;
+      cruise.classList.toggle("is-set", cruiseSet);
+      cruiseMax.classList.toggle("is-set", cruiseSet);
+      setText(cruiseVal, cruiseSet ? String(data.setSpeed) : "–");
     }
 
     /* SLA */

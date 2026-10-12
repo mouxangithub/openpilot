@@ -29,12 +29,19 @@ function kphFromMs(value, isMetric) {
   return Math.round(isMetric ? converted : converted * 0.621371);
 }
 
-/* kph -> displayed unit (payload path carries pre-converted kph). */
+/* kph -> displayed unit. carState.vCruiseCluster / vCruise are ALREADY kph
+ * (openpilot car/cruise.py holds `v_cruise_cluster_kph`; onroad/hud_renderer.py
+ * uses it as a set speed without any m/s conversion, and only multiplies by
+ * KM_TO_MILE for imperial). Treating them as m/s multiplied the value by 3.6.
+ */
 function kphFromKph(value, isMetric) {
   const kphValue = finite(value);
   if (kphValue == null || kphValue <= 0) return null;
   return Math.round(isMetric ? kphValue : kphValue * 0.621371);
 }
+
+/* V_CRUISE_UNSET (openpilot car/cruise.py) - a set speed must never render. */
+const V_CRUISE_UNSET = 255;
 
 /* ui_status mirrors webui's derive_ui_status(): engaged / lat_only / long_only
  * / override / disengaged. compact selfdriveState carries enabled (openpilot
@@ -86,18 +93,32 @@ export function deriveSpHudPayload(state = {}, options = {}) {
 
   const isMetric = options.isMetric != null ? Boolean(options.isMetric) : true;
   const speedMs = finite(carState.vEgoCluster) ?? finite(carState.vEgo);
-  const setMs = finite(carState.vCruiseCluster) ?? finite(controlsState.vCruiseCluster);
   const roadLimit = finite(carrotMan.nRoadLimitSpeed);
   const started = options.started != null
     ? Boolean(options.started)
     : bool(deviceState.started) || bool(selfdriveState.started);
+
+  /* Set speed, mirroring openpilot onroad/hud_renderer.py:
+   *   set_speed = vCruiseCluster if vCruiseCluster != 0 else controlsState.deprecated.vCruise
+   *   is_cruise_set = 0 < set_speed < 255
+   * The deprecated mirror compact ships (controlsState.vCruiseCluster) is a
+   * stale copy that kept reporting a leftover value (observed 20) while no
+   * cruise was set, so the primary source is carState.vCruiseCluster only -
+   * a zero means "not set", exactly like openpilot's fallback path resolves to
+   * V_CRUISE_UNSET and hides the number.
+   */
+  const setKph = finite(carState.vCruiseCluster);
+  const isCruiseSet = setKph != null && setKph > 0 && setKph < V_CRUISE_UNSET;
+  const isCruiseAvailable = setKph != null && setKph !== -1;
 
   return {
     started,
     isMetric,
     unit: isMetric ? "km/h" : "mph",
     speed: speedMs != null && speedMs > 0 ? kphFromMs(speedMs, isMetric) : null,
-    setSpeed: setMs != null && setMs > 0 ? kphFromMs(setMs, isMetric) : null,
+    setSpeed: isCruiseSet ? kphFromKph(setKph, isMetric) : null,
+    isCruiseSet,
+    isCruiseAvailable,
     /* carrotMan.nRoadLimitSpeed is the road limit resolved by the navigation
      * stack; the webui SLA resolver lives in longitudinalPlanSP. Without that
      * service this is the closest sunnylimit source and is hidden when 0. */
@@ -137,13 +158,27 @@ export function mapSpHudPayload(payload = {}, state = {}) {
     experimental: payload.experimental,
   });
   const isMetric = payload.isMetric !== false;
+  /* When raw compact state is present it is the authority for the set speed:
+   * payload.vSetKph comes from vision_raw's resolveCruiseKph, which falls back
+   * to the stale controlsState.vCruiseCluster mirror and would resurrect the
+   * same phantom value the derived path now rejects. Only a payload-only call
+   * (no raw carState) is allowed to use it, and still under the openpilot
+   * is_cruise_set bound.
+   */
+  const hasRawCarState = Boolean(state && state.carState);
+  const payloadSetKph = finite(payload.vSetKph ?? payload.setSpeed);
+  const payloadCruiseSet = payloadSetKph != null && payloadSetKph > 0 && payloadSetKph < V_CRUISE_UNSET;
   return {
     ...derived,
     /* payload.vEgo is m/s (raw compact), vSetKph / speedLimitKph are already
      * kph integers computed by vision_raw.js; the derived raw-state path
      * always wins and these are fallbacks for an empty raw state. */
     speed: derived.speed ?? kphFromMs(payload.vEgo ?? payload.vEgoKph, isMetric),
-    setSpeed: derived.setSpeed ?? kphFromKph(payload.vSetKph ?? payload.setSpeed, isMetric),
+    setSpeed: hasRawCarState
+      ? derived.setSpeed
+      : (payloadCruiseSet ? kphFromKph(payloadSetKph, isMetric) : null),
+    isCruiseSet: hasRawCarState ? derived.isCruiseSet : payloadCruiseSet,
+    isCruiseAvailable: hasRawCarState ? derived.isCruiseAvailable : payloadSetKph != null,
     speedLimit: derived.speedLimit ?? kphFromKph(payload.speedLimitKph, isMetric),
     roadName: derived.roadName || String(payload.roadName || "").trim() || null,
     rocketFuel: derived.rocketFuel ?? finite(payload.aEgo ?? payload.accel),

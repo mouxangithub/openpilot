@@ -11,8 +11,8 @@ import { CSS } from "../src/features/drive/contents/vision/hud_sp/style.js";
 function compactState() {
   return {
     carState: {
-      vEgoCluster: 20.0, // 72 km/h
-      vCruiseCluster: 30.0, // 108 km/h
+      vEgoCluster: 20.0, // 72 km/h (m/s)
+      vCruiseCluster: 30.0, // 30 km/h set speed - vCruiseCluster is KPH
       aEgo: 0.5,
       leftBlinker: true,
       rightBlinker: false,
@@ -41,8 +41,10 @@ function compactState() {
 
 test("deriveSpHudPayload maps m/s carState to display units", () => {
   const data = deriveSpHudPayload(compactState(), { isMetric: true, started: true });
-  assert.equal(data.speed, 72);
-  assert.equal(data.setSpeed, 108);
+  assert.equal(data.speed, 72); // vEgoCluster is m/s
+  assert.equal(data.setSpeed, 30); // vCruiseCluster is ALREADY kph - no x3.6
+  assert.equal(data.isCruiseSet, true);
+  assert.equal(data.isCruiseAvailable, true);
   assert.equal(data.speedLimit, 80);
   assert.equal(data.unit, "km/h");
   assert.equal(data.roadName, "Gyeongbu Expressway");
@@ -54,11 +56,35 @@ test("deriveSpHudPayload maps m/s carState to display units", () => {
   assert.equal(data.sccVisionActive, true);
 });
 
+test("an unset cruise never renders a set speed", () => {
+  // The reported bug: cruise not engaged, yet the HUD showed MAX 20. The stale
+  // deprecated mirror (controlsState.vCruiseCluster) must not be used as a
+  // fallback - openpilot only falls back to deprecated.vCruise, which resolves
+  // to V_CRUISE_UNSET when nothing is set.
+  const state = compactState();
+  state.carState.vCruiseCluster = 0.0;
+  state.controlsState.vCruiseCluster = 20.0; // phantom leftover value
+  const data = deriveSpHudPayload(state, { isMetric: true, started: true });
+  assert.equal(data.setSpeed, null);
+  assert.equal(data.isCruiseSet, false);
+  // openpilot: is_cruise_available = set_speed != -1, so the chip still shows
+  // (reading "--") instead of a phantom number.
+  assert.equal(data.isCruiseAvailable, true);
+});
+
+test("V_CRUISE_UNSET (255) is not a set speed", () => {
+  const state = compactState();
+  state.carState.vCruiseCluster = 255.0;
+  const data = deriveSpHudPayload(state, { isMetric: true, started: true });
+  assert.equal(data.setSpeed, null);
+  assert.equal(data.isCruiseSet, false);
+});
+
 test("deriveSpHudPayload converts to mph when imperial", () => {
   const data = deriveSpHudPayload(compactState(), { isMetric: false, started: true });
   assert.equal(data.unit, "mph");
   assert.equal(data.speed, Math.round(72 * 0.621371));
-  assert.equal(data.setSpeed, Math.round(108 * 0.621371));
+  assert.equal(data.setSpeed, Math.round(30 * 0.621371)); // kph -> mph
 });
 
 test("deriveSpHudPayload derives ui_status from control activation", () => {
@@ -110,10 +136,21 @@ test("mapSpHudPayload merges a compact payload path over raw state", () => {
   };
   const data = mapSpHudPayload(compact, compactState());
   assert.equal(data.speed, 72); // raw vEgoCluster 20 m/s
-  assert.equal(data.setSpeed, 108); // raw vCruiseCluster 30 m/s
+  assert.equal(data.setSpeed, 30); // raw vCruiseCluster 30 kph (already kph)
   assert.equal(data.speedLimit, 80); // raw nRoadLimitSpeed wins over payload
   assert.equal(data.roadName, "Gyeongbu Expressway"); // raw wins
   assert.equal(data.rocketFuel, 0.5); // raw aEgo wins
+});
+
+test("mapSpHudPayload ignores a stale payload set speed when raw state says unset", () => {
+  // vision_raw's resolveCruiseKph can surface the deprecated mirror's leftover
+  // value; with raw state present the derived (correct) answer must win.
+  const state = compactState();
+  state.carState.vCruiseCluster = 0.0;
+  state.controlsState.vCruiseCluster = 20.0;
+  const data = mapSpHudPayload({ isMetric: true, vSetKph: 20, vEgo: 20 }, state);
+  assert.equal(data.setSpeed, null);
+  assert.equal(data.isCruiseSet, false);
 });
 
 test("mapSpHudPayload falls back to payload when raw state is empty", () => {
@@ -124,8 +161,15 @@ test("mapSpHudPayload falls back to payload when raw state is empty", () => {
   );
   assert.equal(data.speed, Math.round(60 * 0.621371)); // 16.667 m/s = 60 km/h
   assert.equal(data.setSpeed, Math.round(80 * 0.621371));
+  assert.equal(data.isCruiseSet, true);
   assert.equal(data.speedLimit, Math.round(50 * 0.621371));
   assert.equal(data.leftBlinker, true);
+});
+
+test("mapSpHudPayload rejects an unset payload set speed", () => {
+  const data = mapSpHudPayload({ isMetric: true, vSetKph: 0, vEgo: 10 }, {});
+  assert.equal(data.setSpeed, null);
+  assert.equal(data.isCruiseSet, false);
 });
 
 test("SpHudPayload facade exposes both entry points", () => {
