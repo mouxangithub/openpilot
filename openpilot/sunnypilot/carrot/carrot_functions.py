@@ -54,7 +54,9 @@ from openpilot.sunnypilot.carrot.t_follow import (
   ramp_mode_t_follow_factor,
   ramp_t_follow,
 )
-from openpilot.sunnypilot.carrot.traffic_stop import TrafficStopModelLeadMatcher
+from openpilot.sunnypilot.carrot.traffic_stop import TrafficStopModelLeadMatcher, is_traffic_stop_entry_allowed
+from openpilot.sunnypilot.carrot.signal_assist import SignalAssist
+from openpilot.sunnypilot.carrot.signal_assist_runtime import SignalAssistRuntime
 
 
 # Model leads in modelV2.leadsV3 are expressed in the radar frame; remove the
@@ -428,6 +430,22 @@ class CarrotPlanner:
     # position as the MPC obstacle when the E2E stop point sits ~2 m behind it.
     self._traffic_stop_model_lead_matcher = TrafficStopModelLeadMatcher()
     self.trafficStopModelLeadOffset = 0.0
+
+    # Experimental neural-signal stop supervision. Strict per-device opt-in:
+    # SignalAssistRuntime resolves to None unless the local opt-in flag is set,
+    # so normal devices keep the original controller path byte-for-byte. The
+    # hold never grants acceleration - green only releases the override.
+    self._signal_runtime: SignalAssistRuntime | None = None
+    self._signal_assist: SignalAssist | None = None
+    try:
+      runtime = SignalAssistRuntime()
+      if runtime.assist is not None:
+        self._signal_runtime = runtime
+        self._signal_assist = runtime.assist
+    except Exception:  # never let an experimental observer break planning
+      self._signal_runtime = None
+      self._signal_assist = None
+    self._signal_decision = None
 
     # Lane-change assist.
     self._desire_state = 0.0
@@ -1121,7 +1139,8 @@ class CarrotPlanner:
 
   # ---- public API --------------------------------------------------------- #
 
-  def update(self, sm: Any, v_cruise_kph: float, mode: str = "acc") -> float:
+  def update(self, sm: Any, v_cruise_kph: float, mode: str = "acc", *,
+             signal_observation=None, signal_context=None) -> float:
     """Run a single planner tick and return the recommended cruise set speed."""
     self._params_update()
     self._update_model_desire(sm)
@@ -1176,8 +1195,52 @@ class CarrotPlanner:
     self._check_model_stopping(v_cruise, v, v_ego, a_ego, float(x[-1]), y, d_rel_for_model)
     self._update_x_state(sm, v_ego, v_ego_kph, a_ego, stop_model_x)
 
+    # ---- Experimental neural-signal stop supervision (strict opt-in) ------ #
+    # Disabled on normal devices (_signal_assist stays None), in which case this
+    # block is a no-op and the original controller path is untouched. A red
+    # confirmation only forces a stop hold; green releases it and never issues
+    # a go request. Mirrors CarrotPilot carrot_functions signal_hold semantics,
+    # mapped onto this fork's private state.
+    signal_hold = False
+    if self._signal_assist is not None:
+      if signal_context is None and self._signal_runtime is not None:
+        signal_observation, signal_context = self._signal_runtime.read(sm)
+      signal_ctx = signal_context or {}
+      self._signal_decision = self._signal_assist.update(
+        signal_ctx.get("now", time.monotonic()), signal_observation,
+        enabled=(bool(signal_ctx.get("enabled", False))
+                 and self._my_driving_mode != DrivingMode.High
+                 and self._traffic_light_detect_mode != 0),
+        valid=bool(signal_ctx.get("valid", False)),
+        drive=bool(signal_ctx.get("drive", False)),
+        gas=bool(cs.gasPressed),
+        speed=float(v_ego),
+        model_distance=float(stop_model_x),
+        model_y=float(y[-1]),
+        comfort_brake=float(self._comfort_brake),
+        lead=lead_detected,
+        entry_allowed=(is_traffic_stop_entry_allowed(float(getattr(cs, "steeringAngleDeg", 0.0)))
+                       and self._stopping_count == 0),
+        turning=bool(cs.leftBlinker or cs.rightBlinker),
+      )
+      signal_hold = bool(self._signal_decision.hold)
+      if self._signal_decision.red_sign:
+        self._traffic_state = TrafficState.red
+      if self._signal_runtime is not None:
+        self._signal_runtime.record(self._signal_decision, v_ego, stop_model_x)
+
+    if signal_hold:
+      # Hold the stop even if a lead appears or moves. Radar obstacles remain in
+      # MPC. Green only clears this override; it never manufactures a go.
+      signal_hold_stop_model_x = 0.0
+    else:
+      signal_hold_stop_model_x = stop_model_x
+
     if self._traffic_state in (TrafficState.off, TrafficState.green) or self._x_state not in (XState.e2eStop, XState.e2eStopped):
       stop_model_x = 1000.0
+
+    if signal_hold:
+      stop_model_x = signal_hold_stop_model_x
 
     if self._user_stop_distance >= 0:
       self._user_stop_distance = max(0.0, self._user_stop_distance - v_ego * DT_MDL)
@@ -1253,16 +1316,27 @@ class CarrotPlanner:
       if carrot_only_red and self._x_state in (XState.e2eStop, XState.e2eStopped):
         self._x_state = XState.e2eCruise
 
-    self._v_cruise_kph = v_cruise_kph
-    self._v_cruise = v_cruise
-    self._stop_dist = stop_dist
     self._mode = mode
 
     # High-speed floor (m/s): a nav-only red may not drop the target below a safe
     # fraction of the set speed. Vision-confirmed stops are exempt.
-    if v_ego_kph > _HIGH_SPEED_KPH:
+    if v_ego_kph > _HIGH_SPEED_KPH and not signal_hold:
       vision_red = self._traffic_state == TrafficState.red
       carrot_only_red = (self._traffic_state_carrot == 1) and not vision_red
       if carrot_only_red:
-        self._v_cruise = max(self._v_cruise, v_cruise * _HIGH_SPEED_FLOOR_RATIO)
+        v_cruise = max(v_cruise, v_cruise * _HIGH_SPEED_FLOOR_RATIO)
+
+    # A confirmed neural-signal red forces a full stop hold and overrides the
+    # nav-only high-speed floor: this path is explicitly opted-in per device and
+    # only fires on a vision-tracked light. Green never sets a go request.
+    if signal_hold:
+      self._x_state = XState.e2eStopped
+      self._actual_stop_distance = 0.0
+      stop_dist = 0.0
+      v_cruise = 0.0
+      self._stopping_count = max(self._stopping_count, 0.5 / DT_MDL)
+
+    self._v_cruise_kph = v_cruise_kph
+    self._v_cruise = v_cruise
+    self._stop_dist = stop_dist
     return v_cruise_kph

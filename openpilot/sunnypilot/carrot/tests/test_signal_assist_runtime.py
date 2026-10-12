@@ -93,3 +93,27 @@ def test_producer_history_survives_transport_and_fresh_consumer_release(tmp_path
     publish_observation(result, 11+i, t, 'worker', path)
   dec = consume(10.79)
   assert dec.released and not dec.hold
+
+
+class SelfdrivedSM(dict):
+  """selfdrived hosts the longitudinal planner on this fork and publishes (does
+  not subscribe to) selfdriveState, so the runtime must gate on carControl."""
+  def __init__(self, long_active=True):
+    super().__init__(carState=NS(canValid=True, gearShifter='drive'),
+                     carControl=NS(longActive=long_active))
+    names = ['carState', 'modelV2', 'radarState', 'carControl']
+    self.seen = dict.fromkeys(names, True)
+    self.valid = dict.fromkeys(names, True)
+    self.alive = dict.fromkeys(names, True)
+    self.recv_time = dict.fromkeys(names, 10.)
+
+
+def test_selfdrived_without_selfdrivestate_gates_on_carcontrol(tmp_path):
+  flag, path = tmp_path / 'enable', tmp_path / 'absent'
+  flag.write_text('1')
+  runtime = SignalAssistRuntime(flag, path)
+  _, context = runtime.read(SelfdrivedSM(long_active=True), 10.1)
+  assert context['enabled'] and context['valid'] and context['drive']
+  # Long control inactive -> supervision must not engage.
+  _, context_off = runtime.read(SelfdrivedSM(long_active=False), 10.2)
+  assert not context_off['enabled']

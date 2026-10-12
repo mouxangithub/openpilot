@@ -36,6 +36,7 @@ from openpilot.common.hardware.usb import CHESTNUT_USB_IDS
 from openpilot.selfdrive.modeld.constants import ModelConstants, Plan
 from openpilot.selfdrive.modeld.helpers import (chestnut_present, chestnut_compiled, chestnut_ready, modeld_pkl_path, load_oob,
                                                 check_modeld_pkl, check_camera_jit)
+from openpilot.selfdrive.modeld.signal_shadow import ShadowClient
 
 from openpilot.sunnypilot import jetlink_adapter
 
@@ -205,6 +206,10 @@ class ModelState(ModelStateBase):
     self.parser = Parser()
     check_camera_jit(jits['run_model'], cam_w, cam_h, pkl_path)
     self.run_model = jits['run_model'][(cam_w,cam_h)]
+    # Read-only signal comparison observer (comparison_only; it never returns
+    # output to modeld/control). Optional: when no installed policy artifact or
+    # the ONNX is missing it resolves to None and the original model runs alone.
+    self.signal_shadow = ShadowClient.optional(modeld_pkl_path(False).parent / 'driving_supercombo.onnx') if not chestnut else None
 
   def slice_outputs(self, model_outputs: np.ndarray, output_slices: dict[str, slice]) -> dict[str, np.ndarray]:
     parsed_model_outputs = {k: model_outputs[np.newaxis, v] for k,v in output_slices.items()}
@@ -228,6 +233,7 @@ class ModelState(ModelStateBase):
     if after_enqueue is not None:
       after_enqueue()
     model_output = outs.numpy()[0]
+    shadow_payload = self.signal_shadow.capture(model_output, self.npy) if self.signal_shadow is not None else None
     if self.chestnut and not np.all(np.isfinite(model_output)):
       raise RuntimeError("model output not finite")
     outputs_dict = self.parser.parse_outputs(self.slice_outputs(model_output, self.output_slices))
@@ -235,6 +241,8 @@ class ModelState(ModelStateBase):
 
     if SEND_RAW_PRED:
       outputs_dict['raw_pred'] = model_output.copy()
+    if shadow_payload is not None:
+      outputs_dict['_signal_shadow'] = shadow_payload
     return outputs_dict
 
   def warmup(self) -> None:
@@ -480,6 +488,13 @@ def main(demo=False):
       frame_drop_ratio = 0.
 
     if model_output is not None:
+      # Read-only signal comparison: hand the captured sample to the separate
+      # CPU worker. Nothing here changes modelV2 or control.
+      shadow_payload = model_output.pop('_signal_shadow', None)
+      if shadow_payload is not None:
+        shadow_client, shadow_sample = shadow_payload
+        shadow_client.submit(shadow_sample, meta_main.frame_id, meta_extra.frame_id, meta_main.timestamp_eof)
+
       modelv2_send = messaging.new_message('modelV2')
       drivingdata_send = messaging.new_message('drivingModelData')
       posenet_send = messaging.new_message('cameraOdometry')

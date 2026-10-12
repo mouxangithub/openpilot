@@ -61,10 +61,20 @@ class SignalAssistRuntime:
             observation = obj
       except (OSError, ValueError, TypeError, AttributeError):
         pass
-    services = ('carState', 'modelV2', 'radarState', 'selfdriveState', 'carControl')
+    services = ['carState', 'modelV2', 'radarState', 'carControl']
+    cs, cc = sm['carState'], sm['carControl']
+    # This fork runs the longitudinal planner inside selfdrived, which publishes
+    # selfdriveState rather than subscribing to it. When it is absent, gate
+    # longitudinal engagement on carControl.longActive alone; plannerd-style hosts
+    # that do subscribe to selfdriveState keep the original sd.enabled gate.
+    has_selfdrive = 'selfdriveState' in getattr(sm, 'seen', {}) and sm.seen.get('selfdriveState')
+    if has_selfdrive:
+      services.append('selfdriveState')
+      long_engaged = bool(sm['selfdriveState'].enabled and cc.longActive)
+    else:
+      long_engaged = bool(cc.longActive)
     valid = all(sm.seen[s] and sm.valid[s] and sm.alive[s] and 0 <= now - sm.recv_time[s] <= .25 for s in services)
-    cs, sd, cc = sm['carState'], sm['selfdriveState'], sm['carControl']
-    context = dict(now=now, enabled=self.enabled and sd.enabled and cc.longActive,
+    context = dict(now=now, enabled=self.enabled and long_engaged,
                    valid=valid and cs.canValid, drive=str(cs.gearShifter) == 'drive')
     self.read_ms = (time.monotonic() - start) * 1000
     return observation, context
