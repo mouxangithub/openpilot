@@ -57,6 +57,24 @@ def empty_lead() -> dict[str, Any]:
   return EMPTY_LEAD.copy()
 
 
+def _assign_lead(builder: Any, lead: dict[str, Any] | None) -> None:
+  """Copy a lead dict into a capnp LeadData builder.
+
+  The dPath output is built against the newer-upstream LeadData schema
+  (status/jLead/score/cutOut*), but this fork's log.capnp still ships the
+  # older field set (present, no jLead/score). Assign only fields the target
+  builder actually declares so the daemon works on either schema.
+  """
+  data = lead or EMPTY_LEAD
+  valid = set(builder.schema.fields.keys())
+  # cp calls it `status`; this fork's LeadData renamed the same @11 field to `present`.
+  aliases = {"status": "present"}
+  for key, value in data.items():
+    target = aliases.get(key, key)
+    if target in valid:
+      setattr(builder, target, value)
+
+
 def corner_radar_enabled(CP: car.CarParams, enable_corner_radar: int) -> bool:
   return (
     CP.brand == "hyundai"
@@ -113,7 +131,11 @@ class DPathRadarD:
     # Reuse the builder like conventional radard. Reallocating every 20 Hz
     # frame is measurable on device and does not change any published field.
     self.radar_state.mdMonoTime = sm.logMonoTime["modelV2"]
-    self.radar_state.carStateMonoTime = sm.logMonoTime["carState"]
+    # carStateMonoTime and the extended lead lists only exist on newer-upstream
+    # RadarState schemas; this fork's log.capnp still ships leadOne/leadTwo
+    # only. Set them when present so the daemon runs on either schema.
+    if hasattr(self.radar_state, "carStateMonoTime"):
+      self.radar_state.carStateMonoTime = sm.logMonoTime["carState"]
     self.radar_state.radarErrors = rr.errors
 
     model_time_s = _model_measurement_time_s(sm)
@@ -131,17 +153,31 @@ class DPathRadarD:
       yaw_rate_rad_s=_yaw_rate(sm["deviceMotion"]),
       radar_to_model_time_s=model_time_s - radar_time_s,
     )
-    self.radar_state.leadOne = output.lead_one or empty_lead()
-    self.radar_state.leadTwo = output.lead_two or empty_lead()
-    self.radar_state.leadLeft = output.lead_left or empty_lead()
-    self.radar_state.leadRight = output.lead_right or empty_lead()
-    self.radar_state.leadsLeft = output.leads_left
-    self.radar_state.leadsCenter = output.leads_center
-    self.radar_state.leadsRight = output.leads_right
-    self.radar_state.leadsCutIn = output.leads_cutin
-    self.radar_state.leadCutInRisk = output.lead_cutin_risk or empty_lead()
-    self.radar_state.leadsLeft2 = output.leads_left2
-    self.radar_state.leadsRight2 = output.leads_right2
+    _assign_lead(self.radar_state.leadOne, output.lead_one)
+    _assign_lead(self.radar_state.leadTwo, output.lead_two)
+    # Optional multi-lead fields from newer schemas; skip when not declared.
+    optional_leads = (
+      ("leadLeft", output.lead_left),
+      ("leadRight", output.lead_right),
+      ("leadCutInRisk", output.lead_cutin_risk),
+    )
+    for field_name, value in optional_leads:
+      if hasattr(self.radar_state, field_name):
+        _assign_lead(getattr(self.radar_state, field_name), value)
+    optional_lead_lists = (
+      ("leadsLeft", output.leads_left),
+      ("leadsCenter", output.leads_center),
+      ("leadsRight", output.leads_right),
+      ("leadsCutIn", output.leads_cutin),
+      ("leadsLeft2", output.leads_left2),
+      ("leadsRight2", output.leads_right2),
+    )
+    for field_name, value in optional_lead_lists:
+      if hasattr(self.radar_state, field_name):
+        field = getattr(self.radar_state, field_name)
+        field.init(len(value))
+        for builder, lead_dict in zip(field, value, strict=False):
+          _assign_lead(builder, lead_dict)
 
   def publish(self, pm: messaging.PubMaster) -> None:
     radar_msg = messaging.new_message("radarState")
