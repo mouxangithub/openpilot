@@ -128,7 +128,7 @@ class DPathRadarD:
       v_ego=float(sm["carState"].vEgo),
       radar_points=rr.points,
       model=sm["modelV2"],
-      yaw_rate_rad_s=_yaw_rate(sm["livePose"]),
+      yaw_rate_rad_s=_yaw_rate(sm["deviceMotion"]),
       radar_to_model_time_s=model_time_s - radar_time_s,
     )
     self.radar_state.leadOne = output.lead_one or empty_lead()
@@ -160,11 +160,15 @@ def main() -> None:
   )
   cloudlog.info("dPath radard got CarParams")
 
+  # This fork has no livePose service/schema (newer-upstream): locationd still
+  # publishes deviceMotion at 20Hz, which carries the same angularVelocityDevice
+  # .z / inputsOK / sensorsOK fields _yaw_rate reads. controlsd/lagd subscribe to
+  # deviceMotion too. ignore_alive/valid keeps a missing pose from failing checks.
   sm = messaging.SubMaster(
-    ["modelV2", "carState", "liveTracks", "livePose"],
+    ["modelV2", "carState", "liveTracks", "deviceMotion"],
     poll="modelV2",
-    ignore_alive=["livePose"],
-    ignore_valid=["livePose"],
+    ignore_alive=["deviceMotion"],
+    ignore_valid=["deviceMotion"],
   )
   pm = messaging.PubMaster(["radarState"])
   radar = DPathRadarD(CP)
