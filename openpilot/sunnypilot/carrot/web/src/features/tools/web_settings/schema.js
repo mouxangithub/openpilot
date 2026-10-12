@@ -128,6 +128,30 @@ const WEB_SETTINGS_GROUPS = [
           },
         ],
       },
+      {
+        id: "kmap_enabled",
+        titleKey: "web_kmap_enabled",
+        descKey: "web_kmap_enabled_desc",
+      },
+      {
+        id: "kmap_map_type",
+        titleKey: "web_kmap_map_type",
+        descKey: "web_kmap_map_type_desc",
+        options: [
+          { value: "roadmap", labelKey: "web_kmap_map_type_roadmap" },
+          { value: "satellite", labelKey: "web_kmap_map_type_satellite" },
+          { value: "hybrid", labelKey: "web_kmap_map_type_hybrid" },
+        ],
+      },
+      {
+        id: "kmap_overlay_heading_up",
+        titleKey: "web_kmap_heading_up",
+        descKey: "web_kmap_heading_up_desc",
+      },
+      {
+        id: "kmap_tianditu_tk",
+        component: "tianditu-tk",
+      },
     ],
   },
   {

@@ -545,6 +545,15 @@
           </div>
         </div>
 
+        <div id="carrotMapDock" class="carrot-map-dock" hidden>
+          <iframe id="carrotMapFrame" class="carrot-map-dock__frame" title="map" allow="fullscreen" referrerpolicy="no-referrer"></iframe>
+          <div class="carrot-map-dock__zoom" data-carrot-map-zoom-bar>
+            <button type="button" class="carrot-map-dock__zoombtn" data-carrot-map-zoom="out" aria-label="zoom out">−</button>
+            <button type="button" class="carrot-map-dock__zoombtn" data-carrot-map-zoom="in" aria-label="zoom in">+</button>
+          </div>
+        </div>
+        <div id="carrotMapZoomLabel" class="carrot-map-zoomlabel" data-carrot-map-zoom-level hidden></div>
+
         <div id="visionStartOverlay" class="vision-start-overlay">
           <button id="btnStartVision" class="btn btn--filled" type="button" style="font-size:1.2rem; padding: 16px 32px; border-radius: 99px;">
             ▶ 주행 비전 시작
@@ -1018,6 +1027,7 @@
   <script src="/js/realtime/vision_webgl2.js"></script>
   <script src="/js/realtime/drive_content_intro.js"></script>
   <script src="/js/realtime/home_drive.js"></script>
+  <script src="/js/realtime/carrot_map.js?v=tdt-1"></script>
   <!-- 인트로 무대. 최초 1회만 쓰이며, 서버가 shouldShow 로 판단한다. -->
   <div class="intro" id="introDeck" hidden></div>
   <div class="intro-curtain" id="introCurtain"></div>

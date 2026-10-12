@@ -1,3 +1,4 @@
 @import "../features/telemetry/style.css";
 @import "../features/drive/contents/drive_insights/style.css";
 @import "../features/drive/contents/vision/ar/debug/style.css";
+@import "../features/drive/contents/map_dock/style.css";

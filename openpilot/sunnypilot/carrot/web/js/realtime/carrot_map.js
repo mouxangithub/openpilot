@@ -1,7 +1,10 @@
 (function () {
   "use strict";
 
-  const DEFAULT_KMAP_URL = "https://jominki354.github.io/kmap/";
+  // Default map is the locally-served China page (Leaflet + Tianditu tiles)
+  // shipped at web/map/, so no external GitHub Pages host is required. Users
+  // can still point kmap_url at any iframe speaking the same contract.
+  const DEFAULT_KMAP_URL = "/map/";
   // FRAME_VERSION QUOTA POLICY (Kakao counts 1 quota per SDK script load):
   //   - Every bump invalidates the iframe URL for every user, forcing a
   //     full SDK reload on the next session and +1 quota per user.

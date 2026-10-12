@@ -92,3 +92,33 @@ globalThis.WebSettingsComponents.register("web-upload", {
     });
   },
 });
+
+globalThis.WebSettingsComponents.register("tianditu-tk", {
+  settingKeys: ["kmap_tianditu_tk"],
+  render() {
+    const text = (key, fallback) => getUIText(key) || fallback;
+    const tk = String(getWebSettingByKey("kmap_tianditu_tk", "") || "");
+    return `
+      <div class="tianditu-tk-settings">
+        <label class="web-settings-row web-settings-row--field">
+          <span class="web-settings-row__copy">
+            <span class="web-settings-row__title">${escapeHtml(text("web_kmap_tk", "Tianditu token"))}</span>
+            <span class="web-settings-row__desc">${escapeHtml(text("web_kmap_tk_desc", "Browser token (tk) for the China map dock. Empty uses OpenStreetMap."))}</span>
+          </span>
+          <input class="web-settings-text tianditu-tk-settings__input" data-tianditu-tk-field="kmap_tianditu_tk"
+                 type="text" inputmode="text" autocomplete="off" spellcheck="false"
+                 placeholder="${escapeHtml(text("web_kmap_tk_placeholder", "Paste tk"))}"
+                 value="${escapeHtml(tk)}" />
+        </label>
+      </div>`;
+  },
+  bind(root = document) {
+    const container = root.querySelector(".tianditu-tk-settings");
+    if (!container || container.dataset.bound === "1") return;
+    container.dataset.bound = "1";
+    const input = container.querySelector("[data-tianditu-tk-field]");
+    input?.addEventListener("change", () => {
+      setWebSettingsByKeys({ kmap_tianditu_tk: input.value.trim() }).catch(() => {});
+    });
+  },
+});

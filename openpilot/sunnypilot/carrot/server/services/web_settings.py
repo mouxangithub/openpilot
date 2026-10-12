@@ -328,7 +328,16 @@ def _normalize_language(value: Any) -> str:
 
 def _normalize_kmap_url(value: Any) -> str:
   url = str(value or "").strip()
-  return url or "https://jominki354.github.io/kmap/"
+  # Default to the locally-served China map (Leaflet + Tianditu tiles) so no
+  # external author host/GitHub Pages is required. Users may still point this
+  # at any URL that speaks the carrot-map postMessage contract.
+  return url or "/map/"
+
+
+def _normalize_kmap_tianditu_tk(value: Any) -> str:
+  # Tianditu browser key ("tk"). Kept as a free-form token; empty disables
+  # Tianditu tiles and the page falls back to its built-in OSM layer.
+  return str(value or "").strip()
 
 
 def _normalize_web_upload_url(value: Any) -> str:
@@ -444,10 +453,14 @@ WEB_SETTINGS_SPEC: list[_Field] = [
   _Field("carrot_navi_vertical_area_2", "enum", "navigation"),
   _Field("carrot_navi_vertical_split_ratio", "str", "0.50", normalize=_normalize_carrot_navi_vertical_split_ratio),
   _Field("kmap_enabled", "bool", False),
-  _Field("kmap_url", "str", "https://jominki354.github.io/kmap/", normalize=_normalize_kmap_url),
+  _Field("kmap_url", "str", "/map/", normalize=_normalize_kmap_url),
   _Field("kmap_overlay_heading_up", "bool", False),
   _Field("kmap_overlay_curvature_color", "bool", False),
   _Field("kmap_map_type", "enum", "roadmap", choices={"roadmap", "satellite", "hybrid"}),
+  # Tianditu (国家天地图) browser token. Empty -> iframe uses its OSM fallback.
+  # Referer whitelist for this key can be left blank so the LAN car host
+  # (192.168.x/10.x, IP changes across networks) keeps working.
+  _Field("kmap_tianditu_tk", "str", "", normalize=_normalize_kmap_tianditu_tk),
   _Field("web_upload_url", "str", DEFAULT_WEB_UPLOAD_URL, normalize=_normalize_web_upload_url),
   # Remote support last-used settings, persisted so the owner's choices survive a
   # reload. Stored as strings via the enum type (numeric values are parsed back
