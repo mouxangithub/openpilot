@@ -12,7 +12,11 @@ import sys
 
 from SCons.Script import Action
 
-Import('env', 'arch', 'camera_configs')
+from openpilot.common.transformations.camera import _ar_ox_fisheye, _os_fisheye
+
+Import('env', 'arch')
+# SConstruct does not export camera_configs; derive it exactly like modeld/SConscript does
+camera_configs = [(c.width, c.height) for c in (_ar_ox_fisheye, _os_fisheye)]
 
 basedir = env.Dir("#").abspath
 jetlink_repo = env.Dir("#jetlink_repo").abspath

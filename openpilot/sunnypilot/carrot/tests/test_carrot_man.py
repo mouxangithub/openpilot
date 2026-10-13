@@ -255,10 +255,27 @@ from openpilot.sunnypilot.carrot.web_interface import WebInterface
 
 class TestCarrotManager(unittest.TestCase):
   def setUp(self):
-    self.mgr = CarrotManager()
+    # Test isolation under `unittest discover`: a sibling module may already
+    # have imported carrot_man bound to the REAL cereal.messaging (production
+    # code does `import openpilot.cereal.messaging as messaging` at import
+    # time), so the sys.modules stubs installed at module load can miss it.
+    # Force the already-loaded production module to use the fake messaging for
+    # every test, regardless of import order.
+    import openpilot.sunnypilot.carrot.carrot_man as _cm
+    self._real_messaging = _cm.messaging
+    _cm.messaging = _FakeMessaging
+    try:
+      self.mgr = CarrotManager()
+    except Exception:
+      _cm.messaging = self._real_messaging
+      raise
     # Ensure params and params_memory share the same fake store for tests that
     # read either side (e.g. complexCrossroad writes to memory-only params).
     self.mgr.params_memory._store = self.mgr.params._store
+
+  def tearDown(self):
+    import openpilot.sunnypilot.carrot.carrot_man as _cm
+    _cm.messaging = self._real_messaging
 
   def test_turn_type_mapping_known_codes(self):
     assert TURN_TYPE_MAPPING[12] == ("turn", "left", 1)
