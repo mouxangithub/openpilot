@@ -94,6 +94,9 @@ class TestPlannerLeadWiring(OpenpilotTestCase):
     planner.accel_controller = AccelController()
     planner.accel_controller_active = False
     planner.lead_one = None
+    # update() now also drives lead_forecast (added by the c3 port); give the
+    # __new__-bypassed planner a no-op sink like events_sp/e2e_alerts_helper.
+    planner.lead_forecast = _Sink()
     return planner
 
   @staticmethod
