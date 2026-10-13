@@ -153,6 +153,25 @@ class TestMultiParamValueMapping:
     assert w.value == ALC_LABELS[AutoLaneChangeMode.OFF]
     assert params.get("AutoLaneChangeTimer") == AutoLaneChangeMode.OFF
 
+  def test_blocked_option_is_skipped(self, params):
+    """Speed limit assist needs ICBM: while engaged with ICBM off a tap steps over it."""
+    from openpilot.selfdrive.ui.sunnypilot.mici.layouts.cruise import SL_MODE_ASSIST, SL_MODE_LABELS
+    from openpilot.selfdrive.ui.sunnypilot.mici.widgets.button import BigMultiParamToggleSP
+    from openpilot.system.ui.lib.application import MousePos
+
+    params.put("SpeedLimitMode", SL_MODE_ASSIST - 1, block=True)
+    w = BigMultiParamToggleSP("t", "SpeedLimitMode", SL_MODE_LABELS)
+    blocked = {SL_MODE_ASSIST}
+    w.set_blocked_options(lambda: blocked)
+    w.refresh()
+    w._handle_mouse_release(MousePos(0, 0))
+    assert params.get("SpeedLimitMode") == 0  # warning -> off, past assist
+    blocked = set()
+    params.put("SpeedLimitMode", SL_MODE_ASSIST - 1, block=True)
+    w.refresh()
+    w._handle_mouse_release(MousePos(0, 0))
+    assert wait_for_param(params, "SpeedLimitMode") == SL_MODE_ASSIST
+
   @pytest.mark.parametrize("key", ["TorqueControlTune", "TorqueControlTuneBig"])
   def test_torque_tune_unset_shows_declared_default(self, params, key):
     """controlsd_ext resolves an unset param through the params_keys.h default with
@@ -462,7 +481,6 @@ class TestCruiseBadges:
     params.put("CarParamsSPPersistent", custom.CarParamsSP.new_message(
       intelligentCruiseButtonManagementAvailable=True).to_bytes(), block=True)
     params.put_bool("AlphaLongitudinalEnabled", True, block=True)
-    params.put_bool("IntelligentCruiseButtonManagement", True, block=True)
     params.put("SpeedLimitMode", mode, block=True)
     saved = ui_state.CP, ui_state.CP_SP, ui_state.has_longitudinal_control, ui_state.has_icbm
     try:
@@ -472,8 +490,7 @@ class TestCruiseBadges:
       assert ("icbm" in (layout._speed_limit_btn._badge_labels or [])) == shown
     finally:
       ui_state.CP, ui_state.CP_SP, ui_state.has_longitudinal_control, ui_state.has_icbm = saved
-      for key in ("CarParamsPersistent", "CarParamsSPPersistent", "AlphaLongitudinalEnabled",
-                  "IntelligentCruiseButtonManagement", "SpeedLimitMode"):
+      for key in ("CarParamsPersistent", "CarParamsSPPersistent", "AlphaLongitudinalEnabled", "SpeedLimitMode"):
         params.remove(key)
 
 

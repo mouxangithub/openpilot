@@ -37,6 +37,11 @@ class SpeedLimitAssistMirror:
 
   def __init__(self, CP, CP_SP):
     self.limits = get_planning_limits(CP)
+    self.reset()
+
+  def reset(self) -> None:
+    """Fresh session state: at start, and when the planner hands the session to card's arbiter
+    (ICBM went active), which happens only while disengaged."""
     self.state = SessionState.disabled
     self.output_v_target = V_CRUISE_UNSET
     self.output_a_target = 0.

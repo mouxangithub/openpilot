@@ -25,6 +25,7 @@ from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import L
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot import make_smart_cruise_control
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.assist_mirror import SpeedLimitAssistMirror
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import pcm_machine_owns_sla
+from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.icbm_latch import icbm_active
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_assist import SpeedLimitAssist
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_resolver import SpeedLimitResolver
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
@@ -52,17 +53,16 @@ class LongitudinalPlannerSP:
     self.lead_forecast = LeadForecast()
     self.lead_forecast.install(mpc)
     self.scc = make_smart_cruise_control(CP)
-    # SCC has nothing to act through without openpilot long or ICBM (pcmCruiseSpeed off), the
-    # same condition controlsd gates longActive on. Its params outlive that, so gate it here.
-    self.scc_actionable = CP.openpilotLongitudinalControl or not CP_SP.pcmCruiseSpeed
+    self.CP = CP
+    self.CP_SP = CP_SP
     self.resolver = SpeedLimitResolver(CP)
     # cars whose setpoint only the driver can move run the SLA machine here; everywhere
     # else it runs in card (the cruise arbiter, next to the buttons and the setpoint) and
-    # gets mirrored (speed_limit.helpers.pcm_machine_owns_sla)
-    if pcm_machine_owns_sla(CP, CP_SP):
-      self.sla = SpeedLimitAssist(CP, CP_SP)
-    else:
-      self.sla = SpeedLimitAssistMirror(CP, CP_SP)
+    # gets mirrored (speed_limit.helpers.pcm_machine_owns_sla). On Mazda alpha long the owner
+    # follows card's ICBM decision, which only moves between engagements.
+    self.sla_machine = SpeedLimitAssist(CP, CP_SP) if pcm_machine_owns_sla(CP, icbm_active=False) else None
+    self.sla_mirror = SpeedLimitAssistMirror(CP, CP_SP)
+    self.sla = self._sla_owner(not CP_SP.pcmCruiseSpeed)
     self.generation = int(model_bundle.generation) if (model_bundle := get_active_bundle()) else None
     self.source = LongitudinalPlanSource.cruise
     self.e2e_alerts_helper = E2EAlertsHelper()
@@ -78,6 +78,10 @@ class LongitudinalPlannerSP:
 
     return experimental_mode and self.dec.mode() == "blended"
 
+  def _sla_owner(self, icbm: bool):
+    # the machine exists only on pcm openpilot-long cars, where it owns SLA while ICBM is passive
+    return self.sla_machine if self.sla_machine is not None and not icbm else self.sla_mirror
+
   def update_targets(self, sm: messaging.SubMaster, v_ego: float, a_ego: float, v_cruise: float) -> tuple[float, float]:
     CS = sm['carState']
     v_cruise_cluster_kph = min(CS.vCruiseCluster, V_CRUISE_MAX)
@@ -87,12 +91,20 @@ class LongitudinalPlannerSP:
     long_override = sm['carControl'].cruiseControl.override
 
     # Smart Cruise Control
-    self.scc.update(sm, long_enabled and self.scc_actionable, long_override, v_ego, a_ego, v_cruise)
+    # SCC has nothing to act through without openpilot long or ICBM, the same condition
+    # controlsd gates longActive on. Its params outlive that, so gate it here.
+    icbm = icbm_active(sm['carStateSP'], self.CP_SP)
+    scc_actionable = self.CP.openpilotLongitudinalControl or icbm
+    self.scc.update(sm, long_enabled and scc_actionable, long_override, v_ego, a_ego, v_cruise)
 
     # Speed Limit Resolver
     self.resolver.update(v_ego, sm)
 
     # Speed Limit Assist
+    sla = self._sla_owner(icbm)
+    if sla is not self.sla:
+      sla.reset()
+      self.sla = sla
     if self.sla.pcm_op_long:
       has_speed_limit = self.resolver.speed_limit_valid or self.resolver.speed_limit_last_valid
       self.sla.update(long_enabled, long_override, v_ego, a_ego, v_cruise_cluster, self.resolver.speed_limit,

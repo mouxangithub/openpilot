@@ -18,7 +18,9 @@ from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_active_s
 from openpilot.sunnypilot.sunnylink.sunnylink_state import SunnylinkState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.sunnypilot.widgets.screen_saver import ScreenSaverSP
+from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.demand import needs_icbm
 from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.helpers import icbm_applicable
+from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.icbm_latch import icbm_active
 
 OpenpilotState = log.SelfdriveState.OpenpilotState
 MADSState = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
@@ -37,6 +39,8 @@ class UIStateSP:
     self.params = Params()
     self.CP_SP: custom.CarParamsSP | None = None
     self.has_icbm: bool = False
+    self.icbm_start_locked: bool = False
+    self.icbm_running: bool = False
     self.is_sp_release: bool = self.params.get_bool("IsReleaseSpBranch")
     self.sm_services_ext = [
       "modelManagerSP", "selfdriveStateSP", "longitudinalPlanSP", "backupManagerSP",
@@ -89,6 +93,24 @@ class UIStateSP:
     # read where sm is updated, so the params thread never touches a message
     self._accelerator_state_name = str(self.sm['modelDataV2SP'].acceleratorState)
     self._update_torque_utilization()
+    self._update_icbm_start_lock()
+
+  def _update_icbm_start_lock(self) -> None:
+    """card moves ICBM only between engagements (icbm_latch), so a feature that needs it,
+    turned on while engaged with ICBM off, would wait for the next engage. Settings lock
+    turning those on until the driver disengages; turning them off stays allowed."""
+    if self.CP_SP is None or not (self.has_icbm and self.started):
+      self.icbm_running = self.CP_SP is not None and not self.CP_SP.pcmCruiseSpeed
+      self.icbm_start_locked = False
+      return
+    self.icbm_running = icbm_active(self.sm['carStateSP'], self.CP_SP)
+    engaged = self.sm['selfdriveState'].enabled or self.sm['carState'].cruiseState.enabled
+    self.icbm_start_locked = engaged and not self.icbm_running
+
+  def icbm_turn_on_allowed(self, key: str, on: bool) -> bool:
+    """Whether a setting may be changed to (or left at) `on` now: blocked only when that would
+    bring ICBM up while engaged with it off."""
+    return not (on and self.icbm_start_locked and needs_icbm(self.CP, key))
 
   def _update_torque_utilization(self) -> None:
     torque = self.sm['carOutput'].actuatorsOutput.torque
@@ -192,7 +214,6 @@ class UIStateSP:
     CP_SP_bytes = self.params.get("CarParamsSPPersistent")
     if CP_SP_bytes is not None:
       self.CP_SP = messaging.log_from_bytes(CP_SP_bytes, custom.CarParamsSP)
-      self.has_icbm = self.CP_SP.intelligentCruiseButtonManagementAvailable and self.params.get_bool("IntelligentCruiseButtonManagement")
     self._steer_rail_schedule = get_steer_rail_schedule(self.CP) if self.CP is not None else None
 
     self._enforce_constraints()
@@ -277,14 +298,8 @@ class UIStateSP:
     if not has_long:
       self.params.remove("ExperimentalMode")
 
-    # ICBM: clear where the buttons have no set speed to move (icbm_applicable)
-    if self.CP_SP is not None:
-      if not icbm_applicable(self.CP, self.CP_SP):
-        self.params.remove("IntelligentCruiseButtonManagement")
-        self.has_icbm = False
-    else:
-      self.params.remove("IntelligentCruiseButtonManagement")
-      self.has_icbm = False
+    # ICBM has no toggle: the features that act through it can, wherever the car has it
+    self.has_icbm = self.CP is not None and self.CP_SP is not None and icbm_applicable(self.CP, self.CP_SP)
 
   def _enforce_usb_port(self) -> None:
     """ADB and Jetlink both need the comma's USB port: the link

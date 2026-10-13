@@ -49,7 +49,7 @@ class HudRendererSP(HudRenderer):
       return
 
     if ui_state.CP_SP is not None:
-      self.pcm_cruise_speed = ui_state.CP_SP.pcmCruiseSpeed
+      self.pcm_cruise_speed = not ui_state.icbm_running
     self.speed_conv = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
     self.speed_cluster = ui_state.sm['carState'].cruiseState.speedCluster * self.speed_conv
 

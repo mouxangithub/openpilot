@@ -42,7 +42,7 @@ class TestSetpointReconcile:
   def setup_method(self):
     Params().put_bool("CustomAccIncrementsEnabled", False)
     self.CP = car.CarParams(pcmCruise=True)
-    self.CP_SP = custom.CarParamsSP(pcmCruiseSpeed=False)
+    self.CP_SP = custom.CarParamsSP(pcmCruiseSpeed=False, intelligentCruiseButtonManagementAvailable=True)
     self.v_cruise_helper = VCruiseHelper(self.CP, self.CP_SP)
     self.is_metric = False  # the dash unit; kph-valued fixtures below scale by MPH or 1
 
@@ -247,7 +247,8 @@ class TestSetpointReconcile:
     (0., 30., 20 * MPH),    # sunnypilot's default floor is 20 mph, not 20 kph
   ])
   def test_floor_is_the_cars(self, floor_kph, dash_kph, expected_kph):
-    self.v_cruise_helper = VCruiseHelper(self.CP, custom.CarParamsSP(pcmCruiseSpeed=False, minimumSetSpeed=floor_kph * CV.KPH_TO_MS))
+    self.v_cruise_helper = VCruiseHelper(self.CP, custom.CarParamsSP(pcmCruiseSpeed=False, minimumSetSpeed=floor_kph * CV.KPH_TO_MS,
+                                                                         intelligentCruiseButtonManagementAvailable=True))
     # SET- at 20 mph; the ECU settles on its floor
     self.engage_at(20 * MPH)
     self.press(ButtonType.decelCruise, dash_kph=20 * MPH)
