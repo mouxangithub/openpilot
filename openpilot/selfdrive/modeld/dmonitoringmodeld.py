@@ -110,7 +110,9 @@ def get_driverstate_packet(model_output, frame_id: int, location_ts: int, exec_t
 
 
 def main():
-  config_realtime_process(7, 5)
+  # not modeld's core: modeld spins in tinygrad's fence at FIFO 54 there, and a submit we were preempted
+  # in holds the kgsl dispatcher lock, which deadlocks both
+  config_realtime_process(6, 5)
 
   cloudlog.warning("connecting to cabin stream")
   vipc_client = VisionIpcClient("camerad", VisionStreamType.VISION_STREAM_CABIN, True)
