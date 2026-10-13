@@ -22,9 +22,9 @@ hands-off lockout, so a car with that EPS swapped in loses the floor too.
 KBST-3210X-A-00 and KSD5-3210X-C-00, the CX-5 2022 EPS block in fingerprints.py) or from the
 CX-5 2022 platform itself, and it keys the whole 2022 EPS block together: the higher-authority
 `CarControllerParams` tune, carstate's fault handling, `minSteerSpeed = 0`, the alpha-long
-availability rule (see mazda-longitudinal.md) and the panda's torque envelope through
-`MazdaSafetyFlags.STEER_TO_ZERO_EPS`. Without the panda bit the panda enforces upstream's
-800/10/25; with it the 1200/12/12 the controller commands.
+availability rule (see mazda-longitudinal.md). The panda's torque envelope follows the hardware
+instead: the interface sets `MazdaSafetyFlags.EPS_HW` on every Mazda, and the panda enforces the
+1200/12/12 the controller commands. Without the bit it enforces upstream's 800/10/25.
 
 `steerActuatorDelay` follows the EPS as well, because command-to-torque lag is EPS firmware:
 0.14 s on the 2022 EPS, 0.1 s otherwise. lagd learns the rest (0.338 s total on a CX-5 2022;
@@ -339,7 +339,7 @@ restarts the controller's ramp from zero, which is the one command the panda acc
 the report lands one or two card cycles behind the refusal. Refused zero-torque frames are not
 counted: the tx hook refuses every LKA frame while the panda is not controlling, and a zero the
 controller already sent carries nothing it needs. The closed-loop test in
-`opendbc/safety/tests/test_mazda.py` runs the real controller through the compiled safety model
+`opendbc/car/mazda/tests/test_mazda_steering.py` runs the real controller through the compiled safety model
 with the report delayed one, two and three cycles and bounds the outage at the driver-sample
 staleness plus that delay (route 148's stale sample) and at exactly the delay for a lone reference
 reset, against the EPS's 60 frames; the same scenario starves the EPS for the rest of the run
@@ -434,7 +434,8 @@ after the controller pressed the camera's button, and the EPS applied none of ou
 no block and no fault. openpilot now never writes CRZ_BTNS on bus 2 (the panda refuses it), and
 the setting is read into `invalidLkasSetting` (both intervention bits clear, or LANE_LINES 0).
 With MADS on that holds lateral only (`stockLkasOff`, paused until LKA is back: "The car's own
-lane keep switched off" above); with MADS off it stays upstream's whole-system no-entry. The design below is kept as history.
+lane keep switched off" above); with MADS off it stays upstream's whole-system no-entry. The design below is kept as history;
+its leftovers (`stock_tja`, `Buttons.TJA`, and their tests) went on 2026-10-10.
 
 **1. Camera press on bus 2** (`CarController.update_camera_tja`, opendbc b697d69be6, removed). Carstate
 reads `stock_tja` live off the parsed 0x440 (0 when the camera is stale, never latched: the
@@ -501,6 +502,10 @@ long); `test_camera_tja_press_bytes`; the golden tx unchanged; mads `TestMadsTja
 
 ### The press-induced MRCC arm and the undo (built 2026-09-18, merged 2026-09-25, opendbc 74fdc8686f)
 
+The undo and the white wheel below live in `opendbc/sunnypilot/car/mazda/mads.py`
+(`MadsCarController` on the controller, `MadsCarState` decoding the TJA and MRCC buttons and the
+raw PEDALS arm, and the two frames' builders), as sunnypilot's other brands keep their MADS code.
+
 The arm cannot be prevented: the wheel's TJA frame reaches every bus-0 ECU directly, and PEDALS
 reflects it ~80 ms after the press edge. Left standing, it is cruise armed by a button the
 driver declared as the lateral switch, and it holds `mrcc off` false so the white wheel below
@@ -551,9 +556,8 @@ why the allowlist and the fail-closed default are the design (chinna244's findin
 the 2026-09-09 note above).
 
 The MRCC undo above is what makes the window reachable: without it, the press-induced arm
-keeps cruise-off false after the first press. Tests: `TestShipsDark` and `TestWhiteWheelGate`
-in `test_mazda_mads_white_wheel.py`, plus the mazdacan allowlist and interface raw-latch
-tests.
+keeps cruise-off false after the first press. Tests: `TestShipsDark`, `TestWhiteWheelGate` and
+the allowlist tests in `test_mazda_mads_white_wheel.py`, plus the interface raw-latch tests.
 
 ### The hands-on-wheel frame (mapped on the car 2026-09-30, route 00000267)
 

@@ -5,23 +5,16 @@ This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 
-# Behavior tests for the v2 torque tune, run against the real controllers with a toy
-# steering geometry (curvature proportional to steering angle) and a mocked car interface
-# (torque == lat_accel / latAccelFactor). The load-bearing property is the parity test: with
+# Behavior tests for the v2 torque tune, run against the real controllers on the toy plant in
+# torque_harness. The load-bearing property is the parity test: with
 # KD zeroed, the deadzone zeroed and the jerk filter bypassed, v2 IS v0 frame for frame on a
 # moving request and a moving measurement. Everything else is a deliberate, tested delta.
 
 import math
 from collections import deque
-from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import pytest
 
-from opendbc.car.structs import car
-from openpilot.cereal import custom
-from openpilot.common.params import Params
-from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_v0 import LatControlTorque as LatControlTorqueV0
 from openpilot.sunnypilot.selfdrive.controls.lib import latcontrol_torque_v2 as v2_module
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_v2 import (
@@ -31,50 +24,13 @@ from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_v2 import (
   RELEASE_ERROR_RAMP_T,
   STEER_RELEASE_I_DECAY,
 )
-
-DT = 0.01
-LAT_DELAY = 0.3
-DELAY_FRAMES = int(LAT_DELAY / DT)
-LAF = 2.5
-FRICTION = 0.25
-CURV_PER_DEG = 2e-4  # toy geometry: curvature = -steeringAngleDeg * CURV_PER_DEG
-
-VM = SimpleNamespace(calc_curvature=lambda angle_rad, v_ego, roll: math.degrees(angle_rad) * CURV_PER_DEG)
-LP = SimpleNamespace(angleOffsetDeg=0.0, roll=0.0)
-
-
-def make_cp(friction=0.0):
-  CP = car.CarParams.new_message(steerControlType="torque", steerLimitTimer=0.4)
-  CP.lateralTuning.init('torque')
-  CP.lateralTuning.torque.latAccelFactor = LAF
-  CP.lateralTuning.torque.friction = friction
-  return CP.as_reader()
-
-
-def make_ci():
-  CI = MagicMock()
-  CI.torque_from_lateral_accel.return_value = lambda lataccel, tp: lataccel / tp.latAccelFactor
-  CI.lateral_accel_from_torque.return_value = lambda torque, tp: torque * tp.latAccelFactor
-  return CI
-
-
-def make_lac(cls, friction=0.0):
-  return cls(make_cp(friction=friction), custom.CarParamsSP.new_message().as_reader(), make_ci(), DT)
+from openpilot.sunnypilot.selfdrive.controls.lib.tests.torque_harness import (
+  DELAY_FRAMES, DT, FRICTION, LAF, LAT_DELAY, LP, VM, make_cs, make_lac, step,
+)
 
 
 def make_pair(friction=0.0):
   return make_lac(LatControlTorqueV0, friction=friction), make_lac(LatControlTorqueV2, friction=friction)
-
-
-def make_cs(v_ego=15.0, lat_accel=0.0, pressed=False):
-  """CarState whose measured lateral accel equals lat_accel at v_ego."""
-  angle = -lat_accel / (CURV_PER_DEG * v_ego ** 2)
-  return SimpleNamespace(vEgo=v_ego, aEgo=0.0, steeringAngleDeg=angle, steeringRateDeg=0.0, steeringPressed=pressed)
-
-
-def step(lac, cs, desired_curvature, active=True, lp=LP, lat_delay=LAT_DELAY, sls=False):
-  _, _, pid_log = lac.update(active, cs, VM, lp, sls, desired_curvature, None, False, lat_delay)
-  return pid_log
 
 
 def friction_term(pid_log, v_ego, desired_curvature):
@@ -89,26 +45,6 @@ def make_v0_equivalent(monkeypatch, friction=0.0):
   v2.pid._k_d = ([0], [0.0])
   v2.jerk_filter.update = lambda x: x
   return v2
-
-
-class LatAccelBuffer:
-  """v0 buffer semantics behind v2's curvature-buffer interface (store lat accel at append
-  time, undo the reader's live v^2 scaling). The owner's _v_now is set per frame by the test."""
-  def __init__(self, owner, n):
-    self.owner = owner
-    self.buf = deque([0.0] * n, maxlen=n)
-
-  def append(self, k):
-    self.buf.append(k * self.owner._v_now ** 2)
-
-  def __getitem__(self, idx):
-    return self.buf[idx] / self.owner._v_now ** 2
-
-
-@pytest.fixture
-def params():
-  with OpenpilotPrefix():
-    yield Params()
 
 
 class TestV0Parity:
@@ -358,87 +294,47 @@ class TestReleaseErrorRamp:
 
 
 class TestInactivePriming:
-  """Re-engaging with a wound wheel. v0's setpoint is the live request whatever the buffer
-  holds, so its stale buffer only shows in the logged jerk; in v2 the friction input reads
-  the shaped jerk and the D term reads the measurement rate, so a stale buffer or a stale
-  previous_measurement would command against the held wheel. Priming while inactive is
-  what keeps the first active frame clean."""
+  """Re-engaging with a wound wheel: in v2 the friction input reads the shaped jerk and the D
+  term reads the measurement rate, so a stale request buffer or previous_measurement would
+  command against the held wheel. Priming while inactive keeps the first active frame clean
+  (docs/zoompilot/lateral-tune.md, Tried and rejected)."""
 
   V_EGO = 9.0  # inside the KD band, so the rate state matters too
   HOLD = 1.0  # m/s^2
 
-  def _engage_after(self, lac, inactive_frames):
-    desired = self.HOLD / self.V_EGO ** 2
-    lac._v_now = self.V_EGO
-    for _ in range(inactive_frames):
-      step(lac, make_cs(self.V_EGO, self.HOLD), desired, active=False)
-    return step(lac, make_cs(self.V_EGO, self.HOLD), desired, active=True), desired
-
   def test_primed_v2_engages_without_a_command(self, params):
     v2 = make_lac(LatControlTorqueV2, friction=FRICTION)
     v2.pid.i = 0.3
-    log, desired = self._engage_after(v2, 100)
+    desired = self.HOLD / self.V_EGO ** 2
+    for _ in range(100):
+      step(v2, make_cs(self.V_EGO, self.HOLD), desired, active=False)
+    log = step(v2, make_cs(self.V_EGO, self.HOLD), desired)
     assert log.error == pytest.approx(0.0, abs=1e-6)
     assert log.desiredLateralJerk == pytest.approx(0.0, abs=1e-6)
     assert friction_term(log, self.V_EGO, desired) == pytest.approx(0.0, abs=1e-6)
     assert log.d == pytest.approx(0.0, abs=1e-6)
     assert v2.pid.i == pytest.approx(0.3)  # deliberately not cleared while inactive
 
-  def test_v0_shows_the_stale_buffer(self, params):
-    v0 = make_lac(LatControlTorqueV0, friction=FRICTION)
-    log, _ = self._engage_after(v0, 100)
-    assert log.error == pytest.approx(0.0, abs=1e-6)  # setpoint == request regardless
-    assert abs(log.desiredLateralJerk) > 1.0  # the buffered hold appears as jerk
-
-  def test_unprimed_v2_would_push_against_the_held_wheel(self, params):
-    """The counterfactual: without the inactive frames the stale buffer makes the shaped jerk
-    ramp toward the clip and the friction term opposes the hold until the buffer refills."""
-    v2 = make_lac(LatControlTorqueV2, friction=FRICTION)
-    desired = self.HOLD / self.V_EGO ** 2
-    worst = 0.0
-    for _ in range(DELAY_FRAMES):
-      log = step(v2, make_cs(self.V_EGO, self.HOLD), desired, active=True)
-      worst = min(worst, friction_term(log, self.V_EGO, desired))
-    assert worst < -0.1  # against a +1.0 hold
-
 
 class TestCurvatureBuffer:
   """The buffer stores curvature and is rescaled by the live v^2 on read: braking through a
-  constant-curvature arc produces no phantom jerk, so nothing reaches the friction input.
-  v0's lat-accel buffer replays the old speed's values (visible in its jerk log only, since
-  its setpoint collapses to the request), and a lat-accel buffer behind v2's friction input
-  would put that phantom into the command."""
+  constant-curvature arc produces no phantom jerk, so nothing reaches the friction input
+  (docs/zoompilot/lateral-tune.md, Tried and rejected)."""
 
-  def _brake_through_arc(self, lac, lataccel_buffer=False):
+  def test_v2_sees_no_phantom(self, params):
+    lac = make_lac(LatControlTorqueV2, friction=FRICTION)
     desired = 2e-3
     v_ego = 20.0
-    lac._v_now = v_ego
-    if lataccel_buffer:
-      lac.curvature_request_buffer = LatAccelBuffer(lac, lac.lat_accel_request_buffer_len)
     for _ in range(150):  # settle in the curve at constant speed first
       step(lac, make_cs(v_ego, desired * v_ego ** 2), desired)
     jerks, frictions = [], []
     for _ in range(250):
       v_ego = max(v_ego - 0.04, 10.0)  # -4 m/s^2, 20 -> 10 m/s
-      lac._v_now = v_ego
       log = step(lac, make_cs(v_ego, desired * v_ego ** 2), desired)
       jerks.append(abs(log.desiredLateralJerk))
       frictions.append(abs(friction_term(log, v_ego, desired)))
-    return max(jerks), max(frictions)
-
-  def test_v2_sees_no_phantom(self, params):
-    jerk, friction = self._brake_through_arc(make_lac(LatControlTorqueV2, friction=FRICTION))
-    assert jerk < 1e-3
-    assert friction < 0.05
-
-  def test_v0_buffer_reads_a_phantom_jerk(self, params):
-    jerk, _ = self._brake_through_arc(make_lac(LatControlTorqueV0, friction=FRICTION))
-    assert jerk > 0.2
-
-  def test_lat_accel_buffer_would_reach_the_friction_term(self, params):
-    jerk, friction = self._brake_through_arc(make_lac(LatControlTorqueV2, friction=FRICTION), lataccel_buffer=True)
-    assert jerk > 0.2
-    assert friction > 0.05
+    assert max(jerks) < 1e-3
+    assert max(frictions) < 0.05
 
 
 class TestIntegratorFreeze:
