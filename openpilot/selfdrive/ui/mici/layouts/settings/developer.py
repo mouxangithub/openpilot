@@ -64,28 +64,31 @@ class DeveloperLayoutMici(NavScroller):
 
     txt_ssh = gui_app.texture("icons_mici/settings/developer/ssh.png", 56, 64)
     github_username = ui_state.params.get("GithubUsername") or ""
-    self._ssh_keys_btn = BigButton(tr("SSH keys"), tr("Not set") if not github_username else github_username, icon=txt_ssh)
+    self._ssh_keys_btn = BigButton(tr("SSH keys"), tr("Not set") if not github_username else github_username, icon=txt_ssh,
+                                   description=tr("Grant SSH access to all public keys in your GitHub settings. Only enter your own username."))
     self._ssh_keys_btn.set_click_callback(ssh_keys_callback)
 
     # adb, ssh, ssh keys, debug mode, joystick debug mode, longitudinal maneuver mode, ip address
     # ******** Main Scroller ********
-    self._adb_toggle = BigCircleParamControl(gui_app.texture("icons_mici/adb_short.png", 82, 82), "AdbEnabled", icon_offset=(0, 12))
-    self._ssh_toggle = BigCircleParamControl(gui_app.texture("icons_mici/ssh_short.png", 82, 82), "SshEnabled", icon_offset=(0, 12))
-    self._joystick_toggle = BigToggle(tr("joystick debug mode"),
-                                      initial_state=ui_state.params.get_bool("JoystickDebugMode"),
-                                      toggle_callback=self._on_joystick_debug_mode)
-    self._long_maneuver_toggle = BigToggle(tr("longitudinal maneuver mode"),
-                                           initial_state=ui_state.params.get_bool("LongitudinalManeuverMode"),
-                                           toggle_callback=self._on_long_maneuver_mode)
-    self._lat_maneuver_toggle = BigToggle(tr("lateral maneuver mode"),
-                                          initial_state=ui_state.params.get_bool("LateralManeuverMode"),
-                                          toggle_callback=self._on_lat_maneuver_mode)
-    self._alpha_long_toggle = BigToggle(tr("alpha longitudinal"),
-                                        initial_state=ui_state.params.get_bool("AlphaLongitudinalEnabled"),
-                                        toggle_callback=self._on_alpha_long_enabled)
+    alpha_long_description = tr("Use alpha openpilot longitudinal control instead of stock ACC. This may disable Automatic Emergency Braking (AEB).")
+    self._adb_toggle = BigCircleParamControl(gui_app.texture("icons_mici/adb_short.png", 82, 82), "AdbEnabled", icon_offset=(0, 12),
+                                             description=tr("Use Android Debug Bridge (ADB) over USB or the network."), title=tr("enable ADB"))
+    self._ssh_toggle = BigCircleParamControl(gui_app.texture("icons_mici/ssh_short.png", 82, 82), "SshEnabled", icon_offset=(0, 12),
+                                             description=tr("Access the device remotely using your SSH keys."), title=tr("enable SSH"))
+    self._joystick_toggle = BigToggle(tr("joystick debug\nmode"), initial_state=ui_state.params.get_bool("JoystickDebugMode"),
+                                      toggle_callback=self._on_joystick_debug_mode, description=tr("Control the car with a joystick for debugging."))
+    self._long_maneuver_toggle = BigToggle(tr("longitudinal maneuver mode"), initial_state=ui_state.params.get_bool("LongitudinalManeuverMode"),
+                                           toggle_callback=self._on_long_maneuver_mode,
+                                           description=tr("Run longitudinal maneuvers for testing gas and brake control."))
+    self._lat_maneuver_toggle = BigToggle(tr("lateral maneuver mode"), initial_state=ui_state.params.get_bool("LateralManeuverMode"),
+                                          toggle_callback=self._on_lat_maneuver_mode,
+                                          description=tr("Run lateral maneuvers for testing steering control."))
+    self._alpha_long_toggle = BigToggle(tr("alpha longitudinal"), initial_state=ui_state.params.get_bool("AlphaLongitudinalEnabled"),
+                                        toggle_callback=self._on_alpha_long_enabled,
+                                        description=alpha_long_description)
     self._debug_mode_toggle = BigParamControl(tr("ui debug mode"), "ShowDebugInfo",
-                                              toggle_callback=lambda checked: (gui_app.set_show_touches(checked),
-                                                                               gui_app.set_show_fps(checked)))
+                                              toggle_callback=lambda checked: (gui_app.set_show_touches(checked), gui_app.set_show_fps(checked)),
+                                              description=tr("Show touch locations and the UI frame rate."))
 
     self._scroller.add_widgets([
       self._adb_toggle,

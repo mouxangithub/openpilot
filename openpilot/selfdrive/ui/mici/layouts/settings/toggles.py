@@ -42,22 +42,41 @@ class TogglesLayoutMici(NavScroller):
   def __init__(self):
     super().__init__()
 
-    self._personality_toggle = BigMultiParamToggle(tr("driving personality"), "LongitudinalPersonality", [tr("aggressive"), tr("standard"), tr("relaxed")])
+    self._personality_toggle = BigMultiParamToggle(tr("driving personality"), "LongitudinalPersonality", [tr("aggressive"), tr("standard"), tr("relaxed")],
+                                                   description=tr("Standard is recommended.\n" +
+                                                               "Aggressive follows closer, with firmer gas and braking.\n" +
+                                                               "Relaxed leaves more space.\n" +
+                                                               "Use the steering wheel distance button on supported cars."))
+    self._experimental_btn = BigToggle(tr("experimental mode"), description_icon=gui_app.texture("icons_mici/experimental_mode.png", 64, 64),
+                                       initial_state=ui_state.params.get_bool("ExperimentalMode"), toggle_callback=self._on_experimental_mode,
+                                       description=tr("Let the driving model control gas and brakes.\n" +
+                                                   "Includes stopping for red lights and stop signs.\n" +
+                                                   "Set speed is a maximum, not a target.\n" +
+                                                   "These are alpha features. Expect mistakes.\n" +
+                                                   "The path colors show acceleration and braking."))
     self._accel_controller_enabled = BigParamControl(tr("enable accel controller"), "AccelPersonalityEnabled")
     self._accel_personality_toggle = BigMultiParamToggle(tr("acceleration profile"), "AccelPersonality", [tr("eco"), tr("normal"), tr("sport")])
-    self._experimental_btn = BigToggle(tr("experimental mode"), initial_state=ui_state.params.get_bool("ExperimentalMode"),
-                                       toggle_callback=self._on_experimental_mode)
     is_metric_toggle = BigParamControl(tr("use metric units"), "IsMetric")
-    ldw_toggle = BigParamControl(tr("lane departure warnings"), "IsLdwEnabled")
-    always_on_dm_toggle = BigParamControl(tr("always-on driver monitor"), "AlwaysOnDM")
+    ldw_toggle = BigParamControl(tr("lane departure warnings"), "IsLdwEnabled",
+                                 description=tr("Warn when you drift across a detected lane line.\n" +
+                                             "Only above 31 mph (50 km/h), with no turn signal."))
+    always_on_dm_toggle = BigParamControl(tr("always-on driver monitor"), "AlwaysOnDM",
+                                          description=tr("Monitor the driver even when sunnypilot is not engaged."))
     distraction_level_toggle = BigMultiParamToggle(
       tr("distraction detection level"),
       "DistractionDetectionLevel",
       [tr("strict"), tr("moderate"), tr("lenient")],
     )
-    record_front = BigParamControl(tr("record & upload driver camera"), "RecordFront", toggle_callback=restart_needed_callback)
-    record_mic = BigParamControl(tr("record & upload mic audio"), "RecordAudio", toggle_callback=restart_needed_callback)
-    enable_openpilot = BigParamControl(tr("enable sunnypilot"), "OpenpilotEnabledToggle", toggle_callback=restart_needed_callback)
+    record_front = BigParamControl(tr("record & upload cabin camera"), "RecordFront",
+                                   description_icon=gui_app.texture("icons_mici/settings/device/cameras.png", 64, 64),
+                                   toggle_callback=restart_needed_callback, description=tr("Upload cabin camera data to help improve driver monitoring."))
+    record_mic = BigParamControl(tr("record & upload mic audio"), "RecordAudio", description_icon=gui_app.texture("icons_mici/microphone.png", 64, 64),
+                                 toggle_callback=restart_needed_callback,
+                                 description=tr("Record microphone audio while driving.\n" +
+                                             "Audio is included in dashcam videos in sunnylink."))
+    enable_openpilot = BigParamControl(tr("enable sunnypilot"), "OpenpilotEnabledToggle", toggle_callback=restart_needed_callback,
+                                       description=tr("Enable to use sunnypilot driver assistance.\n" +
+                                                   "Disable to use your car's stock driver assistance."))
 
     self._scroller.add_widgets([
       self._personality_toggle,

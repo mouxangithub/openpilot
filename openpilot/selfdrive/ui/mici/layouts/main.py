@@ -81,7 +81,7 @@ class MiciMainLayout(Scroller):
       on_settings=lambda: gui_app.push_widget(self._settings_layout),
       on_alerts=lambda: self._scroll_to(self._alerts_layout),
       alert_count_callback=self._alerts_layout.active_alerts,
-      max_severity_callback=self._alerts_layout.max_severity,
+      alert_icon_callback=self._alerts_layout.highest_severity_icon,
     )
     self._settings_layout.set_preview_callback(self._enter_onroad_preview)
     for layout in (self._car_onroad_layout, self._body_onroad_layout):

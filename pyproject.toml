@@ -21,7 +21,7 @@ dependencies = [
   "tqdm",         # cars (fw_versions.py) on start + many one-off uses
 
   # core
-  "scons==4.10.1",  # 4.11 removed the qt3 tool still used to build Cabana
+  "scons",
   "pycapnp==2.1.0",  # 2.2 introduces a memory leak due to cyclic references
   "numpy >=2.0",
 
@@ -46,7 +46,6 @@ dependencies = [
   "pyzmq",
   "shapely>=2.0",  # carrot navigation path resampling
   "aiohttp>=3.8",  # carrot 7714 v2 WebSocket receiver
-  "sentry-sdk",
   "setproctitle",
   "jeepney",
   "zstandard",  # this can go once we're on Python 3.14+
