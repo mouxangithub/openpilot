@@ -59,7 +59,7 @@ class FakeSM:
   def __getitem__(self, name):
     return {
       "deviceState": SimpleNamespace(chestnutPresent=self.board),
-      "modelDataV2SP": SimpleNamespace(acceleratorState=self.state),
+      "modelDataV2SP": SimpleNamespace(zoompilot=SimpleNamespace(acceleratorState=self.state)),
       "modelV2": SimpleNamespace(big=self.big),
       "carOutput": SimpleNamespace(actuatorsOutput=SimpleNamespace(torque=0.0)),
       "carState": SimpleNamespace(vEgo=0.0),

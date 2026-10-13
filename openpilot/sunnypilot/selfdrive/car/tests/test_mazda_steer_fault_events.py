@@ -14,6 +14,7 @@ from openpilot.sunnypilot.selfdrive.selfdrived.events_base import ET
 
 EventName = log.OnroadEvent.EventName
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 
 
 def _car_events(brand: str, flags: int = 0, sp_flags: int = 0) -> CarSpecificEventsSP:
@@ -98,7 +99,7 @@ class TestMazdaStockLkasOff:
     assert not events.has(EventName.invalidLkasSetting)
     assert not events.contains(ET.NO_ENTRY), "the selfdrive machine must still engage"
     assert not events.contains(ET.PERMANENT), "the banner belongs to the MADS-off path"
-    assert events_sp.has(EventNameSP.stockLkasOff)
+    assert events_sp.zp.has(EventNameZP.stockLkasOff)
     assert events_sp.contains(ET.NO_ENTRY)
     assert not events_sp.contains(ET.USER_DISABLE), "MADS pauses on it; a disable would drop the panda's lateral"
 
@@ -109,14 +110,14 @@ class TestMazdaStockLkasOff:
     assert events.has(EventName.invalidLkasSetting)
     assert events.contains(ET.NO_ENTRY)
     assert events.contains(ET.PERMANENT), "the driver needs the banner to explain the refusal"
-    assert not events_sp.has(EventNameSP.stockLkasOff)
+    assert not events_sp.zp.has(EventNameZP.stockLkasOff)
 
   def test_lka_on_swaps_nothing(self):
     car_events = _car_events('mazda', MazdaFlags.GEN1)
     events = _events()
     events_sp = car_events.update(self._cs(False), events, _car_state_sp(), True)
     assert events.names == []
-    assert not events_sp.has(EventNameSP.stockLkasOff)
+    assert not events_sp.zp.has(EventNameZP.stockLkasOff)
 
 
   def test_other_brands_are_untouched(self):
@@ -124,14 +125,14 @@ class TestMazdaStockLkasOff:
     events = _events(EventName.invalidLkasSetting)
     events_sp = car_events.update(self._cs(True), events, _car_state_sp(), True)
     assert events.has(EventName.invalidLkasSetting)
-    assert not events_sp.has(EventNameSP.stockLkasOff)
+    assert not events_sp.zp.has(EventNameZP.stockLkasOff)
 
   def test_eps_arming_raises_the_sp_event_while_mads_is_enabled(self):
     car_events = _car_events('mazda', MazdaFlags.GEN1 | MazdaFlags.STEER_TO_ZERO_EPS)
     cs_sp = _car_state_sp()
     cs_sp.zoompilot.lkasArming = True
     events_sp = car_events.update(self._cs(False), _events(), cs_sp, True, True)
-    assert events_sp.has(EventNameSP.stockLkasArming)
+    assert events_sp.zp.has(EventNameZP.stockLkasArming)
     assert not events_sp.contains(ET.NO_ENTRY), "lateral has to engage for the EPS to take torque"
     assert not events_sp.contains(ET.USER_DISABLE)
-    assert not car_events.update(self._cs(False), _events(), cs_sp, True, False).has(EventNameSP.stockLkasArming)
+    assert not car_events.update(self._cs(False), _events(), cs_sp, True, False).zp.has(EventNameZP.stockLkasArming)

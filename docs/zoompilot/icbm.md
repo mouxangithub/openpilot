@@ -105,15 +105,15 @@ release moved the command every few frames and pinned the timer at zero until th
 finished (route 126: 4.1 s of extra post-curve braking). It is held at zero through a
 confirm prompt so a decline or timeout still waits a full window.
 
-With a valid vision lookahead (`smartCruiseControl.vision.vAheadMin > 0`) the profile
+With a valid vision lookahead (`longitudinalPlanSP.zoompilot.sccVAheadMin > 0`) the profile
 replaces the stillness heuristic outright: restore immediately when nothing ahead binds
 below the target, walk up no further than a dip that is coming however quiet the target
 is, and abort a restore in progress when a dip appears below the dash. Route 126: 3 of 8
 over-ceiling apexes were restore-fed, the car accelerating between bends into the next
-apex. The dip is a ceiling, not a stop: `vAheadMin` is the braking-feasible profile
+apex. The dip is a ceiling, not a stop: `sccVAheadMin` is the braking-feasible profile
 minimum, so walking up to it cannot feed an apex, while freezing below it held route 128
 at 20 mph for 6.8 s behind a 41 mph dip and the car braked on to 19.7. Only zoompilot's
-vision planner publishes `vAheadMin` (`scc-curve-planning.md`, which planner runs); on every
+vision planner publishes `sccVAheadMin` (`scc-curve-planning.md`, which planner runs); on every
 other brand it is 0 and the stillness heuristic stays in charge.
 
 A genuine driver SET- parks up moves for the grace window (a refused re-anchor would
@@ -140,11 +140,10 @@ efficiency analysis over 674 rlog segments:
 
 ### The hold fold on other brands
 
-The servo's sustained sends (`increaseHold` / `decreaseHold`) are a stream of presses,
-valid wherever taps are. A brand whose button interface has no native hold cadence
-(everything but Mazda so far) folds them onto the discrete tap of the same direction
-(`tap_equivalent`) instead of rejecting an unknown state, so enabling ICBM on a new
-brand needs no servo change.
+The servo's sustained sends (`sendButton` increase / decrease with `CarControlZP.icbmHold`)
+are a stream of presses, valid wherever taps are. A brand whose button interface has no
+native hold cadence (everything but Mazda so far) reads only `sendButton` and sends the
+discrete tap of that direction, so enabling ICBM on a new brand needs no servo change.
 
 ## Fast mode
 

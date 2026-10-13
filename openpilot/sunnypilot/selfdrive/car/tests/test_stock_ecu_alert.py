@@ -17,11 +17,13 @@ from openpilot.selfdrive.selfdrived.alertmanager import AlertManager
 from openpilot.selfdrive.selfdrived.events import Events
 from openpilot.selfdrive.selfdrived.state import StateMachine
 from openpilot.sunnypilot.selfdrive.car.car_specific import CarSpecificEventsSP
-from openpilot.sunnypilot.selfdrive.selfdrived.events import EVENTS_SP, EventsSP
+from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
+from openpilot.sunnypilot.selfdrive.selfdrived.events_zp import EVENTS_ZP
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import ET, AudibleAlert
 
 EventName = log.OnroadEvent.EventName
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 ButtonType = structs.CarState.ButtonEvent.Type
 
 
@@ -54,27 +56,27 @@ def _car_state_sp(state: str):
 def _alert(state: str, standstill: bool):
   CS = structs.CarState()
   CS.standstill = standstill
-  alert = EVENTS_SP[EventNameSP.stockEcuNotReady][ET.PERMANENT](structs.CarParams(), CS, {'carStateSP': _car_state_sp(state)}, False, 0, None)
+  alert = EVENTS_ZP[EventNameZP.stockEcuNotReady][ET.PERMANENT](structs.CarParams(), CS, {'carStateSP': _car_state_sp(state)}, False, 0, None)
   return alert, {alert.alert_text_1, alert.alert_text_2}  # mici swaps the two lines
 
 
 class TestStockEcuNotReady:
   @pytest.mark.parametrize("state", ["starting", "parkToTakeOver", "stockCruiseOn", "restoring", "failed"])
   def test_a_set_press_before_ownership_raises_it(self, state):
-    assert _events_for(state).has(EventNameSP.stockEcuNotReady)
+    assert _events_for(state).zp.has(EventNameZP.stockEcuNotReady)
 
   @pytest.mark.parametrize("state", ["notNeeded", "ready", "restored"])
   def test_an_owned_or_stock_body_engages_without_comment(self, state):
-    assert not _events_for(state).has(EventNameSP.stockEcuNotReady)
+    assert not _events_for(state).zp.has(EventNameZP.stockEcuNotReady)
 
   def test_only_set_and_resume_presses_count(self):
-    assert not _events_for("parkToTakeOver", button=ButtonType.mainCruise).has(EventNameSP.stockEcuNotReady)
-    assert not _events_for("parkToTakeOver", button=ButtonType.cancel).has(EventNameSP.stockEcuNotReady)
-    assert _events_for("parkToTakeOver", button=ButtonType.resumeCruise).has(EventNameSP.stockEcuNotReady)
-    assert not _events_for("parkToTakeOver", pressed=False).has(EventNameSP.stockEcuNotReady)
+    assert not _events_for("parkToTakeOver", button=ButtonType.mainCruise).zp.has(EventNameZP.stockEcuNotReady)
+    assert not _events_for("parkToTakeOver", button=ButtonType.cancel).zp.has(EventNameZP.stockEcuNotReady)
+    assert _events_for("parkToTakeOver", button=ButtonType.resumeCruise).zp.has(EventNameZP.stockEcuNotReady)
+    assert not _events_for("parkToTakeOver", pressed=False).zp.has(EventNameZP.stockEcuNotReady)
 
   def test_brand_independent(self):
-    assert _events_for("starting", brand='honda').has(EventNameSP.stockEcuNotReady)
+    assert _events_for("starting", brand='honda').zp.has(EventNameZP.stockEcuNotReady)
 
   def test_shows_with_nothing_engaged(self):
     # selfdrived disabled, MADS not active: the state a driver presses SET in before the
@@ -111,34 +113,34 @@ class TestStockEcuUnprompted:
     car_events = _car_events()
     for _ in range(3):
       events_sp = _update(car_events, "starting", standstill=True)
-      assert events_sp.has(EventNameSP.stockEcuInitializing)
-      assert not events_sp.has(EventNameSP.stockEcuNotReady)  # no press, no press alert
+      assert events_sp.zp.has(EventNameZP.stockEcuInitializing)
+      assert not events_sp.zp.has(EventNameZP.stockEcuNotReady)  # no press, no press alert
 
   def test_moving_clears_it(self):
     car_events = _car_events()
-    assert _update(car_events, "starting", standstill=True).has(EventNameSP.stockEcuInitializing)
-    assert not _update(car_events, "starting", standstill=False).has(EventNameSP.stockEcuInitializing)
+    assert _update(car_events, "starting", standstill=True).zp.has(EventNameZP.stockEcuInitializing)
+    assert not _update(car_events, "starting", standstill=False).zp.has(EventNameZP.stockEcuInitializing)
 
   @pytest.mark.parametrize("state", ["notNeeded", "parkToTakeOver", "stockCruiseOn", "ready", "restoring", "restored", "failed"])
   def test_only_the_starting_state(self, state):
-    assert not _update(_car_events(), state, standstill=True).has(EventNameSP.stockEcuInitializing)
+    assert not _update(_car_events(), state, standstill=True).zp.has(EventNameZP.stockEcuInitializing)
 
   def test_ready_edge_fires_once(self):
     car_events = _car_events()
-    assert not _update(car_events, "starting", standstill=True).has(EventNameSP.stockEcuReady)
-    assert _update(car_events, "ready").has(EventNameSP.stockEcuReady)
-    assert not _update(car_events, "ready").has(EventNameSP.stockEcuReady)
+    assert not _update(car_events, "starting", standstill=True).zp.has(EventNameZP.stockEcuReady)
+    assert _update(car_events, "ready").zp.has(EventNameZP.stockEcuReady)
+    assert not _update(car_events, "ready").zp.has(EventNameZP.stockEcuReady)
     # a returned radar (accFaulted) and a fresh ownership: told again
     _update(car_events, "starting")
-    assert _update(car_events, "ready").has(EventNameSP.stockEcuReady)
+    assert _update(car_events, "ready").zp.has(EventNameZP.stockEcuReady)
 
   def test_boot_straight_into_ready_is_still_told(self):
     # first frame of a session already owned (comma restart onroad adopting a quiet radar)
-    assert _update(_car_events(), "ready").has(EventNameSP.stockEcuReady)
+    assert _update(_car_events(), "ready").zp.has(EventNameZP.stockEcuReady)
 
   def test_shape(self):
-    initializing = EVENTS_SP[EventNameSP.stockEcuInitializing][ET.PERMANENT]
-    ready = EVENTS_SP[EventNameSP.stockEcuReady][ET.PERMANENT]
+    initializing = EVENTS_ZP[EventNameZP.stockEcuInitializing][ET.PERMANENT]
+    ready = EVENTS_ZP[EventNameZP.stockEcuReady][ET.PERMANENT]
     for alert in (initializing, ready):
       assert alert.audible_alert == AudibleAlert.none
     assert {initializing.alert_text_1, initializing.alert_text_2} == {"Longitudinal Initializing", "Remain parked"}
@@ -162,9 +164,9 @@ class TestStockEcuUnprompted:
       CS = structs.CarState(standstill=standstill)
       events_sp = EventsSP()
       car_events.update_stock_ecu(CS, _car_state_sp(state), events_sp)
-      assert events_sp.has(EventNameSP.stockEcuInitializing) == expected
+      assert events_sp.zp.has(EventNameZP.stockEcuInitializing) == expected
     car_events.update_stock_ecu(structs.CarState(), _car_state_sp("ready"), EventsSP())
-    assert not _update(car_events, "ready").has(EventNameSP.stockEcuReady)  # told once, pre-init
+    assert not _update(car_events, "ready").zp.has(EventNameZP.stockEcuReady)  # told once, pre-init
 
   def test_not_covered_by_the_boot_banners(self):
     # startup (LOWER, frame 0) and the big model banner (LOW, raised later) both lose to it
@@ -174,7 +176,7 @@ class TestStockEcuUnprompted:
     args = [structs.CarParams(), structs.CarState(), sm, False, 0, None]
     startup, initializing, big_model = Events(), EventsSP(), EventsSP()
     startup.add(EventName.startup)
-    initializing.add(EventNameSP.stockEcuInitializing)
+    initializing.zp.add(EventNameZP.stockEcuInitializing)
     big_model.add(EventNameSP.bigModelReady)
     AM = AlertManager()
     for frame, events in enumerate((startup, initializing, big_model)):

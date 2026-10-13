@@ -192,8 +192,6 @@ class LongitudinalPlannerSP:
     sccVision.maxPredictedLateralAccel = float(self.scc.vision.max_pred_lat_acc)
     sccVision.enabled = self.scc.vision.is_enabled
     sccVision.active = self.scc.vision.is_active
-    # zoompilot's planner only; 0 tells the ICBM servo there is no lookahead
-    sccVision.vAheadMin = float(getattr(self.scc.vision, 'v_ahead_min', 0.))
     # Map Control
     sccMap = smartCruiseControl.map
     sccMap.state = self.scc.map.state
@@ -231,5 +229,7 @@ class LongitudinalPlannerSP:
     self.e2e_set_speed.fill(zoompilot.e2eSetSpeed)
     self.e2e_lead_gap.fill(zoompilot.e2eLeadGap)
     self.lead_forecast.fill(zoompilot.leadForecast)
+    # zoompilot's vision planner only; 0 tells the ICBM servo there is no lookahead
+    zoompilot.sccVAheadMin = float(getattr(self.scc.vision, 'v_ahead_min', 0.))
 
     pm.send('longitudinalPlanSP', plan_sp_send)

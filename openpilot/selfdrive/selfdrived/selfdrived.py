@@ -636,7 +636,8 @@ class SelfdriveD(CruiseHelper):
     mads.enabled = self.mads.enabled
     mads.active = self.mads.active
     mads.available = self.mads.enabled_toggle
-    mads.lateralHeld = self.mads.lateral_held
+    ss_sp.zoompilot.madsLateralHeld = self.mads.lateral_held
+    ss_sp.zoompilot.icbmHold = self.icbm.fast_active
 
     icbm = ss_sp.intelligentCruiseButtonManagement
     icbm.state = self.icbm.state
@@ -652,6 +653,7 @@ class SelfdriveD(CruiseHelper):
       ce_send_sp = messaging.new_message('onroadEventsSP')
       ce_send_sp.valid = True
       ce_send_sp.onroadEventsSP.events = self.events_sp.to_msg()
+      ce_send_sp.onroadEventsSP.zoompilot.events = self.events_sp.zp.to_msg()
       self.pm.send('onroadEventsSP', ce_send_sp)
     self.events_sp_prev = self.events_sp.names.copy()
 

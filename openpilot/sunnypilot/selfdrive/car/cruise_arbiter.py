@@ -342,5 +342,5 @@ class CruiseArbiter:
     confirm. Down moves (a curve) go through; nothing confirms on a dash the servo moved."""
     Send = structs.IntelligentCruiseButtonManagement.SendButtonState
     icbm = CC_SP.intelligentCruiseButtonManagement
-    if self.applicable and self.prompting and icbm.sendButton in (Send.increase, Send.increaseHold):
+    if self.applicable and self.prompting and icbm.sendButton == Send.increase:
       icbm.sendButton = Send.none

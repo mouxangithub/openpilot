@@ -5,7 +5,7 @@ This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 
 Shared drivers for the ICBM servo tests: build a button-actuated car's servo and run it
-against a synthetic dash for n frames, collecting the button it emits each frame.
+against a synthetic dash for n frames, collecting the button it emits each frame (send_of).
 """
 from openpilot.cereal import custom
 from opendbc.car.structs import car
@@ -14,11 +14,20 @@ from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.con
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import V_CRUISE_UNSET
 
 SessionState = custom.LongitudinalPlanSP.SpeedLimit.AssistState
+SendButtonState = custom.IntelligentCruiseButtonManagement.SendButtonState
+
+# a frame's send as the tests compare it: the button, or the 10 Hz hold stream of it (fast_active)
+INCREASE_HOLD, DECREASE_HOLD = "increaseHold", "decreaseHold"
+HOLDS = {SendButtonState.increase: INCREASE_HOLD, SendButtonState.decrease: DECREASE_HOLD}
+
+
+def send_of(icbm):
+  return HOLDS[icbm.cruise_button] if icbm.fast_active else icbm.cruise_button
 
 
 def make_icbm(brand="", op_long=False, min_set_speed=0.):
   return IntelligentCruiseButtonManagement(car.CarParams(pcmCruise=True, brand=brand, openpilotLongitudinalControl=op_long),
-                                           custom.CarParamsSP(pcmCruiseSpeed=False, minimumSetSpeed=min_set_speed,
+                                           custom.CarParamsSP(pcmCruiseSpeed=False, zoompilot={'minimumSetSpeed': min_set_speed},
                                                               intelligentCruiseButtonManagementAvailable=True))
 
 
@@ -46,9 +55,9 @@ def run_frames(icbm, target_mph, cluster_mph, n=1, source='sccVision', is_metric
     LP_SP.smartCruiseControl.vision.aTarget = float(a_target)
     LP_SP.smartCruiseControl.map.aTarget = float(a_target)
     LP_SP.speedLimit.assist.aTarget = float(a_target)
-    LP_SP.smartCruiseControl.vision.vAheadMin = float(v_ahead_min_mph * CV.MPH_TO_MS)
+    LP_SP.zoompilot.sccVAheadMin = float(v_ahead_min_mph * CV.MPH_TO_MS)
     LP_SP.speedLimit.assist.state = session_state
     LP_SP.speedLimit.assist.vTarget = V_CRUISE_UNSET  # the mirror's idle value
     icbm.run(CS, CC, LP_SP, is_metric=is_metric)
-    sends.append(icbm.cruise_button)
+    sends.append(send_of(icbm))
   return sends

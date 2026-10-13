@@ -10,8 +10,8 @@ from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode
 
 def minimum_set_speed_ms(CP_SP, is_metric: bool) -> float:
   """Lowest set speed the stock cruise accepts, in m/s. Callers convert to their own unit."""
-  if CP_SP.minimumSetSpeed > 0.:
-    return float(CP_SP.minimumSetSpeed)
+  if CP_SP.zoompilot.minimumSetSpeed > 0.:
+    return float(CP_SP.zoompilot.minimumSetSpeed)
   return 30. * CV.KPH_TO_MS if is_metric else 20. * CV.MPH_TO_MS
 
 

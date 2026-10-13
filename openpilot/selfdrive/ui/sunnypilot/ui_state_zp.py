@@ -33,7 +33,7 @@ class UIStateZP:
 
   def update(self) -> None:
     # read where sm is updated, so the params thread never touches a message
-    self._accelerator_state_name = str(self.sm['modelDataV2SP'].acceleratorState)
+    self._accelerator_state_name = str(self.sm['modelDataV2SP'].zoompilot.acceleratorState)
     self._update_torque_utilization()
     self._update_icbm_start_lock()
 

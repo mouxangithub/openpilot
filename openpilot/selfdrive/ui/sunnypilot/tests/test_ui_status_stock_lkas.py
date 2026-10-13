@@ -4,7 +4,7 @@ Copyright (c) 2026-, Zeph Leggett.
 This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 
-MADS held by the car's own lane keep (mads.lateralHeld) reads as lateral off, not override.
+MADS held by the car's own lane keep (zoompilot.madsLateralHeld) reads as lateral off, not override.
 """
 import os
 
@@ -25,7 +25,7 @@ def status(mads_state, selfdrive_enabled: bool, held: bool = False) -> str:
   ss_sp.mads.available = True
   ss_sp.mads.state = mads_state
   ss_sp.mads.enabled = mads_state != MADSState.disabled
-  ss_sp.mads.lateralHeld = held
+  ss_sp.zoompilot.madsLateralHeld = held
   return UIStateSP.update_status(ss, ss_sp, [])
 
 

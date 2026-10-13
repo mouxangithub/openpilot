@@ -17,9 +17,16 @@ from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 
 EventName = log.OnroadEvent.EventName
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 GearShifter = structs.CarState.GearShifter
 StockEcuState = custom.CarStateZP.StockEcuState
 
+
+
+class CarEventsSP(EventsSP):
+  """selfdrived takes these through to_msg -> add_from_msg, so zoompilot's ride along beside sunnypilot's."""
+  def to_msg(self):
+    return self.to_msg_with_zp()
 
 
 class CarSpecificEventsSP:
@@ -31,7 +38,7 @@ class CarSpecificEventsSP:
     self.stock_ecu_prev = StockEcuState.notNeeded
 
   def update(self, CS: structs.CarState, events: Events, CS_SP, mads_enabled_toggle: bool = False, mads_enabled: bool = False):
-    events_sp = EventsSP()
+    events_sp = CarEventsSP()
 
     if self.CP.brand == 'chrysler':
       if self.CP.carFingerprint in RAM_DT:
@@ -68,10 +75,10 @@ class CarSpecificEventsSP:
         # engages on the stock cruise; the MADS machine alone refuses lateral. With MADS off
         # upstream's no-entry stands.
         events.remove(EventName.invalidLkasSetting)
-        events_sp.add(EventNameSP.stockLkasOff)
+        events_sp.zp.add(EventNameZP.stockLkasOff)
       if mads_enabled and CS_SP.zoompilot.lkasArming:
         # LKA back on with lateral coming back, the EPS not delivering yet
-        events_sp.add(EventNameSP.stockLkasArming)
+        events_sp.zp.add(EventNameZP.stockLkasArming)
 
     self.update_stock_ecu(CS, CS_SP, events_sp)
     return events_sp
@@ -84,12 +91,12 @@ class CarSpecificEventsSP:
     # driver has to do. Alert-only; the press itself does nothing.
     stock_ecu = CS_SP.zoompilot.stockEcu
     if str(stock_ecu) not in ENGAGES_NORMALLY and any(be.pressed and be.type in SET_SPEED_BUTTONS for be in CS.buttonEvents):
-      events_sp.add(EventNameSP.stockEcuNotReady)
+      events_sp.zp.add(EventNameZP.stockEcuNotReady)
     # Unprompted only where waiting changes the outcome: parked with the takeover still
     # starting (route 0000021b pulled away 5 s short of it). Rolling, the press alert carries
     # "park to engage"; a standing banner would nag a whole drive. One line on the ready edge.
     if stock_ecu == StockEcuState.starting and CS.standstill:
-      events_sp.add(EventNameSP.stockEcuInitializing)
+      events_sp.zp.add(EventNameZP.stockEcuInitializing)
     if stock_ecu == StockEcuState.ready and self.stock_ecu_prev != StockEcuState.ready:
-      events_sp.add(EventNameSP.stockEcuReady)
+      events_sp.zp.add(EventNameZP.stockEcuReady)
     self.stock_ecu_prev = stock_ecu

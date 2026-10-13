@@ -63,7 +63,7 @@ _ESCALATION_V_BP = _KAPPA_BIAS_V_BP
 # Use hysteresis below the commit threshold.
 _RELEASE_FRAC = 0.3
 # The car is still in a curve while the near field limits it below vEgo plus this; past it the
-# plan hands back and the ICBM restore stays capped at vAheadMin.
+# plan hands back and the ICBM restore stays capped at sccVAheadMin.
 _IN_CURVE_MARGIN = 1.0  # m/s
 
 # The near field is measured rather than predicted: it holds the planner through a curve and is

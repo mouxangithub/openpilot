@@ -370,7 +370,7 @@ def handed_over(model) -> bool:
 
 
 def state(model) -> str:
-  """modelDataV2SP.acceleratorState: the joining model's, else none."""
+  """modelDataV2SP.zoompilot.acceleratorState: the joining model's, else none."""
   return getattr(model, 'big_model_state', 'none')
 
 

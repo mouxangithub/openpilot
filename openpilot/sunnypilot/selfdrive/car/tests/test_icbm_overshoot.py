@@ -9,7 +9,7 @@ stock ACC delivers the limiter's requested deceleration, and the gates that keep
 lever rather than a destination.
 """
 from openpilot.cereal import custom
-from openpilot.sunnypilot.selfdrive.car.tests.icbm_servo_harness import make_icbm, run_frames
+from openpilot.sunnypilot.selfdrive.car.tests.icbm_servo_harness import make_icbm, run_frames, INCREASE_HOLD, DECREASE_HOLD
 
 State = custom.IntelligentCruiseButtonManagement.IntelligentCruiseButtonManagementState
 SendButtonState = custom.IntelligentCruiseButtonManagement.SendButtonState
@@ -123,7 +123,7 @@ class TestDecelOvershootIsALever:
     self.run_frames(45, 30, n=500, icbm=icbm, source='cruise', v_ego_mph=30., session_state=SessionState.preActive)
     assert not icbm.fast_faulted, "a prompt-held dash faulted the stream"
     sends = self.run_frames(45, 30, n=100, icbm=icbm, source='cruise', v_ego_mph=30.)
-    assert any(s in (SendButtonState.increase, SendButtonState.increaseHold) for s in sends), "restore never resumed after the prompt"
+    assert any(s in (SendButtonState.increase, INCREASE_HOLD) for s in sends), "restore never resumed after the prompt"
 
   def test_a_limiter_descends_through_a_prompt(self):
     """A prompt is the driver's decision about the limit, not about the road: route 269 t=185
@@ -134,7 +134,7 @@ class TestDecelOvershootIsALever:
     sends = self.run_frames(28, 40, n=100, icbm=icbm, source='sccVision', v_ego_mph=38.,
                             a_target=-1.2, session_state=SessionState.preActive)
     assert icbm.overshoot_mph > 5., f"gap parked behind the prompt: {icbm.overshoot_mph}"
-    down = (SendButtonState.decrease, SendButtonState.decreaseHold)
+    down = (SendButtonState.decrease, DECREASE_HOLD)
     assert any(s in down for s in sends), "curve decrease parked behind the prompt"
 
   def test_residual_gap_after_source_flip_starts_no_descent(self):

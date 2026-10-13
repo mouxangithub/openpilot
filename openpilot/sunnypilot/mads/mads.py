@@ -13,12 +13,13 @@ from opendbc.sunnypilot.car.mazda.values import MazdaFlagsSP
 from openpilot.common.params import Params
 from openpilot.selfdrive.selfdrived.events import ET
 from openpilot.sunnypilot.mads.helpers import MadsSteeringModeOnBrake, read_steering_mode_param, MADS_NO_ACC_MAIN_BUTTON
-from openpilot.sunnypilot.mads.state import StateMachine, GEARS_ALLOW_PAUSED_SILENT
+from openpilot.sunnypilot.mads.state import StateMachine, paused_silent
 
 State = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
 ButtonType = structs.CarState.ButtonEvent.Type
 EventName = log.OnroadEvent.EventName
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 GearShifter = structs.CarState.GearShifter
 SafetyModel = structs.CarParams.SafetyModel
 
@@ -89,7 +90,7 @@ class ModularAssistiveDrivingSystem:
     if self.steering_mode_on_brake == MadsSteeringModeOnBrake.PAUSE and (CS.brakePressed or CS.regenBraking or self.pedal_pressed_non_gas_pressed(CS)):
       return False
 
-    if self.events_sp.contains_in_list(GEARS_ALLOW_PAUSED_SILENT):
+    if paused_silent(self.events_sp):
       return False
 
     return True
@@ -125,7 +126,7 @@ class ModularAssistiveDrivingSystem:
     # enable with no cruise cycle. A request for lateral while it is off enters paused the same
     # way (GEARS_ALLOW_PAUSED_SILENT). A disable on the same frame (the MADS button, main off,
     # the brake under disengage) wins: the pause would otherwise mask it.
-    if self.events_sp.has(EventNameSP.stockLkasOff) and self.enabled and not self.events_sp.contains(ET.USER_DISABLE):
+    if self.events_sp.zp.has(EventNameZP.stockLkasOff) and self.enabled and not self.events_sp.contains(ET.USER_DISABLE):
       self.transition_paused_state()
 
   def transition_paused_state(self):
@@ -232,7 +233,7 @@ class ModularAssistiveDrivingSystem:
       # the panda holds a lateral request while the brake is down and arms on release; a brake
       # already held at standstill raises no pedalPressed, so engage into paused on the brake level
       if (CS.brakePressed or CS.regenBraking) and self.events_sp.has(EventNameSP.lkasEnable):
-        self.events_sp.add(EventNameSP.silentPedalPressed)
+        self.events_sp.zp.add(EventNameZP.silentPedalPressed)
 
     self.update_stock_lkas()
 
@@ -243,7 +244,7 @@ class ModularAssistiveDrivingSystem:
     # every rejected frame is an unsteered frame (the camera's own steering is relay-blocked
     # while we control), so the driver hears about it well before the disable
     if self.lateral_mismatch_counter >= LATERAL_MISMATCH_WARN_FRAMES:
-      self.events_sp.add(EventNameSP.controlsMismatchLateralWarning)
+      self.events_sp.zp.add(EventNameZP.controlsMismatchLateralWarning)
     if self.lateral_mismatch_counter >= LATERAL_MISMATCH_DISABLE_FRAMES:
       self.events_sp.add(EventNameSP.controlsMismatchLateral)
 
@@ -258,9 +259,9 @@ class ModularAssistiveDrivingSystem:
     # SP event: sound-only, and no state machine reads PERMANENT.
     if self.button_owns_lateral:
       if self.selfdrive.enabled and not self.selfdrive.enabled_prev:
-        self.events_sp.add(EventNameSP.longitudinalEnableChime)
+        self.events_sp.zp.add(EventNameZP.longitudinalEnableChime)
       elif not self.selfdrive.enabled and self.selfdrive.enabled_prev:
-        self.events_sp.add(EventNameSP.longitudinalDisableChime)
+        self.events_sp.zp.add(EventNameZP.longitudinalDisableChime)
 
   def update(self, CS: structs.CarState):
     if not self.enabled_toggle:
@@ -273,8 +274,8 @@ class ModularAssistiveDrivingSystem:
     if not self.CP.passive and self.selfdrive.initialized:
       self.enabled, self.active = self.state_machine.update()
 
-    self.lateral_held = ((self.state_machine.state == State.paused and self.events_sp.has(EventNameSP.stockLkasOff)) or
-                         (self.enabled and self.events_sp.has(EventNameSP.stockLkasArming)))
+    self.lateral_held = ((self.state_machine.state == State.paused and self.events_sp.zp.has(EventNameZP.stockLkasOff)) or
+                         (self.enabled and self.events_sp.zp.has(EventNameZP.stockLkasArming)))
 
     # Copy of previous SelfdriveD states for MADS events handling
     self.selfdrive.enabled_prev = self.selfdrive.enabled

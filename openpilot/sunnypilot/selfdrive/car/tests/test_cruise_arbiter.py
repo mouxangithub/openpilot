@@ -187,7 +187,7 @@ class TestCruiseArbiterNonPcm:
     from opendbc.car import structs
     Send = structs.IntelligentCruiseButtonManagement.SendButtonState
     self.go_pre_active(cluster_mph=50, limit_mph=45)
-    for send, expect in ((Send.increaseHold, Send.none), (Send.increase, Send.none), (Send.decreaseHold, Send.decreaseHold)):
+    for send, expect in ((Send.increase, Send.none), (Send.decrease, Send.decrease)):
       cc_sp = structs.CarControlSP()
       cc_sp.intelligentCruiseButtonManagement.sendButton = send
       self.arb.gate_send_button(cc_sp)

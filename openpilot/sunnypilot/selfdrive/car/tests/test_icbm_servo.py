@@ -13,7 +13,8 @@ from openpilot.common.constants import CV
 from openpilot.common.realtime import DT_CTRL
 from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.controller import (
   DRIVER_PRESS_GRACE_T, REACT_DEADBAND, RESTORE_QUIET_TIME)
-from openpilot.sunnypilot.selfdrive.car.tests.icbm_servo_harness import make_icbm, run_frames
+from openpilot.sunnypilot.selfdrive.car.tests.icbm_servo_harness import make_icbm, run_frames, send_of, INCREASE_HOLD, \
+  DECREASE_HOLD
 
 ButtonEvent = car.CarState.ButtonEvent
 ButtonType = car.CarState.ButtonEvent.Type
@@ -123,13 +124,13 @@ class TestServo:
 
     self.run_frames(45, 60, n=60, icbm=icbm)
     assert icbm.state == State.decreasing
-    assert icbm.cruise_button == SendButtonState.decreaseHold
+    assert send_of(icbm) == DECREASE_HOLD
 
     # dash walks down 1 mph at a time; the stream holds until the remainder is small
     self.run_frames(45, 48, n=5, icbm=icbm)
-    assert icbm.cruise_button == SendButtonState.decreaseHold
+    assert send_of(icbm) == DECREASE_HOLD
     self.run_frames(45, 47, n=5, icbm=icbm)
-    assert icbm.cruise_button == SendButtonState.decrease
+    assert send_of(icbm) == SendButtonState.decrease
 
     self.run_frames(45, 45, n=5, icbm=icbm)
     assert icbm.state == State.holding
@@ -141,17 +142,17 @@ class TestServo:
     self.run_frames(60, 60, n=60, icbm=icbm)
 
     self.run_frames(45, 60, n=60, icbm=icbm)
-    assert icbm.cruise_button == SendButtonState.decreaseHold
+    assert send_of(icbm) == DECREASE_HOLD
 
     # dash frozen past the stall window -> fault and tap from here on
     self.run_frames(45, 60, n=160, icbm=icbm)
     assert icbm.fast_faulted
-    assert icbm.cruise_button == SendButtonState.decrease
+    assert send_of(icbm) == SendButtonState.decrease
 
     # a later large move stays taps-only
     self.run_frames(60, 60, n=200, icbm=icbm)
     self.run_frames(40, 60, n=60, icbm=icbm)
-    assert icbm.cruise_button == SendButtonState.decrease
+    assert send_of(icbm) == SendButtonState.decrease
 
   def test_metric_uses_the_stream_too(self):
     """The stream carries no grid assumption (it is just presses), so metric users get
@@ -161,7 +162,7 @@ class TestServo:
 
     self.run_frames(45, 60, n=60, icbm=icbm, is_metric=True)
     assert icbm.state == State.decreasing
-    assert icbm.cruise_button == SendButtonState.decreaseHold
+    assert send_of(icbm) == DECREASE_HOLD
 
 
 
@@ -189,7 +190,7 @@ class TestRestoreResponsiveness:
     first_up = None
     for i in range(400):
       sends = self.run_frames(40, 31, n=1, icbm=icbm, source='cruise', v_ego_mph=33.)
-      if sends[0] == SendButtonState.increase or sends[0] == SendButtonState.increaseHold:
+      if sends[0] == SendButtonState.increase or sends[0] == INCREASE_HOLD:
         first_up = i * DT_CTRL
         break
     assert first_up is not None, "restore never started"
@@ -213,7 +214,7 @@ class TestRestoreResponsiveness:
     dash = 20
     for _ in range(600):
       sends = self.run_frames(50, dash, n=1, icbm=icbm, source='cruise', v_ahead_min_mph=41.)
-      if sends[0] in (SendButtonState.increase, SendButtonState.increaseHold):
+      if sends[0] in (SendButtonState.increase, INCREASE_HOLD):
         dash += 1
     assert 39 <= dash <= 41, dash
 
@@ -225,7 +226,7 @@ class TestRestoreResponsiveness:
     first_up = None
     for i in range(200):
       sends = self.run_frames(40, 30, n=1, icbm=icbm, source='cruise', v_ahead_min_mph=255. / CV.MPH_TO_MS)
-      if sends[0] in (SendButtonState.increase, SendButtonState.increaseHold):
+      if sends[0] in (SendButtonState.increase, INCREASE_HOLD):
         first_up = i * DT_CTRL
         break
     assert first_up is not None
@@ -258,7 +259,7 @@ class TestRestoreResponsiveness:
       sends = self.run_frames(30, 45, n=1, icbm=icbm, a_target=-1.0)
       (quiet if i * DT_CTRL < DRIVER_PRESS_GRACE_T - 0.1 else resumed).extend(sends)
     assert all(s == SendButtonState.none for s in quiet), "servo fought the driver inside the grace window"
-    assert any(s in (SendButtonState.decrease, SendButtonState.decreaseHold) for s in resumed), \
+    assert any(s in (SendButtonState.decrease, DECREASE_HOLD) for s in resumed), \
       "servo never resumed after the grace window"
 
   def test_a_lower_target_after_the_press_is_not_parked(self):
@@ -272,7 +273,7 @@ class TestRestoreResponsiveness:
     self.run_frames(40, 40, n=5, icbm=icbm, source='cruise', v_ego_mph=35., button_events=press)
     self.run_frames(40, 40, n=1, icbm=icbm, source='cruise', v_ego_mph=35., button_events=release)
     sends = self.run_frames(28, 40, n=100, icbm=icbm, v_ego_mph=36., a_target=-0.6)
-    assert any(s in (SendButtonState.decrease, SendButtonState.decreaseHold) for s in sends), \
+    assert any(s in (SendButtonState.decrease, DECREASE_HOLD) for s in sends), \
       "servo parked a fresh curve limiter behind the driver's earlier SET+"
 
   def test_driver_down_press_ends_grace(self):
@@ -286,7 +287,7 @@ class TestRestoreResponsiveness:
     assert icbm.down_grace_timer == 0
 
     sends = self.run_frames(30, 45, n=150, icbm=icbm)
-    assert any(s in (SendButtonState.decrease, SendButtonState.decreaseHold) for s in sends)
+    assert any(s in (SendButtonState.decrease, DECREASE_HOLD) for s in sends)
 
   def test_driver_down_press_grace_blocks_up(self):
     """The mirror: after a genuine SET- press a refused re-anchor must not restore the
@@ -303,7 +304,7 @@ class TestRestoreResponsiveness:
       sends = self.run_frames(40, 35, n=1, icbm=icbm, source='cruise', v_ahead_min_mph=200.)
       (quiet if i * DT_CTRL < DRIVER_PRESS_GRACE_T - 0.1 else resumed).extend(sends)
     assert all(s == SendButtonState.none for s in quiet), "servo restored over the driver's SET-"
-    assert any(s in (SendButtonState.increase, SendButtonState.increaseHold) for s in resumed), \
+    assert any(s in (SendButtonState.increase, INCREASE_HOLD) for s in resumed), \
       "restore never resumed after the grace window"
 
 

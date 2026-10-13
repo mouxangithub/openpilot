@@ -16,7 +16,7 @@ have been measured from their logs) run the zoompilot vision and map planners th
 describes. Every other brand runs sunnypilot's `vision_controller.py`, `map_controller.py` and
 `smart_cruise_control.py`, kept byte-identical to sunnypilot master together with their tests,
 so an unmeasured brand is not tuned on Mazda data and a sync never conflicts there. Only the
-zoompilot vision planner publishes `vAheadMin`; on every other brand it is 0, which leaves
+zoompilot vision planner publishes `sccVAheadMin`; on every other brand it is 0, which leaves
 ICBM's restore on its stillness heuristic (`icbm.md`). `limits.py`, `speed_profile.py` and
 `publish_ramp` stay shared with the SLA publishers on every brand.
 
@@ -190,7 +190,7 @@ path limits the car below `vEgo + _IN_CURVE_MARGIN` (1 m/s; the car is in the cu
 the required decel is above `_RELEASE_FRAC = 0.3` of the budget, so the gate does not chatter
 on noise. Until 10-04 the near path was held against the set speed, and on a winding road any
 gentle bend kept the plan (and the dash) down through the whole exit. After release the ICBM
-restore is still capped at `vAheadMin`, so the dash only climbs to the next dip. The
+restore is still capped at `sccVAheadMin`, so the dash only climbs to the next dip. The
 state machine (`entering`, `turning`, `leaving`) is display-only.
 
 Near convergence a bumper-distance constraint makes `required_decel` scream through its
@@ -208,7 +208,7 @@ over 2.2 m/s^2 at <= 45 mph: 65 of 149 with the old servo, 72 with no hold).
 So on stock ACC below `_HOLD_V_MAX` (22.4 m/s, 50 mph) a bend that has bound (`a_required` at
 30% of the budget or more) for `_HOLD_SEEN_T = 2.0 s` is latched with its profile speed and
 remaining distance, and held until the near window reaches it; a deeper bend replaces it. The
-held bend keeps the solver active, caps `vAheadMin`, and asks for the budget at most, like any
+held bend keeps the solver active, caps `sccVAheadMin`, and asks for the budget at most, like any
 prediction. The latch clears when the near window reaches the bend, on release, at 50 mph, and
 never runs on openpilot long.
 

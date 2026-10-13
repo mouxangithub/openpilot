@@ -477,7 +477,7 @@ def main(demo=False):
       drivingdata_send = messaging.new_message('drivingModelData')
       posenet_send = messaging.new_message('cameraOdometry')
       mdv2sp_send = messaging.new_message('modelDataV2SP')
-      mdv2sp_send.modelDataV2SP.acceleratorState = jetlink_adapter.state(model)
+      mdv2sp_send.modelDataV2SP.zoompilot.acceleratorState = jetlink_adapter.state(model)
 
       action = model.get_action_from_model(model_output, prev_action, lat_action_t, long_action_t, v_ego)
       prev_action = action

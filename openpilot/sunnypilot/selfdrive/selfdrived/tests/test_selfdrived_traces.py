@@ -36,7 +36,7 @@ from openpilot.sunnypilot.selfdrive.selfdrived.accelerator_events import HANDBAC
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EVENT_NAME_SP
 from openpilot.sunnypilot.selfdrive.selfdrived.tests.selfdrived_helpers import make_selfdrived
 
-AcceleratorState = custom.ModelDataV2SP.AcceleratorState
+AcceleratorState = custom.ModelDataV2ZP.AcceleratorState
 
 # added at the gate on every step, so it is in every expected list rather
 # than filtered out
@@ -56,10 +56,10 @@ class TraceTest(OpenpilotTestCase):
       sd.sm.alive[service] = alive
       sd.sm.seen[service] = sd.sm.seen[service] or alive
     sd.sm['modelV2'].big = big
-    sd.sm['modelDataV2SP'].acceleratorState = state
+    sd.sm['modelDataV2SP'].zoompilot.acceleratorState = state
     # carState reaches selfdrived on its own socket, not through the SubMaster
     sd.update_events(SimpleNamespace(standstill=standstill, canValid=False))
-    return ([EVENT_NAME[n] for n in sd.events.names], [EVENT_NAME_SP[n] for n in sd.events_sp.names])
+    return ([EVENT_NAME[n] for n in sd.events.names], [EVENT_NAME_SP.get(n, n) for n in sd.events_sp.names])
 
 
 class ChestnutTraces(TraceTest):
@@ -100,7 +100,7 @@ class JetlinkTrace(TraceTest):
   Nothing in this trace writes ChestnutLoading or ChestnutActive - the joining
   state never does - so the native block sees a device with no board and
   stays silent for the whole drive. Everything said is said by the adapter,
-  from modelV2.big and modelDataV2SP.acceleratorState.
+  from modelV2.big and modelDataV2SP.zoompilot.acceleratorState.
   """
 
   def setUp(self):

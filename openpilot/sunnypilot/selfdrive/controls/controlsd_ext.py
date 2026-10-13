@@ -99,6 +99,7 @@ class ControlsExt(ModelStateBase, ControlsLateralZP):
     CC_SP.intelligentCruiseButtonManagement.state = icbm_src.state
     CC_SP.intelligentCruiseButtonManagement.sendButton = icbm_src.sendButton
     CC_SP.intelligentCruiseButtonManagement.vTarget = icbm_src.vTarget
+    CC_SP.zoompilot.icbmHold = sm['selfdriveStateSP'].zoompilot.icbmHold
 
     # lane-change pace clamp telemetry, for offline validation
     CC_SP.zoompilot.laneChangeSmoothing.jerkFactor = float(self.lane_change_smoothing.jerk_factor)

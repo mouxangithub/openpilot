@@ -57,7 +57,7 @@ class TestTheInterface(OpenpilotTestCase):
 
   def test_the_states_are_the_ones_modeld_publishes(self):
     from openpilot.cereal import custom
-    names = set(custom.ModelDataV2SP.AcceleratorState.schema.enumerants)
+    names = set(custom.ModelDataV2ZP.AcceleratorState.schema.enumerants)
     self.assertLessEqual(set(jl.STATES), names)
 
   def test_it_is_an_adapter_module(self):

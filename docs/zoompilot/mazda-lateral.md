@@ -287,7 +287,7 @@ over the pause, and so does a later one, because a paused MADS is still enabled.
 
 **Telling the driver.** mici shows a standing "Lateral Disabled / LKAS is off" alert (PERMANENT,
 `Priority.LOW`, silent) for as long as LKA is off. tizi has no alert: its border already shows
-lateral off. MADS publishes the hold as `selfdriveStateSP.mads.lateralHeld` and
+lateral off. MADS publishes the hold as `selfdriveStateSP.zoompilot.madsLateralHeld` and
 `UIStateSP.update_status` reads it as MADS off, so the border (and mici's status dot) stays
 purple under cruise and blue without, not the override grey of a brake pause.
 
@@ -304,7 +304,7 @@ Carstate's `lkas_arming` is set on the edge and ends when the block reads clear 
 edge). Delivery alone would be a poor end, because the EPS rounds requests under
 `STEER_UNDELIVERED_MIN` to nothing on a straight road. Card publishes the flag as
 `CarStateZP.lkasArming`. While MADS is enabled it raises `stockLkasArming`, which on mici is
-"Lateral Disabled / Waiting for steering", and `lateralHeld` stays set until it clears. Lateral itself resumes at the edge, because the EPS only lifts the block with our frames
+"Lateral Disabled / Waiting for steering", and `madsLateralHeld` stays set until it clears. Lateral itself resumes at the edge, because the EPS only lifts the block with our frames
 reaching it. While openpilot was not steering, the block stayed up (0x04) until it did, or until
 the camera read LANE_LINES 2. Through the re-arm the 2022 latch zeroes the request and stays
 silent (TRACK_STATE). The older EPS reports LKAS_BLOCK at road speed as `steerFaultTemporary`,
@@ -456,7 +456,7 @@ bit 11 on bus 0 is refused outright. Fwd hook untouched.
 nonzero: keep steering (the panda blocks the camera, actuation is safe) and set
 `CS.stock_cts_stuck` once per episode. Carstate consumes it into a `STOCK_CTS_ALERT_T` (0.1 s)
 `stockLkas` pulse and the Mazda hook in `car_specific.py` swaps upstream's no-entry for
-`mazdaStockCtsActive`, a 4 s WARNING ("Stock CTS Is Still On / Press the TJA button to switch
+`mazdaStockCtsActive` (never raised by the code; dropped from the schema 2026-10), a 4 s WARNING ("Stock CTS Is Still On / Press the TJA button to switch
 it off"), no NO_ENTRY, no disable. It fires only on this failure, never on a healthy
 engagement, which was the 09-08 objection to the permanent banner.
 

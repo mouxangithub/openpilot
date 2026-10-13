@@ -57,13 +57,10 @@ DECEL_OVERSHOOT_SOURCES = (*OP_LONG_PLANNER_SOURCES, LongitudinalPlanSource.spee
 FAST_MODE_MIN = 3  # display units of remaining error to run the stream
 FAST_STALL_T = 1.5  # s; a dash that never moves under the stream means taps for the rest of the drive
 
-TAP_BUTTONS = {
+# sent as taps, or as the hold stream while fast mode runs (fast_active, SelfdriveStateZP.icbmHold)
+SEND_BUTTONS = {
   State.increasing: SendButtonState.increase,
   State.decreasing: SendButtonState.decrease,
-}
-HOLD_BUTTONS = {
-  State.increasing: SendButtonState.increaseHold,
-  State.decreasing: SendButtonState.decreaseHold,
 }
 
 
@@ -182,7 +179,7 @@ class IntelligentCruiseButtonManagement:
     self.react_deadband = REACT_DEADBAND if self.limiter_active or self.overshoot_mph > 0 else 1
 
     # A zero vision lookahead falls back to the stable-target restore gate.
-    v_ahead_min = LP_SP.smartCruiseControl.vision.vAheadMin
+    v_ahead_min = LP_SP.zoompilot.sccVAheadMin
     self.lookahead_valid = v_ahead_min > 0.
     self.dip_ahead = self.lookahead_valid and v_ahead_min * speed_conv < self.v_target_raw - self.react_deadband
     if self.dip_ahead and self.v_target > self.v_cruise_cluster:
@@ -278,9 +275,9 @@ class IntelligentCruiseButtonManagement:
         self.pre_active_timer = int(INACTIVE_TIMER / DT_CTRL)
         self.state = State.preActive
 
-    if self.state in TAP_BUTTONS:
+    if self.state in SEND_BUTTONS:
       self.plan_fast_mode()
-      send_button = HOLD_BUTTONS[self.state] if self.fast_active else TAP_BUTTONS[self.state]
+      send_button = SEND_BUTTONS[self.state]
     else:
       self.fast_active = False
       send_button = SendButtonState.none

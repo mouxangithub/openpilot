@@ -13,6 +13,7 @@ from openpilot.sunnypilot.mads.state import State
 from openpilot.sunnypilot.mads.tests.mads_harness import car_state, make_mads
 
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 ButtonType = structs.CarState.ButtonEvent.Type
 
 
@@ -29,9 +30,9 @@ class TestMadsStockLkas(OpenpilotTestCase):
     sd.events_sp.clear()
     sd.enabled = selfdrive_enabled
     if lka_off:
-      sd.events_sp.add(EventNameSP.stockLkasOff)
+      sd.events_sp.zp.add(EventNameZP.stockLkasOff)
     if arming:
-      sd.events_sp.add(EventNameSP.stockLkasArming)
+      sd.events_sp.zp.add(EventNameZP.stockLkasArming)
     self.mads.update(cs if cs is not None else car_state(True))
     return self.mads.state_machine.state
 

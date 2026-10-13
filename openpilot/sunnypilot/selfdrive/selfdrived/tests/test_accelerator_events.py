@@ -15,8 +15,10 @@ from openpilot.sunnypilot.mads.state import StateMachine as MadsStateMachine, St
 from openpilot.sunnypilot.selfdrive.selfdrived.accelerator_events import (AcceleratorEvents, HANDBACK_TICKS, OFFER_TICKS,
                                                                            SWITCHING_TICKS)
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EVENT_NAME_SP, EVENTS_SP, EventsSP
+from openpilot.sunnypilot.selfdrive.selfdrived.events_zp import EVENTS_ZP
 
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 
 
 class AcceleratorEventsTest(OpenpilotTestCase):
@@ -36,13 +38,13 @@ class AcceleratorEventsTest(OpenpilotTestCase):
   def step(self, state='none', big=False, alive=True, enabled=False, mads=False) -> set[str]:
     """One selfdrived tick, `mads` being MADS engaged; what the adapter raised,
     native and sunnypilot, by name."""
-    self.sm['modelDataV2SP'].acceleratorState = state
+    self.sm['modelDataV2SP'].zoompilot.acceleratorState = state
     self.sm['modelV2'].big = big
     self.sm.alive['modelV2'] = alive
     self.events.clear()
     self.events_sp.clear()
     self.accel.update(self.sm, enabled or mads, self.events, self.events_sp)
-    return {EVENT_NAME[e] for e in self.events.names} | {EVENT_NAME_SP[e] for e in self.events_sp.names}
+    return {EVENT_NAME[e] for e in self.events.names} | {EVENT_NAME_SP.get(e, e) for e in self.events_sp.names}
 
   def drive_big(self, **kwargs) -> None:
     """The large model swapped in and past its first second."""
@@ -82,10 +84,10 @@ class TestSettling(AcceleratorEventsTest):
 
 class TestHandBack(AcceleratorEventsTest):
   def test_event_ordinals(self):
-    # logs store the ordinal, and 28-31 shipped before these existed
-    self.assertEqual(int(EventNameSP.stockEcuReady), 31)
-    self.assertEqual(int(EventNameSP.bigModelAvailable), 32)
-    self.assertEqual(int(EventNameSP.bigModelLinkLost), 33)
+    # logs store the ordinal
+    self.assertEqual(int(EventNameZP.stockEcuReady), 4)
+    self.assertEqual(int(EventNameZP.bigModelAvailable), 5)
+    self.assertEqual(int(EventNameZP.bigModelLinkLost), 6)
 
   def test_a_fall_while_engaged_warns_for_five_seconds(self):
     self.drive_big(enabled=True)
@@ -133,7 +135,7 @@ class TestHandBack(AcceleratorEventsTest):
       self.assertNotIn('bigModelFailed', self.step(state=state, alive=False, enabled=True, mads=True))
 
   def test_link_lost_is_a_warning_and_nothing_else(self):
-    alerts = EVENTS_SP[EventNameSP.bigModelLinkLost]
+    alerts = EVENTS_ZP[EventNameZP.bigModelLinkLost]
     self.assertEqual(set(alerts), {ET.WARNING})
     alert = alerts[ET.WARNING]
     self.assertEqual((alert.alert_text_1, alert.alert_text_2), ("Big Model Lost", "Using small model"))
@@ -208,7 +210,7 @@ class TestSwitching(AcceleratorEventsTest):
       self.events_sp.clear()
       if tick == 0:
         self.events_sp.add(EventNameSP.bigModelReady)   # the native block, on modelV2.big's edge
-      self.sm['modelDataV2SP'].acceleratorState = 'running'
+      self.sm['modelDataV2SP'].zoompilot.acceleratorState = 'running'
       self.sm['modelV2'].big = True
       self.accel.update(self.sm, False, self.events, self.events_sp)
       heard.append(EventNameSP.bigModelReady in self.events_sp.names)
@@ -352,16 +354,16 @@ class TestOffer(AcceleratorEventsTest):
     self.assertEqual(self.ticks_with('bigModelAvailable', state='ready', enabled=True), OFFER_TICKS - 1)
 
   def test_chestnut_and_old_messages_do_not_announce_availability(self):
-    self.assertEqual(custom.ModelDataV2SP.new_message().acceleratorState, 'none')
+    self.assertEqual(custom.ModelDataV2SP.new_message().zoompilot.acceleratorState, 'none')
     self.assertFalse(self.offered(enabled=True))
     self.assertFalse(self.offered(big=True, enabled=True))
     self.assertFalse(self.offered(enabled=True))
 
   def test_running_big_suppresses_a_pending_status_from_previous_frame(self):
-    self.sm['modelDataV2SP'].acceleratorState = 'ready'
+    self.sm['modelDataV2SP'].zoompilot.acceleratorState = 'ready'
     self.sm['modelV2'].big = True
     self.accel.update(self.sm, True, self.events, self.events_sp)
-    self.assertNotIn(EventNameSP.bigModelAvailable, self.events_sp.names)
+    self.assertNotIn(EventNameZP.bigModelAvailable, self.events_sp.zp.names)
 
   def test_missing_invalid_or_stale_messages_never_announce(self):
     for service in ('modelV2', 'modelDataV2SP'):
@@ -384,17 +386,17 @@ class TestOffer(AcceleratorEventsTest):
     self.assertTrue(self.offered(available=True, enabled=True))
 
   def test_the_offer_and_the_chime_after_the_switch_read_differently(self):
-    offer = EVENTS_SP[EventNameSP.bigModelAvailable][ET.PERMANENT]
+    offer = EVENTS_ZP[EventNameZP.bigModelAvailable][ET.PERMANENT]
     chime = EVENTS_SP[EventNameSP.bigModelReady][ET.PERMANENT]
-    self.sm['modelDataV2SP'].acceleratorState = 'running'
+    self.sm['modelDataV2SP'].zoompilot.acceleratorState = 'running'
     self.assertEqual(chime(None, None, self.sm, False, 0, None).alert_text_1, 'Big Model Active')
     self.assertNotEqual(offer.alert_text_1, 'Big Model Active')
     # a chestnut's is still "Big Model Ready"
-    self.sm['modelDataV2SP'].acceleratorState = 'none'
+    self.sm['modelDataV2SP'].zoompilot.acceleratorState = 'none'
     self.assertEqual(chime(None, None, self.sm, False, 0, None).alert_text_1, 'Big Model Ready')
 
   def test_notification_has_no_control_effect(self):
-    alerts = EVENTS_SP[EventNameSP.bigModelAvailable]
+    alerts = EVENTS_ZP[EventNameZP.bigModelAvailable]
     self.assertEqual(set(alerts), {ET.PERMANENT})
     alert = alerts[ET.PERMANENT]
     self.assertEqual((alert.alert_text_1, alert.alert_text_2), ('Big Model Ready', 'Re-engage to switch'))

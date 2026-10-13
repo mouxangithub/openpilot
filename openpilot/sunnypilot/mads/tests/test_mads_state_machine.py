@@ -16,6 +16,7 @@ from openpilot.common.test import OpenpilotTestCase
 
 State = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 EventName = log.OnroadEvent.EventName
 
 # The event types that maintain the current state
@@ -217,7 +218,7 @@ class TestStockLkasOffLateralOnly(OpenpilotTestCase):
 
   def test_lka_off_engages_selfdrive_but_not_lateral(self):
     self.events.add(EventName.pcmEnable)
-    self.events_sp.add(EventNameSP.stockLkasOff)
+    self.events_sp.zp.add(EventNameZP.stockLkasOff)
     enabled, _ = SelfdriveStateMachine().update(self.events)
     assert enabled
     enabled, active = self.mads_machine.update()
@@ -227,7 +228,7 @@ class TestStockLkasOffLateralOnly(OpenpilotTestCase):
   def test_lka_off_alone_never_disables(self):
     for state in (State.enabled, State.paused):
       self.mads_machine.state = state
-      self.events_sp.add(EventNameSP.stockLkasOff)
+      self.events_sp.zp.add(EventNameZP.stockLkasOff)
       self.mads_machine.update()
       assert self.mads_machine.state == state
       self.events_sp.clear()

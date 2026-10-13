@@ -20,6 +20,7 @@ from openpilot.common.test import OpenpilotTestCase
 State = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
 EventName = log.OnroadEvent.EventName
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 SafetyModel = structs.CarParams.SafetyModel
 
 
@@ -277,7 +278,7 @@ class TestLateralMismatchCounter(OpenpilotTestCase):
       for _ in range(n):
         mads.data_sample()
       mads.update_events(cs)
-      return sd.events_sp.has(EventNameSP.controlsMismatchLateralWarning), sd.events_sp.has(EventNameSP.controlsMismatchLateral)
+      return sd.events_sp.zp.has(EventNameZP.controlsMismatchLateralWarning), sd.events_sp.has(EventNameSP.controlsMismatchLateral)
 
     # a fresh engagement can read stale for a pandaStates period: no alert yet
     assert events_after(LATERAL_MISMATCH_WARN_FRAMES - 1) == (False, False)
@@ -296,7 +297,7 @@ class TestLateralMismatchCounter(OpenpilotTestCase):
     for _ in range(LATERAL_MISMATCH_DISABLE_FRAMES):
       mads.data_sample()
     mads.update_events(make_car_state(v_ego=10.0))
-    assert not sd.events_sp.has(EventNameSP.controlsMismatchLateralWarning)
+    assert not sd.events_sp.zp.has(EventNameZP.controlsMismatchLateralWarning)
 
 
 # brand restrictions
