@@ -24,7 +24,6 @@ imported where it is used. tests/test_adapter.py holds the line.
 """
 from __future__ import annotations
 
-import functools
 import os
 import threading
 from collections import namedtuple
@@ -32,7 +31,7 @@ from pathlib import Path
 
 # the version of jetlink.openpilot's API this adapter is written to; any other
 # is treated as jetlink being absent, with the reason as the offroad alert
-API = 2
+API = 3
 
 # the gadget owner, as manager names the process and selfdrived lists it
 OWNER = 'jetlinkd'
@@ -54,6 +53,9 @@ KEYS = _Keys(link='JetlinkLink', offroad='IsOffroad', progress='AcceleratorProgr
 # USB-C port hosts one and is never held as a jetlink device beside it. The
 # hardware package is too heavy for the owner, so they are written out here
 CHESTNUT_IDS = frozenset({(0xADD1, 0x0001), (0x3801, 0x0001), (0x174C, 0x2464), (0x174C, 0x2463)})
+
+# what Adapter.in_control() reads
+IN_CONTROL = ('carState', 'carControl', 'carControlSP')
 
 OWNER_LOG = Path('/data/log/jetlink-owner.log')
 
@@ -110,6 +112,8 @@ class Adapter:
     # 110 us for the read, and the UI reads several five times a second. By
     # store, since a test or a bench runs under its own prefix
     self._stores: dict[Path, object] = {}
+    # in_control's, made on modeld's first frame
+    self._sm = None
 
   # -- params ---------------------------------------------------------------
 
@@ -185,84 +189,71 @@ class Adapter:
                      constants=V2ModelConstants, lat_smooth_seconds=LAT_SMOOTH_SECONDS,
                      long_smooth_seconds=LONG_SMOOTH_SECONDS, get_action_from_model=get_action_from_model)
 
+  def in_control(self) -> bool:
+    """Is openpilot or MADS in control? The joining model asks before every
+    frame and swaps its large model in only while not. selfdrived's own
+    answer (enabled or mads.enabled, what accelerator_events is handed), as
+    controlsd republishes it, off a SubMaster of the adapter's. MADS counts
+    with its lateral paused (a stop, a blinker, the brake): it steers again on
+    its own. A service late or invalid counts as in control; without carState
+    a card that died would have the swap land on stale controls. A rule that
+    fails holds the swap off, never modeld."""
+    try:
+      if self._sm is None:
+        from openpilot.cereal import messaging
+        self._sm = messaging.SubMaster(list(IN_CONTROL))
+      sm = self._sm
+      sm.update(0)
+      result = not (sm.all_alive(IN_CONTROL) and sm.all_valid(IN_CONTROL)) or \
+        bool(sm['carControl'].enabled or sm['carControlSP'].mads.enabled)
+    except Exception as e:
+      _failed('in_control', e)
+      return True
+    _failed_hooks.pop('in_control', None)
+    return result
+
   def event(self, name: str, **fields) -> None:
     self.log.event(name, **fields)
 
 
 # -- what the hooks call ------------------------------------------------------
 
-class _Absent:
-  """jetlink's answers when it cannot run here: not checked out (why is
-  None), or a package this build cannot use (why says so, as the offroad
-  alert, to someone who turned the link on)."""
+# jetlink's answers when it cannot run here: not checked out, or a package this
+# build cannot use. The link off, by Jetlink method; a callable is handed the
+# hook's arguments
+_DEFAULTS = {'enabled': False, 'status': None, 'reason': None, 'prepare': False, 'attach': None,
+             'request_shutdown': False, 'shutdown_pending': False, 'model_state': None,
+             'should_extend_catalog': False, 'extend_catalog': lambda catalog: catalog}
 
-  def __init__(self, why: str | None):
-    self.why = why
-
-  def enabled(self) -> bool:
-    return False
-
-  def status(self):
-    return None
-
-  def reason(self) -> str | None:
-    if self.why is None:
-      return None
-    # the setting as jetlink reads it, a file: hardwared asks twice a second
-    try:
-      on = 0 < int((_params_dir() / KEYS.link).read_bytes()) < len(MODES)
-    except (OSError, ValueError):
-      on = False
-    return self.why if on else None
-
-  def prepare(self) -> bool:
-    return False
-
-  def attach(self, small, cam_w: int, cam_h: int):
-    return None
-
-  def request_shutdown(self, reason: str = '') -> bool:
-    return False
-
-  def shutdown_pending(self) -> bool:
-    return False
-
-  def should_extend_catalog(self) -> bool:
-    return False
-
-  def extend_catalog(self, catalog: dict) -> dict:
-    return catalog
-
-  def model_state(self, ref: str) -> str | None:
-    return None
-
-
+# jetlink for this process, or why it cannot run here ('' with no checkout);
+# None until first use
 _bound = None
 _binding = threading.Lock()
 
 
 def _api():
-  """jetlink for this process, bound to the adapter on first use. Kept, the
-  null answers included: Python does not cache a failed import, and searching
-  the path again on every UI and hardwared call costs more than the call. One
-  per process: prepare() and attach() have to reach the same one."""
+  """jetlink for this process, bound to the adapter on first use, or None when
+  it cannot run here. Kept, the null answer included: Python does not cache a
+  failed import, and searching the path again on every UI and hardwared call
+  costs more than the call. One per process: prepare() and attach() have to
+  reach the same one."""
   global _bound
   if _bound is None:
     with _binding:
       if _bound is None:
         _bound = _bind()
-  return _bound
+  return None if isinstance(_bound, str) else _bound
 
 
 def _bind():
   try:
     import jetlink
     if getattr(jetlink, '__file__', None) is None:
-      return _Absent(None)   # an empty jetlink_repo, which Python takes for a namespace package
+      return ''   # an empty jetlink_repo, which Python takes for a namespace package
     import jetlink.openpilot as jl
   except ModuleNotFoundError as e:
     if e.name == 'jetlink':
-      return _Absent(None)   # no checkout: the link does not exist on this device
+      return ''   # no checkout: the link does not exist on this device
     if (e.name or '').startswith('jetlink.'):
       return _unusable("jetlink package too old for this build", e)
     return _unusable(f"jetlink failed to load: {e}", e)
@@ -277,9 +268,9 @@ def _bind():
     return _unusable(f"jetlink failed to start: {type(e).__name__}: {e}", e)
 
 
-def _unusable(why: str, error: Exception | None = None) -> _Absent:
+def _unusable(why: str, error: Exception | None = None) -> str:
   _log_failure(why, error)
-  return _Absent(why)
+  return why
 
 
 # manager, hardwared, the model manager and the UI call in here on every
@@ -298,111 +289,117 @@ def _log_failure(what: str, error: Exception | None) -> None:
     pass
 
 
-def _guarded(default):
-  def wrap(hook):
-    @functools.wraps(hook)
-    def call(*args, **kwargs):
-      try:
-        result = hook(*args, **kwargs)
-      except Exception as e:
-        # once per distinct error, as jetlink's readers log: the UI would log
-        # a failing status five times a second
-        error = f"{type(e).__name__}: {e}"
-        if _failed_hooks.get(hook.__name__) != error:
-          _failed_hooks[hook.__name__] = error
-          _log_failure(f"{hook.__name__}() failed", e)
-        return default(*args, **kwargs) if callable(default) else default
-      _failed_hooks.pop(hook.__name__, None)
+def _failed(name: str, error: Exception) -> None:
+  # once per distinct error, as jetlink's readers log: the UI would log a
+  # failing status five times a second
+  text = f"{type(error).__name__}: {error}"
+  if _failed_hooks.get(name) != text:
+    _failed_hooks[name] = text
+    _log_failure(f"{name}() failed", error)
+
+
+def _hook(name: str, *args):
+  """Jetlink.<name>(*args), or the link off (_DEFAULTS) when jetlink cannot run
+  here or raises."""
+  default = _DEFAULTS[name]
+  try:
+    api = _api()
+    if api is not None:
+      result = getattr(api, name)(*args)
+      _failed_hooks.pop(name, None)
       return result
-    return call
-  return wrap
+  except Exception as e:
+    _failed(name, e)
+  return default(*args) if callable(default) else default
 
 
-@_guarded(False)
 def should_run(started: bool, params, CP) -> bool:
   """manager's rule for jetlinkd: the link is on and no chestnut is fitted.
   jetlinkd runs onroad too: a gadget whose owner exits leaves the bus."""
-  return _api().enabled()
+  return _hook('enabled')
 
 
-@_guarded(None)
 def status():
   """One snapshot for the UI and the panels (jetlink.openpilot.Status), or
   None when there is no jetlink here."""
-  return _api().status()
+  return _hook('status')
 
 
-@_guarded(None)
 def reason() -> str | None:
   """Why the link the user turned on cannot run: hardwared's offroad alert.
   Files only, so hardwared can ask twice a second."""
-  return _api().reason()
+  if _api() is None and _bound:
+    # a package this build cannot use says why, to someone who turned the
+    # link on. The setting as jetlink reads it, a file
+    try:
+      on = 0 < int((_params_dir() / KEYS.link).read_bytes()) < len(MODES)
+    except (OSError, ValueError):
+      on = False
+    return _bound if on else None
+  return _hook('reason')
 
 
-@_guarded(False)
-def prepare() -> bool:
+def prepare(chestnut: bool) -> bool:
   """modeld, before config_realtime_process: will the link join this modeld?
-  The GPU's setup has to happen now, or its threads inherit the frame loop's
-  realtime priority and core."""
-  return _api().prepare()
+  Never beside a chestnut, which runs the large model itself. The GPU's setup
+  has to happen now, or its threads inherit the frame loop's realtime
+  priority and core."""
+  return not chestnut and _hook('prepare')
 
 
-# what in_control() reads; both modelds subscribe to all three
-IN_CONTROL = ('carState', 'carControl', 'carControlSP')
+def attach(model, small, cam_w: int, cam_h: int):
+  """modeld, once the camera is up and `small` is built: the model to run.
+  The joining model, `small` driving until the link has joined, when
+  prepare() said yes; `model` otherwise."""
+  joined = _hook('attach', small, cam_w, cam_h)
+  return model if joined is None else joined
 
 
-@_guarded(True)
-def in_control(sm) -> bool:
-  """modeld, before every frame, onto the model: is openpilot or MADS in
-  control? jetlink's large model swaps in only while it is not. selfdrived's
-  own answer (enabled or mads.enabled, what accelerator_events is handed),
-  as controlsd republishes it, read off modeld's SubMaster. MADS counts with
-  its lateral paused (a stop, a blinker, the brake): it steers again on its
-  own. A service late or invalid counts as in control; without carState a
-  card that died would have the swap land on stale controls."""
-  if not (sm.all_alive(IN_CONTROL) and sm.all_valid(IN_CONTROL)):
-    return True
-  return bool(sm['carControl'].enabled or sm['carControlSP'].mads.enabled)
+# the joining model's handovers as modeld last saw them
+_handovers = 0
 
 
-@_guarded(None)
-def attach(small, cam_w: int, cam_h: int):
-  """modeld, once the camera is up and `small` is built: the model to run,
-  `small` driving until the link has joined; None unless prepare() said yes."""
-  return _api().attach(small, cam_w, cam_h)
+def handed_over(model) -> bool:
+  """modeld, after every run(): did it change which model drives? The joining
+  model counts its swaps and hand-backs; the stall of one is not lag, as for
+  a chestnut's fallback, and nor are the drops of the frame it happens on."""
+  global _handovers
+  handovers = getattr(model, 'handovers', 0)
+  changed, _handovers = handovers != _handovers, handovers
+  return changed
 
 
-@_guarded(False)
+def state(model) -> str:
+  """modelDataV2SP.acceleratorState: the joining model's, else none."""
+  return getattr(model, 'big_model_state', 'none')
+
+
 def request_shutdown(reason: str = '') -> bool:
   """hardwared, once, when the comma is about to power off for good: ask for
   the far end to go down with it. Returns at once: True when the request now
   waits for jetlinkd, which shutdown_pending() follows."""
-  return _api().request_shutdown(reason)
+  return _hook('request_shutdown', reason)
 
 
-@_guarded(False)
 def shutdown_pending() -> bool:
   """hardwared, every loop after request_shutdown(), until it puts DoShutdown:
   has jetlinkd still to take the request? A stat."""
-  return _api().shutdown_pending()
+  return _hook('shutdown_pending')
 
 
-@_guarded(None)
 def model_state(ref: str) -> str | None:
   """The big-model list, when it opens: 'ready' when the Jetson has built the
   model, 'downloaded' when its file is on the comma, else None."""
-  return _api().model_state(ref)
+  return _hook('model_state', ref)
 
 
-@_guarded(False)
 def should_extend_catalog() -> bool:
   """Should the big-model catalog carry the models newer catalogs list?
   Hardware, not the link setting: the model manager drops a pick its catalog
   does not list."""
-  return _api().should_extend_catalog()
+  return _hook('should_extend_catalog')
 
 
-@_guarded(lambda catalog: catalog)
 def extend_catalog(catalog: dict) -> dict:
   """The big-model catalog with those models folded in."""
-  return _api().extend_catalog(catalog)
+  return _hook('extend_catalog', catalog)
