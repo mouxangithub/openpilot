@@ -38,7 +38,7 @@ def get_car_bins(fingerprint):
   cfg = SPEED_DEP_CARS.get(fingerprint, {})
   if 'speed_bp' in cfg:
     centers = list(cfg['speed_bp'])
-    bounds = SpeedBinLearner._centers_to_bounds(centers)
+    bounds = SpeedBinLearner._centers_to_bounds(centers, cfg.get('min_speed'))
   else:
     centers = list(DEFAULT_SPEED_BIN_CENTERS)
     bounds = list(DEFAULT_SPEED_BIN_BOUNDS)

@@ -61,8 +61,8 @@ class SpeedBinLearner:
   @staticmethod
   def _centers_to_bounds(centers, min_speed=None):
     """Bin bounds at the midpoints between consecutive centers; the outer edges take min_speed
-    (the config's, when it dropped bins below a steering floor) or the default range's 5 m/s,
-    and the default range's 40 m/s."""
+    (the table's own, or the one the config sets when it drops bins below a steering floor) or
+    the default range's 5 m/s, and the default range's 40 m/s."""
     bounds = []
     for i, c in enumerate(centers):
       lo = (DEFAULT_SPEED_BIN_BOUNDS[0][0] if min_speed is None else min_speed) if i == 0 else (centers[i - 1] + c) / 2

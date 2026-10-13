@@ -365,6 +365,25 @@ A refit of the cached points (7,400 to 12,000 per bin) leads the filter the same
 refit overshot below 16.4 m/s. 34.5 and 37 m/s still have no points and keep their values;
 seed_version stays 2.
 
+Learned values and a crawl bin (2026-10-13, seed_version 3). Every bin on the test car is full
+(10,000 to 12,000 points; 34.5 and 37 m/s learned since 10-04), and the table takes its filtered
+values (device on 347240ff5, relaxed band, decay 250):
+
+| center (m/s) | 3.5 | 6.5 | 9.5 | 12.0 | 16.4 | 21.0 | 28.0 | 34.5 | 37.0 |
+|---|---|---|---|---|---|---|---|---|---|
+| LAF | 1.80 (new) | 2.16 (2.37) | 2.37 (2.63) | 1.94 (2.13) | 1.69 (1.74) | 1.80 (1.85) | 1.96 (2.27) | 2.20 (2.54) | 2.31 (2.56) |
+| friction | 0.220 (new) | 0.206 (0.201) | 0.151 (0.145) | 0.143 (0.135) | 0.140 (0.134) | 0.122 (0.104) | 0.105 (0.084) | 0.095 (0.071) | 0.085 (0.070) |
+
+The 3.5 m/s bin covers 2 to 5 m/s (`min_speed = 2.0`; its upper edge is the 5 m/s every other
+bin already had, so their ranges are unchanged). Below 2 m/s the lateral accel is mostly roll
+noise. It is fit with `speed_bin_seeds.py` over the test car's rlogs since 2026-09-30 (664
+segments, 5,934 points in the band): LAF 1.80 +-0.41, friction 0.253 +-0.009, the same on builds
+since 10-04 alone. Friction was asked to come out lower at a crawl; the data has it slightly
+higher. The offline fit reads friction 4 to 25% above the device's filtered values bin for bin
+(15% at 6.5 m/s), so the seed is 0.253 / 1.15 = 0.220. The LAF is noise-limited, as the 09-30
+cross-validation found for a 3 to 5 m/s bin, and is left for the learner to settle. The new
+centers retire every cache whatever the version; the bins restart at these values at MIN decay.
+
 ## Constants
 
 | name | value | measurement | route |
