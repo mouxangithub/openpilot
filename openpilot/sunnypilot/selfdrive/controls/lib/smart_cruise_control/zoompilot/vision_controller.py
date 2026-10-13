@@ -26,13 +26,16 @@ from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.vision_con
 
 __all__ = ['ACTIVE_STATES', 'ENABLED_STATES', 'SmartCruiseControlVision', 'VisionState']
 
-# Curves are taken at or below this lateral acceleration, m/s2. Keyed on the set speed, like the
-# escalation ceiling, so the ceiling does not rise as the car slows. Back roads (set 40 mph or
-# less) get the higher one; highway curves keep 1.8, where hard braking was the complaint (doc).
-_A_LAT_REG_V_BP = [17.9, 26.8]  # m/s set speed; 40 -> 60 mph
-_A_LAT_REG_V = [2.0, 1.8]
+# Curves are taken at or below this lateral acceleration (v^2 * curvature), m/s2, keyed on the
+# curve's own speed, not the set speed. Tolerance falls with speed, but banked highway curves
+# (2.5-4 deg) hide 0.4-0.65 m/s2, so the ceiling dips mid-range and recovers (doc).
+_A_LAT_CURVE_BP = [15.6, 24.6, 31.3]  # m/s curve speed; 35, 55, 70 mph
+_A_LAT_CURVE = [2.2, 2.1, 2.2]
 # Reserve margin for actuation delay at the apex.
 _PLAN_MARGIN = 0.95
+# The same table by curvature (ascending), so each point's ceiling needs no speed solve.
+_A_LAT_KAPPA_BP = [a * _PLAN_MARGIN / v ** 2 for v, a in zip(_A_LAT_CURVE_BP[::-1], _A_LAT_CURVE[::-1], strict=True)]
+_A_LAT_KAPPA = [a * _PLAN_MARGIN for a in _A_LAT_CURVE[::-1]]
 
 # Compensate the measured distance-dependent curvature bias before solving. The gain returns
 # to one in the near field, changing brake timing without changing apex speed.
@@ -44,6 +47,11 @@ _KAPPA_BIAS_V_BP = [22.4, 26.8]  # m/s; full correction to 50 mph, none from 60 
 _KAPPA_BIAS_V_FADE = [1.0, 0.0]
 # Both models share the table: the big one under-reads less at range, and its own fit by
 # seconds ahead entered curves hotter (doc).
+
+# On stock ACC the profile minimum is the dash target, so the gain sets depth as well as timing.
+# Braking for a highway bend drops vEgo under the fade band and restores the full gain, which
+# overshot the target (doc). From a 55 mph set speed the profile uses the raw read.
+_KAPPA_DEPTH_SET_BP = [20.1, 24.6]  # m/s set speed; 45 -> 55 mph
 
 # Below the bias band the far read also flickers: a bend seen at 150 m can vanish from the
 # path at 100 m and come back at 50 m, and the planner released 100 m short of the apex (the
@@ -80,6 +88,11 @@ _V_FLOOR = 0.5  # m/s; model velocity floor when converting yaw rate to curvatur
 _TURNING_LAT_ACC_TH = 1.6  # current lat acc above this displays as turning
 _LEAVING_LAT_ACC_TH = 1.3  # turning displays as leaving below this
 _FINISH_LAT_ACC_TH = 1.1  # leaving ends below this
+
+
+def curve_speed(kappa) -> np.ndarray:
+  """Allowed speed at each path point under the curve-speed ceiling, planning margin included."""
+  return allowed_speed(kappa, np.interp(kappa, _A_LAT_KAPPA_BP, _A_LAT_KAPPA))
 
 
 class SmartCruiseControlVision(UpstreamVision):
@@ -125,18 +138,20 @@ class SmartCruiseControlVision(UpstreamVision):
     dist[1:] = np.cumsum(np.hypot(np.diff(x), np.diff(y)))
 
     lim = self.limits
-    a_lat_max = float(np.interp(self.v_cruise_setpoint, _A_LAT_REG_V_BP, _A_LAT_REG_V)) * _PLAN_MARGIN
     # The raw near field says whether the car is in a curve.
     near_d = max(self.v_ego, MIN_V) * (_NEAR_T_BIG if model.big else _NEAR_T)
     near = dist <= near_d  # dist[0] is 0, so never empty
-    self.v_near_min = float(np.min(allowed_speed(kappa[near], a_lat_max)))
+    k_near = float(np.max(kappa[near]))
+    self.v_near_min = float(curve_speed(k_near))
     # Publish near-path lateral acceleration for UI state.
-    self.max_pred_lat_acc = float(np.max(kappa[near]) * self.v_ego ** 2)
+    self.max_pred_lat_acc = k_near * self.v_ego ** 2
 
-    # Use corrected curvature for brake timing.
+    # Corrected curvature times the brake, and sets the profile below a 45-55 mph set speed.
     fade = np.interp(self.v_ego, _KAPPA_BIAS_V_BP, _KAPPA_BIAS_V_FADE)
-    kappa = kappa * (1. + (np.interp(dist, _KAPPA_BIAS_D, _KAPPA_BIAS_GAIN) - 1.) * fade)
-    v_allowed = allowed_speed(kappa, a_lat_max)
+    depth_fade = min(fade, np.interp(self.v_cruise_setpoint, _KAPPA_DEPTH_SET_BP, [1., 0.]))
+    bias = np.interp(dist, _KAPPA_BIAS_D, _KAPPA_BIAS_GAIN) - 1.
+    v_allowed = curve_speed(kappa * (1. + bias * fade))
+    v_profile = curve_speed(kappa * (1. + bias * depth_fade))
 
     # Stock ACC lead time includes the set-speed traversal to the lowest target.
     t_lead = lim.t_lead
@@ -159,7 +174,7 @@ class SmartCruiseControlVision(UpstreamVision):
       a_far = required_decel(self.v_ego, np.where(near, np.inf, v_allowed), dist, d_resp)
       a_ceiling = float(np.interp(self.v_cruise_setpoint, _ESCALATION_V_BP, [a_near, lim.a_budget]))
       self.a_needed = max(min(a_near, a_ceiling), min(a_far, lim.a_budget))
-    v_max = backward_pass(v_allowed, dist, lim.a_budget)
+    v_max = backward_pass(v_profile, dist, lim.a_budget)
     self.v_profile_now = float(v_max[0])
     self.v_dip_ahead = min_profile_speed(v_max, dist, float(dist[-1]))
 

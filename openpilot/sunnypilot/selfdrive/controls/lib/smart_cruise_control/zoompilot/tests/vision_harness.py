@@ -26,10 +26,10 @@ from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot.
 
 V_EGO = 20.
 SETPOINT = 20.
-# the lateral ceiling at SETPOINT, before the planning margin
-A_LAT_MAX = float(np.interp(SETPOINT, vision_controller._A_LAT_REG_V_BP, vision_controller._A_LAT_REG_V))
+# lateral ceiling below the table's first breakpoint, where every test curve sits; before the planning margin
+A_LAT_MAX = vision_controller._A_LAT_CURVE[0]
 CURVE_KAPPA = 0.02  # r = 50 m
-CURVE_V = (A_LAT_MAX / CURVE_KAPPA) ** 0.5  # allowed speed at the ceiling, ~9.9 m/s
+CURVE_V = (A_LAT_MAX / CURVE_KAPPA) ** 0.5  # allowed speed at the ceiling, ~10.5 m/s
 
 
 def make_cp(op_long: bool = True) -> structs.CarParams:
@@ -95,7 +95,7 @@ def patch_gain(gain):
 
 def flat_ceiling(a_lat: float):
   """A flat lateral ceiling, for tests whose geometry pins numbers to one ceiling."""
-  return mock.patch.object(vision_controller, '_A_LAT_REG_V', [a_lat, a_lat])
+  return mock.patch.object(vision_controller, '_A_LAT_KAPPA', [a_lat * vision_controller._PLAN_MARGIN] * len(vision_controller._A_LAT_KAPPA))
 
 
 class VisionCase:

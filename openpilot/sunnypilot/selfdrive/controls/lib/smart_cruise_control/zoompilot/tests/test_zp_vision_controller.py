@@ -9,6 +9,7 @@ the allowed speed, and the far-field curvature bias correction. The highway hori
 per-path budgets, publication ramp and lookahead wire live in test_zp_vision_horizon.py;
 the road rendering and the base case live in vision_harness.py.
 """
+import numpy as np
 import pytest
 
 from openpilot.cereal import custom
@@ -240,16 +241,23 @@ class TestCurveRecovery(VisionCase):
     return self.run_road(v, lambda s: self.KAPPA, n=5, cur_curvature=self.KAPPA, setpoint=setpoint, scc=scc,
                          attenuate=True)
 
-  def test_lateral_ceiling_follows_the_set_speed(self):
-    (sp_lo, sp_hi), (a_lo, a_hi) = vision_controller._A_LAT_REG_V_BP, vision_controller._A_LAT_REG_V
+  def test_lateral_ceiling_follows_the_curve_not_the_set_speed(self):
     back_road, highway = self.stock(), self.stock()
-    self.in_curve(back_road, 12., setpoint=sp_lo)
-    self.in_curve(highway, 12., setpoint=sp_hi)
-    assert back_road.v_near_min == pytest.approx(highway.v_near_min * (a_lo / a_hi) ** 0.5)
+    self.in_curve(back_road, 12., setpoint=18.)
+    self.in_curve(highway, 12., setpoint=31.)
+    assert back_road.v_near_min == pytest.approx(highway.v_near_min)
+    assert back_road.v_near_min == pytest.approx(float(vision_controller.curve_speed(self.KAPPA)))
+
+  def test_curve_speed_meets_the_ceiling_at_each_breakpoint(self):
+    for v, a_lat in zip(vision_controller._A_LAT_CURVE_BP, vision_controller._A_LAT_CURVE, strict=True):
+      kappa = a_lat * vision_controller._PLAN_MARGIN / v ** 2
+      assert float(vision_controller.curve_speed(kappa)) == pytest.approx(v)
+    speeds = vision_controller.curve_speed(np.linspace(0.0005, 0.03, 200))
+    assert np.all(np.diff(speeds) < 0)
 
   def test_stock_target_rises_to_the_profile_below_the_allowed_speed(self):
     scc = self.commit(self.stock())
-    v = 13.  # just under the curve's allowed speed
+    v = 14.  # just under the curve's allowed speed
     self.in_curve(scc, v)
     assert scc.solver_active and scc.a_required == 0.
     assert v < scc.v_near_min < v + 1.

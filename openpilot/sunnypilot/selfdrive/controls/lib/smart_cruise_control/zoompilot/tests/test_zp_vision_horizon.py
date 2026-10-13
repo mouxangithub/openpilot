@@ -15,7 +15,7 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control import MIN_V
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import A_PUB_MIN, PUB_JERK, get_planning_limits, publish_ramp
-from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot.vision_controller import SmartCruiseControlVision
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot.vision_controller import SmartCruiseControlVision, curve_speed
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot.tests.vision_harness import (
   SETPOINT, V_EGO, VisionCase, curve_at, make_cp, model_for_road)
 
@@ -96,7 +96,7 @@ class TestPerPathBudgets(VisionCase):
   def test_stock_path_commits_earlier_and_prepositions_the_dip(self):
     # same road: op-long (1.2 budget, 0.36 s lead) still holds; stock ACC (0.75 budget,
     # response + dash traversal lead) is already inside its braking distance
-    road = curve_at(140., kappa=0.014)
+    road = curve_at(120., kappa=0.014)
     self.run_road(V_EGO, road, attenuate=True)
     assert not self.scc_v.is_active
 
@@ -106,6 +106,17 @@ class TestPerPathBudgets(VisionCase):
     # the dash cannot track a profile; it gets sent to the dip itself
     assert abs(stock.output_v_target - stock.v_dip_ahead) < 1.0
     assert stock.v_dip_ahead < V_EGO
+
+  def test_highway_set_speed_takes_the_dip_from_the_raw_read(self):
+    # under the bias band the corrected read times the brake either way; only a back-road set
+    # speed lets it deepen the dash target
+    road = curve_at(100., kappa=0.004)
+    back_road, highway = self.stock(), self.stock()
+    self.run_road(V_EGO, road, scc=back_road, setpoint=V_EGO)
+    self.run_road(V_EGO, road, scc=highway, setpoint=29.)
+    assert highway.a_required == pytest.approx(back_road.a_required)
+    assert highway.v_dip_ahead == pytest.approx(float(curve_speed(0.004)), rel=1e-3)
+    assert back_road.v_dip_ahead < highway.v_dip_ahead - 1.
 
 
 class TestPublishRamp:
