@@ -9,13 +9,13 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from openpilot.cereal import log
+from openpilot.cereal import log, messaging
 from openpilot.common.params import Params
 from openpilot.common.realtime import DT_CTRL
 from openpilot.common.test import OpenpilotTestCase
 from openpilot.selfdrive.controls.lib.drive_helpers import clip_curvature, MAX_LATERAL_JERK
 from openpilot.sunnypilot.selfdrive.controls.lib.lane_change_smoothing import (
-  LaneChangeSmoothing, level_jerk_factor, lane_change_time_extra, read_level,
+  LaneChangeSmoothing, clip_curvature_rate, read_level, LEVEL_JERK_FACTOR, LEVEL_TIME_EXTRA,
   LEVELS, LEVEL_OFF, LEVEL_FAST, LEVEL_MEDIUM, LEVEL_EXTRA_SLOW, UNWIND_JERK_MAX, SMOOTH_RELEASE_T,
 )
 
@@ -30,7 +30,11 @@ def make_cs(v_ego):
 
 
 def make_model(state=LaneChangeState.off, direction=LaneChangeDirection.none):
-  return SimpleNamespace(meta=SimpleNamespace(laneChangeState=state, laneChangeDirection=direction))
+  # a real modelV2, as controlsd gets it: its enums compare equal to ints but do not hash like them
+  msg = messaging.new_message('modelV2')
+  msg.modelV2.meta.laneChangeState = state
+  msg.modelV2.meta.laneChangeDirection = direction
+  return msg.modelV2
 
 
 LEFT_STARTING = make_model(LaneChangeState.laneChangeStarting, LaneChangeDirection.left)
@@ -48,14 +52,14 @@ class TestLevelMapping:
   def test_every_level_is_slower_than_stock(self):
     # the model's own lane change asks for 2-3 m/s^3 (0.4-0.65 of ISO); a cap above that
     # would not bind and the level would be stock in disguise
-    assert level_jerk_factor(LEVEL_OFF) == 1.0
-    factors = [level_jerk_factor(lv) for lv in LEVELS[1:]]
+    assert LEVEL_JERK_FACTOR[LEVEL_OFF] == 1.0
+    factors = [LEVEL_JERK_FACTOR[lv] for lv in LEVELS[1:]]
     assert all(0.0 < f <= 0.4 for f in factors)
     assert factors == sorted(factors, reverse=True)  # fast -> extra slow tightens
-    assert level_jerk_factor(LEVEL_FAST) < UNWIND_JERK_MAX
+    assert LEVEL_JERK_FACTOR[LEVEL_FAST] < UNWIND_JERK_MAX
 
   def test_time_extra_grows_with_gentleness(self):
-    extras = [lane_change_time_extra(lv) for lv in LEVELS]
+    extras = [LEVEL_TIME_EXTRA[lv] for lv in LEVELS]
     assert extras == sorted(extras)
     assert extras[0] == 0.0
 
@@ -129,12 +133,26 @@ class TestLaneChangeSmoothing(OpenpilotTestCase):
       self.update(OFF, 0.0, 0.0)
     assert self.update(OFF, -0.005, 0.0) > self.lcs.set_jerk
 
-  def test_clip_curvature_scales_with_factor(self):
+  def test_rate_clip_scales_with_factor(self):
     full, _ = clip_curvature(15.0, 0.0, 0.01, 0.0)
-    half, _ = clip_curvature(15.0, 0.0, 0.01, 0.0, jerk_factor=0.5)
+    half, _ = clip_curvature(15.0, 0.0, clip_curvature_rate(15.0, 0.0, 0.01, 0.5), 0.0)
     assert half == pytest.approx(full / 2)
-    stock, _ = clip_curvature(15.0, 0.0, 0.01, 0.0, jerk_factor=1.0)
-    assert stock == full
+    assert clip_curvature_rate(15.0, 0.0, 0.01, 1.0) == 0.01  # stock: clip_curvature's own clip
+
+  def test_rate_clip_is_inside_clip_curvatures(self):
+    # clip_curvature must pass the pre-clipped value through: the result is exactly a jerk clip
+    # at the factor followed by the accel and max-curvature clamps, which alone set limited
+    rng = np.random.default_rng(0)
+    for jf in (*[LEVEL_JERK_FACTOR[lv] for lv in LEVELS[1:]], UNWIND_JERK_MAX, 0.999):
+      for _ in range(200):
+        v, roll = rng.uniform(0.0, 40.0), rng.normal(0.0, 0.05)
+        prev = rng.normal(0.0, 0.02)
+        new = prev + rng.normal(0.0, 0.002) * rng.choice([0.01, 1.0, 100.0])
+        pre = clip_curvature_rate(v, prev, new, jf)
+        out, limited = clip_curvature(v, prev, pre, roll)
+        rate = MAX_LATERAL_JERK / max(v, 1.0) ** 2 * DT_CTRL
+        assert abs(pre - prev) <= jf * rate * (1 + 1e-12)
+        assert limited == (out != pre)
 
 
 class TestClosedLoop(OpenpilotTestCase):
@@ -163,7 +181,7 @@ class TestClosedLoop(OpenpilotTestCase):
       jf = 1.0
       if smoothing is not None:
         jf = smoothing.update(make_cs(self.V_EGO), make_model(state, LaneChangeDirection.left), True, k_model, k_cmd)
-      k_next, _ = clip_curvature(self.V_EGO, k_cmd, k_model, 0.0, jf)
+      k_next, _ = clip_curvature(self.V_EGO, k_cmd, clip_curvature_rate(self.V_EGO, k_cmd, k_model, jf), 0.0)
       jerks.append(abs(k_next - k_cmd) / DT_CTRL * self.V_EGO ** 2)
       k_cmd = k_next
       y_dot += k_cmd * self.V_EGO ** 2 * DT_CTRL

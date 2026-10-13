@@ -52,11 +52,11 @@ def get_center_chatter_jerk_deadzone(v_ego, setpoint):
 
 
 class LatControlTorque(LatControlTorqueV0):
-  # v0 already supplies negative measurement rate to the shared PID.
-  KD_SCHEDULE = [KD_INTERP_SPEEDS, KD_INTERP]
-
   def __init__(self, CP, CP_SP, CI, dt):
     super().__init__(CP, CP_SP, CI, dt)
+    # v0 already supplies negative measurement rate to the shared PID; the extension holds the
+    # same PID object, so the schedule reaches it too
+    self.pid._k_d = [KD_INTERP_SPEEDS, KD_INTERP]
     # Buffer curvature and apply current v^2 on read to avoid speed-change artifacts in jerk.
     self.curvature_request_buffer = deque([0.] * self.lat_accel_request_buffer_len, maxlen=self.lat_accel_request_buffer_len)
     self.jerk_filter = FirstOrderFilter(0.0, 1 / (2 * np.pi * LP_FILTER_CUTOFF_HZ), self.dt)
@@ -127,16 +127,13 @@ class LatControlTorque(LatControlTorqueV0):
       freeze_integrator = steer_limited_by_safety or CS.steeringPressed or CS.vEgo < 5
       # Suppress derivative response to driver steering.
       error_rate = 0.0 if CS.steeringPressed else -measurement_rate
-      if self.extension.overrides_output:
-        # Prevent a future output override from stepping the shared PID twice.
-        output_torque = 0.0
-      else:
-        output_lataccel = self.pid.update(pid_log.error,
-                                          error_rate,
-                                          feedforward=ff,
-                                          speed=CS.vEgo,
-                                          freeze_integrator=freeze_integrator)
-        output_torque = self.torque_from_lateral_accel(output_lataccel, self.torque_params)
+      # the output overrides are off for good (disable_output_overrides), so the shared PID is v2's alone
+      output_lataccel = self.pid.update(pid_log.error,
+                                        error_rate,
+                                        feedforward=ff,
+                                        speed=CS.vEgo,
+                                        freeze_integrator=freeze_integrator)
+      output_torque = self.torque_from_lateral_accel(output_lataccel, self.torque_params)
 
       # The extension may replace pid_log.error and output_torque. Bind by keyword because the
       # signature is shared across controller versions.

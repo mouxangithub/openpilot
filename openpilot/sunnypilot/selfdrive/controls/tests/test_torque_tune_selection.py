@@ -10,7 +10,7 @@ See the LICENSE.md file in the root directory for more details.
 # a bare params.get() returns None for an unset param, and float(None) raises, or, guarded,
 # can otherwise fall through to the upstream controller without an explicit error.
 # The small model's declared default is upstream's 0.0; the steer-to-zero Mazdas are seeded to
-# 2.0 by _seed_mazda_torque_defaults instead, so other brands never inherit a tune fitted to
+# 2.0 by seed_mazda_torque_defaults instead, so other brands never inherit a tune fitted to
 # that EPS. A big model's is v1 for every brand.
 #
 # The v0 constructor is patched out: these tests pin the branch that gets taken, not the
@@ -27,8 +27,8 @@ from opendbc.car.structs import car
 from openpilot.cereal import custom
 from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
-from openpilot.sunnypilot.selfdrive.controls import controlsd_ext
-from openpilot.sunnypilot.selfdrive.controls.controlsd_ext import TUNE_SWAP_INACTIVE_FRAMES, ControlsExt
+from openpilot.sunnypilot.selfdrive.controls import controls_lateral_zp
+from openpilot.sunnypilot.selfdrive.controls.controls_lateral_zp import TUNE_SWAP_INACTIVE_FRAMES, ControlsLateralZP
 
 class FakeLaC(str):
   """A controller stand-in that compares as its version label and counts resets."""
@@ -61,8 +61,8 @@ def require_current_libparams(params, *keys: str) -> None:
 
 @pytest.fixture
 def ctx(monkeypatch):
-  monkeypatch.setattr(controlsd_ext, "LatControlTorqueV0", lambda *a, **k: FakeLaC(V0))
-  monkeypatch.setattr(controlsd_ext, "LatControlTorqueV2", lambda *a, **k: FakeLaC(V2))
+  monkeypatch.setattr(controls_lateral_zp, "LatControlTorqueV0", lambda *a, **k: FakeLaC(V0))
+  monkeypatch.setattr(controls_lateral_zp, "LatControlTorqueV2", lambda *a, **k: FakeLaC(V2))
   with OpenpilotPrefix():
     params = Params()
     params.put_bool("EnforceTorqueControl", True, block=True)  # the enforce-off tests flip it
@@ -76,12 +76,12 @@ def ctx(monkeypatch):
 
 def select(controls):
   """What controlsd does at startup: build and install the small model's controller."""
-  controls.LaC = ControlsExt.initialize_lateral_control(controls, FakeLaC(V1), MagicMock(), 0.01)
+  controls.LaC = ControlsLateralZP.initialize_lateral_control(controls, FakeLaC(V1), MagicMock(), 0.01)
   return controls.LaC
 
 
 def swap(controls, big: bool):
-  ControlsExt.select_lateral_control(controls, {'modelV2': SimpleNamespace(big=big)})
+  ControlsLateralZP.select_lateral_control(controls, {'modelV2': SimpleNamespace(big=big)})
 
 
 class TestTorqueTuneSelection:
@@ -179,7 +179,7 @@ class TestTorqueTuneSelection:
     big = controls.LaC
 
     def frame(lat_active):
-      ControlsExt.note_lat_active(controls, lat_active)
+      ControlsLateralZP.note_lat_active(controls, lat_active)
       swap(controls, big=False)
 
     assert big == V1 and big.resets == 1

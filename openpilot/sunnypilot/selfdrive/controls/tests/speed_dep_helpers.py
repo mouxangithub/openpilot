@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 
 import openpilot.cereal.messaging as messaging
 from opendbc.car.structs import car
-from openpilot.sunnypilot.selfdrive.locationd.torqued_ext import LIVE_TORQUE_PARAMETERS_SP_SERVICE
+from openpilot.sunnypilot.selfdrive.locationd.speed_bin_learner import LIVE_TORQUE_PARAMETERS_SP_SERVICE
 
 # sample tables, the shape of a speed_dependent.toml entry
 SAMPLE_SPEED_BP = [6.5, 10.0, 15.0, 21.0, 26.5, 32.0, 37.5]
@@ -81,7 +81,6 @@ def make_ext_stub(fingerprint='TEST_CAR'):
   stub._speed_dep_speed_bp = []
   stub._speed_dep_lat_accel_factor_bp = []
   stub._speed_dep_friction_bp = []
-  stub._speed_dep_car_cfg = None
   return stub
 
 
