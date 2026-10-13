@@ -6,7 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 
 
-from openpilot.selfdrive.ui.mici.widgets.button import BigParamControl
+from openpilot.selfdrive.ui.sunnypilot.mici.widgets.button import BigParamControlSP
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.scroller import NavScroller
@@ -18,10 +18,13 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 # TrueVEgoUI, HideVEgoUI, ShowTurnSignals, RocketFuel, ChevronInfo, DevUIInfo) were no-ops here and
 # were removed.
 TOGGLE_PARAMS = [
-  (tr("blind spot"), "BlindSpot"),
-  (tr("rainbow mode"), "RainbowMode"),
-  (tr("green light alert"), "GreenLightAlert"),
-  (tr("lead depart alert"), "LeadDepartAlert"),
+  (tr("blind spot"), "BlindSpot", tr("Shows a warning on screen when a car is in your blind spot.")),
+  (tr("rainbow mode"), "RainbowMode", tr("Draws the driving path as a rainbow.\n" +
+                                         "It does not change how the car drives.")),
+  (tr("green light alert"), "GreenLightAlert", tr("Chimes when the light you're stopped at turns green with no car ahead.\n" +
+                                                  "Only while cruise is not engaged. Check the road before you go.")),
+  (tr("lead depart alert"), "LeadDepartAlert", tr("Chimes when you're stopped and the car ahead pulls away.\n" +
+                                                  "Only while cruise is not engaged. Check the road before you go.")),
 ]
 
 
@@ -29,10 +32,10 @@ class VisualsLayoutMici(NavScroller):
   def __init__(self):
     super().__init__()
 
-    self._toggles: dict[str, BigParamControl] = {}
+    self._toggles: dict[str, BigParamControlSP] = {}
     items = []
-    for label, param in TOGGLE_PARAMS:
-      toggle = BigParamControl(label, param)
+    for label, param, description in TOGGLE_PARAMS:
+      toggle = BigParamControlSP(label, param, description=description)
       self._toggles[param] = toggle
       items.append(toggle)
 

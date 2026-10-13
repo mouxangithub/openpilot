@@ -19,8 +19,7 @@ and never un-bumps, so a 20 Hz reader cannot miss one.
 from openpilot.cereal import custom
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N
 from openpilot.selfdrive.modeld.constants import ModelConstants
-from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import get_planning_limits, publish_ramp
-from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.speed_profile import required_decel
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import get_planning_limits, publish_cap_decel
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import ACTIVE_STATES, ENABLED_STATES, V_CRUISE_UNSET
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 
@@ -33,10 +32,9 @@ _T_ACTIVE = float(ModelConstants.T_IDXS[CONTROL_N])
 
 
 class SpeedLimitAssistMirror:
-  pcm_op_long = False
-
   def __init__(self, CP, CP_SP):
     self.limits = get_planning_limits(CP)
+    self.session = None  # carStateSP.zoompilot.cruiseSession, set by the planner before each update
     self.reset()
 
   def reset(self) -> None:
@@ -61,7 +59,11 @@ class SpeedLimitAssistMirror:
     # session this class mirrors, so there is nothing to do here
     pass
 
-  def update(self, session, v_ego: float, distance: float, a_ego: float, events_sp: EventsSP) -> None:
+  def update(self, long_enabled: bool, long_override: bool, v_ego: float, a_ego: float, v_cruise_cluster: float, speed_limit: float,
+             speed_limit_final_last: float, has_speed_limit: bool, distance: float, events_sp: EventsSP) -> None:
+    # SpeedLimitAssist's signature, so the planner calls either owner the same way; the limit
+    # inputs go unused, card's arbiter already applied them to the session
+    session = self.session
     self.state = session.state
     # the arbiter publishes vCap as a target, a frozen hold, or V_CRUISE_UNSET, never 0; a 0
     # is capnp's default from a not-yet-received carStateSP and would win the plan min()
@@ -71,9 +73,7 @@ class SpeedLimitAssistMirror:
     # the decel actually required to arrive at the cap (it keys ICBM's overshoot gap on
     # stock ACC); computed here because the resolver's distance lives in plannerd
     if self.is_active and 0.0 < v_cap < v_ego:
-      d_eff = max(distance, v_ego * _T_ACTIVE)
-      a_des = -required_decel(v_ego, [v_cap], [d_eff])
-      self._a_out = publish_ramp(a_des, self._a_out, self.limits, v_ego)
+      self._a_out = publish_cap_decel(v_cap, distance, _T_ACTIVE, self._a_out, self.limits, v_ego)
     else:
       self._a_out = a_ego
     self.output_a_target = self._a_out

@@ -125,9 +125,8 @@ servo's own sends.
 ## Actuation profile
 
 `ICBMActuationProfile` carries what the servo needs to know about a body ECU.
-`DEFAULT_PROFILE` is discrete taps only, no grid, no hold, no stable-setpoint
-requirement: the long-standing ICBM behaviour. A brand changes behaviour only by adding
-a measured entry.
+`DEFAULT_PROFILE` is discrete taps only, no hold, no stable-setpoint requirement: the
+long-standing ICBM behaviour. A brand changes behaviour only by adding a measured entry.
 
 Mazda CX-5 2022, from a 52-episode driver long-press corpus and an injected-press
 efficiency analysis over 674 rlog segments:
@@ -194,8 +193,8 @@ slowly while the limiter is live (aTarget flaps between the ECU's coast, downshi
 brake stages) and at the build rate once the plan is back on cruise, where a residual
 only holds the dash down and stalls the restore.
 
-Decel overshoot has no user toggle. It runs on every brand with an entry in
-`DECEL_OVERSHOOT_PARAMS` (a measured plant; Mazda today) and on no other, since the only
+Decel overshoot has no user toggle. It runs on every brand whose actuation profile has a
+`decel_overshoot` table (a measured plant; Mazda today) and on no other, since the only
 alternative is walking the dash to the whole dip, which brakes as hard as the dip is deep.
 The former `SmartCruiseDecelOvershoot` param and its one-time Mazda seed are gone; a stale
 key on an updated device is ignored.
@@ -255,12 +254,12 @@ and 0.75 at 45 mph, kept at 10 although the refit puts it at 8.9 (interval 8.4-9
 45 mph a budget request brakes nearer -0.82 than -0.75. The 0.90 and 1.05 columns are
 unconstrained (their intervals run to 29 mph) and stay on the previous fit's extrapolation.
 
-Planners budget 0.75 m/s^2 (`limits._STOCK_A_BUDGET`, 10 / 7.75 mph of gap), so an on-time
-manoeuvre never asks for more. The columns past it are the ECU's remaining range, reached
+Planners budget 0.75 m/s^2 (the profile's `stock_a_budget`, 10 / 7.75 mph of gap), so an
+on-time manoeuvre never asks for more. The columns past it are the ECU's remaining range, reached
 only when the vision planner's measured near field says the car is late, and less of it
 from a 50 mph set speed, none from 60 (`scc-curve-planning.md`, what the planner asks for).
 The planners size the stock actuation lead from the same gap:
-`limits._SERVO_TRACK_GAP['mazda'] = 8 mph` is all of a dip the servo walks before the ECU
+the Mazda profile's `track_gap = 8` mph is all of a dip the servo walks before the ECU
 brakes at budget, and the rest is tracked down rather than waited out.
 
 ## Restore quiet window
@@ -310,7 +309,6 @@ checked-out stack, so a baseline is the same command with `PYTHONPATH=<worktree>
 | `DECEL_OVERSHOOT_RISE` | 10 mph/s | full gap in ~0.5 s, inside `REACT_TIMER` | n/a |
 | `DECEL_OVERSHOOT_RELEASE` | 3 mph/s | no pumping between ECU decel stages | route 126 |
 | `tap_rate_hz` (mazda) | 5 Hz | 0.93 steps/press at 5 Hz vs 0.47 at ~9 Hz | 674 segments |
-| `longpress_step` / first / period (mazda) | 5 mph / 0.6 s / 0.55 s | physical hold grid | 52 episodes |
 | servo walk rate (mazda) | 4 mph/s | 294/294 steps at 1 mph; 4.1 hold, 3.8 taps | route 126 |
 
 ## Tried and rejected
