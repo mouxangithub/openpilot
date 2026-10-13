@@ -141,12 +141,12 @@ class SpeedBinLearner:
 
   @staticmethod
   def _within_bounds(vals, bounds):
-    """True when every value is finite and inside its bin's (lo, hi) clip range. The wire is
+    """Per bin, whether its value is finite and inside its (lo, hi) clip range. The wire is
     Float32, so a filter sitting on a bound can read back a rounding step past it."""
     vals = np.asarray(vals, dtype=float)
     lo, hi = np.asarray(bounds, dtype=float).T
     tol = 1e-5 * np.maximum(np.abs(hi), 1.0)
-    return bool(np.all(np.isfinite(vals)) and np.all(vals >= lo - tol) and np.all(vals <= hi + tol))
+    return np.isfinite(vals) & (vals >= lo - tol) & (vals <= hi + tol)
 
   def _centers_match(self, cached_centers) -> bool:
     # a legacy cache has no centers; length first so allclose never sees a shape mismatch
@@ -160,9 +160,11 @@ class SpeedBinLearner:
     values and the points. Both must carry this car's restore key (fingerprint, tuning type,
     offline seeds, VERSION) and the fork cache this config's seed_version and bin centers; the
     filtered values are taken only
-    when upstream's cache was written valid, and since the bins are one tune a single bad
-    value rejects them whole. Points are restored on top when they pass their own checks, and
-    are simply skipped when they fail them. Reads from Params for whichever argument is None."""
+    when upstream's cache was written valid. Each bin is judged on its own: one whose value is
+    non-finite or outside its clip range (bounds that moved under it: a seed refresh that kept
+    seed_version, or less-restrict switched off) falls back to its seed at MIN decay while the
+    rest restore. Points are restored on top when they pass their own checks, and are simply
+    skipped when they fail them. Reads from Params for whichever argument is None."""
     if not self.speed_binned:
       return
     try:
@@ -207,10 +209,6 @@ class SpeedBinLearner:
       if len(cached_lafs) != n_bins or len(cached_frictions) != n_bins:
         cloudlog.info("speed-dep: cache bin count mismatch, restarting learning")
         return
-      if (not self._within_bounds(cached_lafs, self.speed_bin_lat_accel_factor_bounds)
-          or not self._within_bounds(cached_frictions, self.speed_bin_friction_bounds)):
-        cloudlog.warning("speed-dep: cached bin values non-finite or outside sanity bounds, restarting learning")
-        return
       decay = float(cache_ltp.decay)
       if not np.isfinite(decay):
         cloudlog.warning("speed-dep: cached decay non-finite, restarting learning")
@@ -218,9 +216,13 @@ class SpeedBinLearner:
       # torqued only writes a decay inside this range; the clip guards a hand-edited cache
       decay = float(np.clip(decay, torqued.MIN_FILTER_DECAY, torqued.MAX_FILTER_DECAY))
 
+      bin_ok = (self._within_bounds(cached_lafs, self.speed_bin_lat_accel_factor_bounds)
+                & self._within_bounds(cached_frictions, self.speed_bin_friction_bounds))
+      if not bin_ok.all():
+        cloudlog.warning(f"speed-dep: cached bins {np.flatnonzero(~bin_ok).tolist()} non-finite or outside sanity bounds, reseeding them")
       # values only from a valid cache, as upstream does for its globals
       if cache_ltp.valid:
-        for i in range(n_bins):
+        for i in np.flatnonzero(bin_ok):
           self.speed_bin_filtered[i]['latAccelFactor'].x = cached_lafs[i]
           self.speed_bin_filtered[i]['frictionCoefficient'].x = cached_frictions[i]
       else:
@@ -229,11 +231,12 @@ class SpeedBinLearner:
       if cached_points is not None:
         for i in range(n_bins):
           self.speed_bin_points[i].load_points(cached_points[i])
-      # one decay on the wire (upstream's), so every bin resumes at it rather than at MIN
-      self.speed_bin_decays = [decay] * n_bins
-      for filters in self.speed_bin_filtered:
-        filters['latAccelFactor'].update_alpha(decay)
-        filters['frictionCoefficient'].update_alpha(decay)
+      # one decay on the wire (upstream's), so every good bin resumes at it rather than at MIN;
+      # a reseeded bin re-learns from MIN like a fresh one
+      self.speed_bin_decays = [decay if ok else torqued.MIN_FILTER_DECAY for ok in bin_ok]
+      for filters, bin_decay in zip(self.speed_bin_filtered, self.speed_bin_decays, strict=True):
+        filters['latAccelFactor'].update_alpha(bin_decay)
+        filters['frictionCoefficient'].update_alpha(bin_decay)
       cloudlog.info("restored speed-bin torque params from cache")
     except Exception:
       cloudlog.exception("speed-dep: failed to restore cache")

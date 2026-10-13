@@ -150,41 +150,31 @@ class TestCacheRestore:
     assert_untouched(est, seeds)
 
 
-  def test_nan_in_one_bin_rejects_whole_cache(self, fake_params):
-    """Upstream drops the entire cache on any bad content (one try/except, full reset on NaN).
-    The bins are one interpolated tune, so a partial restore would leave a step between a
-    cached bin and a re-seeded neighbour; the whole cache goes, points included."""
+  @pytest.mark.parametrize("field, bad_bin, bad_value", [
+    ('laf', 1, lambda lo, hi: float('nan')),
+    ('friction', -1, lambda lo, hi: float('inf')),
+    ('laf', 2, lambda lo, hi: hi * 1.5),
+    ('friction', 0, lambda lo, hi: lo - 0.05),
+  ], ids=['nan_laf', 'inf_friction', 'laf_above_bound', 'friction_below_bound'])
+  def test_bad_bin_reseeds_only_that_bin(self, fake_params, field, bad_bin, bad_value):
+    """A value non-finite or past the clip range the learner applies to its SVD output (bounds
+    moved under the cache: a seed refresh that kept seed_version, less-restrict switched off)
+    reseeds that bin alone at MIN decay. The rest restore, and every bin's points still load,
+    so the bad one re-learns from them."""
     est = TorqueEstimator(make_cp())
-    seeds = seed_values(est)
+    seed_lafs, seed_frictions = seed_values(est)
     lafs, frictions = in_bounds_values(est)
-    lafs[1] = float('nan')
+    vals, bounds = (lafs, est.speed_bin_lat_accel_factor_bounds) if field == 'laf' else (frictions, est.speed_bin_friction_bounds)
+    bad = bad_bin % len(est.speed_bin_bounds)
+    vals[bad] = bad_value(*bounds[bad])
 
     est._restore_ext_cache(_cache(decay=200.0), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions, _one_point_per_bin(est)))
 
-    assert_untouched(est, seeds)
-
-  def test_inf_friction_rejects_whole_cache(self, fake_params):
-    est = TorqueEstimator(make_cp())
-    seeds = seed_values(est)
-    lafs, frictions = in_bounds_values(est)
-    frictions[-1] = float('inf')
-    est._restore_ext_cache(_cache(), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions))
-    assert_untouched(est, seeds)
-
-  def test_value_outside_sanity_bounds_rejected(self, fake_params):
-    """Same clip range the learner applies to its SVD output; a cached value past it cannot
-    have come from this config."""
-    est = TorqueEstimator(make_cp())
-    seeds = seed_values(est)
-    lafs, frictions = in_bounds_values(est)
-    lafs[2] = est.speed_bin_lat_accel_factor_bounds[2][1] * 1.5
-    est._restore_ext_cache(_cache(), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions))
-    assert_untouched(est, seeds)
-
-    lafs, frictions = in_bounds_values(est)
-    frictions[0] = est.speed_bin_friction_bounds[0][0] - 0.05
-    est._restore_ext_cache(_cache(), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions))
-    assert_untouched(est, seeds)
+    for i, filters in enumerate(est.speed_bin_filtered):
+      expected = (seed_lafs[i], seed_frictions[i], MIN_FILTER_DECAY) if i == bad else (lafs[i], frictions[i], 200.0)
+      assert (filters['latAccelFactor'].x, filters['frictionCoefficient'].x, est.speed_bin_decays[i]) == expected
+      assert filters['latAccelFactor'].alpha == pytest.approx(DT_MDL / (expected[2] + DT_MDL))
+      assert len(est.speed_bin_points[i]) == 1
 
   def test_value_on_clip_bound_accepted(self, fake_params):
     """A filter railed at its clip bound reads back through Float32 a rounding step past it."""

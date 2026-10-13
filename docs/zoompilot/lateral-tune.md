@@ -295,9 +295,11 @@ points.
 Restore (`_restore_ext_cache`, guards added 2026-09-02 in `fbabecf35c`): both caches
 must carry upstream's restore key (fingerprint, tuning type, offline seeds, VERSION, via
 `CarParamsPrevRoute`) and the fork cache this config's `seed_version` and bin centers; filtered values are
-taken only when upstream's cache was written valid; anything non-finite or outside a bin's
-clip range rejects the whole cache, because the bins are one interpolated tune and a partial
-restore leaves a step between a cached bin and a re-seeded neighbour. The decay is restored
+taken only when upstream's cache was written valid. Each bin is judged on its own: a value
+that is non-finite or outside its clip range reseeds that bin alone, at MIN decay, and the
+rest restore. Until 2026-10-13 one such bin rejected the whole cache, so a seed refresh that
+kept `seed_version` or switching less-restrict off could put every bin back on its seed for
+the drive. The decay is restored
 from upstream's cache rather than reset to MIN each boot (which had made the bins re-learn
 five times faster after every restart). The points are checked on their own (bin count,
 finiteness); when they fail, the values still restore and the buckets start empty. A fork
