@@ -152,10 +152,14 @@ class DesireHelper:
                          ((carstate.steeringTorque > 0 and self.lane_change_direction == LaneChangeDirection.left) or
                           (carstate.steeringTorque < 0 and self.lane_change_direction == LaneChangeDirection.right))
 
-        left_blocked = carstate.leftBlindspot or left_edge_detected or left_lane_line_blocked
-        right_blocked = carstate.rightBlindspot or right_edge_detected or right_lane_line_blocked
-        blindspot_detected = ((left_blocked and self.lane_change_direction == LaneChangeDirection.left) or
-                              (right_blocked and self.lane_change_direction == LaneChangeDirection.right))
+        # Blind-spot and the carrot lane-line block are hard blocks a nudge may not
+        # override; a road edge is soft and update_lane_change lets a steering nudge
+        # through it. Edge must not be folded into blindspot_detected, or the BSM
+        # branch blocks what the nudge is meant to allow (test_nudge_overrides_edge).
+        left_bsm = carstate.leftBlindspot or left_lane_line_blocked
+        right_bsm = carstate.rightBlindspot or right_lane_line_blocked
+        blindspot_detected = ((left_bsm and self.lane_change_direction == LaneChangeDirection.left) or
+                              (right_bsm and self.lane_change_direction == LaneChangeDirection.right))
 
         edge_detected = ((left_edge_detected and self.lane_change_direction == LaneChangeDirection.left) or
                          (right_edge_detected and self.lane_change_direction == LaneChangeDirection.right))
