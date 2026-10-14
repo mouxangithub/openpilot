@@ -251,10 +251,12 @@ struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
   events @6 :List(OnroadEventSP.Event);
   e2eAlerts @7 :E2eAlerts;
   accelController @8 :AccelController;
-  # zoompilot's longitudinal nest, appended at @9 (not zp's @8, which the fork's
-  # accelController owns): e2e_set_speed / lead_forecast live here. Ordinals are the
-  # wire contract, so renumbering is the only safe resolution - reusing @8 would alias.
-  zoompilot @9 :LongitudinalPlanZP;
+  # fork's trafficLight @9 / carrot @10 / leadForecast @11 / e2eSetSpeed @12 / e2eLeadGap @13
+  # follow below. zoompilot's longitudinal nest (e2e_set_speed, lead_forecast, sccVAheadMin)
+  # is appended at the next free ordinal @14 (not zp's @8, which the fork's accelController
+  # owns). Ordinals are the wire contract, so appending past the fork's fields is the only
+  # safe resolution - reusing @8/@9 would alias.
+  zoompilot @14 :LongitudinalPlanZP;
 
   struct DynamicExperimentalControl {
     state @0 :DynamicExperimentalControlState;
@@ -771,10 +773,10 @@ struct ModelDataV2SP @0xa1680744031fdb2d {
   rightLaneChangeEdgeBlock @2 :Bool;
   zoompilot @3 :ModelDataV2ZP;
 
-  bigModelAvailableDEPRECATED @3 :Bool;  # acceleratorState ready says it; ordinal kept for old logs
-
   # Runtime state of an off-board accelerator (sunnypilot/accelerators). Offroad
   # progress stays in the AcceleratorProgress param; telemetry waits for a customReserved slot.
+  # NOTE: the fork's old bigModelAvailable @3 was dropped in the zp merge - it aliased
+  # zoompilot @3; zoompilot.acceleratorState now carries the same information.
   acceleratorState @4 :AcceleratorState;
   acceleratorNameDEPRECATED @5 :Text;  # always jetlink; ordinal kept for old logs
 
