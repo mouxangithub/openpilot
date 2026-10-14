@@ -156,28 +156,6 @@ class ModelsLayout(Widget):
       self._link_status = status
       self.accelerator_link_item.set_description(self._link_description(status))
 
-    # initial visibility/selection for the param-bound accelerator row (the
-    # periodic _update_state tick also refreshes this, but late)
-    self._refresh_accelerator_items()
-
-  @staticmethod
-  def _link_description(status: str) -> str:
-    # An Android phone rides the USB mode exactly like a Jetson or a Mac
-    # (jetlink docs/android-app.md: "Jetlink on USB"), so the USB
-    # option covers it; iOS keeps its own mode.
-    what = tr("Run big models over a connected device running Jetlink. USB and iOS turn off ADB.")
-    return f"{what} {status}".strip()
-
-  def _refresh_accelerator_items(self):
-    # the setting is a param read, so this rides the half-second tick
-    self.accelerator_link_item.set_visible(link_toggle_meaningful())
-    self.accelerator_link_item.action_item.set_selected_button(MODES.index(link_mode()))
-    self.accelerator_link_item.action_item.set_enabled(ui_state.is_offroad())
-    status = link_status()
-    if status != self._link_status:
-      self._link_status = status
-      self.accelerator_link_item.set_description(self._link_description(status))
-
   def _update_lagd_description(self, lagd_toggle: bool):
     desc = tr("Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. " +
               "Keeping this on provides the stock openpilot experience.")
