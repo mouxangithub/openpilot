@@ -28,7 +28,9 @@ from websocket import (ABNF, WebSocket, WebSocketException, WebSocketTimeoutExce
                        create_connection, WebSocketConnectionClosedException)
 
 import openpilot.cereal.messaging as messaging
-from openpilot.sunnypilot.models.model_name import DEFAULT_MODEL, DEFAULT_BIG_MODEL
+from openpilot.sunnypilot import jetlink_adapter
+from openpilot.selfdrive.modeld.helpers import chestnut_present
+from openpilot.sunnypilot.models.model_name import DEFAULT_MODEL
 from openpilot.sunnypilot.selfdrive.car.sync_sunnylink_params import update_car_list_param
 from openpilot.sunnypilot.sunnylink.api import SunnylinkApi
 from openpilot.sunnypilot.sunnylink.utils import sunnylink_need_register, sunnylink_ready, get_param_as_byte, save_param_from_base64_encoded_string
@@ -184,7 +186,7 @@ def getParamsMetadata() -> str:
     schema["capabilities"] = generate_capabilities()
     schema["capability_labels"] = CAPABILITY_LABELS
     schema["default_model"] = DEFAULT_MODEL
-    schema["default_big_model"] = DEFAULT_BIG_MODEL
+    schema["default_big_model"] = jetlink_adapter.default_big_model(chestnut_present(), jetlink_adapter.status())
     schema["chestnut_active"] = params.get_bool("ChestnutActive")
     raw = json.dumps(schema, separators=(",", ":")).encode("utf-8")
     return base64.b64encode(gzip.compress(raw)).decode("utf-8")

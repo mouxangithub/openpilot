@@ -393,6 +393,16 @@ def model_state(ref: str) -> str | None:
   return _hook('model_state', ref)
 
 
+def default_big_model(chestnut: bool, jetlink) -> str:
+  """What an empty big-model slot runs, by name: jetlink's default with no
+  chestnut fitted, else the chestnut's model in the tree. `jetlink` is a
+  status() snapshot or None; the UI passes its own, sunnylink a fresh one."""
+  from openpilot.sunnypilot.models.model_name import DEFAULT_BIG_MODEL
+  if not chestnut and jetlink is not None and jetlink.default_model:
+    return jetlink.default_model
+  return DEFAULT_BIG_MODEL
+
+
 def should_extend_catalog() -> bool:
   """Should the big-model catalog carry the models newer catalogs list?
   Hardware, not the link setting: the model manager drops a pick its catalog
