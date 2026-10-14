@@ -11,7 +11,6 @@ import pyray as rl
 from openpilot.selfdrive.ui.layouts.settings import settings as OP
 from openpilot.selfdrive.ui.layouts.settings.firehose import FirehoseLayout
 from openpilot.selfdrive.ui.layouts.settings.imu_calibration import ImuCalibrationLayout
-from openpilot.selfdrive.ui.sunnypilot.layouts.settings.toggles import TogglesLayoutSP
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise import CruiseLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.developer import DeveloperLayoutSP
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.device import DeviceLayoutSP
@@ -25,6 +24,7 @@ from openpilot.selfdrive.ui.sunnypilot.layouts.settings.osm import OSMLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.software import SoftwareLayoutSP
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.steering import SteeringLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.sunnylink import SunnylinkLayout
+from openpilot.selfdrive.ui.sunnypilot.layouts.settings.toggles import TogglesLayoutSP
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.trips import TripsLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.vehicle import VehicleLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.visuals import VisualsLayout
@@ -56,6 +56,9 @@ OP.PanelType = IntEnum(  # type: ignore[assignment] # ty: ignore[invalid-assignm
   ],
   start=0,
 )
+
+# where the home screen's experimental mode button opens settings: the alpha long toggles head Cruise
+EXPERIMENTAL_MODE_PANEL = OP.PanelType.CRUISE
 
 
 @dataclass

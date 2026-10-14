@@ -62,6 +62,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"GsmRoaming", {PERSISTENT | BACKUP, BOOL}},
     {"HardwareSerial", {PERSISTENT, STRING}},
     {"HasAcceptedTerms", {PERSISTENT, STRING, "0"}},
+    {"IcbmDemandMigrated", {PERSISTENT | BACKUP, BOOL}},  // ICBM toggle to ICBM on demand (intelligent_cruise_button_management/migration.py)
     {"InstallDate", {PERSISTENT, TIME}},
     {"IsDriverViewEnabled", {CLEAR_ON_MANAGER_START, BOOL}},
     {"IsEngaged", {PERSISTENT, BOOL}},
@@ -70,6 +71,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"IsMetric", {PERSISTENT | BACKUP, BOOL}},
     {"IsOffroad", {CLEAR_ON_MANAGER_START, BOOL}},
     {"IsTakingSnapshot", {CLEAR_ON_MANAGER_START, BOOL}},  // offroad camera check (carrot vision runner)
+    {"ModelManager_CarryOver", {PERSISTENT, JSON}},  // model picks waiting to be re-queued after a selector bump (models/default_bootstrap.py)
+    {"OffroadModeRequested", {CLEAR_ON_MANAGER_START, BOOL}},
     {"Offroad_IsTakingSnapshot", {CLEAR_ON_MANAGER_START, JSON}},
     // Jetlink (accelerator link): what runs the large model off the device.
     // JetlinkSpec carries whether the engine is built, which must survive a reboot
@@ -140,6 +143,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"RouteCount", {PERSISTENT, INT, "0"}},
     {"SnoozeUpdate", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, BOOL}},
     {"SshEnabled", {PERSISTENT | BACKUP, BOOL}},
+    {"StockEcuHandBackRequest", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, JSON}},
+    {"StockEcuHandBackResult", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, JSON}},
     {"TermsVersion", {PERSISTENT, STRING}},
     {"TorqueBar", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"TrainingVersion", {PERSISTENT, STRING}},

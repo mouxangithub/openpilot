@@ -24,6 +24,7 @@ artifacts/
 # created at launch for comma hardware PYTHONPATH (PC uses editable installs via pyproject.toml)
 /msgq
 /opendbc
+/jetlink
 /rednose
 /teleoprtc
 /tinygrad
@@ -127,3 +128,6 @@ sessions/
 !.run/*
 *.apk
 /jetlink_ci/
+
+# Screenshot output stays untracked because PNG files use an LFS remote unavailable to installers.
+openpilot/sunnypilot/selfdrive/ui/tests/screenshots/

@@ -7,6 +7,7 @@ See the LICENSE.md file in the root directory for more details.
 from openpilot.selfdrive.ui.layouts.settings.device import DeviceLayout
 from openpilot.selfdrive.ui.onroad.cabin_camera_dialog import CabinCameraDialog
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.selfdrive.ui.sunnypilot.ui_state import set_always_offroad
 from openpilot.common.hardware import HARDWARE
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
@@ -171,7 +172,7 @@ class DeviceLayoutSP(DeviceLayout):
         ))
 
     gui_app.push_widget(ConfirmDialog(
-      text=tr("Are you sure you want to reset all sunnypilot settings to default? Once the settings are reset, there is no going back."),
+      text=tr("Are you sure you want to reset all zoompilot settings to default? Once the settings are reset, there is no going back."),
       confirm_text=tr("Reset"), callback=_second_confirm
     ))
 
@@ -181,13 +182,13 @@ class DeviceLayoutSP(DeviceLayout):
       gui_app.push_widget(alert_dialog(tr("Disengage to Enter Always Offroad Mode")))
       return
 
-    _offroad_mode_state = ui_state.params.get_bool("OffroadMode")
+    _offroad_mode_state = ui_state.always_offroad
     _offroad_mode_str = tr("Are you sure you want to exit Always Offroad mode?") if _offroad_mode_state else \
                         tr("Are you sure you want to enter Always Offroad mode?")
 
     def _set_always_offroad(result: int):
       if result == DialogResult.CONFIRM and not ui_state.engaged:
-        ui_state.params.put_bool("OffroadMode", not _offroad_mode_state)
+        set_always_offroad(ui_state.params, not _offroad_mode_state)
 
     gui_app.push_widget(ConfirmDialog(_offroad_mode_str, tr("Confirm"), callback=lambda result: _set_always_offroad(result)))
 
@@ -201,7 +202,7 @@ class DeviceLayoutSP(DeviceLayout):
     super()._update_state()
 
     # Handle Always Offroad button
-    always_offroad = ui_state.params.get_bool("OffroadMode")
+    always_offroad = ui_state.always_offroad
 
     # Text & Color
     offroad_mode_btn_text = tr("Exit Always Offroad") if always_offroad else tr("Enable Always Offroad")

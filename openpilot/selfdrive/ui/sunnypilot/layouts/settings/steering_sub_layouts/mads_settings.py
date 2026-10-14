@@ -28,6 +28,9 @@ MADS_UNIFIED_ENGAGEMENT_MODE_BASE_DESC = "{engage}<br><h4>{note}</h4>".format(
   note=tr("Note: Once lateral control is engaged via UEM, it will remain engaged until it is manually disabled via the MADS button or car shut off."),
 )
 
+MADS_TJA_BUTTON_DESC = tr("The physical TJA button toggles Automatic Lane Centering and MRCC only controls cruise. "
+                          + "Main Cruise and UEM no longer engage or disengage lateral control. Enable only if your car has the button.")
+
 STATUS_CHECK_COMPATIBILITY = tr("Start the vehicle to check vehicle compatibility.")
 DEFAULT_TO_OFF = tr("This feature defaults to OFF, and does not allow selection due to vehicle limitations.")
 DEFAULT_TO_ON = tr("This feature defaults to ON, and does not allow selection due to vehicle limitations.")
@@ -63,10 +66,19 @@ class MadsSettingsLayout(Widget):
       callback=self._update_steering_mode_description,
     )
 
+    self._tja_button_toggle = toggle_item_sp(
+      title=lambda: tr("Mazda TJA Button"),
+      description=MADS_TJA_BUTTON_DESC,
+      param="MazdaTjaButton",
+      enabled=ui_state.is_offroad,
+    )
+    self._tja_button_toggle.set_visible(lambda: ui_state.offroad_brand() == "mazda")
+
     self.items = [
       self._main_cruise_toggle,
       self._unified_engagement_toggle,
       self._steering_mode,
+      self._tja_button_toggle,
     ]
 
   def _update_state(self):
@@ -103,7 +115,7 @@ class MadsSettingsLayout(Widget):
     return False
 
   def _update_steering_mode_description(self, button_index: int):
-    base_desc = tr("Choose how Automatic Lane Centering (ALC) behaves after the brake pedal is manually pressed in sunnypilot.")
+    base_desc = tr("Choose how Automatic Lane Centering (ALC) behaves after the brake pedal is manually pressed in zoompilot.")
     result = base_desc + "<br><br>"
     for opt in MADS_STEERING_MODE_OPTIONS:
       mode_desc = tr(opt[1])

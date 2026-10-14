@@ -126,7 +126,7 @@ class VCruiseHelper(VCruiseHelperSP):
       self.v_cruise_kph = V_CRUISE_UNSET
       self.v_cruise_cluster_kph = V_CRUISE_UNSET
 
-    if not self.CP.pcmCruise or not self.CP_SP.pcmCruiseSpeed:
+    if not self.CP.pcmCruise or not self.pcm_cruise_speed:
       self.update_button_timers(CS, enabled)
 
   def _update_v_cruise_non_pcm(self, CS, enabled, is_metric):
@@ -194,7 +194,7 @@ class VCruiseHelper(VCruiseHelperSP):
     self.v_cruise_kph += v_cruise_reference_new - v_cruise_reference
 
     # If set is pressed while overriding, clip cruise speed to minimum of vEgo
-    if CS.gasPressed and button_type in (ButtonType.decelCruise, ButtonType.setCruise):
+    if CS.gasPressed and self.op_owns_set_speed and button_type in (ButtonType.decelCruise, ButtonType.setCruise):
       self.v_cruise_kph = max(self.v_cruise_kph, CS.vEgo * CV.MS_TO_KPH)
 
     self.v_cruise_kph = np.clip(round(self.v_cruise_kph, 1), self.v_cruise_min, V_CRUISE_MAX)

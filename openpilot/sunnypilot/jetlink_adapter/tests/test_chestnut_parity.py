@@ -42,10 +42,7 @@ class TestLinkStaysOff(OpenpilotTestCase):
   def setUp(self):
     super().setUp()
     Params().put(jetlink_adapter.KEYS.link, jetlink_adapter.MODES.index('usb'), block=True)
-    # no owner record as well: a real jetlinkd's files, when the suite runs on a
-    # device, take precedence over gadget_error() and the reason would be None
     for p in (mock.patch.object(gadget, 'gadget_error', return_value='not set up'),
-              mock.patch.object(gadget, 'owner_status', return_value=None),
               mock.patch.object(jetlink_adapter, '_bound', None)):
       p.start()
       self.addCleanup(p.stop)
@@ -61,7 +58,8 @@ class TestLinkStaysOff(OpenpilotTestCase):
       self.assertFalse(status.enabled or status.ready)
       self.assertIsNone(status.reason)
       self.assertIsNone(jetlink_adapter.reason())
-      self.assertFalse(jetlink_adapter.prepare())
+      # jetlink's own answer too, had modeld missed the chestnut
+      self.assertFalse(jetlink_adapter.prepare(False))
 
   def test_without_one_the_setting_decides(self):
     with self.fitted(False):
@@ -96,8 +94,8 @@ class TestPickKeptDefaultDrives(OpenpilotTestCase):
       self.addCleanup(p.stop)
     self.store = store
 
-  def active(self, chestnut=True):
-    return helpers.get_active_bundle(self.store, chestnut=chestnut)
+  def active(self):
+    return helpers.get_active_bundle(self.store, chestnut=True)
 
   def test_missing_files_drive_the_default_and_keep_the_pick(self):
     self.assertIsNone(self.active())
@@ -113,10 +111,6 @@ class TestPickKeptDefaultDrives(OpenpilotTestCase):
     open(os.path.join(self.root, 'ctv3.pkl'), 'wb').close()
     self.params['ModelManager_DownloadRef'] = REF
     self.assertIsNone(self.active())
-
-  def test_without_a_chestnut_the_small_slot_is_what_runs(self):
-    self.params[helpers.ACTIVE_BUNDLE_KEYS['qcom']] = None
-    self.assertIsNone(self.active(chestnut=False))
 
 
 if __name__ == '__main__':

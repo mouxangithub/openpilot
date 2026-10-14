@@ -4,18 +4,19 @@ Copyright (c) 2026-, Zeph Leggett.
 This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 
-Shared builders for the speed-binned torqued tests: a real CarParams, the two cache
-messages torqued writes, a Params stand-in that serves both and a PubMaster stand-in that
-captures the fork message.
+Shared builders for the speed-dependent torque tests, learner and controller side: a real
+CarParams, the two cache messages torqued writes, a PubMaster stand-in that captures the fork
+message, the torqued pair the controller reads and the torque-tuning builder its override
+writes into. Both sides use car/tests/fakes.FakeParams for Params.
 """
 import numpy as np
 
 import openpilot.cereal.messaging as messaging
 from opendbc.car.structs import car
-from opendbc.sunnypilot.car.interfaces import get_speed_dep_config
+from opendbc.sunnypilot.car.lateral_tune import get_speed_dep_config
 from openpilot.selfdrive.locationd.torqued import VERSION, MIN_FILTER_DECAY
-from openpilot.sunnypilot.selfdrive.locationd.torqued_ext import (
-  DEFAULT_SPEED_BIN_BOUNDS, DEFAULT_SPEED_BIN_CENTERS, LIVE_TORQUE_PARAMETERS_SP_SERVICE, TorqueEstimatorExt,
+from openpilot.sunnypilot.selfdrive.locationd.speed_bin_learner import (
+  DEFAULT_SPEED_BIN_BOUNDS, DEFAULT_SPEED_BIN_CENTERS, LIVE_TORQUE_PARAMETERS_SP_SERVICE, SpeedBinLearner,
 )
 
 # configured cars; every test is driven by config, not hardcoded fingerprints
@@ -26,7 +27,10 @@ SPEED_DEP_FINGERPRINT = next(iter(SPEED_DEP_CARS)) if SPEED_DEP_CARS else None
 NON_SPEED_DEP_FINGERPRINT = 'NOT_IN_SPEED_DEP_TOML'
 assert NON_SPEED_DEP_FINGERPRINT not in SPEED_DEP_CARS, f"{NON_SPEED_DEP_FINGERPRINT} unexpectedly in speed_dependent.toml"
 
-SELF_TUNE_KEYS = ("EnforceTorqueControl", "LiveTorqueParamsToggle")
+# sample tables, the shape of a speed_dependent.toml entry
+SAMPLE_SPEED_BP = [6.5, 10.0, 15.0, 21.0, 26.5, 32.0, 37.5]
+SAMPLE_LAT_ACCEL_FACTOR_BP = [2.39, 2.52, 2.71, 2.39, 2.28, 2.22, 2.21]
+SAMPLE_FRICTION_BP = [0.177, 0.158, 0.131, 0.118, 0.113, 0.109, 0.108]
 
 
 def get_car_bins(fingerprint):
@@ -34,34 +38,11 @@ def get_car_bins(fingerprint):
   cfg = SPEED_DEP_CARS.get(fingerprint, {})
   if 'speed_bp' in cfg:
     centers = list(cfg['speed_bp'])
-    bounds = TorqueEstimatorExt._centers_to_bounds(centers)
+    bounds = SpeedBinLearner._centers_to_bounds(centers, cfg.get('min_speed'))
   else:
     centers = list(DEFAULT_SPEED_BIN_CENTERS)
     bounds = list(DEFAULT_SPEED_BIN_BOUNDS)
   return centers, bounds
-
-
-class FakeParams:
-  """Stands in for Params in both torqued (caches) and torqued_ext (toggles). Speed-dep
-  learning runs wherever self-tune does, and make_cp's brand is not one upstream self-tunes,
-  so self_tune_on turns on Enforce Torque Control and Self-Tune together; everything else
-  reads off. Caches are served from, and cache writes recorded in, one dict."""
-
-  def __init__(self, store=None, self_tune_on=True):
-    self.store = dict(store or {})
-    self.bools = set(SELF_TUNE_KEYS) if self_tune_on else set()  # toggles that read on
-
-  def get_bool(self, key):
-    return key in self.bools
-
-  def get(self, key, **kwargs):
-    return self.store.get(key)
-
-  def put(self, key, value, **kwargs):
-    self.store[key] = value
-
-  def remove(self, key):
-    self.store.pop(key, None)
 
 
 def make_cp(fingerprint=None, lat_accel_factor=1.25, friction=0.125, brand='test'):
@@ -150,3 +131,37 @@ def assert_untouched(est, seeds, n_points=0, decay=MIN_FILTER_DECAY):
     assert est.speed_bin_filtered[i]['frictionCoefficient'].x == seed_frictions[i]
     assert len(est.speed_bin_points[i]) == n_points
   assert all(d == decay for d in est.speed_bin_decays)
+
+
+def make_torque_params(latAccelFactor=2.0, latAccelOffset=0.0, friction=0.15):
+  """The real CarParams.LateralTorqueTuning builder the controller hands the override. Its
+  fields are Float32: a value written in reads back rounded."""
+  tp = car.CarParams.new_message().lateralTuning.init('torque')
+  tp.latAccelFactor = latAccelFactor
+  tp.latAccelOffset = latAccelOffset
+  tp.friction = friction
+  return tp
+
+
+def make_torqued_msg(speed_bp, lafs, frictions, valid, global_laf=2.0, global_fric=0.15, use_params=True):
+  """The pair torqued publishes each cycle, as update_speed_dep_torque reads them: upstream's
+  lateralTorqueParameters (globals, useParams) and the fork's liveTorqueParametersSP (bins)."""
+  tp = messaging.new_message('lateralTorqueParameters').lateralTorqueParameters
+  tp.useParams = use_params
+  tp.latAccelFactorFiltered = global_laf
+  tp.frictionCoefficientFiltered = global_fric
+  tp.latAccelOffsetFiltered = 0.0
+  tp_sp = getattr(messaging.new_message(LIVE_TORQUE_PARAMETERS_SP_SERVICE), LIVE_TORQUE_PARAMETERS_SP_SERVICE)
+  tp_sp.speedBinCenters = list(speed_bp)
+  tp_sp.speedBinLatAccelFactors = list(lafs)
+  tp_sp.speedBinFrictions = list(frictions)
+  tp_sp.speedBinValid = list(valid)
+  return tp, tp_sp
+
+
+def activate_speed_dep(ovr):
+  """Sets the sample tables on the override, as update_speed_dep_torque would."""
+  ovr._speed_dep_active = True
+  ovr._speed_dep_speed_bp = list(SAMPLE_SPEED_BP)
+  ovr._speed_dep_lat_accel_factor_bp = list(SAMPLE_LAT_ACCEL_FACTOR_BP)
+  ovr._speed_dep_friction_bp = list(SAMPLE_FRICTION_BP)

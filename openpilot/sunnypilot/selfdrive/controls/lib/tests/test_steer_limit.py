@@ -6,26 +6,23 @@ See the LICENSE.md file in the root directory for more details.
 """
 
 # The steer-limit classifier (lib/steer_limit.py): the unit table at two slew steps (the CX-5
-# 2022's 12 counts over its 1200 and over upstream's 800), the controlsd_ext wiring that replaces controlsd's flag with the
+# 2022's 12 counts over its 1200 and over upstream's 800), the controls_lateral_zp wiring that replaces controlsd's flag with the
 # classifier's driver_limited, and the integrator-level consequence run through the real v0
 # controller against a simulated slew-limited actuator.
 
-import math
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
-from opendbc.car.mazda.values import MazdaFlags
 from opendbc.car.structs import car
-from opendbc.sunnypilot.car.interfaces import get_steer_slew_schedule
+from opendbc.sunnypilot.car.lateral_tune import get_steer_slew_schedule
 from openpilot.cereal import custom
-from openpilot.common.params import Params
-from openpilot.common.prefix import OpenpilotPrefix
+from openpilot.sunnypilot.selfdrive.controls.controls_lateral_zp import ControlsLateralZP
 from openpilot.sunnypilot.selfdrive.controls.controlsd_ext import ControlsExt
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_v0 import LatControlTorque as LatControlTorqueV0
 from openpilot.sunnypilot.selfdrive.controls.lib.steer_limit import CLEAN, SteerLimit, classify
+from openpilot.sunnypilot.selfdrive.controls.lib.tests.torque_harness import DT, LAT_DELAY, LP, VM, make_cp, make_cs, make_lac
 
 # 12 counts/frame with the CX-5 2022's EPS ceiling at 14.2 m/s, over its 1200-count STEER_MAX and
 # over an 800-count one, where a step is wider than controlsd's 0.01 mismatch threshold
@@ -33,52 +30,7 @@ STEP_1200 = {'slew_up': 12.0 / 1200.0, 'slew_down': 12.0 / 1200.0, 'rail_scale':
 STEP_800 = {'slew_up': 12.0 / 800.0, 'slew_down': 12.0 / 800.0, 'rail_scale': 648.0 / 800.0}
 SIDES = [pytest.param(STEP_1200, id='scale_1200'), pytest.param(STEP_800, id='scale_800')]
 
-DT = 0.01
-LAT_DELAY = 0.3
-LAF = 2.5
-CURV_PER_DEG = 2e-4  # toy geometry: curvature = -steeringAngleDeg * CURV_PER_DEG
-
-VM = SimpleNamespace(calc_curvature=lambda angle_rad, v_ego, roll: math.degrees(angle_rad) * CURV_PER_DEG)
-LP = SimpleNamespace(angleOffsetDeg=0.0, roll=0.0)
-
-
-def make_cp(mazda=True):
-  CP = car.CarParams.new_message(steerControlType="torque", steerLimitTimer=0.4)
-  if mazda:
-    # the real CX-5 2022 platform, so the slew and rail schedules resolve from opendbc
-    CP.brand = 'mazda'
-    CP.carFingerprint = 'MAZDA_CX5_2022'
-    CP.minSteerSpeed = 0.0
-    CP.flags = MazdaFlags.STEER_TO_ZERO_EPS.value
-  CP.lateralTuning.init('torque')
-  CP.lateralTuning.torque.latAccelFactor = LAF
-  CP.lateralTuning.torque.friction = 0.0
-  return CP.as_reader()
-
-
-def make_ci():
-  CI = MagicMock()
-  CI.torque_from_lateral_accel.return_value = lambda lataccel, tp: lataccel / tp.latAccelFactor
-  CI.lateral_accel_from_torque.return_value = lambda torque, tp: torque * tp.latAccelFactor
-  return CI
-
-
-def make_lac(mazda=True):
-  return LatControlTorqueV0(make_cp(mazda), custom.CarParamsSP.new_message().as_reader(), make_ci(), DT)
-
-
-CX5_SLEW = get_steer_slew_schedule(make_cp())
-
-
-def make_cs(v_ego=15.0, lat_accel=0.0, pressed=False):
-  angle = -lat_accel / (CURV_PER_DEG * v_ego ** 2)
-  return SimpleNamespace(vEgo=v_ego, aEgo=0.0, steeringAngleDeg=angle, steeringRateDeg=0.0, steeringPressed=pressed)
-
-
-@pytest.fixture
-def params():
-  with OpenpilotPrefix():
-    yield Params()
+CX5_SLEW = get_steer_slew_schedule(make_cp(mazda=True))
 
 
 DEEPENING = {'error_prev': 0.2, 'integrator': 0.3}   # same sign: integrating would grow |i|
@@ -182,14 +134,13 @@ class TestClassifyTable:
 
 
 class TestControlsdWiring:
-  """ControlsExt.reclassify_steer_limit runs after publish() computed the upstream flag."""
+  """ControlsLateralZP.reclassify_steer_limit runs after publish() computed the upstream flag."""
 
   @staticmethod
   def _stub(flag=True, lat_active=True, slew=CX5_SLEW, rail=([0.0], [0.6]), commanded=0.40, applied_prev=None,
             with_extension=True, error=0.2, integrator=0.3):
     ext = SimpleNamespace(commanded_torque=commanded, steer_rail_schedule=rail, last_error=error, integrator=integrator,
-                          rail_scale_at=lambda v: float(np.interp(v, rail[0], rail[1])) if rail else 1.0,
-                          set_actuator_state=MagicMock())
+                          rail_scale_at=lambda v: float(np.interp(v, rail[0], rail[1])) if rail else 1.0)
     lac = SimpleNamespace(extension=ext) if with_extension else SimpleNamespace()
     return SimpleNamespace(LaC=lac, _steer_slew_schedule=slew, _lat_active_last=lat_active,
                            _applied_torque_prev=applied_prev, steer_limited_by_safety=flag)
@@ -201,60 +152,57 @@ class TestControlsdWiring:
 
   def test_deepening_mismatch_keeps_the_flag(self):
     stub = self._stub(commanded=0.40, applied_prev=0.29, error=0.2, integrator=0.3)
-    ControlsExt.reclassify_steer_limit(stub, self._sm(applied=0.30))
+    ControlsLateralZP.reclassify_steer_limit(stub, self._sm(applied=0.30))
     assert stub.steer_limited_by_safety is True
     assert stub._applied_torque_prev == 0.30
-    stub.LaC.extension.set_actuator_state.assert_called_once_with(0.30, False)
 
   def test_decaying_integrator_releases_the_flag(self):
     stub = self._stub(commanded=0.40, applied_prev=0.29, error=-0.2, integrator=0.3)
-    ControlsExt.reclassify_steer_limit(stub, self._sm(applied=0.30))
+    ControlsLateralZP.reclassify_steer_limit(stub, self._sm(applied=0.30))
     assert stub.steer_limited_by_safety is False
 
-  def test_rail_clears_the_flag_and_reaches_the_extension(self):
+  def test_rail_clears_the_flag(self):
     stub = self._stub(commanded=0.90, applied_prev=0.60, error=0.2, integrator=0.3)
-    ControlsExt.reclassify_steer_limit(stub, self._sm(applied=0.60))
+    ControlsLateralZP.reclassify_steer_limit(stub, self._sm(applied=0.60))
     assert stub.steer_limited_by_safety is False
-    stub.LaC.extension.set_actuator_state.assert_called_once_with(0.60, True)
 
   def test_first_active_frame_keeps_the_upstream_flag(self):
     for flag in (True, False):
       stub = self._stub(flag=flag, commanded=0.40, applied_prev=None, error=-0.2, integrator=0.3)
-      ControlsExt.reclassify_steer_limit(stub, self._sm(applied=0.30))
+      ControlsLateralZP.reclassify_steer_limit(stub, self._sm(applied=0.30))
       assert stub.steer_limited_by_safety is flag
       assert stub._applied_torque_prev == 0.30
 
   def test_brand_without_slew_schedule_is_a_passthrough(self):
     stub = self._stub(slew=None, commanded=0.40, applied_prev=0.29, error=-0.2, integrator=0.3)
-    ControlsExt.reclassify_steer_limit(stub, self._sm(applied=0.30))
+    ControlsLateralZP.reclassify_steer_limit(stub, self._sm(applied=0.30))
     assert stub.steer_limited_by_safety is True
-    stub.LaC.extension.set_actuator_state.assert_not_called()
+    assert stub._applied_torque_prev == 0.29
 
   def test_controller_without_extension_is_a_passthrough(self):
     # angle and PID controllers carry no torque extension
     stub = self._stub(with_extension=False, commanded=0.40, applied_prev=0.29, error=-0.2, integrator=0.3)
-    ControlsExt.reclassify_steer_limit(stub, self._sm(applied=0.30))
+    ControlsLateralZP.reclassify_steer_limit(stub, self._sm(applied=0.30))
     assert stub.steer_limited_by_safety is True
 
   def test_inactive_lateral_leaves_the_flag_and_drops_history(self):
     stub = self._stub(lat_active=False, applied_prev=0.29, error=-0.2, integrator=0.3)
-    ControlsExt.reclassify_steer_limit(stub, self._sm(applied=0.30))
+    ControlsLateralZP.reclassify_steer_limit(stub, self._sm(applied=0.30))
     assert stub.steer_limited_by_safety is True
     assert stub._applied_torque_prev is None
-    stub.LaC.extension.set_actuator_state.assert_not_called()
 
   def test_angle_cars_get_no_slew_schedule(self, params):
     params.put('CarParamsSP', custom.CarParamsSP.new_message().to_bytes())
     CP = car.CarParams.new_message(steerControlType='angle', brand='tesla', carFingerprint='TESLA_MODEL_3')
     ext = ControlsExt(CP.as_reader(), params)
     assert ext._steer_slew_schedule is None
-    ext = ControlsExt(make_cp(), params)
+    ext = ControlsExt(make_cp(mazda=True), params)
     assert ext._steer_slew_schedule == CX5_SLEW
 
 
 class TestCommandedTorque:
   def test_tracks_the_published_actuator_sign_and_inactive_frames(self, params):
-    lac = make_lac()
+    lac = make_lac(LatControlTorqueV0, mazda=True)
     v_ego = 15.0
     cs = make_cs(v_ego, 0.0)
     steer = None
@@ -289,7 +237,7 @@ class TestIntegratorUnderTheNewFlag:
     return phase if phase <= 2 * self.AMPLITUDE else 4 * self.AMPLITUDE - phase  # triangle in [0, 2A]
 
   def _run(self, use_classifier):
-    lac = make_lac()
+    lac = make_lac(LatControlTorqueV0, mazda=True)
     bp, up, down = CX5_SLEW
     step_up, step_down = float(np.interp(self.V_EGO, bp, up)), float(np.interp(self.V_EGO, bp, down))
     rail = lac.extension.rail_scale_at(self.V_EGO)

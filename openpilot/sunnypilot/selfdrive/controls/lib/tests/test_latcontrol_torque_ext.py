@@ -107,3 +107,61 @@ class TestLatControlTorqueExt(OpenpilotTestCase):
     controller, VM, _ = _make_controller(enhanced=True, nnlc=True)
     output_torque, _, pid_log = _run_update(controller, VM)
     assert pid_log.active
+
+  def test_jerk_aware_pid_limits_survive_param_resets(self):
+    """Every update_limits path (live params, per-frame speed-dep override) must re-assert the
+    torque-space +-steer_max limits, or the torque-space PID runs with lat-accel-space bounds
+    (~latAccelFactor times too wide) and the integrator can wind up past full-scale torque."""
+    controller, VM, _ = _make_controller(enhanced=True, nnlc=False)
+    assert controller.pid.pos_limit == controller.steer_max
+
+    controller.update_torque_parameters(2.5, 0.1, 0.15)
+    assert controller.pid.pos_limit == controller.steer_max
+
+    ext = controller.extension
+    ext._speed_dep_active = True
+    ext._speed_dep_speed_bp = [5.0, 30.0]
+    ext._speed_dep_lat_accel_factor_bp = [2.0, 1.2]
+    ext._speed_dep_friction_bp = [0.15, 0.1]
+    _run_update(controller, VM)
+    assert controller.pid.pos_limit == controller.steer_max
+    assert controller.pid.neg_limit == -controller.steer_max
+
+  def test_stock_limits_when_extension_inactive(self):
+    controller, VM, _ = _make_controller(enhanced=False, nnlc=False)
+    expected = controller.lateral_accel_from_torque(controller.steer_max, controller.torque_params)
+    assert controller.pid.pos_limit == expected
+    _run_update(controller, VM)
+    assert controller.pid.pos_limit == expected
+
+  def test_single_pid_update_per_frame(self):
+    """When the extension overrides the output, the stock lat-accel-space pid.update must be
+    skipped: both updates hit the same integrator, and the lat-accel error is latAccelFactor
+    times the torque-space error, so double updating scales effective ki by (1 + latAccelFactor)."""
+    def counting_update(calls, orig):
+      def wrapped(*a, **kw):
+        calls.append(1)
+        return orig(*a, **kw)
+      return wrapped
+
+    for enhanced, expected_calls in [(True, 1), (False, 1)]:
+      controller, VM, _ = _make_controller(enhanced=enhanced, nnlc=False)
+      calls: list[int] = []
+      controller.pid.update = counting_update(calls, controller.pid.update)
+      _run_update(controller, VM)
+      assert len(calls) == expected_calls, f"enhanced={enhanced}: {len(calls)} pid updates"
+
+  def test_jerk_aware_ff_subtracts_lat_accel_offset(self):
+    """torqued fits lat_accel = latAccelFactor * torque + latAccelOffset; the torque-space
+    feedforward must invert that fit like the stock controller's `ff -= latAccelOffset`."""
+    controller, VM, _ = _make_controller(enhanced=True, nnlc=False)
+    _run_update(controller, VM)
+    ff_no_offset = controller.extension._ff
+
+    offset = 0.5
+    controller.torque_params.latAccelOffset = offset
+    _run_update(controller, VM)
+    ff_with_offset = controller.extension._ff
+
+    expected_delta = -offset / controller.torque_params.latAccelFactor
+    assert abs((ff_with_offset - ff_no_offset) - expected_delta) < 1e-6

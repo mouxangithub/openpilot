@@ -7,10 +7,25 @@ order: 2
 remote_configurable: true
 description: Longitudinal control, speed limits, and cruise behavior
 sections:
-- id: core_cruise_features
-  title: ''
+- id: alpha_longitudinal
+  title: Alpha Longitudinal
   description: ''
   items:
+  - key: AlphaLongitudinalEnabled
+    widget: toggle
+    needs_onroad_cycle: true
+    blocked: true
+    title: sunnypilot Longitudinal Control (Alpha)
+    description: 'WARNING: sunnypilot longitudinal control is in alpha for this car and will disable Automatic Emergency Braking
+      (AEB). On this car, sunnypilot defaults to the car''s built-in ACC instead of sunnypilot''s longitudinal control. Enable
+      this to switch to sunnypilot longitudinal control. Enabling Experimental mode is recommended when enabling sunnypilot
+      longitudinal control alpha. Changing this setting will restart sunnypilot if the car is powered on.'
+    visibility:
+    - type: capability
+      field: alpha_long_available
+      equals: true
+    enablement:
+    - $ref: '#/macros/not_engaged'
   - key: ExperimentalMode
     widget: toggle
     title: Experimental Mode
@@ -24,6 +39,33 @@ sections:
     - $ref: '#/macros/longitudinal'
     enablement:
     - $ref: '#/macros/longitudinal'
+  - key: ExperimentalModeSetSpeed
+    widget: toggle
+    title: Experimental Mode Speed Assist
+    description: In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down. Has
+      no effect while Dynamic Experimental Control is on.
+    visibility:
+    - $ref: '#/macros/longitudinal'
+    enablement:
+    - $ref: '#/macros/longitudinal'
+    - type: param
+      key: DynamicExperimentalControl
+      equals: false
+  - key: ExperimentalModeLeadGap
+    widget: toggle
+    title: Experimental Mode Lead Follow Assist
+    description: Closes the gap to your driving personality's following distance behind a steady car. Never closer than chill mode. No effect while Dynamic Experimental Control is on.
+    visibility:
+    - $ref: '#/macros/longitudinal'
+    enablement:
+    - $ref: '#/macros/longitudinal'
+    - type: param
+      key: DynamicExperimentalControl
+      equals: false
+- id: core_cruise_features
+  title: ''
+  description: ''
+  items:
   - key: DisengageOnAccelerator
     widget: toggle
     title: Disengage Cruise on Accelerator Pedal
@@ -83,7 +125,6 @@ sections:
   title: Custom ACC Speed Intervals
   description: ''
   enablement:
-  - $ref: '#/macros/offroad'
   - type: any
     conditions:
     - type: all
@@ -104,7 +145,6 @@ sections:
     widget: toggle
     title: Enable Custom ACC Speed Intervals
     enablement:
-    - $ref: '#/macros/offroad'
     - type: any
       conditions:
       - type: all
@@ -120,6 +160,7 @@ sections:
       - type: capability
         field: has_icbm
         equals: true
+    - $ref: '#/macros/icbm_feature_not_engaged'
   sub_panels:
   - id: custom_acc_intervals
     label: Custom ACC Speed Intervals Settings
@@ -171,6 +212,15 @@ sections:
       - value: 3
         label: Assist
         enablement:
+        - type: any
+          conditions:
+          - type: not_engaged
+          - type: param
+            key: SpeedLimitMode
+            equals: 3
+          - type: capability
+            field: has_icbm
+            equals: false
         - type: any
           conditions:
           - type: capability
@@ -267,6 +317,7 @@ sections:
       - type: capability
         field: has_icbm
         equals: true
+    - $ref: '#/macros/icbm_scc_not_engaged'
   - key: SmartCruiseControlMap
     widget: toggle
     title: Map
@@ -289,6 +340,7 @@ sections:
       - type: capability
         field: has_icbm
         equals: true
+    - $ref: '#/macros/icbm_scc_not_engaged'
 - id: carrot_navigation
   title: OSM / Carrot Navigation
   description: Phone projection, navigation data, and dynamic cruise tuning

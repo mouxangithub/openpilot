@@ -14,9 +14,11 @@ from openpilot.sunnypilot.models.mirror import (GITHUB_PROXY_PARAM, HF_MIRROR_PA
                                                 describe_hf_mirror, normalize_base_url)
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.ui_state import device, ui_state
-from openpilot.selfdrive.ui.sunnypilot.model_info import (big_model_note, big_model_state, bundles_for_source, carrying_model,
-                                                           default_model_name, model_cache_size_mb, queued_name,
-                                                           refresh_in_progress, refresh_model_list, standin_model)
+from openpilot.selfdrive.ui.sunnypilot.accelerator_link import LINK_MODE_TITLES, big_model_note, link_mode, link_status, \
+  link_toggle_meaningful, standin_model
+from openpilot.selfdrive.ui.sunnypilot.model_info import (big_model_state, bundles_for_source, carrying_model, default_model_name,
+                                                           model_cache_size_mb, queued_name, refresh_in_progress, refresh_model_list)
+from openpilot.sunnypilot.jetlink_adapter import KEYS, MODES
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.widgets import DialogResult, Widget
@@ -30,9 +32,6 @@ from openpilot.system.ui.sunnypilot.widgets.list_view import ListItemSP, toggle_
 from openpilot.system.ui.sunnypilot.widgets.download_status import download_status_item
 from openpilot.system.ui.sunnypilot.widgets.input_dialog import InputDialogSP
 from openpilot.system.ui.sunnypilot.widgets.tree_dialog import TreeOptionDialog, TreeNode, TreeFolder
-
-from openpilot.selfdrive.ui.sunnypilot.accelerator_link import LINK_MODES, LINK_MODE_TITLES, LINK_PARAM, link_mode, \
-  link_status, link_toggle_meaningful
 
 if gui_app.sunnypilot_ui():
   from openpilot.system.ui.sunnypilot.widgets.list_view import button_item_sp as button_item
@@ -76,6 +75,14 @@ class ModelsLayout(Widget):
       action_item=ScrollingButtonAction(tr("SELECT")),
       callback=lambda: self._open_source_dialog("chestnut")
     )
+
+    # param-bound; disabled onroad in _refresh_accelerator_items, since the
+    # gadget changes only once the car is parked
+    self.accelerator_link_item = multiple_button_item_sp(
+      tr("Jetlink"),
+      self._link_description(""),
+      buttons=[lambda m=m: tr(LINK_MODE_TITLES[m]) for m in MODES],
+      param=KEYS.link, button_width=300, inline=False)
 
     self.download_item = download_status_item(lambda: tr("Download") if self._downloading else tr("Model Status"))
 
@@ -129,15 +136,25 @@ class ModelsLayout(Widget):
                                         1, None, True, "", style.BUTTON_ACTION_WIDTH, None, True,
                                         lambda v: f"{v / 100:.2f} m")
 
-    self.accelerator_link_item = multiple_button_item_sp(
-      tr("Jetlink"),
-      lambda: self._link_description(self._link_status or ""),
-      [LINK_MODE_TITLES[m] for m in LINK_MODES],
-      param=LINK_PARAM, button_width=300, inline=False)
-
     self.items = [self.small_model_item, self.big_model_item, self.accelerator_link_item, self.cancel_download_item, self.download_item, self.refresh_item,
                   self.hf_mirror_item, self.catalog_source_item, self.clear_cache_item,
                   self.lane_turn_desire_toggle, self.lane_turn_value_control, self.lagd_toggle, self.delay_control, self.camera_offset]
+    self._refresh_accelerator_items()
+
+  @staticmethod
+  def _link_description(status: str) -> str:
+    what = tr("Run big models over a connected device running Jetlink. Turns off ADB.")
+    return f"{what} {status}".strip()
+
+  def _refresh_accelerator_items(self):
+    # the setting is a param read, so this rides the half-second tick
+    self.accelerator_link_item.set_visible(link_toggle_meaningful())
+    self.accelerator_link_item.action_item.set_selected_button(MODES.index(link_mode()))
+    self.accelerator_link_item.action_item.set_enabled(ui_state.is_offroad())
+    status = link_status()
+    if status != self._link_status:
+      self._link_status = status
+      self.accelerator_link_item.set_description(self._link_description(status))
 
     # initial visibility/selection for the param-bound accelerator row (the
     # periodic _update_state tick also refreshes this, but late)
@@ -154,7 +171,7 @@ class ModelsLayout(Widget):
   def _refresh_accelerator_items(self):
     # the setting is a param read, so this rides the half-second tick
     self.accelerator_link_item.set_visible(link_toggle_meaningful())
-    self.accelerator_link_item.action_item.set_selected_button(LINK_MODES.index(link_mode()))
+    self.accelerator_link_item.action_item.set_selected_button(MODES.index(link_mode()))
     self.accelerator_link_item.action_item.set_enabled(ui_state.is_offroad())
     status = link_status()
     if status != self._link_status:
@@ -286,6 +303,7 @@ class ModelsLayout(Widget):
     elif (current_time := time.monotonic()) - self.last_cache_calc_time > 0.5:
       self.last_cache_calc_time = current_time
       self.clear_cache_item.action_item.set_value(f"{self.calculate_cache_size():.2f} {tr('MB')}")
+      self._refresh_accelerator_items()
 
     bundle = self.model_manager.selectedBundle if self.model_manager else None
     progresses = [model.artifact.downloadProgress for model in bundle.models if model.artifact.fileName] if bundle else []
@@ -509,6 +527,7 @@ class ModelsLayout(Widget):
     offroad = ui_state.is_offroad()
     self.small_model_item.action_item.set_enabled(offroad)
     self.big_model_item.action_item.set_enabled(offroad)
+    self.accelerator_link_item.action_item.set_enabled(offroad)
     self.small_model_item.set_description("" if offroad else tr("Only available when vehicle is off, or always offroad mode is on"))
 
     # manager is offroad-only, so an onroad clear would never be serviced

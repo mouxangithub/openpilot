@@ -11,12 +11,15 @@ import pyray as rl
 from openpilot.cereal import custom
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigConfirmationDialog, BigDialog
 from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_selected_bundle
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigMultiToggle
+from openpilot.selfdrive.ui.mici.widgets.button import BigButton
 from openpilot.selfdrive.ui.ui_state import ui_state, device
-from openpilot.selfdrive.ui.sunnypilot.accelerator_link import LINK_MODES, LINK_PARAM, link_mode, link_toggle_meaningful
-from openpilot.selfdrive.ui.sunnypilot.model_info import (active_source, big_model_progress, big_model_state, bundles_for_source,
-                                                           carrying_model, default_model_name, model_cache_size_mb, model_info,
-                                                           queued_name, refresh_in_progress, refresh_model_list, standin_model)
+from openpilot.selfdrive.ui.sunnypilot.accelerator_link import big_model_note, big_model_progress, link_toggle_meaningful, standin_model
+from openpilot.selfdrive.ui.sunnypilot.model_info import (active_source, big_model_state, bundles_for_source, carrying_model,
+                                                           default_model_name, model_cache_size_mb, model_info, queued_name,
+                                                           refresh_in_progress, refresh_model_list)
+from openpilot.selfdrive.ui.sunnypilot.mici.widgets.button import BigMultiParamToggleSP
+from openpilot.sunnypilot.jetlink_adapter import KEYS, MODES
+
 from openpilot.system.ui.lib.application import FontWeight, gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets import Widget
@@ -24,42 +27,8 @@ from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.widgets.scroller import NavScroller
 
 
-# the value line: the mode, and what it is for
-LINK_MODE_LABELS = {"off": "off", "usb": "usb: mac, linux, android", "ios": "iOS: iPhone, iPad", "wifi": "wi-fi"}
-
-
-class AcceleratorLinkToggle(BigMultiToggle):
-  """off, usb, ios, wi-fi, a pill each, and the value line says what the mode is for.
-  The pills follow the param, not a tap. Locked while onroad and drawn so, like
-  the model buttons beside it: jetlink switches the link only parked."""
-
-  def __init__(self):
-    super().__init__(tr("jetlink"), [tr(LINK_MODE_LABELS[m]) for m in LINK_MODES])
-    self._mode = link_mode()
-    self._show()
-    self.set_enabled(lambda: ui_state.is_offroad())
-
-  def _show(self) -> None:
-    value = self._options[LINK_MODES.index(self._mode)]
-    if value != self.get_value():
-      self.set_value(value)
-
-  def _handle_mouse_release(self, mouse_pos) -> None:
-    BigButton._handle_mouse_release(self, mouse_pos)
-    if self.enabled:
-      self._mode = LINK_MODES[(LINK_MODES.index(self._mode) + 1) % len(LINK_MODES)]
-      ui_state.params.put(LINK_PARAM, LINK_MODES.index(self._mode), block=True)
-    self._show()
-
-  def _draw_content(self, btn_y: float) -> None:
-    BigButton._draw_content(self, btn_y)
-    x = self._rect.x + self._rect.width - self._txt_enabled_toggle.width
-    for i in range(len(LINK_MODES)):
-      self._draw_pill(x, btn_y + 35 * i, LINK_MODES[i] == self._mode)
-
-  def refresh(self) -> None:
-    self._mode = link_mode()
-    self._show()
+# the value line: the mode
+LINK_MODE_LABELS = {"off": "off", "usb": "usb", "ios": "iOS", "wifi": "wi-fi"}
 
 
 def _model_info() -> tuple[str, str, str]:
@@ -133,23 +102,34 @@ class ModelsLayoutMici(NavScroller):
     self._was_downloading = False
     self._selection_source: str | None = None
 
-    self.link_toggle = AcceleratorLinkToggle()
-
-    self.select_model_btn = BigButton(tr("select model"))
+    self.select_model_btn = BigButton(tr("select model"), description=tr("Choose the driving model. Small models run on the comma.\n" +
+                                                                         "Big models run on a Chestnut or over Jetlink."))
     self.select_model_btn.set_click_callback(self._show_folders)
 
-    self.refresh_btn = BigButton(tr("refresh models"))
+    self.refresh_btn = BigButton(tr("refresh models"), description=tr("Fetches the latest list of driving models."))
     self.refresh_btn.set_click_callback(self._refresh_models)
     self._refresh_start: float | None = None
 
-    self.cancel_download_btn = BigButton(tr("cancel download"))
+    self.cancel_download_btn = BigButton(tr("cancel download"), description=tr("Stops the model download in progress."))
     self.cancel_download_btn.set_click_callback(lambda: ui_state.params.remove("ModelManager_DownloadRef"))
 
-    self.clear_cache_btn = BigButton(tr("clear cache"), value=f"{model_cache_size_mb():.1f} MB")
+    # the pills follow the param; locked onroad like the model buttons beside it: jetlink switches the link only parked
+    self.link_toggle = BigMultiParamToggleSP(tr("jetlink"), KEYS.link, [tr(LINK_MODE_LABELS[m]) for m in MODES],
+                                             values=list(range(len(MODES))),
+                                             description=tr("Runs big models on a computer or phone plugged into the comma.\n" +
+                                                            "USB for a Mac, Jetson, Linux PC or Android. iOS for an iPhone or iPad.\n" +
+                                                            "Turns off ADB. The small model drives until the big model is ready."))
+    self.link_toggle.set_enabled(lambda: ui_state.is_offroad())
+    self.link_toggle.set_visible(link_toggle_meaningful())
+
+    self.clear_cache_btn = BigButton(tr("clear cache"), value=f"{model_cache_size_mb():.1f} MB",
+                                     description=tr("Deletes downloaded models to free up space.\n" +
+                                                    "Your selected small and big models are kept."))
     self.clear_cache_btn.set_click_callback(self._confirm_clear_cache)
     self._cache_size_time = 0.0
 
-    self.main_items = [self.current_model_info, self.link_toggle, self.select_model_btn, self.cancel_download_btn, self.refresh_btn, self.clear_cache_btn]
+    self.main_items = [self.current_model_info, self.select_model_btn, self.cancel_download_btn, self.link_toggle, self.refresh_btn,
+                       self.clear_cache_btn]
     self._scroller.add_widgets(self.main_items)
 
   @property
@@ -248,7 +228,8 @@ class ModelsLayoutMici(NavScroller):
 
     btns = []
     for bundle in bundles:
-      btn = BigButton(bundle.displayName.lower())
+      note = big_model_note(bundle.ref) if source == "chestnut" else None
+      btn = BigButton(bundle.displayName.lower(), value=note.lower() if note else "")
       btn.set_click_callback(lambda b=bundle: self._select_model(b))
       btns.append(btn)
     self._push_selection_view(btns)

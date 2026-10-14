@@ -14,14 +14,13 @@ import json
 import os
 from collections.abc import Callable
 
+from openpilot.sunnypilot.selfdrive.controls.lib.torque_tune import TORQUE_VERSIONS_PATH, TUNE_PARAM_BY_SIZE
 from openpilot.sunnypilot.sunnylink.capabilities import CAPABILITY_FIELDS, CAPABILITY_LABELS
 
 SCHEMA_VERSION = "1.0"
 _DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFINITION_PATH = os.path.join(_DIR, "settings_ui.json")
-TORQUE_VERSIONS_PATH = os.path.normpath(
-  os.path.join(_DIR, "..", "selfdrive", "controls", "lib", "latcontrol_torque_versions.json")
-)
+TORQUE_TUNE_KEYS = tuple(TUNE_PARAM_BY_SIZE.values())
 
 
 def _load_torque_versions() -> dict:
@@ -34,7 +33,9 @@ def _load_torque_versions() -> dict:
 
 
 def _build_torque_options(versions: dict) -> list[dict]:
-  options: list[dict] = [{"value": "", "label": "Default"}]
+  # no "Default" placeholder: an unset param resolves through the declared default, so a
+  # separate option would just hide which tune the car actually runs
+  options: list[dict] = []
   parsed: list[tuple[float, str]] = []
   for label, info in versions.items():
     try:
@@ -53,7 +54,7 @@ def _inject_dynamic_options(schema: dict) -> None:
   options = _build_torque_options(versions)
 
   def visitor(item: dict) -> None:
-    if item.get("key") == "TorqueControlTune":
+    if item.get("key") in TORQUE_TUNE_KEYS:
       item["options"] = options
 
   _walk_all_items(schema, visitor)

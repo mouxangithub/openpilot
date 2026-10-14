@@ -196,7 +196,7 @@ class SunnylinkLayout(Widget):
     )
     self._sunnylink_uploader_toggle = toggle_item_sp(
       title=tr("Enable sunnylink uploader (infrastructure test)"),
-      description=tr("Enable sunnylink uploader to allow sunnypilot to upload your driving data to sunnypilot servers. ") +
+      description=tr("Enable sunnylink uploader to allow zoompilot to upload your driving data to sunnylink servers. ") +
                   tr("(Only for highest tiers, and does NOT bring ANY benefit to you yet. We are just testing data volume.)"),
       param="EnableSunnylinkUploader"
     )

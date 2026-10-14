@@ -1,0 +1,200 @@
+name: zoompilot prebuilt
+
+# Build develop on the self-hosted comma device and publish the compiled tree to main.
+# The workflow owns and force-pushes main; develop remains the source of truth.
+#
+# Start releases manually from develop through Actions > Run workflow.
+#
+# The runner accepts jobs only while the device is offroad. hardwared sets
+# GithubRunnerSufficientVoltage above 9V and process_config stops the runner service
+# when set. Use bench power for release builds.
+
+env:
+  BUILD_DIR: "/data/openpilot"
+  OUTPUT_DIR: ${{ github.workspace }}/output
+  CI_DIR: ${{ github.workspace }}/release/ci
+  SCONS_CACHE_DIR: ${{ github.workspace }}/release/ci/scons_cache
+  SOURCE_BRANCH: ${{ github.ref_name }}
+  TARGET_BRANCH: main
+  PUBLIC_REPO_URL: "https://github.com/zoompilot/zoompilot"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  guard:
+    # Reject unexpected refs before reserving the device or publishing main.
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Refuse to cut a release from anything but develop
+        run: |
+          if [ "${{ env.SOURCE_BRANCH }}" != "develop" ]; then
+            echo "::error::${{ env.TARGET_BRANCH }} is cut from develop only; this run is from '${{ env.SOURCE_BRANCH }}'. Run the workflow from develop."
+            exit 1
+          fi
+          echo "cutting ${{ env.TARGET_BRANCH }} from ${{ env.SOURCE_BRANCH }}"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_BRANCH }}
+
+      - name: Refuse a jetlink pin that is not on jetlink's main
+        run: |
+          pin=$(git ls-tree HEAD jetlink_repo | awk '{print $3}')
+          git init -q --bare "$RUNNER_TEMP/jetlink"
+          git -C "$RUNNER_TEMP/jetlink" fetch -q "$(git config -f .gitmodules submodule.jetlink.url)" main
+          git -C "$RUNNER_TEMP/jetlink" merge-base --is-ancestor "$pin" FETCH_HEAD || {
+            echo "::error::jetlink_repo is pinned to $pin, which is not on jetlink's main"; exit 1; }
+
+  build:
+    needs: [ guard ]
+    runs-on: [ self-hosted, tici ]
+    concurrency:
+      group: zoompilot-prebuilt-${{ github.ref_name }}
+      cancel-in-progress: false
+    outputs:
+      version: ${{ steps.set-env.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          ref: ${{ env.SOURCE_BRANCH }}
+      - run: git lfs pull
+
+      - name: Cache SCons
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.SCONS_CACHE_DIR }}
+          key: scons-${{ runner.os }}-${{ runner.arch }}-${{ env.SOURCE_BRANCH }}-${{ github.sha }}
+          restore-keys: |
+            scons-${{ runner.os }}-${{ runner.arch }}-${{ env.SOURCE_BRANCH }}
+            scons-${{ runner.os }}-${{ runner.arch }}
+
+      - name: Set environment variables
+        id: set-env
+        run: |
+          echo "version=$(date '+%Y.%m.%d')-${{ github.run_number }}" >> $GITHUB_OUTPUT
+          source /etc/profile
+          export UV_PROJECT_ENVIRONMENT=${HOME}/venv
+          export UV_PYTHON_PREFERENCE=managed
+          export UV_PYTHON_INSTALL_DIR=${HOME}/uv/python
+          export VIRTUAL_ENV=$UV_PROJECT_ENVIRONMENT
+          uv sync
+          printenv >> $GITHUB_ENV
+
+      - name: Setup build environment
+        run: |
+          # BUILD_DIR is the CI copy bind-mounted over /data/openpilot inside the
+          # runner service's private mount namespace, not the real install.
+          mkdir -p "${BUILD_DIR}/"
+          # Verify the bind mount before clearing it. Outside the unit, this path is the
+          # live install.
+          mountpoint -q "$BUILD_DIR" || { echo "::error::$BUILD_DIR is not a mount point; refusing to wipe the real install. Run the runner from its systemd unit."; exit 1; }
+          sudo find $BUILD_DIR/ -mindepth 1 -delete
+          source ${UV_PROJECT_ENVIRONMENT}/bin/activate
+          PYTHONPATH=$PYTHONPATH:${{ github.workspace }}/ ${{ github.workspace }}/scripts/manage-powersave.py --disable
+
+      - name: Build
+        run: |
+          export PYTHONPATH="$BUILD_DIR"
+          ./tools/release/release_files.py | xargs -0 cp -pR --parents -t "$BUILD_DIR" --
+          cd $BUILD_DIR
+          ln -sfn msgq_repo/msgq msgq
+          ln -sfn opendbc_repo/opendbc opendbc
+          ln -sfn rednose_repo/rednose rednose
+          ln -sfn teleoprtc_repo/teleoprtc teleoprtc
+          ln -sfn tinygrad_repo/tinygrad tinygrad
+          # sunnypilot/modeld_v2 lost its SConscript upstream (chestnut refactor moved SP model
+          # compilation out of scons), so it is no longer a warm-up target here
+          scons -j2 cache_dir=${{ env.SCONS_CACHE_DIR }} --minimal openpilot/sunnypilot/selfdrive/locationd
+          scons -j1 cache_dir=${{ env.SCONS_CACHE_DIR }} --minimal openpilot/selfdrive/locationd
+          # tinygrad's compiles outgrow the tmpfs /tmp; kept inside BUILD_DIR, left out of the output
+          sudo rm -rf /tmp/* || true
+          mkdir -p "$BUILD_DIR/tmp"
+          export TMPDIR="$BUILD_DIR/tmp"
+          scons -j$(nproc) cache_dir=${{ env.SCONS_CACHE_DIR }} --minimal
+          # GitHub rejects files over 100 MB; modeld opens chunked pkls through file_chunker
+          find openpilot/selfdrive/modeld/models -name '*.pkl' -size +95M -exec ./openpilot/common/file_chunker.py {} \;
+          touch ${BUILD_DIR}/prebuilt
+
+      - name: Prepare output
+        run: |
+          sudo rm -rf ${OUTPUT_DIR}
+          mkdir -p ${OUTPUT_DIR}
+          rsync -am${RUNNER_DEBUG:+v} \
+            --exclude='.sconsign.dblite' \
+            --exclude='/tmp/' \
+            --exclude='*.a' \
+            --exclude='*.o' \
+            --exclude='*.os' \
+            --exclude='*.pyc' \
+            --exclude='moc_*' \
+            --exclude='__pycache__' \
+            --exclude='Jenkinsfile' \
+            --exclude='**/release/' \
+            --exclude='**/.github/' \
+            --exclude='**/openpilot/selfdrive/ui/replay/' \
+            --exclude='**/__pycache__/' \
+            --exclude='${{ env.SCONS_CACHE_DIR }}' \
+            --exclude='**/.git/' \
+            --exclude='**/SConstruct' \
+            --exclude='**/SConscript' \
+            --exclude='**/.venv/' \
+            --exclude='openpilot/selfdrive/modeld/models/*.onnx*' \
+            --exclude='openpilot/sunnypilot/modeld*/models/*.onnx*' \
+            --exclude='openpilot/third_party/*x86*' \
+            --exclude='openpilot/third_party/*Darwin*' \
+            --delete-excluded \
+            --chown=comma:comma \
+            ${BUILD_DIR}/ ${OUTPUT_DIR}/
+
+      - name: Tar.gz files
+        run: tar czf prebuilt.tar.gz -C ${{ env.OUTPUT_DIR }} .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prebuilt
+          path: prebuilt.tar.gz
+
+      - name: Re-enable powersave
+        if: always()
+        run: |
+          source ${UV_PROJECT_ENVIRONMENT}/bin/activate
+          PYTHONPATH=$PYTHONPATH:${{ github.workspace }}/ ${{ github.workspace }}/scripts/manage-powersave.py --enable
+
+  publish:
+    needs: [ build ]
+    if: ${{ success() }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    concurrency:
+      group: zoompilot-publish-${{ github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: prebuilt
+
+      - name: Untar prebuilt
+        run: |
+          mkdir -p ${{ env.OUTPUT_DIR }}
+          tar xzf prebuilt.tar.gz -C ${{ env.OUTPUT_DIR }}
+
+      - name: Configure git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Publish to ${{ env.TARGET_BRANCH }}
+        run: |
+          ${{ env.CI_DIR }}/publish.sh \
+            "${{ github.workspace }}" \
+            "${{ env.OUTPUT_DIR }}" \
+            "${{ env.TARGET_BRANCH }}" \
+            "${{ needs.build.outputs.version }}" \
+            "https://x-access-token:${{ github.token }}@github.com/zoompilot/zoompilot.git" \
+            "prebuilt"

@@ -33,7 +33,7 @@ import numpy as np
 
 import openpilot.cereal.messaging as messaging
 from openpilot.cereal import custom
-from openpilot.common.params import Params, UnknownKeyName
+from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDXS, MIN_X_LEAD_FACTOR
 from openpilot.selfdrive.controls.radard import RADAR_TO_CAMERA
@@ -41,7 +41,7 @@ from openpilot.selfdrive.modeld.constants import ModelConstants
 from opendbc.car.interfaces import ACCEL_MIN
 from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD
 
-Inhibit = custom.LongitudinalPlanSP.LeadForecast.Inhibit
+Inhibit = custom.LongitudinalPlanZP.LeadForecast.Inhibit
 
 PARAM = "LeadForecast"
 
@@ -115,11 +115,7 @@ class LeadForecast:
   def update(self, sm: messaging.SubMaster) -> None:
     self.frame += 1
     if self.frame % self.params_frames == 0:
-      # a build whose params binary predates the key: off, and no crash
-      try:
-        self.enabled = self.params.get_bool(PARAM)
-      except UnknownKeyName:
-        self.enabled = False
+      self.enabled = self.params.get_bool(PARAM)
     self._calls = 0
 
     rs, leads_v3 = sm['radarState'], sm['modelV2'].leadsV3
@@ -136,6 +132,15 @@ class LeadForecast:
         self.weights[i] = max(0., self.weights[i] - BLEND_RATE * self.dt)
         if self.weights[i] == 0.:
           self.v_knots[i] = None
+
+  def fill(self, msg) -> None:
+    """Report into LongitudinalPlanZP.leadForecast: what the MPC got for each lead."""
+    for report, weight, inhibit, lead_xv in zip((msg.leadOne, msg.leadTwo), self.weights, self.inhibits, self.lead_xv, strict=True):
+      report.weight = float(weight)
+      report.inhibit = inhibit
+      if lead_xv is not None:
+        report.x = lead_xv[:, 0].tolist()
+        report.v = lead_xv[:, 1].tolist()
 
   def process_lead(self, lead) -> np.ndarray:
     i = self._calls

@@ -5,12 +5,13 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 
-from openpilot.cereal import custom
+from openpilot.cereal import custom, log
 from opendbc.car.structs import car
 from opendbc.car import structs
 from openpilot.common.params import Params
 
 ButtonType = car.CarState.ButtonEvent.Type
+EventName = log.OnroadEvent.EventName
 EventNameSP = custom.OnroadEventSP.EventName
 
 DISTANCE_LONG_PRESS = 50
@@ -41,6 +42,9 @@ def next_gap_personality(current: int, levels: int) -> int:
 
 
 class CruiseHelper:
+  # selfdrived's SubMaster, as its base; a helper built on its own has none
+  sm = None
+
   def __init__(self, CP: structs.CarParams):
     self.CP = CP
     self.params = Params()
@@ -51,6 +55,8 @@ class CruiseHelper:
     # Set on a fresh distance-button press, consumed once, so holding the button does
     # not walk the whole gap cycle.
     self._gap_press_pending = False
+    # zoompilot: edge of the wheel's "farther" distance button (carStateSP.zoompilot)
+    self.distance_farther_prev = False
 
   def update(self, CS, events, experimental_mode) -> None:
     if self.CP.openpilotLongitudinalControl:
@@ -60,46 +66,28 @@ class CruiseHelper:
         # toggle experimental mode once on distance button hold
         self.update_experimental_mode(events, experimental_mode)
 
-        # A short press cycles the follow gap instead. Skipped while the long press is
-        # in progress, so holding the button does not also change the gap.
-        if self.button_frame_counts[ButtonType.gapAdjustCruise] < DISTANCE_LONG_PRESS:
-          self.update_gap_personality(CS, events)
+    if self.sm is not None:
+      self.update_selfdrived(CS, self.sm['carStateSP'])
 
-  def update_gap_personality(self, CS, events) -> None:
-    if not self._gap_press_pending:
-      return
-    self._gap_press_pending = False
+  def update_selfdrived(self, CS, CS_SP) -> None:
+    """zoompilot, run by selfdrived just before its personality step. The wheel's "farther" distance
+    button steps the personality up, unless upstream's gapAdjustCruise release steps it down this
+    frame, and ICBM follows card's activation."""
+    gap_released = any(not be.pressed and be.type == ButtonType.gapAdjustCruise for be in CS.buttonEvents)
+    if self.CP.openpilotLongitudinalControl and not gap_released and self.distance_farther_released(CS_SP):
+      self.personality = (self.personality + 1) % 3
+      self.params.put('LongitudinalPersonality', self.personality)
+      self.events.add(EventName.personalityChanged)
 
-    """Advance LongitudinalPersonality when the distance button is tapped.
+    self.icbm.update_activation(CS_SP)
 
-    Two cases, and the car decides which applies through ``CS.pcmCruiseGap``:
-
-      * the car reports its own gap (pcmCruiseGap in 1..4, PCM-controlled distance
-        button): adopt what the car says rather than counting presses, so our idea of the
-        gap follows the one the driver sees on the cluster.
-      * the car does not report it (0), or the configured cycle is shorter than the
-        vehicle's maximum: count the presses ourselves.
-
-    Ported from cp cruise.py:625-635. Kept in CruiseHelper rather than in the cruise
-    button handler so the gap policy lives with the button it belongs to.
-    """
-    vehicle_max = supported_gap_levels(self.params.get_int("LongitudinalPersonalityMax"))
-    gap_levels = cruise_gap_levels(self.params.get_int("CruiseGapLevels"), vehicle_max)
-    if not self.CP.openpilotLongitudinalControl:
-      gap_levels = vehicle_max
-
-    pcm_gap = int(getattr(CS, "pcmCruiseGap", 0) or 0)
-    if pcm_gap != 0 or gap_levels < vehicle_max:
-      current = self.params.get_int("LongitudinalPersonality")
-      personality = next_gap_personality(current, gap_levels)
-    else:
-      # The cluster reports gaps 1..N; LongitudinalPersonality is a 0-based enum of
-      # PERSONALITY_LEVELS entries (aggressive/standard/relaxed). Clamp to the enum, not
-      # to vehicle_max: a raw signal can carry a value wider than the enum and
-      # log_mpc.get_T_FOLLOW raises NotImplementedError outside it.
-      personality = min(max(pcm_gap - 1, 0), PERSONALITY_LEVELS - 1)
-
-    self.params.put_int_nonblocking("LongitudinalPersonality", personality)
+  def distance_farther_released(self, CS_SP) -> bool:
+    """The release edge of the wheel's "farther" distance button (carStateSP.zoompilot), the
+    opposite direction to upstream's gapAdjustCruise cycle. False on cars without one."""
+    pressed = bool(CS_SP.zoompilot.distanceFarther)
+    released = self.distance_farther_prev and not pressed
+    self.distance_farther_prev = pressed
+    return released
 
   def update_button_frame_counts(self, CS) -> None:
     for button in self.button_frame_counts:

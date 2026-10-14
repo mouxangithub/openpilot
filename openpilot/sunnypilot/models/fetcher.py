@@ -11,6 +11,7 @@ import requests
 from requests.exceptions import RequestException, HTTPError
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
+from openpilot.common.file_chunker import get_chunk_name
 from openpilot.common.hardware.hw import Paths
 from openpilot.sunnypilot.models.helpers import is_bundle_version_compatible
 from openpilot.sunnypilot.models.mirror import catalog_fetch_candidates
@@ -183,6 +184,9 @@ class ModelFetcher:
   @staticmethod
   def active_source(chestnut_present: bool) -> str:
     return "chestnut" if chestnut_present else "qcom"
+
+  def _extend_catalog(self, source: str, json_data: dict) -> dict:
+    return json_data
 
   def _fetch_and_cache_models(self, source: str) -> list[custom.ModelManagerSP.ModelBundle] | None:
     """Fetches fresh model data from remote and updates cache.

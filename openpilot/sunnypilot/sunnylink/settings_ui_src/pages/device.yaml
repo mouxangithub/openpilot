@@ -11,7 +11,7 @@ sections:
   title: General
   description: Power, boot, and unit preferences
   items:
-  - key: OffroadMode
+  - key: OffroadModeRequested
     widget: toggle
     title: Force Offroad Mode
   - key: DeviceBootMode

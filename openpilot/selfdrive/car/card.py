@@ -29,6 +29,7 @@ from openpilot.sunnypilot.carrot.xiaoge.xiaoge_vision import (
   apply_xiaoge_vision_result,
   parse_xiaoge_vision_payload,
 )
+from openpilot.sunnypilot.selfdrive.car.card_ext import CardExt
 
 REPLAY = "REPLAY" in os.environ
 
@@ -193,6 +194,9 @@ class Car:
     # VCruiseCarrot subclasses VCruiseHelper, so update_speed_limit_assist and the rest
     # of the SLA surface below keep working; it adds cp's cruise-button state machine on top.
     self.v_cruise_helper = VCruiseCarrot(self.CP, self.CP_SP)
+    # zoompilot's post-v_cruise extensions (stock ECU handback, ICBM activation) ride on
+    # the same helper, so they work with VCruiseCarrot too.
+    self.card_ext = CardExt(self.CP, self.CP_SP, self.params, self.sm, self.v_cruise_helper, self.CI)
 
     self.is_metric = self.params.get_bool("IsMetric")
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
@@ -297,6 +301,7 @@ class Car:
     if self.sm['carControl'].enabled and not self.CC_prev.enabled:
       # Use CarState w/ buttons from the step selfdrived enables on
       self.v_cruise_helper.initialize_v_cruise(self.CS_prev, self.experimental_mode, self.dynamic_experimental_control)
+    self.card_ext.update_v_cruise_post(CS, CS_SP)
 
     # TODO: mirror the carState.cruiseState struct?
     CS.vCruise = float(self.v_cruise_helper.v_cruise_kph)
@@ -365,7 +370,7 @@ class Car:
     if self.sm.all_alive(['carControl']):
       # send car controls over can
       now_nanos = self.can_log_mono_time if REPLAY else int(time.monotonic() * 1e9)
-      self.last_actuators_output, can_sends = self.CI.apply(CC, convert_carControlSP(CC_SP), now_nanos)
+      self.last_actuators_output, can_sends = self.CI.apply(CC, self.card_ext.controls_update(CS, CC, convert_carControlSP(CC_SP)), now_nanos)
       self.pm.send('sendcan', can_list_to_can_capnp(can_sends, msgtype='sendcan', valid=CS.canValid))
 
       self.CC_prev = CC
@@ -400,6 +405,7 @@ class Car:
       # sunnypilot
       self.dynamic_experimental_control = self.params.get_bool("DynamicExperimentalControl")
       self.v_cruise_helper.read_custom_set_speed_params()
+      self.card_ext.update_params()
 
       time.sleep(0.1)
 

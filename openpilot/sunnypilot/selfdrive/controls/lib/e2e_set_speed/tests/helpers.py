@@ -14,12 +14,9 @@ from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import
 ENGAGED = {'is_e2e': True, 'reset_state': False, 'dec_active': False, 'allow_throttle': True, 'fcw': False, 'accel_coast': 0.}
 
 
-class MockParams:
-  def __init__(self, enabled: bool = True):
-    self.enabled = enabled
-
-  def get_bool(self, key: str) -> bool:
-    return self.enabled
+def plan_pos(vel: np.ndarray) -> np.ndarray:
+  """Positions along a plan, integrated from its speeds."""
+  return np.r_[0., np.cumsum(0.5 * (vel[1:] + vel[:-1]) * np.diff(T_IDXS))]
 
 
 def build_sm(v_ego: float, plan_v=None, yaw_rate=0., curvature=0., lead=False, gas=False, brake=False,
@@ -34,6 +31,7 @@ def build_sm(v_ego: float, plan_v=None, yaw_rate=0., curvature=0., lead=False, g
   md = messaging.new_message('modelV2')
   vel = np.full(len(T_IDXS), v_ego) if plan_v is None else np.broadcast_to(np.asarray(plan_v, dtype=float), T_IDXS.shape)
   md.modelV2.velocity.x = vel.tolist()
+  md.modelV2.position.x = plan_pos(vel).tolist()
   md.modelV2.orientationRate.z = np.broadcast_to(np.asarray(yaw_rate, dtype=float), T_IDXS.shape).tolist()
   md.modelV2.action.desiredCurvature = curvature
   md.modelV2.action.shouldStop = should_stop

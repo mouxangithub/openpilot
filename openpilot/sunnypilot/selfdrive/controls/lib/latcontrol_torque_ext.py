@@ -11,12 +11,14 @@ from opendbc.sunnypilot.car.interfaces import get_steer_rail_schedule
 from openpilot.sunnypilot.selfdrive.controls.lib.nnlc.nnlc import NeuralNetworkLateralControl
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_ext_override import LatControlTorqueExtOverride
 from openpilot.sunnypilot.selfdrive.controls.lib.lateral_lane_assist import LateralLaneAssist
+from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_ext_zp import LatControlTorqueExtZP
 
 
-class LatControlTorqueExt(NeuralNetworkLateralControl, LatControlTorqueExtOverride):
+class LatControlTorqueExt(LatControlTorqueExtZP, NeuralNetworkLateralControl, LatControlTorqueExtOverride):
   def __init__(self, lac_torque, CP, CP_SP, CI):
     NeuralNetworkLateralControl.__init__(self, lac_torque, CP, CP_SP, CI)
     LatControlTorqueExtOverride.__init__(self, CP)
+    LatControlTorqueExtZP.__init__(self, CP)
     self.lateral_lane_assist = LateralLaneAssist(lac_torque.dt)
     # Carrot's signed curve speed (km/h), refreshed each active frame by
     # update_curve_speed(); 0.0 until carrotManSP checks out, which the lane

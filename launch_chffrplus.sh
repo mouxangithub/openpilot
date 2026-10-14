@@ -398,6 +398,7 @@ set_aux_panda() {
   echo none | sudo tee "$mode" >/dev/null 2>&1
 }
 
+
 mount_nvme() {
   for i in $(seq 1 10); do
     [ -b /dev/nvme0n1p1 ] && break
@@ -717,6 +718,15 @@ launch() {
   fi
 
   ln -sfn "$(pwd)" /data/pythonpath
+
+  # submodule package symlinks for bare `import opendbc`/`import jetlink` on device;
+  # PY_PATH below also carries the explicit submodule dirs. On PC these come from editable installs.
+  ln -sfn msgq_repo/msgq msgq
+  ln -sfn opendbc_repo/opendbc opendbc
+  ln -sfn rednose_repo/rednose rednose
+  ln -sfn teleoprtc_repo/teleoprtc teleoprtc
+  ln -sfn tinygrad_repo/tinygrad tinygrad
+  ln -sfn jetlink_repo/jetlink jetlink
   # Resolve Python interpreter and path once, then reuse in service loops.
   # Create .pydeps early so PY_PATH already includes it and does not need
   # to be recomputed after pip install.

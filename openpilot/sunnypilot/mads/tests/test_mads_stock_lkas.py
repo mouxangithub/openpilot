@@ -5,14 +5,16 @@ This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 
+from opendbc.car import structs
 from openpilot.cereal import custom
 from openpilot.common.test import OpenpilotTestCase
 from openpilot.sunnypilot.mads.helpers import MadsSteeringModeOnBrake
 from openpilot.sunnypilot.mads.state import State
-from openpilot.sunnypilot.mads.tests.test_mads_main_cruise_off_switch import make_mads
-from openpilot.sunnypilot.mads.tests.test_mads_tja_button import car_state
+from openpilot.sunnypilot.mads.tests.mads_harness import car_state, make_mads
 
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
+ButtonType = structs.CarState.ButtonEvent.Type
 
 
 class TestMadsStockLkas(OpenpilotTestCase):
@@ -28,9 +30,9 @@ class TestMadsStockLkas(OpenpilotTestCase):
     sd.events_sp.clear()
     sd.enabled = selfdrive_enabled
     if lka_off:
-      sd.events_sp.add(EventNameSP.stockLkasOff)
+      sd.events_sp.zp.add(EventNameZP.stockLkasOff)
     if arming:
-      sd.events_sp.add(EventNameSP.stockLkasArming)
+      sd.events_sp.zp.add(EventNameZP.stockLkasArming)
     self.mads.update(cs if cs is not None else car_state(True))
     return self.mads.state_machine.state
 
@@ -66,12 +68,12 @@ class TestMadsStockLkas(OpenpilotTestCase):
   def test_mads_button_while_lka_off_disables_for_good(self):
     self.engage()
     self.frame(lka_off=True)
-    assert self.frame(car_state(True, lkas_pressed=True), lka_off=True) == State.disabled
+    assert self.frame(car_state(True, button=ButtonType.lkas), lka_off=True) == State.disabled
     assert self.frame() == State.disabled
 
   def test_button_and_lka_off_on_one_frame_disable(self):
     self.engage()
-    assert self.frame(car_state(True, lkas_pressed=True), lka_off=True) == State.disabled
+    assert self.frame(car_state(True, button=ButtonType.lkas), lka_off=True) == State.disabled
 
   def test_main_off_while_lka_off_disables(self):
     self.engage()
@@ -80,7 +82,7 @@ class TestMadsStockLkas(OpenpilotTestCase):
 
   def test_request_while_lka_off_waits_in_paused(self):
     # the button press arms the panda too; lateral comes on when LKA does
-    assert self.frame(car_state(True, lkas_pressed=True), lka_off=True) == State.paused
+    assert self.frame(car_state(True, button=ButtonType.lkas), lka_off=True) == State.paused
     assert self.frame(lka_off=True) == State.paused
     assert self.frame() == State.enabled
 

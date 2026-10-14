@@ -12,13 +12,15 @@ from opendbc.car import structs
 from openpilot.selfdrive.selfdrived.events import Events
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.mads.helpers import MadsSteeringModeOnBrake, read_steering_mode_param
-from openpilot.sunnypilot.mads.mads import ModularAssistiveDrivingSystem
+from openpilot.sunnypilot.mads.mads import (LATERAL_MISMATCH_DISABLE_FRAMES, LATERAL_MISMATCH_WARN_FRAMES,
+                                            ModularAssistiveDrivingSystem)
 from opendbc.sunnypilot.car.tesla.values import MadsScreenButtonType, TeslaFlagsSP
 from openpilot.common.test import OpenpilotTestCase
 
 State = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
 EventName = log.OnroadEvent.EventName
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 SafetyModel = structs.CarParams.SafetyModel
 
 
@@ -149,6 +151,58 @@ class TestPauseMode(OpenpilotTestCase):
     assert mads.state_machine.state == State.enabled
 
 
+def engage_on_main(mads, sd, cs, n=1):
+  # ACC main rising edge with MadsMainCruiseAllowed, the way MADS engages on cars without a button
+  mads.main_enabled_toggle = True
+  sd.CS_prev.cruiseState.available = False
+  run_frames(mads, sd, cs, n=n)
+
+
+# engaging with the brake already down (route 00000004--00dac0887c seg 12: main pressed at a
+# stop with the brake held, the panda kept its lateral request pending until release)
+
+class TestEngageWithBrakeHeld(OpenpilotTestCase):
+  @parameterized.expand([(True, False), (False, True)], names=["brake", "regen"])
+  def test_pause_enters_paused_and_never_counts_a_mismatch(self, mocker, brake, regen):
+    mads, sd = make_mads(mocker, MadsSteeringModeOnBrake.PAUSE)
+    sd.sm['pandaStates'] = [make_panda_state(mocker, False)]
+
+    cs = make_car_state(brake_pressed=brake, regen_braking=regen, standstill=True)
+    engage_on_main(mads, sd, cs, n=LATERAL_MISMATCH_DISABLE_FRAMES + 50)
+    assert mads.state_machine.state == State.paused
+    assert mads.enabled and not mads.active
+    assert mads.lateral_mismatch_counter == 0
+
+  def test_pause_resumes_on_release_when_the_panda_arms(self, mocker):
+    mads, sd = make_mads(mocker, MadsSteeringModeOnBrake.PAUSE)
+    sd.sm['pandaStates'] = [make_panda_state(mocker, False)]
+    engage_on_main(mads, sd, make_car_state(brake_pressed=True, standstill=True), n=250)
+    assert mads.state_machine.state == State.paused
+
+    sd.sm['pandaStates'] = [make_panda_state(mocker, True)]
+    run_frames(mads, sd, make_car_state(standstill=True))
+    assert mads.state_machine.state == State.enabled
+    assert mads.active
+
+  def test_pause_while_moving_goes_straight_to_paused(self, mocker):
+    mads, sd = make_mads(mocker, MadsSteeringModeOnBrake.PAUSE)
+    sd.events.add(EventName.pedalPressed)
+    engage_on_main(mads, sd, make_car_state(brake_pressed=True, v_ego=10.0))
+    assert mads.state_machine.state == State.paused
+
+  def test_pause_engages_normally_with_the_brake_up(self, mocker):
+    mads, sd = make_mads(mocker, MadsSteeringModeOnBrake.PAUSE)
+    engage_on_main(mads, sd, make_car_state(standstill=True))
+    assert mads.state_machine.state == State.enabled
+
+  @parameterized.expand([(MadsSteeringModeOnBrake.REMAIN_ACTIVE,), (MadsSteeringModeOnBrake.DISENGAGE,)], names=["mode"])
+  def test_other_modes_engage_with_the_brake_held(self, mocker, mode):
+    # the panda arms immediately in these modes, so the software may too
+    mads, sd = make_mads(mocker, mode)
+    engage_on_main(mads, sd, make_car_state(brake_pressed=True, standstill=True))
+    assert mads.state_machine.state == State.enabled
+
+
 # disengage
 
 class TestDisengageMode(OpenpilotTestCase):
@@ -209,6 +263,41 @@ class TestLateralMismatchCounter(OpenpilotTestCase):
     for _ in range(200):
       mads.data_sample()
     assert mads.lateral_mismatch_counter == 200
+
+  def test_warning_precedes_the_disable(self, mocker):
+    # Alert before the disable because steering is unavailable from the first rejected frame.
+    mads, sd = make_mads(mocker, MadsSteeringModeOnBrake.PAUSE)
+    mads.enabled = True
+    mads.active = True
+    sd.sm['pandaStates'] = [make_panda_state(mocker, False)]
+    cs = make_car_state(v_ego=10.0)
+
+    def events_after(n):
+      mads.lateral_mismatch_counter = 0
+      sd.events_sp.clear()
+      for _ in range(n):
+        mads.data_sample()
+      mads.update_events(cs)
+      return sd.events_sp.zp.has(EventNameZP.controlsMismatchLateralWarning), sd.events_sp.has(EventNameSP.controlsMismatchLateral)
+
+    # a fresh engagement can read stale for a pandaStates period: no alert yet
+    assert events_after(LATERAL_MISMATCH_WARN_FRAMES - 1) == (False, False)
+    assert events_after(LATERAL_MISMATCH_WARN_FRAMES) == (True, False)
+    assert events_after(LATERAL_MISMATCH_DISABLE_FRAMES - 1) == (True, False)
+    assert events_after(LATERAL_MISMATCH_DISABLE_FRAMES) == (True, True)
+
+  def test_no_warning_while_openpilot_itself_is_engaged(self, mocker):
+    # with longitudinal engaged the panda steers on controls_allowed; controls_allowed_lateral
+    # is not the gate, and upstream's controlsMismatch covers that half
+    mads, sd = make_mads(mocker, MadsSteeringModeOnBrake.PAUSE)
+    mads.enabled = True
+    mads.active = True
+    sd.enabled = True
+    sd.sm['pandaStates'] = [make_panda_state(mocker, False)]
+    for _ in range(LATERAL_MISMATCH_DISABLE_FRAMES):
+      mads.data_sample()
+    mads.update_events(make_car_state(v_ego=10.0))
+    assert not sd.events_sp.zp.has(EventNameZP.controlsMismatchLateralWarning)
 
 
 # brand restrictions

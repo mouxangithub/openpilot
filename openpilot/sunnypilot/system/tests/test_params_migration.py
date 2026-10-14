@@ -34,3 +34,4 @@ class TestModelBundleSlotMigration(OpenpilotTestCase):
     params = Params()
     _migrate_model_bundle_slots(params)
     assert params.get("ModelManager_ActiveBundleChestnut") is None
+

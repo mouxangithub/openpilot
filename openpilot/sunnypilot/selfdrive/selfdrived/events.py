@@ -13,6 +13,7 @@ from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EventsBase, Pr
   NoEntryAlert, ImmediateDisableAlert, EngagementAlert, NormalPermanentAlert, AlertCallbackType, wrong_car_mode_alert
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import PCM_LONG_REQUIRED_MAX_SET_SPEED, CONFIRM_SPEED_THRESHOLD
 from openpilot.common.hardware import HARDWARE
+from openpilot.sunnypilot.selfdrive.selfdrived.events_zp import EVENTS_SP_ZP, EventsWithZP
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -93,7 +94,7 @@ def speed_limit_pre_active_alert(CP: car.CarParams, CS: car.CarState, sm: messag
     Priority.LOW, VisualAlert.none, AudibleAlertSP.promptSingleLow, .1)
 
 
-class EventsSP(EventsBase):
+class EventsSP(EventsWithZP, EventsBase):
   def __init__(self):
     super().__init__()
     self.event_counters = dict.fromkeys(EVENTS_SP.keys(), 0)
@@ -367,3 +368,5 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 0.2),
   },
 }
+
+EVENTS_SP.update(EVENTS_SP_ZP)

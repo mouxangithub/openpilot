@@ -29,14 +29,14 @@ import numpy as np
 
 import openpilot.cereal.messaging as messaging
 from openpilot.cereal import custom, log
-from openpilot.common.params import Params, UnknownKeyName
+from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import COMFORT_BRAKE, STOP_DISTANCE, get_T_FOLLOW
 from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed import controller as nudge
 
-Inhibit = custom.LongitudinalPlanSP.E2ELeadGap.Inhibit
+Inhibit = custom.LongitudinalPlanZP.E2ELeadGap.Inhibit
 LaneChangeState = log.LaneChangeState
 Personality = log.LongitudinalPersonality
 
@@ -52,7 +52,10 @@ CAP = {int(Personality.aggressive): 0.5, int(Personality.standard): 0.4, int(Per
 # The model braking to hold its own gap ends the lift here: the car settles where it pushes back.
 GAIN_BP = [-0.4, -0.1]  # m/s^2
 MODEL_BRAKE_ACCEL = -0.5  # m/s^2
-PLAN_SLOWDOWN = 1.0  # m/s the model's plan loses within the nudge's PLAN_SLOWDOWN_T
+PLAN_SLOWDOWN = 1.0  # m/s the model's plan loses within PLAN_SLOWDOWN_T
+PLAN_SLOWDOWN_T = 5.0  # s
+LAT_ACCEL_MAX = 1.0  # m/s^2, now or anywhere on the plan
+STOP_SPEED = 2.0  # m/s; a plan dipping below this is a stop
 # The lead: steady, not braking, moving, and the same car for a while.
 LEAD_BRAKE_ACCEL = -0.5  # m/s^2
 LEAD_SLOWDOWN = 1.0  # m/s the lead's forecast loses within LEAD_SLOWDOWN_T
@@ -64,10 +67,18 @@ LEAD_JUMP = 3.0  # m off where the last frame's lead should be
 BOOST_RISE = 0.25  # m/s^3
 # Re-arms at the nudge's original rate: behind a lead the picture changes faster than on an empty road.
 AUTHORITY_RISE = 0.5  # 1/s
+AUTHORITY_FALL = 4.0  # 1/s
 
 LEAD_T_IDXS = np.asarray(ModelConstants.LEAD_T_IDXS)
 T_IDXS = nudge.T_IDXS
 LAT_MASK = nudge.LAT_MASK
+SLOWDOWN_MASK = T_IDXS <= PLAN_SLOWDOWN_T
+
+
+def plan_drop(vel: np.ndarray) -> float:
+  """Most speed the model's plan loses within PLAN_SLOWDOWN_T, from its own v(0): a dip that recovers
+  by then counts too."""
+  return min(float(np.min(vel[SLOWDOWN_MASK])), float(np.interp(PLAN_SLOWDOWN_T, T_IDXS, vel))) - float(vel[0])
 
 
 def desired_gap(v_ego: float, v_lead: float, personality) -> float:
@@ -100,11 +111,16 @@ class E2ELeadGapController:
 
   def _update_params(self) -> None:
     if self.frame % self.params_frames == 0:
-      # a build whose params binary predates the key: off, and no crash
-      try:
-        self.enabled = self.params.get_bool(PARAM)
-      except UnknownKeyName:
-        self.enabled = False
+      self.enabled = self.params.get_bool(PARAM)
+
+  def fill(self, msg) -> None:
+    """Report into LongitudinalPlanZP.e2eLeadGap."""
+    msg.authority = float(self.authority)
+    msg.gain = float(self.gain)
+    msg.weight = float(self.weight)
+    msg.gapExcess = float(self.gap_excess)
+    msg.boost = float(self.boost)
+    msg.inhibit = self.inhibit
 
   def _lead_trip(self, sm: messaging.SubMaster):
     rs, md = sm['radarState'], sm['modelV2']
@@ -167,15 +183,15 @@ class E2ELeadGapController:
       return a_model
 
     lat_accel = max(abs(curvature) * v_ego ** 2, float(np.max(np.abs(yaw_rate * vel)[LAT_MASK])), abs(steer_lat_accel))
-    plan_drop = nudge.plan_drop(vel)
+    plan_drop_v = plan_drop(vel)
     plan_min_v = float(np.min(vel[LAT_MASK]))
 
     trip = self._lead_trip(sm)
     if trip is None:
-      trip = self._trip(sm, a_model, v_ego, plan_drop, plan_min_v, lat_accel, allow_throttle, fcw)
+      trip = self._trip(sm, a_model, v_ego, plan_drop_v, plan_min_v, lat_accel, allow_throttle, fcw)
     if trip is not None:
       # another car (or none) restarts from nothing; the rest are early warnings on this one
-      fall = 1. if trip in (Inhibit.leadChanged, Inhibit.noLead) else nudge.AUTHORITY_FALL * self.dt
+      fall = 1. if trip in (Inhibit.leadChanged, Inhibit.noLead) else AUTHORITY_FALL * self.dt
       self.authority = max(0., self.authority - fall)
       self.hold_left = self.hold_frames
       self.inhibit = trip
@@ -211,7 +227,7 @@ class E2ELeadGapController:
       return Inhibit.hardBrake
     if sm['controlsState'].forceDecel:
       return Inhibit.forceDecel
-    if md.action.shouldStop or plan_min_v < nudge.STOP_SPEED:
+    if md.action.shouldStop or plan_min_v < STOP_SPEED:
       return Inhibit.stop
     if CS.gasPressed or CS.brakePressed:
       return Inhibit.driver
@@ -219,7 +235,7 @@ class E2ELeadGapController:
       return Inhibit.modelBraking
     if plan_drop < -PLAN_SLOWDOWN:
       return Inhibit.planSlowing
-    if lat_accel > nudge.LAT_ACCEL_MAX:
+    if lat_accel > LAT_ACCEL_MAX:
       return Inhibit.lateral
     if not allow_throttle:
       return Inhibit.coast

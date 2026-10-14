@@ -13,11 +13,15 @@ from opendbc.car.structs import car
 from opendbc.sunnypilot.car.interfaces import get_steer_rail_schedule
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.display import OnroadBrightness
+from openpilot.selfdrive.ui.sunnypilot.ui_state_zp import UIStateZP
 from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_active_source
 from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.sunnylink.sunnylink_state import SunnylinkState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.sunnypilot.widgets.screen_saver import ScreenSaverSP
+from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.helpers import icbm_applicable
+
+
 OpenpilotState = log.SelfdriveState.OpenpilotState
 MADSState = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
 
@@ -30,7 +34,7 @@ class OnroadTimerStatus(Enum):
   RESUME = 2
 
 
-class UIStateSP:
+class UIStateSP(UIStateZP):
   def __init__(self):
     self.params = Params()
     self.CP_SP: custom.CarParamsSP | None = None
@@ -80,46 +84,14 @@ class UIStateSP:
     self.torque_override_enabled: bool = False
     self.carrot_amap_blind_spot_enabled: bool = False
     self._sp_initialized: bool = False
+    UIStateZP.__init__(self)
 
   def update(self) -> None:
     if self.sunnylink_enabled:
       self.sunnylink_state.start()
     else:
       self.sunnylink_state.stop()
-    # read where sm is updated, so the params thread never touches a message
-    self._accelerator_state_name = str(self.sm['modelDataV2SP'].acceleratorState)
-    self._update_torque_utilization()
-
-  def _update_torque_utilization(self) -> None:
-    """carOutput's applied torque on a scale where the EPS rail is +-1, for the
-    torque bar and lane lines: a torque tune saturates at the rail, below the
-    carcontroller's full scale, so the bar would only reach the top after the
-    car has already given all it has."""
-    try:
-      torque = self.sm['carOutput'].actuatorsOutput.torque
-    except Exception:
-      # before card's first message, or a build without carOutput
-      self.torque_utilization = 0.0
-      return
-    if self._steer_rail_schedule is not None:
-      rail = float(np.interp(self.sm['carState'].vEgo, self._steer_rail_schedule[0], self._steer_rail_schedule[1]))
-      torque = min(1.0, max(-1.0, torque / rail))
-    self.torque_utilization = torque
-
-  @property
-  def jetlink_view(self):
-    """jetlink's snapshot when the chestnut icon is the link's: no chestnut
-    fitted, and something to show. Presence comes from jetlink: the comma is
-    the gadget and enumerates nothing."""
-    s = self.jetlink
-    return s if s is not None and (s.enabled or s.present or s.progress is not None) else None
-
-  def _jetlink_state(self, view):
-    """ChestnutState for the link: progress and the records offroad, modelV2 and acceleratorState onroad"""
-    from openpilot.selfdrive.ui.ui_state import ChestnutState  # defined by the class that mixes this in
-    model_seen = self.sm.recv_frame["modelV2"] > self.started_frame
-    running_big = self.sm.alive["modelV2"] and self.sm["modelV2"].big
-    return ChestnutState(view.icon(self.started, model_seen, running_big, self._accelerator_state_name))
+    UIStateZP.update(self)
 
   def onroad_brightness_handle_alerts(self, _ui_state, alert):
     if _ui_state.sm.recv_frame["carState"] < _ui_state.started_frame:
@@ -201,9 +173,6 @@ class UIStateSP:
     CP_SP_bytes = self.params.get("CarParamsSPPersistent")
     if CP_SP_bytes is not None:
       self.CP_SP = messaging.log_from_bytes(CP_SP_bytes, custom.CarParamsSP)
-      self.has_icbm = self.CP_SP.intelligentCruiseButtonManagementAvailable and self.params.get_bool("IntelligentCruiseButtonManagement")
-    # the EPS rail the torque bar normalizes against, per car and per speed
-    self._steer_rail_schedule = get_steer_rail_schedule(self.CP) if self.CP is not None else None
 
     self._enforce_constraints()
     source = get_active_source(chestnut=self.chestnut_present, chestnut_active=self.chestnut_active,
@@ -213,13 +182,7 @@ class UIStateSP:
     # stock only counts the default big model's compiled pkl. a downloaded big bundle runs on the
     # chestnut just the same, so ChestnutState has to see it as available too.
     self.chestnut_compiled = self.chestnut_compiled or self.model_runner_tinygrad
-    # on the 5 Hz params pass, not per frame in a layout; a fitted chestnut owns chestnut_state
-    self.jetlink = None if self.sm['deviceState'].chestnutPresent else jetlink_adapter.status()
-    self._enforce_usb_port()
-    # the Jetson configures the gadget ~25 s after a cold boot, after the one-shot
-    # usb_unknown decision; recognising it late still clears "unknown"
-    if (view := self.jetlink_view) is not None and view.present and self.usb_unknown:
-      self.usb_unknown = False
+    UIStateZP.update_params(self)
     self.blindspot = self.params.get_bool("BlindSpot")
     self.chevron_metrics = self.params.get("ChevronInfo")
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
@@ -243,7 +206,7 @@ class UIStateSP:
     self.true_v_ego_ui = self.params.get_bool("TrueVEgoUI")
     self.turn_signals = self.params.get_bool("ShowTurnSignals")
     self.boot_offroad_mode = self.params.get("DeviceBootMode", return_default=True)
-    self.always_offroad = self.params.get_bool("OffroadMode")
+    self.always_offroad = self.params.get_bool("OffroadMode") or self.params.get_bool("OffroadModeRequested")  # applied or pending
     self.screensaver_enabled = self.params.get_bool("ScreenSaverEnabled")
     self.carrot_amap_blind_spot_enabled = self.params.get_bool("CarrotAmapBlindSpotEnabled")
 
@@ -278,31 +241,27 @@ class UIStateSP:
       if not CP.enableBsm:
         self.params.remove("AutoLaneChangeBsmDelay")
     else:
-      # No CarParams: clear all car-dependent params as safety default
-      self.params.remove("EnforceTorqueControl")
-      self.params.remove("NeuralNetworkLateralControl")
-      self.params.remove("LateralJerkTorqueController")
-      self.params.remove("AlphaLongitudinalEnabled")
+      # Clear car-dependent params only offroad. During first-drive initialization, card may
+      # seed defaults before CarParamsPersistent is available.
+      if not self.started:
+        self.params.remove("EnforceTorqueControl")
+        self.params.remove("NeuralNetworkLateralControl")
+        self.params.remove("LateralJerkTorqueController")
+        self.params.remove("AlphaLongitudinalEnabled")
 
-    # No longitudinal control: no experimental mode or DEC
+    # No longitudinal control: no experimental mode. DEC, speed assist, custom ACC and
+    # SCC keep their values; card and the planner leave them idle until long or ICBM returns.
     if not has_long:
       self.params.remove("ExperimentalMode")
-      self.params.remove("DynamicExperimentalControl")
 
-    # ICBM: clear if not available or if full longitudinal control is active
-    if self.CP_SP is not None:
-      if not self.CP_SP.intelligentCruiseButtonManagementAvailable or has_long:
-        self.params.remove("IntelligentCruiseButtonManagement")
-        self.has_icbm = False
-    else:
-      self.params.remove("IntelligentCruiseButtonManagement")
-      self.has_icbm = False
+    # ICBM has no toggle: the features that act through it can, wherever the car has it
+    self.has_icbm = self.CP is not None and self.CP_SP is not None and icbm_applicable(self.CP, self.CP_SP)
 
-    # Cruise features requiring longitudinal or ICBM
-    if not (has_long or self.has_icbm):
-      self.params.remove("CustomAccIncrementsEnabled")
-      self.params.remove("SmartCruiseControlVision")
-      self.params.remove("SmartCruiseControlMap")
+def set_always_offroad(params: Params, enable: bool) -> None:
+  """The UI writes the forced-offroad preference only. hardwared applies it: entering waits for
+  a silenced stock ECU to be handed back before pandad sees OffroadMode, exiting clears the old
+  session's CarParams first so the fresh session sequences like a boot."""
+  params.put_bool("OffroadModeRequested", enable)
 
   def _enforce_usb_port(self) -> None:
     """ADB and Jetlink both need the comma's USB port: the link on turns ADB off,
@@ -338,9 +297,10 @@ class DeviceSP:
     else:
       self.dismiss_screensaver(_ui_state)
 
-    # blocked runs every frame, so write only when actually sleeping
+    # blocked runs every frame, so write only when actually sleeping; ignition is off here,
+    # so hardwared applies the preference at once
     if _ui_state.boot_offroad_mode == 1 and not on and not self._blocked_by_screensaver:
-      _ui_state.params.put_bool("OffroadMode", True)
+      _ui_state.params.put_bool("OffroadModeRequested", True)
 
   def dismiss_screensaver(self, _ui_state) -> None:
     if gui_app.get_active_widget() == _ui_state.screensaver:

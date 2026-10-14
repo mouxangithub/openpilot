@@ -6,16 +6,18 @@ See the LICENSE.md file in the root directory for more details.
 """
 
 
-from openpilot.cereal import custom
+from openpilot.cereal import custom, log
 from openpilot.common.realtime import DT_CTRL
 from openpilot.sunnypilot.mads.state import StateMachine, SOFT_DISABLE_TIME
-from openpilot.selfdrive.selfdrived.events import ET, EventName, NormalPermanentAlert, Events
+from openpilot.selfdrive.selfdrived.events import ET, NormalPermanentAlert, Events
 from openpilot.selfdrive.selfdrived.state import StateMachine as SelfdriveStateMachine
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP, EVENTS_SP
 from openpilot.common.test import OpenpilotTestCase
 
 State = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
+EventName = log.OnroadEvent.EventName
 
 # The event types that maintain the current state
 MAINTAIN_STATES = {State.enabled: (None,), State.disabled: (None,), State.softDisabling: (ET.SOFT_DISABLE,),
@@ -23,6 +25,11 @@ MAINTAIN_STATES = {State.enabled: (None,), State.disabled: (None,), State.softDi
 ALL_STATES = (State.schema.enumerants.values())
 # The event types checked in DISABLED section of state machine
 ENABLE_EVENT_TYPES = (ET.ENABLE, ET.OVERRIDE_LATERAL)
+
+
+# make_event borrows the lkasEnable slot in the shared mapping; restore it so later tests in
+# the session see the real event again
+LKAS_ENABLE_EVENT = EVENTS_SP[0]
 
 
 def make_event(event_types):
@@ -39,10 +46,9 @@ class MockMADS:
     self.selfdrive.state_machine = mocker.MagicMock()
     self.selfdrive.events = Events()
     self.selfdrive.events_sp = EventsSP()
-    self.selfdrive.model_startup.starting = False
+    self.selfdrive.model_events.startup.starting = False
     self.selfdrive.big_model_loading = False
     self.button_owns_lateral = False
-    self.lateral_held = False
 
 
 class TestMADSStateMachine(OpenpilotTestCase):
@@ -53,6 +59,9 @@ class TestMADSStateMachine(OpenpilotTestCase):
     self.events = self.mads.selfdrive.events
     self.events_sp = self.mads.selfdrive.events_sp
     self.mads.selfdrive.state_machine.soft_disable_timer = int(SOFT_DISABLE_TIME / DT_CTRL)
+
+  def teardown_method(self):
+    EVENTS_SP[0] = LKAS_ENABLE_EVENT
 
   def clear_events(self):
     self.events.clear()
@@ -124,6 +133,20 @@ class TestMADSStateMachine(OpenpilotTestCase):
     assert self.state_machine.state == State.paused
     self.clear_events()
 
+  def test_big_model_loading_pauses_except_for_modelds_first_load(self):
+    # a chestnut's load or a jetlink swap waits in paused; modeld's first load on every boot is refused,
+    # as the commIssue it stands in for was
+    for starting, chestnut_loading, expected in ((False, False, State.paused), (True, False, State.disabled),
+                                                 (True, True, State.paused)):
+      self.mads.selfdrive.model_events.startup.starting = starting
+      self.mads.selfdrive.big_model_loading = chestnut_loading
+      self.state_machine.state = State.disabled
+      self.events.add(EventName.bigModelLoading)
+      self.events_sp.add(make_event([ET.ENABLE]))
+      self.state_machine.update()
+      assert self.state_machine.state == expected
+      self.clear_events()
+
   def test_override_lateral(self):
     self.state_machine.state = State.enabled
     self.events_sp.add(make_event([ET.OVERRIDE_LATERAL]))
@@ -138,6 +161,41 @@ class TestMADSStateMachine(OpenpilotTestCase):
     assert self.state_machine.state == State.enabled
     self.clear_events()
 
+  def test_explicit_lkas_enable_alert_while_selfdrive_enabled(self):
+    # a declared MADS button (Mazda TJA) owning lateral: the explicit enable still chimes
+    self.mads.button_owns_lateral = True
+    self.mads.selfdrive.enabled = True
+    self.mads.selfdrive.state_machine.current_alert_types = []
+    self.events_sp.add(EventNameSP.lkasEnable)
+
+    self.state_machine.update()
+
+    assert self.state_machine.state == State.enabled
+    assert ET.ENABLE in self.mads.selfdrive.state_machine.current_alert_types
+
+  def test_lkas_enable_stays_silent_while_selfdrive_enabled_on_every_other_car(self):
+    # upstream's rule for toyota, hyundai and the rest: no enable alert while already enabled
+    self.mads.selfdrive.enabled = True
+    self.mads.selfdrive.state_machine.current_alert_types = []
+    self.events_sp.add(EventNameSP.lkasEnable)
+
+    self.state_machine.update()
+
+    assert self.state_machine.state == State.enabled
+    assert ET.ENABLE not in self.mads.selfdrive.state_machine.current_alert_types
+
+  def test_silent_lkas_enable_remains_silent_while_selfdrive_enabled(self):
+    self.mads.button_owns_lateral = True
+    self.mads.selfdrive.enabled = True
+    self.mads.selfdrive.state_machine.current_alert_types = []
+    self.events_sp.add(EventNameSP.lkasEnable)
+    self.events_sp.add(EventNameSP.silentLkasEnable)
+
+    self.state_machine.update()
+
+    assert self.state_machine.state == State.enabled
+    assert ET.ENABLE not in self.mads.selfdrive.state_machine.current_alert_types
+
   def test_maintain_states(self):
     for state in ALL_STATES:
       for et in MAINTAIN_STATES[state]:
@@ -146,20 +204,6 @@ class TestMADSStateMachine(OpenpilotTestCase):
         self.state_machine.update()
         assert self.state_machine.state == state
         self.clear_events()
-
-  def test_big_model_loading_pauses_except_for_modelds_first_load(self):
-    # a chestnut's load or a jetlink swap waits in paused; modeld's first load on every boot is refused,
-    # as the commIssue it stands in for was
-    for starting, chestnut_loading, expected in ((False, False, State.paused), (True, False, State.disabled),
-                                                 (True, True, State.paused)):
-      self.mads.selfdrive.model_startup.starting = starting
-      self.mads.selfdrive.big_model_loading = chestnut_loading
-      self.state_machine.state = State.disabled
-      self.events.add(EventName.bigModelLoading)
-      self.events_sp.add(make_event([ET.ENABLE]))
-      self.state_machine.update()
-      assert self.state_machine.state == expected
-      self.clear_events()
 
 
 class TestStockLkasOffLateralOnly(OpenpilotTestCase):
@@ -174,7 +218,7 @@ class TestStockLkasOffLateralOnly(OpenpilotTestCase):
 
   def test_lka_off_engages_selfdrive_but_not_lateral(self):
     self.events.add(EventName.pcmEnable)
-    self.events_sp.add(EventNameSP.stockLkasOff)
+    self.events_sp.zp.add(EventNameZP.stockLkasOff)
     enabled, _ = SelfdriveStateMachine().update(self.events)
     assert enabled
     enabled, active = self.mads_machine.update()
@@ -184,7 +228,7 @@ class TestStockLkasOffLateralOnly(OpenpilotTestCase):
   def test_lka_off_alone_never_disables(self):
     for state in (State.enabled, State.paused):
       self.mads_machine.state = state
-      self.events_sp.add(EventNameSP.stockLkasOff)
+      self.events_sp.zp.add(EventNameZP.stockLkasOff)
       self.mads_machine.update()
       assert self.mads_machine.state == state
       self.events_sp.clear()

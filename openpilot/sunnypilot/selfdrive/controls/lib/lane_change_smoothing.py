@@ -6,7 +6,8 @@ See the LICENSE.md file in the root directory for more details.
 
 Lane-change smoothing: a user-selected lateral jerk limit on automatic lane changes.
 
-Three rules, applied as a jerk factor on clip_curvature's curvature-rate limit:
+Three rules, applied as a jerk factor on the curvature-rate limit, clipped here ahead of
+clip_curvature (clip_curvature_rate):
 
 1. Entry: while the model steers into the new lane, the curvature rate is capped at the
    selected level's fraction of the ISO limit.
@@ -26,6 +27,8 @@ The rate limiter sits downstream of a planner that is closed-loop on the car's l
 position, so the model replans against it and the true maneuver duration is set by that
 loop, not by the level's nominal time. Measure durations in logs.
 """
+import numpy as np
+
 from openpilot.cereal import log
 from openpilot.common.params import Params
 from openpilot.common.realtime import DT_CTRL
@@ -77,16 +80,21 @@ def read_level(params) -> int:
   return min(max(int(params.get("LaneChangeSmoothing", return_default=True)), LEVELS[0]), LEVELS[-1])
 
 
-def level_jerk_factor(level: int) -> float:
-  return LEVEL_JERK_FACTOR[level]
-
-
-def lane_change_time_extra(level: int) -> float:
-  return LEVEL_TIME_EXTRA[level]
+def clip_curvature_rate(v_ego: float, prev_curvature: float, new_curvature: float, jerk_factor: float) -> float:
+  """clip_curvature's lateral jerk clip at jerk_factor of the ISO limit, applied before it.
+  jerk_factor never exceeds 1, so this window lies inside clip_curvature's own, which then
+  passes the value through; its limited flag only reports the accel and max-curvature clamps."""
+  if jerk_factor >= 1.0:
+    return new_curvature
+  v_ego = max(v_ego, MIN_SPEED)
+  max_curvature_rate = (MAX_LATERAL_JERK * jerk_factor) / (v_ego ** 2)
+  return float(np.clip(new_curvature,
+                       prev_curvature - max_curvature_rate * DT_CTRL,
+                       prev_curvature + max_curvature_rate * DT_CTRL))
 
 
 class LaneChangeSmoothing:
-  """Stateful jerk-factor source for clip_curvature during automatic lane changes."""
+  """Stateful jerk-factor source for clip_curvature_rate during automatic lane changes."""
 
   def __init__(self):
     self.params = Params()
@@ -100,7 +108,7 @@ class LaneChangeSmoothing:
   def get_params(self) -> None:
     level = read_level(self.params)
     self.enabled = level != LEVEL_OFF
-    self.set_jerk = level_jerk_factor(level)
+    self.set_jerk = LEVEL_JERK_FACTOR[level]
 
   def reset(self) -> None:
     self.release_timer = 0.0
@@ -108,7 +116,7 @@ class LaneChangeSmoothing:
     self.jerk_factor = 1.0
 
   def update(self, CS, model_v2, lat_active: bool, new_desired_curvature: float, prev_desired_curvature: float) -> float:
-    """Returns the jerk factor for clip_curvature (1.0 = stock limits)."""
+    """Returns the jerk factor for clip_curvature_rate (1.0 = stock limits)."""
     if not self.enabled or not lat_active:
       self.reset()
       return 1.0
@@ -116,7 +124,8 @@ class LaneChangeSmoothing:
     meta = model_v2.meta
     if meta.laneChangeState in (LaneChangeState.laneChangeStarting, LaneChangeState.laneChangeFinishing):
       self.release_timer = SMOOTH_RELEASE_T
-      self.entry_sign = ENTRY_SIGN.get(meta.laneChangeDirection, self.entry_sign)
+      # .raw: a capnp enum compares equal to its int but does not hash like it
+      self.entry_sign = ENTRY_SIGN.get(meta.laneChangeDirection.raw, self.entry_sign)
     else:
       self.release_timer = max(self.release_timer - DT_CTRL, 0.0)
 

@@ -15,6 +15,7 @@ if gui_app.sunnypilot_ui():
   from openpilot.selfdrive.ui.sunnypilot.mici.layouts.settings import SettingsLayoutSP as SettingsLayout
   from openpilot.selfdrive.ui.sunnypilot.mici.layouts.home import MiciHomeLayoutSP as MiciHomeLayout
   from openpilot.selfdrive.ui.sunnypilot.mici.layouts.onroad import OnroadViewContainerSP as AugmentedRoadView
+  from openpilot.selfdrive.ui.sunnypilot.mici.layouts.offroad_alerts import MiciOffroadAlertsSP as MiciOffroadAlerts
 
 ONROAD_DELAY = 2.5  # seconds
 

@@ -25,13 +25,13 @@ from openpilot.common.hardware.usb import CHESTNUT_FW_VERSION, CHESTNUT_USB_PROD
 from openpilot.common.linux import LinuxSystemStats
 from openpilot.system.loggerd.config import get_available_percent
 from openpilot.common.swaglog import cloudlog
-from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.system.statsd import statlog
 from openpilot.system.hardware.power_monitoring import PowerMonitoring
+from openpilot.sunnypilot.system.hardware.hardwared_ext import HardwaredExt
 from openpilot.system.hardware.fan_controller import FanController
 from openpilot.system.hardware.chestnut.monitoring import chestnut_state_thread
 from openpilot.system.hardware.chestnut.status import ChestnutStatus
-from openpilot.common.version import terms_version, training_version, terms_version_sp
+from openpilot.common.version import terms_version, training_version, get_build_metadata, terms_version_sp
 
 ThermalStatus = log.DeviceState.ThermalStatus
 NetworkType = log.DeviceState.NetworkType
@@ -126,16 +126,7 @@ def touch_thread(end_event):
   event_size = struct.calcsize(event_format)
   event_frame = []
 
-  touch_path = "/dev/input/by-path/platform-894000.i2c-event"
-  try:
-    event_file = open(touch_path, "rb")
-  except OSError as e:
-    cloudlog.warning(f"touch_thread disabled ({touch_path}): {e}")
-    while not end_event.is_set():
-      time.sleep(1)
-    return
-
-  with event_file:
+  with open("/dev/input/by-path/platform-894000.i2c-event", "rb") as event_file:
     fcntl.fcntl(event_file, fcntl.F_SETFL, os.O_NONBLOCK)
     while not end_event.is_set():
       if (count % int(1. / DT_HW)) == 0:
@@ -245,6 +236,7 @@ def hardware_thread(end_event, hw_queue) -> None:
   offroad_cycle_count = 0
 
   params = Params()
+  ext = HardwaredExt(params)
   power_monitor = PowerMonitoring()
 
   uptime_offroad: float = params.get("UptimeOffroad", return_default=True)
@@ -259,11 +251,6 @@ def hardware_thread(end_event, hw_queue) -> None:
   chestnut_status = ChestnutStatus()
   branch = get_short_branch()
 
-  # set when we start asking an attached accelerator to power off with us; cleared
-  # by the next ignition. An accelerator on its own supply outlives the comma, so
-  # we ask it once and keep publishing while it powers down.
-  accelerator_off_ts: float | None = None
-
   while not end_event.is_set():
     sm.update(PANDA_STATES_TIMEOUT)
 
@@ -271,8 +258,7 @@ def hardware_thread(end_event, hw_queue) -> None:
     peripheralState = sm['peripheralState']
 
     # handle requests to cycle system started state
-    if params.get_bool("OnroadCycleRequested"):
-      params.put_bool("OnroadCycleRequested", False, block=True)
+    if ext.update(started_ts is not None):
       offroad_cycle_count = sm.frame
     onroad_conditions["not_onroad_cycle"] = (sm.frame - offroad_cycle_count) >= ONROAD_CYCLE_TIME * SERVICE_LIST['pandaStates'].frequency
 
@@ -332,10 +318,7 @@ def hardware_thread(end_event, hw_queue) -> None:
     chestnut_status.update(started_ts is None, branch, last_hw_state.usb_state, chestnut.failed,
                            params.get_bool("ChestnutLoading"), params.get("ChestnutActive"),
                            chestnut_state if chestnut_valid else None, set_offroad_alert_if_changed)
-    # an enabled jetlink that cannot come up is otherwise silently absent
-    accelerator_error = jetlink_adapter.reason()
-    set_offroad_alert_if_changed("Offroad_JetlinkUnavailable", accelerator_error is not None,
-                                 extra_text=accelerator_error)
+    ext.alerts(set_offroad_alert_if_changed)
     # this subset is only used for offroad
     temp_sources = [
       msg.deviceState.memoryTempC,
@@ -369,8 +352,7 @@ def hardware_thread(end_event, hw_queue) -> None:
     startup_conditions["up_to_date"] = params.get("Offroad_ConnectivityNeeded") is None or params.get_bool("DisableUpdates") or params.get_bool("SnoozeUpdate")
     startup_conditions["no_excessive_actuation"] = params.get("Offroad_ExcessiveActuation") is None
     startup_conditions["not_uninstalling"] = not params.get_bool("DoUninstall")
-    # the accelerator was asked to power off with the comma: no drive may start under the power-off that follows
-    startup_conditions["not_powering_off"] = accelerator_off_ts is None
+    startup_conditions["not_powering_off"] = not ext.powering_off
     startup_conditions["accepted_terms"] = params.get("HasAcceptedTerms") == terms_version
     startup_conditions["accepted_terms_sp"] = params.get("HasAcceptedTermsSP") == terms_version_sp
 
@@ -389,6 +371,16 @@ def hardware_thread(end_event, hw_queue) -> None:
     offroad_mode = params.get_bool("OffroadMode")
     startup_conditions["not_always_offroad"] = not offroad_mode
     onroad_conditions["not_always_offroad"] = not offroad_mode
+
+    # if an unsupported device and branch is detected, going onroad is blocked
+    # only allow going onroad when:
+    # - TIZI, or
+    # - TICI and channel_type is "tici"
+    build_metadata = get_build_metadata()
+    is_unsupported_combo = COMMA_HARDWARE and HARDWARE.get_device_type() == "tici" and build_metadata.channel_type != "tici"
+    startup_conditions["not_tici"] = not is_unsupported_combo
+    onroad_conditions["not_tici"] = not is_unsupported_combo
+    set_offroad_alert("Offroad_TiciSupport", is_unsupported_combo, extra_text=build_metadata.channel)
 
     # if the temperature enters the danger zone, go offroad to cool down
     onroad_conditions["device_temp_good"] = thermal_status < ThermalStatus.critical
@@ -464,14 +456,8 @@ def hardware_thread(end_event, hw_queue) -> None:
     msg.deviceState.somPowerDrawW = som_power_draw
 
     # Check if we need to shut down
-    if accelerator_off_ts is not None or power_monitor.should_shutdown(onroad_conditions["ignition"], in_car, off_ts, started_seen):
-      if accelerator_off_ts is None:
-        cloudlog.warning(f"shutting device down, offroad since {off_ts}")
-        # an accelerator on its own supply outlives us: ask it once, and keep publishing while it powers off
-        jetlink_adapter.request_shutdown(f"comma shutting down, offroad since {off_ts}")
-        accelerator_off_ts = time.monotonic()
-      if not jetlink_adapter.shutdown_pending() or time.monotonic() - accelerator_off_ts >= 25.0:
-        params.put_bool("DoShutdown", True, block=True)
+    if ext.shutdown_ready(power_monitor.should_shutdown(onroad_conditions["ignition"], in_car, off_ts, started_seen), off_ts):
+      params.put_bool("DoShutdown", True, block=True)
 
     msg.deviceState.started = started_ts is not None and not offroad_mode
     msg.deviceState.startedMonoTime = int(1e9*(started_ts or 0))

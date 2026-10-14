@@ -21,6 +21,10 @@ blacklist = [
   ".gitmodules",
   ".run/",
   ".idea/",
+
+  # jetlink: the comma imports the package and runs scripts/comma/ (jetlink.comma.root);
+  # the rest of the submodule is the Jetson's, the Mac's and the iPhone's
+  "^jetlink_repo/(?!jetlink/|scripts/comma/|LICENSE$)",
 ]
 
 # gets you through the blacklist

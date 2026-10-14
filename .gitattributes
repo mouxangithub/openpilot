@@ -22,6 +22,10 @@ openpilot/selfdrive/assets/training/*.png -filter -diff -merge
 # Docs assets: small PNG that should stay in plain git (no LFS push route available).
 docs/assets/comma-logo.png -filter -diff -merge binary
 
+# zoompilot's own binaries: plain git objects, since the fork cannot push to sunnypilot's LFS store
+openpilot/sunnypilot/selfdrive/assets/images/spinner_zoompilot_glow.png -filter binary
+
+
 openpilot/selfdrive/car/tests/test_models_segs.txt filter=lfs diff=lfs merge=lfs -text
 openpilot/common/hardware/comma/updater filter=lfs diff=lfs merge=lfs -text
 

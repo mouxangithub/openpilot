@@ -11,6 +11,7 @@ from openpilot.common.constants import CV
 from openpilot.common.params import Params
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import CONFIRM_SPEED_THRESHOLD
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode as SpeedLimitMode
+from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.helpers import icbm_applicable
 
 
 def compare_cluster_target(v_cruise_cluster: float, target_set_speed: float, is_metric: bool) -> tuple[bool, bool]:
@@ -35,10 +36,20 @@ def confirm_needed_for_change(cluster_conv: int, target_conv: int, is_metric: bo
 
 
 def settle_conv(v_cap: float, cluster_conv: int, is_metric: bool) -> int:
-  """The display speed an SLA cap (m/s) leaves the car at, shared by the two SLA machines,
-  which announce only when it moves. The cap limits the plan, it never lifts it past the set
-  speed; an unset cap (V_CRUISE_UNSET, 255 m/s) never wins the min."""
+  """The display speed an SLA cap (m/s) leaves the car at, shared by the pcm SLA machine and
+  the cruise arbiter, which announce only when it moves. The cap limits the plan, it never
+  lifts it past the set speed; an unset cap (V_CRUISE_UNSET, 255 m/s) never wins the min."""
   return min(round(v_cap * (CV.MS_TO_KPH if is_metric else CV.MS_TO_MPH)), cluster_conv)
+
+
+def pcm_machine_owns_sla(CP: car.CarParams, icbm_active: bool) -> bool:
+  """The plannerd SLA machine runs where openpilot commands acceleration, the car's ECU keeps
+  the setpoint on its cluster, and nothing can move that setpoint but the driver: it confirms
+  through the driver setting the required-max speed. Everywhere else the setpoint is
+  reachable, by openpilot writing it (non-pcmCruise) or by the ICBM buttons (Mazda alpha long
+  while ICBM is active), and the card-side cruise arbiter owns the session. icbm_active is
+  card's decision this frame (icbm_latch), so the owner can change between engagements."""
+  return bool(CP.openpilotLongitudinalControl and CP.pcmCruise and not icbm_active)
 
 
 def set_speed_limit_assist_availability(CP: car.CarParams, CP_SP: custom.CarParamsSP, params: Params | None = None) -> bool:
@@ -53,7 +64,8 @@ def set_speed_limit_assist_availability(CP: car.CarParams, CP_SP: custom.CarPara
   if disallow_in_release or always_disallow:
     allowed = False
 
-  if not CP.openpilotLongitudinalControl and CP_SP.pcmCruiseSpeed:
+  # stock ACC reaches the setpoint only through the ICBM buttons, which assist brings up
+  if not CP.openpilotLongitudinalControl and not icbm_applicable(CP, CP_SP):
     allowed = False
 
   if not allowed:

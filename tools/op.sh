@@ -219,6 +219,10 @@ EOF
   et="$(date +%s)"
   echo -e " ↳ [${GREEN}✔${NC}] Files pulled successfully in $((et - st)) seconds."
 
+  # zoompilot hooks (commit-msg, git-lfs), set after the LFS step so it writes the default dir
+  git config core.hooksPath .githooks
+  git -C opendbc_repo config core.hooksPath .githooks 2>/dev/null || true
+
   op_check
 }
 

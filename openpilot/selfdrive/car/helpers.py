@@ -56,6 +56,7 @@ CAR_CONTROL_SP_SUBSTRUCTS = {
   'leadOne': structs.LeadData,
   'leadTwo': structs.LeadData,
   'intelligentCruiseButtonManagement': structs.IntelligentCruiseButtonManagement,
+  'zoompilot': structs.CarControlZP,
 }
 
 
@@ -66,7 +67,7 @@ def _field_names(cls) -> frozenset[str]:
 
 def _build(cls, s: dict):
   # only the dataclass's own fields: a capnp-only field (deprecated, or one opendbc does not
-  # carry, like mads.lateralHeld) would otherwise be an unexpected kwarg and crash card
+  # carry, like zoompilot.laneChangeSmoothing) would otherwise be an unexpected kwarg and crash card
   names = _field_names(cls)
   return cls(**{k: v for k, v in s.items() if k in names})
 

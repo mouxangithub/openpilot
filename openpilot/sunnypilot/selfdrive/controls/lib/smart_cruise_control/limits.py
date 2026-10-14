@@ -18,6 +18,7 @@ import numpy as np
 from opendbc.car import structs
 from opendbc.sunnypilot.car.icbm_actuation_profile import get_actuation_profile
 from openpilot.common.realtime import DT_MDL
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.speed_profile import required_decel
 
 # openpilot long's cruise candidate: clip(v_cruise - v_ego, A_CRUISE_MIN, max) with a jerk
 # clip from J_CRUISE_VALS. Mirrored from selfdrive/controls/lib/longitudinal_planner.py, which
@@ -27,23 +28,12 @@ _OP_LONG_A_BUDGET = 1.2
 _OP_LONG_J_BP = [0., 10., 25., 40.]
 _OP_LONG_J_VALS = [1.6, 1.2, 0.8, 0.6]
 
-# stock ACC decelerates with the gap between the dash set speed and actual speed; decel
-# overshoot holds the gap that delivers this budget and no deeper (mazda: DECEL_OVERSHOOT_PARAMS)
-_STOCK_A_BUDGET = {'mazda': 0.75}
-# unmeasured brands: a smaller budget only means braking starts earlier, the safe way to be wrong
-_STOCK_A_BUDGET_DEFAULT = 0.5
+# stock ACC: the budget, servo walk rate and tracking gap are the car's measured plant, kept in
+# its ICBM actuation profile.
 # time from a stable lowered set speed to the ECU actually decelerating; an estimate erring large
 _STOCK_RESPONSE_T = 1.0
 
 _MPH_PER_MS = 2.23694
-
-# what the servo's button stream actually moves the dash at: forged hold frames register as
-# discrete presses, so the native hold grid must not size the actuation lead
-_SERVO_WALK_RATE = {'mazda': 4.0}  # mph/s, measured
-# the ECU brakes on the gap as soon as it opens, and decel overshoot holds the dash at most this
-# far below actual speed (its gap at the stock budget), so only this much of a dip is walked
-# before the car is braking at budget; the rest of the dip is tracked down, not waited out
-_SERVO_TRACK_GAP = {'mazda': 8.0}  # mph
 
 # shared solver gate: a constraint binds once the decel it requires reaches this fraction of
 # the budget; below 1.0 leaves headroom for slope and curvature error
@@ -101,10 +91,8 @@ def get_planning_limits(CP: structs.CarParams) -> PlanningLimits:
     return PlanningLimits(a_budget=_OP_LONG_A_BUDGET, t_lead=float(CP.longitudinalActuatorDelay), op_long=True)
 
   profile = get_actuation_profile(CP.brand)
-  return PlanningLimits(a_budget=_STOCK_A_BUDGET.get(CP.brand, _STOCK_A_BUDGET_DEFAULT),
-                        t_lead=_STOCK_RESPONSE_T, op_long=False,
-                        walk_rate=_SERVO_WALK_RATE.get(CP.brand, profile.tap_rate_hz),
-                        track_gap=_SERVO_TRACK_GAP.get(CP.brand, 0.))
+  return PlanningLimits(a_budget=profile.stock_a_budget, t_lead=_STOCK_RESPONSE_T, op_long=False,
+                        walk_rate=profile.walk_rate or profile.tap_rate_hz, track_gap=profile.track_gap)
 
 
 def publish_ramp(a_des: float, a_prev: float, lim: PlanningLimits, v_ego: float, dt: float = DT_MDL,
@@ -119,3 +107,11 @@ def publish_ramp(a_des: float, a_prev: float, lim: PlanningLimits, v_ego: float,
   a_des = max(a_des, floor)
   step = lim.pub_jerk(v_ego) * dt
   return float(min(max(a_des, a_prev - step), a_prev + step))
+
+
+def publish_cap_decel(v_cap: float, d: float, t_min: float, a_prev: float, lim: PlanningLimits, v_ego: float) -> float:
+  """publish_ramp toward the decel that brings v_ego down to a predicted cap v_cap in d metres, or
+  in t_min seconds when d is shorter (a cap past its sign, a degenerate distance). A prediction
+  asks for the budget at most: only the vision planner's measured near field may go past it."""
+  a_des = -required_decel(v_ego, [v_cap], [max(d, v_ego * t_min)])
+  return publish_ramp(a_des, a_prev, lim, v_ego)

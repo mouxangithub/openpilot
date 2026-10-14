@@ -13,14 +13,21 @@ from openpilot.common.realtime import DT_CTRL
 State = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
 EventName = log.OnroadEvent.EventName
 EventNameSP = custom.OnroadEventSP.EventName
+EventNameZP = custom.OnroadEventZP.EventName
 
 ACTIVE_STATES = (State.enabled, State.softDisabling, State.overriding)
 ENABLED_STATES = (State.paused, *ACTIVE_STATES)
 
 # stockLkasOff: held paused until the car's lane keep is back on (mads.py update_stock_lkas)
 GEARS_ALLOW_PAUSED_SILENT = [EventNameSP.silentWrongGear, EventNameSP.silentReverseGear, EventNameSP.silentBrakeHold,
-                             EventNameSP.silentDoorOpen, EventNameSP.silentSeatbeltNotLatched, EventNameSP.silentParkBrake,
-                             EventNameSP.silentPedalPressed, EventNameSP.stockLkasOff]
+                             EventNameSP.silentDoorOpen, EventNameSP.silentSeatbeltNotLatched, EventNameSP.silentParkBrake]
+# stockLkasOff: held paused until the car's lane keep is back on (mads.py update_stock_lkas)
+GEARS_ALLOW_PAUSED_SILENT_ZP = [EventNameZP.silentPedalPressed, EventNameZP.stockLkasOff]
+
+
+def paused_silent(events_sp) -> bool:
+  return events_sp.contains_in_list(GEARS_ALLOW_PAUSED_SILENT) or events_sp.zp.contains_in_list(GEARS_ALLOW_PAUSED_SILENT_ZP)
+
 # bigModelLoading: MADS turned on (a main-on edge, never repeated) while a big
 # model is not ready to drive waits in paused and resumes when it is, rather
 # than being refused and left off with main on (jetlink's second after a swap)
@@ -60,9 +67,9 @@ class StateMachine:
     return bool(self._events.contains(event_type) or self._events_sp.contains(event_type))
 
   def check_contains_in_list(self) -> bool:
-    model_starting = self.selfdrive.model_startup.starting and not self.selfdrive.big_model_loading
+    model_starting = self.selfdrive.model_events.startup.starting and not self.selfdrive.big_model_loading
     gears = GEARS_ALLOW_PAUSED_STARTING if model_starting else GEARS_ALLOW_PAUSED
-    return bool(self._events.contains_in_list(gears) or self._events_sp.contains_in_list(GEARS_ALLOW_PAUSED_SILENT))
+    return bool(self._events.contains_in_list(gears) or paused_silent(self._events_sp))
 
   def update(self):
     # soft disable timer and current alert types are from the state machine of openpilot

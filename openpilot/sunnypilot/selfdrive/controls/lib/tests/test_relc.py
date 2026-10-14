@@ -168,3 +168,29 @@ class TestRELC(OpenpilotTestCase):
     drive(relc, [0.0, 0.9], [0.05, 0.5, 0.5, 0.08], EDGE_REACTION_TIME + 0.1,
           road_edges=edges(-(boundary + 0.1), 10.0))
     assert not relc.left_edge_detected
+
+
+class TestRELCDegenerateModelOutputs(OpenpilotTestCase):
+  """A model bundle without these outputs must provide no edge evidence. Zero-filled
+  defaults previously read as high-confidence near edges on both sides and latched a
+  block that also vetoes manual nudge lane changes."""
+
+  def test_zero_filled_outputs_do_not_latch(self, relc):
+    drive(relc, [0.0, 0.0], [0.0, 0.0, 0.0, 0.0], EDGE_REACTION_TIME + 0.5, road_edges=None)
+    assert not relc.left_edge_detected
+    assert not relc.right_edge_detected
+
+  def test_short_arrays_do_not_crash_or_latch(self, relc):
+    drive(relc, [], [], EDGE_REACTION_TIME + 0.5, road_edges=None)
+    assert not relc.left_edge_detected
+    assert not relc.right_edge_detected
+
+  def test_missing_geometry_resets_established_block(self, relc):
+    drive(relc, [0.0, 0.9], [0.0, 0.8, 0.8, 0.8], EDGE_REACTION_TIME + 0.1)
+    assert relc.left_edge_detected
+    drive(relc, [0.0, 0.9], [0.0, 0.8, 0.8, 0.8], EDGE_CLEAR_TIME + 0.1, road_edges=None)
+    assert not relc.left_edge_detected
+
+  def test_real_geometry_still_latches(self, relc):
+    drive(relc, [0.0, 0.9], [0.0, 0.8, 0.8, 0.8], EDGE_REACTION_TIME + 0.1, road_edges=CLOSE_EDGES)
+    assert relc.left_edge_detected

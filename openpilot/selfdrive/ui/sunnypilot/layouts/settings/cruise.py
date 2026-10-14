@@ -10,7 +10,9 @@ from openpilot.selfdrive.ui.sunnypilot.layouts.settings.alpha_longitudinal_toggl
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise_sub_layouts.speed_limit_settings import SpeedLimitSettingsLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise_sub_layouts.longitudinal_mpc_tuning import LongitudinalMpcTuningLayout
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.helpers import icbm_moves_speed_limits
 from openpilot.system.ui.lib.multilang import tr, tr_noop
+from openpilot.system.ui.sunnypilot.lib.styles import style
 from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, option_item_sp, simple_button_item_sp
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.scroller_tici import Scroller
@@ -29,7 +31,7 @@ ICMB_UNAVAILABLE_LONG_AVAILABLE = tr_noop("Disable the Alpha Longitudinal toggle
 ICMB_UNAVAILABLE_LONG_UNAVAILABLE = tr_noop("sunnypilot Longitudinal Control is the default longitudinal control for this platform.")
 
 ACC_ENABLED_DESCRIPTION = tr_noop("Enable custom Short & Long press increments for cruise speed increase/decrease.")
-ACC_NOLONG_DESCRIPTION = tr_noop("This feature can only be used with sunnypilot longitudinal control enabled.")
+ACC_NOLONG_DESCRIPTION = tr_noop("This feature can only be used with zoompilot longitudinal control enabled.")
 ACC_PCMCRUISE_DISABLED_DESCRIPTION = tr_noop("This feature is not supported on this platform due to vehicle limitations.")
 ONROAD_ONLY_DESCRIPTION = tr_noop("Start the vehicle to check vehicle compatibility.")
 
@@ -46,11 +48,6 @@ class CruiseLayout(Widget):
     self._scroller = Scroller(items, line_separator=True, spacing=0)
 
   def _initialize_items(self):
-
-    self.icbm_toggle = toggle_item_sp(
-      title=tr("Intelligent Cruise Button Management (ICBM) (Alpha)"),
-      description="",
-      param="IntelligentCruiseButtonManagement")
 
     self.scc_v_toggle = toggle_item_sp(
       title=tr("Slow for Curves: Vision"),
@@ -98,6 +95,7 @@ class CruiseLayout(Widget):
       self.icbm_toggle,
       self.scc_v_toggle,
       self.scc_m_toggle,
+      self.sla_settings_button,
       self.custom_acc_toggle,
       self.custom_acc_short_increment,
       self.custom_acc_long_increment,
@@ -161,18 +159,12 @@ class CruiseLayout(Widget):
         self.scc_v_toggle.action_item.set_enabled(True)
         self.scc_m_toggle.action_item.set_enabled(True)
       else:
-        ui_state.params.remove("CustomAccIncrementsEnabled")
-        ui_state.params.remove("DynamicExperimentalControl")
-        ui_state.params.remove("SmartCruiseControlVision")
-        ui_state.params.remove("SmartCruiseControlMap")
         self.custom_acc_toggle.action_item.set_enabled(False)
         self.scc_v_toggle.action_item.set_enabled(False)
         self.scc_m_toggle.action_item.set_enabled(False)
 
     else:
       has_icbm = has_long = False
-      self.icbm_toggle.action_item.set_enabled(False)
-      self.icbm_toggle.set_description(tr(ONROAD_ONLY_DESCRIPTION))
 
     show_custom_acc_desc = False
 

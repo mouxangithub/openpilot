@@ -26,6 +26,8 @@ class TestSunnylinkdMethods(OpenpilotTestCase):
     blocked_params = {
       "GithubUsername": "attacker",
       "GithubSshKeys": "ssh-rsa attacker_key",
+      "OnroadCycleRequested": "1",
+      "AlphaLongitudinalEnabled": "1",
     }
 
     sunnylinkd.saveParams(blocked_params)

@@ -1,0 +1,37 @@
+name: zoompilot tests
+
+# The Mazda car tests are pytest-style and opendbc's own CI (unittest discovery) never collects
+# them; the main repo's test runner only walks openpilot/. Run them here, on the branches we
+# develop and publish from, alongside the Mazda safety tests that pin the controller's steer
+# envelope to the panda's. Kept out of tests.yaml so upstream syncs stay clean.
+
+on:
+  push:
+    branches:
+      - danger-unstable
+      - develop
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: zoompilot-tests-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: 1
+  PYTHONPATH: ${{ github.workspace }}
+  GIT_CONFIG_COUNT: 1
+  GIT_CONFIG_KEY_0: lfs.fetchexclude
+  GIT_CONFIG_VALUE_0: openpilot/selfdrive/modeld/models/big_driving_tinygrad.pkl
+
+jobs:
+  mazda:
+    name: mazda car and safety tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./tools/op.sh setup
+      - name: Mazda car and safety tests
+        # pytest is not a declared dependency (upstream's runner is unittest), so it rides in
+        # ephemerally; libsafety is compiled by cffi at import, nothing needs the scons tree
+        run: uv run --with pytest pytest -q opendbc_repo/opendbc/car/mazda/tests opendbc_repo/opendbc/safety/tests/test_mazda.py

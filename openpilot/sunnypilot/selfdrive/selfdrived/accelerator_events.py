@@ -29,7 +29,8 @@ from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 
 EventNameSP = custom.OnroadEventSP.EventName
-AcceleratorState = custom.ModelDataV2SP.AcceleratorState
+EventNameZP = custom.OnroadEventZP.EventName
+AcceleratorState = custom.ModelDataV2ZP.AcceleratorState
 
 # how long each event is raised for, in selfdrived's ticks. The take-control
 # warning covers about the time the small model takes to refill its history;
@@ -60,8 +61,9 @@ class AcceleratorEvents:
 
   def update(self, sm: messaging.SubMaster, in_control: bool, events: Events, events_sp: EventsSP) -> None:
     """`in_control`: openpilot or MADS is engaged, MADS even while its lateral
-    is paused. The adapter's swap gate is shut exactly then."""
-    status = sm['modelDataV2SP']
+    is paused. The adapter's swap gate (jetlink_adapter.Adapter.in_control) is shut
+    exactly then, and also while its inputs are late or invalid."""
+    status = sm['modelDataV2SP'].zoompilot
     big = sm['modelV2'].big
 
     # stale status neither offers the switch nor rearms the offer
@@ -97,10 +99,10 @@ class AcceleratorEvents:
 
     if self.offer > 0:
       self.offer -= 1
-      events_sp.add(EventNameSP.bigModelAvailable)
+      events_sp.zp.add(EventNameZP.bigModelAvailable)
     if self.handback > 0:
       self.handback -= 1
-      events_sp.add(EventNameSP.bigModelLinkLost)
+      events_sp.zp.add(EventNameZP.bigModelLinkLost)
     if self.switching > 0:
       self.switching -= 1
       # the native block's chime on the swap waits for the end of the second,

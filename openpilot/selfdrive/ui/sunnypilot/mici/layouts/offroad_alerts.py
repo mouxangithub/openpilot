@@ -30,7 +30,7 @@ class MiciOffroadAlertsSP(MiciOffroadAlerts):
     alert = self._update_item.alert_data
     if alert.visible:
       desc = _split_description(pending_params.get("UpdaterNewDescription") or "")
-      version = f"\nsunnypilot {desc[0]}, {desc[3]}\n" if desc is not None else ""
+      version = f"\nzoompilot {desc[0]}, {desc[3]}\n" if desc is not None else ""
       alert.text = f"Update ready{version}. Tap to read what's new."
       self._update_item.update_alert_data(alert)
 

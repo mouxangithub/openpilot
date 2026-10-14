@@ -12,7 +12,7 @@ from collections.abc import Callable
 
 import pyray as rl
 
-from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigMultiParamToggle, BigMultiToggle, BigParamControl
+from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigMultiParamToggle, BigMultiToggle, BigParamControl, BigToggle
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import FontWeight, gui_app
 from openpilot.system.ui.lib.multilang import tr
@@ -93,11 +93,11 @@ def badge_area(button: BigButton, btn_y: float) -> rl.Rectangle:
 class BigButtonSP(BigButton):
   """BigButton with badges, disabled state, active tinting, and sub-panel linking."""
 
-  def __init__(self, text: str, value: str = "", icon=None, scroll: bool = False):
+  def __init__(self, text: str, value: str = "", icon=None, scroll: bool = False, **kwargs):
     # BigButton.__init__ calls _update_label_layout before it returns.
     self._badge_labels: list[str] | None = None
     self._disabled: bool = False
-    BigButton.__init__(self, text, value, icon, scroll)
+    BigButton.__init__(self, text, value, icon, scroll, **kwargs)
 
   def set_subtitle_font_size(self, size: int):
     self._sub_label.set_font_size(size)
@@ -183,7 +183,35 @@ class SubPanelSP(NavScroller):
       item.refresh()
 
 
-class BigParamControlSP(BigParamControl):
+class SupersededPill:
+  """BigToggle mixin: another setting overrides this one. Locked, and an on pill draws grey.
+  A lock from set_enabled, like onroad, keeps it green."""
+  _superseded: bool | Callable[[], bool] = False
+
+  def _load_images(self):
+    super()._load_images()
+    # on but overridden by another setting: it applies again once that one is off
+    self._txt_inactive_toggle = gui_app.grayscale_texture("icons_mici/buttons/toggle_pill_enabled.png", 84, 66)
+
+  def set_superseded(self, superseded: bool | Callable[[], bool]):
+    self._superseded = superseded
+
+  @property
+  def superseded(self) -> bool:
+    return self._superseded() if callable(self._superseded) else self._superseded
+
+  @property
+  def enabled(self) -> bool:
+    return super().enabled and not self.superseded
+
+  def _draw_pill(self, x: float, y: float, checked: bool):
+    if checked and self.superseded:
+      rl.draw_texture_ex(self._txt_inactive_toggle, (x, y), 0, 1.0, rl.Color(255, 255, 255, int(255 * 0.6)))
+    else:
+      super()._draw_pill(x, y, checked)
+
+
+class BigParamControlSP(SupersededPill, BigParamControl):
   """Lock the control while a control dependency is unmet.
 
   The stored value stays on screen, an on pill drawn grey, and applies again once the dependency is met.
@@ -197,7 +225,7 @@ class BigParamControlSP(BigParamControl):
       self.set_superseded(lambda: not depends_on())
 
 
-class BigMultiParamToggleSP(BigMultiParamToggle):
+class BigMultiParamToggleSP(SupersededPill, BigMultiParamToggle):
   """BigMultiParamToggle with bounded reads, refresh, and dynamic pill spacing.
 
   When supplied, `values` maps each option to its stored value instead of its list index.
@@ -207,6 +235,11 @@ class BigMultiParamToggleSP(BigMultiParamToggle):
     assert values is None or len(values) == len(options)
     self._values = values  # BigMultiParamToggle.__init__ calls _load_value
     super().__init__(text, param, options, **kwargs)
+    self._blocked_options: Callable[[], set[int]] | None = None
+
+  def set_blocked_options(self, blocked: Callable[[], set[int]] | None):
+    """Option indices a tap skips over; the stored value is left alone if it is one of them."""
+    self._blocked_options = blocked
 
   def _draw_content(self, btn_y: float):
     # BigToggle draws one pill; this control draws one per option.
@@ -244,6 +277,10 @@ class BigMultiParamToggleSP(BigMultiParamToggle):
     self.set_value(self._options[self._get_param_index()])
 
   def _handle_mouse_release(self, mouse_pos):
+    blocked = self._blocked_options() if self._blocked_options is not None else set()
+    if blocked:
+      self._select_skipping(mouse_pos, blocked)
+      return
     if self._values is None:
       super()._handle_mouse_release(mouse_pos)
       return
@@ -251,6 +288,16 @@ class BigMultiParamToggleSP(BigMultiParamToggle):
     BigMultiToggle._handle_mouse_release(self, mouse_pos)
     # refresh reads this value every frame, so commit it synchronously.
     self._params.put(self._param, self._values[self._options.index(self.value)], block=True)
+
+  def _select_skipping(self, mouse_pos, blocked: set[int]):
+    BigToggle._handle_mouse_release(self, mouse_pos)
+    cur = self._options.index(self.value)
+    n = len(self._options)
+    new = next(((cur + step) % n for step in range(1, n + 1) if (cur + step) % n not in blocked), cur)
+    self.set_value(self._options[new])
+    if self._select_callback:
+      self._select_callback(self.value)
+    self._params.put(self._param, self._values[new] if self._values is not None else new, block=True)
 
   def refresh(self):
     new_value = self._options[self._get_param_index()]
@@ -265,8 +312,8 @@ class BigParamOption(BigButton):
                value_change_step: int = 1, label_callback: Callable | None = None,
                value_map: dict[int, int] | None = None, float_param: bool = False,
                picker_label_callback: Callable | None = None,
-               picker_unit: str | Callable[[], str] = "", picker_item_width: int = 0):
-    super().__init__(text, "")
+               picker_unit: str | Callable[[], str] = "", picker_item_width: int = 0, **kwargs):
+    super().__init__(text, "", **kwargs)
     self._param = param
     self._min_value = min_value
     self._max_value = max_value

@@ -9,7 +9,7 @@ import pyray as rl
 
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
-from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, option_item_sp, LineSeparatorSP
+from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, option_item_sp, multiple_button_item_sp, LineSeparatorSP
 from openpilot.system.ui.widgets.network import NavButton
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.widgets import Widget
@@ -51,6 +51,17 @@ class LaneChangeSettingsLayout(Widget):
       description=lambda: tr("Toggle to enable a delay timer for seamless lane changes when blind spot monitoring " +
                              "(BSM) detects a obstructing vehicle, ensuring safe maneuvering."),
     )
+    # stored value is the index into lane_change_smoothing.LEVELS, off first
+    self._smoothing_level = multiple_button_item_sp(
+      title=lambda: tr("Lane Change Smoothing"),
+      description=lambda: tr("Slow automatic lane changes to a chosen pace. Off is stock; every pace is gentler " +
+                             "than stock. The end-of-maneuver correction keeps its authority at every pace, so the " +
+                             "car settles into the new lane without a wheel snap."),
+      buttons=[lambda: tr("Off"), lambda: tr("Fast"), lambda: tr("Medium"), lambda: tr("Slow"), lambda: tr("Extra Slow")],
+      param="LaneChangeSmoothing",
+      button_width=280,
+      inline=False,
+    )
     self._road_edge_block = toggle_item_sp(
       param="RoadEdgeLaneChangeEnabled",
       title=lambda: tr("Block Lane Change: Road Edge Detection"),
@@ -63,6 +74,8 @@ class LaneChangeSettingsLayout(Widget):
       self._bsm_delay,
       LineSeparatorSP(40),
       self._road_edge_block,
+      LineSeparatorSP(40),
+      self._smoothing_level,
     ]
 
     return items

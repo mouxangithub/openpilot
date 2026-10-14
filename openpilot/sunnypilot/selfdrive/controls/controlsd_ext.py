@@ -19,9 +19,11 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.controls.lib.longcontrol import LongCtrlState
 from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD
 from openpilot.sunnypilot.livedelay.helpers import get_lat_delay
+from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.icbm_latch import icbm_active
 from openpilot.sunnypilot.modeld_v2.modeld_base import ModelStateBase
 from openpilot.sunnypilot.selfdrive.locationd.torqued_ext import LIVE_TORQUE_PARAMETERS_SP_SERVICE
 from openpilot.sunnypilot.carrot.carrot_controls import CarrotControls
+from openpilot.sunnypilot.selfdrive.controls.controls_lateral_zp import ControlsLateralZP
 from openpilot.sunnypilot.selfdrive.controls.lib.blinker_pause_lateral import BlinkerPauseLateral
 from openpilot.sunnypilot.selfdrive.controls.lib.lane_change_smoothing import LaneChangeSmoothing
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_v0 import LatControlTorque as LatControlTorqueV0
@@ -36,30 +38,19 @@ from openpilot.sunnypilot.selfdrive.controls.lib.torque_tune import resolved_tun
 TUNE_SWAP_INACTIVE_FRAMES = round(0.5 / DT_CTRL)
 
 
-class ControlsExt(ModelStateBase):
+class ControlsExt(ModelStateBase, ControlsLateralZP):
   def __init__(self, CP: structs.CarParams, params: Params):
     ModelStateBase.__init__(self)
     self.CP = CP
     self.params = params
     self._param_update_time: float = 0.0
     self.blinker_pause_lateral = BlinkerPauseLateral()
-    self.lane_change_smoothing = LaneChangeSmoothing()
+    ControlsLateralZP.__init__(self, CP)
     # Carrot lat-suspend lives here so lateral enable has exactly one decision point.
     # It used to be applied in controlsd.py AFTER this arbitration, which gave carrot
     # a second, independent gate on CC.latActive and also meant it kept working with
     # CarrotEnabled off, since nothing consulted that switch.
     self.carrot_controls = CarrotControls(CP)
-
-    # steer-limit classifier (lib/steer_limit.py): None on brands without carcontroller rate
-    # limits and on angle-steered cars, where controlsd's flag is left untouched
-    self._steer_slew_schedule = None
-    if CP.steerControlType != structs.CarParams.SteerControlType.angle:
-      self._steer_slew_schedule = get_steer_slew_schedule(CP)
-    self._lat_active_last = False
-    # frames in a row with CC.latActive false, as state_control decided it (note_lat_active);
-    # the torque tune swap waits for TUNE_SWAP_INACTIVE_FRAMES of them
-    self._inactive_frames = 0
-    self._applied_torque_prev: float | None = None
 
     cloudlog.info("controlsd_ext is waiting for CarParamsSP")
     self.CP_SP = messaging.log_from_bytes(params.get("CarParamsSP", block=True), custom.CarParamsSP)
@@ -70,51 +61,14 @@ class ControlsExt(ModelStateBase):
     # handed last frame; a fresh LongControl starts at (off, 0.0)
     self._stopping_prev = (LongCtrlState.off, 0.0)
 
-    self.sm_services_ext = ['radarState', 'selfdriveStateSP', LIVE_TORQUE_PARAMETERS_SP_SERVICE]
+    # carStateSP is needed for pcm_cruise_speed (icbm_latch) and the CarState zoompilot nest
+    self.sm_services_ext = ['radarState', 'selfdriveStateSP', 'carStateSP', LIVE_TORQUE_PARAMETERS_SP_SERVICE]
     self.pm_services_ext = ['carControlSP']
 
-  def initialize_lateral_control(self, lac, CI, dt):
-    """One controller per model size, built once; every drive starts on the small model's."""
-    # the enforce-off v0 forcing and the unset-param defaults both live in the resolver,
-    # shared with the settings UIs so they gate on the tune that will actually run
-    versions = resolved_tune_versions(self.params, self.CP.lateralTuning.which() == 'torque')
-
-    def build(version):
-      if version == 0.0:
-        return LatControlTorqueV0(self.CP, self.CP_SP, CI, dt)
-      if version == 2.0:
-        return LatControlTorqueV2(self.CP, self.CP_SP, CI, dt)
-      return lac
-
-    built = {version: build(version) for version in dict.fromkeys(versions.values())}
-    self._lac_by_size = {big: built[version] for big, version in versions.items()}
-    self._lacs = tuple(built.values())
-    return self._lac_by_size[False]
-
-  def select_lateral_control(self, sm: messaging.SubMaster) -> None:
-    """Runs at the end of every frame. modelV2.big says which model produced the frame; a
-    change swaps self.LaC to the controller tuned for it, reset, but never while lateral
-    control is active this frame. The idle controller holds whatever it had when it last
-    steered (its request buffer, previous measurement, integrator): on the 2026-09-29 drives
-    every big-to-small hand-back while steering stepped the commanded torque by 0.09 to 0.19
-    of full scale in one tick. Since a hand-back no longer ends in a soft disable, the small
-    model is carried by the tune that was steering until lateral has been inactive for
-    TUNE_SWAP_INACTIVE_FRAMES in a row (a disengage, a blinker pause, a stop); a shorter drop
-    keeps it. A swap to the big model only happens with nothing in control, and its second of
-    no-entry is longer than the wait. From the next frame state_control runs the incoming
-    controller, inactive until an engagement, which primes it as for any engagement, and
-    pushes the live torque params, modelV2 and the lag into it. An engagement on the very
-    frame after the swap would find it unprimed; priming it here would need the frame's
-    CarState, which state_control has and this does not."""
-    if len(self._lacs) == 1 or self._inactive_frames < TUNE_SWAP_INACTIVE_FRAMES:
-      return
-    big = bool(sm['modelV2'].big)
-    lac = self._lac_by_size[big]
-    if lac is self.LaC:
-      return
-    self.LaC = lac
-    lac.reset()
-    cloudlog.warning("controlsd: %s model, swapped to its torque tune", "big" if big else "small")
+  @property
+  def pcm_cruise_speed(self) -> bool:
+    """CarParamsSP.pcmCruiseSpeed as card has it this frame: False while ICBM drives the set speed."""
+    return not icbm_active(self.sm['carStateSP'], self.CP_SP)
 
   def long_accel_sp(self, actuators, CS, long_plan, accel_limits: tuple[float, float]) -> None:
     """sunnypilot: terminal-stop policy applied after the stock LongControl.update() (see stopping_controller.py)."""
@@ -147,10 +101,6 @@ class ControlsExt(ModelStateBase):
         self.lat_delay = get_lat_delay(self.params, sm["lateralDelay"].lateralDelay)
 
       self._param_update_time = time.monotonic()
-
-  def get_lat_active(self, sm: messaging.SubMaster) -> bool:
-    self._lat_active_last = self._get_lat_active(sm)
-    return self._lat_active_last
 
   def _get_lat_active(self, sm: messaging.SubMaster) -> bool:
     if self.blinker_pause_lateral.update(sm['carState']):
@@ -244,6 +194,10 @@ class ControlsExt(ModelStateBase):
     CC_SP.intelligentCruiseButtonManagement.state = icbm_src.state
     CC_SP.intelligentCruiseButtonManagement.sendButton = icbm_src.sendButton
     CC_SP.intelligentCruiseButtonManagement.vTarget = icbm_src.vTarget
+    CC_SP.zoompilot.icbmHold = sm['selfdriveStateSP'].zoompilot.icbmHold
+
+    # lane-change pace clamp telemetry, for offline validation
+    CC_SP.zoompilot.laneChangeSmoothing.jerkFactor = float(self.lane_change_smoothing.jerk_factor)
 
     # lane-change pace clamp telemetry, for offline validation
     CC_SP.zoompilot.laneChangeSmoothing.jerkFactor = float(self.lane_change_smoothing.jerk_factor)
@@ -261,19 +215,4 @@ class ControlsExt(ModelStateBase):
   def run_ext(self, sm: messaging.SubMaster, pm: messaging.PubMaster) -> None:
     CC_SP = self.state_control_ext(sm)
     self.publish_ext(CC_SP, sm, pm)
-    self.reclassify_steer_limit(sm)
-
-    # Speed-dependent torque: apply per-bin learned values to the lateral controller
-    if (self.CP.lateralTuning.which() == 'torque'
-        and sm.updated.get('lateralTorqueParameters', False)
-        and sm.all_checks(['lateralTorqueParameters'])):
-      tp = sm['lateralTorqueParameters']
-      # torqued_ext publishes the bins beside every upstream message on the fork service;
-      # one that has not checked out counts as no bins
-      tp_sp = sm[LIVE_TORQUE_PARAMETERS_SP_SERVICE] if sm.all_checks([LIVE_TORQUE_PARAMETERS_SP_SERVICE]) else None
-      # both sizes' controllers, so the idle one holds current bins when it takes over.
-      # handles activation AND deactivation: useParams off or empty bins de-assert
-      for lac in self._lacs:
-        lac.extension.update_speed_dep_torque(tp, tp_sp)
-
-    self.select_lateral_control(sm)
+    self.run_lateral_zp(sm)

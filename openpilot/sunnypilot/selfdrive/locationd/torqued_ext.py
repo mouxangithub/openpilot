@@ -15,6 +15,7 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD
+from openpilot.sunnypilot.selfdrive.locationd.speed_bin_learner import SpeedBinLearner
 
 RELAXED_MIN_BUCKET_POINTS = np.array([1, 200, 300, 500, 500, 300, 200, 1])
 
@@ -45,7 +46,7 @@ def fit_torque_points(points):
   return slope, offset, np.std(spread) * FRICTION_FACTOR
 
 
-class TorqueEstimatorExt:
+class TorqueEstimatorExt(SpeedBinLearner):
   """Per-speed-bin torque learning, mixed into TorqueEstimator.
 
   Each bin runs upstream's total-least-squares fit on the quality-filtered points that fall
@@ -91,15 +92,13 @@ class TorqueEstimatorExt:
 
       if self._params.get_bool("CustomTorqueParams"):
         # typed on upstream's tune scale, like the manual override they share with
-        from opendbc.sunnypilot.car.interfaces import get_tune_scale
+        from opendbc.sunnypilot.car.lateral_tune import get_tune_scale
         scale = get_tune_scale(self.CP)
         self.offline_latAccelFactor = float(self._params.get("TorqueParamsOverrideLatAccelFactor", return_default=True)) * scale
         self.offline_friction = float(self._params.get("TorqueParamsOverrideFriction", return_default=True)) / scale
 
     # bins and their cache must exist before the first get_msg
-    if self.speed_binned:
-      self._post_reset()
-      self._restore_ext_cache()
+    self._init_speed_bins()
 
   def _update_params(self):
     if self.frame % int(PARAMS_UPDATE_PERIOD / DT_MDL) == 0:
