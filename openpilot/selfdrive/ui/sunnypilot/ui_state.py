@@ -259,12 +259,6 @@ class UIStateSP(UIStateZP):
     # ICBM has no toggle: the features that act through it can, wherever the car has it
     self.has_icbm = self.CP is not None and self.CP_SP is not None and icbm_applicable(self.CP, self.CP_SP)
 
-def set_always_offroad(params: Params, enable: bool) -> None:
-  """The UI writes the forced-offroad preference only. hardwared applies it: entering waits for
-  a silenced stock ECU to be handed back before pandad sees OffroadMode, exiting clears the old
-  session's CarParams first so the fresh session sequences like a boot."""
-  params.put_bool("OffroadModeRequested", enable)
-
   def _enforce_usb_port(self) -> None:
     """ADB and Jetlink both need the comma's USB port: the link on turns ADB off,
     and the developer panels grey its toggle out. Here, not in the panels, so a
@@ -278,6 +272,13 @@ def set_always_offroad(params: Params, enable: bool) -> None:
     self.adb_blocked = self.jetlink is not None and self.jetlink.enabled and self.jetlink.mode != "wifi"
     if self.adb_blocked and self.params.get_bool("AdbEnabled"):
       self.params.put_bool("AdbEnabled", False, block=True)
+
+
+def set_always_offroad(params: Params, enable: bool) -> None:
+  """The UI writes the forced-offroad preference only. hardwared applies it: entering waits for
+  a silenced stock ECU to be handed back before pandad sees OffroadMode, exiting clears the old
+  session's CarParams first so the fresh session sequences like a boot."""
+  params.put_bool("OffroadModeRequested", enable)
 
 
 class DeviceSP:
