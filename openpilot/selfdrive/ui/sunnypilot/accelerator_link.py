@@ -5,19 +5,22 @@ This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 
 The user's say over the Jetlink setting, shared by the mici and tici models panels:
-Off, USB (a Jetson, a Linux PC or a Mac) or iOS (an iPhone), stored as an
-index into the adapter's MODES. The small model is picked as ever: manager
-runs whichever modeld that bundle needs and the link joins it, so the setting
-never changes which modeld runs. Everything else here reads ui_state.jetlink,
-the snapshot the params pass takes, and what the models panels say of the big
-models jetlink runs.
+Off, USB (a Jetson, a Linux PC or a Mac), iOS (an iPhone), or Wi-Fi (the
+device whose hotspot the comma joined), stored as an index into the adapter's
+MODES. The small model is picked as ever: manager runs whichever modeld that
+bundle needs and the link joins it, so the setting never changes which modeld
+runs. Everything else here reads ui_state.jetlink, the snapshot the params
+pass takes, and what the models panels say of the big models jetlink runs.
 """
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.jetlink_adapter import KEYS, MODES
 from openpilot.system.ui.lib.multilang import tr
 
-LINK_MODE_TITLES = {"off": "Off", "usb": "USB", "ios": "iOS"}
+# the setting is an index into the adapter's MODES (off/usb/ios/wifi)
+LINK_MODES = MODES
+LINK_PARAM = KEYS.link
+LINK_MODE_TITLES = {"off": "Off", "usb": "USB", "ios": "iOS", "wifi": "Wi-Fi"}
 
 
 def link_mode() -> str:
@@ -51,6 +54,9 @@ def link_status() -> str:
     return ""
   if jetlink.present:
     return f"{tr('Jetlink connected:')} {jetlink.transport}."
+  # Wi-Fi leaves the USB-C port alone: point the user at the hotspot instead
+  if getattr(jetlink, "mode", None) == "wifi":
+    return tr("Join the device's hotspot and open Jetlink there.")
   if jetlink.port is None:
     return ""
   return tr("Nothing on the USB port.") if jetlink.port == "empty" else tr("A device is on the USB port.")
