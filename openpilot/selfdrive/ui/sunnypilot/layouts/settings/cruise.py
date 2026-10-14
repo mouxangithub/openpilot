@@ -49,6 +49,11 @@ class CruiseLayout(Widget):
 
   def _initialize_items(self):
 
+    self.icbm_toggle = toggle_item_sp(
+      title=tr("Intelligent Cruise Button Management (ICBM) (Alpha)"),
+      description="",
+      param="IntelligentCruiseButtonManagement")
+
     self.scc_v_toggle = toggle_item_sp(
       title=tr("Slow for Curves: Vision"),
       description=tr("Use vision path predictions to estimate the appropriate speed to drive through turns ahead."),
