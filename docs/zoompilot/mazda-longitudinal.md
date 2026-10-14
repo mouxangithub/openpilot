@@ -640,51 +640,29 @@ HBC light. With the radar silenced the controller relays the bit itself from
 carstate's `hbc_request`, read only from a fresh CAM_LANEINFO frame. BIT2 is also the auto
 high-beam arming bit, which is why it is not a settle input (above).
 
-## Advertised lead
+## Lead on the dash, empty tracks
 
-The lead we tell the camera about lives in three places: CRZ_CTRL.RADAR_HAS_LEAD,
-CRZ_CTRL.RADAR_LEAD_RELATIVE_DISTANCE (stock's 1 to 5 closeness bucket) and the 0x364 track
-slot. Stock pairs them absolutely: RADAR_HAS_LEAD = 1 never came with all six slots empty, and
-has_lead = 0 always came with phase = 0. The port reads all three off one piece of state.
+The camera needs the silenced radar's frames on the bus, not its objects, so the static frame and
+six tracks are the stock empty capture, the shape of the upstream port. The cluster draws the
+lead from CRZ_CTRL: RADAR_HAS_LEAD follows `leadVisible`, and RADAR_LEAD_RELATIVE_DISTANCE is
+stock's closeness bucket, 3 behind a stopped lead and 2 while following. It follows perception,
+engaged or not, as stock does. Stock shows has_lead = 1 with every slot empty in only 8 of 1.1M
+frames, so this pairing is the one thing here not attested by stock; watch for camera faults.
 
-The state is perception, not control. A stock radar reports its objects ignition to ignition, and
-stock shows RADAR_HAS_LEAD = 1 with cruise disengaged in 19.5% of all frames. Tying the
-advertisement to engagement made a real car 4.5 m ahead vanish from the bus in one frame when the
-driver braked out of a creep (route 0000004d t+212); the camera, still watching the car close in
-its own vision, ran its SCBS display for six seconds, a pattern absent from 50 h of stock driving.
-So the advertisement updates every control frame, engaged or not, for as long as we stand in for
-the radar. For the same reason the panda's 0x364 check is not gated on `controls_allowed`: doing
-so silently killed 0x364 at every disengagement while CRZ_CTRL still said has_lead = 1, the exact
-track/ctrl disagreement the camera faults on.
-
-A marginal vision lead flickers `leadVisible` faster than any real radar ever would (route
-6bb2dc61c4 t+400: 6 toggles in 1.4 s on a 120 m lead), so visibility is adopted only once it has
-held steady for `LEAD_DEBOUNCE_FRAMES` (0.5 s), the way Hyundai debounces its lead bit for 50 frames.
-`leadOne` drops to zero the instant vision loses the lead, well before that debounce expires;
-advertising a fabricated stand-in over the gap put a stationary object 10.25 m dead ahead on the
-bus at 22 m/s, so the last real measurement is coasted across the gap (propagated by vRel each
-frame, since a frozen range with the car moving is content no radar ever emits) and expired when
-visibility drops, which bounds the coast to the debounce window.
-
-The phase emitted is 2 while following and 3 near a hold, both in-distribution (3 is stock's
-dominant standstill value); no fault has ever keyed on the bucket value, only on the triple
-disagreeing.
+Earlier builds also put the vision lead in 0x364. A vision lead moves like no radar track: the
+range wanders metres at the model rate, and a lane change teleports it (route
+4a3fe2b0e8aec968/0000006d: 27.7 to 45.2 m in one frame, and the object a lane over at the
+capture's -8 degree angle). A 2018 CX-5 (B61L camera) latched CAM_LKAS ERR_BIT_1 and ERR_BIT_2
+on the highway with that track and no EPS fault; route 0000002e with alpha long off was clean.
+Smoothing it into a radar-like track (danger-unstable 0f9cd48e11) was replaced by sending no
+object at all. The stop-and-go grammar (STOPPING, RESUME_UNLATCHING, ACC_ACTIVE_2) is carried by
+CRZ_INFO and CRZ_CTRL alone.
 
 ### Track frame content
 
-`RADAR_STATIC_MSG` and the six empty `RADAR_TRACK_MSGS` are byte-exact captures from a 0x764
-radar with no objects in view; only the counter nibble in the last byte changes.
-`LEAD_TRACK_TEMPLATE` (the occupied-slot constant bytes) comes from stock drive_0b's latched hold
-release, the one stock release with exactly our bus topology (lead in 0x364 alone, five slots
-empty). Its status pair byte4/byte5 reads 1c/00 through the whole stop, unlatch and drive-off,
-which keeps it clear of the empty-slot signature c0 in byte 5. The measurement fields are zeroed
-in the template because `create_lead_track` rewrites DIST_OBJ and RELV_OBJ every frame; byte 2
-wanders on a live radar but parks at zero in clean stock releases too (drive_0e), so it stays
-fixed. DIST_OBJ and RELV_OBJ share a 0.0625 scale; DIST_OBJ full scale is 255.875 m.
-
-The panda's 0x364 check leaves the DIST_OBJ and RELV_OBJ fields free and requires every bit the
-template owns to match. A byte-exact check silently dropped every real-lead frame and starved
-the camera of the track (route 6bb2dc61c4: 982 asked, 0 transmitted).
+`RADAR_STATIC_MSG` and the six `RADAR_TRACK_MSGS` are byte-exact captures from a 0x764 radar with
+no objects in view; only the counter nibble in the last byte changes. The panda allows exactly
+those bytes plus the counter, so an occupied 0x364 is blocked engaged or not.
 
 ## Radar gap guard on the stock radar interface
 
@@ -776,7 +754,6 @@ the dash lane indicators, so those two stay zeroed.
 | `RESUME_UNLATCH_LATCHED_FRAMES` | 0.18 s (9 wire frames) | latched pulses 6 to 11 wire frames, mode 9 | 33-pulse census |
 | `RESUME_REPULSE_FRAMES` | 1.0 s | body answered all 10 pulses in 30 to 51 ms | 103, 115, 118, 11d, 12c, 132, 139, fe |
 | `RELEASE_DEBOUNCE_FRAMES` | 0.2 s | lead opening >= +0.31 m/s at all 23 stock latched pulses | corpus |
-| `LEAD_DEBOUNCE_FRAMES` | 0.5 s | 6 leadVisible toggles in 1.4 s on a 120 m lead | 6bb2dc61c4 |
 | `ACCEL_HOLD_LATCHED` | -0.001 m/s2 | stock relaxes 0 to 40 ms after HOLD_STATE goes HOLDING, 43 of 43 | 43 stock holds |
 | `ACCEL_RESUME_PULSE_MAX` | 0.25 m/s2 | stock latched pulse tail +0.24 to +0.25, +0.34 worst | corpus |
 | `ACCEL_RELEASE_BAND` | -0.26 m/s2 | stock never-latched relax target -0.27 to -0.18 | corpus |
@@ -813,9 +790,11 @@ the dash lane indicators, so those two stay zeroed.
 - Slewing the release command up from -1.024 (00000053 t+714.8) or pre-ramping toward the plan
   (00000100 t+353): outside the band the camera accepts.
 - A lead-distance cap on the breakaway: 4 of 34 stock breakaways had 0x364 occupied.
-- Tying the advertised lead to engagement (0000004d t+212) or advertising a fabricated stand-in
-  during a vision gap (10.25 m ghost at 22 m/s).
-- A byte-exact panda check on 0x364: dropped every real-lead frame (6bb2dc61c4).
+- Advertising the vision lead in the 0x364 track, in every form tried: tied to
+  engagement (0000004d t+212), with a fabricated stand-in over a vision gap (10.25 m ghost at
+  22 m/s), raw (lane-change teleport, 2018 CX-5 camera fault, 4a3fe 0000006d) and smoothed into a
+  radar-like track (0f9cd48e11). Empty tracks replaced all of them; the dash lead rides
+  RADAR_HAS_LEAD alone.
 - Reporting `cruiseState.standstill` under op-long: deadlocked every stop.
 - Relaying the camera's TJA mode fields: dash indicators flapped (0000010b).
 - Pressing RES to release a hold under op-long: stock never does (0 of 23), and it double-writes

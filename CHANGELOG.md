@@ -38,6 +38,7 @@ zoompilot vUNRELEASED
   * CX-9 and other Mazdas without Auto Hold: stops release and resume again.
   * Both distance buttons change personality.
   * Fixed auto high beams when using alpha long.
+  * Steadier lead car icon on the dash.
   * "Remain parked" shows right away at startup.
   * Cruise settings are kept when you turn alpha long or ICBM off and on.
   * Speed limits: ICBM changes your set speed. Without ICBM, you are asked to set 80 mph.
