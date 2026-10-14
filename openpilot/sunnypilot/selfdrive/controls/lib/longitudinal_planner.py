@@ -290,7 +290,10 @@ class LongitudinalPlannerSP:
     self.accel_controller.update()
     self.lead_one = sm['radarState'].leadOne
     self.events_sp.clear()
-    self.dec.update(sm)
+    # DEC is driven separately through update_dec() by the host (stock
+    # LongitudinalPlanner.update calls it), so it is not ticked here - doing
+    # both double-updates it and breaks __new__-based tests that bypass
+    # __init__ (no self.dec).
     self.lead_forecast.update(sm)
     self.e2e_alerts_helper.update(sm, self.events_sp)
 

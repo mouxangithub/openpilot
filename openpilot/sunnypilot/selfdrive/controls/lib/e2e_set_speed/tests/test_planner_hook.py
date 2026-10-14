@@ -23,7 +23,7 @@ MODEL_ACCEL = 0.
 def no_lead_mpc(mpc) -> None:
   """The MPC with no lead chases its synthetic fast lead: the logged candidate sits near +2 m/s^2
   (p50 1.98), far above anything the floor asks for. Stub that rather than depend on the solver."""
-  def update(radarstate, personality=None):
+  def update(radarstate, personality=None, **kwargs):
     mpc.v_solution = mpc.x0[1] + 2. * T_IDXS_MPC
     mpc.a_solution = np.full(len(T_IDXS_MPC), 2.)
     mpc.j_solution = np.zeros(len(T_IDXS_MPC) - 1)
