@@ -135,8 +135,10 @@ class UIStateSP(UIStateZP):
     state = ss.state
     mads = ss_sp.mads
     mads_state = mads.state
-    # held by the car's own lane keep (mads.py update_stock_lkas): reads as lateral off
-    mads_enabled = mads.enabled and not mads.lateralHeld
+    # held by the car's own lane keep (mads.py update_stock_lkas): reads as lateral off.
+    # selfdrived writes both the top-level mads.lateralHeld and the zoompilot nest;
+    # read the nest to match the zp status contract/test.
+    mads_enabled = mads.enabled and not ss_sp.zoompilot.madsLateralHeld
 
     if state == OpenpilotState.preEnabled:
       return "override"
@@ -148,7 +150,7 @@ class UIStateSP(UIStateZP):
       if any(e.overrideLongitudinal for e in onroad_evt):
         return "override"
 
-    if mads_state in (MADSState.paused, MADSState.overriding) and not mads.lateralHeld:
+    if mads_state in (MADSState.paused, MADSState.overriding) and not ss_sp.zoompilot.madsLateralHeld:
       return "override"
 
     # MADS specific statuses
