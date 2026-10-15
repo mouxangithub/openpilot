@@ -91,7 +91,7 @@ class SunnylinkLayoutMici(NavScroller):
                                                 description=tr("Uploads your driving data to sunnylink servers.\n" +
                                                                "A test for the highest sponsor tiers. It does nothing for you yet."))
 
-    self._mobile_app_btn = BigButton(tr("sunnylink local"), "")
+    self._mobile_app_btn = BigButton(tr("sunnylink local"), "", description=tr("Pair and manage sunnylink apps on phones connected to the same Wi-Fi network."))
     self._mobile_app_btn.set_click_callback(lambda: gui_app.push_widget(LocalAppsPanelMici()))
 
     self._scroller.add_widgets([
