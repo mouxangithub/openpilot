@@ -1,6 +1,5 @@
 sp test 分支 2026-10-01 / 10-02
 ========================
-
 **jetlink 外接大模型对齐 zoompilot develop**
 * jetlink 生态 100% 对齐：adapter/测试/cereal 契约/告警/UI 面板逐文件核对
 * 修复 chunk manifest 互踩 bug：qcom 与 chestnut 目录同一文件分块数不同时互相覆盖
