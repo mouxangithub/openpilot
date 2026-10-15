@@ -148,6 +148,9 @@ class TextAlignmentVertical(IntEnum):
 
 def font_fallback(font: rl.Font, text: str = "") -> rl.Font:
   """Use a Noto fallback for languages not covered by Inter."""
+  # A widget may have cached a Font whose atlas was unloaded by a language switch; resolve it
+  # to the live font of the same weight first, otherwise the stale object renders nothing.
+  font = gui_app.current_font(font)
   if multilang.requires_font_fallback():
     if text and not _NON_LATIN_RE.search(text):
       return font
@@ -239,6 +242,11 @@ class GuiApplication(GuiApplicationExt):
     self._set_log_callback()
 
     self._fonts: dict[FontWeight, rl.Font] = {}
+    # Python object id -> weight for every Font handed to a widget. Widgets cache the Font
+    # object at construction time (self._font = gui_app.font(...)); after a language switch
+    # the old atlas is unloaded, so those cached objects go stale. current_font() resolves a
+    # stale font back to the *live* font of the same weight via this map.
+    self._weight_by_object: dict[int, FontWeight] = {}
     self._fallback_fonts: dict[str, rl.Font] = {}
     self._fallback_chars: dict[str, set[str]] = {}
     self._fallback_pending: set[str] = set()
@@ -767,7 +775,17 @@ class GuiApplication(GuiApplicationExt):
           font = rl.load_font(fnt_path.as_posix())
         rl.set_texture_filter(font.texture, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
         self._fonts[font_weight] = font
+        self._weight_by_object[id(font)] = font_weight
     return self._fonts[font_weight]
+
+  def current_font(self, font: rl.Font) -> rl.Font:
+    """Resolve a possibly stale Font (cached by a widget before a language switch) to the
+    live font of the same weight. Old atlases are unloaded on switch, so drawing/measuring
+    with a cached object renders nothing; this keeps those references valid transparently."""
+    weight = self._weight_by_object.get(id(font))
+    if weight is None:
+      return font  # not one of our weight fonts (e.g. a baked CJK fallback)
+    return self._fonts.get(weight, font)
 
   def _load_or_bake_cjk_font(self, language: str) -> rl.Font:
     """Return a ready-to-use CJK font when the pre-baked OpFont atlas is absent.
@@ -889,18 +907,15 @@ class GuiApplication(GuiApplicationExt):
       return
     self._pending_language = None
 
-    # Map old texture IDs → weights so we can remap stale references
-    old_weight_by_texture = {f.texture.id: w for w, f in self._fonts.items()}
+    # Reload the same weights for the new language
+    old_weights = list(self._fonts.keys())
     old_fonts = list(self._fonts.values())
     self._fonts = {}
     self._active_lang_code = lang_code
-    # Load new fonts for all weights that were active
-    for weight in old_weight_by_texture.values():
+    for weight in old_weights:
       self.font(weight)
-    # Carry forward existing remap + add new entries (weights are stable across switches)
-    existing_remap = getattr(self, "_font_remap", {})
-    self._font_remap = dict(existing_remap) | dict(old_weight_by_texture.items())
-    # Now safe to unload old fonts
+    # Now safe to unload old fonts. Any widget still holding one of these objects is
+    # transparently remapped to the new same-weight font via current_font()/font_fallback().
     for f in old_fonts:
       rl.unload_font(f)
     rl.gui_set_font(self.font(FontWeight.NORMAL))
