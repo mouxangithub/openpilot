@@ -242,6 +242,10 @@ class GuiApplication(GuiApplicationExt):
     self._fallback_fonts: dict[str, rl.Font] = {}
     self._fallback_chars: dict[str, set[str]] = {}
     self._fallback_pending: set[str] = set()
+    # language switch is requested from a click callback *during* a draw, but swapping
+    # font atlases mid-draw invalidates the bound GL textures (black / blank text until
+    # a restart). Defer the actual font rebuild to between frames.
+    self._pending_language: str | None = None
     # Baking an atlas costs 108-233 ms on tizi against a 50 ms frame budget, so it is only
     # ever allowed off-road. Onroad the queue just accumulates and unbaked glyphs draw as '?'.
     self.allow_font_rebake: bool = True
@@ -659,6 +663,7 @@ class GuiApplication(GuiApplicationExt):
           continue
 
         # Between frames only: swapping the atlas mid-draw would invalidate a bound texture.
+        self._apply_pending_language()
         self._rebake_pending_fallback()
 
         if self._render_texture:
@@ -873,6 +878,17 @@ class GuiApplication(GuiApplicationExt):
     rl.gui_set_font(self.font(FontWeight.NORMAL))
 
   def on_language_changed(self, lang_code: str):
+    # Called from a click callback while a frame is being drawn. Only record the request;
+    # the font atlases are rebuilt between frames (_apply_pending_language) to avoid
+    # swapping GL font textures mid-draw, which leaves the screen black / textless until reboot.
+    self._pending_language = lang_code
+
+  def _apply_pending_language(self) -> None:
+    lang_code = self._pending_language
+    if lang_code is None:
+      return
+    self._pending_language = None
+
     # Map old texture IDs → weights so we can remap stale references
     old_weight_by_texture = {f.texture.id: w for w, f in self._fonts.items()}
     old_fonts = list(self._fonts.values())
