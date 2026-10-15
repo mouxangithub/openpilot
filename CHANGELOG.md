@@ -27,6 +27,7 @@ zoompilot vUNRELEASED
   * Smoother curve slowdowns, and your speed comes back sooner.
   * A speed limit prompt no longer stalls a curve slowdown.
   * Reads the speed limit from the nav unit when the camera sees none.
+  * Pressing ON in cruise standby turns steering back on.
   * 2022 CX-5: improved steering tune.
   * 2022 CX-5: steering starts from learned values.
   * Older Mazdas, 2012-16 CX-5 included, steer on the stock EPS above 45 kph. Untested, feedback welcome.
