@@ -1883,7 +1883,9 @@ class CarrotServ:
     if self.turn_speed_control_mode == 2 and -500 < self.x_dist_to_turn < 500:
       speed_n_sources.append((max(route_speed * self.map_turn_speed_factor,
                                   self.auto_curve_speed_lower_limit), "route"))
-    elif self.turn_speed_control_mode == 3:
+    elif self.turn_speed_control_mode in (3, 4):
+      # Parity with CarrotPilot: mode 4 is an internal/legacy alias for "route always"
+      # (same branch as 3); the exposed range stays 0-3, but a stale value 4 still decelerates.
       speed_n_sources.append((max(route_speed * self.map_turn_speed_factor,
                                   self.auto_curve_speed_lower_limit), "route"))
 

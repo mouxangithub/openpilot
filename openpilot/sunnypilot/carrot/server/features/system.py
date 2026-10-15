@@ -29,7 +29,7 @@ logger = logging.getLogger("openpilot.carrot.server.system")
 
 RUNTIME_KEY = web.AppKey("carrot_server_live_runtime")
 
-_CALIBRATION_KEYS = ("CalibrationParams", "LiveTorqueParameters", "LiveParameters", "LiveDelay")
+_CALIBRATION_KEYS = ("CalibrationParams", "LiveTorqueParameters", "LiveParameters", "LiveParametersV2", "LiveDelay")
 
 
 def _params():
