@@ -3,6 +3,7 @@ from msgq import fake_event_handle, drain_sock_raw, MultiplePublishersError, Ipc
                  Context, Poller, SubSocket, PubSocket, SocketEventHandle, toggle_fake_events, \
                  set_fake_prefix, get_fake_prefix, delete_fake_prefix, wait_for_one_event
 import msgq
+import math
 import os
 import capnp
 import time
@@ -170,11 +171,22 @@ class FrequencyTracker:
     if self.avg_dt.count == 0:
       return False
 
-    avg_freq = 1.0 / self.avg_dt.get_average()
+    # Early in a process's life two messages can land in the same update with a
+    # zero (or non-positive) dt: count > 0 but the windowed average is still 0.
+    # A frequency cannot be established from that, so treat the stream as not
+    # yet valid instead of dividing by zero. A burst of these on cold start used
+    # to make SubMaster.update raise and kill the ui process in a restart loop.
+    avg_dt = self.avg_dt.get_average()
+    if not (avg_dt > 0.0) or not math.isfinite(avg_dt):
+      return False
+    avg_freq = 1.0 / avg_dt
     if self.min_freq <= avg_freq <= self.max_freq:
       return True
 
-    avg_freq_recent = 1.0 / self.recent_avg_dt.get_average()
+    recent_avg_dt = self.recent_avg_dt.get_average()
+    if not (recent_avg_dt > 0.0) or not math.isfinite(recent_avg_dt):
+      return False
+    avg_freq_recent = 1.0 / recent_avg_dt
     return self.min_freq <= avg_freq_recent <= self.max_freq
 
 
