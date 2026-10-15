@@ -32,6 +32,7 @@ AUTO_LANE_CHANGE_TIMER = {
 }
 
 ONE_SECOND_DELAY = -1
+EDGE_DELAY = -2
 
 
 class AutoLaneChangeController:
@@ -50,6 +51,7 @@ class AutoLaneChangeController:
     self.prev_brake_pressed = False
     self.auto_lane_change_allowed = False
     self.prev_lane_change = False
+    self.lane_change_blocked = False
 
     self.read_params()
 
@@ -72,7 +74,7 @@ class AutoLaneChangeController:
       self.read_params()
     self.param_read_counter += 1
 
-  def update_lane_change_timers(self, blindspot_detected: bool) -> None:
+  def update_lane_change_timers(self, blindspot_detected: bool, edge_detected: bool) -> None:
     self.lane_change_delay = AUTO_LANE_CHANGE_TIMER.get(self.lane_change_set_timer,
                                                         AUTO_LANE_CHANGE_TIMER[AutoLaneChangeMode.NUDGE])
 
@@ -83,6 +85,12 @@ class AutoLaneChangeController:
         self.lane_change_wait_timer = ONE_SECOND_DELAY
       else:
         self.lane_change_wait_timer = self.lane_change_delay + ONE_SECOND_DELAY
+
+    if edge_detected and self.lane_change_delay > 0:
+      if self.lane_change_delay == AUTO_LANE_CHANGE_TIMER[AutoLaneChangeMode.NUDGELESS]:
+        self.lane_change_wait_timer = min(self.lane_change_wait_timer, EDGE_DELAY)
+      else:
+        self.lane_change_wait_timer = min(self.lane_change_wait_timer, self.lane_change_delay + EDGE_DELAY)
 
   def update_allowed(self) -> bool:
     # Auto lane change allowed if:
@@ -101,13 +109,22 @@ class AutoLaneChangeController:
 
     return bool(self.lane_change_wait_timer > self.lane_change_delay)
 
-  def update_lane_change(self, blindspot_detected: bool, brake_pressed: bool) -> None:
+  def update_lane_change(self, blindspot_detected: bool, edge_detected: bool, brake_pressed: bool,
+                         torque_applied: bool = False) -> None:
     if brake_pressed and not self.prev_brake_pressed:
       self.prev_brake_pressed = brake_pressed
 
-    self.update_lane_change_timers(blindspot_detected)
+    self.update_lane_change_timers(blindspot_detected, edge_detected)
 
     self.auto_lane_change_allowed = self.update_allowed()
+
+    # BSM always blocks. Edge blocks auto mode but nudge can override.
+    if blindspot_detected:
+      self.lane_change_blocked = True
+    elif edge_detected:
+      self.lane_change_blocked = not torque_applied
+    else:
+      self.lane_change_blocked = False
 
   def update_state(self):
     if self.DH.lane_change_state == log.LaneChangeState.laneChangeStarting:

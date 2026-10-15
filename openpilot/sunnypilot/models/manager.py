@@ -21,6 +21,8 @@ from openpilot.sunnypilot.models.fetcher import ModelFetcher
 from openpilot.sunnypilot.models.fetcher_zp import ModelFetcherZP
 from openpilot.sunnypilot.models.helpers import (ACTIVE_BUNDLE_KEYS, _bundle_is_valid_locally, get_active_bundle, get_selected_bundle,
                                                   resolve_bundle_by_ref, validate_active_bundles, verify_file)
+from openpilot.sunnypilot.models.default_bootstrap import maybe_apply_default_model
+from openpilot.sunnypilot.models.mirror import apply_hf_mirror, get_hf_mirror_base
 
 # (connect, read) seconds. read is per-request inactivity, not a total cap
 DOWNLOAD_TIMEOUT = (30, 30)
@@ -88,12 +90,12 @@ class ModelManagerSP:
     """Downloads a file with progress tracking"""
     self._download_start_times[model.fileName] = time.monotonic()
 
-    with requests.get(url, stream=True, timeout=DOWNLOAD_TIMEOUT) as response:  # noqa: ASYNC210
+    with requests.get(url, stream=True, timeout=DOWNLOAD_TIMEOUT) as response:  # noqa: ASYNC210 - blocking download runs as one task on the loop
       response.raise_for_status()
       total_size = int(response.headers.get("content-length", 0))
       bytes_downloaded = 0
 
-      with open(path, 'wb') as f:  # noqa: ASYNC230
+      with open(path, 'wb') as f:  # noqa: ASYNC230 - blocking download, see ASYNC210
         for chunk in response.iter_content(chunk_size=self._chunk_size):  # type: bytes
           f.write(chunk)
           bytes_downloaded += len(chunk)
@@ -135,7 +137,7 @@ class ModelManagerSP:
         with session.get(chunk_url, stream=True, timeout=DOWNLOAD_TIMEOUT) as response:
           response.raise_for_status()
           chunk_size = int(response.headers.get("content-length", 0))
-          with open(chunk_path, 'wb') as f:  # noqa: ASYNC230
+          with open(chunk_path, 'wb') as f:  # noqa: ASYNC230 - blocking download, see ASYNC210
             for data in response.iter_content(chunk_size=self._chunk_size):
               f.write(data)
               chunk_downloaded += len(data)
@@ -150,9 +152,9 @@ class ModelManagerSP:
               self._report_status()
         completed += 1
 
-    with open(manifest_path, 'w') as f:  # noqa: ASYNC230
+    with open(manifest_path, 'w') as f:  # noqa: ASYNC230 - blocking download, see ASYNC210
       f.write(str(num_chunks))
-    if os.path.isfile(base_path):  # noqa: ASYNC240
+    if os.path.isfile(base_path):  # noqa: ASYNC240 - blocking download cleanup, see ASYNC210
       os.remove(base_path)
     del self._download_start_times[artifact.fileName]
 
@@ -166,6 +168,16 @@ class ModelManagerSP:
     expected_hash = artifact.downloadUri.sha256
     filename = artifact.fileName
     full_path = os.path.join(destination_path, filename)
+
+    # mirror support: read at download time, so a param change applies to the
+    # next download without refetching the catalog. Chunk URLs derive from
+    # this base, so rewriting it here covers the whole chunked transfer.
+    mirror_base = get_hf_mirror_base(self.params)
+    if mirror_base:
+      mirrored_url = apply_hf_mirror(url, mirror_base)
+      if mirrored_url != url:
+        cloudlog.info(f"Downloading {filename} via mirror {mirror_base}")
+        url = mirrored_url
 
     try:
       # progress counts only valid chunks so a resumed download continues the
@@ -229,7 +241,7 @@ class ModelManagerSP:
     except Exception as e:
       cloudlog.error(f"Error downloading {filename}: {str(e)}")
       for f in [full_path] + [p for p in (os.path.join(destination_path, f) for f in os.listdir(destination_path)) if filename in p]:
-        if os.path.isfile(f):  # noqa: ASYNC240
+        if os.path.isfile(f):  # noqa: ASYNC240 - blocking download cleanup, see ASYNC210
           os.remove(f)
       artifact.downloadProgress.status = custom.ModelManagerSP.DownloadStatus.failed
       artifact.downloadProgress.eta = 0

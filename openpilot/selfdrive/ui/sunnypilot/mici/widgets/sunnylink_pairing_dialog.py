@@ -22,7 +22,7 @@ class SunnylinkPairingDialog(PairingDialog):
   def __init__(self, sponsor_pairing: bool = False):
     PairingDialog.__init__(self)
     self._sponsor_pairing = sponsor_pairing
-    label_text = tr("pair with sunnylink") if sponsor_pairing else tr("become a sunnypilot sponsor")
+    label_text = tr("become a sunnypilot sponsor") if sponsor_pairing else tr("pair with sunnylink")
     self._pair_label = UnifiedLabel(label_text, font_size=48, font_weight=FontWeight.BOLD,
                                     text_color=rl.Color(255, 255, 255, int(255 * 0.9)), line_height=0.8)
 

@@ -19,6 +19,7 @@ from openpilot.selfdrive.ui.sunnypilot.model_info import (active_source, big_mod
                                                            refresh_in_progress, refresh_model_list)
 from openpilot.selfdrive.ui.sunnypilot.mici.widgets.button import BigMultiParamToggleSP
 from openpilot.sunnypilot.jetlink_adapter import KEYS, MODES
+
 from openpilot.system.ui.lib.application import FontWeight, gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets import Widget
@@ -27,7 +28,7 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 
 
 # the value line: the mode
-LINK_MODE_LABELS = {"off": "off", "usb": "usb", "ios": "iOS"}
+LINK_MODE_LABELS = {"off": "off", "usb": "usb", "ios": "iOS", "wifi": "wi-fi"}
 
 
 def _model_info() -> tuple[str, str, str]:
@@ -112,9 +113,11 @@ class ModelsLayoutMici(NavScroller):
     self.cancel_download_btn = BigButton(tr("cancel download"), description=tr("Stops the model download in progress."))
     self.cancel_download_btn.set_click_callback(lambda: ui_state.params.remove("ModelManager_DownloadRef"))
 
-    # the pills follow the param; locked onroad like the model buttons beside it: jetlink switches the link only parked
-    self.link_toggle = BigMultiParamToggleSP(tr("jetlink"), KEYS.link, [tr(LINK_MODE_LABELS[m]) for m in MODES],
-                                             values=list(range(len(MODES))),
+    # the pills follow the param; locked onroad like the model buttons beside it: jetlink switches the link only parked.
+    # the small display exposes only USB/iOS (no Wi-Fi), and a tap cycles off -> USB -> iOS -> off.
+    mici_modes = [m for m in MODES if m != "wifi"]
+    self.link_toggle = BigMultiParamToggleSP(tr("jetlink"), KEYS.link, [tr(LINK_MODE_LABELS[m]) for m in mici_modes],
+                                             values=[MODES.index(m) for m in mici_modes],
                                              description=tr("Runs big models on a computer or phone plugged into the comma.\n" +
                                                             "USB for a Mac, Jetson, Linux PC or Android. iOS for an iPhone or iPad.\n" +
                                                             "Turns off ADB. The small model drives until the big model is ready."))

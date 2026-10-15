@@ -67,7 +67,7 @@ class ClientRedirectHandler(BaseHTTPRequestHandler):
     except ConnectionError:
       pass  # A closing browser tab must not discard the received callback.
 
-  def log_message(self, format: str, *args: object) -> None:  # noqa: A002  # stdlib override
+  def log_message(self, format: str, *args: object) -> None:  # noqa: A002 - stdlib override
     pass  # this prevent http server from dumping messages to stdout
 
 

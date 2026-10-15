@@ -10,6 +10,7 @@ import pyray as rl
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 
 
@@ -66,7 +67,7 @@ class ChevronMetrics:
     # Distance
     if ui_state.chevron_metrics == ChevronOptions.DISTANCE_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL:
       val = max(0.0, d_rel)
-      unit = "m" if ui_state.is_metric else "ft"
+      unit = tr("m") if ui_state.is_metric else tr("ft")
       if not ui_state.is_metric:
         val *= 3.28084
       text_lines.append(f"{val:.0f} {unit}")
@@ -75,13 +76,13 @@ class ChevronMetrics:
     if ui_state.chevron_metrics == ChevronOptions.SPEED_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL:
       multiplier = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
       val = max(0.0, (v_rel + v_ego) * multiplier)
-      unit = "km/h" if ui_state.is_metric else "mph"
+      unit = tr("km/h") if ui_state.is_metric else tr("mph")
       text_lines.append(f"{val:.0f} {unit}")
 
     # Time to collision
     if ui_state.chevron_metrics == ChevronOptions.TTC_ONLY or ui_state.chevron_metrics == ChevronOptions.ALL:
       val = (d_rel / v_ego) if (d_rel > 0 and v_ego > 0) else 0.0
-      ttc_text = f"{val:.1f} s" if (0 < val < 200) else "---"
+      ttc_text = f"{val:.1f} {tr('s')}" if (0 < val < 200) else tr("---")
       text_lines.append(ttc_text)
 
     return text_lines

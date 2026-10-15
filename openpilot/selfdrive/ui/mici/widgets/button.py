@@ -165,10 +165,15 @@ class BigButton(BaseButton):
                                    text_color=COMPLICATION_GREY, alignment_vertical=TextAlignmentVertical.BOTTOM)
     self._update_label_layout()
 
+    self._bg_tint = rl.WHITE
+
     self._load_images()
 
   def set_icon(self, icon: Union[rl.Texture, None]):
     self._txt_icon = icon
+
+  def set_bg_tint(self, tint: rl.Color):
+    self._bg_tint = tint
 
   def set_rotate_icon(self, rotate: bool):
     if rotate and self._rotate_icon_t is not None:
@@ -280,9 +285,9 @@ class BigButton(BaseButton):
       rl.draw_rectangle_rounded(scaled_rect, 0.4, 7, rl.Color(0, 0, 0, int(255 * 0.5)))
 
       self._draw_content(btn_y)
-      rl.draw_texture_ex(txt_bg, (btn_x, btn_y), 0, scale, rl.WHITE)
+      rl.draw_texture_ex(txt_bg, (btn_x, btn_y), 0, scale, self._bg_tint)
     else:
-      rl.draw_texture_ex(txt_bg, (btn_x, btn_y), 0, scale, rl.WHITE)
+      rl.draw_texture_ex(txt_bg, (btn_x, btn_y), 0, scale, self._bg_tint)
       self._draw_content(btn_y)
 
 
@@ -293,14 +298,29 @@ class BigToggle(BigButton):
     super().__init__(text, value, "", description=description, description_icon=description_icon)
     self._checked = initial_state
     self._toggle_callback = toggle_callback
+    self._superseded: bool | Callable[[], bool] = False
 
   def _load_images(self):
     super()._load_images()
     self._txt_enabled_toggle = gui_app.texture("icons_mici/buttons/toggle_pill_enabled.png", 84, 66)
     self._txt_disabled_toggle = gui_app.texture("icons_mici/buttons/toggle_pill_disabled.png", 84, 66)
+    # on but overridden by another setting: it applies again once that one is off
+    self._txt_inactive_toggle = gui_app.grayscale_texture("icons_mici/buttons/toggle_pill_enabled.png", 84, 66)
 
   def set_checked(self, checked: bool):
     self._checked = checked
+
+  def set_superseded(self, superseded: bool | Callable[[], bool]):
+    """Another setting overrides this one: locked, and an on pill draws grey. A lock from set_enabled, like onroad, keeps it green."""
+    self._superseded = superseded
+
+  @property
+  def superseded(self) -> bool:
+    return self._superseded() if callable(self._superseded) else self._superseded
+
+  @property
+  def enabled(self) -> bool:
+    return super().enabled and not self.superseded
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     super()._handle_mouse_release(mouse_pos)
@@ -310,7 +330,9 @@ class BigToggle(BigButton):
 
   def _draw_pill(self, x: float, y: float, checked: bool):
     # draw toggle icon top right
-    if checked:
+    if checked and self.superseded:
+      rl.draw_texture_ex(self._txt_inactive_toggle, (x, y), 0, 1.0, rl.Color(255, 255, 255, int(255 * 0.6)))
+    elif checked:
       rl.draw_texture_ex(self._txt_enabled_toggle, (x, y), 0, 1.0, rl.WHITE)
     else:
       rl.draw_texture_ex(self._txt_disabled_toggle, (x, y), 0, 1.0, rl.WHITE)
@@ -400,12 +422,17 @@ class BigMultiParamToggle(BigMultiToggle):
     self._load_value()
 
   def _load_value(self):
-    self.set_value(self._options[self._params.get(self._param) or 0])
+    value = self._params.get(self._param, return_default=True)
+    index = value if isinstance(value, int) else 0
+    self.set_value(self._options[max(0, min(index, len(self._options) - 1))])
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     super()._handle_mouse_release(mouse_pos)
     new_idx = self._options.index(self.value)
     self._params.put(self._param, new_idx)
+
+  def refresh(self):
+    self._load_value()
 
 
 class BigParamControl(BigToggle):

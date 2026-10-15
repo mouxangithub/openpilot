@@ -6,16 +6,21 @@ See the LICENSE.md file in the root directory for more details.
 """
 from enum import Enum
 
+import numpy as np
+
 from openpilot.cereal import messaging, log, custom
 from opendbc.car.structs import car
+from opendbc.sunnypilot.car.interfaces import get_steer_rail_schedule
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.display import OnroadBrightness
 from openpilot.selfdrive.ui.sunnypilot.ui_state_zp import UIStateZP
 from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_active_source
+from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.sunnylink.sunnylink_state import SunnylinkState
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.sunnypilot.widgets.screen_saver import ScreenSaverSP
 from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.helpers import icbm_applicable
+
 
 OpenpilotState = log.SelfdriveState.OpenpilotState
 MADSState = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
@@ -37,7 +42,8 @@ class UIStateSP(UIStateZP):
     self.is_sp_release: bool = self.params.get_bool("IsReleaseSpBranch")
     self.sm_services_ext = [
       "modelManagerSP", "selfdriveStateSP", "longitudinalPlanSP", "backupManagerSP",
-      "gpsLocation", "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay"
+      "gpsLocation", "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay",
+      "imuCalibrationSP", "carrotManSP", "modelDataV2SP",
     ]
 
     self.sunnylink_state = SunnylinkState()
@@ -47,6 +53,17 @@ class UIStateSP(UIStateZP):
 
     self.active_bundle = None
     self.model_runner_tinygrad: bool = False
+    # jetlink's snapshot (jetlink.openpilot.Status) from the params pass; None
+    # with a chestnut fitted or no jetlink on this device
+    self.jetlink = None
+    # the link is on and holds the USB port ADB needs; the developer panels grey
+    # the ADB toggle on it (_enforce_usb_port)
+    self.adb_blocked: bool = False
+    self._accelerator_state_name: str = 'none'
+    # carOutput's applied torque on the EPS rail's own scale, for the torque bar
+    # and lane lines (_update_torque_utilization)
+    self.torque_utilization: float = 0.0
+    self._steer_rail_schedule = None
     self.blindspot: bool = False
     self.chevron_metrics = None
     self.custom_interactive_timeout: int = 0
@@ -65,6 +82,7 @@ class UIStateSP(UIStateZP):
     self.enforce_torque_control: bool = False
     self.custom_torque_params: bool = False
     self.torque_override_enabled: bool = False
+    self.carrot_amap_blind_spot_enabled: bool = False
     self._sp_initialized: bool = False
     UIStateZP.__init__(self)
 
@@ -117,7 +135,9 @@ class UIStateSP(UIStateZP):
     state = ss.state
     mads = ss_sp.mads
     mads_state = mads.state
-    # held by the car's own lane keep (mads.py update_stock_lkas): reads as lateral off
+    # held by the car's own lane keep (mads.py update_stock_lkas): reads as lateral off.
+    # selfdrived writes both the top-level mads.lateralHeld and the zoompilot nest;
+    # read the nest to match the zp status contract/test.
     mads_enabled = mads.enabled and not ss_sp.zoompilot.madsLateralHeld
 
     if state == OpenpilotState.preEnabled:
@@ -169,6 +189,7 @@ class UIStateSP(UIStateZP):
     self.chevron_metrics = self.params.get("ChevronInfo")
     self.custom_interactive_timeout = self.params.get("InteractivityTimeout", return_default=True)
     self.developer_ui = self.params.get("DevUIInfo")
+    self.hide_firehose_prompt = self.params.get_bool("HideFirehosePrompt")
     self.hide_v_ego_ui = self.params.get_bool("HideVEgoUI")
     self.onroad_brightness = int(float(self.params.get("OnroadScreenOffBrightness", return_default=True)))
     self.onroad_brightness_timer_param = self.params.get("OnroadScreenOffTimer", return_default=True)
@@ -189,6 +210,7 @@ class UIStateSP(UIStateZP):
     self.boot_offroad_mode = self.params.get("DeviceBootMode", return_default=True)
     self.always_offroad = self.params.get_bool("OffroadMode") or self.params.get_bool("OffroadModeRequested")  # applied or pending
     self.screensaver_enabled = self.params.get_bool("ScreenSaverEnabled")
+    self.carrot_amap_blind_spot_enabled = self.params.get_bool("CarrotAmapBlindSpotEnabled")
 
     if not self._sp_initialized:
       self._sp_initialized = True
@@ -237,6 +259,21 @@ class UIStateSP(UIStateZP):
     # ICBM has no toggle: the features that act through it can, wherever the car has it
     self.has_icbm = self.CP is not None and self.CP_SP is not None and icbm_applicable(self.CP, self.CP_SP)
 
+  def _enforce_usb_port(self) -> None:
+    """ADB and Jetlink both need the comma's USB port: the link on turns ADB off,
+    and the developer panels grey its toggle out. Here, not in the panels, so a
+    link set from sunnylink or the web panel counts too.
+
+    AGNOS's ADB gadget (g1) holds the device controller while AdbEnabled is set,
+    and jetlink-root.sh refuses to take the controller from it, so the link stays
+    "unavailable" until this lands. jetlink's owner retries the port every few
+    seconds, so clearing the param is enough. Over Wi-Fi the link leaves the port
+    alone, and ADB with it."""
+    self.adb_blocked = self.jetlink is not None and self.jetlink.enabled and self.jetlink.mode != "wifi"
+    if self.adb_blocked and self.params.get_bool("AdbEnabled"):
+      self.params.put_bool("AdbEnabled", False, block=True)
+
+
 def set_always_offroad(params: Params, enable: bool) -> None:
   """The UI writes the forced-offroad preference only. hardwared applies it: entering waits for
   a silenced stock ECU to be handed back before pandad sees OffroadMode, exiting clears the old
@@ -277,6 +314,10 @@ class DeviceSP:
   def set_onroad_brightness(_ui_state, awake: bool, cur_brightness: float) -> float:
     if not awake or not _ui_state.started:
       return cur_brightness
+
+    # Keep screen at 100% when onroad brightness is set to maximum (22 -> 100%)
+    if _ui_state.onroad_brightness == 22:
+      return 100.0
 
     if _ui_state.onroad_brightness_timer != 0:
       if _ui_state.onroad_brightness == OnroadBrightness.AUTO_DARK:

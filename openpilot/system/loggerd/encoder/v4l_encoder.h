@@ -28,11 +28,13 @@ public:
   void encoder_close();
   void set_bitrate(int bitrate);
   void request_keyframe();
+  void set_idle(bool is_idle) override;
 
 private:
   int fd;
 
   bool is_open = false;
+  std::atomic<bool> idle = false;
   int segment_num = -1;
   int counter = 0;
   int current_bitrate = -1;

@@ -1,0 +1,16 @@
+/* Legacy page-local layout aliases pending feature stylesheet migration. */
+:root {
+  --setting-landscape-content-inset: var(--page-rail-content-inset);
+  --tools-page-gutter-inline: var(--page-gutter-inline);
+  --tools-page-gutter-block: var(--page-gutter-block);
+  --terminal-page-gutter-inline: var(--page-gutter-inline);
+  --logs-shell-inline: clamp(12px, 3.5vw, 24px);
+}
+
+@media (min-aspect-ratio: 13/10), (horizontal-viewport-segments: 2), (vertical-viewport-segments: 2), (min-width: 640px) and (min-height: 650px) {
+  :root {
+    --tools-page-gutter-inline: var(--page-rail-content-inset);
+    --tools-page-gutter-block: var(--page-rail-gutter-block);
+    --terminal-page-gutter-inline: var(--page-rail-gutter-inline);
+  }
+}

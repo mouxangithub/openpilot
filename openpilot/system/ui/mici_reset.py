@@ -9,6 +9,7 @@ import pyray as rl
 
 from openpilot.common.hardware import HARDWARE, PC
 from openpilot.system.ui.lib.application import gui_app
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets.scroller import Scroller
 from openpilot.system.ui.mici_setup import GreyBigButton, FailedPage
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigDialog, BigConfirmationCircleButton
@@ -25,7 +26,7 @@ class ResetMode(IntEnum):
 
 class ResetFailedPage(FailedPage):
   def __init__(self):
-    super().__init__(None, "reset failed", "reboot to try again", icon="icons_mici/setup/reset_failed.png")
+    super().__init__(None, tr("reset failed"), tr("reboot to try again"), icon="icons_mici/setup/reset_failed.png")
 
   def show_event(self):
     super().show_event()
@@ -39,7 +40,7 @@ class ResettingPage(BigDialog):
   DOT_STEP = 0.6
 
   def __init__(self):
-    super().__init__("resetting device", "this may take up to\na minute...",
+    super().__init__(tr("resetting device"), tr("this may take up to\na minute..."),
                      gui_app.texture("icons_mici/setup/factory_reset.png", 64, 64))
     self._show_time = 0.0
 
@@ -54,7 +55,7 @@ class ResettingPage(BigDialog):
   def _render(self, _):
     t = (rl.get_time() - self._show_time) % (self.DOT_STEP * 2)
     dots = "." * min(int(t / (self.DOT_STEP / 4)), 3)
-    self._card.set_value(f"this may take up to\na minute{dots}")
+    self._card.set_value(tr("this may take up to\na minute{dots}").format(dots=dots))
     super()._render(_)
 
 
@@ -69,30 +70,30 @@ class Reset(Scroller):
     self._resetting_page = ResettingPage()
     self._reset_failed_page = ResetFailedPage()
 
-    self._reset_button = BigConfirmationCircleButton("reset &\nerase", gui_app.texture("icons_mici/settings/device/uninstall.png", 70, 70),
+    self._reset_button = BigConfirmationCircleButton(tr("reset &\nerase"), gui_app.texture("icons_mici/settings/device/uninstall.png", 70, 70),
                                                      self._start_reset, exit_on_confirm=False, red=True)
-    self._cancel_button = BigConfirmationCircleButton("cancel", gui_app.texture("icons_mici/setup/cancel.png", 64, 64),
+    self._cancel_button = BigConfirmationCircleButton(tr("cancel"), gui_app.texture("icons_mici/setup/cancel.png", 64, 64),
                                                       gui_app.request_close, exit_on_confirm=False)
-    self._reboot_button = BigConfirmationCircleButton("reboot\ndevice", gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70),
+    self._reboot_button = BigConfirmationCircleButton(tr("reboot\ndevice"), gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70),
                                                       HARDWARE.reboot, exit_on_confirm=False)
 
     # show reboot button if in recover mode
     self._cancel_button.set_visible(mode != ResetMode.RECOVER)
     self._reboot_button.set_visible(mode == ResetMode.RECOVER)
 
-    main_card = GreyBigButton("factory reset", "resetting erases\nall user content & data",
+    main_card = GreyBigButton(tr("factory reset"), tr("resetting erases\nall user content & data"),
                               gui_app.texture("icons_mici/setup/factory_reset.png", 64, 64))
     self._scroller.add_widget(main_card)
 
     if mode != ResetMode.USER_RESET:
-      self._scroller.add_widget(GreyBigButton("", "Resetting erases all user content & data."))
+      self._scroller.add_widget(GreyBigButton("", tr("Resetting erases all user content & data.")))
       if mode == ResetMode.RECOVER:
-        main_card.set_value("user data partition\ncould not be mounted")
+        main_card.set_value(tr("user data partition\ncould not be mounted"))
       elif mode == ResetMode.TAP_RESET:
-        main_card.set_value("reset triggered by\ntapping the screen")
+        main_card.set_value(tr("reset triggered by\ntapping the screen"))
 
     self._scroller.add_widgets([
-      GreyBigButton("", "For a deeper reset, go to\nhttps://flash.comma.ai"),
+      GreyBigButton("", tr("For a deeper reset, go to\nhttps://flash.comma.ai")),
       self._cancel_button,
       self._reboot_button,
       self._reset_button,

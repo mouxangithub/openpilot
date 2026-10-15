@@ -6,6 +6,7 @@ from openpilot.selfdrive.ui.mici.widgets.button import BigButton
 from openpilot.common.hardware import HARDWARE
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.cellular_manager import CellularManager
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.wifi_manager import WifiManager, ConnectStatus, SecurityType, normalize_ssid
 
 NetworkStrength = log.DeviceState.NetworkStrength
@@ -64,7 +65,7 @@ class WifiNetworkButton(BigButton):
     self._wifi_medium_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_medium.png", 64, 47)
     self._wifi_full_txt = gui_app.texture("icons_mici/settings/network/wifi_strength_full.png", 64, 47)
 
-    super().__init__("wi-fi", "not connected", self._wifi_slash_txt, scroll=True, description=description)
+    super().__init__(tr("wi-fi"), tr("not connected"), self._wifi_slash_txt, scroll=True, description=description)
 
   def _update_state(self):
     super()._update_state()
@@ -75,14 +76,14 @@ class WifiNetworkButton(BigButton):
     display_network = next((n for n in self._wifi_manager.networks if n.ssid == wifi_state.ssid), None)
     if wifi_state.status == ConnectStatus.CONNECTING:
       self.set_text(normalize_ssid(wifi_state.ssid or "wi-fi"))
-      self.set_value("starting" if self._wifi_manager.is_tethering_active() else "connecting...")
+      self.set_value(tr("starting") if self._wifi_manager.is_tethering_active() else tr("connecting..."))
     elif wifi_state.status == ConnectStatus.CONNECTED:
       self.set_text(normalize_ssid(wifi_state.ssid or "wi-fi"))
-      self.set_value(self._wifi_manager.ipv4_address or "obtaining IP...")
+      self.set_value(self._wifi_manager.ipv4_address or tr("obtaining IP..."))
     else:
       display_network = None
-      self.set_text("wi-fi")
-      self.set_value("not connected")
+      self.set_text(tr("wi-fi"))
+      self.set_value(tr("not connected"))
 
     if display_network is not None:
       strength = WifiIcon.get_strength_icon_idx(display_network.strength)

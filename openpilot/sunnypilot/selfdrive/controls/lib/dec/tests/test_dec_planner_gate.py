@@ -5,6 +5,7 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 from typing import cast
+from types import SimpleNamespace
 
 from openpilot.cereal import custom, messaging
 from opendbc.car import structs
@@ -20,6 +21,10 @@ class MockDec:
   def __init__(self, active: bool, mode: str):
     self._active = active
     self._mode = mode
+    # the fork's DynamicExperimentalController exposes these; publish reads them
+    self.signals = SimpleNamespace(decel_intent=0.0, curve_detected=False)
+    self.want_blended = False
+    self.lead_veto = False
 
   def update(self, sm):
     pass

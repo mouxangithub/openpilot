@@ -1,0 +1,113 @@
+/* ── LAN services ───────────────────────────────────────────────────────────
+   7000 / 5080 / 5090 shortcuts. Each row is a real <a> so middle-click,
+   ctrl-click and "copy link address" all behave like any other link. */
+
+.lan-services {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.lan-services__hint {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.lan-services__empty {
+  padding: 12px 0;
+  font-size: 13px;
+}
+
+.lan-service {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-lg, 12px);
+  border: 1px solid color-mix(in srgb, var(--md-outline-var, #6b7280) 26%, transparent);
+  background: var(--md-surface-cont, rgba(255, 255, 255, 0.04));
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .16s ease, background-color .16s ease, transform .16s ease;
+}
+
+.lan-service:hover,
+.lan-service:focus-visible {
+  border-color: color-mix(in srgb, var(--md-primary, #e7a34b) 55%, transparent);
+  background: color-mix(in srgb, var(--md-primary, #e7a34b) 10%, var(--md-surface-cont, rgba(255, 255, 255, 0.04)));
+  transform: translateY(-1px);
+}
+
+.lan-service__icon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  background: color-mix(in srgb, var(--md-primary, #e7a34b) 18%, transparent);
+  color: var(--md-primary, #e7a34b);
+}
+
+.lan-service__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.lan-service__name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.lan-service__desc {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text-muted, #9aa1ab);
+}
+
+.lan-service__url {
+  font-size: 11px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--text-muted, #9aa1ab);
+  opacity: .85;
+  overflow-wrap: anywhere;
+}
+
+.lan-service__state {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted, #9aa1ab);
+}
+
+.lan-service__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lan-dot-offline, #6b7280);
+}
+
+.lan-service--online .lan-service__dot {
+  background: var(--lan-dot-online, #3fbf6f);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--lan-dot-online, #3fbf6f) 22%, transparent);
+}
+
+/* An unreachable sibling service stays tappable - the user may be opening it
+   on a different interface - but it reads as unavailable. */
+.lan-service--offline {
+  opacity: .72;
+}
+
+.lan-service--offline:hover {
+  opacity: 1;
+}

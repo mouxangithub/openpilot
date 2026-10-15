@@ -70,7 +70,7 @@ class SteeringLayout(Widget):
       max_value=255,
       value_change_step=5,
       description="",
-      label_callback=lambda speed: f'{speed} {"km/h" if ui_state.is_metric else "mph"}',
+      label_callback=lambda speed: f'{speed} {tr("km/h") if ui_state.is_metric else tr("mph")}',
     )
     self._blinker_reengage_delay = option_item_sp(
       param="BlinkerLateralReengageDelay",
@@ -79,7 +79,7 @@ class SteeringLayout(Widget):
       max_value=10,
       value_change_step=1,
       description=lambda: tr("Delay before lateral control resumes after the turn signal ends."),
-      label_callback=lambda delay: f'{delay} {"s"}'
+      label_callback=lambda delay: f'{delay} {tr("s")}'
     )
     self._torque_control_toggle = toggle_item_sp(
       param="EnforceTorqueControl",

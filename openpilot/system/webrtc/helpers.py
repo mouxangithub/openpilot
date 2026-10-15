@@ -17,7 +17,8 @@ class StreamRequestBody:
 def post_stream_request(body: StreamRequestBody) -> dict:
   t_start = time.monotonic()
   try:
-    resp = requests.post(f"http://localhost:{WEBRTCD_PORT}/stream", json=asdict(body), timeout=10)
+    # webrtcd may take ~30s to build the first SDP answer on device
+    resp = requests.post(f"http://localhost:{WEBRTCD_PORT}/stream", json=asdict(body), timeout=45)
     t_end = time.monotonic()
     ret = resp.json()
     ret["time"] = (t_end - t_start) * 1000

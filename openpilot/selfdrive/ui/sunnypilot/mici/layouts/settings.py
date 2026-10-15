@@ -20,6 +20,7 @@ from openpilot.selfdrive.ui.sunnypilot.mici.layouts.toggles import TogglesLayout
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.trips import TripsLayoutMici
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.visuals import VisualsLayoutMici
 from openpilot.selfdrive.ui.ui_state import ui_state
+from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.sunnypilot.ui_state import set_always_offroad
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
@@ -32,16 +33,16 @@ OP.DeveloperLayoutMici = DeveloperLayoutMiciSP
 OP.SoftwareLayoutMici = SoftwareLayoutSP
 
 SP_ICON = "../../sunnypilot/selfdrive/assets/offroad"
+ICON_SIZE = 70
 BIG_ICON_SIZE = 110
 
 
 class SunnylinkBigButton(SettingsBigButton):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-    self._label.set_font_weight(FontWeight.AUDIOWIDE)
+    self._label.set_font_weight(FontWeight.BOLD)
 
   def _get_label_font_size(self):
-    # Audiowide runs wider than Inter: "sunnylink" wraps to two lines at 64
     return 56
 
 
@@ -50,7 +51,11 @@ class SettingsLayoutSP(OP.SettingsLayout):
     OP.SettingsLayout.__init__(self)
 
     device_panel = DeviceLayoutMici()
+    device_panel.set_preview_callback(self._enter_onroad_preview)
     self._scroller._items[2].set_click_callback(lambda: gui_app.push_widget(device_panel))
+
+    # by label: an index mis-wires silently if the base list is ever reordered
+    self._replace_panel("software", SoftwareLayoutSP())
 
     self.icon_offroad_enable = gui_app.texture("../../sunnypilot/selfdrive/assets/icons_mici/always_offroad.png", BIG_ICON_SIZE,
                                                BIG_ICON_SIZE)
@@ -78,6 +83,22 @@ class SettingsLayoutSP(OP.SettingsLayout):
     sunnylink_btn = SunnylinkBigButton(tr("sunnylink"), "", gui_app.texture("../../sunnypilot/selfdrive/assets/icons_mici/sunnylink.png", 76, 44))
     sunnylink_btn.set_click_callback(lambda: gui_app.push_widget(sunnylink_panel))
 
+    panels = [
+      (tr("models"), ModelsLayoutMici, gui_app.texture(f"{SP_ICON}/icon_models.png", ICON_SIZE, ICON_SIZE)),
+      (tr("cruise"), CruiseLayoutMici, gui_app.texture(f"{SP_ICON}/icon_vehicle.png", ICON_SIZE, ICON_SIZE)),
+      (tr("steering"), SteeringLayoutMici, gui_app.texture(f"{SP_ICON}/icon_lateral.png", ICON_SIZE, ICON_SIZE)),
+      (tr("display"), DisplayLayoutMici, gui_app.texture(f"{SP_ICON}/icon_display.png", ICON_SIZE, ICON_SIZE)),
+      (tr("visuals"), VisualsLayoutMici, gui_app.texture(f"{SP_ICON}/icon_visuals.png", ICON_SIZE, ICON_SIZE)),
+      (tr("trips"), TripsLayoutMici, gui_app.texture(f"{SP_ICON}/icon_trips.png", ICON_SIZE, ICON_SIZE)),
+    ]
+
+    sp_buttons = []
+    for label, panel_cls, icon in panels:
+      panel = panel_cls()
+      btn = SettingsBigButton(label, "", icon)
+      btn.set_click_callback(lambda p=panel: gui_app.push_widget(p))
+      sp_buttons.append(btn)
+
     always_offroad_desc = tr("Keeps the device offroad while the car is on, so zoompilot won't engage.\n" +
                              "Settings that need the car off can be changed.")
 
@@ -102,7 +123,7 @@ class SettingsLayoutSP(OP.SettingsLayout):
     for i, btn in enumerate(sp_buttons):
       items.insert(1 + i, btn)
     # sunnylink sits right after software (base order: toggles, network, device,
-    # software, firehose, developer, shifted by the sp panels above)
+    # software, pair, firehose, imu calibration, developer, shifted by the sp panels above)
     items.insert(len(sp_buttons) + 4, sunnylink_btn)
 
     # front slots (only one ever visible at a time): exit-always-offroad, then enable-onroad
@@ -114,6 +135,13 @@ class SettingsLayoutSP(OP.SettingsLayout):
     self._scroller._items.clear()
     for item in items:
       self._scroller.add_widget(item)
+
+  def _replace_panel(self, label: str, panel) -> None:
+    btn = next((btn for btn in self._scroller.items if btn.get_text() == label), None)
+    if btn is None:
+      cloudlog.warning(f"mici settings: no panel button labelled {label!r}")
+      return
+    btn.set_click_callback(lambda: gui_app.push_widget(panel))
 
   def _update_state(self):
     super()._update_state()

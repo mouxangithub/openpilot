@@ -166,6 +166,22 @@ class Params:
   def get_bool(self, key, block=False):
     return bool(params_get_bool(self.p, self.check_key(key), block))
 
+  def get_int(self, key, default=0):
+    try:
+      return int(self.get(key))
+    except (TypeError, ValueError):
+      return default
+
+  def get_float(self, key, default=0.0):
+    try:
+      return float(self.get(key))
+    except (TypeError, ValueError):
+      return default
+
+  def get_str(self, key, default=""):
+    value = self.get(key)
+    return default if value is None else str(value)
+
   def _put_cast(self, key, dat):
     return ensure_bytes(self.python2cpp(type(dat), self.get_type(key), dat, key))
 
@@ -175,8 +191,30 @@ class Params:
     value = self._put_cast(k, dat)
     params_put(self.p, k, value, len(value), block)
 
+  def put_nonblocking(self, key, dat):
+    """Write a parameter without blocking on persistence (alias for put(block=False))."""
+    return self.put(key, dat, block=False)
+
   def put_bool(self, key, val, block=False):
     params_put_bool(self.p, self.check_key(key), val, block)
+
+  def put_int(self, key, val, block=False):
+    self.put(key, int(val), block=block)
+
+  def put_float(self, key, val, block=False):
+    self.put(key, float(val), block=block)
+
+  def put_str(self, key, val, block=False):
+    self.put(key, str(val), block=block)
+
+  def put_bool_nonblocking(self, key, val):
+    self.put_bool(key, val, block=False)
+
+  def put_int_nonblocking(self, key, val):
+    self.put_int(key, val, block=False)
+
+  def put_float_nonblocking(self, key, val):
+    self.put_float(key, val, block=False)
 
   def remove(self, key):
     params_remove(self.p, self.check_key(key))

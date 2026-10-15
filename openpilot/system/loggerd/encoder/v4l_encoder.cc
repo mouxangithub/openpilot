@@ -97,7 +97,10 @@ void V4LEncoder::dequeue_handler(V4LEncoder *e) {
       }
       continue;
     } else if (rc == 0) {
-      LOGE("encoder dequeue poll timeout");
+      // an idle Carrot Vision encoder has nothing in flight; stay quiet
+      if (!e->idle) {
+        LOGE("encoder dequeue poll timeout");
+      }
       continue;
     }
 
@@ -372,6 +375,10 @@ void V4LEncoder::request_keyframe() {
   if (util::safe_ioctl(fd, VIDIOC_S_CTRL, &ctrl) == -1) {
     LOGE("failed to request keyframe for %s", encoder_info.publish_name);
   }
+}
+
+void V4LEncoder::set_idle(bool is_idle) {
+  this->idle = is_idle;
 }
 
 V4LEncoder::~V4LEncoder() {

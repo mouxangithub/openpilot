@@ -1,7 +1,6 @@
 [lfs]
 	url = https://huggingface.co/sunnypilot/sunnypilot-lfs.git/info/lfs
 	pushurl = https://huggingface.co/sunnypilot/sunnypilot-lfs.git/info/lfs
-
 	locksverify = false
 	# Only a chestnut uses the big driving model. Keep its pointer but exclude the object from
 	# install fetches; a chestnut build fetches it (openpilot/sunnypilot/models/big_model_source.py).

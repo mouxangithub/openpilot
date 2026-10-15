@@ -6,6 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 import threading
 import time
+
 import pyray as rl
 
 from openpilot.system.ui.lib.multilang import tr
@@ -39,8 +40,23 @@ class NetworkUISP(NetworkUI):
       self.scan_button.set_enabled(True)
 
   def _render(self, _):
-    super()._render(_)
+    # Subtract button
+    content_rect = rl.Rectangle(
+      self._rect.x,
+      self._rect.y + self._nav_button.rect.height + 40,
+      self._rect.width,
+      self._rect.height - self._nav_button.rect.height - 40,
+    )
 
     if self._current_panel == PanelType.WIFI:
+      self._nav_button.text = tr("Advanced")
+      self._nav_button.set_position(self._rect.x + self._rect.width - self._nav_button.rect.width, self._rect.y + 20)
+      self._wifi_panel.render(content_rect)
       self.scan_button.set_position(self._rect.x, self._rect.y + 20)
       self.scan_button.render()
+    else:
+      self._nav_button.text = tr("Back")
+      self._nav_button.set_position(self._rect.x, self._rect.y + 20)
+      self._advanced_panel.render(content_rect)
+
+    self._nav_button.render()
