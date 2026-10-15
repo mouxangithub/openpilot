@@ -1,4 +1,4 @@
-zoompilot vUNRELEASED
+zoompilot v2026.10.15-15
 ========================
 * jetlink support <3
 * Cruise
@@ -16,6 +16,7 @@ zoompilot vUNRELEASED
   * "Driving Model Loading" shows instead of communication alerts.
   * Fewer Controls Mismatch alerts.
   * comma 3X: a slow boot no longer blocks engaging for the whole drive.
+  * Fixed a rare frozen screen at startup.
   * New zoompilot boot logo.
 * comma 4
   * Long-press a setting for help.
@@ -65,7 +66,7 @@ zoompilot vUNRELEASED
   * No false Posenet or locationd alerts while the model is not running.
 * Upstream
   * sunnypilot: model refresh and clear cache buttons, Models menu freeze and camera offset fixed.
-  * openpilot: new alert icons.
+  * openpilot: new alert icons, steering picks up the current curve when it engages.
 
 zoompilot v2026.09.12-14
 ========================
