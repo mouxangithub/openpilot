@@ -242,11 +242,7 @@ def main(demo=False):
   params = Params()
   params.put_bool("ChestnutLoading", CHESTNUT)
   params.remove("ChestnutActive")
-  jetlink_adapter.prepare(CHESTNUT)  # before going realtime
-
-  # before going realtime: prepare() starts tinygrad's device thread, which would inherit FIFO 54 on core 7
-  if not CHESTNUT:
-    jetlink_adapter.prepare()
+  jetlink_adapter.prepare(CHESTNUT)  # before going realtime; prepare() no-ops beside a chestnut
 
   config_realtime_process(7, 54)
 

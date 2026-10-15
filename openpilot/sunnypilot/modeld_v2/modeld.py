@@ -264,9 +264,9 @@ def main(demo=False):
   CHESTNUT = CHESTNUT_PRESENT
   if CHESTNUT:
     os.environ['HCQDEV_WAIT_TIMEOUT_MS'] = '3000'
-  # before going realtime: prepare() starts tinygrad's device thread, which would inherit FIFO 54 on core 7
-  if not CHESTNUT:
-    jetlink_adapter.prepare()
+  # before going realtime: prepare() starts tinygrad's device thread, which would inherit FIFO 54 on core 7.
+  # prepare(chestnut) itself no-ops beside a chestnut, so call it unconditionally.
+  jetlink_adapter.prepare(CHESTNUT)
 
   config_realtime_process(7, 54)
 
