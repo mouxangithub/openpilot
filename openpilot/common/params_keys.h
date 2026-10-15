@@ -78,6 +78,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // JetlinkSpec carries whether the engine is built, which must survive a reboot
     // or every ignition cycle would rebuild a multi-minute engine.
     {"AcceleratorProgress", {CLEAR_ON_MANAGER_START, JSON}},
+    {"Offroad_AcceleratorUnavailable", {CLEAR_ON_MANAGER_START, JSON}},
+    {"Offroad_CarrotAutoUpdateFailed", {CLEAR_ON_MANAGER_START, JSON}},
     {"Offroad_JetlinkUnavailable", {CLEAR_ON_MANAGER_START, JSON}},
     {"JetlinkLink", {PERSISTENT | BACKUP, INT, "0"}},
     {"JetlinkSpec", {PERSISTENT, JSON}},
@@ -125,6 +127,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"Offroad_ConnectivityNeeded", {CLEAR_ON_MANAGER_START, JSON}},
     {"Offroad_ConnectivityNeededPrompt", {CLEAR_ON_MANAGER_START, JSON}},
     {"Offroad_ExcessiveActuation", {PERSISTENT, JSON}},
+    {"Offroad_NeosUpdate", {CLEAR_ON_MANAGER_START, JSON}},
     {"Offroad_NoFirmware", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, JSON}},
     {"Offroad_Recalibration", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, JSON}},
     {"Offroad_TemperatureTooHigh", {CLEAR_ON_MANAGER_START, JSON}},
