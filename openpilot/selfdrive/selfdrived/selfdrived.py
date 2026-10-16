@@ -43,6 +43,9 @@ TESTING_CLOSET = "TESTING_CLOSET" in os.environ
 # the filtered frame-drop rate must stay over the lagging threshold for this
 # long before modeldLagging fires; rides out a transient scheduler/IO stall
 MODEL_LAG_HOLD_S = 1.0
+# deviceMotion.inputsOK must read false this long before locationdTemporaryError
+# fires; rides out the same brief stall (locationd already debounces upstream)
+LOCATIOND_ERROR_HOLD_S = 1.0
 
 LONGITUDINAL_PERSONALITY_MAP = {v: k for k, v in log.LongitudinalPersonality.schema.enumerants.items()}
 
@@ -152,6 +155,7 @@ class SelfdriveD(CruiseHelper):
     # past 1% for a moment, which must not flash the no-entry the way a
     # sustained slow model does.
     self.modeld_lag_counter = 0
+    self.locationd_error_counter = 0
     self.last_functional_fan_frame = 0
     self.events_prev = []
     self.logged_comm_issue = None
@@ -483,7 +487,14 @@ class SelfdriveD(CruiseHelper):
       # the defaults of a message that was never received are not a localizer failure
       if self.sm.seen['deviceMotion'] and not self.sm['deviceMotion'].posenetOK:
         self.events.add(EventName.posenetInvalid)
+      # de-glitch: a brief scheduler/IO stall makes locationd miss frames and
+      # report inputsOK=false for a control cycle or two; require it to persist
+      # before flashing the no-entry, the same way modeldLagging is held
       if self.sm.seen['deviceMotion'] and not self.sm['deviceMotion'].inputsOK:
+        self.locationd_error_counter += 1
+      else:
+        self.locationd_error_counter = 0
+      if self.locationd_error_counter > int(LOCATIOND_ERROR_HOLD_S / DT_CTRL):
         self.events.add(EventName.locationdTemporaryError)
       if (self.sm.seen['vehicleParameters'] and not self.sm['vehicleParameters'].valid and cal_status == log.ExtrinsicsCalibration.Status.calibrated and
           not TESTING_CLOSET and (not SIMULATION or REPLAY)):
