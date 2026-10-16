@@ -586,3 +586,70 @@ class TestImuCalibrationd(OpenpilotTestCase):
     cam.transStd = [0.01, 0.01, 0.01]
 
     self.assertFalse(is_straight_drive(car_state, cam))
+
+  def test_end_to_end_static_then_dynamic_completes(self):
+    """A full session (static -> dynamic) completes and saves the right matrix.
+
+    The rest of the suite exercises the pieces (static solve, yaw correction,
+    guards) in isolation; this drives the whole state machine the way the daemon
+    does and pins the one thing users care about - a COMPLETED run yields a
+    valid rotation whose yaw matches the truth.
+    """
+    cal = ImuCalibrator()
+    cal.params.remove("ImuCalibrationMatrix")
+    cal.start()
+    assert cal.state == CalibrationState.STATIC_COLLECTING
+
+    # Static phase: level mount, so the device frame equals the vehicle frame.
+    up_device = np.array([0.0, 0.0, 1.0])
+    up_msg = _device_to_sensor_msg_frame(up_device)
+    for i in range(200):
+      ts = int(i * 0.01 * 1e9)
+      acc = messaging.new_message('accelerometer').accelerometer
+      acc.timestamp = ts
+      acc.acceleration.v = up_msg
+      cal.handle_accel(acc)
+      gyr = messaging.new_message('gyroscope').gyroscope
+      gyr.timestamp = ts
+      gyr.init('gyroUncalibrated')
+      gyr.gyroUncalibrated.v = [0.0, 0.0, 0.0]
+      cal.handle_gyro(gyr)
+
+    car_state = messaging.new_message('carState').carState
+    car_state.vEgo = 0.0
+    car_state.yawRate = 0.0
+    car_state.steeringRateDeg = 0.0
+    cal.update(car_state)
+    assert cal.state == CalibrationState.DYNAMIC_COLLECTING
+    assert cal.R_static is not None
+
+    # Dynamic phase: straight-ish drive, true yaw about gravity.
+    yaw_true = math.radians(20.0)
+    z_axis = np.array([0.0, 0.0, -1.0])
+    R_true = axis_angle_to_rot(z_axis, yaw_true)
+    omega_vehicle = np.array([0.02, 0.03, 0.04])
+    for i in range(400):
+      gyr = messaging.new_message('gyroscope').gyroscope
+      gyr.timestamp = int(i * 0.01 * 1e9)
+      gyr.init('gyroUncalibrated')
+      gyr.gyroUncalibrated.v = _device_to_sensor_msg_frame(R_true @ omega_vehicle)
+      cal.handle_gyro(gyr)
+
+    cam_ts = 0.0
+    for _ in range(40):
+      cam = messaging.new_message('cameraOdometry').cameraOdometry
+      cam.rot = (omega_vehicle * 0.1).tolist()
+      cam.rotStd = [0.001, 0.001, 0.001]
+      cam.transStd = [0.01, 0.01, 0.01]
+      cam_ts += 0.1
+      cal.handle_camera_odometry(cam, cam_ts)
+
+    car_state.vEgo = 15.0
+    cal.update(car_state)
+
+    assert cal.state == CalibrationState.COMPLETED, f"did not complete: {cal.state} {cal.status.error}"
+    R_saved = cal._load_matrix()
+    assert R_saved is not None
+    assert _valid_rotation(R_saved)
+    np.testing.assert_allclose(R_saved, R_true, atol=math.radians(2.0))
+    assert cal.status.valid_ratio > 0.8

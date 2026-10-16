@@ -19,7 +19,7 @@ The calibration runs in two phases while the car is onroad:
 - Park on reasonably level ground.
 - Keep the vehicle stationary for at least **1.5 seconds**.
 - The daemon averages accelerometer and gyroscope readings to estimate gravity and gyro zero-rate bias.
-- If the ground slope is steeper than **5°**, calibration fails with a slope error.
+- A stationary accelerometer cannot tell "the device is mounted at an angle" from "the car is on a slope" — they are mathematically the same reading — so this is not a slope test. It only rejects a device orientation no reasonable mount would produce (more than **45°** off vertical, e.g. lying flat on its face). Park on reasonably level ground so the recovered pitch/roll is accurate.
 
 ### 2. Dynamic phase — drive straight
 
@@ -50,8 +50,13 @@ Reset clears the saved rotation matrix and disables IMU auto-calibration, return
 | Symptom | Likely cause | What to do |
 |---|---|---|
 | "Calibration failed — vehicle not stationary enough" | Car moved during static phase | Re-park and keep the vehicle still |
-| "Calibration failed — slope too steep" | Ground is tilted > 5° | Move to flatter ground |
+| "Calibration failed — device is not vertical" | Device orientation no mount would produce (> 45° off vertical) | Check the mounting |
 | "Calibration failed — no straight road" | Not enough straight driving | Drive straight for at least 3 seconds at ≥ 5 m/s |
 | "Calibration failed — too many dynamic outliers" | Camera odometry unreliable | Avoid sun glare, lane-less roads, or sharp maneuvers |
+| "Calibration failed — static calibration timed out" | The car never came to rest within 5 minutes of starting | Park, then start the calibration |
 | "Calibration failed — dynamic calibration timed out" | No successful dynamic phase within 5 minutes | Repeat the full procedure |
+
+## Re-calibrating
+
+Press **Start calibration** again on the IMU Calibration page. A completed, failed or cancelled run can be restarted directly — you do not need to reset first. Re-calibrating after moving or re-aiming the device is allowed: the new mount may differ from the old one by a large angle. Use **Reset** only to remove the saved matrix and return to the stock calibration.
 
