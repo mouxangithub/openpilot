@@ -2,6 +2,8 @@
 The full moving-red observation/control pipeline stays off (SignalAssistMode=0);
 these lock the pure decision state machine and the default-safe mode read."""
 import unittest
+from pathlib import Path
+from unittest.mock import patch
 
 from openpilot.sunnypilot.carrot.signal_mode import read_mode
 from openpilot.sunnypilot.carrot.signal_start_guard import SignalStartGuard
@@ -69,6 +71,27 @@ class TestStartGuardSafety(unittest.TestCase):
     d = self.g.update(1.0, None, enabled=True, valid=False, drive=True,
                       gas=False, speed=0.0, departure=True)
     self.assertFalse(d.hold)
+
+
+class TestRequestedFollowsMode(unittest.TestCase):
+  """The signal runtimes' enable flag follows SignalAssistMode for endpoints
+  under the signal dir; the retired moving-red file stays off."""
+
+  def _requested(self, name, mode):
+    import openpilot.sunnypilot.carrot.signal_assist_runtime as sar
+    with patch('openpilot.sunnypilot.carrot.signal_mode.signal_mode', lambda: mode):
+      return sar.requested(Path('/data/signal-color-shadow') / name)
+
+  def test_observation_endpoints_follow_mode(self):
+    for name in ('enabled', 'tracking_enabled', 'display_enabled',
+                 'start_guard_enabled', 'stop_prepare_enabled'):
+      self.assertFalse(self._requested(name, 0))
+      self.assertTrue(self._requested(name, 1))
+      self.assertTrue(self._requested(name, 2))
+
+  def test_retired_assist_file_never_enables(self):
+    for mode in (0, 1, 2):
+      self.assertFalse(self._requested('assist_enabled', mode))
 
 
 if __name__ == "__main__":

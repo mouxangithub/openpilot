@@ -12,6 +12,22 @@ MAX_BYTES = 32768
 
 
 def requested(path=ENABLE_PATH):
+  """Enable policy for the signal runtimes.
+
+  SignalAssistMode is the single user switch (0 off / 1 shadow / 2 control);
+  when it is >0 every observation endpoint is considered enabled. The legacy
+  `assist_enabled` file is retired (moving-red control is not one of the
+  modes). Offline test flags on other paths still work through the file.
+  """
+  path = Path(path)
+  try:
+    from openpilot.sunnypilot.carrot.signal_mode import signal_mode
+    if path.parent == Path('/data/signal-color-shadow') and path.name != 'assist_enabled':
+      return signal_mode() > 0
+  except Exception:
+    pass
+  if path.name == 'assist_enabled':
+    return False
   try:
     return Path(path).read_text().strip() == '1'
   except OSError:
