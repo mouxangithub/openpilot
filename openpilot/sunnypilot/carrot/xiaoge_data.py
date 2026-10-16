@@ -16,6 +16,7 @@ On-device: requires VisionIPC (real camera hardware).
 On PC: VisionIPC unavailable, camera threads will wait and report errors.
 """
 import json
+import os
 import socket
 import struct
 import threading
@@ -274,6 +275,17 @@ class XiaogeDataBroadcaster:
 
 
 def main() -> None:
+  # The vision service (blind-spot + lane ONNX at 20 Hz on two cameras) costs
+  # ~1.3 cores steady-state. At nice 0 it contends with the control stack on
+  # the big cores and periodically pushes modeld past its 50 ms frame budget,
+  # showing up as recurring "model lagging" alerts onroad. Drop the whole
+  # process (all threads inherit this) so the control stack wins scheduling
+  # under contention; xiaoge still runs at full speed whenever cores are idle.
+  try:
+    os.nice(10)
+  except OSError:
+    pass
+
   # Restart loop: if broadcast_data() exits for any reason (exception, crash,
   # etc.), re-create and restart.  Combined with restart_if_crash=True in
   # process_config.py this makes xiaoge_data very resilient – it survives both
