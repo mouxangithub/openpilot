@@ -22,6 +22,9 @@ from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.sunnypilot.selfdrive.controls.lib.accel_controller.accel_controller import AccelController
 from openpilot.sunnypilot.selfdrive.controls.lib.turn_accel import get_future_curvature, limit_accel_in_turns
 from openpilot.sunnypilot.selfdrive.controls.lib.cutin_predecel import get_cutin_predecel_accel_limit
+from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_preview import (
+  apply_preview_target, clip_preview_offset, get_lead_preview_request, rate_limit_preview,
+)
 from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_lead_gap.controller import E2ELeadGapController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
@@ -120,6 +123,9 @@ class LongitudinalPlannerSP:
     self._fusion_enabled = self._params.get_bool("CarrotTrafficLightFusionEnabled")
     self._turn_accel_enabled = self._params.get_bool("CarrotTurnAccelEnabled")
     self._cutin_predecel_enabled = self._params.get_bool("CarrotCutinPredecelEnabled")
+    self._lead_preview_enabled = self._params.get_bool("CarrotLeadPreviewEnabled")
+    self._lead_preview = 0.0
+    self._lead_preview_accel = 0.0
     self._param_count = 0
     self.carrot_should_stop = False
     # Experimental moving-red pipeline. Observation-only until mode 2 is
@@ -333,6 +339,53 @@ class LongitudinalPlannerSP:
                        start_count=int(self.signal_shadow.start_count))
 
     return self.output_v_target, self.output_a_target
+
+  def apply_lead_preview(self, sm: messaging.SubMaster, action_t: float, output_a_target_mpc: float,
+                         reset_state: bool, v_ego: float) -> tuple[float, float]:
+    """Carrot lead-deceleration preview (default OFF behind
+    CarrotLeadPreviewEnabled). Evaluates the MPC plan at a previewed action
+    time while the radar lead is braking, then keeps only a bounded early
+    deceleration (apply_preview_target never raises the target). Returns the
+    effective (action_t, mpc accel)."""
+    if not self._lead_preview_enabled:
+      return action_t, output_a_target_mpc
+    try:
+      cs = sm['carState']
+      preview_enabled = (not self.dec.active() and not reset_state
+                         and not cs.gasPressed and not cs.brakePressed)
+      lead = sm['radarState'].leadOne
+      lead_status = (preview_enabled and bool(getattr(lead, 'present', False))
+                     and bool(lead.radar) and int(getattr(lead, 'radarTrackId', -1)) >= 0)
+      request = get_lead_preview_request(
+        self._driving_mode_value(),
+        lead_status=lead_status, a_lead=float(lead.aLeadK), a_ego=float(cs.aEgo),
+      )
+      if preview_enabled:
+        requested = rate_limit_preview(request.offset_s, self._lead_preview)
+        self._lead_preview = clip_preview_offset(action_t, requested)
+        self._lead_preview_accel = request.lead_accel_signal
+        previewed = get_accel_from_plan(self.v_desired_trajectory, self.a_desired_trajectory,
+                                        CONTROL_N_T_IDX, action_t=action_t + self._lead_preview)
+        output_a_target_mpc = apply_preview_target(output_a_target_mpc, previewed,
+                                                   self._driving_mode_value())
+      else:
+        self._lead_preview = 0.0
+        self._lead_preview_accel = 0.0
+      return action_t + self._lead_preview, output_a_target_mpc
+    except (AttributeError, KeyError, TypeError, ValueError, IndexError):
+      return action_t, output_a_target_mpc
+
+  def _driving_mode_value(self) -> int:
+    """Carrot driving mode as the 1..4 value longitudinal_preview expects.
+    Reads the carrot planner when available (it follows the user param),
+    else the param directly; any failure means Normal."""
+    try:
+      mode = getattr(self.carrot_source.carrot, "_my_driving_mode", None)
+      if mode is not None:
+        return int(getattr(mode, "value", 3))
+      return int(self._params.get_int("MyDrivingMode")) or 3
+    except Exception:
+      return 3
 
   def apply_signal_prepare(self, sm: messaging.SubMaster, now: float | None = None) -> None:
     """Geometric red-light pre-deceleration cap on the arbitrated accel.

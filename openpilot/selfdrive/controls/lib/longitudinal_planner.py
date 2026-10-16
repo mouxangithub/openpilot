@@ -195,6 +195,11 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     action_t =  self.CP.longitudinalActuatorDelay + DT_MDL
     output_a_target_mpc = get_accel_from_plan(self.v_desired_trajectory, self.a_desired_trajectory, CONTROL_N_T_IDX,
                                               action_t=action_t)
+    # Carrot lead-deceleration preview (optional, default OFF): evaluate the
+    # same MPC plan at a previewed action time when the lead is braking, then
+    # apply only a bounded early deceleration. Never adds acceleration.
+    action_t, output_a_target_mpc = self.apply_lead_preview(
+      sm, action_t, output_a_target_mpc, reset_state, v_ego)
     output_should_stop_mpc = should_stop(v_ego, output_a_target_mpc)
     output_a_target_e2e = sm['modelV2'].action.desiredAcceleration
     output_should_stop_e2e = sm['modelV2'].action.shouldStop
