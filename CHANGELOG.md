@@ -1,6 +1,7 @@
 zoompilot vUNRELEASED
 ========================
 * comma 3X: plugging a laptop in for jetlink no longer reboots the comma.
+* Mazda: Australian and NZ cars no longer get stuck on "waiting to start".
 
 zoompilot v2026.10.15-15
 ========================
