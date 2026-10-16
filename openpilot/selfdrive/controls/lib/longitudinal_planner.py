@@ -220,6 +220,12 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     output_a_target, self.mpc.source, _ = min(candidates, key=lambda c: c[0])
     self.output_should_stop = any(should_stop for _, _, should_stop in candidates)
     self.output_a_target = np.clip(output_a_target, ACCEL_MIN, ACCEL_MAX)
+
+    # sunnypilot: geometric red-light pre-deceleration runs after the final
+    # arbitration so its gentle cap cannot be overwritten. A no-op unless the
+    # SignalAssistMode killswitch is set (the SP subclass owns the gating).
+    if hasattr(self, 'apply_signal_prepare'):
+      self.apply_signal_prepare(sm)
     self.accel_controller_active = self.is_accel_controller_active(force_decel)
 
     self.v_desired_filter.x = self.v_desired_filter.x + self.dt * (self.output_a_target + a_prev) / 2.0

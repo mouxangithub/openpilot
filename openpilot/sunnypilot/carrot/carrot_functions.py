@@ -78,6 +78,7 @@ class XState(Enum):
   e2eStop = 3       # Braking to a model stop line / signal.
   e2ePrepare = 4    # Just rolled into a stop, holding it.
   e2eStopped = 5    # Stationary, waiting for green or gas pedal.
+  e2eStopPrepare = 6  # Geometric red-light pre-deceleration (no stop claimed).
 
   def __str__(self) -> str:
     return self.name

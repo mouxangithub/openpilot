@@ -121,6 +121,14 @@ class LongitudinalPlannerSP:
     from openpilot.sunnypilot.carrot.signal_shadow import SignalShadowObserver
     self.signal_shadow = SignalShadowObserver()
     self._signal_shadow_last_log = -1.0
+    # Geometric red pre-deceleration execution (experimental). The cap decays
+    # the commanded accel toward a gentle braking target; it is only ever
+    # applied when SignalAssistMode == 2 (see apply_signal_prepare), so at the
+    # default mode this state machine does nothing.
+    from openpilot.sunnypilot.carrot.signal_stop_prepare import PrepareAccel
+    self._signal_prepare_accel = PrepareAccel()
+    self._signal_prepare_time = None
+    self._signal_prepare_previous = None
 
   def is_e2e(self, sm: messaging.SubMaster) -> bool:
     experimental_mode = sm['selfdriveState'].experimentalMode
@@ -292,6 +300,47 @@ class LongitudinalPlannerSP:
                        start_count=int(self.signal_shadow.start_count))
 
     return self.output_v_target, self.output_a_target
+
+  def apply_signal_prepare(self, sm: messaging.SubMaster, now: float | None = None) -> None:
+    """Geometric red-light pre-deceleration cap on the arbitrated accel.
+
+    Experimental and default-OFF: it only ever engages at SignalAssistMode == 2
+    with a fresh, active carrot prepare decision, and it can only ever *lower*
+    the commanded accel (PrepareAccel returns min(target, cap)). It never
+    requests a stop or a departure - the model keeps owning those. At mode < 2
+    this resets the cap and returns, so the default device is byte-for-byte
+    unaffected.
+    """
+    from openpilot.sunnypilot.carrot.signal_mode import signal_mode
+    from openpilot.sunnypilot.carrot.signal_stop_prepare import prepare_lead_blocked
+
+    now = time.monotonic() if now is None else now
+    elapsed = self.dt if self._signal_prepare_time is None else now - self._signal_prepare_time
+    self._signal_prepare_time = now
+
+    carrot = self.carrot_source.carrot
+    decision = getattr(carrot, "prepare_decision", None)
+
+    cs = sm['carState']
+    active = (
+      signal_mode() >= 2
+      and decision is not None and bool(getattr(decision, "active", False))
+      and bool(getattr(carrot, "prepare_control_active", False))
+      and not cs.gasPressed and not cs.brakePressed
+      and 5 / 3.6 < cs.vEgo < 82 / 3.6
+      and getattr(cs, "softHoldActive", 0) == 0
+      and 0 < elapsed <= 0.2
+      and not self.output_should_stop
+      and not self.dec.active()
+      and not prepare_lead_blocked(sm['radarState'])
+    )
+    previous = cs.aEgo if self._signal_prepare_previous is None else self._signal_prepare_previous
+    uncapped = self.output_a_target
+    self.output_a_target = float(self._signal_prepare_accel.apply(self.output_a_target, previous, elapsed, active))
+    self._signal_prepare_previous = self.output_a_target
+    if active and self.output_a_target < uncapped:
+      # keep the speed target consistent with the gentler deceleration
+      self.output_v_target = min(self.output_v_target, max(0.0, cs.vEgo + self.output_a_target * self.dt))
 
   def update_e2e_target(self, sm: messaging.SubMaster, a_model: float, reset_state: bool, accel_coast: float) -> float:
     """The e2e candidate after the set-speed floor and the follow-distance assist. The host
