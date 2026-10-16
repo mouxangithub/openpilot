@@ -328,7 +328,8 @@ class LongitudinalPlannerSP:
     # Experimental moving-red shadow: mode 1 observes only (no control effect),
     # mode 2 reserved for actuation in a later change. Runs independent of the
     # carrot longitudinal source and only does file reads + throttled logging.
-    shadow = self.signal_shadow.update()
+    # Kept for the publisher below so the HUD ring does not re-read tmpfs.
+    shadow = self._signal_shadow_state = self.signal_shadow.update()
     if shadow.mode > 0:
       now_mono = time.monotonic()
       if now_mono - self._signal_shadow_last_log >= 1.0:
@@ -374,6 +375,37 @@ class LongitudinalPlannerSP:
       return action_t + self._lead_preview, output_a_target_mpc
     except (AttributeError, KeyError, TypeError, ValueError, IndexError):
       return action_t, output_a_target_mpc
+
+  def get_signal_assist_action(self, sm: messaging.SubMaster) -> int:
+    """Advisory HUD evidence: 0 unknown, 1 red, 2 green, 3 mixed.
+
+    Shadow only. Sourced from modeld's tmpfs observation records (the same
+    ones the start guard / prepare runtime consume), never from a control
+    decision, so the ring can never imply that the car is acting on it.
+    """
+    try:
+      observer = getattr(self, "signal_shadow", None)
+      if observer is None:
+        return 0
+      # Colour codes are bit flags (1 red | 2 green = 3 mixed), so a stream
+      # disagreeing with the other is mixed rather than one winning.
+      state = getattr(self, "_signal_shadow_state", None) or observer.update()
+      if int(state.mode) <= 0:
+        return 0
+      return int(getattr(state, "prepare_color", 0)) | int(getattr(state, "start_color", 0))
+    except (AttributeError, TypeError, ValueError):
+      return 0
+
+  def get_signal_detection_suspended(self) -> bool:
+    """True while the carrot planner has parked signal detection (e.g. motorway).
+
+    Display only: the HUD shows the pause ring so a "no light" reading is not
+    mistaken for a missed detection.
+    """
+    try:
+      return bool(getattr(self.carrot_source.carrot, "signal_detection_suspended", False))
+    except (AttributeError, TypeError, ValueError):
+      return False
 
   def _driving_mode_value(self) -> int:
     """Carrot driving mode as the 1..4 value longitudinal_preview expects.
@@ -485,6 +517,9 @@ class LongitudinalPlannerSP:
     dec.curveDetected = bool(self.dec.signals.curve_detected)
     dec.wantBlended = bool(self.dec.want_blended)
     dec.leadVeto = bool(self.dec.lead_veto)
+
+    longitudinalPlanSP.signalAssistAction = int(self.get_signal_assist_action(sm))
+    longitudinalPlanSP.signalDetectionSuspended = bool(self.get_signal_detection_suspended())
 
     accel_controller = longitudinalPlanSP.accelController
     accel_controller.enabled = bool(self.accel_controller.is_enabled())

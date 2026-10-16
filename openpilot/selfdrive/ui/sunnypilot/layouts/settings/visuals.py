@@ -93,6 +93,22 @@ class VisualsLayout(Widget):
            "This displays what the car is currently doing, not what the planner is requesting."),
         None,
       ),
+      "CarrotRadarPointsEnabled": (
+        lambda: tr("Display Radar Points"),
+        tr("Draw the points the front radar is currently tracking in the road view, with their " +
+           "relative speed, lateral offset and distance." +
+           "<br><br>Display only. It does not change how the car drives."),
+        None,
+      ),
+      "CarrotSignalHudEnabled": (
+        lambda: tr("Neural Signal Assist Indicator (Experimental)"),
+        tr("Draw a ring on the HUD with the traffic light evidence the neural model currently sees." +
+           "<br>The outer ring is what the model observes; the centre dot is what the planner actually " +
+           "applies, and only appears with SignalAssistMode set to 2." +
+           "<br><br>Experimental and advisory only. Nothing here lets openpilot act on a traffic light " +
+           "on your behalf. Always check the light yourself."),
+        None,
+      ),
     }
     self._toggles = {}
     for param, (title, desc, callback) in self._toggle_defs.items():

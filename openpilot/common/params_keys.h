@@ -491,6 +491,9 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CarrotTurnAccelEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // cap positive accel by future model curvature in turns
     {"CarrotCutinPredecelEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // bounded pre-decel for strong early corner-radar cut-in risk
     {"CarrotLeadPreviewEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // early-decel preview from radar lead deceleration
+    // Display-only overlays. Neither one is read anywhere on the control path.
+    {"CarrotRadarPointsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // draw measured front-radar points in the road view
+    {"CarrotSignalHudEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // draw the neural signal evidence ring (needs SignalAssistMode > 0)
     {"TrafficLightNavCautionOnly", {PERSISTENT | BACKUP, BOOL, "1"}},       // fused red light only warns; set 0 to allow stop assist
     {"DesireArbiterEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},             // lateral lane-change/fork desire from nav
     // Let carrot ATC (auto turn control) synthesise a turn signal from the phone's

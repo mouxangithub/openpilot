@@ -257,6 +257,11 @@ struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
   # owns). Ordinals are the wire contract, so appending past the fork's fields is the only
   # safe resolution - reusing @8/@9 would alias.
   zoompilot @14 :LongitudinalPlanZP;
+  # Experimental neural signal assistance: current observed light evidence for
+  # the onroad HUD (0 unknown, 1 red, 2 green, 3 mixed) plus whether detection
+  # is suspended on a motorway road class.
+  signalAssistAction @15 :UInt16;
+  signalDetectionSuspended @16 :Bool;
 
   struct DynamicExperimentalControl {
     state @0 :DynamicExperimentalControlState;

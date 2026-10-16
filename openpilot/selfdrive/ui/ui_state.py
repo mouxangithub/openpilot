@@ -61,6 +61,7 @@ class UIState(UIStateSP):
         "onroadEvents",
         "extrinsicsCalibration",
         "radarState",
+        "liveTracks",  # display-only radar points overlay (ui.radar_display)
         "deviceState",
         "pandaStates",
         "carParams",

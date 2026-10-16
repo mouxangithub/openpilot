@@ -7,6 +7,7 @@ See the LICENSE.md file in the root directory for more details.
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.sunnypilot.onroad.chevron_metrics import ChevronMetrics
+from openpilot.selfdrive.ui.sunnypilot.onroad.radar_points import RadarPointsRenderer
 from openpilot.selfdrive.ui.sunnypilot.onroad.rainbow_path import RainbowPath
 from openpilot.selfdrive.ui.sunnypilot.ui_state import MADSState
 from openpilot.system.ui.lib.application import gui_app
@@ -16,6 +17,7 @@ class ModelRendererSP:
   def __init__(self):
     self.rainbow_path = RainbowPath()
     self.chevron_metrics = ChevronMetrics()
+    self.radar_points = RadarPointsRenderer()
     self._width_filter = FirstOrderFilter(0.9, 0.1, 1 / gui_app.target_fps)
 
   @property
@@ -30,3 +32,12 @@ class ModelRendererSP:
   def _get_path_half_width(self) -> float:
     target = 0.9 if self._lateral_active else 0.40
     return self._width_filter.update(target)
+
+  def _draw_radar_points(self, sm) -> None:
+    """Project the display-only radar points through the road transform.
+
+    The middle lane line supplies the road height under each point, matching
+    how the lead chevrons are placed.
+    """
+    lane_points = self._lane_lines[2].raw_points if len(self._lane_lines) > 2 else None
+    self.radar_points.render(sm, self._rect, lane_points, self._map_to_screen)

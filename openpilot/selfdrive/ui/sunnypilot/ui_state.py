@@ -83,6 +83,9 @@ class UIStateSP(UIStateZP):
     self.custom_torque_params: bool = False
     self.torque_override_enabled: bool = False
     self.carrot_amap_blind_spot_enabled: bool = False
+    # display-only overlays: radar points in the road view, signal evidence ring
+    self.carrot_radar_points: bool = False
+    self.carrot_signal_hud: bool = False
     self._sp_initialized: bool = False
     UIStateZP.__init__(self)
 
@@ -211,6 +214,8 @@ class UIStateSP(UIStateZP):
     self.always_offroad = self.params.get_bool("OffroadMode") or self.params.get_bool("OffroadModeRequested")  # applied or pending
     self.screensaver_enabled = self.params.get_bool("ScreenSaverEnabled")
     self.carrot_amap_blind_spot_enabled = self.params.get_bool("CarrotAmapBlindSpotEnabled")
+    self.carrot_radar_points = self.params.get_bool("CarrotRadarPointsEnabled")
+    self.carrot_signal_hud = self.params.get_bool("CarrotSignalHudEnabled")
 
     if not self._sp_initialized:
       self._sp_initialized = True
