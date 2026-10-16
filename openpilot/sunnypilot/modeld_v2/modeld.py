@@ -344,6 +344,19 @@ def main(demo=False):
   frame_id = 0
   last_vipc_frame_id = 0
   run_count = 0
+  # The first model frame lands 10-24 s after modeld starts (tinygrad import,
+  # then the model), so the camera has queued a burst of frames by then. The
+  # filter's 10 s time constant would remember that one cold-start backlog for
+  # minutes and keep modeldLagging firing on a perfectly healthy drive. Count
+  # frames from the first real model output and ignore drops through the same
+  # settle the big-model load and selfdrived use; running drops after it count.
+  frames_since_first_output = None
+  # Match the drop filter's own 10 s constant: the small model is still
+  # warming its caches for a few seconds after the first frame, and the first
+  # real burst of post-load stalls lands just past a shorter window. Ignore
+  # drops for 10 s from the first output so cold start never latches
+  # modeldLagging; running drops after it count normally.
+  STARTUP_SETTLE_FRAMES = round(10. * model.constants.MODEL_FREQ)
 
   model_transform_main = np.zeros((3, 3), dtype=np.float32)
   model_transform_extra = np.zeros((3, 3), dtype=np.float32)
@@ -434,6 +447,15 @@ def main(demo=False):
     if run_count < 10: # let frame drops warm up
       frame_dropped_filter.x = 0.
       frames_dropped = 0.
+    # Cold-start backlog: the camera frames piled up while tinygrad and the
+    # model loaded (10-24 s on a comma 4) arrive as one big vipc drop on and
+    # around the first model output. The filter's 10 s constant would hold that
+    # for minutes and keep modeldLagging firing on a healthy drive. Ignore
+    # drops until SETTLE_FRAMES after the first real output (None = not yet);
+    # running drops after the window count normally.
+    if frames_since_first_output is None or frames_since_first_output < STARTUP_SETTLE_FRAMES:
+      frame_dropped_filter.x = 0.
+      frames_dropped = 0.
     run_count = run_count + 1
 
     frame_drop_ratio = frames_dropped / (1 + frames_dropped)
@@ -480,6 +502,9 @@ def main(demo=False):
       run_count, frame_drop_ratio = 0, 0.
 
     if model_output is not None:
+      # first real output starts the cold-start settle window (frames counted
+      # above next iteration); frames queued during the load are ignored
+      frames_since_first_output = 0 if frames_since_first_output is None else frames_since_first_output + 1
       modelv2_send = messaging.new_message('modelV2')
       drivingdata_send = messaging.new_message('drivingModelData')
       posenet_send = messaging.new_message('cameraOdometry')
