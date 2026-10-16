@@ -339,8 +339,13 @@ def main(demo=False):
     from openpilot.selfdrive.modeld.modeld import ChestnutGpuState
     chestnut_state = ChestnutGpuState(pm, model.chestnut)
 
-  # setup filter to track dropped frames
-  frame_dropped_filter = FirstOrderFilter(0., 10., 1. / model.constants.MODEL_FREQ)
+  # setup filter to track dropped frames. A shorter constant than stock's 10 s:
+  # a transient scheduler/IO stall reports its backlog as a one-shot jump in
+  # vipc_dropped_frames, but the 10 s filter kept the smoothed rate above the
+  # 1% lagging threshold for ~15 s after the model was already running at rate,
+  # flashing modeldLagging. 2 s sheds a momentary hiccup within a few seconds
+  # while a genuinely slow model (sustained drops) still crosses within ~1 s.
+  frame_dropped_filter = FirstOrderFilter(0., 2., 1. / model.constants.MODEL_FREQ)
   frame_id = 0
   last_vipc_frame_id = 0
   run_count = 0

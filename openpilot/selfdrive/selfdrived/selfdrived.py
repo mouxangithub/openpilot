@@ -40,6 +40,10 @@ REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ or os.getenv("LITE") is not None
 TESTING_CLOSET = "TESTING_CLOSET" in os.environ
 
+# the filtered frame-drop rate must stay over the lagging threshold for this
+# long before modeldLagging fires; rides out a transient scheduler/IO stall
+MODEL_LAG_HOLD_S = 1.0
+
 LONGITUDINAL_PERSONALITY_MAP = {v: k for k, v in log.LongitudinalPersonality.schema.enumerants.items()}
 
 ThermalStatus = log.DeviceState.ThermalStatus
@@ -143,6 +147,11 @@ class SelfdriveD(CruiseHelper):
     self.cruise_mismatch_counter = 0
     self.last_steering_pressed_frame = 0
     self.distance_traveled = 0
+    # consecutive frames the model's filtered drop rate has been over the
+    # lagging threshold; a brief scheduler/IO hiccup pushes the 10 s filter
+    # past 1% for a moment, which must not flash the no-entry the way a
+    # sustained slow model does.
+    self.modeld_lag_counter = 0
     self.last_functional_fan_frame = 0
     self.events_prev = []
     self.logged_comm_issue = None
@@ -524,7 +533,17 @@ class SelfdriveD(CruiseHelper):
 
     # TODO: fix simulator
     if not SIMULATION or REPLAY:
+      # frameDropPerc is a 10 s low-pass of dropped frames, so a transient
+      # scheduler/IO stall (a few real dropped frames) leaves it above 1% for
+      # several seconds after the model is already running at rate again. Only
+      # flag the model as lagging once the filtered rate has stayed over the
+      # threshold continuously, so a momentary hiccup does not flash the
+      # no-entry; a genuinely slow model stays over it and still alerts.
       if self.sm['modelV2'].frameDropPerc > 1:
+        self.modeld_lag_counter += 1
+      else:
+        self.modeld_lag_counter = 0
+      if self.modeld_lag_counter > int(MODEL_LAG_HOLD_S / DT_CTRL):
         self.events.add(EventName.modeldLagging)
 
     # mute canBusMissing event if in Park, as it sometimes may trigger a false alarm with MADS in Paused state
