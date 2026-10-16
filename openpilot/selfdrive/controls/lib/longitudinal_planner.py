@@ -40,7 +40,7 @@ def get_coast_accel(pitch):
   return np.sin(pitch) * -5.65 - 0.3  # fitted from data using xx/projects/allow_throttle/compute_coast_accel.py
 
 def get_cruise_accel(e2e, v_cruise, v_ego, a_cruise_prev, angle_steers, CP, dt, accel_coast, allow_throttle,
-                      max_accel_override=None):
+                      max_accel_override=None, turn_max_accel=None):
   if max_accel_override is not None:
     max_accel = max_accel_override
   else:
@@ -50,6 +50,10 @@ def get_cruise_accel(e2e, v_cruise, v_ego, a_cruise_prev, angle_steers, CP, dt, 
     a_y = v_ego ** 2 * angle_steers * CV.DEG_TO_RAD / (CP.steerRatio * CP.wheelbase)
     a_x_allowed = math.sqrt(max(a_total_max ** 2 - a_y ** 2, 0.))
     max_accel = min(max_accel, a_x_allowed)
+    # Carrot turn-accel (optional): tighten further using the *upcoming* model
+    # curvature, not just the present steering angle. Only ever lowers the cap.
+    if turn_max_accel is not None and math.isfinite(turn_max_accel):
+      max_accel = min(max_accel, turn_max_accel)
     if not allow_throttle:
       clipped_accel_coast = max(accel_coast, ACCEL_MIN)
       coast_limit = np.interp(v_ego, [MIN_ALLOW_THROTTLE_SPEED, MIN_ALLOW_THROTTLE_SPEED*2], [max_accel, clipped_accel_coast])
@@ -198,12 +202,13 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     output_a_target_e2e = LongitudinalPlannerSP.update_e2e_target(self, sm, output_a_target_e2e, reset_state, accel_coast)
 
     max_accel_override = self.get_max_accel_override(v_ego, sm['carStateSP'].engineOff)
+    turn_max_accel = self.get_turn_max_accel(sm, v_ego, v_cruise)
     v_cruise = self.get_cruise_target_override(v_ego, v_cruise, force_decel, accel_coast if accel_coast < 0.0 else None)
     a_cruise_prev = self.a_cruise
     gated_cruise = get_cruise_accel(is_e2e, v_cruise, v_ego, a_cruise_prev, steer_angle_without_offset,
-                                    self.CP, self.dt, accel_coast, self.allow_throttle, max_accel_override)
+                                    self.CP, self.dt, accel_coast, self.allow_throttle, max_accel_override, turn_max_accel)
     ungated_cruise = get_cruise_accel(is_e2e, v_cruise, v_ego, a_cruise_prev, steer_angle_without_offset,
-                                      self.CP, self.dt, accel_coast, True, max_accel_override)
+                                      self.CP, self.dt, accel_coast, True, max_accel_override, turn_max_accel)
     self.a_cruise = self.arbitrate_cruise_candidate(
       sm, gated_cruise, ungated_cruise, output_a_target_mpc, self.mpc.source,
       allow_throttle=self.allow_throttle, e2e=is_e2e, force_decel=force_decel,

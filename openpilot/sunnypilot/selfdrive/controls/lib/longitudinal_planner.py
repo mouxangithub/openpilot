@@ -12,6 +12,7 @@ import numpy as np
 
 from openpilot.cereal import messaging, custom, log
 from opendbc.car import structs
+from opendbc.car.interfaces import ACCEL_MAX, ACCEL_MIN
 from openpilot.common.constants import CV
 from openpilot.common.realtime import DT_MDL
 from openpilot.common.swaglog import cloudlog
@@ -19,6 +20,7 @@ from openpilot.selfdrive.car.cruise import V_CRUISE_MAX
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, get_accel_from_plan
 from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.sunnypilot.selfdrive.controls.lib.accel_controller.accel_controller import AccelController
+from openpilot.sunnypilot.selfdrive.controls.lib.turn_accel import get_future_curvature, limit_accel_in_turns
 from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_lead_gap.controller import E2ELeadGapController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
@@ -74,6 +76,8 @@ class LongitudinalPlannerSP:
   a_cruise: float
   v_desired_trajectory: np.ndarray
   a_desired_trajectory: np.ndarray
+  # combined lateral budget used by carrot turn-accel (m/s^2)
+  TURN_A_LAT_MAX: float = 3.0
 
   def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP, mpc):
     self.accel_controller = AccelController()
@@ -113,6 +117,7 @@ class LongitudinalPlannerSP:
     self.traffic_fusion = TrafficLightFusion()
     self._carrot_enabled = self._params.get_bool("CarrotLongitudinalSourceEnabled")
     self._fusion_enabled = self._params.get_bool("CarrotTrafficLightFusionEnabled")
+    self._turn_accel_enabled = self._params.get_bool("CarrotTurnAccelEnabled")
     self._param_count = 0
     self.carrot_should_stop = False
     # Experimental moving-red pipeline. Observation-only until mode 2 is
@@ -149,6 +154,25 @@ class LongitudinalPlannerSP:
 
     # the eco lead pull-away boost needs the lead; the stock planner does not pass it, so update() keeps it
     return self.accel_controller.get_max_accel(v_ego, engine_off, lead if lead is not None else self.lead_one)
+
+  def get_turn_max_accel(self, sm: messaging.SubMaster, v_ego: float, v_cruise: float) -> float | None:
+    """Optional positive-accel cap from upcoming model curvature (carrot
+    turn_accel). Off by default; only ever lowers the cap. It reads the model
+    curvature ahead of the car so the car does not accelerate into a curve it
+    can already see, keeping combined lateral+longitudinal accel bounded."""
+    if not self._turn_accel_enabled:
+      return None
+    try:
+      model = sm['modelV2']
+      controls = sm['controlsState']
+      curvature = get_future_curvature(model, controls.desiredCurvature)
+      capped = limit_accel_in_turns(
+        v_ego, curvature, [ACCEL_MIN, ACCEL_MAX], self.TURN_A_LAT_MAX,
+        model_msg=model, v_cruise=v_cruise, current_curvature=controls.curvature,
+      )
+      return float(capped[1])
+    except (AttributeError, KeyError, TypeError, ValueError, IndexError):
+      return None
 
   def get_cruise_target_override(self, v_ego: float, v_target: float, force_decel: bool, accel_coast: float | None = None) -> float:
     if not self.accel_controller.is_enabled() or force_decel or self.source != LongitudinalPlanSource.cruise:

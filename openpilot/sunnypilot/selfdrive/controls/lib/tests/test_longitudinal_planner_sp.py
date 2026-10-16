@@ -147,3 +147,25 @@ class TestCarrotSpeedSource(unittest.TestCase):
     assert v == 25.
     assert LongitudinalPlanSource.carrot not in planner.targets
 
+
+
+class TestTurnMaxAccelGate:
+  """carrot turn-accel is default-OFF and only ever lowers the cap."""
+
+  def _planner(self, enabled: bool):
+    cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=True, longitudinalActuatorDelay=0.36)
+    planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(), MagicMock())
+    planner._turn_accel_enabled = enabled
+    model = messaging.new_message('modelV2').modelV2
+    controls = messaging.new_message('controlsState').controlsState
+    sm = {'modelV2': model, 'controlsState': controls}
+    return planner, sm
+
+  def test_disabled_returns_none(self):
+    planner, sm = self._planner(False)
+    assert planner.get_turn_max_accel(sm, 20., 25.) is None
+
+  def test_enabled_returns_finite_or_none_but_never_raises(self):
+    planner, sm = self._planner(True)
+    out = planner.get_turn_max_accel(sm, 20., 25.)
+    assert out is None or math.isfinite(out)
