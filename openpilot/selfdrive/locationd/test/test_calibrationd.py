@@ -7,7 +7,17 @@ import openpilot.cereal.messaging as messaging
 from openpilot.cereal import log
 from openpilot.common.params import Params
 from openpilot.selfdrive.locationd.calibrationd import Calibrator, INPUTS_NEEDED, INPUTS_WANTED, BLOCK_SIZE, MIN_SPEED_FILTER, \
-                                                         MAX_YAW_RATE_FILTER, SMOOTH_CYCLES, HEIGHT_INIT, MAX_ALLOWED_PITCH_SPREAD, MAX_ALLOWED_YAW_SPREAD
+                                                         MAX_YAW_RATE_FILTER, SMOOTH_CYCLES, HEIGHT_INIT, MAX_ALLOWED_PITCH_SPREAD, MAX_ALLOWED_YAW_SPREAD, \
+                                                         get_publish_valid
+
+
+class FakeSubMaster:
+  def __init__(self):
+    self.valid = {'cameraOdometry': True, 'carState': True}
+    self.alive = {'cameraOdometry': True, 'carState': True}
+
+  def all_alive(self):
+    return all(self.alive.values())
 
 
 def process_messages(c, cam_odo_calib, cycles,
@@ -84,6 +94,21 @@ class TestCalibrationd(OpenpilotTestCase):
     assert c.valid_blocks == INPUTS_NEEDED
     np.testing.assert_allclose(c.rpy, np.zeros(3))
 
+
+  def test_publish_valid_ignores_camera_odometry_invalid(self):
+    # A dropped camera frame makes modeld publish cameraOdometry invalid
+    # (fill_model_msg.py); this must not invalidate the calibration output,
+    # otherwise selfdrived raises a spurious commIssue through the cascade.
+    sm = FakeSubMaster()
+    sm.valid['cameraOdometry'] = False
+    assert get_publish_valid(sm) is True
+
+    sm.valid['carState'] = False  # CAN health must still gate the flag
+    assert get_publish_valid(sm) is False
+
+    sm.valid['carState'] = True
+    sm.alive['cameraOdometry'] = False  # dead modeld must still surface
+    assert get_publish_valid(sm) is False
 
   def test_calibration_auto_reset(self):
     c = Calibrator(param_put=False)
