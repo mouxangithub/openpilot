@@ -544,13 +544,16 @@ class SelfdriveD(CruiseHelper):
 
     # TODO: fix simulator
     if not SIMULATION or REPLAY:
-      # frameDropPerc is a 10 s low-pass of dropped frames, so a transient
-      # scheduler/IO stall (a few real dropped frames) leaves it above 1% for
-      # several seconds after the model is already running at rate again. Only
-      # flag the model as lagging once the filtered rate has stayed over the
-      # threshold continuously, so a momentary hiccup does not flash the
-      # no-entry; a genuinely slow model stays over it and still alerts.
-      if self.sm['modelV2'].frameDropPerc > 1:
+      # frameDropPerc = 100 * x / (1 + x), where x is a 2 s low-pass of the
+      # dropped-frame count. A SINGLE dropped frame therefore spikes the value
+      # to ~2.4% and it takes ~1.8 s to decay below 1% - which no reasonable
+      # hold time can swallow, and which is not "model lagging" anyway: one
+      # missed 50 ms deadline per ~20 s is invisible to the controller (the
+      # MPC absorbs it). Two consecutive dropped frames peak at ~4.5%, three
+      # at ~6.3%. A 5% threshold therefore means "3+ frames dropped in quick
+      # succession", while a genuinely slow model (dropping every loop) still
+      # climbs past it within ~0.1 s and alerts via the hold counter below.
+      if self.sm['modelV2'].frameDropPerc > 5:
         self.modeld_lag_counter += 1
       else:
         self.modeld_lag_counter = 0
