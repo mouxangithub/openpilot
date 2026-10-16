@@ -734,6 +734,15 @@ struct RadarState @0x9a185389d6fdd05f {
 
   leadOne @3 :LeadData;
   leadTwo @4 :LeadData;
+  leadRight @14 :LeadData;
+  leadLeft @18 :LeadData;
+  leadsLeft @16 :List(LeadData);
+  leadsRight @17 :List(LeadData);
+  leadsCenter @15 :List(LeadData);
+  leadsLeft2 @19 :List(LeadData);
+  leadsRight2 @20 :List(LeadData);
+  leadsCutIn @21 :List(LeadData);
+  leadCutInRisk @22 :LeadData;
 
   struct LeadData {
     dRel @0 :Float32;  # m from the front bumper of the car
@@ -747,6 +756,8 @@ struct RadarState @0x9a185389d6fdd05f {
     modelProb @13 :Float32;  # vision model lead probability
     radar @14 :Bool;  # true if lead is radar-matched (vs vision-only)
     radarTrackId @15 :Int32 = -1;  # for debugging
+    jLead @16 :Float32;  # lead jerk
+    score @17 :Float32;  # radar match/confidence score, 0..1
 
     deprecated :group {
       aRel @3 :Float32;

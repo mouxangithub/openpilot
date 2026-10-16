@@ -149,23 +149,30 @@ class TestCarrotSpeedSource(unittest.TestCase):
 
 
 
-class TestTurnMaxAccelGate:
-  """carrot turn-accel is default-OFF and only ever lowers the cap."""
+class TestCarrotMaxAccelGate:
+  """carrot turn-accel / cutin-predecel caps are default-OFF and only lower."""
 
-  def _planner(self, enabled: bool):
+  def _planner(self, turn: bool, cutin: bool = False):
     cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=True, longitudinalActuatorDelay=0.36)
     planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(), MagicMock())
-    planner._turn_accel_enabled = enabled
+    planner._turn_accel_enabled = turn
+    planner._cutin_predecel_enabled = cutin
     model = messaging.new_message('modelV2').modelV2
     controls = messaging.new_message('controlsState').controlsState
-    sm = {'modelV2': model, 'controlsState': controls}
+    radar = messaging.new_message('radarState').radarState
+    sm = {'modelV2': model, 'controlsState': controls, 'radarState': radar}
     return planner, sm
 
-  def test_disabled_returns_none(self):
-    planner, sm = self._planner(False)
-    assert planner.get_turn_max_accel(sm, 20., 25.) is None
+  def test_all_disabled_returns_none(self):
+    planner, sm = self._planner(False, False)
+    assert planner.get_carrot_max_accel(sm, 20., 25.) is None
 
   def test_enabled_returns_finite_or_none_but_never_raises(self):
     planner, sm = self._planner(True)
-    out = planner.get_turn_max_accel(sm, 20., 25.)
+    out = planner.get_carrot_max_accel(sm, 20., 25.)
+    assert out is None or math.isfinite(out)
+
+  def test_cutin_only_never_raises(self):
+    planner, sm = self._planner(False, True)
+    out = planner.get_carrot_max_accel(sm, 20., 25.)
     assert out is None or math.isfinite(out)

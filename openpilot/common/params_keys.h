@@ -489,6 +489,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CarrotTrafficLightFusionEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // fuse carrot / Amap / vision traffic lights
     {"SignalAssistMode", {PERSISTENT, INT, "0"}},  // 0 off, 1 red-light shadow only, 2 prepare/start control (experimental)
     {"CarrotTurnAccelEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // cap positive accel by future model curvature in turns
+    {"CarrotCutinPredecelEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // bounded pre-decel for strong early corner-radar cut-in risk
     {"TrafficLightNavCautionOnly", {PERSISTENT | BACKUP, BOOL, "1"}},       // fused red light only warns; set 0 to allow stop assist
     {"DesireArbiterEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},             // lateral lane-change/fork desire from nav
     // Let carrot ATC (auto turn control) synthesise a turn signal from the phone's
