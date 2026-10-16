@@ -93,3 +93,57 @@ class TestSccNeedsLongOrIcbm:
   def test_icbm_or_op_long_lets_scc_run(self):
     assert self._scc_enabled(op_long=False, pcm_cruise_speed=False)
     assert self._scc_enabled(op_long=True, pcm_cruise_speed=True)
+
+
+class TestCarrotSpeedSource:
+  """Carrot's curve/driving-mode v_target is a 5th speed source that can only
+  ever slow the car below the user cruise, never command more speed."""
+
+  def _planner(self, *, carrot_enabled: bool, active: bool, v_target: float):
+    cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=True, longitudinalActuatorDelay=0.36)
+    planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(), MagicMock())
+    planner.scc.update = MagicMock()
+    planner.resolver.update = MagicMock()
+    planner.resolver.distance = 0.
+    planner.sla.update = MagicMock()
+    planner._carrot_enabled = carrot_enabled
+    planner.carrot_source.update = MagicMock()
+    planner.carrot_source.active = active
+    planner.carrot_source.v_target = v_target
+    sm = {'carState': messaging.new_message('carState').carState,
+          'carControl': messaging.new_message('carControl').carControl,
+          'carStateSP': messaging.new_message('carStateSP').carStateSP}
+    return planner, sm
+
+  def test_active_slower_carrot_target_wins(self):
+    planner, sm = self._planner(carrot_enabled=True, active=True, v_target=12.)
+    v, _ = planner.update_targets(sm, 20., 0., 25.)
+    assert v == 12.
+    assert planner.source == LongitudinalPlanSource.carrot
+
+  def test_carrot_can_not_exceed_cruise(self):
+    # a curve/driving-mode target above the user cruise must be clamped down
+    planner, sm = self._planner(carrot_enabled=True, active=True, v_target=40.)
+    v, _ = planner.update_targets(sm, 20., 0., 25.)
+    assert v == 25.
+    assert planner.source == LongitudinalPlanSource.cruise
+
+  def test_inactive_carrot_is_not_a_source(self):
+    planner, sm = self._planner(carrot_enabled=True, active=False, v_target=10.)
+    v, _ = planner.update_targets(sm, 20., 0., 25.)
+    assert v == 25.
+    assert planner.source == LongitudinalPlanSource.cruise
+    assert LongitudinalPlanSource.carrot not in planner.targets
+
+  def test_killswitch_off_keeps_stock_sources_only(self):
+    planner, sm = self._planner(carrot_enabled=False, active=True, v_target=10.)
+    planner.update_targets(sm, 20., 0., 25.)
+    assert LongitudinalPlanSource.carrot not in planner.targets
+    planner.carrot_source.update.assert_not_called()
+
+  def test_non_finite_carrot_target_ignored(self):
+    planner, sm = self._planner(carrot_enabled=True, active=True, v_target=float('nan'))
+    v, _ = planner.update_targets(sm, 20., 0., 25.)
+    assert v == 25.
+    assert LongitudinalPlanSource.carrot not in planner.targets
+

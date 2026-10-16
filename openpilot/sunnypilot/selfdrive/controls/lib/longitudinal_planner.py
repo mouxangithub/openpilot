@@ -221,6 +221,13 @@ class LongitudinalPlannerSP:
     if self._carrot_enabled:
       mpc_mode = self.dec.mode() if self.dec.active() else "acc"
       self.carrot_source.update(sm, v_cruise * CV.MS_TO_KPH, mpc_mode)
+      # Carrot as a 5th speed source: its curve-speed / driving-mode target can
+      # only ever slow the car below the user-set cruise, never command more
+      # speed (clamped to v_cruise), and only on a fresh packet (the adapter's
+      # 2 s killswitch). A non-finite value is ignored rather than poisoning min().
+      if self.carrot_source.active and math.isfinite(self.carrot_source.v_target):
+        carrot_v = min(v_cruise, max(0.0, float(self.carrot_source.v_target)))
+        self.targets[LongitudinalPlanSource.carrot] = (carrot_v, a_ego)
 
     self.source = min(self.targets, key=lambda k: self.targets[k][0])
     v_target, a_target = self.targets[self.source]
