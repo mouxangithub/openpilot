@@ -12,6 +12,8 @@ from openpilot.selfdrive.locationd.imu_calibrationd import (
   CalibrationState,
   ImuCalibrator,
   SlopeTooSteepError,
+  STATIC_TIMEOUT,
+  calibration_action,
   compute_static_rotation,
   compute_yaw_correction,
   integrate_gyro,
@@ -481,8 +483,8 @@ class TestImuCalibrationd(OpenpilotTestCase):
     assert R_out is not None
     np.testing.assert_allclose(R_in, R_out, atol=1e-6)
 
-  def test_calibrator_matrix_validation_rejects_large_yaw_jump(self):
-    """A final matrix that disagrees too much with the previous calibration is rejected."""
+  def test_calibrator_matrix_validation_rejects_gross_yaw_jump(self):
+    """A final matrix that disagrees grossly with the previous one is rejected."""
     cal = ImuCalibrator()
     prev_R = rot_from_euler([0.0, 0.0, 0.0])
     cal._save_matrix(prev_R)
@@ -492,10 +494,60 @@ class TestImuCalibrationd(OpenpilotTestCase):
     cal.gyro_bias = np.zeros(3)
     cal._set_state(CalibrationState.DYNAMIC_COLLECTING)
 
-    # Manually build a final matrix whose yaw is far from the stored one.
-    bad_R = rot_from_euler([0.0, 0.0, np.deg2rad(45.0)])
+    # 150 deg is beyond any plausible remount, so it must still be rejected.
+    bad_R = rot_from_euler([0.0, 0.0, np.deg2rad(150.0)])
     with self.assertRaises(ValueError):
       cal._validate_final_matrix(bad_R)
+
+  def test_calibrator_matrix_validation_allows_remount(self):
+    """A remount (large but plausible change) recalibrates without clearing the old matrix.
+
+    Re-calibrating after moving the device shifts yaw and roll far more than a
+    re-run on the same mount, so it must pass instead of being rejected.
+    """
+    cal = ImuCalibrator()
+    cal._save_matrix(rot_from_euler([0.0, 0.0, 0.0]))
+
+    # 60 deg yaw and 30 deg roll are valid new mounting angles.
+    new_R = rot_from_euler([np.deg2rad(30.0), 0.0, np.deg2rad(60.0)])
+    cal._validate_final_matrix(new_R)  # must not raise
+
+  def test_calibration_action_restarts_after_a_finished_run(self):
+    """A request after a finished run starts a new calibration, not ignored."""
+    finished = (CalibrationState.COMPLETED, CalibrationState.FAILED, CalibrationState.CANCELLED, CalibrationState.IDLE)
+    for state in finished:
+      assert calibration_action(state, True) == "start"
+      assert calibration_action(state, False) is None
+    for state in (CalibrationState.STATIC_COLLECTING, CalibrationState.DYNAMIC_COLLECTING, CalibrationState.COMPUTING):
+      assert calibration_action(state, True) is None
+      assert calibration_action(state, False) == "cancel"
+
+  def test_calibrator_start_clears_a_finished_run(self):
+    """start() from a completed run returns to a fresh static collection."""
+    cal = ImuCalibrator()
+    cal._set_state(CalibrationState.COMPLETED)
+    cal.status.progress = 100
+    cal.start()
+    assert cal.state == CalibrationState.STATIC_COLLECTING
+    assert cal.status.progress == 0
+    assert cal.static_start_ts is not None
+
+  def test_static_phase_times_out(self):
+    """A static phase that never gets a still window fails on the timeout."""
+    cal = ImuCalibrator()
+    cal.start()
+    car_state = messaging.new_message('carState').carState
+
+    real_monotonic = time.monotonic
+    base = real_monotonic()
+    try:
+      time.monotonic = lambda: base + STATIC_TIMEOUT + 1.0
+      cal.update(car_state)
+    finally:
+      time.monotonic = real_monotonic
+
+    assert cal.state == CalibrationState.FAILED
+    assert cal.status.error_code == CalibrationError.TIMEOUT
 
   def test_calibrator_reset_clears_state(self):
     """Reset returns the calibrator to idle and clears buffers."""

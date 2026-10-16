@@ -45,6 +45,10 @@ STATIC_MAX_GYRO_STD = 0.05  # rad/s, must be nearly still
 STATIC_MAX_SPEED = 0.2  # m/s
 STATIC_MIN_SAMPLES = 100
 STATIC_MAX_SLOPE_ANGLE = math.radians(45.0)  # reject static calibration when the device is not plausibly vertical
+# Fail the static phase if no still window ever arrives (the car keeps rolling,
+# or the user starts it while driving). Without this the state machine waited
+# forever: only the dynamic phase had a timeout.
+STATIC_TIMEOUT = 300.0
 
 DYNAMIC_MIN_DURATION = 3.0  # seconds of straight driving required
 DYNAMIC_MIN_SPEED = 5.0  # m/s
@@ -68,8 +72,13 @@ CAMERA_ODOM_MAX_TRANS_STD = 0.5  # m/s
 
 YAW_CONVERGENCE_THRESHOLD = math.radians(2.0)  # stop early when yaw estimate is stable
 OUTLIER_MAD_THRESHOLD = 3.0  # circular median absolute deviation multiplier
-MATRIX_MAX_YAW_DIFF = math.radians(15.0)  # reject final matrix if yaw jumps too far from previous cal
-MATRIX_MAX_ROLL_PITCH_DIFF = math.radians(5.0)
+# A previous matrix only exists on a re-calibration, and re-calibrating usually
+# follows a remount or re-aim, so the new matrix legitimately moves roll/pitch/
+# yaw far more than a re-run on the same mount would. These bounds therefore
+# only screen for gross errors - tight enough to reject a bad fit, loose enough
+# that a remounted device can recalibrate without first clearing the old matrix.
+MATRIX_MAX_YAW_DIFF = math.radians(90.0)  # reject final matrix if yaw jumps too far from previous cal
+MATRIX_MAX_ROLL_PITCH_DIFF = math.radians(45.0)
 
 # Vehicle frame convention used internally:
 #   X = forward, Y = left, Z = up (opposite of gravity)
@@ -497,6 +506,7 @@ class ImuCalibrator:
     self.last_cam_ts: float | None = None
     self.last_straight_ts: float | None = None
     self.dynamic_start_ts: float | None = None
+    self.static_start_ts: float | None = None
     self._cached_incremental_rotation: np.ndarray | None = None
     self._cached_incremental_dirty = True
     self._last_loaded_matrix: np.ndarray | None = None
@@ -514,6 +524,7 @@ class ImuCalibrator:
     self.last_cam_ts = None
     self.last_straight_ts = None
     self.dynamic_start_ts = None
+    self.static_start_ts = None
     self._cached_incremental_rotation = None
     self._cached_incremental_dirty = True
     self._last_loaded_matrix = None
@@ -745,6 +756,7 @@ class ImuCalibrator:
     self.reset()
     self._set_state(CalibrationState.STATIC_COLLECTING)
     self.status.progress = 0
+    self.static_start_ts = time.monotonic()
     self._save_status()
 
   def cancel(self) -> None:
@@ -831,7 +843,15 @@ class ImuCalibrator:
       self.fail(f"dynamic phase too short: {total_duration:.2f}s", CalibrationError.NO_STRAIGHT_ROAD)
       return
 
-    assert self.R_static is not None and self.gyro_bias is not None
+    if self.R_static is None or self.gyro_bias is None:
+      self.fail("static calibration missing at dynamic finish", CalibrationError.COMPUTATION_FAILED)
+      return
+
+    # The heavy fit runs synchronously from here; move to the computing state so
+    # the UI shows it instead of staying on "collecting" through the work.
+    self._set_state(CalibrationState.COMPUTING)
+    self._save_status()
+
     gyro_ts, gyro_samples, cam_rot, cam_ts = self._collect_dynamic_samples()
 
     try:
@@ -885,6 +905,9 @@ class ImuCalibrator:
 
   def update(self, car_state: car.CarState) -> None:
     if self.state == CalibrationState.STATIC_COLLECTING:
+      if self.static_start_ts is not None and time.monotonic() - self.static_start_ts > STATIC_TIMEOUT:
+        self.fail("static calibration timed out", CalibrationError.TIMEOUT)
+        return
       if not is_stationary(car_state):
         self.static_buffer.clear()
         self.status.static_samples = 0
@@ -940,6 +963,19 @@ class ImuCalibrator:
 
   def check_request(self) -> bool:
     return self.params.get_bool("ImuCalibrationRequested")
+
+
+def calibration_action(state: CalibrationState, requested: bool) -> str | None:
+  """What the main loop does on one tick: start, cancel, or nothing.
+
+  A fresh request (re)starts the calibration even from COMPLETED/FAILED/
+  CANCELLED, so pressing "start" again after a finished run really starts a new
+  one instead of being silently ignored. A collecting run whose request was
+  withdrawn is cancelled.
+  """
+  if state in (CalibrationState.IDLE, CalibrationState.COMPLETED, CalibrationState.FAILED, CalibrationState.CANCELLED):
+    return "start" if requested else None
+  return "cancel" if not requested else None
 
 
 class ImuCalibrationD:
@@ -1025,12 +1061,11 @@ class ImuCalibrationD:
       self._drain_sensors()
       self._update_submaster()
 
-      state = self.calibrator.state
-      if state == CalibrationState.IDLE and self.calibrator.check_request():
+      action = calibration_action(self.calibrator.state, self.calibrator.check_request())
+      if action == "start":
         self.calibrator.start()
-      elif state not in (CalibrationState.IDLE, CalibrationState.COMPLETED, CalibrationState.FAILED, CalibrationState.CANCELLED):
-        if not self.calibrator.check_request():
-          self.calibrator.cancel()
+      elif action == "cancel":
+        self.calibrator.cancel()
 
       self._publish()
       self.rk.keep_time()
