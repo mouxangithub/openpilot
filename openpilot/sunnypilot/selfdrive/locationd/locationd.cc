@@ -792,7 +792,13 @@ int Localizer::locationd_thread() {
         }
       }
     } else {
-      filterInitialized = sm.allAliveAndValid();
+      // qcomgpsd only publishes gpsLocation when the modem emits a position
+      // report; on devices where that never happens, gating initialization on
+      // GPS kept the localizer uninitialized forever (liveLocationKalman
+      // invalid for the whole drive, dead reckoning dead). GPS is optional
+      // for the filter: initialize on the odometry/IMU inputs and let the
+      // gpsOK flag reflect actual GPS health instead.
+      filterInitialized = sm.allAliveAndValid({"cameraOdometry", "extrinsicsCalibration", "carState", "accelerometer", "gyroscope"});
     }
 
     const char* trigger_msg = "cameraOdometry";
