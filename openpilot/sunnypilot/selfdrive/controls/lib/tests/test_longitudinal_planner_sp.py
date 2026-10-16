@@ -10,6 +10,7 @@ solve after it fails and the car never resumes), so no source may reach the seed
 non-finite target.
 """
 import math
+import unittest
 from unittest.mock import MagicMock, patch
 
 import openpilot.cereal.messaging as messaging
@@ -70,7 +71,7 @@ class TestSeedGuard(OpenpilotTestCase):
     assert math.isfinite(v) and math.isfinite(a)
 
 
-class TestSccNeedsLongOrIcbm:
+class TestSccNeedsLongOrIcbm(unittest.TestCase):
   """SCC's params survive losing openpilot long and ICBM, so the planner keeps it idle there."""
 
   def _scc_enabled(self, op_long: bool, pcm_cruise_speed: bool) -> bool:
@@ -95,7 +96,7 @@ class TestSccNeedsLongOrIcbm:
     assert self._scc_enabled(op_long=True, pcm_cruise_speed=True)
 
 
-class TestCarrotSpeedSource:
+class TestCarrotSpeedSource(unittest.TestCase):
   """Carrot's curve/driving-mode v_target is a 5th speed source that can only
   ever slow the car below the user cruise, never command more speed."""
 
@@ -107,9 +108,8 @@ class TestCarrotSpeedSource:
     planner.resolver.distance = 0.
     planner.sla.update = MagicMock()
     planner._carrot_enabled = carrot_enabled
-    planner.carrot_source.update = MagicMock()
-    planner.carrot_source.active = active
-    planner.carrot_source.v_target = v_target
+    # active/v_target are read-only on the real adapter, so stub the source
+    planner.carrot_source = MagicMock(active=active, v_target=v_target)
     sm = {'carState': messaging.new_message('carState').carState,
           'carControl': messaging.new_message('carControl').carControl,
           'carStateSP': messaging.new_message('carStateSP').carStateSP}
