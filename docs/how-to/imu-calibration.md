@@ -35,7 +35,7 @@ The UI shows two quality indicators during and after calibration:
 - **Yaw std** — standard deviation of the yaw estimate in degrees. Lower is better.
 - **Inliers** — percentage of camera-odometry frames that passed the outlier rejection. Higher is better.
 
-A calibration with very high yaw std or low inlier ratio may produce poor driving behavior. If calibration fails, repeat the procedure on flatter ground and with a longer straight-driving segment.
+The dynamic phase finishes only when the estimate is good enough: the run needs at least 3 seconds of straight driving **and** a yaw std of **10° or less**. Above that threshold the daemon keeps collecting straight-driving data instead of saving a poorly converged matrix; if the estimate never converges within 5 minutes, the calibration fails with a timeout. A calibration with very high yaw std or low inlier ratio would produce poor driving behavior, so it is never saved. If calibration fails, repeat the procedure on flatter ground and with a longer straight-driving segment.
 
 ## Resetting calibration
 
@@ -53,8 +53,9 @@ Reset clears the saved rotation matrix and disables IMU auto-calibration, return
 | "Calibration failed — device is not vertical" | Device orientation no mount would produce (> 45° off vertical) | Check the mounting |
 | "Calibration failed — no straight road" | Not enough straight driving | Drive straight for at least 3 seconds at ≥ 5 m/s |
 | "Calibration failed — too many dynamic outliers" | Camera odometry unreliable | Avoid sun glare, lane-less roads, or sharp maneuvers |
+| "Calibration failed — yaw estimate too noisy" | The yaw estimate never converged below 10° | Drive a longer, straighter segment on a road with confident lane markings |
 | "Calibration failed — static calibration timed out" | The car never came to rest within 5 minutes of starting | Park, then start the calibration |
-| "Calibration failed — dynamic calibration timed out" | No successful dynamic phase within 5 minutes | Repeat the full procedure |
+| "Calibration failed — dynamic calibration timed out" | No converged dynamic phase within 5 minutes | Repeat the full procedure on a longer straight road |
 
 ## Re-calibrating
 

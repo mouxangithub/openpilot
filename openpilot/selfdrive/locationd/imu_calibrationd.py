@@ -70,7 +70,13 @@ DYNAMIC_TIMEOUT = 300.0  # fail dynamic phase if no successful calibration after
 CAMERA_ODOM_MAX_ROT_STD = 0.05  # rad/s
 CAMERA_ODOM_MAX_TRANS_STD = 0.5  # m/s
 
-YAW_CONVERGENCE_THRESHOLD = math.radians(2.0)  # stop early when yaw estimate is stable
+# Hard quality gate for the final calibration. A yaw std above this means the
+# camera-vs-gyro agreement never converged (noisy cameraOdometry, bumpy road,
+# bad mount). Saving such a matrix would silently feed a wrong mount to the
+# parameter learner, so a run above the gate keeps collecting instead of
+# finishing at the minimum data count, and DYNAMIC_TIMEOUT catches runs that
+# never converge.
+MAX_YAW_STD = math.radians(10.0)
 OUTLIER_MAD_THRESHOLD = 3.0  # circular median absolute deviation multiplier
 # A previous matrix only exists on a re-calibration, and re-calibrating usually
 # follows a remount or re-aim, so the new matrix legitimately moves roll/pitch/
@@ -509,6 +515,7 @@ class ImuCalibrator:
     self.static_start_ts: float | None = None
     self._cached_incremental_rotation: np.ndarray | None = None
     self._cached_incremental_dirty = True
+    self._last_quality_check_ts: float = 0.0
     self._last_loaded_matrix: np.ndarray | None = None
     self._last_loaded_matrix_ts: float = 0.0
 
@@ -527,6 +534,7 @@ class ImuCalibrator:
     self.static_start_ts = None
     self._cached_incremental_rotation = None
     self._cached_incremental_dirty = True
+    self._last_quality_check_ts = 0.0
     self._last_loaded_matrix = None
     self._last_loaded_matrix_ts = 0.0
     self.status = CalibrationStatus(state=CalibrationState.IDLE)
@@ -871,6 +879,13 @@ class ImuCalibrator:
       self.fail(f"too many dynamic outliers: {valid_ratio:.1%} inliers", CalibrationError.CAMERA_ODOMETRY_UNRELIABLE)
       return
 
+    # A poorly converged yaw must not be silently saved as COMPLETED: the
+    # matrix would feed a wrong mount to the parameter learner. Above the gate
+    # the estimate is noise, not a calibration.
+    if yaw_std > MAX_YAW_STD:
+      self.fail(f"yaw estimate too noisy: std={math.degrees(yaw_std):.1f} deg", CalibrationError.CAMERA_ODOMETRY_UNRELIABLE)
+      return
+
     # Apply yaw rotation around gravity
     z_axis = self.R_static @ VEHICLE_GRAVITY
     z_axis = z_axis / np.linalg.norm(z_axis)
@@ -944,19 +959,23 @@ class ImuCalibrator:
       progress = min(100, 30 + int(70 * self._total_dynamic_duration() / DYNAMIC_MIN_DURATION))
       self.status.progress = max(self.status.progress, progress)
 
-      # Convergence check: if we already have enough data and yaw is stable, finish early.
+      # Quality-gated finish: once the minimum data is in hand, evaluate the
+      # yaw estimate and finish only when it is within MAX_YAW_STD. Above the
+      # gate the run keeps collecting instead of saving a poorly converged
+      # matrix; DYNAMIC_TIMEOUT catches runs that never converge. The check is
+      # throttled because the incremental fit walks every camera frame.
+      total_cam_frames = sum(len(s.cam_ts) for s in self.dynamic_segments) + len(self.current_segment.cam_ts)
       if (
         self._total_dynamic_duration() >= DYNAMIC_MIN_DURATION
         and self._total_dynamic_samples() >= DYNAMIC_MIN_SAMPLES
+        and total_cam_frames >= DYNAMIC_MIN_CAMERA_FRAMES
       ):
-        R_inc = self.get_incremental_rotation()
-        if R_inc is not None and self.status.yaw_std < YAW_CONVERGENCE_THRESHOLD:
-          self.finish_dynamic()
-          return
-
-      if self._total_dynamic_samples() >= DYNAMIC_MIN_SAMPLES and self._total_dynamic_duration() >= DYNAMIC_MIN_DURATION:
-        self.finish_dynamic()
-        return
+        if time.monotonic() - self._last_quality_check_ts >= 1.0:
+          self._last_quality_check_ts = time.monotonic()
+          R_inc = self.get_incremental_rotation()
+          if R_inc is not None and self.status.yaw_std <= MAX_YAW_STD:
+            self.finish_dynamic()
+            return
 
       self.last_straight_ts = now
       self._save_status()

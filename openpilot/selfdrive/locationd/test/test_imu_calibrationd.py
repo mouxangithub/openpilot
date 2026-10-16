@@ -11,6 +11,7 @@ from openpilot.selfdrive.locationd.imu_calibrationd import (
   CalibrationError,
   CalibrationState,
   ImuCalibrator,
+  MAX_YAW_STD,
   SlopeTooSteepError,
   STATIC_TIMEOUT,
   calibration_action,
@@ -653,3 +654,70 @@ class TestImuCalibrationd(OpenpilotTestCase):
     assert _valid_rotation(R_saved)
     np.testing.assert_allclose(R_saved, R_true, atol=math.radians(2.0))
     assert cal.status.valid_ratio > 0.8
+
+  def _feed_noisy_yaw_session(self, cal: ImuCalibrator, seed: int) -> None:
+    """Collect a dynamic session whose yaw diffs never agree.
+
+    The gyro is perfectly consistent, but the camera-odometry azimuths are
+    scattered around the gravity plane, so the yaw estimate blows past the
+    MAX_YAW_STD gate while the inlier ratio stays high - this isolates the
+    yaw-std gate from the outlier-ratio gate.
+
+    For R_static = identity the gravity basis is u=(1,0,0), w=(0,-1,0), so a
+    rotation vector (mag*cos(a), -mag*sin(a), 0) has in-plane azimuth a.
+    """
+    omega_vehicle = np.array([0.02, 0.03, 0.04])
+    for i in range(400):
+      gyr = messaging.new_message('gyroscope').gyroscope
+      gyr.timestamp = int(i * 0.01 * 1e9)
+      gyr.init('gyroUncalibrated')
+      gyr.gyroUncalibrated.v = _device_to_sensor_msg_frame(omega_vehicle)
+      cal.handle_gyro(gyr)
+
+    rng = np.random.default_rng(seed)
+    cam_ts = 0.0
+    for _ in range(40):
+      azimuth = rng.uniform(-math.pi, math.pi)
+      cam = messaging.new_message('cameraOdometry').cameraOdometry
+      cam.rot = [0.05 * math.cos(azimuth), -0.05 * math.sin(azimuth), 0.0]
+      cam.rotStd = [0.001, 0.001, 0.001]
+      cam.transStd = [0.01, 0.01, 0.01]
+      cam_ts += 0.1
+      cal.handle_camera_odometry(cam, cam_ts)
+
+  def test_finish_dynamic_rejects_noisy_yaw_estimate(self):
+    """A yaw std above MAX_YAW_STD fails instead of saving a bad matrix."""
+    cal = ImuCalibrator()
+    cal.params.remove("ImuCalibrationMatrix")
+    cal.R_static = np.eye(3)
+    cal.gyro_bias = np.zeros(3)
+    cal._set_state(CalibrationState.DYNAMIC_COLLECTING)
+    cal.dynamic_start_ts = time.monotonic()
+
+    self._feed_noisy_yaw_session(cal, seed=7)
+    cal.finish_dynamic()
+
+    assert cal.state == CalibrationState.FAILED
+    assert cal.status.error_code == CalibrationError.CAMERA_ODOMETRY_UNRELIABLE
+    assert "noisy" in (cal.status.error or "")
+    # A failed run must not persist a matrix.
+    assert cal._load_matrix() is None
+
+  def test_dynamic_phase_keeps_collecting_above_yaw_quality_gate(self):
+    """Above MAX_YAW_STD the dynamic phase keeps collecting instead of finishing."""
+    cal = ImuCalibrator()
+    cal.R_static = np.eye(3)
+    cal.gyro_bias = np.zeros(3)
+    cal._set_state(CalibrationState.DYNAMIC_COLLECTING)
+    cal.dynamic_start_ts = time.monotonic()
+
+    self._feed_noisy_yaw_session(cal, seed=11)
+
+    car_state = messaging.new_message('carState').carState
+    car_state.vEgo = 15.0
+    car_state.yawRate = 0.0
+    car_state.steeringRateDeg = 0.0
+    cal.update(car_state)
+
+    assert cal.state == CalibrationState.DYNAMIC_COLLECTING
+    assert cal.status.yaw_std > MAX_YAW_STD
