@@ -159,6 +159,18 @@ def run(directory=DIRECTORY, duration=None):
                                     comparison=comparison, publisher=publish_observation)
       except (OSError, ValueError):
         cloudlog.exception('signalObservationPublishFailed')
+      # Experimental moving-red prepare / start observations. Gated solely on
+      # SignalAssistMode (>0 = shadow, 2 = control); at mode 0 nothing is written.
+      # These endpoints are never read by control below mode 2.
+      try:
+        from openpilot.sunnypilot.carrot.signal_mode import signal_mode
+        if signal_mode() > 0:
+          from openpilot.sunnypilot.carrot.signal_stop_prepare_runtime import publish_prepare_observation
+          from openpilot.sunnypilot.carrot.signal_start_guard import publish_start_observation
+          publish_prepare_observation(record)
+          publish_start_observation(record)
+      except (OSError, ValueError):
+        cloudlog.exception('signalPrepareObservationPublishFailed')
       cloudlog.event('signalTrackingShadow', **record)
       comparison_record = None
       if daytime_tracker is not None:

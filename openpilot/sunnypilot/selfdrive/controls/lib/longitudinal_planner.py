@@ -6,6 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 
 import math
+import time
 
 import numpy as np
 
@@ -114,6 +115,12 @@ class LongitudinalPlannerSP:
     self._fusion_enabled = self._params.get_bool("CarrotTrafficLightFusionEnabled")
     self._param_count = 0
     self.carrot_should_stop = False
+    # Experimental moving-red pipeline. Observation-only until mode 2 is
+    # wired: it reads modeld's tmpfs observations and logs a shadow summary,
+    # never touching v/a targets or should_stop.
+    from openpilot.sunnypilot.carrot.signal_shadow import SignalShadowObserver
+    self.signal_shadow = SignalShadowObserver()
+    self._signal_shadow_last_log = -1.0
 
   def is_e2e(self, sm: messaging.SubMaster) -> bool:
     experimental_mode = sm['selfdriveState'].experimentalMode
@@ -270,6 +277,19 @@ class LongitudinalPlannerSP:
     # Traffic-light fusion (gated by CarrotTrafficLightFusionEnabled; default OFF).
     if self._fusion_enabled:
       self.traffic_fusion.update(sm, v_ego)
+
+    # Experimental moving-red shadow: mode 1 observes only (no control effect),
+    # mode 2 reserved for actuation in a later change. Runs independent of the
+    # carrot longitudinal source and only does file reads + throttled logging.
+    shadow = self.signal_shadow.update()
+    if shadow.mode > 0:
+      now_mono = time.monotonic()
+      if now_mono - self._signal_shadow_last_log >= 1.0:
+        self._signal_shadow_last_log = now_mono
+        cloudlog.event("signalShadow", mode=int(shadow.mode),
+                       prepare_seen=bool(shadow.prepare_seen), start_seen=bool(shadow.start_seen),
+                       prepare_count=int(self.signal_shadow.prepare_count),
+                       start_count=int(self.signal_shadow.start_count))
 
     return self.output_v_target, self.output_a_target
 
