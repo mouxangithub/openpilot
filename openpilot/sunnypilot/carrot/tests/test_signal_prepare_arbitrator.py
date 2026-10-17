@@ -17,9 +17,9 @@ from openpilot.sunnypilot.carrot.signal_stop_prepare import (
 
 def _radar(one=None, two=None):
   def lead(status, d_rel):
-    return NS(status=status, dRel=d_rel)
-  return NS(leadOne=lead(True, one) if one is not None else NS(status=False, dRel=100.),
-            leadTwo=lead(True, two) if two is not None else NS(status=False, dRel=100.))
+    return NS(present=status, dRel=d_rel)
+  return NS(leadOne=lead(True, one) if one is not None else NS(present=False, dRel=100.),
+            leadTwo=lead(True, two) if two is not None else NS(present=False, dRel=100.))
 
 
 def _cs(gas=False, brake=False, v_ego=12., a_ego=0.):

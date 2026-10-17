@@ -39,7 +39,7 @@ class StoppingLeadFilter:
 
   def _hold_lead(self, role: str, lead: Any, v_ego: float, now: float, fresh: bool) -> bool:
     valid = (
-      lead.status and lead.radar and lead.radarTrackId >= 0
+      lead.present and lead.radar and lead.radarTrackId >= 0
       and all(math.isfinite(v) for v in (lead.dRel, lead.vRel, lead.vLead, lead.aLeadK, lead.jLead))
       and lead.dRel > 0.2
     )

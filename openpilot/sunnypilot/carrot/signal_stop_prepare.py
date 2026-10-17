@@ -246,7 +246,7 @@ def prepare_lead_blocked(radar_state):
   """Both MPC leads remain obstacles; only nearby leads suppress extra preparation."""
   try:
     for lead in (radar_state.leadOne, radar_state.leadTwo):
-      if lead.status and (not math.isfinite(lead.dRel) or lead.dRel <= PREPARE_LEAD_DISTANCE):
+      if lead.present and (not math.isfinite(lead.dRel) or lead.dRel <= PREPARE_LEAD_DISTANCE):
         return True
     return False
   except (AttributeError, TypeError, ValueError):
@@ -305,7 +305,7 @@ def prepare_radar_corroboration(radar_state, distance_range):
     if not math.isfinite(near) or not math.isfinite(far) or not 0. < near <= far:
       return False, 'no_distance_bounds'
     for lead in (radar_state.leadOne, radar_state.leadTwo):
-      if lead.status and math.isfinite(lead.dRel) and 0 < lead.dRel <= far + 5.:
+      if lead.present and math.isfinite(lead.dRel) and 0 < lead.dRel <= far + 5.:
         return False, 'lead_overlap_ambiguous'
     return True, 'clear'
   except (AttributeError, TypeError, ValueError):

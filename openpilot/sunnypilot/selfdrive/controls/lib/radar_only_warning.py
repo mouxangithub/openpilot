@@ -97,4 +97,4 @@ class RadarOnlyWarning:
                               if str(p.radarSource).startswith('corner') else self.front_delay_s)))
     radar = sm['radarState']
     return self.update(mt, cs.vEgo, model, points, enabled=True,
-                       selected_lead=radar.leadOne.status or radar.leadTwo.status)
+                       selected_lead=radar.leadOne.present or radar.leadTwo.present)

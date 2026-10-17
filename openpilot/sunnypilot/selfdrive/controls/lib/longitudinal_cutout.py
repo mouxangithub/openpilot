@@ -11,7 +11,7 @@ def cutout_obstacle_relief(lead: Any, v_ego: float, horizons: np.ndarray,
   relief = np.zeros_like(horizons, dtype=float)
   exit_time = float(getattr(lead, "cutOutTime", 0.0))
   confidence = float(getattr(lead, "cutOutConfidence", 0.0))
-  if (not lead.status or not lead.radar or lead.radarTrackId < 0
+  if (not lead.present or not lead.radar or lead.radarTrackId < 0
       or not all(math.isfinite(v) for v in (
         exit_time, confidence, v_ego, t_follow, stop_distance,
         lead.dRel, lead.vRel, lead.vLead, lead.aLeadK,

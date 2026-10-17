@@ -196,7 +196,7 @@ class ControlsExt(ModelStateBase, ControlsLateralZP):
     _lead.vLeadK = src.vLeadK
     _lead.aLeadK = src.aLeadK
     _lead.fcw = src.deprecated.fcw
-    _lead.status = src.present
+    _lead.present = src.present
     _lead.aLeadTau = src.aLeadTau
     _lead.modelProb = src.modelProb
     _lead.radar = src.radar
@@ -222,9 +222,6 @@ class ControlsExt(ModelStateBase, ControlsLateralZP):
     CC_SP.intelligentCruiseButtonManagement.sendButton = icbm_src.sendButton
     CC_SP.intelligentCruiseButtonManagement.vTarget = icbm_src.vTarget
     CC_SP.zoompilot.icbmHold = sm['selfdriveStateSP'].zoompilot.icbmHold
-
-    # lane-change pace clamp telemetry, for offline validation
-    CC_SP.zoompilot.laneChangeSmoothing.jerkFactor = float(self.lane_change_smoothing.jerk_factor)
 
     # lane-change pace clamp telemetry, for offline validation
     CC_SP.zoompilot.laneChangeSmoothing.jerkFactor = float(self.lane_change_smoothing.jerk_factor)

@@ -2579,7 +2579,7 @@ def _copy_model(message: Any) -> tuple[
 
 def _copy_recorded_lead(lead: Any) -> RecordedLead:
   return RecordedLead(
-    status=bool(lead.status),
+    status=bool(getattr(lead, 'present', getattr(lead, 'status', False))),
     radar=bool(lead.radar),
     track_id=int(lead.radarTrackId),
     d_rel=_finite(lead.dRel),

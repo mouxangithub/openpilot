@@ -39,7 +39,7 @@ class GapLead:
 
   @classmethod
   def read(cls, lead: Any) -> GapLead | None:
-    if lead is None or not lead.status or not lead.radar or lead.radarTrackId < 0:
+    if lead is None or not lead.present or not lead.radar or lead.radarTrackId < 0:
       return None
     values = [float(getattr(lead, key, math.nan)) for key in ('dRel', 'yRel', 'vRel', 'vLead', 'aLeadK')]
     if not all(math.isfinite(v) for v in values) or not -30.0 < values[0] < 160.0 or abs(values[1]) > 12.0:
@@ -126,7 +126,7 @@ class LaneChangeGapTracker:
     lead = GapLead.read(primary)
     second = GapLead.read(secondary)
     targets = (second,) if second is not None and second.dRel > 0.0 else ()
-    invalid_target = secondary is not None and secondary.status and second is None
+    invalid_target = secondary is not None and secondary.present and second is None
     selected_ids = tuple(l.radarTrackId if l is not None else -1 for l in (lead, second))
     if self.direction != direction:
       self.reset()

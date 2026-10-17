@@ -57,6 +57,18 @@ def empty_lead() -> dict[str, Any]:
   return EMPTY_LEAD.copy()
 
 
+# cp calls the LeadData presence flag `status`; this fork renamed the same @11
+# field to `present`. Shared by _assign_lead and _schema_lead.
+_LEAD_FIELD_ALIASES = {"status": "present"}
+
+
+def _schema_lead(lead: dict[str, Any] | None, valid: set[str]) -> dict[str, Any]:
+  """Lead dict restricted to the fields this fork's LeadData schema declares."""
+  data = lead or EMPTY_LEAD
+  return {_LEAD_FIELD_ALIASES.get(key, key): value for key, value in data.items()
+          if _LEAD_FIELD_ALIASES.get(key, key) in valid}
+
+
 def _assign_lead(builder: Any, lead: dict[str, Any] | None) -> None:
   """Copy a lead dict into a capnp LeadData builder.
 
@@ -68,7 +80,7 @@ def _assign_lead(builder: Any, lead: dict[str, Any] | None) -> None:
   data = lead or EMPTY_LEAD
   valid = set(builder.schema.fields.keys())
   # cp calls it `status`; this fork's LeadData renamed the same @11 field to `present`.
-  aliases = {"status": "present"}
+  aliases = _LEAD_FIELD_ALIASES
   for key, value in data.items():
     target = aliases.get(key, key)
     if target in valid:
@@ -172,12 +184,12 @@ class DPathRadarD:
       ("leadsLeft2", output.leads_left2),
       ("leadsRight2", output.leads_right2),
     )
+    lead_fields = set(self.radar_state.leadOne.schema.fields.keys())
     for field_name, value in optional_lead_lists:
       if hasattr(self.radar_state, field_name):
-        field = getattr(self.radar_state, field_name)
-        field.init(len(value))
-        for builder, lead_dict in zip(field, value, strict=False):
-          _assign_lead(builder, lead_dict)
+        # pycapnp 2.1 rejects DynamicListBuilder.init() with a size; assign the
+        # schema-filtered dicts directly, which the dynamic API supports.
+        setattr(self.radar_state, field_name, [_schema_lead(d, lead_fields) for d in value])
 
   def publish(self, pm: messaging.PubMaster) -> None:
     radar_msg = messaging.new_message("radarState")

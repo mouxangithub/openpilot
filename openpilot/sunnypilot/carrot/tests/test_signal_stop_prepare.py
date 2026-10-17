@@ -30,8 +30,8 @@ class TestPrepareLeadBlocked(unittest.TestCase):
   def _radar(self, one=None, two=None):
     def lead(d):
       if d is None:
-        return NS(status=False, dRel=float('nan'))
-      return NS(status=True, dRel=float(d))
+        return NS(present=False, dRel=float('nan'))
+      return NS(present=True, dRel=float(d))
     return NS(leadOne=lead(one), leadTwo=lead(two))
 
   def test_nearby_lead_blocks_preparation(self):

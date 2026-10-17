@@ -194,7 +194,7 @@ class TestCarrotPlannerTrafficStopWiring(unittest.TestCase):
     car_state.steeringAngleDeg = 0.0
 
     lead_one = MagicMock()
-    lead_one.status = bool(radar_lead)
+    lead_one.present = bool(radar_lead)
     lead_one.vLead = 0.0
     lead_one.aLeadK = 0.0
     lead_one.dRel = 0.0

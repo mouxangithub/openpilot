@@ -1026,7 +1026,7 @@ class CarrotPlanner:
     cs = sm["carState"]
     radar = sm["radarState"]
     lead_one = radar.leadOne
-    lead_detected = bool(lead_one.status)
+    lead_detected = bool(lead_one.present)
 
     # Disable stop detection when steering hard or in a high-energy mode.
     if self._my_driving_mode == DrivingMode.Safe and self._traffic_light_detect_mode == 0:
@@ -1216,7 +1216,7 @@ class CarrotPlanner:
     # Driving mode-aware safety factor.
     self._my_safe_factor = 1.0
     lead_one = radar.leadOne
-    if lead_one.status and lead_one.vLead < 5:
+    if lead_one.present and lead_one.vLead < 5:
       self._my_safe_factor = self._my_safe_mode_factor
     elif self._my_driving_mode == DrivingMode.Eco:
       self._my_safe_factor = self._my_eco_factor
@@ -1224,9 +1224,9 @@ class CarrotPlanner:
       self._my_safe_factor = self._my_safe_mode_factor
 
     if self._frame % 20 == 0:  # once per second at 20 Hz
-      v_lead = float(lead_one.vLead) * CV.MS_TO_KPH if lead_one.status else 0.0
-      a_lead = float(lead_one.aLeadK) if lead_one.status else 0.0
-      d_rel = float(lead_one.dRel) if lead_one.status else 200.0
+      v_lead = float(lead_one.vLead) * CV.MS_TO_KPH if lead_one.present else 0.0
+      a_lead = float(lead_one.aLeadK) if lead_one.present else 0.0
+      d_rel = float(lead_one.dRel) if lead_one.present else 200.0
       self._driving_mode_detector.update_data(
         v_ego_kph, v_lead, a_ego, a_lead, d_rel,
       )
@@ -1245,7 +1245,7 @@ class CarrotPlanner:
     y = np.asarray(model.position.y, dtype=float)
     v = np.asarray(model.velocity.x, dtype=float)
 
-    lead_detected = bool(lead_one.status)
+    lead_detected = bool(lead_one.present)
     d_rel_for_model = float(lead_one.dRel) if lead_detected else 1000.0
 
     self._x_stop = float(self._x_stop_filter2.process(self._x_stop_filter.process(float(x[31]), median=True)))

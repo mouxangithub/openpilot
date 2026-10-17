@@ -439,7 +439,7 @@ class LongitudinalMpc:
     # Carrot cut-out relief (default off): bounded future headway relief for a
     # measured lead predicted to leave the lane. Eases the demand after the
     # predicted clearance; never deletes the obstacle or changes the range.
-    elif cutout_relief_enabled and not reset_state and radarstate.leadOne.status:
+    elif cutout_relief_enabled and not reset_state and radarstate.leadOne.present:
       lead_0_obstacle = lead_0_obstacle + cutout_obstacle_relief(
         radarstate.leadOne, float(self.x0[1]), T_IDXS, t_follow, STOP_DISTANCE,
       )
@@ -474,7 +474,7 @@ class LongitudinalMpc:
     ])
     for lead_index, (lead, lead_xv) in enumerate(((radarstate.leadOne, lead_xv_0), (radarstate.leadTwo, lead_xv_1))):
       eligible = (lead_gap_enabled and not reset_state and not lane_change_active
-                  and lead.status and getattr(lead, 'radar', False))
+                  and lead.present and getattr(lead, 'radar', False))
       if not eligible:
         continue
       physical_gaps = lead_xv[:,0] - gap_x
@@ -503,7 +503,7 @@ class LongitudinalMpc:
     self.desired_distance = displayed_follow_distance(
       self.base_desired_distances, np.array([lead_0_obstacle[0], lead_1_obstacle[0]]),
       x_obstacles[0, :2], self.lead_gap_margins[0],
-      (radarstate.leadOne.status, radarstate.leadTwo.status))
+      (radarstate.leadOne.present, radarstate.leadTwo.present))
 
     self.yref[:,:] = 0.0
     self.yref[:,0] = braking_gap_reference(x_obstacles, self.lead_gap_margins, gap_v)
@@ -539,7 +539,7 @@ class LongitudinalMpc:
         self.desired_distance = displayed_follow_distance(
           self.base_desired_distances, np.array([lead_0_obstacle[0], lead_1_obstacle[0]]),
           x_obstacles[0, :2], self.lead_gap_margins[0],
-          (radarstate.leadOne.status, radarstate.leadTwo.status))
+          (radarstate.leadOne.present, radarstate.leadTwo.present))
         self.run()
 
     if (np.any(lead_xv_0[FCW_IDXS,0] - self.x_sol[FCW_IDXS,0] < CRASH_DISTANCE) and
