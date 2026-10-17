@@ -196,7 +196,9 @@ class ControlsExt(ModelStateBase, ControlsLateralZP):
     _lead.vLeadK = src.vLeadK
     _lead.aLeadK = src.aLeadK
     _lead.fcw = src.deprecated.fcw
-    _lead.present = src.present
+    # CarControlSP.LeadData keeps cp's name `status` for the same @11 flag that
+    # RadarState.LeadData calls `present`. Never blanket-rename across schemas.
+    _lead.status = src.present
     _lead.aLeadTau = src.aLeadTau
     _lead.modelProb = src.modelProb
     _lead.radar = src.radar
