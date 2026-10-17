@@ -108,6 +108,7 @@ class TestBrakeCaption(unittest.TestCase):
 
   def setUp(self):
     self._orig_flag = ui_state.carrot_signal_hud
+    ui_state.carrot_signal_hud = True
     self._orig_rl = signal_hud.rl
     self._orig_measure = signal_hud.measure_text_cached
     self._fake = _FakeRL()
