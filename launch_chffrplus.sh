@@ -320,6 +320,22 @@ ensure_magic_service() {
   keep_alive magic scripts/magic_wrapper.py 0 &
 }
 
+# This device renders through the qcom Adreno blob: /usr/lib/aarch64-linux-gnu/dri/
+# only ships the generic libdril stub, so mesa's EGL can never get a display here.
+# If anything ever repoints libEGL.so.1 / libGLESv2.so.2 at mesa (a stray package
+# install, a debug session), magic.py and the UI both fail EGL init and the device
+# boots into a permanent splash loop. Self-heal the vendor symlinks on boot.
+ensure_egl_vendor() {
+  local lib="/usr/lib/aarch64-linux-gnu"
+  [ "$(readlink "$lib/libEGL.so.1" 2>/dev/null)" = "libEGL_adreno.so" ] && \
+    [ "$(readlink "$lib/libGLESv2.so.2" 2>/dev/null)" = "libGLESv2.so.2.0.0" ] && return 0
+  sudo -n mount -o remount,rw / || return 0
+  sudo -n ln -sfn libEGL_adreno.so "$lib/libEGL.so.1"
+  sudo -n ln -sfn libGLESv2.so.2.0.0 "$lib/libGLESv2.so.2"
+  sudo -n mount -o remount,ro /
+  echo "egl: restored Adreno vendor symlinks"
+}
+
 comma_device_slug() {
   tr -d '\0' < /sys/firmware/devicetree/base/model 2>/dev/null | awk '{print $NF}'
 }
@@ -794,7 +810,7 @@ launch() {
   # panel backlight is present but the touch controller did not probe, the
   # system magic.service fails; we fall back to a virtual touch device and a
   # userspace magic.py instance.
-  is_comma_big_hw && { ensure_touch_input; ensure_magic_service; }
+  is_comma_big_hw && { ensure_touch_input; ensure_egl_vendor; ensure_magic_service; }
 
   # AGNOS OS update (may loop updater)
   [ -f /AGNOS ] && agnos_init
