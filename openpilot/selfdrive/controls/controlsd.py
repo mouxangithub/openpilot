@@ -22,6 +22,7 @@ from openpilot.selfdrive.controls.lib.latcontrol_torque import LatControlTorque
 from openpilot.selfdrive.controls.lib.longcontrol import LongControl
 from openpilot.selfdrive.modeld.modeld import LAT_SMOOTH_SECONDS
 from openpilot.sunnypilot.selfdrive.controls.lib.stopping_controller import StoppingController
+from openpilot.sunnypilot.selfdrive.controls.lib.steer_ratio import resolve_vehicle_model_steer_ratio
 from openpilot.selfdrive.locationd.helpers import PoseCalibrator, Pose
 
 from openpilot.sunnypilot.selfdrive.controls.controlsd_ext import ControlsExt
@@ -90,7 +91,12 @@ class Controls(ControlsExt):
     # Update VehicleModel
     lp = self.sm['vehicleParameters']
     x = max(lp.stiffnessFactor, 0.1)
-    sr = max(lp.steerRatio, 0.1)
+    # Carrot steer-ratio resolution: honor a manual ratio and the live scaling
+    # rate. With the stock SteerRatioRate (100) and no custom ratio this returns
+    # max(live, 0.1) - identical to the previous direct read.
+    sr = resolve_vehicle_model_steer_ratio(lp.steerRatio,
+                                           self.params.get_float("SteerRatioRate"),
+                                           self.params.get_float("CustomSR"))
     self.VM.update_params(x, sr)
 
     steer_angle_without_offset = math.radians(CS.steeringAngleDeg - lp.angleOffsetDeg)

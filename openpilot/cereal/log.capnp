@@ -131,6 +131,9 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     excessiveActuation @96;
     bigModelLoading @100;
     bigModelFailed @102;
+    # Carrot advisory: a measured front/corner obstacle with no selected lead.
+    # Display/alert only; never changes radar selection or longitudinal targets.
+    radarStationaryLead @104;
 
     lowBatteryDEPRECATED @40;
     soundsUnavailableDEPRECATED @47;

@@ -496,6 +496,17 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CarrotSignalHudEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // draw the neural signal evidence ring (needs SignalAssistMode > 0)
     {"LeadBrakeLights", {PERSISTENT, BOOL, "0"}},  // display/log a lead brake-lamp candidate; display+log only, never a control input (needs SignalAssistMode > 0)
     {"CarrotArs510Enabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // opt-in ARS510 receive path for radar-DBC-less Toyota cars (RAV4 TSS2 2022/2023)
+    // Carrot longitudinal follow refinements, ported from CarrotPilot. All default
+    // off so the stock ACC path is unchanged until each one is validated on road.
+    {"CarrotStoppingLeadEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},   // require range evidence before a stopped lead counts as departing
+    {"CarrotCruiseCoastingEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}, // release cruise overspeed brake within a bounded margin
+    {"CarrotCruiseCoastingPercent", {PERSISTENT | BACKUP, INT, "10"}}, // coasting margin, 0-10 (percent); only read when the toggle is on
+    {"CarrotBrakingGapEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},     // comfort reserve against the lead braking path
+    {"CarrotGapRecoveryEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},    // recover the cruise gap after a lead pulls away
+    {"CarrotRadarOnlyWarningEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}, // advisory alert for a measured obstacle with no selected lead
+    {"CarrotLateralReadinessEnabled", {PERSISTENT | BACKUP, BOOL, "0"}}, // block startup steering until lateral inputs and CAN are ready
+    {"CarrotFastRadarEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},      // refresh a selected lead's kinematics from newer liveTracks (Hyundai only)
+    {"CarrotCutoutReliefEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},   // ease future following demand for a confirmed lead cut-out
     {"TrafficLightNavCautionOnly", {PERSISTENT | BACKUP, BOOL, "1"}},       // fused red light only warns; set 0 to allow stop assist
     {"DesireArbiterEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},             // lateral lane-change/fork desire from nav
     // Let carrot ATC (auto turn control) synthesise a turn signal from the phone's

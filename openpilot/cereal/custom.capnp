@@ -262,6 +262,11 @@ struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
   # is suspended on a motorway road class.
   signalAssistAction @15 :UInt16;
   signalDetectionSuspended @16 :Bool;
+  # Carrot cruise coasting (default off): a fixed physical m/s reference for the
+  # overspeed band, 0 when ineligible, plus the active margin in percent. The
+  # brake relief itself is applied in longcontrol.
+  cruiseCoastingTarget @17 :Float32;
+  cruiseCoastingPercent @18 :UInt8;
 
   struct DynamicExperimentalControl {
     state @0 :DynamicExperimentalControlState;

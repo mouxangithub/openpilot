@@ -733,6 +733,15 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
     ET.NO_ENTRY: NoEntryAlert("雷达暂时不可用"),
   },
 
+  # Carrot advisory: a measured front/corner obstacle ahead with no selected
+  # lead. Warning only, with a 30 s refractory in the detector itself.
+  EventName.radarStationaryLead: {
+    ET.WARNING: Alert(
+      "注意前方物体", "请确认前方并准备减速",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.HIGH, VisualAlert.none, AudibleAlert.prompt, 2.),
+  },
+
   # Every frame from the camera should be processed by the model. If modeld
   # is not processing frames fast enough they have to be dropped. This alert is
   # thrown when over 20% of frames are dropped.

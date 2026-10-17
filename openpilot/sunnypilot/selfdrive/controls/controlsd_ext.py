@@ -27,8 +27,10 @@ from openpilot.sunnypilot.selfdrive.controls.controls_lateral_zp import Controls
 from openpilot.sunnypilot.selfdrive.controls.lib.blinker_pause_lateral import BlinkerPauseLateral
 from openpilot.sunnypilot.selfdrive.controls.lib.lane_change_smoothing import LaneChangeSmoothing
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_v0 import LatControlTorque as LatControlTorqueV0
-from openpilot.sunnypilot.selfdrive.controls.lib.stopping_controller import StoppingController
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_v2 import LatControlTorque as LatControlTorqueV2
+from openpilot.sunnypilot.selfdrive.controls.lib.stopping_controller import StoppingController
+from openpilot.sunnypilot.selfdrive.controls.lib.lateral_readiness import LateralStartupGate
+from openpilot.sunnypilot.selfdrive.controls.lib.cruise_coasting import CruiseCoastingControl, coasting_relief
 from openpilot.sunnypilot.selfdrive.controls.lib.steer_limit import classify
 from openpilot.sunnypilot.selfdrive.controls.lib.torque_tune import resolved_tune_versions
 
@@ -51,6 +53,15 @@ class ControlsExt(ModelStateBase, ControlsLateralZP):
     # a second, independent gate on CC.latActive and also meant it kept working with
     # CarrotEnabled off, since nothing consulted that switch.
     self.carrot_controls = CarrotControls(CP)
+    # Carrot startup lateral-readiness gate (default off). Blocks lateral enable
+    # during the first startup until lateral inputs and CAN transmission are
+    # ready. One-way latch: later input failures are owned by runtime safety.
+    self.lateral_startup = LateralStartupGate()
+    self.lateral_startup_enabled = params.get_bool("CarrotLateralReadinessEnabled")
+    # Carrot cruise coasting (default off): brake relief inside the band.
+    self._coasting = CruiseCoastingControl()
+    self._coasting_relief = coasting_relief
+    self._coasting_enabled = params.get_bool("CarrotCruiseCoastingEnabled")
 
     cloudlog.info("controlsd_ext is waiting for CarParamsSP")
     self.CP_SP = messaging.log_from_bytes(params.get("CarParamsSP", block=True), custom.CarParamsSP)
@@ -76,6 +87,17 @@ class ControlsExt(ModelStateBase, ControlsLateralZP):
     stock_accel = actuators.accel
     prev_state, prev_accel = self._stopping_prev
     self._stopping_prev = (stock_state, stock_accel)
+
+    # Carrot cruise coasting (default off): relax an overspeed brake within the
+    # published band. Runs before the stopping controller so a stop policy always
+    # has the final say; never adds thrust (relief only eases a negative accel).
+    if self._coasting_enabled and long_plan is not None:
+      target = float(getattr(long_plan, 'cruiseCoastingTarget', 0.0) or 0.0)
+      percent = int(getattr(long_plan, 'cruiseCoastingPercent', 0) or 0)
+      relief = self._coasting_relief(CS.vEgo, target, percent) if target > 0.0 else 0.0
+      actuators.accel = float(self._coasting.apply(float(actuators.accel), relief, DT_CTRL))
+    else:
+      self._coasting.reset()
 
     if self.stopping_controller is None:
       return
@@ -103,6 +125,11 @@ class ControlsExt(ModelStateBase, ControlsLateralZP):
       self._param_update_time = time.monotonic()
 
   def _get_lat_active(self, sm: messaging.SubMaster) -> bool:
+    # Carrot startup gate (default off): wait for the first readiness
+    # confirmation before lateral can engage, including AlwaysLateral.
+    if self.lateral_startup_enabled and not self.lateral_startup.update(sm, sm['carState'], 'carState'):
+      return False
+
     if self.blinker_pause_lateral.update(sm['carState']):
       return False
 

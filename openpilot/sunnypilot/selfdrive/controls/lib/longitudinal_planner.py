@@ -126,6 +126,22 @@ class LongitudinalPlannerSP:
     self._lead_preview_enabled = self._params.get_bool("CarrotLeadPreviewEnabled")
     self._lead_preview = 0.0
     self._lead_preview_accel = 0.0
+    # Carrot cruise coasting (default off): a fixed physical m/s reference for
+    # the overspeed band. longcontrol applies the actual brake relief; here we
+    # only decide eligibility and publish the reference for that consumer.
+    from openpilot.sunnypilot.selfdrive.controls.lib.cruise_coasting import CruiseCoastingPlan, coasting_percent, no_coasting_lead
+    self._coasting_enabled = self._params.get_bool("CarrotCruiseCoastingEnabled")
+    self._coasting = CruiseCoastingPlan()
+    self._coasting_percent = 0
+    self._coasting_target = 0.0
+    self._coasting_param_count = 0
+    self._no_coasting_lead = no_coasting_lead
+    self._coasting_percent_fn = coasting_percent
+    # Carrot MPC gap/comfort refinements (each default off; the host update
+    # reads these and only forwards them to the solver when a flag is on).
+    self._gap_recovery_enabled = self._params.get_bool("CarrotGapRecoveryEnabled")
+    self._braking_gap_enabled = self._params.get_bool("CarrotBrakingGapEnabled")
+    self._cutout_relief_enabled = self._params.get_bool("CarrotCutoutReliefEnabled")
     self._param_count = 0
     self.carrot_should_stop = False
     # Experimental moving-red pipeline. Observation-only until mode 2 is
@@ -284,6 +300,24 @@ class LongitudinalPlannerSP:
       if self.carrot_source.active and math.isfinite(self.carrot_source.v_target):
         carrot_v = min(v_cruise, max(0.0, float(self.carrot_source.v_target)))
         self.targets[LongitudinalPlanSource.carrot] = (carrot_v, a_ego)
+
+    # Carrot cruise coasting (default off). Computes a fixed physical m/s
+    # reference for the overspeed band; longcontrol consumes it to relax the
+    # brake. Only ever releases brake within the band and never changes the
+    # speed target or creates thrust, so the stock target selection is untouched.
+    self._coasting_target = 0.0
+    if self._coasting_enabled:
+      self._coasting_param_count += 1
+      if self._coasting_param_count >= 20:  # ~1 s at 20 Hz
+        self._coasting_param_count = 0
+        self._coasting_percent = self._coasting_percent_fn(self._params.get_int("CarrotCruiseCoastingPercent"))
+      external_limit = min(v for v, _ in self.targets.values())
+      self._coasting_target = self._coasting.update(
+        enabled=True, percent=self._coasting_percent, set_speed=v_cruise * CV.MS_TO_KPH,
+        target=v_cruise, external_limit=external_limit, dt=DT_MDL,
+      ) if self._no_coasting_lead(sm['radarState']) else 0.0
+      if self._coasting_target <= 0.0:
+        self._coasting.reset()
 
     self.source = min(self.targets, key=lambda k: self.targets[k][0])
     v_target, a_target = self.targets[self.source]
@@ -533,6 +567,8 @@ class LongitudinalPlannerSP:
 
     longitudinalPlanSP.signalAssistAction = int(self.get_signal_assist_action(sm))
     longitudinalPlanSP.signalDetectionSuspended = bool(self.get_signal_detection_suspended())
+    longitudinalPlanSP.cruiseCoastingTarget = float(self._coasting_target)
+    longitudinalPlanSP.cruiseCoastingPercent = int(self._coasting_percent)
 
     accel_controller = longitudinalPlanSP.accelController
     accel_controller.enabled = bool(self.accel_controller.is_enabled())

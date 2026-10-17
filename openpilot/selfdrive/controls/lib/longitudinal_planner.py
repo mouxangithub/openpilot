@@ -175,6 +175,16 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
         if credit is not None and np.any(credit):
           mpc_carrot_kwargs['lane_change_credit'] = credit
 
+    # Carrot gap/comfort refinements (each default off; only passed when on so
+    # the stock solver input is byte-identical while they are disabled).
+    if self._gap_recovery_enabled or self._braking_gap_enabled or self._cutout_relief_enabled:
+      mpc_carrot_kwargs['reset_state'] = reset_state
+      mpc_carrot_kwargs['lead_gap_enabled'] = self._gap_recovery_enabled
+      mpc_carrot_kwargs['lead_comfort_enabled'] = self._braking_gap_enabled
+      mpc_carrot_kwargs['cutout_relief_enabled'] = self._cutout_relief_enabled
+      mpc_carrot_kwargs['lead_accel_response'] = int(getattr(self.carrot_source.carrot, 'leadAccelResponse', 0) or 0)
+      mpc_carrot_kwargs['lane_change_active'] = self.carrot_lane_change_active
+
     self.mpc.update(sm['radarState'], personality=personality,
                     t_follow=carrot_t_follow,
                     **mpc_carrot_kwargs)
