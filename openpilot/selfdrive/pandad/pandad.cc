@@ -347,7 +347,7 @@ void process_panda_state(std::vector<Panda *> &pandas, PubMaster *pm, bool engag
         LOGE("Reconnecting, communication to pandas not healthy");
         do_exit = true;
 
-      } else {
+      } else if (!is_onroad) {
         // check for new pandas
         for (std::string &s : Panda::list(true)) {
           if (!std::count(connected_serials.begin(), connected_serials.end(), s)) {

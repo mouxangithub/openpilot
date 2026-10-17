@@ -244,6 +244,7 @@ PARAM_LABELS: dict[str, tuple[str, str, str, str]] = {
   "BlindSpot": ("Blind spot UI", "Draw blind-spot indicators on the onroad UI.", "盲点警示", "行车界面绘制盲点指示。"),
   "CarrotRadarPointsEnabled": ("Radar points overlay", "Draw the measured front-radar points in the road view, with their relative speed, lateral offset and distance. Display only.", "雷达点叠加显示", "在路面视图中绘制前雷达正在跟踪的点，并标注相对速度、横向偏移与距离。仅用于显示。"),
   "CarrotSignalHudEnabled": ("Neural signal indicator", "Advisory HUD ring: the outer ring is the light evidence the neural model sees, the centre dot is what the planner actually applies (mode 2 only). Never a green departure indication for mixed evidence.", "神经信号灯指示", "提示性 HUD 圆环：外圈为神经模型看到的灯色证据，中心点为规划器实际执行的动作（仅模式 2）。证据混杂时不会给出绿灯放行暗示。"),
+  "CarrotArs510Enabled": ("ARS510 front radar", "Opt in to the native ARS510 receive path on radar-DBC-less Toyota cars (RAV4 TSS2 2022/2023). Off by default; no effect on any other platform.", "ARS510 前雷达", "在无雷达 DBC 的丰田车型（RAV4 TSS2 2022/2023）上启用原生 ARS510 接收路径。默认关闭，对其他平台无影响。"),
   "ChevronInfo": ("Chevron info", "What the lead-car chevron shows (distance/time/speed).", "车距信息", "前车箭头（chevron）显示的内容。"),
   "DevUIInfo": ("Developer UI info", "Show developer info overlays onroad.", "开发者信息", "行车界面显示开发者信息。"),
   "GreenLightAlert": ("Green light alert", "Alert when the lead departs on a green light.", "绿灯提醒", "绿灯放行时提醒前车已起步。"),

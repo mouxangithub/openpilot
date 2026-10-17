@@ -16,6 +16,16 @@ from openpilot.selfdrive.pandad import can_capnp_to_list
 from opendbc.car.car_helpers import interfaces
 
 
+def _rebuild_radar_interface(radar_interface, CP, CP_SP, previous=None):
+  """Default construction, plus the explicit native recovery API when offered."""
+  radar = radar_interface(CP, CP_SP)
+  recovery_api = getattr(radar, 'ARS510_INPUT_RECOVERY_API', None)
+  recover = getattr(radar, 'recover_from_input_fault', None)
+  if previous is not None and type(recovery_api) is int and recovery_api == 1 and callable(recover):
+    recover(previous)
+  return radar
+
+
 def main():
   # Share core4/FIFO51 with planner. Card/radard use core5; short control/state
   # work shares core6 with camera; model/DM remain on core7.
@@ -27,7 +37,7 @@ def main():
   CP = messaging.log_from_bytes(Params().get('CarParams', block=True), car.CarParams)
   CP_SP = messaging.log_from_bytes(Params().get('CarParamsSP', block=True), custom.CarParamsSP)
   radar_interface = interfaces[CP.carFingerprint].RadarInterface
-  radar = radar_interface(CP, CP_SP)
+  radar = _rebuild_radar_interface(radar_interface, CP, CP_SP)
   # Latch once per onroad start; never change a track's side during a drive.
   radar_track_flip = Params().get_bool('RadarTrackFlip')
   batches = RadarCanBatches()
@@ -83,7 +93,8 @@ def main():
         continue
       if needs_reset:
         # Never bridge missing CAN with stale object IDs or filter histories.
-        radar = radar_interface(CP, CP_SP)
+        # Hand the previous receiver to the native recovery API when present.
+        radar = _rebuild_radar_interface(radar_interface, CP, CP_SP, radar)
         needs_reset = False
       last_input_ns = ego.receive_ns
       max_input_age_ms = max(max_input_age_ms, (now_ns - ego.receive_ns) / 1e6)

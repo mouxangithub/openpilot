@@ -30,36 +30,40 @@ def flash_panda(panda_serial: str) -> Panda:
     HARDWARE.recover_internal_panda()
     raise
 
-  fw_signature = get_expected_signature(panda)
-  internal_panda = panda.is_internal()
+  try:
+    fw_signature = get_expected_signature(panda)
+    internal_panda = panda.is_internal()
 
-  panda_version = "bootstub" if panda.bootstub else panda.get_version()
-  panda_signature = b"" if panda.bootstub else panda.get_signature()
-  cloudlog.warning(f"Panda {panda_serial} connected, version: {panda_version}, signature {panda_signature.hex()[:16]}, expected {fw_signature.hex()[:16]}")
+    panda_version = "bootstub" if panda.bootstub else panda.get_version()
+    panda_signature = b"" if panda.bootstub else panda.get_signature()
+    cloudlog.warning(f"Panda {panda_serial} connected, version: {panda_version}, signature {panda_signature.hex()[:16]}, expected {fw_signature.hex()[:16]}")
 
-  if panda.bootstub or panda_signature != fw_signature:
-    cloudlog.info("Panda firmware out of date, update required")
-    panda.flash()
-    cloudlog.info("Done flashing")
+    if panda.bootstub or panda_signature != fw_signature:
+      cloudlog.info("Panda firmware out of date, update required")
+      panda.flash()
+      cloudlog.info("Done flashing")
 
-  if panda.bootstub:
-    bootstub_version = panda.get_version()
-    cloudlog.info(f"Flashed firmware not booting, flashing development bootloader. {bootstub_version=}, {internal_panda=}")
-    if internal_panda:
-      HARDWARE.recover_internal_panda()
-    panda.recover(reset=(not internal_panda))
-    cloudlog.info("Done flashing bootstub")
+    if panda.bootstub:
+      bootstub_version = panda.get_version()
+      cloudlog.info(f"Flashed firmware not booting, flashing development bootloader. {bootstub_version=}, {internal_panda=}")
+      if internal_panda:
+        HARDWARE.recover_internal_panda()
+      panda.recover(reset=(not internal_panda))
+      cloudlog.info("Done flashing bootstub")
 
-  if panda.bootstub:
-    cloudlog.info("Panda still not booting, exiting")
-    raise AssertionError
+    if panda.bootstub:
+      cloudlog.info("Panda still not booting, exiting")
+      raise AssertionError
 
-  panda_signature = panda.get_signature()
-  if panda_signature != fw_signature:
-    cloudlog.info("Version mismatch after flashing, exiting")
-    raise AssertionError
+    panda_signature = panda.get_signature()
+    if panda_signature != fw_signature:
+      cloudlog.info("Version mismatch after flashing, exiting")
+      raise AssertionError
 
-  return panda
+    return panda
+  except Exception:
+    panda.close()
+    raise
 
 
 def main() -> None:
@@ -112,8 +116,13 @@ def main() -> None:
       flash_rivian_long(panda_serials)
 
       pandas: list[Panda] = []
-      for serial in panda_serials:
-        pandas.append(flash_panda(serial))
+      try:
+        for serial in panda_serials:
+          pandas.append(flash_panda(serial))
+      except Exception:
+        for panda in pandas:
+          panda.close()
+        raise
 
       internal_pandas = [panda for panda in pandas if panda.is_internal()]
       if COMMA_HARDWARE and len(internal_pandas) == 0:
