@@ -464,6 +464,19 @@ class CarrotPlanner:
       self._start_runtime = None
       self.start_guard = None
 
+    # Experimental geometric red-light pre-deceleration (same shadow family).
+    # SignalAssistMode > 0 computes the decision (shadow observation); mode 2
+    # additionally allows the planner-side accel cap. Failures keep it None so
+    # normal planning is never affected.
+    self._prepare_runtime = None
+    self.prepare_decision = None
+    self.prepare_control_active = False
+    try:
+      from openpilot.sunnypilot.carrot.signal_stop_prepare_runtime import SignalPrepareRuntime
+      self._prepare_runtime = SignalPrepareRuntime()
+    except Exception:
+      self._prepare_runtime = None
+
     # Lane-change assist.
     self._desire_state = 0.0
     self._desire_state_count = 0
@@ -1316,6 +1329,35 @@ class CarrotPlanner:
         self._start_runtime.record(self.start_decision, v_ego, stop_model_x)
       if self.start_decision.hold and _smode >= 2:
         signal_hold = True
+
+    # Experimental geometric red pre-deceleration. Shadow and control share the
+    # exact controller/arbitrator code path: at mode 1 the decision is computed
+    # and logged, at mode 2 the planner-side accel cap may additionally apply.
+    # The cap only ever lowers accel; it never requests a stop or departure.
+    self.prepare_control_active = False
+    if self._prepare_runtime is not None:
+      try:
+        prepare_observation, prepare_context = self._prepare_runtime.read(sm)
+        self.prepare_decision = self._prepare_runtime.prepare.update(
+          prepare_context.get("now", time.monotonic()), prepare_observation,
+          enabled=(bool(prepare_context.get("enabled", False)) and self._traffic_light_detect_mode != 0
+                   and not suspended),
+          valid=bool(prepare_context.get("valid", False)),
+          drive=bool(prepare_context.get("drive", False)),
+          gas=bool(cs.gasPressed), brake=bool(cs.brakePressed), speed=float(v_ego),
+          lead=lead_detected, turning=bool(prepare_context.get("turning", True)),
+          model_stopping=(self._x_state in (XState.e2eStop, XState.e2eStopped)),
+          entry_allowed=not suspended,
+          geometry=prepare_context["geometry"], alignment=prepare_context.get("alignment"),
+          night_geometry=prepare_context.get("night_geometry"))
+        self._prepare_runtime.record_prepare(self.prepare_decision)
+        # Mode permission only: the planner arbitrator needs dropout decisions
+        # (decision.active False) to apply its evidence-loss grace.
+        from openpilot.sunnypilot.carrot.signal_mode import signal_mode
+        self.prepare_control_active = signal_mode() >= 2
+      except Exception:
+        self.prepare_decision = None
+        self.prepare_control_active = False
 
     if signal_hold:
       # Hold the stop even if a lead appears or moves. Radar obstacles remain in

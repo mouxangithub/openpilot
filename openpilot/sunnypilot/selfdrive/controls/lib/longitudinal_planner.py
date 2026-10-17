@@ -137,9 +137,11 @@ class LongitudinalPlannerSP:
     # Geometric red pre-deceleration execution (experimental). The cap decays
     # the commanded accel toward a gentle braking target; it is only ever
     # applied when SignalAssistMode == 2 (see apply_signal_prepare), so at the
-    # default mode this state machine does nothing.
-    from openpilot.sunnypilot.carrot.signal_stop_prepare import PrepareAccel
+    # default mode this state machine does nothing. The arbitrator owns the
+    # decision-to-actuation machinery (grace/override/radar/envelope).
+    from openpilot.sunnypilot.carrot.signal_stop_prepare import PrepareAccel, PrepareArbitrator
     self._signal_prepare_accel = PrepareAccel()
+    self._signal_prepare_arbitrator = PrepareArbitrator()
     self._signal_prepare_time = None
     self._signal_prepare_previous = None
 
@@ -428,6 +430,11 @@ class LongitudinalPlannerSP:
     requests a stop or a departure - the model keeps owning those. At mode < 2
     this resets the cap and returns, so the default device is byte-for-byte
     unaffected.
+
+    The decision-to-actuation machinery lives in PrepareArbitrator (ported from
+    navipilot traffic_control's final-plan arbitration): evidence-loss grace,
+    driver-override cooldown, radar corroboration and the stop-distance
+    envelope. Shadow and control share that code path; only ``actuate`` differs.
     """
     from openpilot.sunnypilot.carrot.signal_mode import signal_mode
     from openpilot.sunnypilot.carrot.signal_stop_prepare import prepare_lead_blocked
@@ -438,13 +445,18 @@ class LongitudinalPlannerSP:
 
     carrot = self.carrot_source.carrot
     decision = getattr(carrot, "prepare_decision", None)
+    # control_active is the *mode permission* (SignalAssistMode == 2), not the
+    # decision state: the arbitrator needs to see dropout decisions to apply
+    # its evidence-loss grace.
+    control_active = bool(getattr(carrot, "prepare_control_active", False))
 
     cs = sm['carState']
+    engaged, cap_target, _ = self._signal_prepare_arbitrator.engage(
+      now, decision, actuate=signal_mode() >= 2 and control_active,
+      radar_state=sm['radarState'], cs=cs, a_ego=float(cs.aEgo),
+      actuator_delay=float(self.CP.longitudinalActuatorDelay))
     active = (
-      signal_mode() >= 2
-      and decision is not None and bool(getattr(decision, "active", False))
-      and bool(getattr(carrot, "prepare_control_active", False))
-      and not cs.gasPressed and not cs.brakePressed
+      engaged
       and 5 / 3.6 < cs.vEgo < 82 / 3.6
       and getattr(cs, "softHoldActive", 0) == 0
       and 0 < elapsed <= 0.2
@@ -454,7 +466,8 @@ class LongitudinalPlannerSP:
     )
     previous = cs.aEgo if self._signal_prepare_previous is None else self._signal_prepare_previous
     uncapped = self.output_a_target
-    self.output_a_target = float(self._signal_prepare_accel.apply(self.output_a_target, previous, elapsed, active))
+    self.output_a_target = float(self._signal_prepare_accel.apply(self.output_a_target, previous, elapsed, active,
+                                                                  target_accel=cap_target))
     self._signal_prepare_previous = self.output_a_target
     if active and self.output_a_target < uncapped:
       # keep the speed target consistent with the gentler deceleration

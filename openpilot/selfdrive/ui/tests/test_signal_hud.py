@@ -66,6 +66,9 @@ class TestSignalHudRender(unittest.TestCase):
     signal_hud.measure_text_cached = lambda font, text, size, spacing=0: NS(x=float(len(text)) * size * 0.5)
     self.renderer = signal_hud.SignalHudRenderer.__new__(signal_hud.SignalHudRenderer)
     self.renderer._font = None
+    # Keep the throttled lead-brake-lamp read inert unless a test enables it.
+    self.renderer._brake_next_read = float('inf')
+    self.renderer._brake_candidate = False
 
   def tearDown(self):
     ui_state.carrot_signal_hud = self._orig_flag
@@ -98,6 +101,54 @@ class TestSignalHudRender(unittest.TestCase):
 
   def test_broken_message_is_swallowed(self):
     self.renderer.render(_rect(), {'longitudinalPlanSP': object()})
+
+
+class TestBrakeCaption(unittest.TestCase):
+  """Lead brake-lamp caption: display only, candidate-gated, never holds."""
+
+  def setUp(self):
+    self._orig_flag = ui_state.carrot_signal_hud
+    self._orig_rl = signal_hud.rl
+    self._orig_measure = signal_hud.measure_text_cached
+    self._fake = _FakeRL()
+    signal_hud.rl = self._fake
+    signal_hud.measure_text_cached = lambda font, text, size, spacing=0: NS(x=float(len(text)) * size * 0.5)
+    self.renderer = signal_hud.SignalHudRenderer.__new__(signal_hud.SignalHudRenderer)
+    self.renderer._font = None
+    self.renderer._brake_next_read = float('inf')
+    self.renderer._brake_candidate = False
+
+  def tearDown(self):
+    ui_state.carrot_signal_hud = self._orig_flag
+    signal_hud.rl = self._orig_rl
+    signal_hud.measure_text_cached = self._orig_measure
+
+  def test_candidate_draws_caption_even_without_ring(self):
+    self.renderer._brake_candidate = True
+    self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})  # no ring evidence
+    self.assertGreaterEqual(self._fake.calls.count('text'), 2)  # stroke + fill
+
+  def test_unknown_never_draws_caption(self):
+    self.renderer._brake_candidate = False
+    self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})
+    self.assertEqual(self._fake.calls, [])
+
+  def test_hud_disabled_clears_caption(self):
+    ui_state.carrot_signal_hud = False
+    self.renderer._brake_candidate = True
+    self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})
+    self.assertEqual(self._fake.calls, [])
+
+  def test_throttled_read_failure_is_swallowed(self):
+    from openpilot.sunnypilot.carrot import lead_brake_lights
+    original = lead_brake_lights.requested
+    lead_brake_lights.requested = lambda: 1 / 0
+    try:
+      self.renderer._brake_next_read = 0.
+      self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})
+    finally:
+      lead_brake_lights.requested = original
+    self.assertFalse(self.renderer._brake_candidate)
 
 
 if __name__ == "__main__":

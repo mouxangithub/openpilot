@@ -494,6 +494,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // Display-only overlays. Neither one is read anywhere on the control path.
     {"CarrotRadarPointsEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // draw measured front-radar points in the road view
     {"CarrotSignalHudEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // draw the neural signal evidence ring (needs SignalAssistMode > 0)
+    {"LeadBrakeLights", {PERSISTENT, BOOL, "0"}},  // display/log a lead brake-lamp candidate; display+log only, never a control input (needs SignalAssistMode > 0)
     {"CarrotArs510Enabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // opt-in ARS510 receive path for radar-DBC-less Toyota cars (RAV4 TSS2 2022/2023)
     {"TrafficLightNavCautionOnly", {PERSISTENT | BACKUP, BOOL, "1"}},       // fused red light only warns; set 0 to allow stop assist
     {"DesireArbiterEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},             // lateral lane-change/fork desire from nav

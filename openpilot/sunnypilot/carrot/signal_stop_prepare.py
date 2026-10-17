@@ -253,6 +253,127 @@ def prepare_lead_blocked(radar_state):
     return True
 
 
+# --- navipilot traffic_control patterns (see final_plan_arbitrator / stop_profile / radar_state) --- #
+
+STOP_EVIDENCE_LOSS_GRACE_S = 2.0  # cap survives this long after an evidence dropout
+PREPARE_OVERRIDE_COOLDOWN_S = 0.75  # driver input pauses the cap briefly, like the gas override
+PREPARE_COMFORT_BRAKE = 2.4  # m/s^2 envelope assumption, navipilot stop_profile default
+PREPARE_JERK_LIMIT = 0.8  # m/s^3 envelope assumption
+PREPARE_ESCALATED_ACCEL = -1.2  # stronger cap when the gentle one cannot reach the near bound
+
+
+def required_stop_distance(v_ego, a_ego, actuator_delay, max_brake, jerk_limit):
+  """Closed-form delayed, jerk-limited stop envelope (navipilot stop_profile).
+
+  Distance needed to reach zero from (v_ego, a_ego) after `actuator_delay`,
+  ramping to `max_brake` at `jerk_limit`. Pure math, no hardware dependency.
+  Positive measured acceleration is retained (not clipped) so the envelope can
+  never understate the distance.
+  """
+  velocity, acceleration = max(float(v_ego), 0.0), float(a_ego)
+  delay, brake, jerk = max(float(actuator_delay), 0.0), max(float(max_brake), 0.1), max(float(jerk_limit), 0.1)
+  if not all(math.isfinite(v) for v in (velocity, acceleration, delay, brake, jerk)):
+    return math.inf
+  acceleration = max(acceleration, -brake)
+  if velocity <= 0.0:
+    return 0.0
+  delay_time = min(delay, velocity / -acceleration) if acceleration < 0.0 else delay
+  distance = max(0.0, velocity * delay_time + 0.5 * acceleration * delay_time ** 2)
+  velocity = max(0.0, velocity + acceleration * delay_time)
+  if velocity <= 0.0:
+    return distance
+  ramp_to_brake = max(0.0, (acceleration + brake) / jerk)
+  stop_in_ramp = (acceleration + math.sqrt(acceleration ** 2 + 2.0 * jerk * velocity)) / jerk
+  ramp_time = min(ramp_to_brake, stop_in_ramp)
+  distance += max(0.0, velocity * ramp_time + 0.5 * acceleration * ramp_time ** 2 - jerk * ramp_time ** 3 / 6.0)
+  velocity = max(0.0, velocity + acceleration * ramp_time - 0.5 * jerk * ramp_time ** 2)
+  return distance + velocity ** 2 / (2.0 * brake)
+
+
+def prepare_radar_corroboration(radar_state, distance_range):
+  """Radar go/stop policy for the cap (navipilot radar_state pattern).
+
+  Returns (escalation_allowed, reason). A radar lead overlapping the plausible
+  housing range makes the vision candidate ambiguous (light or car?), so only
+  the gentle cap may apply; night candidates without distance bounds never
+  escalate. Missing/corrupt radar evidence is conservative: no escalation.
+  """
+  if not isinstance(distance_range, tuple) or len(distance_range) != 2:
+    return False, 'no_distance_bounds'
+  try:
+    near, far = float(distance_range[0]), float(distance_range[1])
+    if not math.isfinite(near) or not math.isfinite(far) or not 0. < near <= far:
+      return False, 'no_distance_bounds'
+    for lead in (radar_state.leadOne, radar_state.leadTwo):
+      if lead.status and math.isfinite(lead.dRel) and 0 < lead.dRel <= far + 5.:
+        return False, 'lead_overlap_ambiguous'
+    return True, 'clear'
+  except (AttributeError, TypeError, ValueError):
+    return False, 'radar_invalid'
+
+
+class PrepareArbitrator:
+  """Plan-side arbitrator for the prepare accel cap (navipilot pattern).
+
+  Owns the decision-to-actuation machinery so the controller stays a pure
+  decision function: evidence-loss grace, driver-override cooldown, radar
+  corroboration and the stop-distance envelope. Shadow and control run the
+  same code path - only ``actuate`` differs. It can only ever permit a
+  deceleration cap; it never requests a stop or a departure, and any
+  inconsistency clears the cap for the cycle.
+  """
+
+  GRACE = STOP_EVIDENCE_LOSS_GRACE_S
+  OVERRIDE_COOLDOWN = PREPARE_OVERRIDE_COOLDOWN_S
+  # Only transient evidence gaps keep the cap; a controller reset (no_red,
+  # stale, ineligible, malformed, ...) releases it immediately.
+  GRACE_REASONS = ('awaiting_fresh', 'night_waiting')
+
+  def __init__(self):
+    self.last_active = -math.inf
+    self.override_until = -math.inf
+    self.last_reason = 'disabled'
+
+  def reset(self, reason='disabled'):
+    self.last_active = -math.inf
+    self.override_until = -math.inf
+    self.last_reason = reason
+    return False, SignalStopPrepare.TARGET_ACCEL, self.last_reason
+
+  def engage(self, now, decision, actuate, radar_state, cs, a_ego, actuator_delay,
+             comfort_brake=PREPARE_COMFORT_BRAKE, jerk_limit=PREPARE_JERK_LIMIT):
+    """Return (active, target_accel, reason) for the accel cap this cycle."""
+    try:
+      gas, brake, speed = bool(cs.gasPressed), bool(cs.brakePressed), float(cs.vEgo)
+      if not all(math.isfinite(v) for v in (now, speed, float(a_ego), float(actuator_delay))):
+        return self.reset('invalid_context')
+    except (AttributeError, TypeError, ValueError):
+      return self.reset('invalid_context')
+    if gas or brake:
+      self.override_until = now + self.OVERRIDE_COOLDOWN
+    if decision is None or not actuate or gas or brake or now < self.override_until:
+      return False, SignalStopPrepare.TARGET_ACCEL, 'gated'
+    if bool(getattr(decision, 'active', False)):
+      self.last_active = now
+    elif not (getattr(decision, 'reason', '') in self.GRACE_REASONS and now-self.last_active <= self.GRACE):
+      return False, SignalStopPrepare.TARGET_ACCEL, 'released'
+    distance_range = getattr(decision, 'distance_range', None)
+    escalate, reason = prepare_radar_corroboration(radar_state, distance_range)
+    target = SignalStopPrepare.TARGET_ACCEL
+    if escalate and isinstance(distance_range, tuple):
+      near, far = distance_range[0], distance_range[1]
+      envelope = required_stop_distance(speed, a_ego, actuator_delay, comfort_brake, jerk_limit)
+      # Escalate only where it can matter: the gentle cap cannot reach the
+      # nearest plausible bound, but the bounded stronger cap still can. Past
+      # the far bound even -1.2 m/s^2 cannot make the light, so the gentle
+      # advisory cap is kept (it only ever lowers accel, never claims a stop).
+      if math.isfinite(envelope) and near < envelope <= far:
+        target = PREPARE_ESCALATED_ACCEL
+        reason = 'envelope_escalation'
+    self.last_reason = reason
+    return True, target, reason
+
+
 class SignalStopPrepare:
   MAX_AGE = .2
   MAX_GAP = .25
@@ -466,11 +587,12 @@ class PrepareAccel:
   def __init__(self):
     self.cap = None
 
-  def apply(self, target, previous, dt, active):
+  def apply(self, target, previous, dt, active, target_accel=None):
     if not active or not all(math.isfinite(x) for x in (target, previous, dt)) or not 0 < dt <= .2:
       self.cap = None
       return target
+    floor = SignalStopPrepare.TARGET_ACCEL if target_accel is None else min(SignalStopPrepare.TARGET_ACCEL, float(target_accel))
     if self.cap is None:
-      self.cap = max(SignalStopPrepare.TARGET_ACCEL, previous)
-    self.cap = max(SignalStopPrepare.TARGET_ACCEL, self.cap-SignalStopPrepare.RAMP*dt)
+      self.cap = max(floor, previous)
+    self.cap = max(floor, self.cap-SignalStopPrepare.RAMP*dt)
     return min(target, self.cap)

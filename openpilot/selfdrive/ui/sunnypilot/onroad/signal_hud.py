@@ -17,6 +17,8 @@ All of it is advisory: a painted colour never means the car is responding to
 the signal. The ring is only reachable at all when SignalAssistMode > 0,
 because the planner leaves the action at 0 (unknown) below that.
 """
+import time
+
 import pyray as rl
 
 from openpilot.selfdrive.ui.signal_status import (
@@ -38,6 +40,11 @@ SIGNAL_CAPTION_GAP = 6
 SIGNAL_PAUSED_TEXT = 'PAUSED'
 SIGNAL_PAUSED_SIZE = 30
 SIGNAL_PAUSED_COLOR = (215, 220, 225, 235)
+# Lead brake-lamp observation caption (display only; candidate means "BRAKE?",
+# never verified braking). Orange echoes the cluster-style lamp accent.
+BRAKE_CANDIDATE_TEXT = 'BRAKE?'
+BRAKE_CANDIDATE_COLOR = (255, 100, 40, 255)
+BRAKE_CAPTION_SIZE = 30
 
 
 class SignalHudRenderer:
@@ -45,11 +52,27 @@ class SignalHudRenderer:
 
   def __init__(self):
     self._font = gui_app.font(FontWeight.SEMI_BOLD)
+    self._brake_next_read = 0.
+    self._brake_candidate = False
+
+  def _update_brake_candidate(self, now: float | None = None) -> None:
+    """Throttled (10 Hz) read of the modeld lead-brake-lamp tmpfs record.
+
+    Purely advisory: the record itself carries control_permission False and a
+    missing/stale/oversized file clears the caption rather than holding it.
+    """
+    now = time.monotonic() if now is None else now
+    if now >= self._brake_next_read:
+      self._brake_next_read = now + .1
+      try:
+        from openpilot.sunnypilot.carrot.lead_brake_lights import requested, ui_candidate
+        self._brake_candidate = bool(requested()) and (ui_candidate(now=now) or {}).get('state') == 'candidate'
+      except Exception:
+        self._brake_candidate = False
 
   def render(self, rect: rl.Rectangle, sm) -> None:
     """Paint the ring and dot for the current evidence."""
-    if not getattr(ui_state, 'carrot_signal_hud', False):
-      return
+    self._update_brake_candidate()
 
     try:
       plan = sm['longitudinalPlanSP']
@@ -58,6 +81,10 @@ class SignalHudRenderer:
     except (AttributeError, KeyError, TypeError, ValueError):
       return
 
+    if not getattr(ui_state, 'carrot_signal_hud', False):
+      return
+    if self._brake_candidate:
+      self._draw_brake_caption(rect)
     if not signal_visible(action, suspended):
       return
 
@@ -70,6 +97,17 @@ class SignalHudRenderer:
       rl.draw_circle(cx, cy, SIGNAL_RADIUS * SIGNAL_DOT_RATIO, rl.Color(*dot))
     if suspended:
       self._draw_caption(cx, cy + SIGNAL_RADIUS + SIGNAL_CAPTION_GAP)
+
+  def _draw_brake_caption(self, rect: rl.Rectangle) -> None:
+    """Shadowed BRAKE? caption at the top edge of the signal ring area."""
+    cx = int(rect.x + rect.width / 2)
+    cy = int(rect.y + SIGNAL_CENTER_Y_OFFSET - SIGNAL_RADIUS - BRAKE_CAPTION_SIZE - SIGNAL_CAPTION_GAP)
+    size = measure_text_cached(self._font, BRAKE_CANDIDATE_TEXT, BRAKE_CAPTION_SIZE)
+    x = cx - size.x / 2
+    rl.draw_text_ex(self._font, BRAKE_CANDIDATE_TEXT, rl.Vector2(x + 1, float(cy) + 1), BRAKE_CAPTION_SIZE, 0,
+                    rl.Color(*POINT_COLOR_SHADOW))
+    rl.draw_text_ex(self._font, BRAKE_CANDIDATE_TEXT, rl.Vector2(x, float(cy)), BRAKE_CAPTION_SIZE, 0,
+                    rl.Color(*BRAKE_CANDIDATE_COLOR))
 
   def _draw_caption(self, cx: int, cy: int) -> None:
     """Centre a short label under the ring, shadowed for legibility over the road view."""

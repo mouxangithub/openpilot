@@ -102,6 +102,16 @@ def run(directory=DIRECTORY, duration=None):
       return (*new_trackers(signal_tracker.SignalTracker, comparison, revalidated), f'{os.getpid()}:{time.monotonic_ns()}')
     tracker, daytime_tracker, session_id = new_tracker()
     client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_ROAD, True)
+    # Independent display/log experiment. Instantiated lazily-by-import: on any
+    # import failure it stays None and the loop skips it entirely. It can never
+    # influence control: the tmpfs record carries control_permission False and
+    # consumers only render or log it.
+    brake_observer = None
+    try:
+      from openpilot.sunnypilot.carrot.lead_brake_lights import BrakeRuntime
+      brake_observer = BrakeRuntime()
+    except Exception:
+      pass
     start = time.monotonic()
     cloudlog.event('signalTrackingShadowLoaded', mode='tracking_observation', algorithm_sha256=source_sha,
                    runtime=cv2.__version__, pid=os.getpid(), max_hz=20, target_cpu_duty=.5,
@@ -171,6 +181,11 @@ def run(directory=DIRECTORY, duration=None):
           publish_start_observation(record)
       except (OSError, ValueError):
         cloudlog.exception('signalPrepareObservationPublishFailed')
+      if brake_observer is not None:
+        try:
+          brake_observer.update(rgb, frame_id, eof / 1e9, session_id, work_start, cloudlog.event)
+        except Exception:
+          cloudlog.exception('leadBrakeLightsFailed')
       cloudlog.event('signalTrackingShadow', **record)
       comparison_record = None
       if daytime_tracker is not None:
