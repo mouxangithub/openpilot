@@ -35,3 +35,4 @@ jobs:
         # pytest is not a declared dependency (upstream's runner is unittest), so it rides in
         # ephemerally; libsafety is compiled by cffi at import, nothing needs the scons tree
         run: uv run --with pytest pytest -q opendbc_repo/opendbc/car/mazda/tests opendbc_repo/opendbc/safety/tests/test_mazda.py
+          opendbc_repo/opendbc/sunnypilot/car/tests/test_params_int_fields.py
