@@ -1,3 +1,11 @@
+zoompilot vUNRELEASED
+========================
+* Experimental Mode shows its orbits in the confidence dot.
+* CX-5: steering delay learning starts at 0.25 s.
+* jetlink
+  * Jetlink-only models can be picked in sunnylink.
+  * The Jetlink port draws less power at boot.
+
 zoompilot v2026.10.16-16
 ========================
 * Fixes bugs
