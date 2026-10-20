@@ -796,8 +796,8 @@ class TestAcceleratorLinkToggle:
     params.put(self.PARAM, 2, block=True)
     toggle = self._toggle()
     with mock.patch('openpilot.selfdrive.ui.sunnypilot.mici.layouts.models.ui_state.is_offroad', return_value=False):
-      # drawn disabled, as the model buttons beside it are onroad: a refused
-      # tap used to animate with nothing changing
+      # drawn disabled, as the model buttons beside it are onroad, so a
+      # refused tap never animates with nothing changing
       assert not toggle.enabled
       self._tap(toggle)
       assert params.get(self.PARAM) == 2

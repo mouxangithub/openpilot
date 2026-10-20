@@ -7,11 +7,12 @@ See the LICENSE.md file in the root directory for more details.
 Where jetlink meets modeld, in both modelds: stock modeld and sunnypilot's
 modeld_tinygrad, which a custom small bundle runs on.
 
-The joining model is held to whatever the loop reads and writes on the model
-it runs: a read the joining model cannot answer, or a write it would keep to
-itself, is found here rather than on the frame thread of a drive. This reads
-the modelds rather than importing them (that costs tinygrad, usb1 and a vision
-stream).
+The hook lines are jetlink's check (testing.check_seam): prepare() before
+modeld goes realtime, attach() once the small model is built, its result run,
+handed_over() and state() read. And the joining model is held to whatever the
+loop reads and writes on the model it runs: a read it cannot answer is found
+here rather than on the frame thread of a drive. Both read the modelds rather
+than import them (that costs tinygrad, usb1 and a vision stream).
 """
 import ast
 import threading
@@ -21,6 +22,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 from jetlink.openpilot.joining import JoiningModelState
+from jetlink.openpilot.testing import check_seam
 
 from openpilot.common.test import OpenpilotTestCase
 
@@ -47,12 +49,15 @@ def _model_attributes(src: str) -> tuple[set[str], set[str]]:
 class JoiningContract:
   PATH: Path
 
-  def test_the_joining_model_answers_every_read_and_keeps_every_write(self):
+  def test_the_hooks_are_where_jetlink_needs_them(self):
+    self.assertEqual(check_seam(self.PATH), [])
+
+  def test_the_joining_model_answers_every_read_and_takes_every_write(self):
     # read out of main() rather than kept by hand. A read the joining model
     # cannot answer is an AttributeError on the frame thread, which modeld
     # re-raises: no driving model for the drive, on jetlink devices only. A
-    # write without a setter lands on the joining model and never reaches the
-    # model that is driving
+    # write without a setter lands on the joining model as a plain attribute,
+    # which it never reads
     loads, stores = _model_attributes(self.PATH.read_text())
     self.assertIn('run', loads, "this no longer finds what the loop reads off the model")
     self.assertEqual(sorted(n for n in loads | stores if n.startswith('_')), [])
@@ -61,7 +66,7 @@ class JoiningContract:
       self.assertTrue(isinstance(prop, property) and prop.fset is not None,
                       f"{self.PATH.name} writes model.{name}, which JoiningModelState keeps to itself")
 
-    small = SimpleNamespace(**dict.fromkeys(loads | stores, 0.0))
+    small = SimpleNamespace(**dict.fromkeys(loads, 0.0))
     stop = threading.Event()
 
     def connect(should_stop=None):
@@ -77,9 +82,6 @@ class JoiningContract:
         except AttributeError:
           missing.append(name)
       self.assertEqual(missing, [], f"JoiningModelState cannot answer {missing}, which {self.PATH.name} reads")
-      for name in stores:
-        setattr(joining, name, 1.0)
-        self.assertEqual(getattr(small, name), 1.0, f"model.{name} = ... does not reach the small model")
     finally:
       stop.set()
       joining.close()

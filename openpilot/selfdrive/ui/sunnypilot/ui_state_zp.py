@@ -76,8 +76,7 @@ class UIStateZP:
     """jetlink's snapshot when the chestnut icon is the link's: no chestnut
     fitted, and something to show. Presence comes from jetlink: the comma is
     the gadget and enumerates nothing."""
-    s = self.jetlink
-    return s if s is not None and (s.enabled or s.present or s.progress is not None) else None
+    return self.jetlink if self.jetlink is not None and self.jetlink.shown else None
 
   def _jetlink_state(self, view):
     """ChestnutState for the link: progress and the records offroad, modelV2 and acceleratorState onroad"""
@@ -101,6 +100,6 @@ class UIStateZP:
     on turns ADB off, and the developer panels grey its toggle out. Here, not
     in the panels, so a link set from sunnylink counts too. jetlink's owner
     retries the port in seconds while ADB's gadget still holds it."""
-    self.adb_blocked = self.jetlink is not None and self.jetlink.enabled
+    self.adb_blocked = self.jetlink is not None and self.jetlink.holds_port
     if self.adb_blocked and self.params.get_bool("AdbEnabled"):
       self.params.put_bool("AdbEnabled", False, block=True)

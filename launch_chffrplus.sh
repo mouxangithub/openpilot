@@ -83,6 +83,8 @@ function launch {
 
   # hardware specific init
   if [ -f /AGNOS ]; then
+    # with Jetlink on, draw nothing from its USB-C port from boot (docs/porting.md in jetlink)
+    sudo -n bash jetlink/comma/jetlink-root.sh boot /data/params/d/JetlinkLink &
     agnos_init
   fi
 

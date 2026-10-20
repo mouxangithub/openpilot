@@ -43,12 +43,12 @@ class TestLinkStaysOff(OpenpilotTestCase):
     super().setUp()
     Params().put(jetlink_adapter.KEYS.link, jetlink_adapter.MODES.index('usb'), block=True)
     for p in (mock.patch.object(gadget, 'gadget_error', return_value='not set up'),
-              mock.patch.object(jetlink_adapter, '_bound', None)):
+              mock.patch.object(jetlink_adapter, '_hooks', None)):
       p.start()
       self.addCleanup(p.stop)
 
   def fitted(self, chestnut: bool):
-    jetlink_adapter._bound = None   # a process of its own: the bus walk is cached
+    jetlink_adapter._hooks = None   # a process of its own: the bus walk is cached
     return mock.patch('openpilot.selfdrive.modeld.helpers.chestnut_present', return_value=chestnut)
 
   def test_the_setting_on_beside_a_chestnut_is_off(self):

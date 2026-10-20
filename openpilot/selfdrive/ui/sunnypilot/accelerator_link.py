@@ -47,13 +47,10 @@ def link_status() -> str:
   than claiming an empty port.
   """
   jetlink = ui_state.jetlink
-  if jetlink is None:
-    return ""
-  if jetlink.present:
+  port = jetlink.port_state if jetlink is not None else None
+  if port == "connected":
     return f"{tr('Jetlink connected:')} {jetlink.transport}."
-  if jetlink.port is None:
-    return ""
-  return tr("Nothing on the USB port.") if jetlink.port == "empty" else tr("A device is on the USB port.")
+  return {"empty": tr("Nothing on the USB port."), "device": tr("A device is on the USB port.")}.get(port, "")
 
 
 def big_model_progress() -> tuple[str, float, str] | None:

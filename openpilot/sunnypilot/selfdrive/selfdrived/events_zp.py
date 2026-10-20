@@ -234,8 +234,8 @@ EVENTS_ZP: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # an accelerator lost or too slow while engaged: the small model drives on
   # from a reset history and nothing disengages. As loud as a soft disable for
   # 5 s (accelerator_events), but it says what happened, not TAKE CONTROL:
-  # nothing has let go, and a driver told to take control on every drop read
-  # it as a disengage (2026-10-04). A disengage ends it
+  # nothing has let go, and a driver told to take control on every drop reads
+  # it as a disengage. A disengage ends it
   EventNameZP.bigModelLinkLost: {
     ET.WARNING: Alert(
       "Big Model Lost",

@@ -57,7 +57,7 @@ class JetlinkTest(OpenpilotTestCase):
   def setUp(self):
     super().setUp()
     # a binding of its own, so no cache of another test's params answers here
-    p = mock.patch.object(jetlink_adapter, '_bound', None)
+    p = mock.patch.object(jetlink_adapter, '_hooks', None)
     p.start()
     self.addCleanup(p.stop)
 
@@ -109,7 +109,7 @@ class TestExtendsCatalog(JetlinkTest):
   def extends(self, fitted: bool, link: str) -> bool:
     Params().put(KEYS.link, MODES.index(link), block=True)
     a, b = chestnut(fitted)
-    with a, b, mock.patch.object(jetlink_adapter, '_bound', None):
+    with a, b, mock.patch.object(jetlink_adapter, '_hooks', None):
       return jetlink_adapter.should_extend_catalog()
 
   def test_without_a_chestnut_it_is_extended_whatever_the_setting(self):
@@ -244,7 +244,7 @@ class RefreshTest(JetlinkTest):
   def new_process(self) -> None:
     """The manager runs offroad only, so each parked period is a fresh process."""
     model_helpers._LAST_VALIDATED_RAW.clear()
-    jetlink_adapter._bound = None
+    jetlink_adapter._hooks = None
     with mock.patch.object(manager_module.messaging, 'PubMaster'), mock.patch.object(manager_module.messaging, 'SubMaster'):
       self.manager = manager_module.ModelManagerSP()
     self.manager.sm.__getitem__.return_value.chestnutPresent = self.CHESTNUT
@@ -258,7 +258,7 @@ class RefreshTest(JetlinkTest):
     # the loop swallows what the tick raised, and says so
     self.assertFalse([c for c in logged.call_args_list if str(c.args[0]).startswith("Error in main thread")])
     # what jetlink keeps of the catalog and the pick lasts two seconds
-    jetlink_adapter._bound = None
+    jetlink_adapter._hooks = None
 
   def refresh(self) -> None:
     """What the panels' button does (model_info.refresh_model_list), then the manager's next tick."""
@@ -277,7 +277,8 @@ class RefreshTest(JetlinkTest):
 
   def marks(self) -> dict:
     """What the owner stats to decide a provisioning run is due."""
-    return Settings(FileParams(jetlink_adapter.owner_config().params_dir), jetlink_adapter.Adapter().keys).marks()
+    config = jetlink_adapter.owner_config()
+    return Settings(FileParams(config.params_dir), config.keys).marks()
 
 
 class TestRefreshOnAJetlinkDevice(RefreshTest):
@@ -310,6 +311,7 @@ class TestRefreshOnAJetlinkDevice(RefreshTest):
     cached = self.params.get(KEYS.catalog)
     self.assertIs(cached[EXTENDED_KEY], True)
     self.assertEqual([b['ref'] for b in cached['bundles']], [V3, V4])
+    self.assertEqual(self.params.get("ModelManager_ActiveJson"), {"qcom": ModelFetcherZP.MODEL_URL})
     self.assert_pick_and_readiness_kept()
 
   def test_a_failed_fetch_leaves_the_pick_and_readiness_alone(self):
@@ -361,6 +363,32 @@ class TestRefreshBesideAChestnut(RefreshTest):
     self.refresh()
     self.assertTrue(all(self.stamps()))
     self.assertEqual(self.params.get(KEYS.catalog), {**BIG, EXTENDED_KEY: False})
+    self.assertEqual(self.params.get("ModelManager_ActiveJson"), {
+      "qcom": ModelFetcherZP.MODEL_URL,
+      "chestnut": ModelFetcherZP.MODEL_URL_CHESTNUT,
+    })
+
+
+class TestActiveJson(OpenpilotTestCase):
+  """Sunnylink UI queries ModelManager_ActiveJson to decide whether to fetch
+  model manifests directly from GitHub or fall back to device cache. When the
+  catalog is extended for Jetlink, chestnut URL is omitted so Sunnylink UI pulls
+  the extended catalog from ModelManager_ModelsCache_Chestnut on the device."""
+
+  def test_active_json_omits_chestnut_when_cached_catalog_is_extended(self):
+    params = Params()
+    params.put(KEYS.catalog, {"bundles": [], EXTENDED_KEY: True}, block=True)
+    ModelFetcherZP(params)
+    self.assertEqual(params.get("ModelManager_ActiveJson"), {"qcom": ModelFetcherZP.MODEL_URL})
+
+  def test_active_json_includes_chestnut_when_cached_catalog_not_extended(self):
+    params = Params()
+    params.put(KEYS.catalog, {"bundles": [], EXTENDED_KEY: False}, block=True)
+    ModelFetcherZP(params)
+    self.assertEqual(params.get("ModelManager_ActiveJson"), {
+      "qcom": ModelFetcherZP.MODEL_URL,
+      "chestnut": ModelFetcherZP.MODEL_URL_CHESTNUT,
+    })
 
 
 if __name__ == '__main__':

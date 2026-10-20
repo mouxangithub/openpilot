@@ -129,19 +129,17 @@ class TestForcedOffroad:
 
 
 class FakeAccelerator:
-  """The adapter's power-off hooks and offroad reason, as HardwaredExt sees them."""
+  """The adapter's shutdown_step and offroad reason, as HardwaredExt sees them: a wanted
+  power-off may go ahead once `taken`."""
 
-  def __init__(self, pending: bool = True, why: str | None = None):
-    self.pending = pending
+  def __init__(self, taken: bool = False, why: str | None = None):
+    self.taken = taken
     self.why = why
-    self.requests: list[str] = []
+    self.steps: list[tuple[bool, str]] = []
 
-  def request_shutdown(self, reason: str) -> bool:
-    self.requests.append(reason)
-    return self.pending
-
-  def shutdown_pending(self) -> bool:
-    return self.pending
+  def shutdown_step(self, should_shutdown: bool, reason: str = '') -> bool:
+    self.steps.append((should_shutdown, reason))
+    return should_shutdown and self.taken
 
   def reason(self) -> str | None:
     return self.why
@@ -156,36 +154,42 @@ def _power_off(monkeypatch, **kwargs):
 
 
 class TestPowerOff:
-  """A shutdown asks the accelerator once and DoShutdown waits until it took the request or
-  ACCELERATOR_OFF_WAIT_T has passed; meanwhile powering_off holds any new drive back."""
+  """A shutdown asks the accelerator through jetlink's shutdown_step, which asks once and keeps
+  its own deadline, and DoShutdown waits until jetlink says it may or ACCELERATOR_OFF_WAIT_T has
+  passed; meanwhile powering_off holds any new drive back. jetlink's tests hold the asking."""
 
-  def test_no_shutdown_asks_nothing(self, monkeypatch):
-    ext, jetlink, _ = _power_off(monkeypatch)
+  def test_it_is_polled_from_boot_and_powers_nothing_off(self, monkeypatch):
+    # the first step clears a request an earlier hardwared left
+    ext, jetlink, _ = _power_off(monkeypatch, taken=True)
     assert not any(ext.shutdown_ready(False, 12.0) for _ in range(3))
-    assert jetlink.requests == [] and not ext.powering_off
+    assert [wanted for wanted, _ in jetlink.steps] == [False] * 3 and not ext.powering_off
 
-  def test_nothing_to_ask_goes_down_at_once(self, monkeypatch):
-    ext, jetlink, _ = _power_off(monkeypatch, pending=False)
+  def test_nothing_to_wait_for_goes_down_at_once(self, monkeypatch):
+    ext, jetlink, _ = _power_off(monkeypatch, taken=True)
     assert ext.shutdown_ready(True, 12.0)
-    assert jetlink.requests == ["comma shutting down, offroad since 12.0"]
+    assert jetlink.steps == [(True, "comma shutting down, offroad since 12.0")]
 
-  def test_it_asks_once_and_goes_down_when_the_request_is_taken(self, monkeypatch):
+  def test_the_first_shutdown_holds_until_jetlink_says_go(self, monkeypatch):
     ext, jetlink, clock = _power_off(monkeypatch)
     assert not ext.shutdown_ready(True, 12.0)
     assert ext.powering_off
     clock.t = 5.0
-    assert not ext.shutdown_ready(False, 12.0)  # once asked, the power monitor is not asked again
-    jetlink.pending = False
+    assert not ext.shutdown_ready(False, 12.0)  # the power monitor is not asked again
+    jetlink.taken = True
     assert ext.shutdown_ready(False, 12.0)
-    assert len(jetlink.requests) == 1
+    assert [wanted for wanted, _ in jetlink.steps] == [True] * 3
 
-  def test_nobody_taking_it_costs_the_wait_and_no_more(self, monkeypatch):
+  def test_a_jetlink_that_never_says_go_costs_the_cap_and_no_more(self, monkeypatch):
     ext, _, clock = _power_off(monkeypatch)
     assert not ext.shutdown_ready(True, 12.0)
     clock.t = ACCELERATOR_OFF_WAIT_T - 0.1
     assert not ext.shutdown_ready(True, 12.0)
     clock.t = ACCELERATOR_OFF_WAIT_T
     assert ext.shutdown_ready(True, 12.0)
+
+  def test_the_cap_outlasts_jetlinks_own_deadline(self):
+    import jetlink.openpilot as jl  # unittest's runner has no jetlink_repo on the path
+    assert ACCELERATOR_OFF_WAIT_T == jl.SHUTDOWN_TIMEOUT + 5
 
   def test_the_unavailable_alert_follows_the_reason(self, monkeypatch):
     ext, jetlink, _ = _power_off(monkeypatch)

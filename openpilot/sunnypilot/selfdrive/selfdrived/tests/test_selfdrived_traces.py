@@ -83,7 +83,7 @@ class ChestnutTraces(TraceTest):
     # modeld writes ChestnutActive=False first: the load timed out or threw.
     self.assertEqual(self.step(loading=True, active=False, alive=False), ([INIT, 'bigModelLoading', 'bigModelFailed'], []))
     # and clears ChestnutLoading once the small model is up; that second edge
-    # used to chime "Big Model Ready" over "Big Model Failed"
+    # must not chime "Big Model Ready" over "Big Model Failed"
     self.assertEqual(self.step(loading=False, active=False), ([INIT], []))
     for _ in range(10):
       self.assertEqual(self.step(loading=False, active=False), ([INIT], []))
@@ -124,7 +124,7 @@ class JetlinkTrace(TraceTest):
     self.assertEqual(self.step(state=AcceleratorState.ready, standstill=True), ([INIT], []))
     # the driver turns everything off: it swaps. A second in which nothing
     # engages while the large model builds its history, then one chime, which
-    # now means the driver can engage
+    # means the driver can engage
     self.engage()
     swap = self.steps(SWITCHING_TICKS + 10, state=AcceleratorState.running, big=True)
     self.assertEqual(swap[:SWITCHING_TICKS], [([INIT, 'bigModelLoading'], [])] * SWITCHING_TICKS)

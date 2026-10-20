@@ -6,9 +6,10 @@ See the LICENSE.md file in the root directory for more details.
 
 jetlink's comma side on this fork's tinygrad. jetlink's own tests run it on a
 numpy stand-in, since its CI installs neither tinygrad nor openpilot; what
-only the real one can show is here: the small model's reset on a real
-TinyJit, on the buffers each of openpilot's ModelStates keeps, and the large
-model's frame path from the camera buffer to the wire through modeld's warp.
+only the real one can show is here: the reset of the small model
+on a real TinyJit, on the buffers each of this fork's ModelStates keeps, and
+the large model's frame path from the camera buffer to the wire through
+modeld's warp.
 """
 import ast
 import json
@@ -22,9 +23,8 @@ from types import SimpleNamespace
 import numpy as np
 from tinygrad import Tensor
 
-from jetlink.openpilot.warp import prepare_reset
-
 from openpilot.common.test import OpenpilotTestCase
+from openpilot.sunnypilot import jetlink_adapter
 from openpilot.system.camerad.cameras.nv12_info import get_nv12_info
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -42,7 +42,14 @@ def assigned(path: Path, cls: str) -> set[str]:
           and isinstance(n.value, ast.Name) and n.value.id == 'self'}
 
 
-class TestPrepareReset(OpenpilotTestCase):
+def small_reset(model):
+  """The reset of `model`, captured as jetlink does before the frame loop: the
+  adapter's, else jetlink's own, which knows this fork's ModelStates."""
+  from jetlink.openpilot.warp import prepare_reset
+  return jetlink_adapter.adapter().small_reset(model) or prepare_reset(model)
+
+
+class TestSmallReset(OpenpilotTestCase):
   """The small model's history, cleared after the large model drove, on the
   buffers its JIT captured: nothing allocated or compiled on the failure frame."""
 
@@ -56,7 +63,7 @@ class TestPrepareReset(OpenpilotTestCase):
     model = SimpleNamespace(input_queues={**queues, 'desire': state(8)}, state_pairs=pairs, packed_input=packed,
                             prev_desire=np.ones(8))
     identities = {k: id(v) for k, v in model.input_queues.items()}
-    reset = prepare_reset(model)
+    reset = small_reset(model)
     for _ in range(3):
       for q in model.input_queues.values():
         q.assign(7).realize()
@@ -77,7 +84,7 @@ class TestPrepareReset(OpenpilotTestCase):
     adapter = SimpleNamespace(is_native=True, input_queues={'state_img_q': state(5, 6, 2, 4, dtype=np.uint8)},
                               state_pairs={'state_img_q': 'next_state_img_q'}, packed_input=packed)
     model = SimpleNamespace(adapter=adapter, prev_desire=np.ones(8))
-    reset = prepare_reset(model)
+    reset = small_reset(model)
     adapter.input_queues['state_img_q'].assign(7).realize()
     reset()
     np.testing.assert_array_equal(adapter.input_queues['state_img_q'].numpy(), 0)
@@ -93,7 +100,7 @@ class TestPrepareReset(OpenpilotTestCase):
                               numpy_inputs={'desire': packed[:8], 'lateral_control_params': packed[8:10], 'prev_desired_curv': packed[10:],
                                             'tfm': np.ones((3, 3), dtype=np.float32), 'big_tfm': np.ones((3, 3), dtype=np.float32)})
     model = SimpleNamespace(adapter=adapter, prev_desire=np.ones(8))
-    reset = prepare_reset(model)
+    reset = small_reset(model)
     for q in queues.values():
       q.assign(7).realize()
     reset()
@@ -104,7 +111,7 @@ class TestPrepareReset(OpenpilotTestCase):
     np.testing.assert_array_equal(adapter.input_queues['packed_npy_inputs'].numpy(), 0)
 
   def test_it_reads_what_openpilots_model_states_have(self):
-    # prepare_reset reads these names; a sync that renames one breaks every
+    # the reset reads these names; a sync that renames one breaks every
     # fallback to the small model
     adapters = ROOT / 'openpilot/sunnypilot/modeld_v2/model_adapters.py'
     for path, cls, names in ((ROOT / 'openpilot/selfdrive/modeld/modeld.py', 'ModelState',

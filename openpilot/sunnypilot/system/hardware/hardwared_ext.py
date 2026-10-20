@@ -12,8 +12,9 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.selfdrive.car.stock_ecu_handback import StockEcuHandBackGate
 
-# how long a shutdown waits on an accelerator that has not taken the request to power off
-ACCELERATOR_OFF_WAIT_T = 25.0
+# the longest a shutdown waits on the accelerator: jetlink's own deadline
+# (SHUTDOWN_TIMEOUT) and 5 s, so a jetlink regression never keeps a comma on
+ACCELERATOR_OFF_WAIT_T = 25.0 + 5.0
 
 
 class HardwaredExt:
@@ -33,10 +34,11 @@ class HardwaredExt:
   the fresh session like a boot (ELM327 until the new CarParams is ready) instead of
   applying the old safety and opening the relay seconds before controls come up.
 
-  An accelerator on its own supply outlives the comma, so a shutdown asks it once to power
-  off and DoShutdown waits until it took the request or ACCELERATOR_OFF_WAIT_T has passed.
-  hardware_thread keeps publishing deviceState through that wait, and no drive may start
-  under the power-off that follows (powering_off is a startup condition).
+  An accelerator on its own supply outlives the comma, so a shutdown asks it to power off
+  (jetlink's shutdown_step, which asks once and keeps its own deadline) and DoShutdown waits
+  until jetlink says it may, or ACCELERATOR_OFF_WAIT_T has passed. hardware_thread keeps
+  publishing deviceState through that wait, and no drive may start under the power-off
+  that follows (powering_off is a startup condition).
   """
 
   def __init__(self, params: Params) -> None:
@@ -55,14 +57,15 @@ class HardwaredExt:
     set_offroad_alert("Offroad_AcceleratorUnavailable", accelerator_error is not None, extra_text=accelerator_error)
 
   def shutdown_ready(self, should_shutdown: bool, off_ts: float | None) -> bool:
-    """True once hardwared may put DoShutdown. Once asked, the power monitor is not consulted again."""
-    if self.accelerator_off_ts is None:
-      if not should_shutdown:
-        return False
+    """True once hardwared may put DoShutdown. From the first should_shutdown on, the power
+    monitor is not consulted again."""
+    if should_shutdown and self.accelerator_off_ts is None:
       cloudlog.warning(f"shutting device down, offroad since {off_ts}")
-      jetlink_adapter.request_shutdown(f"comma shutting down, offroad since {off_ts}")
       self.accelerator_off_ts = self.now()
-    return not jetlink_adapter.shutdown_pending() or self.now() - self.accelerator_off_ts >= ACCELERATOR_OFF_WAIT_T
+    wanted = self.accelerator_off_ts is not None
+    # every loop from boot: the first also clears a request an earlier hardwared left
+    ready = jetlink_adapter.shutdown_step(wanted, f"comma shutting down, offroad since {off_ts}")
+    return wanted and (ready or self.now() - self.accelerator_off_ts >= ACCELERATOR_OFF_WAIT_T)
 
   def update(self, started: bool) -> bool:
     cycle = self.params.get_bool("OnroadCycleRequested")

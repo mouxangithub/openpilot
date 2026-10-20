@@ -567,9 +567,7 @@ class TestModelFetcherSources(OpenpilotTestCase):
 class TestSourceCacheIntegrity(OpenpilotTestCase):
   """Each source's cached manifest must contain only that source's models; the
   `is_big` flag in the JSON marks the big (chestnut) models. A mismatched cache is
-  legacy data from before the per-source split (the active manifest was cached
-  under the unsuffixed key regardless of hardware) and is refetched. This
-  replaces the old one-time bundle migration."""
+  one with the other source's models under its key, and is refetched."""
 
   def _make_params(self, qcom_manifest, chestnut_manifest):
     params = mock.MagicMock()
@@ -590,8 +588,8 @@ class TestSourceCacheIntegrity(OpenpilotTestCase):
     return ModelFetcher(mock.MagicMock()).model_parser.parse_models({"bundles": list(bundles)})
 
   def test_qcom_cache_with_big_models_is_refetched(self):
-    """Legacy: the unsuffixed cache holds the big manifest. is_big confirms it is
-    the wrong set for qcom, so a fresh fetch replaces it."""
+    """The unsuffixed cache holds the big manifest. is_big confirms it is the
+    wrong set for qcom, so a fresh fetch replaces it."""
     params = self._make_params({"bundles": [manifest_bundle("big", "bbb", is_big=True)]},
                                {"bundles": [manifest_bundle("big2", "ccc", is_big=True)]})
     fetcher = ModelFetcher(params)
@@ -733,7 +731,7 @@ class TestBigModelSlotWithoutChestnut(ManagerDownloadTestBase):
       self.manager.download(self._big_bundle(), self.dest, "chestnut")
     fetch.assert_not_called()
     # never said to be downloading: nothing is fetched, and with no files the
-    # mici panel divided a download's progress by zero (2026-10-06)
+    # mici panel would divide a download's progress by zero
     assert statuses == [custom.ModelManagerSP.DownloadStatus.downloaded]
     stored = [c for c in self.manager.params.put.call_args_list if c.args[0] == ACTIVE_BUNDLE_KEYS["chestnut"]]
     assert len(stored) == 1 and stored[0].args[1]["ref"] == "big"

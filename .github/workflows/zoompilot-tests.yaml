@@ -3,7 +3,9 @@ name: zoompilot tests
 # The Mazda car tests are pytest-style and opendbc's own CI (unittest discovery) never collects
 # them; the main repo's test runner only walks openpilot/. Run them here, on the branches we
 # develop and publish from, alongside the Mazda safety tests that pin the controller's steer
-# envelope to the panda's. Kept out of tests.yaml so upstream syncs stay clean.
+# envelope to the panda's. And the suites that touch jetlink (the jetlink_repo submodule): its
+# adapter, the hooks in hardwared, selfdrived, manager and the model manager, and the UI that
+# shows it. Kept out of tests.yaml so upstream syncs stay clean.
 
 on:
   push:
@@ -36,3 +38,47 @@ jobs:
         # ephemerally; libsafety is compiled by cffi at import, nothing needs the scons tree
         run: uv run --with pytest pytest -q opendbc_repo/opendbc/car/mazda/tests opendbc_repo/opendbc/safety/tests/test_mazda.py
           opendbc_repo/opendbc/sunnypilot/car/tests/test_params_int_fields.py
+
+  jetlink:
+    name: jetlink adapter, hook and UI tests
+    runs-on: ubuntu-24.04
+    env:
+      # jetlink is imported from the submodule, as a device has it through the jetlink link
+      # launch_chffrplus.sh makes; the root conftest.py puts it first for pytest too
+      PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/jetlink_repo
+    steps:
+      - uses: actions/checkout@v7
+      - run: ./tools/op.sh setup
+      - name: Install raylib headless dependencies
+        run: sudo apt-get install -y --no-install-recommends libgles2 libegl1
+      - name: Cache SCons
+        uses: actions/cache@v4
+        with:
+          path: /tmp/scons_cache
+          key: scons-jetlink-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+          restore-keys: |
+            scons-jetlink-${{ runner.os }}-${{ runner.arch }}
+      - name: Build openpilot
+        # params, msgq and the cython modules the suites import
+        run: scons -j"$(nproc)"
+      - name: jetlink suites
+        # one pytest process per suite: several in one process crash at teardown. The mici
+        # settings suite runs locally only: headless pyray has no raygui enums
+        env:
+          RAYLIB_BACKEND: headless
+        run: |
+          failed=0
+          for suite in \
+              openpilot/sunnypilot/jetlink_adapter/tests \
+              openpilot/sunnypilot/selfdrive/selfdrived/tests/test_accelerator_events.py \
+              openpilot/sunnypilot/selfdrive/selfdrived/tests/test_selfdrived_traces.py \
+              openpilot/sunnypilot/system/hardware/tests/test_hardwared_ext.py \
+              openpilot/sunnypilot/system/manager/tests/test_processes.py \
+              openpilot/sunnypilot/sunnylink/athena/tests/test_sunnylinkd.py \
+              openpilot/sunnypilot/models/tests/test_manager_download.py \
+              openpilot/sunnypilot/mads/tests/test_mads_state_machine.py \
+              openpilot/selfdrive/ui/sunnypilot/tests/test_accelerator_ui.py \
+              openpilot/selfdrive/ui/sunnypilot/tests/test_model_info.py; do
+            uv run --with pytest pytest -q -p no:cacheprovider "$suite" || failed=1
+          done
+          exit "$failed"

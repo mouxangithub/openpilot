@@ -8,26 +8,28 @@ The adapter against the real openpilot: jetlink tests its side against a fake
 and installs no openpilot, so whatever jetlink relies on of this fork is
 pinned here, where a sync that moves it fails.
 """
-import json
+import contextlib
 import os
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from types import SimpleNamespace
 from unittest import mock
 
 import jetlink.openpilot as jl
-from jetlink.openpilot.interface import Openpilot, OwnerConfig, conformance, load_adapter
+from jetlink.openpilot import hooks
+from jetlink.openpilot.interface import OwnerConfig, load_adapter
 from jetlink.openpilot.settings import FileParams, Settings
+from jetlink.openpilot.testing import check_adapter, check_fallback
 
 from openpilot.cereal import messaging
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params, ParamKeyType
 from openpilot.common.test import OpenpilotTestCase
 from openpilot.sunnypilot import jetlink_adapter
-from openpilot.sunnypilot.jetlink_adapter import KEYS, Adapter
+from openpilot.sunnypilot.jetlink_adapter import KEYS
 
+Adapter = jetlink_adapter._adapter_class()
 ROOT = Path(__file__).resolve().parents[4]
 # what the resident owner must never import: swaglog pulls numpy, capnp and
 # zmq in to publish a log line and costs 28 MB, and params imports swaglog.
@@ -37,19 +39,18 @@ HEAVY = ('numpy', 'capnp', 'zmq', 'cereal', 'msgq', 'tinygrad', 'openpilot.cerea
          'openpilot.common.swaglog')
 
 
-def run_fresh(code: str) -> subprocess.CompletedProcess:
+def run_fresh(argv: list[str]) -> subprocess.CompletedProcess:
   # this runner's own path, so jetlink is found wherever it is checked out
   env = {**os.environ, 'PYTHONPATH': os.pathsep.join([str(ROOT), *sys.path])}
-  return subprocess.run([sys.executable, '-c', code], capture_output=True, text=True, env=env, cwd=str(ROOT), timeout=120)
-
-
-def heavy(modules) -> list[str]:
-  return sorted(m for m in modules if any(m == h or m.startswith(h + '.') for h in HEAVY))
+  return subprocess.run(argv, capture_output=True, text=True, env=env, cwd=str(ROOT), timeout=120)
 
 
 class TestTheInterface(OpenpilotTestCase):
-  def test_the_adapter_implements_it(self):
-    self.assertEqual(conformance(Adapter(), Openpilot), [])
+  def test_it_is_jetlinks_adapter_module(self):
+    # every side of the interface, a top level of the standard library, and an
+    # owner_config() that imports nothing heavy: everything the owner imports
+    # runs for the whole drive
+    self.assertEqual(check_adapter(jetlink_adapter, heavy=HEAVY), [])
 
   def test_the_api_and_the_setting_are_jetlinks(self):
     self.assertEqual(jetlink_adapter.API, jl.API)
@@ -74,7 +75,7 @@ class TestParams(OpenpilotTestCase):
   def test_the_directory_is_params(self):
     # OpenpilotTestCase runs each test under a prefix of its own
     self.assertEqual(jetlink_adapter._params_dir(), Path(Params().get_param_path()))
-    self.assertEqual(Adapter().params_dir(), jetlink_adapter.owner_config().params_dir)
+    self.assertEqual(Adapter().params_dir(), jetlink_adapter._params_dir())
 
   def test_the_directory_follows_params_root_and_the_prefix(self):
     with tempfile.TemporaryDirectory() as root:
@@ -82,6 +83,7 @@ class TestParams(OpenpilotTestCase):
         with mock.patch.dict(os.environ, {'PARAMS_ROOT': root, 'OPENPILOT_PREFIX': prefix}):
           self.assertEqual(jetlink_adapter._params_dir(), Path(Params().get_param_path()))
           self.assertEqual(jetlink_adapter._params_dir(), Path(root) / prefix)
+          self.assertEqual(Adapter().params_dir(), Path(root) / prefix)
 
   def test_the_owner_reads_what_params_wrote(self):
     # jetlink reads the two hot settings as files, by params.cc's format
@@ -131,7 +133,7 @@ class TestParams(OpenpilotTestCase):
 class TestTheDevice(OpenpilotTestCase):
   def test_the_chestnut_ids_are_the_hardware_modules(self):
     from openpilot.common.hardware.usb import CHESTNUT_ROM_USB_IDS, CHESTNUT_USB_IDS
-    self.assertEqual(jetlink_adapter.CHESTNUT_IDS, frozenset(CHESTNUT_USB_IDS + CHESTNUT_ROM_USB_IDS))
+    self.assertEqual(Adapter.CHESTNUT_IDS, frozenset(CHESTNUT_USB_IDS + CHESTNUT_ROM_USB_IDS))
 
   def test_a_chestnut_is_modelds_answer(self):
     for fitted in (True, False):
@@ -178,7 +180,7 @@ class TestModeld(OpenpilotTestCase):
     self.assertIsNone(op._sm, 'a SubMaster only in the modeld that asks')
     self.assertIs(op.in_control(), True, 'nothing heard yet')
     sm = op._sm
-    self.assertEqual(sm.services, list(jetlink_adapter.IN_CONTROL))
+    self.assertEqual(sm.services, list(Adapter.IN_CONTROL_SERVICES))
     sm.update = lambda timeout=0: None   # the messages are set by hand below
 
     def healthy():
@@ -203,39 +205,8 @@ class TestModeld(OpenpilotTestCase):
     sm['carControlSP'].mads.enabled = False
     self.assertFalse(op.in_control())
     # a rule that fails on the frame thread holds the swap off, never modeld
-    op._sm = None
     with mock.patch.object(messaging, 'SubMaster', side_effect=RuntimeError('no msgq')):
-      self.assertIs(op.in_control(), True)
-
-  def test_a_chestnut_never_asks_jetlink(self):
-    with mock.patch.object(jetlink_adapter, '_hook', side_effect=AssertionError('asked')):
-      self.assertFalse(jetlink_adapter.prepare(True))
-
-  def test_attach_keeps_the_model_unless_the_link_joins(self):
-    joined = object()
-    with mock.patch.object(jetlink_adapter, '_hook', return_value=None):
-      self.assertEqual(jetlink_adapter.attach('model', 'small', 1928, 1208), 'model')
-    with mock.patch.object(jetlink_adapter, '_hook', return_value=joined) as hook:
-      self.assertIs(jetlink_adapter.attach('model', 'small', 1928, 1208), joined)
-    hook.assert_called_once_with('attach', 'small', 1928, 1208)
-
-  def test_a_handover_is_the_count_moving_across_a_run(self):
-    joining = SimpleNamespace(handovers=0)
-    with mock.patch.object(jetlink_adapter, '_handovers', 0):
-      self.assertFalse(jetlink_adapter.handed_over(object()), 'a plain ModelState never hands over')
-      self.assertFalse(jetlink_adapter.handed_over(joining))
-      joining.handovers = 1
-      self.assertTrue(jetlink_adapter.handed_over(joining))
-      self.assertFalse(jetlink_adapter.handed_over(joining))
-
-  def test_the_state_is_the_joining_models(self):
-    self.assertEqual(jetlink_adapter.state(object()), 'none')
-    self.assertEqual(jetlink_adapter.state(SimpleNamespace(big_model_state='ready')), 'ready')
-
-  def test_what_the_hooks_read_off_the_model_is_the_joining_models(self):
-    from jetlink.openpilot.joining import JoiningModelState
-    for name in ('handovers', 'big_model_state'):
-      self.assertIsInstance(getattr(JoiningModelState, name), property, name)
+      self.assertIs(Adapter().in_control(), True)
 
   def test_telemetry_is_a_cloudlog_event(self):
     op = Adapter()
@@ -245,18 +216,6 @@ class TestModeld(OpenpilotTestCase):
 
 
 class TestTheOwner(OpenpilotTestCase):
-  def test_the_owners_path_stays_out_of_the_heavy_half(self):
-    code = '''
-import json, sys
-from openpilot.sunnypilot import jetlink_adapter
-import jetlink.openpilot.owner
-jetlink_adapter.owner_config()
-print(json.dumps(sorted(sys.modules)))
-'''
-    out = run_fresh(code)
-    self.assertEqual(out.returncode, 0, out.stderr)
-    self.assertEqual(heavy(json.loads(out.stdout)), [], 'everything the owner imports runs for the whole drive')
-
   def test_manager_runs_the_owner_with_this_fork_s_config(self):
     with mock.patch('jetlink.openpilot.owner.main') as run_owner:
       jetlink_adapter.main()
@@ -267,13 +226,14 @@ print(json.dumps(sorted(sys.modules)))
     owner = managed_processes[jetlink_adapter.OWNER]
     self.assertEqual(owner.module, jetlink_adapter.__name__)
     params = Params()
-    with mock.patch.object(jetlink_adapter, '_bound', None), \
+    with mock.patch.object(jetlink_adapter, '_hooks', None), \
          mock.patch('openpilot.selfdrive.modeld.helpers.chestnut_present', return_value=False):
       for mode in jetlink_adapter.MODES:
         params.put(KEYS.link, jetlink_adapter.MODES.index(mode), block=True)
         for started in (False, True):
           self.assertEqual(owner.should_run(started, params, None), mode != 'off', mode)
-    with mock.patch.object(jetlink_adapter, '_bound', None), \
+    # fresh hooks: jetlink holds a chestnut's answer for a while
+    with mock.patch.object(jetlink_adapter, '_hooks', None), \
          mock.patch('openpilot.selfdrive.modeld.helpers.chestnut_present', return_value=True):
       self.assertFalse(owner.should_run(False, params, None))
 
@@ -282,9 +242,7 @@ print(json.dumps(sorted(sys.modules)))
     # setting through this adapter and is done
     from jetlink.openpilot.owner import worker
     Params().put(KEYS.link, 0, block=True)
-    env = {**os.environ, 'PYTHONPATH': os.pathsep.join([str(ROOT), *sys.path])}
-    out = subprocess.run(worker(jetlink_adapter.owner_config()), capture_output=True, text=True, env=env, cwd=str(ROOT),
-                         timeout=120)
+    out = run_fresh(worker(jetlink_adapter.owner_config()))
     self.assertEqual(out.returncode, 0, out.stderr)
 
 
@@ -375,24 +333,17 @@ class TestManagerStartsADeadOwnerAgain(OpenpilotTestCase):
 
 
 class TestWithoutAUsableJetlink(OpenpilotTestCase):
-  def _hooks(self) -> dict:
-    catalog = {'bundles': []}
-    return {
-      'should_run': jetlink_adapter.should_run(False, None, None),
-      'status': jetlink_adapter.status(),
-      'reason': jetlink_adapter.reason(),
-      'prepare': jetlink_adapter.prepare(False),
-      'attach': jetlink_adapter.attach('model', object(), 1, 1),
-      'request_shutdown': jetlink_adapter.request_shutdown('test'),
-      'shutdown_pending': jetlink_adapter.shutdown_pending(),
-      'should_extend_catalog': jetlink_adapter.should_extend_catalog(),
-      'extend_catalog': jetlink_adapter.extend_catalog(catalog) is catalog,
-      'model_state': jetlink_adapter.model_state('f' * 40),
-    }
+  """The fork's guard: no checkout, a jetlink too old to have the hooks, or one
+  of another API. A jetlink that binds and then fails is jetlink's to answer
+  for (its tests/openpilot/test_hooks.py)."""
 
-  NULL = {'should_run': False, 'status': None, 'reason': None, 'prepare': False, 'attach': 'model',
-          'request_shutdown': False, 'shutdown_pending': False,
-          'should_extend_catalog': False, 'extend_catalog': True, 'model_state': None}
+  def test_every_hook_answers_as_the_link_off(self):
+    for name in jetlink_adapter.HOOK_NAMES:
+      self.assertEqual(getattr(jetlink_adapter, name).__name__, name)
+    for link in (0, 1):
+      Params().put(KEYS.link, link, block=True)
+      self.assertEqual(check_fallback(jetlink_adapter._Off('why'), jetlink_adapter.HOOK_NAMES,
+                                      link_on=jetlink_adapter._link_on), [])
 
   def test_without_a_checkout_every_hook_is_the_link_off(self):
     # an empty jetlink_repo: manager, the UI, hardwared and modeld must not care
@@ -406,50 +357,29 @@ c = {'bundles': []}
 assert not a.should_run(False, None, None)
 assert a.status() is None and a.reason() is None
 assert not a.prepare(False) and a.attach('model', object(), 1, 1) == 'model'
-assert not a.request_shutdown('test') and not a.shutdown_pending()
+assert not a.shutdown_step(False, 'test') and a.shutdown_step(True, 'test')
 assert not a.should_extend_catalog() and a.extend_catalog(c) is c
-assert a.model_state('f' * 40) is None
+assert a.model_state('f' * 40) is None and a.swap_events(0.01) is None
 '''
     # under this test's prefix, which the child inherits
-    out = run_fresh(code)
+    out = run_fresh([sys.executable, '-c', code])
     self.assertEqual(out.returncode, 0, out.stderr)
 
-  def test_another_api_turns_the_link_off_and_says_why(self):
+  def test_another_api_or_one_too_old_turns_the_link_off_and_says_why(self):
     params = Params()
-    for api, name, why in ((2, 'API', "jetlink package API 2, this build expects 3"),
-                           (None, 'openpilot', "jetlink package too old for this build")):
-      if name == 'API':
-        patch = mock.patch.object(jl, 'API', api)
-      else:
-        patch = mock.patch.dict(sys.modules, {'jetlink.openpilot': None})
-      with patch, mock.patch.object(jetlink_adapter, '_bound', None):
+    another_api = [mock.patch.object(hooks, 'COMPATIBLE', frozenset({2})), mock.patch.object(hooks, 'API', 2)]
+    too_old = [mock.patch.dict(sys.modules, {'jetlink.openpilot.hooks': None})]
+    for patches, why in ((another_api, "jetlink package API 2, this build expects 3"),
+                         (too_old, "jetlink package too old for this build")):
+      with contextlib.ExitStack() as stack:
+        for patch in (*patches, mock.patch.object(jetlink_adapter, '_hooks', None)):
+          stack.enter_context(patch)
         params.put(KEYS.link, 1, block=True)
         # the setting is read as a file: nothing here builds a Params
         with mock.patch('openpilot.common.params.Params', side_effect=AssertionError('a Params was built')):
-          self.assertEqual(self._hooks(), {**self.NULL, 'reason': why})
+          # every hook is the fork's _Off, which the check above holds to the link off
+          self.assertIsInstance(jetlink_adapter.hooks(), jetlink_adapter._Off)
+          self.assertEqual(jetlink_adapter.reason(), why)
         # nobody who left the link off is told
         params.put(KEYS.link, 0, block=True)
         self.assertIsNone(jetlink_adapter.reason())
-
-  def test_a_failing_jetlink_never_raises_into_its_caller(self):
-    class Broken:
-      def __getattr__(self, name):
-        def fail(*args, **kwargs):
-          raise RuntimeError(name)
-        return fail
-    with mock.patch.object(jetlink_adapter, '_bound', Broken()), mock.patch.object(jetlink_adapter, '_failed_hooks', {}):
-      self.assertEqual(self._hooks(), self.NULL)
-
-  def test_a_failure_is_logged_again_once_it_changes_or_has_cleared(self):
-    outcomes = iter([RuntimeError('a'), RuntimeError('a'), RuntimeError('b'), None, RuntimeError('b')])
-
-    class Flaky:
-      def status(self):
-        if (e := next(outcomes)) is not None:
-          raise e
-        return 'a snapshot'
-    with mock.patch.object(jetlink_adapter, '_bound', Flaky()), mock.patch.object(jetlink_adapter, '_failed_hooks', {}), \
-         mock.patch.object(jetlink_adapter, '_log_failure') as log:
-      answers = [jetlink_adapter.status() for _ in range(5)]
-    self.assertEqual(answers, [None, None, None, 'a snapshot', None])
-    self.assertEqual([str(c.args[1]) for c in log.call_args_list], ['a', 'b', 'b'])

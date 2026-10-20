@@ -99,7 +99,7 @@ class TestDefaultBigModelName(OpenpilotTestCase):
                {"display_name": "BMRLNAP Model v4 (August 30, 2026)", "ref": "f877d7a0ccc3cce943c76e285214c020cd65c899",
                 "index": 2, "minimum_selector_version": REQUIRED_JSON_VERSION}]
     Params().put(jetlink_adapter.KEYS.catalog, {"bundles": bundles}, block=True)
-    with mock.patch.object(jetlink_adapter, "_bound", None):
+    with mock.patch.object(jetlink_adapter, "_hooks", None):
       self.ui_state.jetlink = jetlink_adapter.status()
     assert model_info.default_model_name("chestnut") == "Cinque Terre V3 Model (Default)"
     assert model_info.default_model_name("qcom") == f"{DEFAULT_MODEL} (Default)"

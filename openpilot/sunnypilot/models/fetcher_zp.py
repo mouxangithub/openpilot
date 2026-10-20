@@ -4,6 +4,8 @@ Copyright (c) 2026-, Zeph Leggett.
 This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
+from __future__ import annotations
+
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot import jetlink_adapter
@@ -18,9 +20,10 @@ class BigCatalogCache(ModelCache):
   coming or going changes whether it is extended, and the cache would otherwise hide that for an
   hour. Once per change: offline, the refetch fails and the cache stands until it expires."""
 
-  def __init__(self, params: Params, suffix: str):
+  def __init__(self, params: Params, suffix: str, fetcher: ModelFetcherZP | None = None):
     super().__init__(params, suffix=suffix)
     self._refetched_extends: bool | None = None
+    self._fetcher = fetcher
 
   def get(self) -> tuple[dict, bool]:
     cached_data, is_expired = super().get()
@@ -30,6 +33,8 @@ class BigCatalogCache(ModelCache):
         self._refetched_extends = extends
         cloudlog.warning(f"big-model catalog was fetched {'without' if extends else 'with'} the newer catalogs; refetching")
         is_expired = True
+      if self._fetcher is not None:
+        self._fetcher._update_active_json(extends)
     return cached_data, is_expired
 
 
@@ -40,10 +45,14 @@ class ModelFetcherZP(ModelFetcher):
 
   def __init__(self, params: Params):
     super().__init__(params)
-    self.model_caches["chestnut"] = BigCatalogCache(params, self.MODEL_SOURCES["chestnut"][1])
+    self.model_caches["chestnut"] = BigCatalogCache(params, self.MODEL_SOURCES["chestnut"][1], fetcher=self)
+    cached = params.get(f"ModelManager_ModelsCache{self.MODEL_SOURCES['chestnut'][1]}")
+    if isinstance(cached, dict) and cached.get(EXTENDED_KEY) is True:
+      self._update_active_json(extended=True)
 
   def _extend_catalog(self, source: str, json_data: dict) -> dict:
     if source != "chestnut":
       return json_data
     extended = jetlink_adapter.should_extend_catalog()
+    self._update_active_json(extended)
     return {**(jetlink_adapter.extend_catalog(json_data) if extended else json_data), EXTENDED_KEY: extended}
