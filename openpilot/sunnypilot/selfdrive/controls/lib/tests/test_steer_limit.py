@@ -224,7 +224,7 @@ class TestIntegratorUnderTheNewFlag:
   (|i| stays put); once the error flips sign the old flag still freezes it and the new one
   lets it bleed; at the rail the new flag is False and the tune's saturation alert fires."""
 
-  V_EGO = 14.0        # step 0.01, rail 0.556
+  V_EGO = 14.0        # step 10 / 1200, rail 0.556
   ERROR = 0.1
   FRAMES = 300        # per phase
   SEED_I = 0.3
@@ -286,6 +286,7 @@ class TestIntegratorUnderTheNewFlag:
     assert new['deepening'].i - new['decaying'].i == pytest.approx(expected_bleed, rel=0.15)
     # a request past the rail: once the actuator is on the rail the flag is False (the slew up
     # to it is a deepening mismatch and stays limited) and the tune's alert fires
-    assert new['rail'].rail_duty > 0.8
+    # the slew reaches the 0.556 rail in about 67 of the 300 frames
+    assert new['rail'].rail_duty > 0.75
     assert new['rail'].new_duty_at_rail == 0.0
     assert new['rail'].saturated

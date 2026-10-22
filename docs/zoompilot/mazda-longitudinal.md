@@ -373,16 +373,21 @@ clean. The fix shipped 2026-08-30.
 ### Standby patterns
 
 Only an engaged CRZ_INFO frame carries a live command. Armed-idle pegs the command field exactly
-like the main-off standby: 47,752 of 47,752 stock armed-idle frames carry raw 8190 (4.094 m/s2
+like the main-off standby: 47,752 of 47,752 stock armed-idle frames carry raw 8190 (3.998 m/s2
 after the 4096 offset). Armed-idle also sets bit 47 and advertises ACC_SET_ALLOWED whenever the
 brake is up so the dash accepts SET; the brake is stock's one observed gate on it (99.9% of
 armed-idle frames follow BRAKE_ON). The panda allows the two standby shapes byte-exactly
 (checksum included) instead of decoding them as a huge accel command; ACC_ACTIVE (data[4] bit 1)
 stays required-low on that allowance so no engaged frame can ride it.
 
-ACCEL_CMD is 13 bits in raw units of 0.001 m/s2 with a 4096 offset. The panda window is the ISO
-one, +2.0 / -3.5 m/s2 (`ACCEL_MAX` / `ACCEL_MIN`); stock MRCC itself commands down to raw -3891
-in lead stops.
+ACCEL_CMD is 13 bits in raw units of 1/1024 m/s2 with a 4096 offset. Until 2026-10-20 the DBC
+read it at 0.001, so every plan accel went out 2.4% weak. The Mazda 6 radar firmware (GHP9-67Y10,
+the dealer image) packs the command at 1023.75 counts per m/s2, and stock's holds on our CX-5
+sit at raw -1024 and -410: -1.0 and -0.4 m/s2 at 1/1024, -1.024 and -0.41 at 0.001. Constants
+that reproduce a stock byte pattern kept their raw values through the change (the 8190 sentinel,
+the -1024 hold, -1, -260, 250, +25 per frame); the golden captures show those frames byte for
+byte unchanged. The panda window is the ISO one, +2.0 / -3.5 m/s2 (`ACCEL_MAX` / `ACCEL_MIN`),
+raw +2048 / -3584; stock MRCC itself commands down to raw -3891 (-3.8 m/s2) in lead stops.
 
 ## Stop-and-go
 
@@ -394,7 +399,7 @@ with no timers in the path. Toyota clears its request on `actuators.accel > 0` a
 it whenever the plan is not asking to move; Honda asserts STANDSTILL for exactly as long as long
 control is in its stopping state. Neither substitutes a canned command for the plan's own.
 LongControl already parks at `CP.stopAccel` while stopping, which for this car is the stock hold
-value: stock MRCC holds raw -1024 at a stop, so `stopAccel = -1.024` and the plan's value is sent
+value: stock MRCC holds raw -1024 at a stop, so `stopAccel = -1.0` and the plan's value is sent
 as-is. Nothing in the machine latches; `holding` is recomputed every frame.
 
 `AccelShaper` (also in `longitudinal.py`) turns the plan into the CRZ_INFO command: the release
@@ -408,7 +413,7 @@ holds the brakes itself. It says so in EPB.HOLD_STATE (0x79 byte 2, low nibble: 
 holding, 5 releasing), and that is what stock relaxes on, not on any schedule: across 43 stock
 holds the radar dropped STOPPING and relaxed within 0 to 40 ms of HOLDING in every one. The body
 usually takes the hold 3.3 to 4.5 s after standstill (1.5 to 11 s across the corpus).
-`ACCEL_HOLD_LATCHED` (-0.001 m/s2, raw -1) is the relaxed value sent once the car has the brakes.
+`ACCEL_HOLD_LATCHED` (-1/1024 m/s2, raw -1) is the relaxed value sent once the car has the brakes.
 Stock drops CRZ_CTRL.ACC_ACTIVE_2 together with the relax.
 
 GEAR.BRAKE_HOLD is Auto Hold. With Auto Hold armed it joins the body's hold 10 to 30 ms after
@@ -496,10 +501,10 @@ The release command follows stock's shape, not a slew off the hold value. At a n
 release stock relax-jumps the command in one frame from the hold value into a -0.27 to -0.18
 start (pulse-frame commands span -0.269 to -0.111 across the whole corpus) and then ramps about
 +25 raw per 50 Hz frame straight through the drive-off; a latched release ramps at the same rate
-off the relaxed -0.001. Hence `ACCEL_RELEASE_BAND` = -0.26 m/s2 and `ACCEL_RELEASE_RAMP` =
-1.25 m/s3.
+off the relaxed raw -1. Hence `ACCEL_RELEASE_BAND` = raw -260 (-0.254 m/s2) and
+`ACCEL_RELEASE_RAMP` = 25 raw per frame (1.22 m/s3).
 
-Slewing up from -1.024 instead kept hold-grade braking on the wire beneath the release pulse
+Slewing up from the -1024 hold instead kept hold-grade braking on the wire beneath the release pulse
 (route 00000053 t+714.8), and pre-ramping toward the plan crossed zero inside the pulse
 (route 00000100 t+353). The band between those two edges is what the camera accepts. While the
 plan is braking the hold command is the plan's own, but the moment it turns positive the hold
@@ -754,22 +759,22 @@ the dash lane indicators, so those two stay zeroed.
 | `RESUME_UNLATCH_LATCHED_FRAMES` | 0.18 s (9 wire frames) | latched pulses 6 to 11 wire frames, mode 9 | 33-pulse census |
 | `RESUME_REPULSE_FRAMES` | 1.0 s | body answered all 10 pulses in 30 to 51 ms | 103, 115, 118, 11d, 12c, 132, 139, fe |
 | `RELEASE_DEBOUNCE_FRAMES` | 0.2 s | lead opening >= +0.31 m/s at all 23 stock latched pulses | corpus |
-| `ACCEL_HOLD_LATCHED` | -0.001 m/s2 | stock relaxes 0 to 40 ms after HOLD_STATE goes HOLDING, 43 of 43 | 43 stock holds |
-| `ACCEL_RESUME_PULSE_MAX` | 0.25 m/s2 | stock latched pulse tail +0.24 to +0.25, +0.34 worst | corpus |
-| `ACCEL_RELEASE_BAND` | -0.26 m/s2 | stock never-latched relax target -0.27 to -0.18 | corpus |
-| `ACCEL_RELEASE_RAMP` | 1.25 m/s3 | +25 raw per 50 Hz frame | corpus |
+| `ACCEL_HOLD_LATCHED` | raw -1 (-1/1024 m/s2) | stock relaxes 0 to 40 ms after HOLD_STATE goes HOLDING, 43 of 43 | 43 stock holds |
+| `ACCEL_RESUME_PULSE_MAX` | raw 250 (0.244 m/s2) | stock latched pulse tail +0.24 to +0.25, +0.34 worst | corpus |
+| `ACCEL_RELEASE_BAND` | raw -260 (-0.254 m/s2) | stock never-latched relax target -0.27 to -0.18 | corpus |
+| `ACCEL_RELEASE_RAMP` | 1.22 m/s3 | +25 raw per 50 Hz frame | corpus |
 | `ACCEL_BREAKAWAY_MAX` | 1.45 m/s2 | stock last-still-frame command max +1.425 (n=31) | corpus |
 | `BREAKAWAY_FRAMES` | 3.0 s | give-up bound on an unseen holder | design |
 | `ACCEL_BREAKAWAY_OVERSHOOT` | 0.75 m/s2 | 132 case +0.67 above plan; stock p25 +0.744 | 132, 12c, 34 stock episodes |
 | `ACCEL_WINDUP_LIMIT` | 4.0 m/s3 | plan up-slew p99 +3.2, p99.9 +6.3; brake region only | reporter's route |
-| `ACCEL_BUILD_V` | 1.25 to 0.8 m/s3 over 3 to 6 m/s | stock +12 raw per 50 Hz frame (0.6) in 99.3% of rising frames, taken a third quicker; 1.25 pulling away | 158 stock routes |
+| `ACCEL_BUILD_V` | 1.22 to 0.8 m/s3 over 3 to 6 m/s | stock +12 raw per 50 Hz frame (0.59) in 99.3% of rising frames, taken a third quicker; the release ramp pulling away | 158 stock routes |
 | `ACCEL_LIFT_LIMIT` | -2.0 m/s3 | stock throttle lift <= 40 raw per frame in 99.98% of falling positive frames | 158 stock routes |
 | `ACCEL_CEILING_V` | 1.5, 1.75, 1.45, 1.05, 0.85, 0.65 m/s2 at 0, 4, 9, 14, 18, 25 m/s | stock accelerating command p99 by speed, no lead | 158 stock routes |
 | `ACCEL_WINDDOWN_LIMIT` | -10.0 m/s3 | clips only p99.9+ steps | reporter's route |
-| `stopAccel` | -1.024 m/s2 | stock hold raw -1024 | corpus |
+| `stopAccel` | -1.0 m/s2 | stock hold raw -1024 | corpus |
 | `longitudinalActuatorDelay` | 0.36 s | 0.3 s dead time + 0.3 s lag | corpus |
 | `HOLD_PERIOD` | 0.1 s | CRZ_BTNS 10 Hz, 99 to 101 ms for 95% of 7.2k gaps | 0b |
-| `MAZDA_LONG_LIMITS` | +2000 / -3500 raw | ISO window; stock reaches raw -3891 | corpus |
+| `MAZDA_LONG_LIMITS` | +2048 / -3584 raw | ISO window; stock reaches raw -3891 | corpus |
 
 ## Tried and rejected
 
@@ -787,7 +792,7 @@ the dash lane indicators, so those two stay zeroed.
   (00000103 t+163.8, under the old checksum).
 - Holding the stop bits against the throttle until motion: out-of-protocol release
   (0000004d t+210.9).
-- Slewing the release command up from -1.024 (00000053 t+714.8) or pre-ramping toward the plan
+- Slewing the release command up from the -1024 hold (00000053 t+714.8) or pre-ramping toward the plan
   (00000100 t+353): outside the band the camera accepts.
 - A lead-distance cap on the breakaway: 4 of 34 stock breakaways had 0x364 occupied.
 - Advertising the vision lead in the 0x364 track, in every form tried: tied to

@@ -9,7 +9,7 @@ repo; a `tools/mazda_long/...` path in these notes is relative to that repo.
   MRCC state semantics, alpha-long availability
 - force-offroad-alpha-transition.md: flipping alpha long while moving through Force Offroad,
   the moving hand-back and takeover, the stock ECU transition contract
-- mazda-lateral.md: 2022 EPS detection and flag, 1200/12/12 envelope, speed-dependent
+- mazda-lateral.md: 2022 EPS detection and flag, 1200/10/10 envelope, speed-dependent
   STEER_MAX, LKAS_BLOCK and the non-delivery latch, camera ERR_BIT_1 history and the
   first-activation hold, the camera's own TJA/CTS state, the bus-2 camera press and the TJA
   button as the MADS switch

@@ -158,9 +158,9 @@ friction 0.25, 0.3 s delay). The tests that pinned these alternatives were dropp
 ### Steer-limit classifier (`steer_limit.py`)
 
 controlsd sets `steer_limited_by_safety` when |CC.actuators.torque - carOutput.torque| >
-0.01. One carcontroller slew step is 12/1200 = 0.010 of scale on the CX-5 (0.015 on the
-800-count scale the logged drive still ran above 32 mph), so any command walking faster than
-the rate limit reads as limited: 51% of active frames on a logged v2 drive, and the bidirectional freeze blocked integrator
+0.01. One carcontroller slew step was 12/1200 = 0.010 of scale on the CX-5 (0.015 on the
+800-count scale the logged drive still ran above 32 mph; 10/1200 = 0.0083 since 2026-10-20), so any
+command walking faster than the rate limit reads as limited: 51% of active frames on a logged v2 drive, and the bidirectional freeze blocked integrator
 decay toward a reversing error on about 13% of frames. That standing bias is where v0's
 |i| p50 of 0.275 came from (v2 0.016). An EPS pinned at its ceiling also never raised the
 saturation alert, because the ceiling clamp itself kept the flag high.
@@ -259,8 +259,10 @@ firmware's dead band) and the car learns default bins from its global seed.
 
 ## Speed-bin learner and cache (`speed_bin_learner.py`)
 
-Each bin is a `TorqueBuckets` with per-bucket minimums = the global learner's / n_bins,
-fed by `_on_torque_point` after upstream's quality filters. `_estimate_params_speed_binned`
+Each bin is a `TorqueBuckets` with per-bucket minimums = the global learner's / n_bins and a
+total of at least `fit_points` (2000, 600 on qlogs: one full fit sample; until 2026-10-21 the
+total was just the bucket minimums', about 220 points with the relaxed toggle, a curve or two
+at 20 Hz), fed by `_on_torque_point` after upstream's quality filters. `_estimate_params_speed_binned`
 runs upstream's total-least-squares fit per bin, clips to +-sanity of the seed (upstream's
 FACTOR_SANITY 0.3 / FRICTION_SANITY 0.5; 1.0 / 1.0 with the relaxed toggle), advances the
 bin's filter decay from MIN_FILTER_DECAY 50 toward MAX 250 as upstream does, and resets a bin
@@ -280,29 +282,36 @@ reaching down over the floor and the dead band to 5 m/s.
 Wire. The per-bin values do not ride on `lateralTorqueParameters` (comma's struct, which an
 upstream sync would collide on). The learner publishes its own `liveTorqueParametersSP`
 message beside every upstream one, at the same 4 Hz cadence and validity: `version`,
-`speedBinCenters`, `speedBinLatAccelFactors`, `speedBinFrictions`, `speedBinValid`,
-`speedBinPoints` (empty on the wire). On the wire the service is `customReserved19`, the
+`speedBinCenters`, `speedBinLatAccelFactors`, `speedBinFrictions`, `speedBinValid`, and the
+cache-only `speedBinPoints`, `speedBinDecays` and `speedBinLearned` (empty on the wire). On the wire the service is `customReserved19`, the
 last of sunnypilot's reserved Event slots, so `log.capnp` stays byte-identical to upstream;
 `speed_bin_learner.LIVE_TORQUE_PARAMETERS_SP_SERVICE` names it and `LiveTorqueParametersSP`
 aliases the struct (`custom.CustomReserved19`).
 
 Cache. torqued writes `LiveTorqueParameters` every 240 frames (60 s) with `with_points=True`;
 that same call is the extension's hook, which writes the same fork struct with the point
-buckets filled to `LiveTorqueParametersSP`. Upstream's cache keeps the restore key, decay
-and the valid flag; the fork's carries its own `version`, the centers, the values and the
-points.
+buckets filled to `LiveTorqueParametersSP`. Upstream's cache keeps the restore key (and the
+decay a pre-2026-10-21 fork cache falls back to); the fork's carries its own `version`, the
+centers, the values, the per-bin decays and learned flags, and the points.
 
 Restore (`_restore_ext_cache`, guards added 2026-09-02 in `fbabecf35c`): both caches
 must carry upstream's restore key (fingerprint, tuning type, offline seeds, VERSION, via
-`CarParamsPrevRoute`) and the fork cache this config's `seed_version` and bin centers; filtered values are
-taken only when upstream's cache was written valid. Each bin is judged on its own: a value
-that is non-finite or outside its clip range reseeds that bin alone, at MIN decay, and the
-rest restore. Until 2026-10-13 one such bin rejected the whole cache, so a seed refresh that
+`CarParamsPrevRoute`) and the fork cache this config's `seed_version` and bin centers. Each
+bin is judged on its own: its value and decay restore only when it was written learned (fit
+since its last reseed; a pre-2026-10-21 cache has no flag and uses the valid flag), so a bin
+that never learned always takes its current seed. Until 2026-10-21 the values came back only
+when upstream's global cache was valid, which needs 4000 points above 15 m/s: on the test car
+(global at 72%) every learned bin went back to its seed each boot. The flag is not the valid
+flag because validity is a point count: a learned bin whose points failed to restore, or whose
+minimum rose, reads invalid and would be dropped on the boot after. A learned value or decay
+that is non-finite, or a value outside its clip range, reseeds that bin alone, at MIN decay,
+and the rest restore. Until 2026-10-13 one such bin rejected the whole cache, so a seed refresh that
 kept `seed_version` or switching less-restrict off could put every bin back on its seed for
-the drive. The decay is restored
-from upstream's cache rather than reset to MIN each boot (which had made the bins re-learn
-five times faster after every restart). The points are checked on their own (bin count,
-finiteness); when they fail, the values still restore and the buckets start empty. A fork
+the drive. Each learned bin resumes at its own decay rather than MIN (which had made the bins
+re-learn five times faster after every restart); before 2026-10-21 every bin took upstream's
+single decay. The points are checked on their own (bin count, finiteness); when they fail,
+the values still restore, the buckets start empty, and the learned flags carry the values to
+the next boot. A fork
 cache that is absent restores nothing. A valid pair restores bit-identically
 (`test_torqued_cache_restore.py`).
 

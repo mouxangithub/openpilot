@@ -28,10 +28,12 @@ def _cache(**kwargs):
   return make_cache(**kwargs).lateralTorqueParameters
 
 
-def _sp(est, lafs, frictions, points=None, centers=None, version=VERSION, seed_version=None):
+def _sp(est, lafs, frictions, points=None, centers=None, version=VERSION, seed_version=None, valid=None, decays=None,
+        learned=None):
   """The fork cache keyed to this estimator's config."""
   msg = make_cache_sp(est.speed_bin_centers if centers is None else centers, lafs, frictions, points=points, version=version,
-                      seed_version=est.speed_dep_seed_version if seed_version is None else seed_version)
+                      seed_version=est.speed_dep_seed_version if seed_version is None else seed_version,
+                      valid=valid, decays=decays, learned=learned)
   return getattr(msg, LIVE_TORQUE_PARAMETERS_SP_SERVICE)
 
 
@@ -142,12 +144,14 @@ class TestCacheRestore:
     assert all(d == MIN_FILTER_DECAY for d in est.speed_bin_decays)
     assert est.speed_bin_filtered[0]['latAccelFactor'].x == lafs[0]
 
-  def test_non_finite_decay_rejected(self, fake_params):
+  def test_non_finite_decay_reseeds_but_keeps_points(self, fake_params):
+    """A cache from before the per-bin decays with a non-finite upstream decay: every bin is on
+    its seed at MIN, and the points still load."""
     est = TorqueEstimator(make_cp())
     seeds = seed_values(est)
     lafs, frictions = in_bounds_values(est)
-    est._restore_ext_cache(_cache(decay=float('nan')), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions))
-    assert_untouched(est, seeds)
+    est._restore_ext_cache(_cache(decay=float('nan')), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions, _one_point_per_bin(est)))
+    assert_untouched(est, seeds, n_points=1)
 
 
   @pytest.mark.parametrize("field, bad_bin, bad_value", [
@@ -253,17 +257,71 @@ class TestCacheRestore:
     else:
       assert_untouched(est, seeds)
 
-  def test_invalid_cache_keeps_seeds_but_restores_points_and_decay(self, fake_params):
-    """Upstream takes filtered values only from a valid cache, and still reloads points and
-    decay on a key match so the learner resumes with its data. Mirror both halves."""
+  def test_bins_restore_without_upstream_valid(self, fake_params):
+    """Upstream's global needs data above 15 m/s: a bin written valid restores on its own flag
+    while the global cache is still invalid."""
+    est = TorqueEstimator(make_cp())
+    lafs, frictions = in_bounds_values(est)
+    est._restore_ext_cache(_cache(decay=200.0, valid=False), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions))
+    for i in range(len(est.speed_bin_bounds)):
+      assert est.speed_bin_filtered[i]['latAccelFactor'].x == lafs[i]
+      assert est.speed_bin_filtered[i]['frictionCoefficient'].x == frictions[i]
+    assert all(d == 200.0 for d in est.speed_bin_decays)
+
+  def test_bin_written_invalid_takes_its_seed(self, fake_params):
+    """A bin that never learned carries its old seed in the cache: it starts at its current seed
+    at MIN decay, so a seed change reaches it without a seed_version bump. Points still load."""
     est = TorqueEstimator(make_cp())
     seeds = seed_values(est)
     lafs, frictions = in_bounds_values(est)
-    points = [[[0.11, 0.3]] * 2 for _ in est.speed_bin_bounds]
+    n_bins = len(est.speed_bin_bounds)
+    valid = [i % 2 == 0 for i in range(n_bins)]
+    points = [[[0.11, 0.3]] * 2 for _ in range(n_bins)]
+    est._restore_ext_cache(_cache(decay=200.0), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions, points, valid=valid))
+    for i in range(n_bins):
+      want = (lafs[i], frictions[i], 200.0) if valid[i] else (seeds[0][i], seeds[1][i], MIN_FILTER_DECAY)
+      filters = est.speed_bin_filtered[i]
+      assert (filters['latAccelFactor'].x, filters['frictionCoefficient'].x, est.speed_bin_decays[i]) == want
+      assert len(est.speed_bin_points[i]) == 2
 
-    est._restore_ext_cache(_cache(decay=200.0, valid=False), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions, points))
+  def test_valid_flags_of_another_length_restore_nothing(self, fake_params):
+    est = TorqueEstimator(make_cp())
+    seeds = seed_values(est)
+    lafs, frictions = in_bounds_values(est)
+    est._restore_ext_cache(_cache(decay=200.0), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions, valid=[True]))
+    assert_untouched(est, seeds)
 
-    assert_untouched(est, seeds, n_points=2, decay=200.0)
+  def test_per_bin_decays_restored(self, fake_params):
+    est = TorqueEstimator(make_cp())
+    lafs, frictions = in_bounds_values(est)
+    n_bins = len(est.speed_bin_bounds)
+    decays = [float(MIN_FILTER_DECAY + 10 * i) for i in range(n_bins)]
+    est._restore_ext_cache(_cache(decay=200.0), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions, decays=decays))
+    assert est.speed_bin_decays == decays
+
+  def test_non_finite_per_bin_decay_reseeds_that_bin_alone(self, fake_params):
+    est = TorqueEstimator(make_cp())
+    seeds = seed_values(est)
+    lafs, frictions = in_bounds_values(est)
+    decays = [float('nan')] + [100.0] * (len(est.speed_bin_bounds) - 1)
+    est._restore_ext_cache(_cache(decay=200.0), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions, decays=decays))
+    assert est.speed_bin_filtered[0]['latAccelFactor'].x == seeds[0][0]
+    assert est.speed_bin_decays[0] == MIN_FILTER_DECAY and not est.speed_bin_learned[0]
+    assert est.speed_bin_filtered[1]['latAccelFactor'].x == lafs[1]
+    assert est.speed_bin_decays[1:] == decays[1:] and all(est.speed_bin_learned[1:])
+
+  def test_learned_flag_wins_over_valid(self, fake_params):
+    """A bin's points say nothing about whether it learned: learned restores with no valid flag,
+    and a bin valid but not learned (points filled, never fit) stays on its seed."""
+    est = TorqueEstimator(make_cp())
+    seeds = seed_values(est)
+    lafs, frictions = in_bounds_values(est)
+    n_bins = len(est.speed_bin_bounds)
+    est._restore_ext_cache(_cache(), cache_CP=est.CP, cache_sp=_sp(est, lafs, frictions, valid=[False] * n_bins,
+                                                                   learned=[True] + [False] * (n_bins - 1)))
+    assert est.speed_bin_filtered[0]['latAccelFactor'].x == lafs[0]
+    assert all(est.speed_bin_filtered[i]['latAccelFactor'].x == seeds[0][i] for i in range(1, n_bins))
+    assert est.speed_bin_learned == [True] + [False] * (n_bins - 1)
 
 
   def _restore_with_points(self, est, points):
@@ -348,6 +406,52 @@ class TestCacheRestoreGolden:
     assert_untouched(est, seed_values(seed_est))
 
 
+class TestRestoreAcrossBoots:
+  """write -> restore -> write -> restore through Params, as torqued does across reboots."""
+
+  @staticmethod
+  def _boot(fake, CP, cache=None, cache_sp=None):
+    if cache is not None:
+      fake.values.update({"LiveTorqueParameters": cache, "CarParamsPrevRoute": CP.as_reader().as_builder().to_bytes(),
+                          LIVE_TORQUE_PARAMETERS_SP_KEY: cache_sp})
+    est = TorqueEstimator(CP)
+    est._pm = FakePubMaster()
+    return est
+
+  @staticmethod
+  def _write(fake, est):
+    est.frame += 1
+    cache = est.get_msg(with_points=True).to_bytes()
+    return cache, fake.values[LIVE_TORQUE_PARAMETERS_SP_KEY]
+
+  def test_learned_bin_survives_short_of_points(self, fake_params):
+    """A bin that learned keeps its value and decay across two boots with its points gone
+    (the points cache failed, or the minimum rose past what it holds): its points no longer
+    make it valid, so a restore keyed on the valid flag dropped it on the second boot."""
+    CP = make_cp()
+    est = self._boot(fake_params, CP)
+    i = 1
+    rng = np.random.default_rng(0)
+    steer = rng.uniform(-0.45, 0.45, 3000)
+    est.speed_bin_points[i].load_points(np.c_[steer, 0.8 * steer].tolist())
+    est._estimate_params_speed_binned()
+    assert est.speed_bin_learned[i]
+    want = (est.speed_bin_filtered[i]['latAccelFactor'].x, est.speed_bin_decays[i])
+    cache, cache_sp = self._write(fake_params, est)
+
+    with log.Event.from_bytes(cache_sp) as evt:
+      sp = evt.as_builder()
+      getattr(sp, LIVE_TORQUE_PARAMETERS_SP_SERVICE).speedBinPoints = []
+      cache_sp = sp.to_bytes()
+
+    for _ in range(2):
+      est = self._boot(fake_params, CP, cache, cache_sp)
+      assert not est.speed_bin_points[i].is_valid()
+      assert est.speed_bin_learned[i]
+      assert (est.speed_bin_filtered[i]['latAccelFactor'].x, est.speed_bin_decays[i]) == pytest.approx(want, rel=1e-6)
+      cache, cache_sp = self._write(fake_params, est)
+
+
 class TestPointsCacheWrite:
   """torqued's cache write (get_msg with_points=True) is what feeds the fork cache."""
 
@@ -383,6 +487,7 @@ class TestPointsCacheWrite:
       assert list(sp.speedBinCenters) == pytest.approx(est.speed_bin_centers)
       assert len(sp.speedBinLatAccelFactors) == len(bounds)
       assert len(sp.speedBinPoints) == len(bounds)
+      assert list(sp.speedBinDecays) == pytest.approx(est.speed_bin_decays)
       assert sum(len(bin_pts) for bin_pts in sp.speedBinPoints) >= 2
 
   def test_written_points_round_trip_into_a_fresh_estimator(self, fake_params):

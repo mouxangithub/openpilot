@@ -93,10 +93,12 @@ def seed_version_of(fingerprint):
   return int(SPEED_DEP_CARS.get(fingerprint, {}).get('seed_version', 0))
 
 
-def make_cache_sp(centers, lafs, frictions, points=None, version=VERSION, seed_version=None):
+def make_cache_sp(centers, lafs, frictions, points=None, version=VERSION, seed_version=None, valid=None, decays=None,
+                  learned=None):
   """The LiveTorqueParametersSP cache event (the liveTorqueParametersSP message with the
-  buckets filled): VERSION, the seed version and centers keying it, the per-bin values, and
-  the points. seed_version defaults to the test car's TOML entry."""
+  buckets filled): VERSION, the seed version and centers keying it, the per-bin values, valid
+  flags (all valid by default), decays and learned flags (none by default, as a cache from
+  before them), and the points. seed_version defaults to the test car's TOML entry."""
   msg = messaging.new_message(LIVE_TORQUE_PARAMETERS_SP_SERVICE)
   msg.valid = True
   sp = getattr(msg, LIVE_TORQUE_PARAMETERS_SP_SERVICE)
@@ -105,7 +107,11 @@ def make_cache_sp(centers, lafs, frictions, points=None, version=VERSION, seed_v
   sp.speedBinCenters = list(centers)
   sp.speedBinLatAccelFactors = list(lafs)
   sp.speedBinFrictions = list(frictions)
-  sp.speedBinValid = [True] * len(centers)
+  sp.speedBinValid = [True] * len(centers) if valid is None else list(valid)
+  if decays is not None:
+    sp.speedBinDecays = list(decays)
+  if learned is not None:
+    sp.speedBinLearned = list(learned)
   if points is not None:
     sp.speedBinPoints = points
   return msg

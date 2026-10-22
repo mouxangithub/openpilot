@@ -1,11 +1,11 @@
 # Mazda lateral on the 2022 EPS: evidence and design notes
 
 This is the measurement record behind the steering side of the Mazda port: the 2022 CX-5 EPS
-detection, the 1200/12/12 torque envelope, the speed-dependent STEER_MAX, the EPS ceiling clamp,
+detection, the 1200/10/10 torque envelope, the speed-dependent STEER_MAX, the EPS ceiling clamp,
 the LKAS_BLOCK non-delivery latch and the history of the camera's ERR_BIT_1 fault. The code is in
 `opendbc/car/mazda/{values,interface,carcontroller,carstate}.py` and the panda envelope in
 `opendbc/safety/modes/mazda.h`. Route ids are the dongle-side segment names in
-`tools/mazda_long/test_data/`. 0x241 is STEER_RATE, the EPS's own 100 Hz report, which carries
+`tools/mazda_long/test_data/`. 0x241 is STEER_RATE, the EPS's own 12 ms (83 Hz) report, which carries
 LKAS_REQUEST (the request it received), LKAS_EFFECTIVE (what it applied) and LKAS_BLOCK.
 
 ## 2022 EPS detection and the STEER_TO_ZERO_EPS flag
@@ -24,24 +24,33 @@ CX-5 2022 platform itself, and it keys the whole 2022 EPS block together: the hi
 `CarControllerParams` tune, carstate's fault handling, `minSteerSpeed = 0`, the alpha-long
 availability rule (see mazda-longitudinal.md). The panda's torque envelope follows the hardware
 instead: the interface sets `MazdaSafetyFlags.EPS_HW` on every Mazda, and the panda enforces the
-1200/12/12 the controller commands. Without the bit it enforces upstream's 800/10/25.
+1200/10/10 the controller commands. Without the bit it enforces upstream's 800/10/25.
 
-`steerActuatorDelay` follows the EPS as well, because command-to-torque lag is EPS firmware:
-0.14 s on the 2022 EPS, 0.1 s otherwise. lagd learns the rest (0.338 s total on a CX-5 2022;
-its initial value is this plus 0.2). The CX-5 2022 `steerRatio` of 18.1 comes from the paramsd
+`steerActuatorDelay` is 0.05 s: lagd starts from it plus 0.2 s, and CX-5 drives learn 0.23 to
+0.26 s request-to-yaw. Of that, 10 ms is our 0x243 to the EPS's echo and 60 ms (p75 110) the echo
+to LKAS_EFFECTIVE (96 windows, 60 dynamic segments, 2026-10-20). The CX-5 2022 `steerRatio` of 18.1 comes from the paramsd
 learner over 2.9M samples; 15.5 is the factory spec.
 
-## The torque envelope: 1200 / 12 / 12
+## The torque envelope: 1200 / 10 / 10
 
 ### STEER_STEP and the rate limit are per unit time
 
 The stock camera commands CAM_LKAS at 16.6 Hz (60 ms). Openpilot sends at 100 Hz (`STEER_STEP`
-= 1). The EPS rate limit is per unit time, about 1200 counts/s, not per received frame: on a
-stock drive where the camera commands at 16.6 Hz the EPS still steps 12 counts per 10 ms. So the
-cadence buys no extra authority, but `STEER_DELTA_UP` / `STEER_DELTA_DOWN` are per frame, which
-makes `STEER_STEP` load-bearing: 12 counts x 100 frames/s = 1200 counts/s matches the EPS
-exactly. Changing `STEER_STEP` without rescaling `STEER_DELTA_UP` by the same factor silently cuts
-the commanded slew rate (`STEER_STEP` = 6 would give 200 counts/s, 6x slower than the hardware).
+= 1). The EPS rate limit is per unit time, not per received frame: whatever the command cadence,
+the EPS steps LKAS_EFFECTIVE at most 12 counts per 0x241 frame, and 0x241 is a 12 ms frame (4997
+per 60 s segment, median over 4788), so the hardware slews about 1000 counts/s. Slope fits on 1157
+saturated ramps (request at least 60 counts ahead for 300 ms or more) give 921 p50 and 934 p90
+counts/s, identical up and down and at every speed from 8 to 40 m/s; the per-frame steps are 12
+(61%), 8 (17%) and 0. `STEER_DELTA_UP` / `STEER_DELTA_DOWN` are per 10 ms control frame, which
+makes `STEER_STEP` load-bearing: 10 counts x 100 frames/s = 1000 counts/s. Changing `STEER_STEP`
+without rescaling `STEER_DELTA_UP` by the same factor silently cuts the commanded slew rate.
+
+Until 2026-10-20 the deltas were 12, read as 12 counts per 10 ms. That was the 12 ms frame read as
+10 ms: the command slewed at 1200 counts/s against the EPS's 1000, sat on its own slew limit in 49%
+of engaged frames, and ran up to 270 counts/s ahead of what the EPS applied. A model of our command
+rate-limited to 9.33 a frame and delayed 60 ms reproduces LKAS_EFFECTIVE at 44 counts rms, against
+59 for the 12-a-frame command itself. The lead is not harmless: a reversal waits for the command
+to come back past what the EPS is applying before the EPS turns.
 
 ### The slew is symmetric
 
@@ -55,8 +64,8 @@ A winddown above 12 therefore buys no faster release at the wheel; the EPS still
 only lets the command run ahead of where the wheel actually is (p99 of that gap was 700 to 800
 counts below 20 mph, max 1400), so the command can cross zero while the wheel is still turned and
 the P term keeps building against a measurement that has not responded yet. Hence
-`STEER_DELTA_UP` = `STEER_DELTA_DOWN` = 12 and, in the panda, `max_rate_up` = `max_rate_down` =
-12 with `max_rt_delta` = 384.
+`STEER_DELTA_UP` = `STEER_DELTA_DOWN` = 10 and, in the panda, `max_rate_up` = `max_rate_down` =
+10 with `max_rt_delta` = 320.
 
 ### The controller's rate-down must equal the panda's
 
@@ -312,6 +321,20 @@ a soft disable that would cost MADS the lateral it is handing back, so `steerFau
 held false for `LKAS_REARM_FAULT_T` (4 s) from the edge. After that, a block is a fault again.
 The older EPS's re-arm is not in the corpus.
 
+## What LKAS_REQUEST is
+
+The camera's lateral model works in radians and Mazda's labels call the field 0.005 deg per count,
+but the EPS treats it like a torque command. The steering angle per count falls about threefold
+with speed for openpilot on our CX-5 (0.027 deg at 8 to 15 m/s, 0.0086 at 30 to 40) and for the
+stock camera's TJA on a CX-9 2021 (0.032 at 3 to 8, 0.0098 at 30 to 40); an angle target at
+0.005 deg per count would give a constant gain. An angle-error model explains about 3% of motor
+torque. Correlational (the request also rises in curves), but two cars and two controllers agree.
+
+STEER_ANGLE_RATE stays at the DBC's 0.25 deg/s per count. The camera's firmware reads it at 0.3,
+but on our logs d(steeringAngleDeg)/dt is 1.08 x the reported rate (r 0.985), and the angle
+itself reads high if anything (learned steerRatio 18.1 against the 15.5 spec), which points the
+other way from 0.3.
+
 ## LKAS_FAULT and the camera's ERR_BIT_1
 
 The camera's ERR_BIT_1 ("LKAS Fault: Restart the Car", the cluster's "Front Camera Sensor System
@@ -322,6 +345,18 @@ never clears (57 runs). The camera is reacting to the EPS, not to our request: `
 commanded zero for 5.25 s when it faulted, and the March lateral-only drive_02 faulted at 16 m/s
 on zero requests. The bit is decoded for the log and tooling; the driver-facing fault stays the
 camera's own.
+
+The 2026-10-20 corpus pass (4788 segments) holds the same shape everywhere: no LKAS_FAULT run
+shorter than 0.5 s, none that cleared (the three apparent recoveries are segment boundaries), and
+in every run that started inside a segment the camera latched ERR_BIT_1 + ERR_BIT_2 4.6 to 5.5 s
+after the onset. ERR_BIT_1 never appears without ERR_BIT_2 (0 episodes), so the
+`steerFaultPermanent` mapping on ERR_BIT_1 sees only the latch. Static analysis of the camera's
+own firmware (FSC 67XK2, the dealer images) agrees: its LKA fail-safe latch trips on LKAS_FAULT
+held 5 s, on 0x240/0x241 timeouts and counter or checksum errors, or on monitored vehicle frames
+going bad, and clears only at power-up. Routes 00000263 to 00000265 start with the bit already
+set: a device restart inside an ignition cycle inherits the EPS's fault. There is nothing to
+recover once the bit is up; prevention is the only defense, which is what the rejection report
+below is for.
 
 What raises it, on the eleven onsets captured: a break in the 0x243 stream of about 0.6 s (ten,
 counting three comma restarts), and twice a ramping request into a zero-delivery standby at a crawl
@@ -608,11 +643,11 @@ logs cannot record it, and the four mapped alerts were all under cruise.
 
 | Constant | Value | Measurement | Routes |
 | --- | --- | --- | --- |
-| `STEER_STEP` | 1 (100 Hz) | EPS slews 12 counts per 10 ms whatever the command cadence | stock camera drive census |
+| `STEER_STEP` | 1 (100 Hz) | EPS slews 12 counts per 12 ms 0x241 frame whatever the command cadence | stock camera drive census |
 | `STEER_MAX` | 1200 at every speed | scale of normalized torque to counts; LAF seeds depend on it | design |
 | `TUNE_STEER_MAX` / `TUNE_SCALE` | 800 / 1.5 | upstream's scale: params.toml tunes, manual override, NNLC models convert x / 1.5 | design |
-| `STEER_DELTA_UP` / `STEER_DELTA_DOWN` | 12 / 12 | delivered step p99 and p99.9 of 12, 11.7M frames | corpus; CX-9 2021 62k; CX-5 2022 318k |
-| `max_rt_delta` (panda) | 384 | 32 x max_rate_up, upstream's ratio | derived |
+| `STEER_DELTA_UP` / `STEER_DELTA_DOWN` | 10 / 10 | delivered slope 921 p50 / 934 p90 counts/s on 1157 saturated ramps, every speed, both directions | 60 dynamic segments, 2026-10-20 |
+| `max_rt_delta` (panda) | 320 | 32 x max_rate_up, upstream's ratio | derived |
 | `STEER_DRIVER_MULTIPLIER` | 15 | tuned for the 2022 EPS (upstream 1) | on-car tuning |
 | `STEER_DRIVER_ALLOWANCE` | 15 | upstream | upstream |
 | `STEER_DRIVER_SAMPLES` | 10 | must span the panda's 6-sample window plus one control cycle | 00000148 replay |
@@ -623,15 +658,17 @@ logs cannot record it, and the four mapped alerts were all under cruise.
 | `STEER_UNDELIVERED_ALERT_FRAMES` | 80 (0.8 s on top of the latch) | benign runs above 10 mph max 30 frames, faults 315 | corpus |
 | `STEER_UNDELIVERED_ALERT_MIN_SPEED` | 12 mph (5.36 m/s) | block release median 3.13, p90 4.97, max 5.39 m/s (38 episodes); fault began at 5.9 | 00000148 |
 | `STEER_UNDELIVERED_ALERT_ORIGIN_SPEED` | 1.0 m/s | 1660 of 1915 blocks begin below 0.5 m/s; every latched block that began above and armed was a fault, slowest 4.6 | corpus, replay_undelivered_alert.py |
-| `steerActuatorDelay` | 0.14 s (2022 EPS) / 0.1 s | lagd 0.338 total on a CX-5 2022 | corpus |
+| `steerActuatorDelay` | 0.05 s | lagd starts at 0.25; CX-5 drives learn 0.23 to 0.26 | four CX-5 routes |
 | `steerRatio` (CX-5 2022) | 18.1 | paramsd learner, 2.9M samples | corpus |
 | `LKAS_LIMITS.DISABLE_SPEED` / `ENABLE_SPEED` | 45 / 52 kph | pre-2022 EPS lockout hysteresis | upstream |
 | `DASH_STEER_WARNING_QUIET_FRAMES` | 200 (2 s) | the EPS-standby banner at engagement lasts 1.8 s; 38 of 65 warning windows with a state change inside were it | corpus, 264 windows |
 
 ## Tried and rejected
 
-- A winddown faster than 12 counts per frame: the EPS still walks at 12, the command just runs
-  ahead of the wheel (gap p99 700 to 800 counts below 20 mph, max 1400).
+- A winddown faster than the EPS's slew: the EPS still walks at 12 per 12 ms frame, the command
+  just runs ahead of the wheel (gap p99 700 to 800 counts below 20 mph, max 1400).
+- 12 counts per 10 ms frame (1200 counts/s): the same lead in miniature, on every ramp (until
+  2026-10-20).
 - A panda `max_rate_down` looser than the controller's: rejects every frame of a driver-override
   winddown (route 00000148).
 - Scaling `STEER_MAX` down at speed to model the EPS ceiling: rescales every sub-saturation

@@ -269,7 +269,7 @@ class TestFullBinKeepsLearning:
   def test_no_refit_without_new_points(self, fake_params):
     est = TorqueEstimator(make_cp())
     bucket = est.speed_bin_points[0]
-    bucket.load_points([[s, 2.0 * s] for s in np.linspace(-0.45, 0.45, 1000)])
+    bucket.load_points([[s, 2.0 * s] for s in np.linspace(-0.45, 0.45, 2500)])
     assert bucket.is_valid()
     est._estimate_params_speed_binned()
     before = est.speed_bin_filtered[0]['latAccelFactor'].x
@@ -282,6 +282,13 @@ class TestFilteredOnlyOnceValid:
   """As upstream gates its global filter, a bin is fit and filtered only once it is valid; until
   then it publishes its seed and reads not valid."""
 
+  def test_a_bin_needs_a_full_fit_sample(self, fake_params):
+    """The bucket minimums divided across the bins are a curve or two of 20 Hz points; a bin
+    also needs the fit_points one fit draws."""
+    for decimated in (False, True):
+      est = TorqueEstimator(make_cp(), decimated=decimated)
+      assert all(b.min_points_total == est.fit_points for b in est.speed_bin_points)
+
   def test_a_calculable_bin_keeps_its_seed_until_valid(self, fake_params):
     est = TorqueEstimator(make_cp())
     bucket = est.speed_bin_points[0]
@@ -291,7 +298,7 @@ class TestFilteredOnlyOnceValid:
     assert dict(est._estimate_params_speed_binned())[0] is False
     assert est.speed_bin_filtered[0]['latAccelFactor'].x == seed
 
-    bucket.load_points([[s, 3.0 * s] for s in np.linspace(-0.45, 0.45, 1000)])
+    bucket.load_points([[s, 3.0 * s] for s in np.linspace(-0.45, 0.45, 2500)])
     assert bucket.is_valid()
     assert dict(est._estimate_params_speed_binned())[0] is True
     assert est.speed_bin_filtered[0]['latAccelFactor'].x != seed

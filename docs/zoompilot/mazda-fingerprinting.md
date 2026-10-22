@@ -81,7 +81,7 @@ in `fingerprints.py`. `CarInterface._get_params` sets `MazdaFlags.STEER_TO_ZERO_
 candidate is the CX-5 2022 or when any EPS in `car_fw` carries one of those versions, so the
 same EPS swapped into another Mazda is recognised as what it is.
 
-Everything the 2022 EPS changes hangs off that one flag (see mazda-lateral.md): the 1200/12/12
+Everything the 2022 EPS changes hangs off that one flag (see mazda-lateral.md): the 1200/10/10
 torque envelope and the matching panda param bit, `minSteerSpeed = 0`, `steerActuatorDelay`,
 carstate's non-delivery fault handling, and, together with a radar bus, alpha-long availability.
 No Mazda platform is `dashcamOnly`; the flag decides only the floor, the latch and alpha long.
