@@ -8,6 +8,7 @@ from enum import Enum
 
 from openpilot.cereal import messaging, log, custom
 from opendbc.car.structs import car
+from opendbc.sunnypilot.car.interfaces import has_bsm
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.display import OnroadBrightness
 from openpilot.selfdrive.ui.sunnypilot.ui_state_zp import UIStateZP
@@ -37,7 +38,7 @@ class UIStateSP(UIStateZP):
     self.is_sp_release: bool = self.params.get_bool("IsReleaseSpBranch")
     self.sm_services_ext = [
       "modelManagerSP", "selfdriveStateSP", "longitudinalPlanSP", "backupManagerSP",
-      "gpsLocation", "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay"
+      "lateralTorqueParameters", "carStateSP", "liveMapDataSP", "carParamsSP", "lateralDelay"
     ]
 
     self.sunnylink_state = SunnylinkState()
@@ -218,7 +219,7 @@ class UIStateSP(UIStateZP):
         self.params.remove("AlphaLongitudinalEnabled")
 
       # BSM not available: clear BSM-dependent settings
-      if not CP.enableBsm:
+      if not has_bsm(CP, self.CP_SP):
         self.params.remove("AutoLaneChangeBsmDelay")
     else:
       # Clear car-dependent params only offroad. During first-drive initialization, card may
@@ -229,10 +230,8 @@ class UIStateSP(UIStateZP):
         self.params.remove("LateralJerkTorqueController")
         self.params.remove("AlphaLongitudinalEnabled")
 
-    # No longitudinal control: no experimental mode. DEC, speed assist, custom ACC and
-    # SCC keep their values; card and the planner leave them idle until long or ICBM returns.
-    if not has_long:
-      self.params.remove("ExperimentalMode")
+    # Speed assist, custom ACC and SCC keep their values without longitudinal control; card and
+    # the planner leave them idle until long or ICBM returns.
 
     # ICBM has no toggle: the features that act through it can, wherever the car has it
     self.has_icbm = self.CP is not None and self.CP_SP is not None and icbm_applicable(self.CP, self.CP_SP)

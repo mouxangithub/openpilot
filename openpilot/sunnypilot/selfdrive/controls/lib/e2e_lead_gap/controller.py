@@ -152,7 +152,7 @@ class E2ELeadGapController:
     return None
 
   def update(self, sm: messaging.SubMaster, a_model: float, a_mpc: float, is_e2e: bool, reset_state: bool,
-             dec_active: bool, allow_throttle: bool, fcw: bool, a_cruise: float = math.inf,
+             allow_throttle: bool, fcw: bool, a_cruise: float = math.inf,
              steer_lat_accel: float = 0.) -> float:
     """a_cruise: the planner's cruise candidate (last frame's is fine), so the lift idles while cruise
     binds. steer_lat_accel: lateral acceleration from the measured steering angle."""
@@ -165,9 +165,6 @@ class E2ELeadGapController:
       return a_model
     if not is_e2e or reset_state:
       self._reset(Inhibit.inactive)
-      return a_model
-    if dec_active:
-      self._reset(Inhibit.decActive)
       return a_model
 
     CS, md, rs = sm['carState'], sm['modelV2'], sm['radarState']

@@ -54,9 +54,6 @@ OP.PanelType = IntEnum(  # type: ignore[assignment] # ty: ignore[invalid-assignm
   start=0,
 )
 
-# where the home screen's experimental mode button opens settings: the alpha long toggles head Cruise
-EXPERIMENTAL_MODE_PANEL = OP.PanelType.CRUISE
-
 
 @dataclass
 class PanelInfo(OP.PanelInfo):

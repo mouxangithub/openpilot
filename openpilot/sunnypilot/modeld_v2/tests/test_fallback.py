@@ -5,12 +5,11 @@ This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
 
-import io
+import pickle
+import requests
 
-from openpilot.common.file_chunker import get_chunk_name, get_manifest_path
 from openpilot.common.hardware import hw
 from openpilot.common.test import OpenpilotTestCase
-from openpilot.sunnypilot.modeld_v2.helpers import dump_oob
 import openpilot.sunnypilot.modeld_v2.modeld as modeld_module
 from openpilot.sunnypilot.modeld_v2.tests import helpers as tests_helpers
 from openpilot.sunnypilot.modeld_v2.tests.helpers import DummyModel, DummyBundle, CAM_W, CAM_H
@@ -41,15 +40,11 @@ class TestFallback(OpenpilotTestCase):
     big_bundle = DummyBundle(models=[DummyModel('supercombo', 'driving_test_big_tinygrad.pkl')])
     small_bundle = DummyBundle(models=[DummyModel('supercombo', 'driving_test_small_tinygrad.pkl')])
 
-    buf = io.BytesIO()
-    dump_oob(tests_helpers.make_pkl_data(tests_helpers.ARCHETYPES['supercombo_non20hz']), buf)
-    oob_bytes = buf.getvalue()
+    oob_bytes = pickle.dumps(tests_helpers.make_pkl_data(tests_helpers.ARCHETYPES['supercombo_non20hz']))
+    monkeypatch.setattr(modeld_module, 'load_model', lambda path, **_: pickle.loads(open(path, 'rb').read()))
 
     for bundle in (big_bundle, small_bundle):
-      artifact = bundle.models[0].artifact
-      (tmp_path / get_manifest_path(artifact.fileName)).write_text('2')
-      for i in range(2):
-        (tmp_path / get_chunk_name(artifact.fileName, i, 2)).write_bytes(oob_bytes if i == 0 else b"")
+      (tmp_path / bundle.models[0].artifact.fileName).write_bytes(oob_bytes)
 
     monkeypatch.setattr(modeld_module, 'get_active_bundle', lambda params=None, *, chestnut=None: small_bundle)
     assert modeld_module.ModelState(CAM_W, CAM_H, chestnut=False).chestnut is False

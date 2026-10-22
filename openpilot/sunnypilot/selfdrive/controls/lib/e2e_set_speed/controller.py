@@ -198,7 +198,7 @@ class E2ESetSpeedController:
     return None
 
   def update(self, sm: messaging.SubMaster, a_model: float, v_cruise: float, is_e2e: bool, reset_state: bool,
-             dec_active: bool, allow_throttle: bool, fcw: bool, accel_coast: float, steer_lat_accel: float = 0.) -> float:
+             allow_throttle: bool, fcw: bool, accel_coast: float, steer_lat_accel: float = 0.) -> float:
     """Return the e2e candidate; a_model unchanged whenever the feature is off or idle. Call delivered()
     with the planner's output once it has chosen.
     steer_lat_accel: lateral acceleration from the measured steering angle."""
@@ -210,10 +210,6 @@ class E2ESetSpeedController:
       return a_model
     if not is_e2e or reset_state:
       self._reset(Inhibit.inactive)
-      return a_model
-    # DEC on a radarless car only blends to slow down (FCW, standstill, a predicted stop)
-    if dec_active:
-      self._reset(Inhibit.decActive)
       return a_model
 
     md = sm['modelV2']
