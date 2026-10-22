@@ -46,10 +46,11 @@ class TestOpLongMirror:
     assert "np.interp(v_ego, J_CRUISE_BP, J_CRUISE_VALS)" in src
 
   def test_limiter_budget_is_past_upstreams_cruise_floor(self):
-    # SCC and SLA keep their 1.2 m/s^2 (LongitudinalPlannerSP.update_cruise_accel); a set-speed
-    # drop gets upstream's gentler floor
+    # SCC keeps its 1.2 m/s^2 (LongitudinalPlannerSP.update_cruise_accel); a set-speed drop and SLA
+    # coast at upstream's gentler floor
     up = _module_constants(UPSTREAM_PLANNER)
     assert limits.OP_LONG_A_BUDGET == 1.2 > -up["A_CRUISE_MIN"]
+    assert limits.OP_LONG_COAST_A == -up["A_CRUISE_MIN"]
     assert "LongitudinalPlannerSP.update_cruise_accel(self, self.a_cruise)" in UPSTREAM_PLANNER.read_text()
 
 

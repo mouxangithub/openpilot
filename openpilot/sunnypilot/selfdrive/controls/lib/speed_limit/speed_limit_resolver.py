@@ -14,7 +14,7 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD, get_sanitize_int_param
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import LIMIT_MAX_MAP_DATA_AGE, LIMIT_ADAPT_ACC
-from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import COMMIT_FRAC, get_planning_limits
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import COMMIT_FRAC, OP_LONG_COAST_A, get_planning_limits
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Policy, OffsetType
 
 SpeedLimitSource = custom.LongitudinalPlanSP.SpeedLimit.Source
@@ -38,8 +38,12 @@ class SpeedLimitResolver:
     self.params = Params()
     self.frame = -1
     # swap to the upcoming lower limit once we are inside the braking distance the
-    # platform can actually deliver; the fixed LIMIT_ADAPT_ACC remains the no-CP fallback
-    self._adapt_acc = -COMMIT_FRAC * get_planning_limits(CP).a_budget if CP is not None else LIMIT_ADAPT_ACC
+    # platform can actually deliver (openpilot long coasts to it); the fixed LIMIT_ADAPT_ACC remains the no-CP fallback
+    if CP is None:
+      self._adapt_acc = LIMIT_ADAPT_ACC
+    else:
+      a_budget = OP_LONG_COAST_A if CP.openpilotLongitudinalControl else get_planning_limits(CP).a_budget
+      self._adapt_acc = -COMMIT_FRAC * a_budget
 
     self._gps_location_service = get_gps_location_service(self.params)
     self.limit_solutions = {}  # Store for speed limit solutions from different sources

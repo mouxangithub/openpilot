@@ -23,7 +23,7 @@ from openpilot.sunnypilot.selfdrive.controls.lib.e2e_lead_gap.controller import 
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
 from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import LeadForecast
-from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import OP_LONG_A_BUDGET
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import OP_LONG_A_BUDGET, op_long_cruise_jerk
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot import make_smart_cruise_control
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.assist_mirror import SpeedLimitAssistMirror
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import pcm_machine_owns_sla
@@ -34,7 +34,7 @@ from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.models.helpers import get_active_bundle
 
 LongitudinalPlanSource = custom.LongitudinalPlanSP.LongitudinalPlanSource
-LIMITER_SOURCES = (LongitudinalPlanSource.sccVision, LongitudinalPlanSource.sccMap, LongitudinalPlanSource.speedLimitAssist)
+SCC_SOURCES = (LongitudinalPlanSource.sccVision, LongitudinalPlanSource.sccMap)
 CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
 ALLOW_THROTTLE_THRESHOLD = 0.4
 MIN_ALLOW_THROTTLE_SPEED = 2.5
@@ -78,6 +78,9 @@ class LongitudinalPlannerSP:
     self.output_v_target = 0.
     self.output_a_target = 0.
     self.seed_fault_logged = False
+    self.a_cruise = 0.
+    self.a_cruise_prev = 0.
+    self.v_ego = 0.
     # the coast limit and throttle gate upstream's chill cruise dropped; the e2e lifts still take them
     self.allow_throttle = True
     self.accel_coast = ACCEL_MAX
@@ -143,15 +146,20 @@ class LongitudinalPlannerSP:
       self.source = LongitudinalPlanSource.cruise
 
     self.output_v_target, self.output_a_target = v_target, a_target
+    # the host's cruise candidate inputs, before it overwrites a_cruise this frame
+    self.a_cruise_prev, self.v_ego = self.a_cruise, CS.vEgo
     return self.output_v_target, self.output_a_target
 
   def update_cruise_accel(self, a_cruise: float) -> float:
-    """Upstream caps the cruise candidate at A_CRUISE_MIN, gentle for a set-speed drop. SCC and
-    SLA brake through the same candidate by lowering v_cruise, planned on their own budget: let
-    their decel through, down to that budget."""
-    if self.source in LIMITER_SOURCES and self.output_a_target < a_cruise:
-      return max(float(self.output_a_target), -OP_LONG_A_BUDGET)
-    return a_cruise
+    """Upstream caps the cruise candidate at A_CRUISE_MIN, gentle for a set-speed drop, and SLA
+    coasts down to a lower limit the same way. SCC brakes for a curve through the same candidate by
+    lowering v_cruise, planned on its own budget: while it is the target, rebuild the candidate from
+    it with that budget as the floor. Its a_target is not a plan to take (the map passes a_ego through)."""
+    if self.source not in SCC_SOURCES:
+      return a_cruise
+    j = op_long_cruise_jerk(self.v_ego) * DT_MDL
+    a_limiter = np.clip(self.output_v_target - self.v_ego, -OP_LONG_A_BUDGET, ACCEL_MAX)
+    return min(a_cruise, float(np.clip(a_limiter, self.a_cruise_prev - j, self.a_cruise_prev + j)))
 
   def update_e2e_target(self, sm: messaging.SubMaster, a_model: float, should_stop_model: bool,
                         reset_state: bool) -> tuple[float, bool]:
