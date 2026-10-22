@@ -104,6 +104,28 @@ ParamsBuffer params_get_default(ParamsHandle *handle, const char *key) noexcept 
   });
 }
 
+ParamsBuffer params_get_stock(ParamsHandle *handle, const char *key) noexcept {
+  return translate_exceptions(ParamsBuffer{nullptr, 0}, [&]() {
+    auto value = handle->params.getKeyStockValue(key);
+    if (!value.has_value()) {
+      return ParamsBuffer{nullptr, 0};
+    }
+    return return_string(*value);
+  });
+}
+
+int params_get_tuning_level(ParamsHandle *handle, const char *key) noexcept {
+  return translate_exceptions(0, [&]() {
+    return handle->params.getKeyTuningLevel(key);
+  });
+}
+
+int params_get_settings_tier(ParamsHandle *handle, const char *key) noexcept {
+  return translate_exceptions(1, [&]() {
+    return static_cast<int>(handle->params.getKeySettingsTier(key));
+  });
+}
+
 ParamsBuffer params_get(ParamsHandle *handle, const char *key, bool block) noexcept {
   return translate_exceptions(ParamsBuffer{nullptr, 0}, [&]() {
     return return_string(handle->params.get(key, block));

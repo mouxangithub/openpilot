@@ -129,6 +129,22 @@ std::optional<std::string> Params::getKeyDefaultValue(const std::string &key) {
   return keys[key].default_value;
 }
 
+std::optional<std::string> Params::getKeyStockValue(const std::string &key) {
+  ParamKeyAttributes &attributes = keys[key];
+  if (attributes.stock_value) {
+    return attributes.stock_value;
+  }
+  return attributes.default_value;
+}
+
+int Params::getKeyTuningLevel(const std::string &key) {
+  return keys[key].tuning_level;
+}
+
+ParamSettingsTier Params::getKeySettingsTier(const std::string &key) {
+  return keys[key].settings_tier;
+}
+
 int Params::put(const char* key, const char* value, size_t value_size) {
   // Information about safely and atomically writing a file: https://lwn.net/Articles/457667/
   // 1) Create temp file

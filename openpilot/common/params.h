@@ -32,10 +32,27 @@ enum ParamKeyType {
   BYTES = 6
 };
 
+enum ParamSettingsTier {
+  SETTINGS_SIMPLE = 0,
+  SETTINGS_ADVANCED = 1,
+};
+
 struct ParamKeyAttributes {
   uint32_t flags;
   ParamKeyType type;
   std::optional<std::string> default_value = std::nullopt;
+
+  // The value the car shipped with, when it differs from default_value. A
+  // parameter can be reset to this without a trip to a settings page.
+  std::optional<std::string> stock_value = std::nullopt;
+
+  // Which tuning level a parameter belongs to. 0 means it is not a tuning
+  // knob.
+  int tuning_level = 0;
+
+  // Where the parameter belongs in the settings page. This only affects
+  // what is shown; it does not gate the parameter at runtime.
+  ParamSettingsTier settings_tier = SETTINGS_ADVANCED;
 };
 
 class Params {
@@ -51,6 +68,11 @@ public:
   ParamKeyFlag getKeyFlag(const std::string &key);
   ParamKeyType getKeyType(const std::string &key);
   std::optional<std::string> getKeyDefaultValue(const std::string &key);
+  // The stock value, falling back to the default when no stock value is
+  // registered. Callers reset a parameter to this instead of guessing.
+  std::optional<std::string> getKeyStockValue(const std::string &key);
+  int getKeyTuningLevel(const std::string &key);
+  ParamSettingsTier getKeySettingsTier(const std::string &key);
   inline std::string getParamPath(const std::string &key = {}) {
     return params_path + params_prefix + (key.empty() ? "" : "/" + key);
   }

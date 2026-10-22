@@ -2,10 +2,16 @@
 Copyright (c) 2026-, Zeph Leggett.
 
 This file is part of zoompilot and is licensed under the MIT License.
-See the LICENSE.md file in the root directory for more details.
+See the LICENSE.md file in the root directory of more details.
+
+unittest, not pytest: the device has no pytest and the PC has no compiled msgq,
+so pytest-style files here never ran anywhere. That is how a planner-killing
+TypeError shipped behind a green suite (see
+openpilot/selfdrive/controls/lib/tests/test_lead_forecast_process_lead.py).
 """
+import unittest
+
 import numpy as np
-import pytest
 
 import openpilot.cereal.messaging as messaging
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import LongitudinalMpc, T_IDXS
@@ -61,7 +67,7 @@ def run(forecast, mpc, sm, frames=FULL_BLEND_FRAMES):
 SLOWING = [15., 11., 7., 4., 2., 1.]
 
 
-class TestForecastShape:
+class TestForecastShape(unittest.TestCase):
   def test_speed_is_the_models_change_on_vlead(self):
     # the model sees the lead 1 m/s faster than radarState does; only its change counts
     v = forecast_speed(15., np.array(SLOWING) + 1.)
@@ -77,14 +83,15 @@ class TestForecastShape:
 
   def test_speed_up_fades_in(self):
     v = forecast_speed(5.5, [5.5, 7.5, 7.5, 7.5, 7.5, 7.5])
-    assert 5.5 < v[1] < 7.5
+    self.assertGreater(float(v[1]), 5.5)
+    self.assertLess(float(v[1]), 7.5)
 
   def test_slowdown_is_never_limited(self):
     v = forecast_speed(2., [2., 0.5, 0., 0., 0., 0.])
     np.testing.assert_allclose(v, [2., 0.5, 0., 0., 0., 0.])
 
   def test_never_negative(self):
-    assert (forecast_speed(3., [10., 0., -5., -5., -5., -5.]) >= 0.).all()
+    self.assertTrue((forecast_speed(3., [10., 0., -5., -5., -5., -5.]) >= 0.).all())
 
   def test_distance_is_the_integral_of_speed(self):
     xv = forecast_trajectory(30., np.full(len(LEAD_T_IDXS), 10.))
@@ -93,22 +100,22 @@ class TestForecastShape:
 
   def test_distance_never_decreases(self):
     xv = forecast_trajectory(30., forecast_speed(15., SLOWING))
-    assert (np.diff(xv[:, 0]) >= 0.).all()
+    self.assertTrue((np.diff(xv[:, 0]) >= 0.).all())
 
 
-class TestMpcHook:
+class TestMpcHook(unittest.TestCase):
   def test_disabled_is_upstream(self):
     mpc, forecast, upstream = build(enabled=False)
     sm = build_sm(model_v=SLOWING)
     lead_xv = run(forecast, mpc, sm)
-    assert forecast.inhibits[0] == Inhibit.disabled
+    self.assertEqual(forecast.inhibits[0], Inhibit.disabled)
     np.testing.assert_array_equal(lead_xv, upstream(sm['radarState'].leadOne))
 
   def test_radar_lead_is_upstream(self):
     mpc, forecast, upstream = build()
     sm = build_sm(model_v=SLOWING, radar=True)
     lead_xv = run(forecast, mpc, sm)
-    assert forecast.inhibits[0] == Inhibit.radar
+    self.assertEqual(forecast.inhibits[0], Inhibit.radar)
     np.testing.assert_array_equal(lead_xv, upstream(sm['radarState'].leadOne))
 
   def test_other_object_is_upstream(self):
@@ -118,17 +125,18 @@ class TestMpcHook:
     rs.leadOne.dRel = 15.
     sm['radarState'] = rs.as_reader()
     lead_xv = run(forecast, mpc, sm)
-    assert forecast.inhibits[0] == Inhibit.mismatch
+    self.assertEqual(forecast.inhibits[0], Inhibit.mismatch)
     np.testing.assert_array_equal(lead_xv, upstream(sm['radarState'].leadOne))
 
   def test_slowing_lead_closes_in_sooner(self):
     mpc, forecast, upstream = build()
     sm = build_sm(model_v=SLOWING)
     lead_xv = run(forecast, mpc, sm)
-    assert forecast.inhibits[0] == Inhibit.none and forecast.weights[0] == 1.
+    self.assertEqual(forecast.inhibits[0], Inhibit.none)
+    self.assertEqual(forecast.weights[0], 1.)
     np.testing.assert_allclose(lead_xv, forecast_trajectory(40., np.array(SLOWING)))
     old = upstream(sm['radarState'].leadOne)
-    assert (lead_xv[1:, 0] < old[1:, 0]).all()
+    self.assertTrue((lead_xv[1:, 0] < old[1:, 0]).all())
 
   def test_each_lead_gets_its_own_forecast(self):
     # upstream update() calls process_lead for leadOne, then leadTwo
@@ -143,19 +151,20 @@ class TestMpcHook:
     mpc, forecast, upstream = build()
     sm = build_sm(model_v=SLOWING)
     run(forecast, mpc, sm, frames=1)
-    assert forecast.weights[0] == pytest.approx(BLEND_RATE * 0.05)
+    self.assertAlmostEqual(forecast.weights[0], BLEND_RATE * 0.05, delta=1e-12)
     run(forecast, mpc, sm)
-    assert forecast.weights[0] == 1.
+    self.assertEqual(forecast.weights[0], 1.)
     rs = sm['radarState'].as_builder()
     rs.leadOne.radar = True
     radar_sm = {'modelV2': sm['modelV2'], 'radarState': rs.as_reader()}
     lead_xv = run(forecast, mpc, radar_sm, frames=1)
     w = forecast.weights[0]
-    assert 0. < w < 1.
+    self.assertGreater(w, 0.)
+    self.assertLess(w, 1.)
     old = upstream(radar_sm['radarState'].leadOne)
     np.testing.assert_allclose(lead_xv, w * forecast_trajectory(40., np.array(SLOWING)) + (1 - w) * old)
     run(forecast, mpc, radar_sm)
-    assert forecast.weights[0] == 0.
+    self.assertEqual(forecast.weights[0], 0.)
 
   def test_lost_lead_is_upstreams_fake_lead(self):
     mpc, forecast, upstream = build()
@@ -164,22 +173,22 @@ class TestMpcHook:
     forecast.update(sm)
     lead_xv = mpc.process_lead(sm['radarState'].leadOne)
     np.testing.assert_array_equal(lead_xv, upstream(sm['radarState'].leadOne))
-    assert lead_xv[0, 0] == 50.  # upstream's synthetic fast lead
+    self.assertEqual(lead_xv[0, 0], 50.)  # upstream's synthetic fast lead
 
   def test_start_is_clipped_like_upstream(self):
     # a lead 2 m ahead and 15 m/s slower is beyond braking; upstream starts it further out
     mpc, forecast, upstream = build()
     sm = build_sm(d_rel=2., v_lead=5.)
     lead_xv = run(forecast, mpc, sm)
-    assert lead_xv[0, 0] == pytest.approx(upstream(sm['radarState'].leadOne)[0, 0])
-    assert lead_xv[0, 0] > 2.
+    self.assertAlmostEqual(float(lead_xv[0, 0]), float(upstream(sm['radarState'].leadOne)[0, 0]), delta=1e-6)
+    self.assertGreater(float(lead_xv[0, 0]), 2.)
 
   def test_upstream_tau_unchanged(self):
     # the comparison in docs/zoompilot/lead-forecast.md assumes upstream's vision tau and fallback tau
-    assert _LEAD_ACCEL_TAU == 1.5
+    self.assertEqual(_LEAD_ACCEL_TAU, 1.5)
 
 
-class TestGuards:
+class TestGuards(unittest.TestCase):
   def test_braking_lead_may_not_speed_up(self):
     v = forecast_speed(10., [10., 12., 14., 14., 14., 14.], a_lead=-1.5)
     np.testing.assert_allclose(v, 10.)
@@ -191,7 +200,7 @@ class TestGuards:
   def test_stopped_lead_with_a_predicted_launch_stays_put(self):
     mpc, forecast, _ = build()
     lead_xv = run(forecast, mpc, build_sm(d_rel=20., v_lead=0., model_v=[0., 2., 5., 8., 10., 12.]))
-    assert forecast.inhibits[0] == Inhibit.none
+    self.assertEqual(forecast.inhibits[0], Inhibit.none)
     # the start may sit further out (upstream's min_x_lead clip), but the car never moves
     np.testing.assert_allclose(lead_xv[:, 0], lead_xv[0, 0])
     np.testing.assert_allclose(lead_xv[:, 1], 0.)
@@ -206,14 +215,15 @@ class TestGuards:
     leads[0].prob, leads[0].x, leads[0].v = prob, x, v
     sm['modelV2'] = md.as_reader()
     run(forecast, mpc, sm)
-    assert forecast.inhibits[0] == Inhibit.none
-    assert forecast.inhibits[1] == Inhibit.invalid and forecast.weights[1] == 0.
+    self.assertEqual(forecast.inhibits[0], Inhibit.none)
+    self.assertEqual(forecast.inhibits[1], Inhibit.invalid)
+    self.assertEqual(forecast.weights[1], 0.)
 
   def test_non_finite_model_is_invalid(self):
     mpc, forecast, upstream = build()
     sm = build_sm(model_v=[15., float('nan'), 7., 4., 2., 1.])
     lead_xv = run(forecast, mpc, sm)
-    assert forecast.inhibits[0] == Inhibit.invalid
+    self.assertEqual(forecast.inhibits[0], Inhibit.invalid)
     np.testing.assert_array_equal(lead_xv, upstream(sm['radarState'].leadOne))
 
   def test_extra_mpc_update_gets_upstream(self):
@@ -234,7 +244,8 @@ class TestGuards:
     rs.leadOne.vLead = float('nan')
     sm['radarState'] = rs.as_reader()
     forecast.update(sm)
-    assert 0. < forecast.weights[0] < 1.
+    self.assertGreater(forecast.weights[0], 0.)
+    self.assertLess(forecast.weights[0], 1.)
     lead_xv = forecast.process_lead(sm['radarState'].leadOne)
     np.testing.assert_array_equal(lead_xv, upstream(sm['radarState'].leadOne))
 
@@ -246,4 +257,8 @@ class TestGuards:
     rs.leadOne.dRel = 40.5
     sm['radarState'] = rs.as_reader()
     run(forecast, mpc, sm)
-    assert forecast.inhibits[0] == Inhibit.none
+    self.assertEqual(forecast.inhibits[0], Inhibit.none)
+
+
+if __name__ == "__main__":
+  unittest.main()

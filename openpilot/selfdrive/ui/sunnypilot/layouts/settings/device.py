@@ -52,6 +52,17 @@ class DeviceLayoutSP(DeviceLayout):
     )
     self._always_offroad_btn.action_item.right_button.set_visible(False)
 
+    # Safe Mode swaps every driving knob for a conservative one and keeps a
+    # record of what it replaced. It is a transition, not a value, so it goes
+    # through carrot_server's handler rather than straight into the store.
+    self._safe_mode_btn = dual_button_item_sp(
+      left_text=lambda: tr("Enable Safe Mode"),
+      left_callback=self._handle_safe_mode,
+      right_text="",
+      right_callback=None,
+    )
+    self._safe_mode_btn.action_item.right_button.set_visible(False)
+
     self._max_time_offroad = option_item_sp(
       title=lambda: tr("Max Time Offroad"),
       description=lambda: tr("Device will automatically shutdown after set time once the engine is turned off.\n(30h is the default)"),
@@ -86,6 +97,16 @@ class DeviceLayoutSP(DeviceLayout):
       right_callback=lambda: gui_app.push_widget(CabinCameraDialog())
     )
     self._quiet_mode_and_dcam.action_item.right_button.set_button_style(ButtonStyle.NORMAL)
+
+    self._onroad_preview_btn = dual_button_item_sp(
+      left_text="",
+      right_text=lambda: tr("Onroad Preview"),
+      left_callback=None,
+      right_callback=self._enter_onroad_preview,
+      enabled=lambda: ui_state.is_offroad() or self._params.get_bool("IsOnroadPreview"),
+    )
+    self._onroad_preview_btn.action_item.left_button.set_visible(False)
+    self._onroad_preview_btn.action_item.right_button.set_button_style(ButtonStyle.NORMAL)
 
     self._reg_and_training = dual_button_item_sp(
       left_text=lambda: tr("Regulatory"),
@@ -124,7 +145,11 @@ class DeviceLayoutSP(DeviceLayout):
       LineSeparator(),
       self._max_time_offroad,
       LineSeparator(height=10),
+      self._safe_mode_btn,
+      Spacer(10),
+      LineSeparator(height=10),
       self._quiet_mode_and_dcam,
+      self._onroad_preview_btn,
       self._reg_and_training,
       self._onroad_uploads_and_reset_settings,
       Spacer(10),
@@ -182,6 +207,42 @@ class DeviceLayoutSP(DeviceLayout):
     gui_app.push_widget(ConfirmDialog(_offroad_mode_str, tr("Confirm"), callback=lambda result: _set_always_offroad(result)))
 
   @staticmethod
+  def _handle_safe_mode():
+    """Switch Safe Mode on or off through the guarded transition.
+
+    This button is the only place a person can do it, so it carries the
+    explanation: what changes, and why the answer is "park first". The
+    decision itself is not made here - ``set_safe_mode`` owns the gate, so
+    the API and the button cannot disagree about when it is allowed.
+    """
+    from openpilot.sunnypilot.common.safe_mode_runtime import SafeModeError, safe_mode_status, set_safe_mode
+
+    params = ui_state.params
+    status = safe_mode_status(params)
+
+    if status["reason"]:
+      gui_app.push_widget(alert_dialog(status["reason"]))
+      return
+
+    if status["active"]:
+      question = tr("Undo Safe Mode and put back the values it replaced?")
+    else:
+        question = tr("Safe Mode forces every driving knob this fork adds back to a conservative value and remembers what it replaced. Continue?")
+
+    def _do_set(result: int):
+      if result != DialogResult.CONFIRM:
+        return
+      try:
+        new_status = set_safe_mode(params, not status["active"])
+      except SafeModeError as exc:
+        gui_app.push_widget(alert_dialog(str(exc)))
+        return
+      if new_status["active"]:
+        gui_app.push_widget(alert_dialog(tr("Safe Mode is on. Reboot so every process picks up the forced values.")))
+
+    gui_app.push_widget(ConfirmDialog(question, tr("Confirm"), callback=_do_set))
+
+  @staticmethod
   def _update_max_time_offroad_label(value: int) -> str:
     label = tr("Always On") if value == 0 else f"{value}" + tr("m") if value < 60 else f"{value // 60}" + tr("h")
     label += tr(" (Default)") if value == 1800 else ""
@@ -207,6 +268,15 @@ class DeviceLayoutSP(DeviceLayout):
     else:
       self._scroller._items.insert(0, self._always_offroad_btn)
 
+    # Safe Mode button. Only the flag is read here: the full status parses
+    # the backup document, which is far too much work for a 60 Hz label.
+    from openpilot.sunnypilot.common.safe_mode_runtime import is_safe_mode
+    safe_active = is_safe_mode(self._params)
+    self._safe_mode_btn.action_item.left_button.set_text(tr("Exit Safe Mode") if safe_active else tr("Enable Safe Mode"))
+    self._safe_mode_btn.action_item.left_button.set_button_style(ButtonStyle.PRIMARY if safe_active else ButtonStyle.DANGER)
+    # Parked only, matching the gate the transition enforces.
+    self._safe_mode_btn.action_item.left_button.set_enabled(ui_state.is_offroad())
+
     # Quiet Mode button
     self._quiet_mode_and_dcam.action_item.left_button.set_button_style(ButtonStyle.PRIMARY if ui_state.params.get_bool("QuietMode") else ButtonStyle.NORMAL)
 
@@ -217,6 +287,10 @@ class DeviceLayoutSP(DeviceLayout):
 
     # Offroad only buttons
     self._quiet_mode_and_dcam.action_item.right_button.set_enabled(ui_state.is_offroad())
+    is_preview = self._params.get_bool("IsOnroadPreview")
+    preview_enabled = ui_state.is_offroad() or is_preview
+    self._onroad_preview_btn.action_item.right_button.set_enabled(preview_enabled)
+    self._onroad_preview_btn.action_item.right_button.set_button_style(ButtonStyle.PRIMARY if is_preview else ButtonStyle.NORMAL)
     self._reg_and_training.action_item.left_button.set_enabled(ui_state.is_offroad())
     self._reg_and_training.action_item.right_button.set_enabled(ui_state.is_offroad())
     self._onroad_uploads_and_reset_settings.action_item.right_button.set_enabled(ui_state.is_offroad())

@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+import unittest
+from types import SimpleNamespace
+
+from openpilot.selfdrive.controls.lib.longitudinal_vehicle_tunes import get_far_lead_coast_headway_floor
+from openpilot.selfdrive.controls.lib.lead_behavior import (
+  get_tracked_lead_catchup_bias,
+  is_radarless_matched_follow_window,
+  should_hold_tracked_vision_lead,
+  should_track_lead,
+  should_disable_far_lead_throttle,
+)
+
+
+class TestLeadBehavior(unittest.TestCase):
+  def test_tracked_lead_catchup_bias_for_hanging_gap(self):
+    bias = get_tracked_lead_catchup_bias(31.4, 78.7, 38.0, 0.1)
+    self.assertGreater(bias, 10.0)
+
+  def test_tracked_lead_catchup_bias_ignores_near_desired_gap(self):
+    bias = get_tracked_lead_catchup_bias(31.4, 50.0, 38.0, 0.1)
+    self.assertEqual(bias, 0.0)
+
+  def test_tracked_lead_catchup_bias_corrects_lightning_aggressive_follow_bookmark(self):
+    default_bias = get_tracked_lead_catchup_bias(
+      31.75,
+      46.2,
+      34.0,
+      0.0,
+      v_cruise=37.55,
+      y_rel=0.1,
+    )
+    bias = get_tracked_lead_catchup_bias(
+      31.75,
+      46.2,
+      34.0,
+      0.0,
+      v_cruise=37.55,
+      y_rel=0.1,
+      min_headway_margin=0.20,
+      full_headway_margin=0.45,
+    )
+
+    self.assertEqual(default_bias, 0.0)
+    self.assertGreater(bias, 2.0)
+
+  def test_tracked_lead_catchup_bias_handles_crv_hanging_gap(self):
+    tuned_bias = get_tracked_lead_catchup_bias(
+      19.8,
+      85.0,
+      43.636,
+      1.7,
+      v_cruise=20.44,
+      y_rel=-0.54,
+      min_headway_margin=0.10,
+      full_headway_margin=0.35,
+      bias_gain=1.25,
+      bias_cap=65.0,
+      speed_range=(10.0, 18.0),
+      fade_margins=(0.75, 6.5),
+      cruise_error_full=0.75,
+    )
+
+    self.assertGreater(tuned_bias, 40.0)
+
+  def test_tracked_lead_catchup_bias_ignores_very_far_gap(self):
+    bias = get_tracked_lead_catchup_bias(31.4, 110.0, 38.0, 0.1)
+    self.assertEqual(bias, 0.0)
+
+  def test_tracked_lead_catchup_bias_applies_to_two_second_highway_gap(self):
+    bias = get_tracked_lead_catchup_bias(30.4, 63.0, 40.0, 0.4)
+    self.assertGreater(bias, 9.0)
+
+  def test_tracked_lead_catchup_bias_reduces_for_laterally_offset_lead(self):
+    centered = get_tracked_lead_catchup_bias(34.0, 103.0, 73.0, 1.9, y_rel=0.2)
+    offset = get_tracked_lead_catchup_bias(34.0, 103.0, 73.0, 1.9, y_rel=1.95)
+    self.assertGreater(centered, 0.0)
+    self.assertEqual(offset, 0.0)
+
+  def test_tracked_lead_catchup_bias_fades_before_very_far_gap_cutoff(self):
+    near_upper = get_tracked_lead_catchup_bias(34.0, 103.0, 73.0, 1.9)
+    smaller_gap = get_tracked_lead_catchup_bias(34.0, 96.0, 73.0, 1.9)
+    self.assertGreater(near_upper, 0.0)
+    self.assertLess(near_upper, smaller_gap)
+
+  def test_tracked_lead_catchup_bias_stays_off_once_at_set_speed(self):
+    bias = get_tracked_lead_catchup_bias(31.4, 78.7, 38.0, 0.1, v_cruise=31.4)
+    self.assertEqual(bias, 0.0)
+
+  def test_tracked_lead_catchup_bias_fades_smoothly_near_set_speed(self):
+    below_set = get_tracked_lead_catchup_bias(27.70, 81.0, 46.0, 0.0, v_cruise=27.78, y_rel=0.8)
+    at_set = get_tracked_lead_catchup_bias(27.78, 81.0, 46.0, 0.0, v_cruise=27.78, y_rel=0.8)
+    self.assertLess(0.0, below_set)
+    self.assertLess(below_set, 0.25)
+    self.assertEqual(at_set, 0.0)
+
+  def test_tracked_lead_catchup_bias_dials_back_camry_bookmark_case(self):
+    bias = get_tracked_lead_catchup_bias(27.40, 81.0, 46.0, 0.0, v_cruise=27.78, y_rel=0.8)
+    self.assertLess(0.0, bias)
+    self.assertLess(bias, 2.0)
+
+  def test_tracked_lead_catchup_bias_fades_smoothly_at_closing_limit(self):
+    below_limit = get_tracked_lead_catchup_bias(31.4, 78.7, 38.0, 3.75)
+    above_limit = get_tracked_lead_catchup_bias(31.4, 78.7, 38.0, 3.77)
+    self.assertLess(abs(below_limit - above_limit), 0.1)
+
+  def test_disable_far_lead_throttle_rejects_two_second_plus_gap(self):
+    should_disable = should_disable_far_lead_throttle(31.4, 78.7, 38.0, 0.1, False)
+    self.assertFalse(should_disable)
+
+  def test_disable_far_lead_throttle_keeps_mild_coast_near_target_gap(self):
+    should_disable = should_disable_far_lead_throttle(31.4, 52.0, 38.0, 0.5, False)
+    self.assertTrue(should_disable)
+
+  def test_disable_far_lead_throttle_waits_until_reduced_gap(self):
+    should_disable = should_disable_far_lead_throttle(31.4, 43.5, 38.0, 0.5, False)
+    self.assertTrue(should_disable)
+
+  def test_disable_far_lead_throttle_rejects_fast_closing(self):
+    should_disable = should_disable_far_lead_throttle(31.4, 52.0, 38.0, 3.5, False)
+    self.assertFalse(should_disable)
+
+  def test_disable_far_lead_throttle_rejects_route_like_highway_stab_case(self):
+    should_disable = should_disable_far_lead_throttle(34.69, 68.5, 63.0, 2.31, False)
+    self.assertFalse(should_disable)
+
+  def test_disable_far_lead_throttle_rejects_large_gap_near_pace_matched_case(self):
+    should_disable = should_disable_far_lead_throttle(32.43, 72.4, 56.0, 1.30, False)
+    self.assertFalse(should_disable)
+
+  def test_silverado_far_lead_coast_does_not_cut_throttle_at_hanging_highway_gap(self):
+    truck = SimpleNamespace(brand="gm", carFingerprint="CHEVROLET_SILVERADO", enableGasInterceptorDEPRECATED=False)
+    # Route 15c: the old coast gate repeatedly closed at roughly 60 m, not 0.75 s.
+    scene = (34.0, 57.0, 43.0, 1.0, False)
+    self.assertTrue(should_disable_far_lead_throttle(*scene))
+    self.assertFalse(should_disable_far_lead_throttle(*scene, get_far_lead_coast_headway_floor(truck)))
+
+  def test_silverado_far_lead_coast_still_works_near_requested_gap(self):
+    truck = SimpleNamespace(brand="gm", carFingerprint="CHEVROLET_SILVERADO", enableGasInterceptorDEPRECATED=False)
+    floor = get_far_lead_coast_headway_floor(truck)
+    self.assertTrue(should_disable_far_lead_throttle(34.0, 40.0, 33.0, 0.6, False, floor))
+    self.assertFalse(should_disable_far_lead_throttle(34.0, 40.0, 33.0, 4.0, False, floor))
+    self.assertFalse(should_disable_far_lead_throttle(15.0, 24.0, 16.0, 0.6, False, floor))
+    self.assertFalse(should_disable_far_lead_throttle(34.0, 40.0, 33.0, 0.6, True, floor))
+
+  def test_far_lead_coast_tune_is_only_for_non_pedal_gm_trucks(self):
+    for fingerprint in ("CHEVROLET_SILVERADO", "CHEVROLET_SILVERADO_CC"):
+      truck = SimpleNamespace(brand="gm", carFingerprint=fingerprint, enableGasInterceptorDEPRECATED=False)
+      self.assertEqual(get_far_lead_coast_headway_floor(truck), 1.25)
+      truck.enableGasInterceptorDEPRECATED = True
+      self.assertEqual(get_far_lead_coast_headway_floor(truck), 1.75)
+    for brand, fingerprint in (("gm", "CHEVROLET_BOLT_EUV"), ("ford", "FORD_F_150_LIGHTNING_MK1"), ("hyundai", "HYUNDAI_IONIQ_6")):
+      self.assertEqual(get_far_lead_coast_headway_floor(SimpleNamespace(brand=brand, carFingerprint=fingerprint)), 1.75)
+    self.assertEqual(get_far_lead_coast_headway_floor(None), 1.75)
+
+  def test_should_track_lead_keeps_radar_leads_on_model_horizon(self):
+    self.assertTrue(should_track_lead(True, 95.0, 100.0, 6.0, 30.0, v_lead=25.0, radar=True))
+
+  def test_should_track_lead_rejects_far_vision_only_highway_lead(self):
+    self.assertFalse(should_track_lead(True, 82.0, 140.0, 6.0, 29.0, v_lead=25.0, radar=False))
+
+  def test_should_track_lead_accepts_closer_vision_only_highway_lead(self):
+    self.assertTrue(should_track_lead(True, 56.0, 140.0, 6.0, 29.0, v_lead=25.0, radar=False))
+
+  def test_should_track_lead_accepts_fast_closing_vision_lead_early(self):
+    self.assertTrue(should_track_lead(True, 90.0, 140.0, 6.0, 20.0, v_lead=0.0, radar=False))
+
+  def test_should_hold_tracked_vision_lead_keeps_honda_bookmark_case(self):
+    self.assertTrue(should_hold_tracked_vision_lead(
+      True, 44.5, 174.0, 6.0, 16.8,
+      model_prob=0.99, y_rel=-0.69, radar=False,
+    ))
+
+  def test_should_hold_tracked_vision_lead_does_not_expand_initial_tracking_gate(self):
+    self.assertFalse(should_track_lead(True, 44.5, 174.0, 6.0, 16.8, v_lead=16.7, radar=False))
+
+  def test_should_hold_tracked_vision_lead_releases_offcenter_lead(self):
+    self.assertFalse(should_hold_tracked_vision_lead(
+      True, 44.5, 174.0, 6.0, 16.8,
+      model_prob=0.99, y_rel=-1.7, radar=False,
+    ))
+
+  def test_should_hold_tracked_vision_lead_uses_path_relative_offset_on_curve(self):
+    self.assertTrue(should_hold_tracked_vision_lead(
+      True, 27.8, 174.0, 6.0, 16.0,
+      model_prob=1.0, y_rel=-2.11, path_y=1.32, radar=False,
+    ))
+
+  def test_should_hold_tracked_vision_lead_releases_low_confidence_lead(self):
+    self.assertFalse(should_hold_tracked_vision_lead(
+      True, 44.5, 174.0, 6.0, 16.8,
+      model_prob=0.69, y_rel=0.0, radar=False,
+    ))
+
+  def test_should_hold_tracked_vision_lead_does_not_change_radar_tracking(self):
+    self.assertFalse(should_hold_tracked_vision_lead(
+      True, 44.5, 174.0, 6.0, 16.8,
+      model_prob=0.99, y_rel=0.0, radar=True,
+    ))
+
+  def test_should_hold_tracked_vision_lead_keeps_braking_lead(self):
+    self.assertTrue(should_hold_tracked_vision_lead(
+      True, 44.5, 174.0, 6.0, 16.8,
+      model_prob=0.99, y_rel=0.0, radar=False,
+    ))
+
+  def test_should_hold_tracked_vision_lead_releases_beyond_exit_gap(self):
+    self.assertFalse(should_hold_tracked_vision_lead(
+      True, 57.0, 174.0, 6.0, 16.8,
+      model_prob=0.99, y_rel=0.0, radar=False,
+    ))
+
+  def test_should_hold_tracked_vision_lead_ignores_shortened_model_horizon_in_bolt_stutter_case(self):
+    self.assertTrue(should_hold_tracked_vision_lead(
+      True, 54.6, 40.0, 6.0, 19.4,
+      model_prob=1.0, y_rel=0.05, radar=False,
+    ))
+
+  def test_should_hold_tracked_vision_lead_does_not_extend_low_confidence_short_horizon_case(self):
+    self.assertFalse(should_hold_tracked_vision_lead(
+      True, 54.6, 40.0, 6.0, 19.4,
+      model_prob=0.90, y_rel=0.05, radar=False,
+    ))
+
+  def test_radarless_matched_follow_window_accepts_pace_matched_highway_follow(self):
+    self.assertTrue(is_radarless_matched_follow_window(31.0, 48.0, 30.4, 1.45, radar=False, lead_brake=0.05, lead_prob=0.95))
+
+  def test_radarless_matched_follow_window_rejects_large_relative_speed(self):
+    self.assertFalse(is_radarless_matched_follow_window(31.0, 48.0, 27.5, 1.45, radar=False, lead_brake=0.05, lead_prob=0.95))
+
+  def test_radarless_matched_follow_window_rejects_far_headway(self):
+    self.assertFalse(is_radarless_matched_follow_window(31.0, 82.0, 30.4, 1.45, radar=False, lead_brake=0.05, lead_prob=0.95))
+
+  def test_radarless_matched_follow_window_rejects_low_confidence_lead(self):
+    self.assertFalse(is_radarless_matched_follow_window(31.0, 48.0, 30.4, 1.45, radar=False, lead_brake=0.05, lead_prob=0.55))
+
+  def test_radarless_matched_follow_window_keeps_default_low_speed_guard(self):
+    self.assertFalse(is_radarless_matched_follow_window(14.4, 25.4, 16.2, 1.25, radar=False, lead_brake=0.0, lead_prob=1.0))
+
+  def test_radarless_matched_follow_window_accepts_lower_speed_when_requested(self):
+    self.assertTrue(is_radarless_matched_follow_window(14.4, 25.4, 16.2, 1.25, radar=False, lead_brake=0.0, lead_prob=1.0, min_speed=12.0))
+
+
+if __name__ == "__main__":
+  unittest.main()

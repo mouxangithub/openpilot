@@ -9,6 +9,7 @@ import pyray as rl
 from openpilot.selfdrive.ui.onroad.hud_renderer import COLORS
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app, FontWeight
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.sunnypilot.lib.utils import AlertFadeAnimator
 from openpilot.system.ui.widgets import Widget
@@ -98,8 +99,8 @@ class SmartCruiseControlRenderer(Widget):
 
     if self.vision_enabled:
       alpha = self._vision_fade.alpha if self.vision_active else 1.0
-      self._draw_icon(rect.x + rect.width / 2, rect.height, x_offset, y_scc_v, "SCC-V", alpha)
+      self._draw_icon(rect.x + rect.width / 2, rect.height, x_offset, y_scc_v, tr("SCC-V"), alpha)
 
     if self.map_enabled:
       alpha = self._map_fade.alpha if self.map_active else 1.0
-      self._draw_icon(rect.x + rect.width / 2, rect.height, x_offset, y_scc_m, "SCC-M", alpha)
+      self._draw_icon(rect.x + rect.width / 2, rect.height, x_offset, y_scc_m, tr("SCC-M"), alpha)

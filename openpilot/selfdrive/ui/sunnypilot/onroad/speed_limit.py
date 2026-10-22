@@ -74,8 +74,8 @@ class SpeedLimitAlertRenderer:
       speed_conv = CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
       speed_limit_final_last = ui_state.sm['longitudinalPlanSP'].speedLimit.resolver.speedLimitFinalLast
 
-      v_cruise_cluster = ui_state.sm['carState'].vCruiseCluster
-      set_speed = ui_state.sm['controlsState'].deprecated.vCruise if v_cruise_cluster == 0.0 else v_cruise_cluster
+      # Cluster value alone; deprecated.vCruise keeps a stale value when cruise is off.
+      set_speed = ui_state.sm['carState'].vCruiseCluster
       if not ui_state.is_metric:
         set_speed *= KM_TO_MILE
 
@@ -120,6 +120,10 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
     self.font_demi = gui_app.font(FontWeight.SEMI_BOLD)
     self.font_norm = gui_app.font(FontWeight.NORMAL)
 
+    # CarrotPanelOpacity (0-100, default 100) + CarrotPanelSide (0=right, 1=left).
+    self._panel_opacity = 100
+    self._panel_side = 0
+
   @property
   def speed_conv(self):
     return CV.MS_TO_KPH if ui_state.is_metric else CV.MS_TO_MPH
@@ -127,6 +131,15 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
   def update(self):
     SpeedLimitAlertRenderer.update(self)
     sm = ui_state.sm
+    # Read CarrotPanelOpacity (0-100) and CarrotPanelSide (0=right, 1=left).
+    try:
+      self._panel_opacity = max(10, min(100, int(ui_state.params.get("CarrotPanelOpacity", 100))))
+    except Exception:
+      self._panel_opacity = 100
+    try:
+      self._panel_side = max(0, min(1, int(ui_state.params.get("CarrotPanelSide", 0))))
+    except Exception:
+      self._panel_side = 0
     if sm.recv_frame["carState"] < ui_state.started_frame:
       self.set_speed = SET_SPEED_NA
       self.speed = 0.0
@@ -159,13 +172,11 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
 
       self.speed_limit_ahead_dist_prev = self.speed_limit_ahead_dist
 
-    controls_state = sm['controlsState']
     car_state = sm["carState"]
 
-    v_cruise_cluster = car_state.vCruiseCluster
-    self.set_speed = (
-      controls_state.deprecated.vCruise if v_cruise_cluster == 0.0 else v_cruise_cluster
-    )
+    # Set speed comes from the cluster value alone; deprecated.vCruise keeps a
+    # stale value when cruise is off and would invent a phantom set speed.
+    self.set_speed = car_state.vCruiseCluster
     self.is_cruise_set = 0 < self.set_speed < SET_SPEED_NA
     self.is_cruise_available = self.set_speed != -1
 
@@ -183,12 +194,21 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
 
   def _render(self, rect: rl.Rectangle):
     width = UI_CONFIG.set_speed_width_metric if ui_state.is_metric else UI_CONFIG.set_speed_width_imperial
-    x = rect.x + 60 + width + 30 - 6
-    y = rect.y + 45 - 6
+
+    # CarrotPanelSide: 0=left (stacked under the MAX box), 1=right (next to the MAX box, default).
+    # The MAX box owns x+46..x+246 at the left edge of the content area, so "left" can only mean
+    # *below* it — the original x+60 landed exactly on top of the MAX box.
+    if self._panel_side == 0:
+      x = rect.x + 60
+      y = rect.y + 45 + UI_CONFIG.set_speed_height + 24
+    else:
+      x = rect.x + 60 + width + 30 - 6
+      y = rect.y + 45 - 6
 
     sign_rect = rl.Rectangle(x, y, width, UI_CONFIG.set_speed_height + 6 * 2)
 
-    alpha = self._pre_active_fade.alpha
+    # CarrotPanelOpacity (10-100) scales the animation fade alpha.
+    alpha = self._pre_active_fade.alpha * (self._panel_opacity / 100.0)
 
     if ui_state.speed_limit_mode != SpeedLimitMode.off:
       self._draw_sign_main(sign_rect, alpha)
@@ -270,8 +290,8 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
 
     rl.draw_rectangle_rounded_lines_ex(inner, inner_roundness, 10, 4, black)
 
-    self._draw_text_centered(self.font_demi, "SPEED", 40, rl.Vector2(rect.x + rect.width / 2, rect.y + 40), black)
-    self._draw_text_centered(self.font_demi, "LIMIT", 40, rl.Vector2(rect.x + rect.width / 2, rect.y + 80), black)
+    self._draw_text_centered(self.font_demi, tr("SPEED"), 40, rl.Vector2(rect.x + rect.width / 2, rect.y + 40), black)
+    self._draw_text_centered(self.font_demi, tr("LIMIT"), 40, rl.Vector2(rect.x + rect.width / 2, rect.y + 80), black)
     self._draw_text_centered(self.font_bold, val, 90, rl.Vector2(rect.x + rect.width / 2, rect.y + 150), text_color)
 
     if sub and has_limit:
@@ -297,7 +317,7 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
     rl.draw_rectangle_rounded_lines_ex(rect, 0.35, 10, 3, Colors.MUTCD_LINES)
 
     mid_x = rect.x + rect.width / 2
-    self._draw_text_centered(self.font_demi, "AHEAD", 40, rl.Vector2(mid_x, rect.y + 28), Colors.GREY)
+    self._draw_text_centered(self.font_demi, tr("AHEAD"), 40, rl.Vector2(mid_x, rect.y + 28), Colors.GREY)
     self._draw_text_centered(self.font_bold, str(round(self.speed_limit_ahead)), 70, rl.Vector2(mid_x, rect.y + 82), Colors.WHITE)
     self._draw_text_centered(self.font_norm, self._format_dist(self.speed_limit_ahead_dist), 36, rl.Vector2(mid_x, rect.y + 134), Colors.GREY)
 
@@ -309,10 +329,10 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
         return tr("Near")
 
       if d >= 1000:
-        return f"{d / 1000:.1f} km"
+        return f"{d / 1000:.1f} {tr('km')}"
 
       d_rounded = round(d, -1) if d < 200 else round(d, -2)
-      return f"{int(d_rounded)} m"
+      return f"{int(d_rounded)} {tr('m')}"
 
     # imperial
     d_ft = d * METER_TO_FOOT
@@ -320,9 +340,9 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
       return tr("Near")
 
     if d_ft >= 900:
-      return f"{d * METER_TO_MILE:.1f} mi"
+      return f"{d * METER_TO_MILE:.1f} {tr('mi')}"
 
     if d_ft < 500:
-      return f"{int(round(d_ft / 50) * 50)} ft"
+      return f"{int(round(d_ft / 50) * 50)} {tr('ft')}"
 
-    return f"{int(round(d_ft / 100) * 100)} ft"
+    return f"{int(round(d_ft / 100) * 100)} {tr('ft')}"

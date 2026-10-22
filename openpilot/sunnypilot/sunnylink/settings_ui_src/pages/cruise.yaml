@@ -85,6 +85,42 @@ sections:
       label: Relaxed
     enablement:
     - $ref: '#/macros/longitudinal'
+  - key: AccelPersonalityEnabled
+    widget: toggle
+    title: Enable Accel Controller
+    description: Lets you choose how sunnypilot starts, catches up, and settles at the cruise speed. Emergency braking and stopping are
+      unchanged.
+    visibility:
+    - $ref: '#/macros/longitudinal'
+    enablement:
+    - $ref: '#/macros/longitudinal'
+  - key: AccelPersonality
+    widget: multiple_button
+    title: Acceleration Profile
+    description: Eco is gentlest, Normal balances a prompt start with smooth catch-up, and Sport is more responsive.
+    options:
+    - value: 0
+      label: Eco
+    - value: 1
+      label: Normal
+    - value: 2
+      label: Sport
+    enablement:
+    - $ref: '#/macros/longitudinal'
+  - key: IntelligentCruiseButtonManagement
+    widget: toggle
+    title: Intelligent Cruise Button Management (ICBM) (Alpha)
+    visibility:
+    - type: capability
+      field: icbm_available
+      equals: true
+    enablement:
+    - $ref: '#/macros/offroad'
+    - type: not
+      condition:
+        type: capability
+        field: has_longitudinal_control
+        equals: true
 - id: custom_acc_increments
   title: Custom ACC Speed Intervals
   description: ''
@@ -305,3 +341,100 @@ sections:
         field: has_icbm
         equals: true
     - $ref: '#/macros/icbm_scc_not_engaged'
+- id: carrot_navigation
+  title: OSM / Carrot Navigation
+  description: Phone projection, navigation data, and dynamic cruise tuning
+  enablement:
+  - $ref: '#/macros/offroad'
+  items:
+  - key: OsmMapDataEnabled
+    widget: toggle
+    title: Enable OSM Map Data
+    description: Use offline OSM map data for speed limits and road names. Turn off to ignore the offline map entirely - the offline data can be years out of date.
+  - key: CarrotAmapBlindSpotEnabled
+    widget: toggle
+    title: Enable Carrot Blind Spot Data
+    description: Parse blind-spot / LiDAR / extBlinker fields from the 7706 UDP stream.
+  - key: CarrotEnabled
+    widget: toggle
+    title: Enable Carrot Planner
+    description: Enable dynamic following distance, driving modes, traffic light handling, and navigation cruise speed.
+  - key: MyDrivingMode
+    widget: multiple_button
+    title: Driving Mode
+    description: Carrot driving style preset.
+    options:
+    - value: 1
+      label: Eco
+    - value: 2
+      label: Safe
+    - value: 3
+      label: Normal
+    - value: 4
+      label: High
+    visibility:
+    - type: param
+      key: CarrotEnabled
+      equals: true
+  - key: TrafficLightDetectMode
+    widget: multiple_button
+    title: Traffic Light Assist
+    description: Stop at red lights and optionally resume on green when using model-based stop line detection.
+    options:
+    - value: 0
+      label: 'Off'
+    - value: 1
+      label: Red Stop
+    - value: 2
+      label: Red Stop + Green Go
+    visibility:
+    - type: param
+      key: CarrotEnabled
+      equals: true
+  - key: CarrotNavCruiseSpeedEnabled
+    widget: toggle
+    title: Navigation Cruise Speed
+    description: Use navigation desired speed to limit cruise set speed.
+    visibility:
+    - type: param
+      key: CarrotEnabled
+      equals: true
+  - id: carrot_tuning
+    label: Carrot Tuning
+    trigger_key: CarrotEnabled
+    trigger_condition:
+      type: param
+      key: CarrotEnabled
+      equals: true
+    items:
+    - key: CruiseGapLevels
+      widget: option
+      title: Cruise Gap Levels
+      description: How many follow-gap levels the distance button cycles (2-4). Below the vehicle maximum shortens the cycle.
+      min: 2
+      max: 4
+      step: 1
+    - key: TFollowGap1
+      widget: option
+      title: Follow Gap 1
+      min: 0.5
+      max: 3.0
+      step: 0.05
+    - key: TFollowGap2
+      widget: option
+      title: Follow Gap 2
+      min: 0.5
+      max: 3.0
+      step: 0.05
+    - key: TFollowGap3
+      widget: option
+      title: Follow Gap 3
+      min: 0.5
+      max: 3.0
+      step: 0.05
+    - key: TFollowGap4
+      widget: option
+      title: Follow Gap 4
+      min: 0.5
+      max: 3.0
+      step: 0.05

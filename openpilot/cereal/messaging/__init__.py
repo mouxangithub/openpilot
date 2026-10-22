@@ -3,6 +3,7 @@ from msgq import fake_event_handle, drain_sock_raw, MultiplePublishersError, Ipc
                  Context, Poller, SubSocket, PubSocket, SocketEventHandle, toggle_fake_events, \
                  set_fake_prefix, get_fake_prefix, delete_fake_prefix, wait_for_one_event
 import msgq
+import math
 import os
 import capnp
 import time
@@ -170,11 +171,22 @@ class FrequencyTracker:
     if self.avg_dt.count == 0:
       return False
 
-    avg_freq = 1.0 / self.avg_dt.get_average()
+    # Early in a process's life two messages can land in the same update with a
+    # zero (or non-positive) dt: count > 0 but the windowed average is still 0.
+    # A frequency cannot be established from that, so treat the stream as not
+    # yet valid instead of dividing by zero. A burst of these on cold start used
+    # to make SubMaster.update raise and kill the ui process in a restart loop.
+    avg_dt = self.avg_dt.get_average()
+    if not (avg_dt > 0.0) or not math.isfinite(avg_dt):
+      return False
+    avg_freq = 1.0 / avg_dt
     if self.min_freq <= avg_freq <= self.max_freq:
       return True
 
-    avg_freq_recent = 1.0 / self.recent_avg_dt.get_average()
+    recent_avg_dt = self.recent_avg_dt.get_average()
+    if not (recent_avg_dt > 0.0) or not math.isfinite(recent_avg_dt):
+      return False
+    avg_freq_recent = 1.0 / recent_avg_dt
     return self.min_freq <= avg_freq_recent <= self.max_freq
 
 
@@ -198,6 +210,9 @@ class SubMaster:
     self.alive = {s: on_demand[s] for s in services}
     self.freq_ok = {s: on_demand[s] for s in services}
     self.valid = {s: on_demand[s] for s in services}
+    # Last measured frequency-window verdict per service. Only refreshed when
+    # that service actually delivers a message; on-demand services are always ok.
+    self._received_freq_ok = {s: on_demand[s] for s in services}
 
     self.freq_tracker: dict[str, FrequencyTracker] = {}
     self.poller = Poller()
@@ -263,16 +278,32 @@ class SubMaster:
     for s in self.static_freq_services:
       # alive if delay is within 10x the expected frequency; checks relaxed in simulator
       self.alive[s] = (cur_time - self.recv_time[s]) < (10. / SERVICE_LIST[s].frequency) or (self.seen[s] and self.simulation)
-      self.freq_ok[s] = self.freq_tracker[s].valid or self.simulation
+      # Frequency windows only advance when a message is received, so only
+      # re-read the tracker then; liveness above still changes every loop.
+      if self.updated[s]:
+        self._received_freq_ok[s] = self.freq_tracker[s].valid
+      self.freq_ok[s] = self._received_freq_ok[s] or self.simulation
 
   def all_alive(self, service_list: list[str] | None = None) -> bool:
-    return all(self.alive[s] for s in (service_list or self.services) if s not in self.ignore_alive)
+    # Short-circuiting loop: these run at 100 Hz across several services, so the
+    # generator plus per-item attribute lookup is measurable.
+    for s in service_list or self.services:
+      if s not in self.ignore_alive and not self.alive[s]:
+        return False
+    return True
 
   def all_freq_ok(self, service_list: list[str] | None = None) -> bool:
-    return all(self.freq_ok[s] for s in (service_list or self.services) if self._check_avg_freq(s))
+    for s in service_list or self.services:
+      if (SERVICE_LIST[s].frequency > 0.99 and s not in self.ignore_average_freq
+          and s not in self.ignore_alive and not self.freq_ok[s]):
+        return False
+    return True
 
   def all_valid(self, service_list: list[str] | None = None) -> bool:
-    return all(self.valid[s] for s in (service_list or self.services) if s not in self.ignore_valid)
+    for s in service_list or self.services:
+      if s not in self.ignore_valid and not self.valid[s]:
+        return False
+    return True
 
   def all_checks(self, service_list: list[str] | None = None) -> bool:
     return self.all_alive(service_list) and self.all_freq_ok(service_list) and self.all_valid(service_list)

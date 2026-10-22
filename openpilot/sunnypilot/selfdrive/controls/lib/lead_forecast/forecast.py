@@ -90,8 +90,9 @@ class LeadForecast:
     self._calls = 0
 
   def install(self, mpc) -> None:
-    """Route the MPC's lead extrapolation through here. upstream update() calls process_lead
-    once for leadOne then once for leadTwo; update() below resets the count every frame."""
+    """Route the MPC's lead extrapolation through here. update() calls process_lead
+    once for leadOne then once for leadTwo; it says which lead it means through
+    `lead_index`, and this file resets the fallback count every frame."""
     self.mpc = mpc
     self._upstream_process_lead = mpc.process_lead
     mpc.process_lead = self.process_lead
@@ -142,10 +143,24 @@ class LeadForecast:
         report.x = lead_xv[:, 0].tolist()
         report.v = lead_xv[:, 1].tolist()
 
-  def process_lead(self, lead) -> np.ndarray:
-    i = self._calls
+  def process_lead(self, lead, *args, **kwargs) -> np.ndarray:
+    """Intercept the MPC's lead extrapolation.
+
+    The MPC this wraps is not the one zoompilot wrote against: this fork's
+    `process_lead` also takes `lead_index`, `model_lead` and
+    `smooth_duplicate_vision`, and `update()` passes them by keyword. Mirroring
+    that signature here would have been a copy that goes stale the next time the
+    MPC grows a parameter - which is exactly how this wrapper took plannerd down
+    for a day (installed unconditionally in LongitudinalPlanner.__init__, so the
+    first planning frame of every drive raised TypeError). So the arguments are
+    forwarded verbatim and only `lead_index` is read out of them.
+    """
+    # zoompilot's MPC picked the lead by call order and passed nothing; this
+    # fork says which lead it is. Accept both.
+    lead_index = kwargs.get("lead_index", args[0] if args else None)
+    i = self._calls if lead_index is None else int(lead_index)
     self._calls += 1
-    lead_xv = self._upstream_process_lead(lead)
+    lead_xv = self._upstream_process_lead(lead, *args, **kwargs)
     if (i < 2 and lead is not None and lead.present and self.weights[i] > 0. and self.v_knots[i] is not None and
         math.isfinite(lead.dRel) and math.isfinite(lead.vLead)):
       v_knots = self.v_knots[i]

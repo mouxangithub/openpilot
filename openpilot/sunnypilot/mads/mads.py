@@ -12,7 +12,8 @@ from opendbc.car.hyundai.values import HyundaiFlags
 from opendbc.sunnypilot.car.mazda.values import MazdaFlagsSP
 from openpilot.common.params import Params
 from openpilot.selfdrive.selfdrived.events import ET
-from openpilot.sunnypilot.mads.helpers import MadsSteeringModeOnBrake, read_steering_mode_param, MADS_NO_ACC_MAIN_BUTTON
+from openpilot.sunnypilot.mads.helpers import MadsSteeringModeOnBrake, read_steering_mode_param, MADS_NO_ACC_MAIN_BUTTON, \
+  mads_button_owns_lateral
 from openpilot.sunnypilot.mads.state import StateMachine, paused_silent
 
 State = custom.ModularAssistiveDrivingSystem.ModularAssistiveDrivingSystemState
@@ -64,7 +65,7 @@ class ModularAssistiveDrivingSystem:
     # A declared button (Mazda's TJA) is the only lateral switch: engage regardless of ACC main,
     # keep ACC main from enabling or disabling, and leave unified engagement uncoupled from it.
     # Mirrors the panda-side safety param.
-    self.button_owns_lateral = self.CP.brand == "mazda" and bool(self.CP_SP.flags & MazdaFlagsSP.TJA_BUTTON)
+    self.button_owns_lateral = mads_button_owns_lateral(self.CP, self.CP_SP)
     if self.button_owns_lateral:
       self.allow_always = True
       self.no_main_cruise = True
@@ -133,6 +134,16 @@ class ModularAssistiveDrivingSystem:
     if self.state_machine.state != State.paused:
       self.events_sp.add(EventNameSP.silentLkasDisable)
 
+  def update_stock_lkas(self) -> None:
+    # The car's own lane keep switched off (stockLkasOff) pauses lateral rather than disabling
+    # it, cruise engaged or not: MADS stays enabled, so the panda keeps lateral allowed through
+    # the MADS heartbeat, and switching it back on resumes through the paused state's silent
+    # enable with no cruise cycle. A request for lateral while it is off enters paused the same
+    # way (GEARS_ALLOW_PAUSED_SILENT). A disable on the same frame (the MADS button, main off,
+    # the brake under disengage) wins: the pause would otherwise mask it.
+    if self.events_sp.has(EventNameSP.stockLkasOff) and self.enabled and not self.events_sp.contains(ET.USER_DISABLE):
+      self.transition_paused_state()
+
   def replace_event(self, old_event: int, new_event: int):
     self.events.remove(old_event)
     self.events_sp.add(new_event)
@@ -195,7 +206,7 @@ class ModularAssistiveDrivingSystem:
         self.events.remove(EventName.pcmEnable)
         self.events.remove(EventName.buttonEnable)
     else:
-      if self.main_enabled_toggle and not self.button_owns_lateral:
+      if self.main_enabled_toggle and not self.no_main_cruise:
         if CS.cruiseState.available and not self.selfdrive.CS_prev.cruiseState.available:
           self.events_sp.add(EventNameSP.lkasEnable)
 

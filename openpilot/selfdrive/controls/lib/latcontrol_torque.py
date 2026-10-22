@@ -6,10 +6,18 @@ from openpilot.cereal import log
 from opendbc.car.lateral import FRICTION_THRESHOLD, get_friction
 from openpilot.common.constants import ACCELERATION_DUE_TO_GRAVITY
 from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.common.params import Params
 from openpilot.selfdrive.controls.lib.latcontrol import LatControl
 from openpilot.common.pid import PIDController
 
+from openpilot.sunnypilot.common.param_read import read_bool
 from openpilot.sunnypilot.selfdrive.controls.lib.latcontrol_torque_ext import LatControlTorqueExt
+from openpilot.sunnypilot.selfdrive.controls.lib.vehicle_tune_dispatch import resolve_vehicle_tune
+from openpilot.selfdrive.controls.lib.latcontrol_vehicle_tunes import (
+  flm_runtime_overrides_active,
+  get_standard_friction_threshold,
+  set_flm_runtime_overrides,
+)
 
 # At higher speeds (25+mph) we can assume:
 # Lateral acceleration achieved by a specific car correlates to
@@ -34,13 +42,34 @@ JERK_GAIN = 0.3
 LAT_ACCEL_REQUEST_BUFFER_SECONDS = 1.0
 VERSION = 1
 
+# User Kp scale (StarPilot Advanced Lateral Tuning "SteerKP" equivalent).
+# A multiplier over the stock speed-interpolated Kp curve; 1.0 = stock.
+# Same params refresh cadence as the torque params override extension.
+CUSTOM_KP_REFRESH_FRAMES = 300
+CUSTOM_KP_SCALE_LIMITS = (0.5, 2.0)
+
+# FLM (friction learning machine) runtime injection.
+#
+# The FLM analyzer in flm_workspace.py writes an override bundle into the
+# FLMActiveOverrides param; latcontrol_vehicle_tunes.set_flm_runtime_overrides
+# publishes it to the process-wide override table. Without this call the
+# analyzer's output is computed and then discarded - the learned friction
+# curve never reaches the controller.
+#
+# The refresh cadence is slow because the bundle only changes when the user
+# applies a new FLM profile.
+FLM_OVERRIDE_REFRESH_FRAMES = 150
+
 class LatControlTorque(LatControl):
   def __init__(self, CP, CP_SP, CI, dt):
     super().__init__(CP, CP_SP, CI, dt)
     self.torque_params = CP.lateralTuning.torque.as_builder()
     self.torque_from_lateral_accel = CI.torque_from_lateral_accel()
     self.lateral_accel_from_torque = CI.lateral_accel_from_torque()
-    self.pid = PIDController([INTERP_SPEEDS, KP_INTERP], KI, rate=1/self.dt)
+    self.params = Params()
+    self._custom_kp_scale = self._read_custom_kp_scale()
+    self._kp_frame = -1
+    self.pid = PIDController([INTERP_SPEEDS, [k * self._custom_kp_scale for k in KP_INTERP]], KI, rate=1/self.dt)
     self.update_limits()
     self.steering_angle_deadzone_deg = self.torque_params.steeringAngleDeadzoneDeg
     self.lat_accel_request_buffer_len = int(LAT_ACCEL_REQUEST_BUFFER_SECONDS / self.dt)
@@ -50,6 +79,73 @@ class LatControlTorque(LatControl):
 
     self.extension = LatControlTorqueExt(self, CP, CP_SP, CI)
     self.update_limits()  # the call above ran before the extension existed
+
+    # Per-vehicle tunes (StarPilot port): resolved once per drive cycle from the
+    # fingerprint, gated by VehicleTunesEnabled (default off = stock behavior).
+    self.vehicle_tune = resolve_vehicle_tune(CP)
+    self.vehicle_tunes_enabled = self.params.get_bool("VehicleTunesEnabled")
+    self._flm_frame = -1
+    self._flm_enabled = read_bool(self.params, "FlmRuntimeOverridesEnabled")
+    self._refresh_flm_overrides()
+
+  def _refresh_flm_overrides(self) -> None:
+    """Publish the FLM override bundle to the process-wide override table.
+
+    The bundle lives in the FLMActiveOverrides param as JSON. It is empty
+    unless the user applied an FLM profile, in which case it carries a
+    friction curve and per-vehicle knobs.
+
+    Failures are swallowed on purpose: an unparsable bundle must not take
+    down the lateral controller. The previous overrides stay in effect, which
+    is safer than silently reverting to stock friction mid-corner.
+    """
+    self._flm_frame += 1
+    if self._flm_frame % FLM_OVERRIDE_REFRESH_FRAMES != 0:
+      return
+
+    if not self._flm_enabled:
+      set_flm_runtime_overrides({})
+      return
+
+    try:
+      raw = self.params.get("FLMActiveOverrides", encoding="utf-8") or ""
+    except Exception:
+      raw = ""
+
+    if not raw:
+      set_flm_runtime_overrides({})
+      return
+
+    try:
+      import json
+      overrides = json.loads(raw)
+    except Exception:
+      return
+
+    if isinstance(overrides, dict):
+      set_flm_runtime_overrides(overrides)
+
+  def _read_custom_kp_scale(self) -> float:
+    scale = float(self.params.get("CustomKp", return_default=True))
+    if not math.isfinite(scale):
+      return 1.0
+    return float(np.clip(scale, *CUSTOM_KP_SCALE_LIMITS))
+
+  def _apply_custom_kp_scale(self, scale: float) -> None:
+    # Rebuilds the proportional lookup; the integrator resets, so this only
+    # happens when the user actually moved the value between refreshes.
+    self.pid = PIDController([INTERP_SPEEDS, [k * scale for k in KP_INTERP]], KI, rate=1/self.dt)
+    self.update_limits()
+
+  def refresh_custom_kp_scale(self) -> None:
+    self._kp_frame += 1
+    if self._kp_frame % CUSTOM_KP_REFRESH_FRAMES != 0:
+      return
+    scale = self._read_custom_kp_scale()
+    if abs(scale - self._custom_kp_scale) > 1e-6:
+      self._custom_kp_scale = scale
+      self._apply_custom_kp_scale(scale)
+    self.vehicle_tunes_enabled = self.params.get_bool("VehicleTunesEnabled")
 
   def update_torque_parameters(self, latAccelFactor, latAccelOffset, friction):
     self.torque_params.latAccelFactor = latAccelFactor
@@ -64,12 +160,15 @@ class LatControlTorque(LatControl):
       self.extension.update_limits()
 
   def update(self, active, CS, VM, params, steer_limited_by_safety, desired_curvature, calibrated_pose, curvature_limited, lat_delay):
+    self.refresh_custom_kp_scale()
+    self._refresh_flm_overrides()
     # Override torque params from extension
     if self.extension.update_override_torque_params(self.torque_params):
       self.update_limits()
 
     pid_log = log.ControlsState.LateralTorqueState.new_message()
     pid_log.version = VERSION
+    desired_curvature = self.extension.adjust_desired_curvature(desired_curvature, CS, active)
     measured_curvature = -VM.calc_curvature(math.radians(CS.steeringAngleDeg - params.angleOffsetDeg), CS.vEgo, params.roll)
     measurement = measured_curvature * CS.vEgo ** 2
     future_desired_lateral_accel = desired_curvature * CS.vEgo ** 2
@@ -91,7 +190,21 @@ class LatControlTorque(LatControl):
     ff = gravity_adjusted_future_lateral_accel
     # latAccelOffset corrects roll compensation bias from device roll misalignment relative to car roll
     ff -= self.torque_params.latAccelOffset
-    ff += get_friction(error + JERK_GAIN * desired_lateral_jerk, lateral_accel_deadzone, FRICTION_THRESHOLD, self.torque_params)
+
+    vehicle_tune = self.vehicle_tune if self.vehicle_tunes_enabled else None
+    # Base friction threshold: the speed-dependent standard curve. When an FLM
+    # profile is active it overrides this per speed knot, so the learned
+    # friction profile actually reaches the controller.
+    friction_threshold = get_standard_friction_threshold(CS.vEgo) if flm_runtime_overrides_active() else FRICTION_THRESHOLD
+    friction_scale = 1.0
+    if vehicle_tune is not None:
+      if vehicle_tune.ff_scale is not None:
+        ff *= vehicle_tune.ff_scale(setpoint, measurement, desired_lateral_jerk, CS.vEgo)
+      if vehicle_tune.friction_threshold is not None:
+        friction_threshold = vehicle_tune.friction_threshold(setpoint, measurement, desired_lateral_jerk, CS.vEgo)
+      if vehicle_tune.friction_scale is not None:
+        friction_scale = vehicle_tune.friction_scale(setpoint, measurement, desired_lateral_jerk, CS.vEgo)
+    ff += friction_scale * get_friction(error + JERK_GAIN * desired_lateral_jerk, lateral_accel_deadzone, friction_threshold, self.torque_params)
 
     if not active:
       output_torque = 0.0
@@ -112,6 +225,9 @@ class LatControlTorque(LatControl):
       pid_log, output_torque = self.extension.update(CS, VM, self.pid, params, ff, pid_log, setpoint, measurement, calibrated_pose, roll_compensation,
                                                      future_desired_lateral_accel, measurement, lateral_accel_deadzone, gravity_adjusted_future_lateral_accel,
                                                      desired_curvature, measured_curvature, steer_limited_by_safety, output_torque)
+
+      if vehicle_tune is not None and vehicle_tune.output_scale is not None:
+        output_torque *= vehicle_tune.output_scale(setpoint, measurement, desired_lateral_jerk, CS.vEgo)
 
       pid_log.active = True
       pid_log.p = float(self.pid.p)

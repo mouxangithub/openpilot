@@ -259,6 +259,21 @@ class Calibrator:
     pm.send('extrinsicsCalibration', self.get_msg(valid))
 
 
+def get_publish_valid(sm) -> bool:
+  # Modeld stamps cameraOdometry invalid on every dropped camera frame
+  # (fill_model_msg.py: msg.valid = live_calib_seen & (vipc_dropped_frames < 1)).
+  # The calibration result does not depend on the validity of a single odometry
+  # frame, so the momentary cameraOdometry invalidity must not propagate:
+  # publishing extrinsicsCalibration invalid used to cascade through every
+  # daemon that subscribes it (paramsd, dmonitoringd, torqued, lagd, plannerd
+  # all re-stamp their outputs with sm.all_checks()) and made selfdrived raise
+  # a spurious commIssue alert on each single-frame drop. Only the aliveness of
+  # our inputs and the validity of carState (CAN health) gate the flag now; a
+  # dead modeld still surfaces via the cameraOdometry alive check and via
+  # extrinsicsCalibration going stale (poll source stops).
+  return sm.all_alive() and sm.valid['carState']
+
+
 def main() -> NoReturn:
   config_realtime_process([0, 1, 2, 3], 5)
 
@@ -289,7 +304,7 @@ def main() -> NoReturn:
 
     # 4Hz driven by cameraOdometry
     if sm.frame % 5 == 0:
-      calibrator.send_data(pm, sm.all_checks())
+      calibrator.send_data(pm, get_publish_valid(sm))
 
 
 if __name__ == "__main__":

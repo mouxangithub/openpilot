@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import gc
 import os
 from typing import NoReturn, TypedDict
 
@@ -130,6 +131,7 @@ _smaps_path: str | None = None  # auto-detected on first call
 # per-VMA smaps is expensive (kernel walks page tables for every VMA).
 # cache results and only refresh every N cycles to keep CPU low.
 _smaps_cache: dict[int, SmapsData] = {}
+_smaps_identity: dict[int, int] = {}
 _smaps_cycle = 0
 _SMAPS_EVERY = 20  # refresh every 20th cycle (40s at 0.5Hz)
 
@@ -157,15 +159,21 @@ def _read_smaps(pid: int) -> SmapsData:
     return {'pss': 0, 'pss_anon': 0, 'pss_shmem': 0}
 
 
-def _get_smaps_cached(pid: int) -> SmapsData:
-  """Return cached smaps data, refreshing every _SMAPS_EVERY cycles."""
-  if _smaps_cycle == 0 or pid not in _smaps_cache:
+def _get_smaps_cached(pid: int, starttime: int) -> SmapsData:
+  """Return cached smaps data, refreshing every _SMAPS_EVERY cycles.
+
+  The cache is keyed by process identity, not by PID: a reused PID belongs to a
+  different process and must not inherit the previous one's page counts.
+  """
+  if _smaps_cycle == 0 or pid not in _smaps_cache or _smaps_identity.get(pid) != starttime:
     _smaps_cache[pid] = _read_smaps(pid)
+    _smaps_identity[pid] = starttime
   return _smaps_cache.get(pid, {'pss': 0, 'pss_anon': 0, 'pss_shmem': 0})
 
 
 class ProcExtra(TypedDict):
   pid: int
+  starttime: int
   name: str
   exe: str
   cmdline: list[str]
@@ -174,9 +182,9 @@ class ProcExtra(TypedDict):
 _proc_cache: dict[int, ProcExtra] = {}
 
 
-def _get_proc_extra(pid: int, name: str) -> ProcExtra:
+def _get_proc_extra(pid: int, name: str, starttime: int) -> ProcExtra:
   cache: ProcExtra | None = _proc_cache.get(pid)
-  if cache is None or cache.get('name') != name:
+  if cache is None or cache['starttime'] != starttime or cache['name'] != name:
     exe = ''
     cmdline: list[str] = []
     try:
@@ -188,9 +196,21 @@ def _get_proc_extra(pid: int, name: str) -> ProcExtra:
         cmdline = [c.decode('utf-8', errors='replace') for c in f.read().split(b'\0') if c]
     except OSError:
       pass
-    cache = {'pid': pid, 'name': name, 'exe': exe, 'cmdline': cmdline}
+    cache = {'pid': pid, 'starttime': starttime, 'name': name, 'exe': exe, 'cmdline': cmdline}
     _proc_cache[pid] = cache
   return cache
+
+
+def _prune_proc_cache(identities: dict[int, int]) -> None:
+  # Short-lived helpers otherwise remain for the lifetime of this daemon.
+  # PID alone (even with the same process name) is not a process identity.
+  for pid, extra in list(_proc_cache.items()):
+    if identities.get(pid) != extra['starttime']:
+      del _proc_cache[pid]
+  for pid in list(_smaps_cache):
+    if pid not in identities:
+      del _smaps_cache[pid]
+      _smaps_identity.pop(pid, None)
 
 
 def _procs() -> list[ProcStat]:
@@ -213,6 +233,7 @@ def build_proc_log_message(msg) -> None:
   pl = msg.procLog
 
   procs = _procs()
+  _prune_proc_cache({r['pid']: r['starttime'] for r in procs})
   l = pl.init('procs', len(procs))
   for i, r in enumerate(procs):
     proc = l[i]
@@ -232,7 +253,7 @@ def build_proc_log_message(msg) -> None:
     proc.processor = r['processor']
     proc.name = r['name']
 
-    extra = _get_proc_extra(r['pid'], r['name'])
+    extra = _get_proc_extra(r['pid'], r['name'], r['starttime'])
     proc.exe = extra['exe']
     cmdline = proc.init('cmdline', len(extra['cmdline']))
     for j, arg in enumerate(extra['cmdline']):
@@ -240,7 +261,7 @@ def build_proc_log_message(msg) -> None:
 
     # smaps is expensive (kernel walks page tables); skip small processes, use cache
     if r['rss'] * PAGE_SIZE > 5 * 1024 * 1024:
-      smaps = _get_smaps_cached(r['pid'])
+      smaps = _get_smaps_cached(r['pid'], r['starttime'])
       proc.memPss = smaps['pss']
       proc.memPssAnon = smaps['pss_anon']
       proc.memPssShmem = smaps['pss_shmem']
@@ -273,6 +294,10 @@ def build_proc_log_message(msg) -> None:
 
 
 def main() -> NoReturn:
+  # The manager preimports modules before forking. Keep GC from copying that
+  # inherited heap merely by visiting it; freeze before any daemon resources
+  # or runtime cycles exist. New objects still receive normal collection.
+  gc.freeze()
   pm = messaging.PubMaster(['procLog'])
   rk = Ratekeeper(0.5)
   while True:

@@ -18,6 +18,7 @@ EventNameZP = custom.OnroadEventZP.EventName
 ACTIVE_STATES = (State.enabled, State.softDisabling, State.overriding)
 ENABLED_STATES = (State.paused, *ACTIVE_STATES)
 
+# stockLkasOff: held paused until the car's lane keep is back on (mads.py update_stock_lkas)
 GEARS_ALLOW_PAUSED_SILENT = [EventNameSP.silentWrongGear, EventNameSP.silentReverseGear, EventNameSP.silentBrakeHold,
                              EventNameSP.silentDoorOpen, EventNameSP.silentSeatbeltNotLatched, EventNameSP.silentParkBrake]
 # stockLkasOff: held paused until the car's lane keep is back on (mads.py update_stock_lkas)
@@ -26,6 +27,7 @@ GEARS_ALLOW_PAUSED_SILENT_ZP = [EventNameZP.silentPedalPressed, EventNameZP.stoc
 
 def paused_silent(events_sp) -> bool:
   return events_sp.contains_in_list(GEARS_ALLOW_PAUSED_SILENT) or events_sp.zp.contains_in_list(GEARS_ALLOW_PAUSED_SILENT_ZP)
+
 # bigModelLoading: MADS turned on (a main-on edge, never repeated) while a big
 # model is not ready to drive waits in paused and resumes when it is, rather
 # than being refused and left off with main on (jetlink's second after a swap)

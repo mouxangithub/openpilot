@@ -14,6 +14,8 @@
 
 #include "common/params.h"
 #include "common/swaglog.h"
+#include "common/timing.h"
+#include "common/watchdog.h"
 
 
 ExitHandler do_exit;
@@ -277,6 +279,11 @@ void camerad_thread() {
       LOGE("poll failed (%d - %d)", ret, errno);
       break;
     }
+
+    // Every frame event proves the capture pipeline is still advancing. The
+    // manager restarts this process when the heartbeat stops, which is the
+    // only way to notice a hung capture loop.
+    watchdog_kick(nanos_since_boot());
 
     if (!(fds[0].revents & POLLPRI)) continue;
 

@@ -38,8 +38,10 @@ API = 3
 OWNER = 'jetlinkd'
 
 # the Jetlink setting, stored as an index: jetlink.openpilot.MODES,
-# written out so the panels build the setting without a jetlink checkout
-MODES = ('off', 'usb', 'ios')
+# written out so the panels build the setting without a jetlink checkout.
+# 'wifi' matches main jetlink's MODES (the Wi-Fi link), kept here so the panel
+# index lines up with jetlink.openpilot.interface.MODES.
+MODES = ('off', 'usb', 'ios', 'wifi')
 
 # the params jetlink reads and writes, all declared in params_keys.h. big_model
 # and catalog are the model manager's big-model slot and catalog

@@ -3,11 +3,15 @@ from openpilot.common.params import Params, UnknownKeyName
 from openpilot.system.ui.widgets import Widget
 from openpilot.system.ui.widgets.list_view import multiple_button_item, toggle_item
 from openpilot.system.ui.widgets.scroller_tici import Scroller
-from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
+from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog, alert_dialog
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.selfdrive.ui.ui_state import ui_state
+
+import os
+
+LITE = os.getenv("LITE") is not None
 
 if gui_app.sunnypilot_ui():
   from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp as toggle_item
@@ -27,12 +31,25 @@ DESCRIPTIONS = {
     "In relaxed mode sunnypilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with " +
     "your steering wheel distance button."
   ),
+  "AccelPersonalityEnabled": tr_noop(
+    "Lets you choose how sunnypilot starts, catches up, and settles at the cruise speed. Emergency braking and stopping are unchanged."
+  ),
+  "AccelPersonality": tr_noop(
+    "Eco is gentlest, Normal balances a prompt start with smooth catch-up, and Sport is more responsive."
+  ),
   "IsLdwEnabled": tr_noop(
     "Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line " +
     "without a turn signal activated while driving over 31 mph (50 km/h)."
   ),
-  "AlwaysOnDM": tr_noop("Enable driver monitoring even when sunnypilot is not engaged."),
+  "AlwaysOnDM": tr_noop("The driver monitoring system can be toggled on/off, but long-term activation is recommended"),
+  "DistractionDetectionLevel": tr_noop(
+    "Set how sensitive the driver distraction detection should be. " +
+    "Strict: Very sensitive, warns on minor distractions. " +
+    "Moderate: Balanced between sensitivity and false positives. " +
+    "Lenient: Only alerts on clear distractions. "
+  ),
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
+  "DisableDM": tr_noop("Disable driver monitoring (no cabin camera required). Similar to LITE mode."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
 }
@@ -76,6 +93,12 @@ class TogglesLayout(Widget):
         "monitoring.png",
         False,
       ),
+      "DisableDM": (
+        lambda: tr("Disable Driver Monitoring"),
+        DESCRIPTIONS["DisableDM"],
+        "monitoring.png",
+        True,
+      ),
       "RecordFront": (
         lambda: tr("Record and Upload Driver Camera"),
         DESCRIPTIONS["RecordFront"],
@@ -106,8 +129,41 @@ class TogglesLayout(Widget):
       icon="speed_limit.png"
     )
 
+    self._distraction_detection_level = multiple_button_item(
+      lambda: tr("Distraction Detection Level"),
+      lambda: tr(DESCRIPTIONS["DistractionDetectionLevel"]),
+      buttons=[lambda: tr("Strict"), lambda: tr("Moderate"), lambda: tr("Lenient")],
+      button_width=300,
+      callback=self._set_distraction_detection_level,
+      selected_index=self._params.get("DistractionDetectionLevel", return_default=True),
+      icon="monitoring.png"
+    )
+
+    self._accel_controller_enabled = toggle_item(
+      lambda: tr("Enable Accel Controller"),
+      lambda: tr(DESCRIPTIONS["AccelPersonalityEnabled"]),
+      self._params.get_bool("AccelPersonalityEnabled"),
+      callback=self._set_accel_controller_enabled,
+      icon="speed_limit.png",
+    )
+
+    self._accel_personality_setting = multiple_button_item(
+      lambda: tr("Acceleration Profile"),
+      lambda: tr(DESCRIPTIONS["AccelPersonality"]),
+      buttons=[lambda: tr("Eco"), lambda: tr("Normal"), lambda: tr("Sport")],
+      button_width=300,
+      callback=self._set_accel_personality,
+      selected_index=self._params.get("AccelPersonality", return_default=True),
+      icon="speed_limit.png"
+    )
+
     self._toggles = {}
     self._locked_toggles = set()
+
+    if LITE:
+      for key in ['RecordAudio']:
+        self._toggle_defs.pop(key, None)
+
     for param, (title, desc, icon, needs_restart) in self._toggle_defs.items():
       toggle = toggle_item(
         title,
@@ -135,9 +191,15 @@ class TogglesLayout(Widget):
 
       self._toggles[param] = toggle
 
-      # insert longitudinal personality after NDOG toggle
+      # insert longitudinal personality and Accel Controller settings after NDOG toggle
       if param == "DisengageOnAccelerator":
         self._toggles["LongitudinalPersonality"] = self._long_personality_setting
+        self._toggles["AccelPersonalityEnabled"] = self._accel_controller_enabled
+        self._toggles["AccelPersonality"] = self._accel_personality_setting
+
+      if param == "AlwaysOnDM":
+        self._toggles["DistractionDetectionLevel"] = self._distraction_detection_level
+        self._update_distraction_detection_visibility()
 
     self._update_experimental_mode_icon()
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
@@ -158,6 +220,7 @@ class TogglesLayout(Widget):
 
   def _update_toggles(self):
     ui_state.update_params()
+    accel_controller_enabled = self._params.get_bool("AccelPersonalityEnabled")
 
     e2e_description = tr(
       "sunnypilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. " +
@@ -176,12 +239,16 @@ class TogglesLayout(Widget):
         self._toggles["ExperimentalMode"].action_item.set_enabled(True)
         self._toggles["ExperimentalMode"].set_description(e2e_description)
         self._long_personality_setting.action_item.set_enabled(True)
+        self._accel_controller_enabled.action_item.set_enabled(True)
+        self._accel_personality_setting.action_item.set_enabled(True)
       else:
         # no long for now
         self._toggles["ExperimentalMode"].action_item.set_enabled(False)
         self._toggles["ExperimentalMode"].action_item.set_state(False)
         self._long_personality_setting.action_item.set_enabled(False)
-        self._params.remove("ExperimentalMode")
+        self._accel_controller_enabled.action_item.set_enabled(False)
+        self._accel_personality_setting.action_item.set_enabled(False)
+        self._clear_experimental_mode()
 
         unavailable = tr("Experimental mode is currently unavailable on this car since the car's stock ACC is used for longitudinal control.")
 
@@ -203,26 +270,72 @@ class TogglesLayout(Widget):
     # refresh toggles from params to mirror external changes
     for param in self._toggle_defs:
       self._toggles[param].action_item.set_state(self._params.get_bool(param))
+    self._accel_controller_enabled.action_item.set_state(accel_controller_enabled)
+    self._accel_personality_setting.action_item.set_selected_button(self._params.get("AccelPersonality", return_default=True))
 
     # these toggles need restart, block while engaged
     for toggle_def in self._toggle_defs:
       if self._toggle_defs[toggle_def][3] and toggle_def not in self._locked_toggles:
         self._toggles[toggle_def].action_item.set_enabled(not ui_state.engaged)
 
+    self._update_distraction_detection_visibility()
+
   def _render(self, rect):
     self._scroller.render(rect)
+
+  def _update_distraction_detection_visibility(self):
+    dm_disabled = self._params.get_bool("DisableDM")
+    always_on_dm_enabled = self._params.get_bool("AlwaysOnDM") and not dm_disabled
+    for key in ("AlwaysOnDM", "RecordFront", "DistractionDetectionLevel"):
+      if key in self._toggles:
+        self._toggles[key].set_visible(not dm_disabled)
+    if "DistractionDetectionLevel" in self._toggles:
+      self._toggles["DistractionDetectionLevel"].set_visible(always_on_dm_enabled)
 
   def _update_experimental_mode_icon(self):
     icon = "experimental.png" if self._toggles["ExperimentalMode"].action_item.get_state() else "experimental_white.png"
     self._toggles["ExperimentalMode"].set_icon(icon)
 
+  def _clear_experimental_mode(self):
+    """Turn the mode off and forget the acknowledgement with it.
+
+    This runs when the car turns out to have no openpilot longitudinal
+    control: leaving ExperimentalModeConfirmed set would mean the mode comes
+    back on without a dialog if the car is later swapped to one that does.
+    """
+    from openpilot.sunnypilot.common.mode_state import MODE_CONFIRMED_PARAM
+
+    self._params.remove("ExperimentalMode")
+    try:
+      self._params.remove(MODE_CONFIRMED_PARAM)
+    except UnknownKeyName:
+      pass
+
+  def _apply_experimental_mode(self, enabled: bool, acknowledged: bool):
+    """Write the mode through the state machine, not straight into the store.
+
+    The ui is one of three writers (the wheel buttons and carrot_server are the
+    others), and only the state machine knows about the Safe Mode lock, the
+    road-state prerequisite and the read-back check. A refusal is reported and
+    the drawn switch is put back, because the store did not change.
+    """
+    from openpilot.sunnypilot.common.mode_state_runtime import ModeStateError, set_experimental_mode
+
+    try:
+      set_experimental_mode(self._params, enabled, acknowledged=acknowledged)
+    except ModeStateError as exc:
+      self._toggles["ExperimentalMode"].action_item.set_state(not enabled)
+      gui_app.push_widget(alert_dialog(str(exc)))
+    finally:
+      self._update_experimental_mode_icon()
+
   def _handle_experimental_mode_toggle(self, state: bool):
-    confirmed = self._params.get_bool("ExperimentalModeConfirmed")
+    from openpilot.sunnypilot.common.mode_state import MODE_CONFIRMED_PARAM
+    confirmed = self._params.get_bool(MODE_CONFIRMED_PARAM)
     if state and not confirmed:
       def confirm_callback(result: DialogResult):
         if result == DialogResult.CONFIRM:
-          self._params.put_bool("ExperimentalMode", True, block=True)
-          self._params.put_bool("ExperimentalModeConfirmed", True, block=True)
+          self._apply_experimental_mode(True, True)
         else:
           self._toggles["ExperimentalMode"].action_item.set_state(False)
         self._update_experimental_mode_icon()
@@ -233,8 +346,7 @@ class TogglesLayout(Widget):
       dlg = ConfirmDialog(content, tr("Enable"), rich=True, callback=confirm_callback)
       gui_app.push_widget(dlg)
     else:
-      self._update_experimental_mode_icon()
-      self._params.put_bool("ExperimentalMode", state, block=True)
+      self._apply_experimental_mode(state, True)
 
   def _toggle_callback(self, state: bool, param: str):
     if param == "ExperimentalMode":
@@ -245,5 +357,17 @@ class TogglesLayout(Widget):
     if self._toggle_defs[param][3]:
       self._params.put_bool("OnroadCycleRequested", True, block=True)
 
+    if param == "AlwaysOnDM":
+      self._update_distraction_detection_visibility()
+
   def _set_longitudinal_personality(self, button_index: int):
     self._params.put("LongitudinalPersonality", button_index, block=True)
+
+  def _set_distraction_detection_level(self, button_index: int):
+    self._params.put("DistractionDetectionLevel", button_index, block=True)
+
+  def _set_accel_personality(self, button_index: int):
+    self._params.put("AccelPersonality", button_index, block=True)
+
+  def _set_accel_controller_enabled(self, state: bool):
+    self._params.put_bool("AccelPersonalityEnabled", state, block=True)

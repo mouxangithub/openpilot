@@ -12,6 +12,7 @@ from msgq.visionipc import VisionIpcClient
 
 
 from openpilot.common.params import Params
+from openpilot.common.dm import is_dm_disabled
 from openpilot.common.realtime import config_realtime_process, Priority, Ratekeeper, DT_CTRL
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.gps import get_gps_location_service
@@ -19,9 +20,13 @@ from openpilot.common.gps import get_gps_location_service
 from openpilot.selfdrive.car.car_events import CarEvents
 from openpilot.selfdrive.locationd.helpers import PoseCalibrator, Pose
 from openpilot.selfdrive.selfdrived.events import Events, ET
+from openpilot.selfdrive.selfdrived.modeld_lag import ModeldLagMonitor
 from openpilot.selfdrive.selfdrived.helpers import ExcessiveActuationCheck
 from openpilot.selfdrive.selfdrived.state import StateMachine
 from openpilot.selfdrive.selfdrived.alertmanager import AlertManager, set_offroad_alert
+from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EmptyAlert
+from openpilot.sunnypilot.common.safety_guards import CommIssueGrace
+from openpilot.sunnypilot.common.mode_state_runtime import experimental_mode_requested
 
 from openpilot.common.version import get_build_metadata
 from openpilot.common.hardware import HARDWARE
@@ -34,10 +39,16 @@ from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.con
 from openpilot.sunnypilot.selfdrive.selfdrived.button_state_tracker import ButtonStateTracker
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.selfdrive.selfdrived.model_events import ModelEventsSP
+from openpilot.sunnypilot.selfdrive.controls.lib.radar_only_warning import RadarOnlyWarning
 
 REPLAY = "REPLAY" in os.environ
-SIMULATION = "SIMULATION" in os.environ
+SIMULATION = "SIMULATION" in os.environ or os.getenv("LITE") is not None
 TESTING_CLOSET = "TESTING_CLOSET" in os.environ
+
+# deviceMotion.inputsOK must read false this long before locationdTemporaryError
+# fires; rides out the same brief stall (locationd already debounces upstream).
+# The modeld frame-drop tiering (thresholds + hold times) lives in modeld_lag.py.
+LOCATIOND_ERROR_HOLD_S = 1.0
 
 LONGITUDINAL_PERSONALITY_MAP = {v: k for k, v in log.LongitudinalPersonality.schema.enumerants.items()}
 
@@ -61,7 +72,7 @@ class SelfdriveD(CruiseHelper):
     self.params = Params()
 
     # Ensure the current branch is cached, otherwise the first cycle lags
-    build_metadata = get_build_metadata()
+    get_build_metadata()
 
     if CP is None:
       cloudlog.info("selfdrived is waiting for CarParams")
@@ -86,6 +97,7 @@ class SelfdriveD(CruiseHelper):
     self.big_model_loading = False
     self.big_model_active = False
     self.big_model_failed = False
+    self.big_model_running = False
     self.big_model_ready_t = 0.
 
     # Setup sockets
@@ -99,9 +111,13 @@ class SelfdriveD(CruiseHelper):
     # TODO: de-couple selfdrived with card/conflate on carState without introducing controls mismatches
     self.car_state_sock = messaging.sub_sock('carState', timeout=20)
 
-    ignore = self.sensor_packets + self.gps_packets + ['alertDebug', 'lateralManeuverPlan'] + ['modelDataV2SP', 'longitudinalPlanSP', 'carStateSP']
-    if SIMULATION:
+    ignore = self.sensor_packets + self.gps_packets + ['alertDebug', 'lateralManeuverPlan', 'liveTracks'] \
+             + ['modelDataV2SP', 'longitudinalPlanSP', 'carStateSP']
+    disable_dm = is_dm_disabled(self.params)
+    if SIMULATION or disable_dm:
       ignore += ['cabinCameraState', 'managerState']
+    if disable_dm:
+      ignore += ['driverMonitoringState', 'driverStateV2']
     if REPLAY:
       # no vipc in replay will make them ignored anyways
       ignore += ['narrowRoadCameraState', 'wideRoadCameraState']
@@ -109,7 +125,8 @@ class SelfdriveD(CruiseHelper):
                                    'carOutput', 'driverMonitoringState', 'longitudinalPlan', 'deviceMotion', 'lateralDelay',
                                    'managerState', 'vehicleParameters', 'radarState', 'lateralTorqueParameters',
                                    'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userBookmark',
-                                   'lateralManeuverPlan', 'modelDataV2SP', 'longitudinalPlanSP', 'carStateSP'] + \
+                                   'lateralManeuverPlan', 'modelDataV2SP', 'longitudinalPlanSP', 'carStateSP',
+                                   'liveTracks'] + \
                                    self.camera_packets + self.sensor_packets + self.gps_packets,
                                   ignore_alive=ignore, ignore_avg_freq=ignore,
                                   ignore_valid=ignore, frequency=int(1/DT_CTRL))
@@ -131,16 +148,31 @@ class SelfdriveD(CruiseHelper):
     self.AM = AlertManager()
     self.events = Events()
 
+    # Carrot radar-only advisory (default off, alert only).
+    self.radar_only_warning = RadarOnlyWarning()
+    self.radar_only_warning_enabled = self.params.get_bool("CarrotRadarOnlyWarningEnabled")
+
     self.initialized = False
     self.enabled = False
     self.active = False
+    self.nnff_alerted = False
     self.mismatch_counter = 0
     self.cruise_mismatch_counter = 0
     self.last_steering_pressed_frame = 0
     self.distance_traveled = 0
+    # consecutive frames the model's filtered drop rate has been over the
+    # lagging thresholds; a brief scheduler/IO hiccup pushes the low-pass past
+    # its floor for a moment, which must not flash the no-entry the way a
+    # sustained slow model does
+    self.modeld_lag_monitor = ModeldLagMonitor()
+    self.locationd_error_counter = 0
     self.last_functional_fan_frame = 0
     self.events_prev = []
     self.logged_comm_issue = None
+    # Data that is present but stale gets a short grace period before it is
+    # called a communication issue. A publisher that is dead or slow is
+    # reported immediately.
+    self.comm_issue_grace = CommIssueGrace()
     self.not_running_prev = None
     self.experimental_mode = False
     self.personality = get_sanitize_int_param(
@@ -159,8 +191,7 @@ class SelfdriveD(CruiseHelper):
     self.model_events = ModelEventsSP()
 
     # Determine startup event
-    is_remote = build_metadata.openpilot.comma_remote or build_metadata.openpilot.sunnypilot_remote
-    self.startup_event = EventName.startup if is_remote and build_metadata.tested_channel else EventName.startupMaster
+    self.startup_event = EventName.startup
     if HARDWARE.get_device_type() == 'mici':
       self.startup_event = None
     if not car_recognized:
@@ -254,7 +285,7 @@ class SelfdriveD(CruiseHelper):
       self.events.add(EventName.resumeBlocked)
 
     # Handle DM
-    if not self.CP.notCar:
+    if not self.CP.notCar and not is_dm_disabled(self.params):
       # Block engaging until lockout times out or ignition reset
       if self.sm['driverMonitoringState'].lockout and not self.dm_lockout_set:
         self.params.put_bool("DriverTooDistracted", True)
@@ -350,6 +381,11 @@ class SelfdriveD(CruiseHelper):
       if not self.excessive_actuation and excessive_actuation is not None:
         set_offroad_alert("Offroad_ExcessiveActuation", True, extra_text=str(excessive_actuation))
         self.excessive_actuation = True
+      elif self.excessive_actuation and excessive_actuation is None:
+        # The condition is gone. The alert has to be cleared, or it stays on
+        # screen and keeps blocking whatever reads it.
+        set_offroad_alert("Offroad_ExcessiveActuation", False)
+        self.excessive_actuation = False
 
     if self.excessive_actuation:
       self.events.add(EventName.excessiveActuation)
@@ -359,9 +395,16 @@ class SelfdriveD(CruiseHelper):
     if self.sm['modelV2'].meta.laneChangeState == LaneChangeState.preLaneChange:
       direction = self.sm['modelV2'].meta.laneChangeDirection
       mdv2sp = self.sm['modelDataV2SP']
+      cs_sp = self.sm['carStateSP']
+      carrot_left_blocked = cs_sp.carrotLaneValid and cs_sp.carrotLeftLineBlocked
+      carrot_right_blocked = cs_sp.carrotLaneValid and cs_sp.carrotRightLineBlocked
 
       if (CS.leftBlindspot and direction == LaneChangeDirection.left) or \
          (CS.rightBlindspot and direction == LaneChangeDirection.right):
+        self.events.add(EventName.laneChangeBlocked)
+
+      elif (carrot_left_blocked and direction == LaneChangeDirection.left) or \
+           (carrot_right_blocked and direction == LaneChangeDirection.right):
         self.events.add(EventName.laneChangeBlocked)
 
       elif (mdv2sp.leftLaneChangeEdgeBlock and direction == LaneChangeDirection.left) or \
@@ -430,6 +473,13 @@ class SelfdriveD(CruiseHelper):
         self.events.add(EventName.radarTempUnavailable)
       elif any(self.sm['radarState'].radarErrors.to_dict().values()):
         self.events.add(EventName.radarFault)
+    # Carrot advisory (default off): a measured front/corner obstacle with no
+    # selected lead. Alert only; never changes radar selection or targets.
+    if self.radar_only_warning_enabled and self.radar_only_warning.update_live(
+      time.monotonic(), CS, self.sm,
+      self.enabled and self.CP.openpilotLongitudinalControl,
+    ):
+      self.events.add(EventName.radarStationaryLead)
     if CS.canTimeout:
       self.events.add(EventName.canBusMissing)
     elif not CS.canValid:
@@ -441,29 +491,44 @@ class SelfdriveD(CruiseHelper):
     warmup_sec = 5.
     big_model_settling = self.big_model_loading or time.monotonic() < self.big_model_ready_t + warmup_sec or self.model_events.settling
     if not self.sm.all_checks() and no_system_errors and not big_model_settling:  # the load holds modelV2 and friends back on purpose
-      if not self.sm.all_alive():
-        self.events.add(EventName.commIssue)
-      elif not self.sm.all_freq_ok():
-        self.events.add(EventName.commIssueAvgFreq)
-      else:
-        self.events.add(EventName.commIssue)
+      all_alive = self.sm.all_alive()
+      all_freq_ok = self.sm.all_freq_ok()
+      # A dead or slow publisher is a real fault and is reported at once.
+      # Data that is merely stale gets a short grace period first.
+      comm_issue = self.comm_issue_grace.update(
+        all_checks=False, all_alive=all_alive, all_freq_ok=all_freq_ok)
+      if comm_issue:
+        if not all_alive:
+          self.events.add(EventName.commIssue)
+        elif not all_freq_ok:
+          self.events.add(EventName.commIssueAvgFreq)
+        else:
+          self.events.add(EventName.commIssue)
 
-      logs = {
-        'invalid': [s for s, valid in self.sm.valid.items() if not valid],
-        'not_alive': [s for s, alive in self.sm.alive.items() if not alive],
-        'not_freq_ok': [s for s, freq_ok in self.sm.freq_ok.items() if not freq_ok],
-      }
-      if logs != self.logged_comm_issue:
-        cloudlog.event("commIssue", error=True, **logs)
-        self.logged_comm_issue = logs
+        logs = {
+          'invalid': [s for s, valid in self.sm.valid.items() if not valid],
+          'not_alive': [s for s, alive in self.sm.alive.items() if not alive],
+          'not_freq_ok': [s for s, freq_ok in self.sm.freq_ok.items() if not freq_ok],
+        }
+        if logs != self.logged_comm_issue:
+          cloudlog.event("commIssue", error=True, **logs)
+          self.logged_comm_issue = logs
     else:
       self.logged_comm_issue = None
+      self.comm_issue_grace.reset()
 
     if not self.CP.notCar and not big_model_settling:  # localization has nothing to work with during the load
       # the defaults of a message that was never received are not a localizer failure
       if self.sm.seen['deviceMotion'] and not self.sm['deviceMotion'].posenetOK:
         self.events.add(EventName.posenetInvalid)
+      # de-glitch: a brief scheduler/IO stall makes locationd miss frames and
+      # report inputsOK=false for a control cycle or two; require it to persist
+      # before flashing the no-entry, the same way modeldLagging is held
       if self.sm.seen['deviceMotion'] and not self.sm['deviceMotion'].inputsOK:
+        self.locationd_error_counter += 1
+      else:
+        self.locationd_error_counter = 0
+      if self.locationd_error_counter > int(LOCATIOND_ERROR_HOLD_S / DT_CTRL):
         self.events.add(EventName.locationdTemporaryError)
       if (self.sm.seen['vehicleParameters'] and not self.sm['vehicleParameters'].valid and cal_status == log.ExtrinsicsCalibration.Status.calibrated and
           not TESTING_CLOSET and (not SIMULATION or REPLAY)):
@@ -513,8 +578,19 @@ class SelfdriveD(CruiseHelper):
 
     # TODO: fix simulator
     if not SIMULATION or REPLAY:
-      if self.sm['modelV2'].frameDropPerc > 1:
+      # frameDropPerc = 100 * x / (1 + x), where x is a 2 s low-pass of the
+      # dropped-frame count. A SINGLE dropped frame therefore spikes the value
+      # to ~2.4%, and clustered one-frame resyncs (loop phase drift over the
+      # 50 ms budget, one frame lost every 5-8 loops for a few seconds) read
+      # 5-12% - all invisible to the controller, so they only earn the
+      # informational modeldLaggingMild alert. A genuinely starved controller
+      # climbs past MODEL_LAG_PERC within a second and soft-disables via
+      # modeldLagging. See modeld_lag.py for the on-device measurements.
+      severe, mild = self.modeld_lag_monitor.update(self.sm['modelV2'].frameDropPerc)
+      if severe:
         self.events.add(EventName.modeldLagging)
+      if mild:
+        self.events.add(EventName.modeldLaggingMild)
 
     # mute canBusMissing event if in Park, as it sometimes may trigger a false alarm with MADS in Paused state
     if CS.gearShifter == car.CarState.GearShifter.park and self.mads.enabled:
@@ -580,6 +656,30 @@ class SelfdriveD(CruiseHelper):
 
     return CS
 
+  def update_nnff_alert(self, CS):
+    """Name the NNFF torque model once per onroad session, after startup alerts.
+
+    Polled at 2 Hz from 11 s on rather than fired on the first frame, so a slow
+    initialization or a late CarParamsSP load cannot lose the only notice.
+    """
+    if self.nnff_alerted or self.sm.frame < 550 or self.sm.frame % 50:
+      return
+    if (not self.initialized or self.CP.passive or not self.sm['deviceState'].started
+        or not CS.canValid or CS.canTimeout or not self.sm.all_checks()
+        or self.events.contains(ET.NO_ENTRY) or self.AM.current_alert is not EmptyAlert):
+      return
+    if not self.params.get_bool("NeuralNetworkLateralControl"):
+      return
+    nnlc = self.CP_SP.neuralNetworkLateralControl
+    if not nnlc.model.name or nnlc.model.name == "MOCK":
+      return
+    # Added after this frame's alert selection, then alerts are re-resolved so
+    # neither an existing warning nor the readiness chime can consume it.
+    self.events.bind_nnff_notice(nnlc.model.name, nnlc.fuzzyFingerprint)
+    self.events.add(EventName.torqueNNLoad)
+    self.update_alerts(CS)
+    self.nnff_alerted = True
+
   def update_alerts(self, CS):
     clear_event_types = set()
     if ET.WARNING not in self.state_machine.current_alert_types:
@@ -636,6 +736,7 @@ class SelfdriveD(CruiseHelper):
     mads.enabled = self.mads.enabled
     mads.active = self.mads.active
     mads.available = self.mads.enabled_toggle
+    mads.lateralHeld = self.mads.lateral_held
     ss_sp.zoompilot.madsLateralHeld = self.mads.lateral_held
     ss_sp.zoompilot.icbmHold = self.icbm.fast_active
 
@@ -665,6 +766,7 @@ class SelfdriveD(CruiseHelper):
     if not self.CP.notCar:
       self.mads.update(CS)
     self.update_alerts(CS)
+    self.update_nnff_alert(CS)
 
     self.button_state_tracker.update(CS)
     self.publish_selfdriveState(CS)
@@ -676,7 +778,9 @@ class SelfdriveD(CruiseHelper):
       self.is_metric = self.params.get_bool("IsMetric")
       self.is_ldw_enabled = self.params.get_bool("IsLdwEnabled")
       self.disengage_on_accelerator = self.params.get_bool("DisengageOnAccelerator")
-      self.experimental_mode = self.params.get_bool("ExperimentalMode") and self.CP.openpilotLongitudinalControl
+      # The switch alone is not a request: the confirmation bit is part of it,
+      # so a writer that skipped the dialog cannot turn the mode on by itself.
+      self.experimental_mode = experimental_mode_requested(self.params) and self.CP.openpilotLongitudinalControl
       self.personality = self.params.get("LongitudinalPersonality", return_default=True)
 
       self.mads.read_params()
@@ -696,7 +800,11 @@ class SelfdriveD(CruiseHelper):
 
 
 def main():
-  config_realtime_process(4, Priority.CTRL_HIGH)
+  # Control-state machine. Lives on core 6 with controlsd (CarrotPilot's layout);
+  # all three control processes used to share core 4 at ~99% utilization, so any
+  # GC/scheduler hiccup pushed this Ratekeeper past its 11.1ms average budget and
+  # the UI warned "系统滞后". Core 4 is now free for other work.
+  config_realtime_process(6, Priority.CTRL_HIGH)
   s = SelfdriveD()
   s.run()
 

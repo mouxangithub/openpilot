@@ -60,7 +60,7 @@ class DownloadHandler(http.server.BaseHTTPRequestHandler):
   stall_paths: set[str] = set()
   stall_event: threading.Event | None = None
 
-  def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+  def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 - stdlib signature
     pass
 
   def _body_for(self, path):

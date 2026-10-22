@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+import time
 import numpy as np
 from collections import deque
 from typing import Any
@@ -12,6 +13,11 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL, Priority, config_realtime_process
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.simple_kalman import KF1D
+
+from openpilot.selfdrive.controls.lib.lead_behavior import (
+  VISION_LEAD_TRACK_EXIT_MIN_MODEL_PROB,
+  should_hold_tracked_vision_lead,
+)
 
 from opendbc.car import structs
 from opendbc.car.hyundai.values import HyundaiFlags
@@ -28,6 +34,13 @@ SPEED, ACCEL = 0, 1     # Kalman filter states enum
 V_EGO_STATIONARY = 4.   # no stationary object flag below this speed
 
 RADAR_TO_CAMERA = 1.52  # RADAR is ~ 1.5m ahead from center of mesh frame
+
+# Radarless anti-dropout (ported from StarPilot lead_behavior). A recently
+# dropped vision lead is held for a bounded time instead of hard-cutting the
+# target, gated on filtered model prob, a path-relative lateral window and the
+# vision exit-gap rules. Radar cars are never affected.
+RADARLESS_TRACK_HOLD_TIME = 0.45  # s, mirrors StarPilot's time-hold layer
+_RADARLESS_STOP_DISTANCE = 6.0  # mirrors long_mpc STOP_DISTANCE default (hold buffer floor only)
 
 
 class KalmanParams:
@@ -61,6 +74,9 @@ class Track:
     self.K_C = kalman_params.C
     self.K_K = kalman_params.K
     self.kf = KF1D([[v_lead], [0.0]], self.K_A, self.K_C, self.K_K)
+    # StarPilot adjacent-lane stopped-vehicle detector history
+    from openpilot.selfdrive.controls.lib.adjacent_stop_detector import AdjacentStopHistory
+    self.stop_history = AdjacentStopHistory()
 
   def update(self, d_rel: float, y_rel: float, v_rel: float, v_lead: float):
     # relative values, copy
@@ -81,6 +97,11 @@ class Track:
       self.aLeadTau.x = _LEAD_ACCEL_TAU
     else:
       self.aLeadTau.update(0.0)
+
+    # StarPilot adjacent-lane stopped-vehicle detector: deceleration history
+    # per track (moving -> rest transition). Pure bookkeeping; consumers gate
+    # the actual detection (see controls/lib/adjacent_stop_detector.py).
+    self.stop_history.update_history(v_lead)
 
     self.cnt += 1
 
@@ -139,13 +160,18 @@ def match_vision_to_track(v_ego: float, lead: capnp._DynamicStructReader, tracks
 
 def get_RadarState_from_vision(lead_msg: capnp._DynamicStructReader, v_ego: float, model_v_ego: float, lead_prob: float):
   lead_v_rel_pred = lead_msg.v[0] - model_v_ego
+  # Smooth the vision accel estimate (80% fresh / 20% previous) so the
+  # radarless aLeadK does not jitter frame to frame (StarPilot behavior).
+  prev_aLeadK = getattr(get_RadarState_from_vision, "prev_aLeadK", 0.0)
+  blended_aLeadK = 0.8 * float(lead_msg.a[0]) + 0.2 * prev_aLeadK
+  get_RadarState_from_vision.prev_aLeadK = blended_aLeadK
   return {
     "dRel": float(lead_msg.x[0] - RADAR_TO_CAMERA),
     "yRel": float(-lead_msg.y[0]),
     "vRel": float(lead_v_rel_pred),
     "vLead": float(v_ego + lead_v_rel_pred),
     "vLeadK": float(v_ego + lead_v_rel_pred),
-    "aLeadK": float(lead_msg.a[0]),
+    "aLeadK": float(blended_aLeadK),
     "aLeadTau": 0.3,
     "modelProb": float(lead_prob),
     "present": True,
@@ -210,6 +236,57 @@ class RadarD:
 
     self.ready = False
 
+    # Radarless anti-dropout state (lead one only)
+    self.vision_hold_lead: dict[str, Any] | None = None
+    self.vision_hold_started: float | None = None
+
+  def apply_vision_lead_hold(self, lead_one: dict[str, Any], model_position) -> dict[str, Any]:
+    """Keep a recently dropped vision-only lead for RADARLESS_TRACK_HOLD_TIME.
+
+    Gates on the filtered model prob, a path-relative lateral window (works on
+    curves where absolute yRel fails) and the vision exit-gap rules. Radar
+    leads are never held or altered.
+    """
+    if not self.CP.radarUnavailable:
+      return lead_one
+
+    if lead_one.get('present', False):
+      self.vision_hold_lead = dict(lead_one)
+      self.vision_hold_started = None
+      return lead_one
+
+    if self.vision_hold_lead is None:
+      return lead_one
+
+    now_t = time.monotonic()
+    if self.vision_hold_started is None:
+      self.vision_hold_started = now_t
+    if now_t - self.vision_hold_started > RADARLESS_TRACK_HOLD_TIME:
+      self.vision_hold_lead = None
+      self.vision_hold_started = None
+      return lead_one
+
+    model_prob = float(self.lead_prob_filters[0].x)
+    if model_prob < VISION_LEAD_TRACK_EXIT_MIN_MODEL_PROB:
+      self.vision_hold_lead = None
+      self.vision_hold_started = None
+      return lead_one
+
+    held = self.vision_hold_lead
+    px = model_position.x
+    py = model_position.y
+    path_y = float(np.interp(held['dRel'], px, py)) if len(px) == len(py) and len(px) > 1 else 0.0
+    model_length = float(px[-1]) if len(px) else 0.0
+    if should_hold_tracked_vision_lead(True, held['dRel'], model_length, _RADARLESS_STOP_DISTANCE, self.v_ego,
+                                       model_prob=model_prob, y_rel=float(held['yRel']), path_y=path_y, radar=False):
+      held = dict(held)
+      held['modelProb'] = model_prob
+      return held
+
+    self.vision_hold_lead = None
+    self.vision_hold_started = None
+    return lead_one
+
   def update(self, sm: messaging.SubMaster, rr: car.RadarData):
     self.ready = sm.seen['modelV2']
 
@@ -257,8 +334,11 @@ class RadarD:
         else:
           self.lead_prob_filters[i].update(lead_prob)
 
-      self.radar_state.leadOne = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[0], model_v_ego, self.lead_prob_filters[0].x,
-                                          self.CP, self.CP_SP, low_speed_override=True)
+      self.radar_state.leadOne = self.apply_vision_lead_hold(
+        get_lead(self.v_ego, self.ready, self.tracks, leads_v3[0], model_v_ego, self.lead_prob_filters[0].x,
+                 self.CP, self.CP_SP, low_speed_override=True),
+        sm['modelV2'].position,
+      )
       self.radar_state.leadTwo = get_lead(self.v_ego, self.ready, self.tracks, leads_v3[1], model_v_ego, self.lead_prob_filters[1].x,
                                           self.CP, self.CP_SP, low_speed_override=False)
 

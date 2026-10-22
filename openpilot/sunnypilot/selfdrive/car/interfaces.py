@@ -15,9 +15,15 @@ from openpilot.sunnypilot.selfdrive.controls.lib.nnlc.helpers import get_nn_mode
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import set_speed_limit_assist_availability
 
 from openpilot.sunnypilot.sunnylink.statsd import STATSLOGSP
-from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.demand import icbm_demanded
 from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.helpers import icbm_applicable
+from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.demand import icbm_demanded
 from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.migration import migrate_icbm_toggle
+
+
+# The Mazda seed lives in `mazda_torque_seed` (it is a zoompilot port). This module used to
+# carry a byte-for-byte copy of it, which meant `manager_init` could import two different
+# functions under one name and quietly run whichever import came last. One definition, one
+# import: `seed_mazda_torque_defaults` is imported above and called from both places below.
 
 
 def _enforce_torque_lateral_control(CP: structs.CarParams, params: Params | None = None, enabled: bool = False) -> bool:
@@ -130,6 +136,10 @@ def initialize_params(params) -> list[dict[str, Any]]:
   keys.extend([
     "ToyotaEnforceStockLongitudinal",
     "ToyotaStopAndGoHack",
+    "ToyotaTSS2Long",
+    "ToyotaEnhancedBsm",
+    "ToyotaAutoHold",
+    "ToyotaBrakeOnset",
   ])
 
   return [{k: params.get(k, return_default=True)} for k in keys]

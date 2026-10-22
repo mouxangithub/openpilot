@@ -27,11 +27,19 @@ class LatControlAngle(LatControl):
     if self.use_steer_limited_by_safety:
       # these cars' carcontrollers calculate max lateral accel and jerk, so we can rely on carOutput for saturation
       angle_control_saturated = steer_limited_by_safety
+      # the limiter being active IS the saturation signal here, so it cannot also
+      # explain it away - `_check_saturation` gets False, as it always has
+      saturation_limited = False
     else:
       # for cars which use a method of limiting torque such as a torque signal (Nissan and Toyota)
       # or relying on EPS (Ford Q3), carOutput does not capture maxing out torque  # TODO: this can be improved
       angle_control_saturated = abs(angle_steers_des - CS.steeringAngleDeg) > STEER_ANGLE_SATURATION_THRESHOLD
-    angle_log.saturated = bool(self._check_saturation(angle_control_saturated, CS, False, curvature_limited))
+      # a large angle error while the car's rate limiter is clipping is the limiter
+      # doing its job, not the controller failing to achieve its plan (upstream
+      # c61d998); counting it made the saturation alert fire on ordinary large
+      # requests
+      saturation_limited = steer_limited_by_safety
+    angle_log.saturated = bool(self._check_saturation(angle_control_saturated, CS, saturation_limited, curvature_limited))
     angle_log.steeringAngleDeg = float(CS.steeringAngleDeg)
     angle_log.steeringAngleDesiredDeg = angle_steers_des
     return 0, float(angle_steers_des), angle_log

@@ -25,6 +25,7 @@ from msgq.visionipc import VisionIpcClient, VisionBuf
 from opendbc.car.car_helpers import get_demo_car_params
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.params import Params
+from openpilot.common.dm import is_dm_disabled
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.realtime import config_realtime_process, DT_MDL
 from openpilot.common.transformations.camera import DEVICE_CAMERAS
@@ -34,8 +35,10 @@ from openpilot.selfdrive.controls.lib.desire_helper import DesireHelper
 from openpilot.selfdrive.controls.lib.drive_helpers import get_accel_from_plan, should_stop, smooth_value, get_curvature_from_plan
 from openpilot.selfdrive.modeld.parse_model_outputs import Parser
 from openpilot.selfdrive.modeld.fill_model_msg import fill_model_msg, fill_driving_model_data, fill_pose_msg, PublishState
+from openpilot.selfdrive.modeld.lane_width import LaneWidthEstimator
 from openpilot.common.file_chunker import open_file_chunked
 from openpilot.selfdrive.modeld.constants import ModelConstants, Plan
+from openpilot.selfdrive.modeld.signal_shadow import ShadowClient
 from openpilot.selfdrive.modeld.helpers import MODELS_DIR, chestnut_present, chestnut_compiled, modeld_pkl_path, load_oob
 from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.livedelay.helpers import get_lat_delay
@@ -43,6 +46,7 @@ from openpilot.sunnypilot.modeld_v2.modeld_base import ModelStateBase
 from openpilot.sunnypilot.selfdrive.controls.lib.relc import RoadEdgeLaneChangeController
 
 SEND_RAW_PRED = os.getenv('SEND_RAW_PRED')
+LITE = os.getenv("LITE") is not None
 
 LAT_SMOOTH_SECONDS = 0.0
 LONG_SMOOTH_SECONDS = 0.3
@@ -153,6 +157,7 @@ class ModelState(ModelStateBase):
 
     self.prev_desire = np.zeros(ModelConstants.DESIRE_LEN, dtype=np.float32)
     self.chestnut = chestnut
+    self.signal_shadow = ShadowClient.optional(modeld_pkl_path(False).parent / 'driving_supercombo.onnx') if not chestnut else None
 
     stride, y_height, uv_height, _ = get_nv12_info(cam_w, cam_h)
     self.frame_copy_size = stride * (y_height + uv_height)
@@ -207,12 +212,15 @@ class ModelState(ModelStateBase):
     if after_enqueue is not None:
       after_enqueue()
     model_output = self.outputs['outputs'].numpy()[0]
+    shadow_payload = self.signal_shadow.capture(model_output, self.npy) if self.signal_shadow is not None else None
     if self.chestnut and not np.all(np.isfinite(model_output)):
       raise RuntimeError("model output not finite")
     outputs_dict = self.parser.parse_outputs(self.slice_outputs(model_output, self.output_slices))
 
     if SEND_RAW_PRED:
       outputs_dict['raw_pred'] = model_output.copy()
+    if shadow_payload is not None:
+      outputs_dict['_signal_shadow'] = shadow_payload
     return outputs_dict
 
   def warmup(self) -> None:
@@ -235,7 +243,7 @@ def main(demo=False):
   params = Params()
   params.put_bool("ChestnutLoading", CHESTNUT)
   params.remove("ChestnutActive")
-  jetlink_adapter.prepare(CHESTNUT)  # before going realtime
+  jetlink_adapter.prepare(CHESTNUT)  # before going realtime; prepare() no-ops beside a chestnut
 
   config_realtime_process(7, 54)
 
@@ -292,8 +300,9 @@ def main(demo=False):
   # messaging
   pub_socks = ["modelV2", "drivingModelData", "cameraOdometry", "modelDataV2SP"] + (["chestnutGpuState"] if CHESTNUT else [])
   pm = PubMaster(pub_socks)
-  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration", "driverMonitoringState",
-                  "carControl", "controlsState", "lateralDelay"])
+  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration",
+                  "driverMonitoringState", "carControl", "carControlSP", "controlsState",
+                  "lateralDelay", "carStateSP", "carrotManSP"])
 
   publish_state = PublishState()
   params = Params()
@@ -325,6 +334,8 @@ def main(demo=False):
 
   DH = DesireHelper()
   RELC = RoadEdgeLaneChangeController()
+  lane_width_left_est = LaneWidthEstimator()
+  lane_width_right_est = LaneWidthEstimator()
 
   while True:
     # Keep receiving frames until we are at least 1 frame ahead of previous extra frame
@@ -361,7 +372,7 @@ def main(demo=False):
 
     sm.update(0)
     desire = DH.desire
-    is_rhd = sm["driverMonitoringState"].isRHD
+    is_rhd = False if LITE or is_dm_disabled(params) else sm["driverMonitoringState"].isRHD
     frame_id = sm["narrowRoadCameraState"].frameId
     v_ego = max(sm["carState"].vEgo, 0.)
     model.lat_delay = get_lat_delay(params, sm["lateralDelay"].lateralDelay)
@@ -429,6 +440,13 @@ def main(demo=False):
       run_count, frame_drop_ratio = 0, 0.
 
     if model_output is not None:
+      # Read-only signal comparison: hand the captured sample to the separate
+      # CPU worker. Nothing here changes modelV2 or control.
+      shadow_payload = model_output.pop('_signal_shadow', None)
+      if shadow_payload is not None:
+        shadow_client, shadow_sample = shadow_payload
+        shadow_client.submit(shadow_sample, meta_main.frame_id, meta_extra.frame_id, meta_main.timestamp_eof)
+
       modelv2_send = messaging.new_message('modelV2')
       drivingdata_send = messaging.new_message('drivingModelData')
       posenet_send = messaging.new_message('cameraOdometry')
@@ -447,13 +465,30 @@ def main(demo=False):
       l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]
       r_lane_change_prob = desire_state[log.Desire.laneChangeRight]
       lane_change_prob = l_lane_change_prob + r_lane_change_prob
-      mdv2sp_send.modelDataV2SP.zoompilot.acceleratorState = jetlink_adapter.state(model)
+      cs_sp = sm['carStateSP']
+      left_lane_line_blocked = cs_sp.carrotLaneValid and cs_sp.carrotLeftLineBlocked
+      right_lane_line_blocked = cs_sp.carrotLaneValid and cs_sp.carrotRightLineBlocked
+      _accel_state = jetlink_adapter.state(model)
+      mdv2sp_send.modelDataV2SP.zoompilot.acceleratorState = _accel_state
+      # fork's big_model_ready_alert (selfdrived/events.py) reads the top-level field
+      mdv2sp_send.modelDataV2SP.acceleratorState = _accel_state
       left_edge, right_edge = RELC.update_and_fill(modelv2_send.modelV2, mdv2sp_send.modelDataV2SP, v_ego)
-      DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge)
+      carrot_man = sm['carrotManSP'] if sm.alive['carrotManSP'] else None
+      DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge,
+                left_lane_line_blocked=left_lane_line_blocked,
+                right_lane_line_blocked=right_lane_line_blocked,
+                carrot_man=carrot_man)
       modelv2_send.modelV2.meta.laneChangeState = DH.lane_change_state
       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
-      mdv2sp_send.valid = modelv2_send.valid
+      # carrot: adjacent-lane widths for the xiaoge BSD gate (cp parity)
+      modelv2_send.modelV2.meta.laneWidthLeft = lane_width_left_est.update(
+        modelv2_send.modelV2.laneLines[0], modelv2_send.modelV2.laneLineProbs[0],
+        modelv2_send.modelV2.laneLines[1], modelv2_send.modelV2.roadEdges[0])
+      modelv2_send.modelV2.meta.laneWidthRight = lane_width_right_est.update(
+        modelv2_send.modelV2.laneLines[3], modelv2_send.modelV2.laneLineProbs[3],
+        modelv2_send.modelV2.laneLines[2], modelv2_send.modelV2.roadEdges[1])
       mdv2sp_send.modelDataV2SP.laneTurnDirection = DH.lane_turn_direction
+      mdv2sp_send.valid = modelv2_send.valid
 
       fill_driving_model_data(drivingdata_send, modelv2_send)
       fill_pose_msg(posenet_send, model_output, meta_main.frame_id, vipc_dropped_frames, meta_main.timestamp_eof, extrinsics_calibration_seen)

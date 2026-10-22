@@ -36,6 +36,7 @@ _services: dict[str, tuple] = {
   "radarState": (True, 20., 5),
   "narrowRoadEncodeIdx": (False, 20., 1),
   "radarTracks": (True, 20.),
+  "liveTracks": (True, 20.),
   "sendcan": (True, 100., 139, QueueSize.MEDIUM),
   "logMessage": (True, 0., None, QueueSize.BIG),
   "errorLogMessage": (True, 0., 1, QueueSize.BIG),
@@ -94,6 +95,17 @@ _services: dict[str, tuple] = {
   "liveMapDataSP": (True, 1., 1),
   "modelDataV2SP": (True, 20., None, QueueSize.BIG),
   "liveLocationKalman": (True, 20.),
+  "imuCalibrationSP": (True, 4., 4),
+
+  # carrot (phone projection & navigation)
+  "carrotManSP": (False, 10., 1),
+  "navInstructionCarrotSP": (False, 1., 10),
+  "carrotNaviSP": (True, 2.),
+  "carrotNaviMediaSP": (False, 20., None, QueueSize.BIG),
+
+  # stock navigation (navd) - consumed by carrot_man as fallback for navInstructionCarrotSP
+  "navInstruction": (False, 1., 10),
+  "navRoute": (True, 0.),
 
   # debug
   "uiDebug": (True, 0., 1),

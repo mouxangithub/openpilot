@@ -19,6 +19,19 @@ from openpilot.system.sensord.sensors.lsm6ds3_temp import LSM6DS3_Temp
 
 I2C_BUS_IMU = 1
 
+
+def newest_gpio_event(dat: bytes) -> gpioevent_data | None:
+  """The newest gpioevent_data in a raw read, or None when nothing complete was read.
+
+  The kernel queues one event per data-ready edge; a delayed sensord thread can find
+  several pending at once. Only the newest timestamp belongs with the register value read
+  right after, since the sensor keeps only its latest sample."""
+  event_size = ctypes.sizeof(gpioevent_data)
+  if len(dat) < event_size:
+    return None
+  return gpioevent_data.from_buffer_copy(dat[(len(dat) // event_size - 1) * event_size:])
+
+
 def interrupt_loop(sensors: list[tuple[Sensor, str, bool]], event) -> None:
   pm = messaging.PubMaster([service for sensor, service, interrupt in sensors if interrupt])
 
@@ -52,7 +65,9 @@ def interrupt_loop(sensors: list[tuple[Sensor, str, bool]], event) -> None:
       continue
 
     dat = os.read(fd, ctypes.sizeof(gpioevent_data)*16)
-    evd = gpioevent_data.from_buffer_copy(dat)
+    evd = newest_gpio_event(dat)
+    if evd is None:
+      continue
 
     cur_offset = time.time_ns() - time.monotonic_ns()
     if abs(cur_offset - offset) > 10 * 1e6:  # ms

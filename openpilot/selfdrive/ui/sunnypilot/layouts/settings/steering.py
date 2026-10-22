@@ -70,7 +70,7 @@ class SteeringLayout(Widget):
       max_value=255,
       value_change_step=5,
       description="",
-      label_callback=lambda speed: f'{speed} {"km/h" if ui_state.is_metric else "mph"}',
+      label_callback=lambda speed: f'{speed} {tr("km/h") if ui_state.is_metric else tr("mph")}',
     )
     self._blinker_reengage_delay = option_item_sp(
       param="BlinkerLateralReengageDelay",
@@ -79,7 +79,7 @@ class SteeringLayout(Widget):
       max_value=10,
       value_change_step=1,
       description=lambda: tr("Delay before lateral control resumes after the turn signal ends."),
-      label_callback=lambda delay: f'{delay} {"s"}'
+      label_callback=lambda delay: f'{delay} {tr("s")}'
     )
     self._torque_control_toggle = toggle_item_sp(
       param="EnforceTorqueControl",
@@ -96,6 +96,29 @@ class SteeringLayout(Widget):
       title=lambda: tr("Neural Network Lateral Control (NNLC)"),
       description=""
     )
+    # Steer-ratio resolution knobs consumed by controlsd via
+    # steer_ratio.resolve_vehicle_model_steer_ratio: a custom ratio (0.1 units,
+    # used only when it resolves above 1.0) overrides, otherwise the live ratio
+    # is scaled by SteerRatioRate (percent).
+    self._steer_ratio_rate = option_item_sp(
+      param="SteerRatioRate",
+      title=lambda: tr("Steer Ratio Rate"),
+      min_value=30,
+      max_value=200,
+      value_change_step=5,
+      description=lambda: tr("Scales the live steering ratio, in percent. 100 keeps the vehicle's ratio."),
+      label_callback=lambda v: f'{v}%',
+    )
+    self._custom_steer_ratio = option_item_sp(
+      param="CustomSR",
+      title=lambda: tr("Custom Steer Ratio"),
+      min_value=0,
+      max_value=300,
+      value_change_step=5,
+      description=lambda: tr("Fixed steering ratio in 0.1 units (e.g. 130 = 13.0). Overrides the live " +
+                             "ratio when above 10. 0 uses the vehicle's ratio."),
+      label_callback=lambda v: tr("Stock") if v == 0 else f'{v / 10.0:.1f}',
+    )
 
     items = [
       self._mads_toggle,
@@ -111,6 +134,9 @@ class SteeringLayout(Widget):
       self._torque_customization_button,
       LineSeparatorSP(40),
       self._nnlc_toggle,
+      LineSeparatorSP(40),
+      self._steer_ratio_rate,
+      self._custom_steer_ratio,
     ]
     return items
 

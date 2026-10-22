@@ -131,6 +131,15 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     excessiveActuation @96;
     bigModelLoading @100;
     bigModelFailed @102;
+    # Carrot advisory: a measured front/corner obstacle with no selected lead.
+    # Display/alert only; never changes radar selection or longitudinal targets.
+    radarStationaryLead @104;
+    # One-shot notice naming the NNFF torque model card loaded at boot, emitted
+    # once per onroad session by selfdrived.
+    torqueNNLoad @105;
+    # Moderate model frame drops (clustered one-frame resyncs, controller not
+    # starved). Informational permanent alert only - never soft-disable.
+    modeldLaggingMild @106;
 
     lowBatteryDEPRECATED @40;
     soundsUnavailableDEPRECATED @47;
@@ -734,6 +743,15 @@ struct RadarState @0x9a185389d6fdd05f {
 
   leadOne @3 :LeadData;
   leadTwo @4 :LeadData;
+  leadRight @14 :LeadData;
+  leadLeft @18 :LeadData;
+  leadsLeft @16 :List(LeadData);
+  leadsRight @17 :List(LeadData);
+  leadsCenter @15 :List(LeadData);
+  leadsLeft2 @19 :List(LeadData);
+  leadsRight2 @20 :List(LeadData);
+  leadsCutIn @21 :List(LeadData);
+  leadCutInRisk @22 :LeadData;
 
   struct LeadData {
     dRel @0 :Float32;  # m from the front bumper of the car
@@ -747,6 +765,8 @@ struct RadarState @0x9a185389d6fdd05f {
     modelProb @13 :Float32;  # vision model lead probability
     radar @14 :Bool;  # true if lead is radar-matched (vs vision-only)
     radarTrackId @15 :Int32 = -1;  # for debugging
+    jLead @16 :Float32;  # lead jerk
+    score @17 :Float32;  # radar match/confidence score, 0..1
 
     deprecated :group {
       aRel @3 :Float32;
@@ -785,6 +805,11 @@ struct ExtrinsicsCalibration @0x96df70754d8390bc {
   rpyCalibSpread @8 :List(Float32);
   wideFromDeviceEuler @10 :List(Float32);
   height @12 :List(Float32);
+  # full 3x3 IMU-to-vehicle rotation matrix (row-major), used when the device
+  # is mounted at a large arbitrary angle and a separate camera provides the
+  # vehicle-frame reference. When present and valid, this matrix supersedes
+  # rpyCalib for the device-to-calibration transformation.
+  imuCalibMatrix @13 :List(Float32);
 
 
   enum Status {
@@ -1118,6 +1143,10 @@ struct ModelDataV2 {
     hardBrakePredicted @7 :Bool;
     laneChangeState @8 :LaneChangeState;
     laneChangeDirection @9 :LaneChangeDirection;
+    # carrot: width of the lane left/right of the ego lane, 1.0 s ahead, 1 s running
+    # mean; modeld fills these and the xiaoge BSD gate consumes them. Ordinals match cp.
+    laneWidthLeft @10 :Float32;
+    laneWidthRight @11 :Float32;
 
 
     deprecated :group {
@@ -1237,6 +1266,7 @@ struct LongitudinalPlan @0xe00b5b3eba12876c {
   shouldStop @37: Bool;
   allowThrottle @38: Bool;
   allowBrake @39: Bool;
+  accelBoost @40 :Float32;
 
 
   solverExecutionTime @35 :Float32;
@@ -2545,6 +2575,7 @@ struct Event {
     peripheralState @80 :PeripheralState;
     radarState @13 :RadarState;
     radarTracks @131 :Car.RadarData;
+    liveTracks @154 :Car.RadarData;  # radarcan: CAN-driven radar tracks (carrot); moved off @153 to avoid clash with upstream chestnutGpuState
     sendcan @17 :List(CanData);
     extrinsicsCalibration @19 :ExtrinsicsCalibration;
     carState @22 :Car.CarState;
@@ -2643,20 +2674,20 @@ struct Event {
     carStateSP @114 :Custom.CarStateSP;
     liveMapDataSP @115 :Custom.LiveMapDataSP;
     modelDataV2SP @116 :Custom.ModelDataV2SP;
-    customReserved10 @136 :Custom.CustomReserved10;
-    customReserved11 @137 :Custom.CustomReserved11;
-    customReserved12 @138 :Custom.CustomReserved12;
-    customReserved13 @139 :Custom.CustomReserved13;
-    customReserved14 @140 :Custom.CustomReserved14;
-    customReserved15 @141 :Custom.CustomReserved15;
-    customReserved16 @142 :Custom.CustomReserved16;
+    longitudinalMpcTuningSP @136 :Custom.LongitudinalMpcTuningSP;
+    amapNaviSPDEPRECATED @137 :Void;  # AmapNaviSP removed; kept for ordinal stability
+    navInstructionCarrotSP @138 :Custom.NavInstructionCarrotSP;
+    carrotManSP @139 :Custom.CarrotManSP;
+    imuCalibrationSP @140 :Custom.ImuCalibrationSP;
+    carrotNaviSP @141 :Custom.CarrotNaviStateSP;
+    carrotNaviMediaSP @142 :Custom.CarrotNaviMediaSP;
     customReserved17 @143 :Custom.CustomReserved17;
     customReserved18 @144 :Custom.CustomReserved18;
     customReserved19 @145 :Custom.CustomReserved19;
+    audioFeedbackDEPRECATED @149 :Deprecated.AudioFeedbackDEPRECATED;
 
     # *********** legacy + deprecated ***********
     model @9 :Deprecated.ModelData; # TODO: rename modelV2 and mark this as deprecated
-    audioFeedbackDEPRECATED @149 :Deprecated.AudioFeedbackDEPRECATED;
     liveMpcDEPRECATED @36 :Deprecated.LiveMpcData;
     liveLongitudinalMpcDEPRECATED @37 :Deprecated.LiveLongitudinalMpcData;
     liveLocationKalmanDeprecatedDEPRECATED @51 :Deprecated.LiveLocationData;
@@ -2705,7 +2736,7 @@ struct Event {
     driverMonitoringStateDEPRECATED @71 :DriverMonitoringStateDEPRECATED;
     gpsNMEADEPRECATED @3 :GPSNMEAData;
     uploaderStateDEPRECATED @79 :UploaderState;
-    navInstructionDEPRECATED @82 :NavInstruction;
+    navInstruction @82 :NavInstruction;
     navRouteDEPRECATED @83 :NavRoute;
     navThumbnailDEPRECATED @84 :Thumbnail;
     gnssMeasurementsDEPRECATED @91 :GnssMeasurements;

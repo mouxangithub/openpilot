@@ -4,6 +4,7 @@ from openpilot.system.ui.widgets.scroller import NavScroller
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton, BigToggle, BigParamControl, BigCircleParamControl, GreyBigButton
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigDialog, BigInputDialog, BigConfirmationCircleButton
 from openpilot.system.ui.lib.application import gui_app
+from openpilot.system.ui.lib.multilang import tr
 from openpilot.selfdrive.ui.layouts.settings.common import restart_needed_callback
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.widgets.ssh_key import SshKeyFetcher
@@ -13,16 +14,18 @@ class AlphaLongConfirmPage(NavScroller):
   def __init__(self, on_confirm: Callable[[], None]):
     super().__init__()
 
-    accept = BigConfirmationCircleButton("enable alpha\nlongitudinal",
+    accept = BigConfirmationCircleButton(tr("enable alpha\nlongitudinal"),
                                          gui_app.texture("icons_mici/setup/driver_monitoring/dm_check.png", 64, 64),
                                          lambda: self.dismiss(on_confirm))
 
     self._scroller.add_widgets([
-      GreyBigButton("enabling alpha longitudinal", "scroll to continue",
+      GreyBigButton(tr("enabling alpha longitudinal"), tr("scroll to continue"),
                     gui_app.texture("icons_mici/setup/warning.png", 64, 64)),
-      GreyBigButton("", "WARNING: alpha longitudinal control may disable Automatic Emergency Braking (AEB)"),
-      GreyBigButton("", "On this car, openpilot defaults to the stock system's built-in ACC."),
-      GreyBigButton("", "Enabling this will switch to openpilot longitudinal control."),
+      GreyBigButton("", tr("WARNING: alpha longitudinal control may disable Automatic Emergency Braking (AEB)")),
+      GreyBigButton("", tr("On this car, openpilot defaults to the stock system's built-in ACC.")),
+      GreyBigButton("", tr("Enabling this will switch to openpilot longitudinal control.")),
+      GreyBigButton("", tr("Using Experimental mode is recommended with openpilot longitudinal control alpha.")),
+      GreyBigButton("", tr("Changing this setting will restart openpilot if the car is powered on.")),
       accept,
     ])
 
@@ -34,7 +37,7 @@ class DeveloperLayoutMici(NavScroller):
 
     def github_username_callback(username: str):
       if username:
-        self._ssh_keys_btn.set_value("Loading...")
+        self._ssh_keys_btn.set_value(tr("Loading..."))
         self._ssh_keys_btn.set_enabled(False)
 
         def on_response(error):
@@ -42,17 +45,17 @@ class DeveloperLayoutMici(NavScroller):
           if error is None:
             self._ssh_keys_btn.set_value(username)
           else:
-            self._ssh_keys_btn.set_value("Not set")
+            self._ssh_keys_btn.set_value(tr("Not set"))
             gui_app.push_widget(BigDialog("", error))
 
         self._ssh_fetcher.fetch(username, on_response)
       else:
         self._ssh_fetcher.clear()
-        self._ssh_keys_btn.set_value("Not set")
+        self._ssh_keys_btn.set_value(tr("Not set"))
 
     def ssh_keys_callback():
       github_username = ui_state.params.get("GithubUsername") or ""
-      dlg = BigInputDialog("enter GitHub username...", github_username, minimum_length=0, confirm_callback=github_username_callback)
+      dlg = BigInputDialog(tr("enter GitHub username..."), github_username, minimum_length=0, confirm_callback=github_username_callback)
       if not system_time_valid():
         dlg = BigDialog("", "Please connect to Wi-Fi to fetch your key.")
         gui_app.push_widget(dlg)
@@ -61,31 +64,31 @@ class DeveloperLayoutMici(NavScroller):
 
     txt_ssh = gui_app.texture("icons_mici/settings/developer/ssh.png", 56, 64)
     github_username = ui_state.params.get("GithubUsername") or ""
-    self._ssh_keys_btn = BigButton("SSH keys", "Not set" if not github_username else github_username, icon=txt_ssh,
-                                   description="Grant SSH access to all public keys in your GitHub settings. Only enter your own username.")
+    self._ssh_keys_btn = BigButton(tr("SSH keys"), tr("Not set") if not github_username else github_username, icon=txt_ssh,
+                                   description=tr("Grant SSH access to all public keys in your GitHub settings. Only enter your own username."))
     self._ssh_keys_btn.set_click_callback(ssh_keys_callback)
 
     # adb, ssh, ssh keys, debug mode, joystick debug mode, longitudinal maneuver mode, ip address
     # ******** Main Scroller ********
+    alpha_long_description = tr("Use alpha openpilot longitudinal control instead of stock ACC. This may disable Automatic Emergency Braking (AEB).")
     self._adb_toggle = BigCircleParamControl(gui_app.texture("icons_mici/adb_short.png", 82, 82), "AdbEnabled", icon_offset=(0, 12),
-                                             description="Use Android Debug Bridge (ADB) over USB or the network.", title="enable ADB")
+                                             description=tr("Use Android Debug Bridge (ADB) over USB or the network."), title=tr("enable ADB"))
     self._ssh_toggle = BigCircleParamControl(gui_app.texture("icons_mici/ssh_short.png", 82, 82), "SshEnabled", icon_offset=(0, 12),
-                                             description="Access the device remotely using your SSH keys.", title="enable SSH")
-    self._joystick_toggle = BigToggle("joystick debug\nmode", initial_state=ui_state.params.get_bool("JoystickDebugMode"),
-                                      toggle_callback=self._on_joystick_debug_mode, description="Control the car with a joystick for debugging.")
-    self._long_maneuver_toggle = BigToggle("longitudinal maneuver mode", initial_state=ui_state.params.get_bool("LongitudinalManeuverMode"),
+                                             description=tr("Access the device remotely using your SSH keys."), title=tr("enable SSH"))
+    self._joystick_toggle = BigToggle(tr("joystick debug\nmode"), initial_state=ui_state.params.get_bool("JoystickDebugMode"),
+                                      toggle_callback=self._on_joystick_debug_mode, description=tr("Control the car with a joystick for debugging."))
+    self._long_maneuver_toggle = BigToggle(tr("longitudinal maneuver mode"), initial_state=ui_state.params.get_bool("LongitudinalManeuverMode"),
                                            toggle_callback=self._on_long_maneuver_mode,
-                                           description="Run longitudinal maneuvers for testing gas and brake control.")
-    self._lat_maneuver_toggle = BigToggle("lateral maneuver mode", initial_state=ui_state.params.get_bool("LateralManeuverMode"),
+                                           description=tr("Run longitudinal maneuvers for testing gas and brake control."))
+    self._lat_maneuver_toggle = BigToggle(tr("lateral maneuver mode"), initial_state=ui_state.params.get_bool("LateralManeuverMode"),
                                           toggle_callback=self._on_lat_maneuver_mode,
-                                          description="Run lateral maneuvers for testing steering control.")
-    self._alpha_long_toggle = BigToggle("alpha longitudinal", initial_state=ui_state.params.get_bool("AlphaLongitudinalEnabled"),
+                                          description=tr("Run lateral maneuvers for testing steering control."))
+    self._alpha_long_toggle = BigToggle(tr("alpha longitudinal"), initial_state=ui_state.params.get_bool("AlphaLongitudinalEnabled"),
                                         toggle_callback=self._on_alpha_long_enabled,
-                                        description="Use alpha openpilot longitudinal control instead of stock ACC. This may disable Automatic Emergency " +
-                                                    "Braking (AEB).")
-    self._debug_mode_toggle = BigParamControl("ui debug mode", "ShowDebugInfo",
+                                        description=alpha_long_description)
+    self._debug_mode_toggle = BigParamControl(tr("ui debug mode"), "ShowDebugInfo",
                                               toggle_callback=lambda checked: (gui_app.set_show_touches(checked), gui_app.set_show_fps(checked)),
-                                              description="Show touch locations and the UI frame rate.")
+                                              description=tr("Show touch locations and the UI frame rate."))
 
     self._scroller.add_widgets([
       self._adb_toggle,
@@ -119,10 +122,17 @@ class DeveloperLayoutMici(NavScroller):
     # Disable toggles that require offroad
     for item in onroad_blocked_toggles:
       item.set_enabled(lambda: ui_state.is_offroad())
+    # Jetlink holds the USB port that ADB needs
+    self._adb_toggle.set_enabled(lambda: ui_state.is_offroad() and not ui_state.adb_blocked)
 
     # Disable toggles that require not engaged
     for item in engaged_blocked_toggles:
       item.set_enabled(lambda: not ui_state.engaged)
+
+    # Grey pill: long maneuver is meaningless without longitudinal control, so grey
+    # the pill while keeping the stored value so it applies again once the car gains it
+    self._long_maneuver_toggle.set_superseded(
+        lambda: ui_state.CP is not None and not ui_state.has_longitudinal_control)
 
     # Set initial state
     if ui_state.params.get_bool("ShowDebugInfo"):

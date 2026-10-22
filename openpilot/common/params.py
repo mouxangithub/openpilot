@@ -69,6 +69,9 @@ params_clear_all = _bind("params_clear_all", [ParamsHandle, ctypes.c_uint])
 params_check_key = _bind("params_check_key", [ParamsHandle, ctypes.c_char_p], ctypes.c_bool)
 params_get_key_type = _bind("params_get_key_type", [ParamsHandle, ctypes.c_char_p], ctypes.c_int)
 params_get_default = _bind("params_get_default", [ParamsHandle, ctypes.c_char_p], ParamsBuffer)
+params_get_stock = _bind("params_get_stock", [ParamsHandle, ctypes.c_char_p], ParamsBuffer)
+params_get_tuning_level = _bind("params_get_tuning_level", [ParamsHandle, ctypes.c_char_p], ctypes.c_int)
+params_get_settings_tier = _bind("params_get_settings_tier", [ParamsHandle, ctypes.c_char_p], ctypes.c_int)
 params_get = _bind("params_get", [ParamsHandle, ctypes.c_char_p, ctypes.c_bool], ParamsBuffer)
 params_get_bool = _bind("params_get_bool", [ParamsHandle, ctypes.c_char_p, ctypes.c_bool], ctypes.c_bool)
 params_put = _bind("params_put", [ParamsHandle, ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t, ctypes.c_bool], ctypes.c_int)
@@ -166,6 +169,22 @@ class Params:
   def get_bool(self, key, block=False):
     return bool(params_get_bool(self.p, self.check_key(key), block))
 
+  def get_int(self, key, default=0):
+    try:
+      return int(self.get(key))
+    except (TypeError, ValueError):
+      return default
+
+  def get_float(self, key, default=0.0):
+    try:
+      return float(self.get(key))
+    except (TypeError, ValueError):
+      return default
+
+  def get_str(self, key, default=""):
+    value = self.get(key)
+    return default if value is None else str(value)
+
   def _put_cast(self, key, dat):
     return ensure_bytes(self.python2cpp(type(dat), self.get_type(key), dat, key))
 
@@ -175,8 +194,30 @@ class Params:
     value = self._put_cast(k, dat)
     params_put(self.p, k, value, len(value), block)
 
+  def put_nonblocking(self, key, dat):
+    """Write a parameter without blocking on persistence (alias for put(block=False))."""
+    return self.put(key, dat, block=False)
+
   def put_bool(self, key, val, block=False):
     params_put_bool(self.p, self.check_key(key), val, block)
+
+  def put_int(self, key, val, block=False):
+    self.put(key, int(val), block=block)
+
+  def put_float(self, key, val, block=False):
+    self.put(key, float(val), block=block)
+
+  def put_str(self, key, val, block=False):
+    self.put(key, str(val), block=block)
+
+  def put_bool_nonblocking(self, key, val):
+    self.put_bool(key, val, block=False)
+
+  def put_int_nonblocking(self, key, val):
+    self.put_int(key, val, block=False)
+
+  def put_float_nonblocking(self, key, val):
+    self.put_float(key, val, block=False)
 
   def remove(self, key):
     params_remove(self.p, self.check_key(key))
@@ -187,6 +228,22 @@ class Params:
 
   def get_type(self, key):
     return ParamKeyType(params_get_key_type(self.p, self.check_key(key)))
+
+  def get_stock_value(self, key):
+    """The value the car shipped with, or the registered default.
+
+    Unlike get(key, return_default=True), this does not depend on whether the
+    parameter was ever written: it is a property of the key itself.
+    """
+    return _copy_string(params_get_stock(self.p, self.check_key(key)))
+
+  def get_tuning_level(self, key):
+    """Which tuning level the key belongs to; 0 means it is not a knob."""
+    return params_get_tuning_level(self.p, self.check_key(key))
+
+  def get_settings_tier(self, key):
+    """Where the key belongs in the settings page (0 simple, 1 advanced)."""
+    return params_get_settings_tier(self.p, self.check_key(key))
 
   def all_keys(self, flag=ParamKeyFlag.ALL):
     if flag == ParamKeyFlag.ALL:

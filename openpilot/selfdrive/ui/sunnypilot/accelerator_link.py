@@ -5,19 +5,22 @@ This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 
 The user's say over the Jetlink setting, shared by the mici and tici models panels:
-Off, USB (a Jetson, a Linux PC or a Mac) or iOS (an iPhone), stored as an
-index into the adapter's MODES. The small model is picked as ever: manager
-runs whichever modeld that bundle needs and the link joins it, so the setting
-never changes which modeld runs. Everything else here reads ui_state.jetlink,
-the snapshot the params pass takes, and what the models panels say of the big
-models jetlink runs.
+Off, USB (a Jetson, a Linux PC or a Mac), iOS (an iPhone), or Wi-Fi (the
+device whose hotspot the comma joined), stored as an index into the adapter's
+MODES. The small model is picked as ever: manager runs whichever modeld that
+bundle needs and the link joins it, so the setting never changes which modeld
+runs. Everything else here reads ui_state.jetlink, the snapshot the params
+pass takes, and what the models panels say of the big models jetlink runs.
 """
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.sunnypilot import jetlink_adapter
 from openpilot.sunnypilot.jetlink_adapter import KEYS, MODES
 from openpilot.system.ui.lib.multilang import tr
 
-LINK_MODE_TITLES = {"off": "Off", "usb": "USB", "ios": "iOS"}
+# the setting is an index into the adapter's MODES (off/usb/ios/wifi)
+LINK_MODES = MODES
+LINK_PARAM = KEYS.link
+LINK_MODE_TITLES = {"off": "Off", "usb": "USB", "ios": "iOS", "wifi": "Wi-Fi"}
 
 
 def link_mode() -> str:
@@ -38,6 +41,24 @@ def link_toggle_meaningful() -> bool:
   return ui_state.jetlink is not None or link_mode() != "off"
 
 
+def port_state(jetlink) -> str | None:
+  """jetlink's port line: 'connected' with a host on the link, else the CC
+  pin's 'empty' or 'device' (a cable with something live behind it, which it
+  cannot name); None where the kernel does not say. jetlink's Status derives
+  it as port_state; one that predates it carries only the pin's port, read
+  as 'device' where it is not empty."""
+  state = getattr(jetlink, "port_state", None)
+  if state is not None:
+    return state
+  # a Status too old for port_state says a host is there as present
+  if getattr(jetlink, "present", False):
+    return "connected"
+  port = getattr(jetlink, "port", None)
+  if port is None:
+    return None
+  return "empty" if port == "empty" else "device"
+
+
 def link_status() -> str:
   """One line under the toggle: what is on the comma's USB-C port right now.
 
@@ -47,9 +68,14 @@ def link_status() -> str:
   than claiming an empty port.
   """
   jetlink = ui_state.jetlink
-  port = jetlink.port_state if jetlink is not None else None
+  if jetlink is None:
+    return ""
+  # Wi-Fi leaves the USB-C port alone: point the user at the hotspot instead
+  if getattr(jetlink, "mode", None) == "wifi":
+    return tr("Join the device's hotspot and open Jetlink there.")
+  port = port_state(jetlink)
   if port == "connected":
-    return f"{tr('Jetlink connected:')} {jetlink.transport}."
+    return f"{tr('Jetlink connected:')} {getattr(jetlink, 'transport', '')}."
   return {"empty": tr("Nothing on the USB port."), "device": tr("A device is on the USB port.")}.get(port, "")
 
 

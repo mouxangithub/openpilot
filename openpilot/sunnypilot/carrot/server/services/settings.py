@@ -1,0 +1,358 @@
+import json
+import os
+import re
+from copy import deepcopy
+from typing import Any
+
+from ..config import DEFAULT_SETTINGS_PATH
+from .settings_sp import attach_tuning_metadata
+from openpilot.sunnypilot.selfdrive.car.cruise_helpers import supported_gap_levels
+
+
+# mtime-based cache for carrot_settings.json
+# - "path" is mutated by carrot_server.py at startup if --settings is passed
+# - "mtime" tracks the last loaded file mtime so reload happens only on change
+settings_cache: dict = {
+  "path": DEFAULT_SETTINGS_PATH,
+  "mtime": 0,
+  "data": None,        # full json
+  "groups": None,      # {group: [param,...]}
+  "by_name": None,     # {name: param}
+  "groups_list": None, # [{group, egroup, count}, ...]
+  "categories": None,  # 대>중>소 트리 ([{id,ko,en,zh,groups:[...]}]) or None when no "menu"
+}
+
+
+# The catalog marks status-only entries in their own descriptions.
+READ_ONLY_MARKER = re.compile(r"\(read-?only\)", re.IGNORECASE)
+
+
+def _param_text(value) -> str:
+  if isinstance(value, bytes):
+    return value.decode("utf-8", errors="ignore").strip()
+  return str(value or "").strip()
+
+
+def current_vehicle_brand(params=None) -> str:
+  """Return the opendbc brand for the currently fingerprinted vehicle.
+
+  The brand comes from a CarParams snapshot that is trustworthy: a MOCK
+  snapshot (written while the car process starts) is skipped, and a previous
+  route's snapshot is only used when it matches the forced model exactly.
+  Otherwise the settings page would show options for a car that is not
+  connected.
+  """
+  if params is None:
+    from .params import HAS_PARAMS, Params
+    if not HAS_PARAMS or Params is None:
+      return ""
+    params = Params()
+
+  from openpilot.sunnypilot.common.car_capability import capability_snapshot
+
+  def extract(raw: bytes) -> str:
+    from opendbc.car.structs import car
+    import openpilot.cereal.messaging as messaging
+    return str(messaging.log_from_bytes(raw, car.CarParams).carFingerprint)
+
+  try:
+    is_onroad = bool(params.get_bool("IsOnroad"))
+  except Exception:
+    is_onroad = False
+
+  cp_bytes = capability_snapshot(
+    params,
+    is_onroad=is_onroad,
+    extract=extract,
+    get=lambda key: params.get(key),
+    get_bool=lambda key: bool(params.get_bool(key)),
+  )
+  if cp_bytes:
+    try:
+      from opendbc.car.structs import car
+      import openpilot.cereal.messaging as messaging
+      brand = _param_text(messaging.log_from_bytes(cp_bytes, car.CarParams).brand).lower()
+      if brand:
+        return brand
+    except Exception:
+      pass
+
+  # CarName is available after fingerprinting and keeps the settings UI safe
+  # if a damaged or older CarParamsPersistent value cannot be decoded.
+  try:
+    car_name = _param_text(params.get("CarName")).upper()
+  except Exception:
+    car_name = ""
+  if car_name.startswith(("HYUNDAI", "KIA", "GENESIS")):
+    return "hyundai"
+  return ""
+
+
+def read_settings_file(path: str) -> dict[str, Any]:
+  with open(path, encoding="utf-8") as f:
+    return json.load(f)
+
+
+def group_index(settings: dict[str, Any]) -> tuple[dict[str, list], dict[str, dict[str, Any]], list[dict[str, Any]]]:
+  groups: dict[str, list] = {}
+  by_name: dict[str, dict[str, Any]] = {}
+  groups_list: list[dict[str, Any]] = []
+
+  params = settings.get("params", [])
+  for p in params:
+    g = p.get("group", "기타")
+    if g == "기타":
+        if "egroup" not in p: p["egroup"] = "Other"
+        if "cgroup" not in p: p["cgroup"] = "其他"
+
+    groups.setdefault(g, []).append(p)
+    n = p.get("name")
+    if n:
+      by_name[n] = p
+
+  # group list with egroup/cgroup guess
+  for g, items in groups.items():
+    egroup = None
+    cgroup = None
+    for it in items:
+      if not egroup and it.get("egroup"):
+        egroup = it.get("egroup")
+      if not cgroup and it.get("cgroup"):
+        cgroup = it.get("cgroup")
+      if egroup and cgroup:
+        break
+    groups_list.append({
+      "group": g,
+      "egroup": egroup,
+      "cgroup": cgroup,
+      "count": sum(1 for item in items if not item.get("detail_parent") and not item.get("search_only")),
+    })
+
+  return groups, by_name, groups_list
+
+
+def _label(node: dict[str, Any]) -> dict[str, Any]:
+  return {"ko": node.get("ko"), "en": node.get("en"), "zh": node.get("zh")}
+
+
+def build_menu_categories(data: dict[str, Any], by_name: dict[str, dict[str, Any]]) -> list[dict[str, Any]] | None:
+  """Build the 대>중>소 tree from the optional top-level "menu" block.
+
+  Returns None when no "menu" is present so the frontend falls back to the
+  flat group_index view. Leaf "items" carry param *names* only; the frontend
+  resolves definitions from items_by_group to avoid duplicating param data.
+
+  Shape:
+    [ {id, ko, en, zh,
+       groups: [ {id, ko, en, zh, count,
+                  sections: [ {id, ko, en, zh, items:[name,...]} ]} ]} ]
+
+  A 중-group whose menu node holds params directly (no nested "groups") is
+  normalized to a single label-less section.
+  """
+  menu = data.get("menu")
+  if not menu:
+    return None
+
+  # Status-only entries are marked by the catalog itself ("... (read-only).").
+  # They are not settings: every one of them already has a home in a hand-built
+  # or manager block (dongle id under Device, OSM progress under Maps, sunnylink
+  # id under sunnylink). Listing them as rows produced a page of uneditable
+  # entries, so they never enter the tree.
+  def is_status_only(name: str) -> bool:
+    entry = by_name.get(name) or {}
+    return bool(READ_ONLY_MARKER.search(f"{entry.get('descr') or ''} {entry.get('edescr') or ''}"))
+
+  def join_labels(nodes: list[dict[str, Any]], key: str) -> str | None:
+    parts = [str(n.get(key) or "").strip() for n in nodes]
+    parts = [p for p in parts if p]
+    return " · ".join(parts) if parts else None
+
+  def sections_from(nodes: list[dict[str, Any]], parents: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
+    sections: list[dict[str, Any]] = []
+    parents = parents or []
+    for node in nodes:
+      path = parents + [node]
+      children = node.get("groups") or []
+      if children:
+        sections.extend(sections_from(children, path))
+        continue
+      items = [n for n in node.get("params", []) if n in by_name and not is_status_only(n)]
+      if not items:
+        continue
+      sections.append({
+        "id": "__".join(str(n.get("id") or "") for n in path if n.get("id")),
+        "ko": join_labels(path, "ko"),
+        "en": join_labels(path, "en"),
+        "zh": join_labels(path, "zh"),
+        "items": items,
+      })
+    return sections
+
+  cats: list[dict[str, Any]] = []
+  # Several params are listed under two menu nodes (ClusterNaviMapFps under
+  # DISPLAY/HUD and SUNNYPILOT/Maps, ShowAdvancedControls under three). Rendering
+  # every node faithfully drew the same row in two or three groups - which reads
+  # as a duplicated setting. First node in menu order wins.
+  claimed: set[str] = set()
+  for cat in menu:
+    groups_out: list[dict[str, Any]] = []
+    for grp in cat.get("groups", []):
+      if "groups" in grp:
+        sections = sections_from(grp["groups"])
+      else:
+        # params directly under the 중-group → single label-less section
+        sections = [{"id": grp.get("id"), "ko": None, "en": None, "zh": None,
+                     "items": [n for n in grp.get("params", []) if n in by_name and not is_status_only(n)]}]
+      for section in sections:
+        section["items"] = [n for n in section["items"] if n not in claimed]
+        claimed.update(section["items"])
+      sections = [section for section in sections if section["items"]]
+      count = sum(
+        1
+        for section in sections
+        for name in section["items"]
+        if not by_name[name].get("detail_parent") and not by_name[name].get("search_only")
+      )
+      if not count:
+        continue
+      groups_out.append({**_label(grp), "id": grp.get("id"), "count": count, "sections": sections})
+    if not groups_out:
+      continue
+    cats.append({**_label(cat), "id": cat.get("id"), "groups": groups_out})
+  return cats
+
+
+def filter_settings_catalog_for_brand(
+  groups: dict[str, list],
+  groups_list: list[dict[str, Any]],
+  categories: list[dict[str, Any]] | None,
+  brand: str,
+) -> tuple[dict[str, list], list[dict[str, Any]], list[dict[str, Any]] | None, set[str]]:
+  """Return a catalog view with brand-restricted settings removed.
+
+  The process cache remains brand-neutral because the same server helpers are
+  also used by tests and tools. Filtering copies only the response structures
+  that need changes and never mutates the cached source catalog.
+  """
+  normalized_brand = str(brand or "").strip().lower()
+  hidden_names = {
+    str(item.get("name"))
+    for items in groups.values()
+    for item in items
+    if normalized_brand and normalized_brand in {
+      str(hidden_brand).strip().lower()
+      for hidden_brand in item.get("hidden_brands", [])
+    }
+  }
+  if not hidden_names:
+    return dict(groups), list(groups_list), categories, set()
+
+  filtered_groups = {
+    group: [item for item in items if item.get("name") not in hidden_names]
+    for group, items in groups.items()
+  }
+  detail_names = {
+    str(item.get("name"))
+    for items in filtered_groups.values()
+    for item in items
+    if item.get("detail_parent")
+  }
+  search_only_names = {
+    str(item.get("name"))
+    for items in filtered_groups.values()
+    for item in items
+    if item.get("search_only")
+  }
+  filtered_groups_list = [
+    {
+      **group,
+      "count": sum(
+        1 for item in filtered_groups.get(group.get("group"), [])
+        if not item.get("detail_parent") and not item.get("search_only")
+      ),
+    }
+    for group in groups_list
+  ]
+
+  filtered_categories = deepcopy(categories) if categories is not None else None
+  if filtered_categories is not None:
+    for category in filtered_categories:
+      visible_groups = []
+      for group in category.get("groups", []):
+        visible_sections = []
+        for section in group.get("sections", []):
+          section["items"] = [name for name in section.get("items", []) if name not in hidden_names]
+          if section["items"]:
+            visible_sections.append(section)
+        group["sections"] = visible_sections
+        group["count"] = sum(
+          1
+          for section in visible_sections
+          for name in section["items"]
+          if name not in detail_names and name not in search_only_names
+        )
+        if group["count"]:
+          visible_groups.append(group)
+      category["groups"] = visible_groups
+
+  return filtered_groups, filtered_groups_list, filtered_categories, hidden_names
+
+
+def current_max_gap_levels(params=None) -> int:
+  if params is None:
+    from .params import HAS_PARAMS, Params
+    if not HAS_PARAMS or Params is None:
+      return 4
+    params = Params()
+  try:
+    return supported_gap_levels(params.get_int("LongitudinalPersonalityMax"))
+  except Exception:
+    return 3
+
+
+def with_vehicle_gap_limits(cache_parts: tuple, maximum: int) -> tuple:
+  data, groups, by_name, groups_list = cache_parts
+  setting = by_name.get("CruiseGapLevels")
+  if setting is None:
+    return cache_parts
+  maximum = supported_gap_levels(maximum)
+  setting = {**setting, "max": maximum, "default": maximum,
+             "options": {locale: options[:maximum - 1] for locale, options in setting["options"].items()}}
+  # Keep the process cache neutral when vehicle identification changes.
+  def adapted(items):
+    return [setting if item.get("name") == "CruiseGapLevels" else item for item in items]
+  return (
+    {**data, "params": adapted(data["params"])},
+    {group: adapted(items) for group, items in groups.items()},
+    {**by_name, "CruiseGapLevels": setting},
+    groups_list,
+  )
+
+
+def get_settings_cached() -> tuple[dict[str, Any], dict[str, list], dict[str, dict[str, Any]], list[dict[str, Any]]]:
+  path = settings_cache["path"]
+  st = os.stat(path)
+  mtime = int(st.st_mtime)
+  if settings_cache["data"] is None or settings_cache["mtime"] != mtime:
+    data = read_settings_file(path)
+    groups, by_name, groups_list = group_index(data)
+    # Stamp the build-time tuning metadata onto every entry. Done here rather than in the
+    # JSON because the header is the only thing that knows it, and done once per reload
+    # because the cache key is the file mtime. A store without the metadata leaves every
+    # entry at "not a knob, advanced", which is what the panel assumed before it existed.
+    attach_tuning_metadata(by_name)
+    settings_cache.update({
+      "mtime": mtime,
+      "data": data,
+      "groups": groups,
+      "by_name": by_name,
+      "groups_list": groups_list,
+      "categories": build_menu_categories(data, by_name),
+    })
+  return with_vehicle_gap_limits((
+    settings_cache["data"],
+    settings_cache["groups"],
+    settings_cache["by_name"],
+    settings_cache["groups_list"],
+  ), current_max_gap_levels())

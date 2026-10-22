@@ -10,12 +10,15 @@ import pyray as rl
 
 from openpilot.cereal import custom
 from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_selected_bundle, resolve_bundle_by_ref
+from openpilot.sunnypilot.models.mirror import (GITHUB_PROXY_PARAM, HF_MIRROR_PARAM, describe_github_proxy,
+                                                describe_hf_mirror, normalize_base_url)
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.ui_state import device, ui_state
 from openpilot.selfdrive.ui.sunnypilot.accelerator_link import LINK_MODE_TITLES, big_model_note, link_mode, link_status, \
   link_toggle_meaningful, standin_model
 from openpilot.selfdrive.ui.sunnypilot.model_info import (big_model_state, bundles_for_source, carrying_model, default_model_name,
-                                                           model_cache_size_mb, queued_name, refresh_in_progress, refresh_model_list)
+                                                           local_model_note, model_cache_size_mb, queued_name,
+                                                           refresh_in_progress, refresh_model_list)
 from openpilot.sunnypilot.jetlink_adapter import KEYS, MODES
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.application import gui_app
@@ -28,6 +31,7 @@ from openpilot.system.ui.sunnypilot.lib.styles import style
 from openpilot.system.ui.sunnypilot.lib.utils import NoElideButtonAction, ScrollingButtonAction
 from openpilot.system.ui.sunnypilot.widgets.list_view import ListItemSP, toggle_item_sp, option_item_sp, multiple_button_item_sp
 from openpilot.system.ui.sunnypilot.widgets.download_status import download_status_item
+from openpilot.system.ui.sunnypilot.widgets.input_dialog import InputDialogSP
 from openpilot.system.ui.sunnypilot.widgets.tree_dialog import TreeOptionDialog, TreeNode, TreeFolder
 
 if gui_app.sunnypilot_ui():
@@ -46,8 +50,10 @@ class ModelsLayout(Widget):
     self._refreshing = False
     self._refresh_start: float | None = None
     self._last_note = None
-    self._link_status = None
+    self._last_mirror_desc = None
+    self._last_catalog_desc = None
     self.last_cache_calc_time = 0
+    self._link_status: str | None = None
 
     self._initialize_items()
 
@@ -85,6 +91,18 @@ class ModelsLayout(Widget):
                                     lambda: tr("FETCHING...") if self._refreshing else tr("REFRESH"), "",
                                     self._refresh_models)
 
+    self.hf_mirror_item = multiple_button_item_sp(
+      tr("Model Download Mirror"),
+      tr("huggingface.co is unreachable on many networks. Mirror sends model downloads to a mirror site instead; ") +
+      tr("Direct uses huggingface.co as-is; Custom lets you enter your own mirror. Applies to the next download."),
+      [tr("Mirror"), tr("Direct"), tr("Custom")], callback=self._on_hf_mirror_mode, button_width=245)
+
+    self.catalog_source_item = multiple_button_item_sp(
+      tr("Model List Source"),
+      tr("The model list lives on GitHub raw. Auto tries direct first and falls back to a CDN mirror when it fails; ") +
+      tr("Direct never falls back; Proxy always fetches through your own prefix. Press Refresh Model List to apply."),
+      [tr("Auto"), tr("Direct"), tr("Proxy")], callback=self._on_catalog_source_mode, button_width=245)
+
     self.clear_cache_item = ListItemSP(
       title=tr("Clear Model Cache"),
       description="",
@@ -100,11 +118,11 @@ class ModelsLayout(Widget):
                                                   tr("Set the maximum speed for lane turn desires. Default is 19 mph."),
                                                   int(round(100 / CV.MPH_TO_KPH)), None, True, "", style.BUTTON_ACTION_WIDTH, None, True,
                                                   lambda v: f"{int(round(v / 100 * (CV.MPH_TO_KPH if ui_state.is_metric else 1)))}" +
-                                                            f" {'km/h' if ui_state.is_metric else 'mph'}")
+                                                            f" {tr('km/h') if ui_state.is_metric else tr('mph')}")
 
     self.lane_turn_desire_toggle = toggle_item_sp(tr("Use Lane Turn Desires"),
-                                                  tr("If you're driving at 20 mph (32 km/h) or below and have your blinker on," +
-                                                     " the car will plan a turn in that direction at the nearest drivable path. " +
+                                                  tr("If you're driving at 20 mph (32 km/h) or below and have your blinker on, " +
+                                                     "the car will plan a turn in that direction at the nearest drivable path. " +
                                                      "This prevents situations (like at red lights) where the car might plan the wrong turn direction."),
                                                   param="LaneTurnDesire")
 
@@ -119,8 +137,8 @@ class ModelsLayout(Widget):
                                         1, None, True, "", style.BUTTON_ACTION_WIDTH, None, True,
                                         lambda v: f"{v / 100:.2f} m")
 
-    self.items = [self.small_model_item, self.big_model_item, self.accelerator_link_item, self.cancel_download_item,
-                  self.download_item, self.refresh_item, self.clear_cache_item,
+    self.items = [self.small_model_item, self.big_model_item, self.accelerator_link_item, self.cancel_download_item, self.download_item, self.refresh_item,
+                  self.hf_mirror_item, self.catalog_source_item, self.clear_cache_item,
                   self.lane_turn_desire_toggle, self.lane_turn_value_control, self.lagd_toggle, self.delay_control, self.camera_offset]
     self._refresh_accelerator_items()
 
@@ -158,6 +176,7 @@ class ModelsLayout(Widget):
     def _callback(response):
       if response == DialogResult.CONFIRM:
         ui_state.params.put_bool("ModelManager_ClearCache", True)
+        self.clear_cache_item.action_item.set_value(f"{self.calculate_cache_size():.2f} {tr('MB')}")
 
     dialog = ConfirmDialog(tr("This will delete ALL downloaded models from the cache except the currently active model. Are you sure?"),
                            tr("Clear Cache"), callback=_callback)
@@ -166,6 +185,90 @@ class ModelsLayout(Widget):
   def _refresh_models(self):
     refresh_model_list()
     self._refresh_start = time.monotonic()
+
+  # ---- download mirror ------------------------------------------------- #
+
+  @staticmethod
+  def _mirror_button_index() -> int:
+    raw = (ui_state.params.get(HF_MIRROR_PARAM) or "").strip()
+    if raw == "off":
+      return 1
+    if normalize_base_url(raw):
+      return 2
+    return 0  # unset -> built-in default mirror
+
+  @staticmethod
+  def _catalog_button_index() -> int:
+    raw = (ui_state.params.get(GITHUB_PROXY_PARAM) or "").strip()
+    if raw == "direct":
+      return 1
+    if normalize_base_url(raw):
+      return 2
+    return 0  # unset -> auto (direct first, CDN fallback)
+
+  def _on_hf_mirror_mode(self, index: int):
+    if index == 0:
+      ui_state.params.put(HF_MIRROR_PARAM, "")
+    elif index == 1:
+      ui_state.params.put(HF_MIRROR_PARAM, "off")
+    else:
+      current = ui_state.params.get(HF_MIRROR_PARAM) or ""
+      dialog = InputDialogSP(
+        tr("Custom Mirror"),
+        tr("Base URL replacing https://huggingface.co, e.g. https://hf-mirror.com"),
+        current_text="" if current == "off" else current,
+        callback=lambda result, text: self._on_custom_url_result(result, text, HF_MIRROR_PARAM,
+                                                                 tr("The mirror must be an http(s) URL without spaces, e.g. https://hf-mirror.com")))
+      dialog.show()
+
+  def _on_catalog_source_mode(self, index: int):
+    if index == 0:
+      ui_state.params.put(GITHUB_PROXY_PARAM, "")
+    elif index == 1:
+      ui_state.params.put(GITHUB_PROXY_PARAM, "direct")
+    else:
+      current = ui_state.params.get(GITHUB_PROXY_PARAM) or ""
+      dialog = InputDialogSP(
+        tr("Catalog Proxy Prefix"),
+        tr("Prefix prepended to the catalog URL, e.g. https://gh-proxy.com"),
+        current_text="" if current == "direct" else current,
+        callback=lambda result, text: self._on_custom_url_result(result, text, GITHUB_PROXY_PARAM,
+                                                                 tr("The proxy must be an http(s) URL without spaces, e.g. https://gh-proxy.com")))
+      dialog.show()
+
+  def _on_custom_url_result(self, result, text: str, param: str, error_message: str):
+    if result != DialogResult.CONFIRM:
+      return
+    base = normalize_base_url(text)
+    if base is None:
+      gui_app.push_widget(alert_dialog(error_message))
+      return
+    ui_state.params.put(param, base)
+
+  def _refresh_mirror_items(self):
+    for item, index in ((self.hf_mirror_item, self._mirror_button_index()), (self.catalog_source_item, self._catalog_button_index())):
+      if item.action_item.selected_button != index:
+        item.action_item.set_selected_button(index)
+
+    descs = (
+      (self.hf_mirror_item,
+       tr("huggingface.co is unreachable on many networks. Mirror sends model downloads to a mirror site instead; ") +
+       tr("Direct uses huggingface.co as-is; Custom lets you enter your own mirror. Applies to the next download."),
+       describe_hf_mirror(ui_state.params), self._last_mirror_desc),
+      (self.catalog_source_item,
+       tr("The model list lives on GitHub raw. Auto tries direct first and falls back to a CDN mirror when it fails; ") +
+       tr("Direct never falls back; Proxy always fetches through your own prefix. Press Refresh Model List to apply."),
+       describe_github_proxy(ui_state.params), self._last_catalog_desc),
+    )
+    for item, base_desc, effective, last in descs:
+      desc = f"{base_desc}<br>{tr('Current')}: {effective}"
+      if desc != last:
+        item.set_description(desc)
+      # return the newest cache value for each row
+      if item is self.hf_mirror_item:
+        self._last_mirror_desc = desc
+      else:
+        self._last_catalog_desc = desc
 
   def _handle_bundle_download_progress(self):
     self.cancel_download_item.set_visible(False)
@@ -178,7 +281,7 @@ class ModelsLayout(Widget):
       self.last_cache_calc_time = 0.0  # refresh the size as soon as clearing finishes
     elif (current_time := time.monotonic()) - self.last_cache_calc_time > 0.5:
       self.last_cache_calc_time = current_time
-      self.clear_cache_item.action_item.set_value(f"{self.calculate_cache_size():.2f} MB")
+      self.clear_cache_item.action_item.set_value(f"{self.calculate_cache_size():.2f} {tr('MB')}")
       self._refresh_accelerator_items()
 
     bundle = self.model_manager.selectedBundle if self.model_manager else None
@@ -322,8 +425,9 @@ class ModelsLayout(Widget):
 
   @staticmethod
   def _bundle_to_node(bundle, noted: bool = False):
-    # a big model's line says whether the Jetson has built it or the comma has it
-    note = big_model_note(bundle.ref) if noted else None
+    # a big model's line says whether the Jetson has built it or the comma has it;
+    # every other line says what the disk holds, so an interrupted fetch is visible
+    note = big_model_note(bundle.ref) if noted else local_model_note(bundle)
     name = f"{bundle.displayName} · {note}" if note else bundle.displayName
     return TreeNode(bundle.ref, {'display_name': name, 'short_name': bundle.internalName})
 
@@ -339,7 +443,7 @@ class ModelsLayout(Widget):
       folders_list.append(TreeFolder(name, [self._bundle_to_node(bundle, noted) for bundle in folder_bundles]))
 
     if favorites and (fav_bundles := [bundle for bundle in bundles if bundle.ref in favorites]):
-      folders_list.insert(0, TreeFolder("Favorites", [self._bundle_to_node(bundle, noted) for bundle in fav_bundles]))
+      folders_list.insert(0, TreeFolder(tr("Favorites"), [self._bundle_to_node(bundle, noted) for bundle in fav_bundles]))
     return folders_list
 
   def _open_source_dialog(self, source):
@@ -382,6 +486,8 @@ class ModelsLayout(Widget):
       self.lane_turn_value_control.action_item.value_change_step = new_step
     self.camera_offset.set_visible(camera_offset)
 
+    self._refresh_mirror_items()
+
     self._update_lagd_description(live_delay)
     self.model_manager = ui_state.sm["modelManagerSP"]
     self._handle_bundle_download_progress()
@@ -410,6 +516,8 @@ class ModelsLayout(Widget):
     # manager is offroad-only, so a refresh queued onroad would never be serviced
     self._refreshing = refresh_in_progress(self._refresh_start)
     self.refresh_item.action_item.set_enabled(offroad and not self._downloading and not self._refreshing)
+
+    self._refresh_accelerator_items()
 
   def _render(self, rect):
     self._scroller.render(rect)

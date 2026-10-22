@@ -123,24 +123,6 @@
                   ]
                 },
                 {
-                  "key": "MazdaTjaButton",
-                  "widget": "toggle",
-                  "title": "Mazda TJA Button",
-                  "description": "The physical TJA button toggles Automatic Lane Centering and MRCC only controls cruise. Main Cruise and UEM no longer engage or disengage lateral control. Enable only if your car has the button.",
-                  "visibility": [
-                    {
-                      "type": "capability",
-                      "field": "brand",
-                      "equals": "mazda"
-                    }
-                  ],
-                  "enablement": [
-                    {
-                      "type": "offroad_only"
-                    }
-                  ]
-                },
-                {
                   "key": "MadsSteeringMode",
                   "widget": "multiple_button",
                   "title": "Steering Mode on Brake Pedal",
@@ -495,24 +477,63 @@
                 {
                   "key": "TorqueControlTune",
                   "widget": "multiple_button",
-                  "title": "Torque Control Tune Version (Small Models)",
-                  "description": "Select the version of Torque Control Tune to use while the small model is driving.",
+                  "title": "Torque Control Tune Version",
+                  "description": "Select the version of Torque Control Tune to use.",
+                  "options": [
+                    {
+                      "value": "",
+                      "label": "Default"
+                    },
+                    {
+                      "value": 1.0,
+                      "label": "v1.0"
+                    },
+                    {
+                      "value": 0.0,
+                      "label": "v0.0"
+                    }
+                  ],
                   "enablement": [
                     {
                       "type": "offroad_only"
                     }
                   ]
-                },
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "lane_assist",
+          "title": "Lane Centering and Curve Tracking",
+          "description": "Experimental torque-steering corrections based on commanded path and lane lines",
+          "enablement": [
+            {
+              "type": "capability",
+              "field": "torque_allowed",
+              "equals": true
+            }
+          ],
+          "items": [
+            {
+              "key": "LateralCurveCuttingCorrection",
+              "widget": "toggle",
+              "title": "Curve-Cutting Correction (Experimental)",
+              "description": "Reduces commanded curvature slightly at higher speeds to counter inside-cutting. This affects steering and needs careful driver-supervised testing; off by default.",
+              "enablement": [
                 {
-                  "key": "TorqueControlTuneBig",
-                  "widget": "multiple_button",
-                  "title": "Torque Control Tune Version (Big Models)",
-                  "description": "Select the version of Torque Control Tune to use while a big model is driving.",
-                  "enablement": [
-                    {
-                      "type": "offroad_only"
-                    }
-                  ]
+                  "type": "offroad_only"
+                }
+              ]
+            },
+            {
+              "key": "LateralLaneCentering",
+              "widget": "toggle",
+              "title": "Lane-Line Centering (Experimental)",
+              "description": "Adds a small, capped steering correction from reliable lane-line geometry above highway speed. Lane-line perception can be wrong; remain attentive and be ready to steer. Off by default.",
+              "enablement": [
+                {
+                  "type": "offroad_only"
                 }
               ]
             }
@@ -567,34 +588,6 @@
               "description": "Blocks lane change when the model sees a road edge on the side you signal."
             },
             {
-              "key": "LaneChangeSmoothing",
-              "widget": "option",
-              "title": "Lane Change Smoothing",
-              "description": "Slow automatic lane changes to a chosen pace. Off is stock; every pace is gentler than stock. The end-of-maneuver correction keeps its authority at every pace, so the car settles into the new lane without a wheel snap.",
-              "options": [
-                {
-                  "value": 0,
-                  "label": "Off"
-                },
-                {
-                  "value": 1,
-                  "label": "Fast"
-                },
-                {
-                  "value": 2,
-                  "label": "Medium"
-                },
-                {
-                  "value": 3,
-                  "label": "Slow"
-                },
-                {
-                  "value": 4,
-                  "label": "Extra Slow"
-                }
-              ]
-            },
-            {
               "key": "AutoLaneChangeBsmDelay",
               "widget": "toggle",
               "title": "Auto Lane Change: Delay with Blind Spot",
@@ -626,30 +619,10 @@
       "description": "Longitudinal control, speed limits, and cruise behavior",
       "sections": [
         {
-          "id": "alpha_longitudinal",
-          "title": "Alpha Longitudinal",
+          "id": "core_cruise_features",
+          "title": "",
           "description": "",
           "items": [
-            {
-              "key": "AlphaLongitudinalEnabled",
-              "widget": "toggle",
-              "needs_onroad_cycle": true,
-              "blocked": true,
-              "title": "sunnypilot Longitudinal Control (Alpha)",
-              "description": "WARNING: sunnypilot longitudinal control is in alpha for this car and will disable Automatic Emergency Braking (AEB). On this car, sunnypilot defaults to the car's built-in ACC instead of sunnypilot's longitudinal control. Enable this to switch to sunnypilot longitudinal control. Enabling Experimental mode is recommended when enabling sunnypilot longitudinal control alpha. Changing this setting will restart sunnypilot if the car is powered on.",
-              "visibility": [
-                {
-                  "type": "capability",
-                  "field": "alpha_long_available",
-                  "equals": true
-                }
-              ],
-              "enablement": [
-                {
-                  "type": "not_engaged"
-                }
-              ]
-            },
             {
               "key": "ExperimentalMode",
               "widget": "toggle",
@@ -683,63 +656,6 @@
               ]
             },
             {
-              "key": "ExperimentalModeSetSpeed",
-              "widget": "toggle",
-              "title": "Experimental Mode Speed Assist",
-              "description": "In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down. Has no effect while Dynamic Experimental Control is on.",
-              "visibility": [
-                {
-                  "type": "capability",
-                  "field": "has_longitudinal_control",
-                  "equals": true
-                }
-              ],
-              "enablement": [
-                {
-                  "type": "capability",
-                  "field": "has_longitudinal_control",
-                  "equals": true
-                },
-                {
-                  "type": "param",
-                  "key": "DynamicExperimentalControl",
-                  "equals": false
-                }
-              ]
-            },
-            {
-              "key": "ExperimentalModeLeadGap",
-              "widget": "toggle",
-              "title": "Experimental Mode Lead Follow Assist",
-              "description": "Closes the gap to your driving personality's following distance behind a steady car. Never closer than chill mode. No effect while Dynamic Experimental Control is on.",
-              "visibility": [
-                {
-                  "type": "capability",
-                  "field": "has_longitudinal_control",
-                  "equals": true
-                }
-              ],
-              "enablement": [
-                {
-                  "type": "capability",
-                  "field": "has_longitudinal_control",
-                  "equals": true
-                },
-                {
-                  "type": "param",
-                  "key": "DynamicExperimentalControl",
-                  "equals": false
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "id": "core_cruise_features",
-          "title": "",
-          "description": "",
-          "items": [
-            {
               "key": "DisengageOnAccelerator",
               "widget": "toggle",
               "title": "Disengage Cruise on Accelerator Pedal",
@@ -771,6 +687,78 @@
                   "equals": true
                 }
               ]
+            },
+            {
+              "key": "AccelPersonalityEnabled",
+              "widget": "toggle",
+              "title": "Enable Accel Controller",
+              "description": "Lets you choose how sunnypilot starts, catches up, and settles at the cruise speed. Emergency braking and stopping are unchanged.",
+              "visibility": [
+                {
+                  "type": "capability",
+                  "field": "has_longitudinal_control",
+                  "equals": true
+                }
+              ],
+              "enablement": [
+                {
+                  "type": "capability",
+                  "field": "has_longitudinal_control",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "AccelPersonality",
+              "widget": "multiple_button",
+              "title": "Acceleration Profile",
+              "description": "Eco is gentlest, Normal balances a prompt start with smooth catch-up, and Sport is more responsive.",
+              "options": [
+                {
+                  "value": 0,
+                  "label": "Eco"
+                },
+                {
+                  "value": 1,
+                  "label": "Normal"
+                },
+                {
+                  "value": 2,
+                  "label": "Sport"
+                }
+              ],
+              "enablement": [
+                {
+                  "type": "capability",
+                  "field": "has_longitudinal_control",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "IntelligentCruiseButtonManagement",
+              "widget": "toggle",
+              "title": "Intelligent Cruise Button Management (ICBM) (Alpha)",
+              "visibility": [
+                {
+                  "type": "capability",
+                  "field": "icbm_available",
+                  "equals": true
+                }
+              ],
+              "enablement": [
+                {
+                  "type": "offroad_only"
+                },
+                {
+                  "type": "not",
+                  "condition": {
+                    "type": "capability",
+                    "field": "has_longitudinal_control",
+                    "equals": true
+                  }
+                }
+              ]
             }
           ]
         },
@@ -779,6 +767,9 @@
           "title": "Custom ACC Speed Intervals",
           "description": "",
           "enablement": [
+            {
+              "type": "offroad_only"
+            },
             {
               "type": "any",
               "conditions": [
@@ -815,6 +806,9 @@
               "title": "Enable Custom ACC Speed Intervals",
               "enablement": [
                 {
+                  "type": "offroad_only"
+                },
+                {
                   "type": "any",
                   "conditions": [
                     {
@@ -839,19 +833,6 @@
                       "type": "capability",
                       "field": "has_icbm",
                       "equals": true
-                    }
-                  ]
-                },
-                {
-                  "type": "any",
-                  "conditions": [
-                    {
-                      "type": "not_engaged"
-                    },
-                    {
-                      "type": "capability",
-                      "field": "has_icbm",
-                      "equals": false
                     }
                   ]
                 }
@@ -935,24 +916,6 @@
                       "value": 3,
                       "label": "Assist",
                       "enablement": [
-                        {
-                          "type": "any",
-                          "conditions": [
-                            {
-                              "type": "not_engaged"
-                            },
-                            {
-                              "type": "param",
-                              "key": "SpeedLimitMode",
-                              "equals": 3
-                            },
-                            {
-                              "type": "capability",
-                              "field": "has_icbm",
-                              "equals": false
-                            }
-                          ]
-                        },
                         {
                           "type": "any",
                           "conditions": [
@@ -1127,24 +1090,6 @@
                       "equals": true
                     }
                   ]
-                },
-                {
-                  "type": "any",
-                  "conditions": [
-                    {
-                      "type": "not_engaged"
-                    },
-                    {
-                      "type": "capability",
-                      "field": "has_icbm",
-                      "equals": false
-                    },
-                    {
-                      "type": "capability",
-                      "field": "has_longitudinal_control",
-                      "equals": true
-                    }
-                  ]
                 }
               ]
             },
@@ -1185,24 +1130,160 @@
                       "equals": true
                     }
                   ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "carrot_navigation",
+          "title": "OSM / Carrot Navigation",
+          "description": "Phone projection, navigation data, and dynamic cruise tuning",
+          "enablement": [
+            {
+              "type": "offroad_only"
+            }
+          ],
+          "items": [
+            {
+              "key": "OsmMapDataEnabled",
+              "widget": "toggle",
+              "title": "Enable OSM Map Data",
+              "description": "Use offline OSM map data for speed limits and road names. Turn off to ignore the offline map entirely - the offline data can be years out of date."
+            },
+            {
+              "key": "CarrotAmapBlindSpotEnabled",
+              "widget": "toggle",
+              "title": "Enable Carrot Blind Spot Data",
+              "description": "Parse blind-spot / LiDAR / extBlinker fields from the 7706 UDP stream."
+            },
+            {
+              "key": "CarrotEnabled",
+              "widget": "toggle",
+              "title": "Enable Carrot Planner",
+              "description": "Enable dynamic following distance, driving modes, traffic light handling, and navigation cruise speed."
+            },
+            {
+              "key": "MyDrivingMode",
+              "widget": "multiple_button",
+              "title": "Driving Mode",
+              "description": "Carrot driving style preset.",
+              "options": [
+                {
+                  "value": 1,
+                  "label": "Eco"
                 },
                 {
-                  "type": "any",
-                  "conditions": [
-                    {
-                      "type": "not_engaged"
-                    },
-                    {
-                      "type": "capability",
-                      "field": "has_icbm",
-                      "equals": false
-                    },
-                    {
-                      "type": "capability",
-                      "field": "has_longitudinal_control",
-                      "equals": true
-                    }
-                  ]
+                  "value": 2,
+                  "label": "Safe"
+                },
+                {
+                  "value": 3,
+                  "label": "Normal"
+                },
+                {
+                  "value": 4,
+                  "label": "High"
+                }
+              ],
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "CarrotEnabled",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "TrafficLightDetectMode",
+              "widget": "multiple_button",
+              "title": "Traffic Light Assist",
+              "description": "Stop at red lights and optionally resume on green when using model-based stop line detection.",
+              "options": [
+                {
+                  "value": 0,
+                  "label": "Off"
+                },
+                {
+                  "value": 1,
+                  "label": "Red Stop"
+                },
+                {
+                  "value": 2,
+                  "label": "Red Stop + Green Go"
+                }
+              ],
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "CarrotEnabled",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "key": "CarrotNavCruiseSpeedEnabled",
+              "widget": "toggle",
+              "title": "Navigation Cruise Speed",
+              "description": "Use navigation desired speed to limit cruise set speed.",
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "CarrotEnabled",
+                  "equals": true
+                }
+              ]
+            },
+            {
+              "id": "carrot_tuning",
+              "label": "Carrot Tuning",
+              "trigger_key": "CarrotEnabled",
+              "trigger_condition": {
+                "type": "param",
+                "key": "CarrotEnabled",
+                "equals": true
+              },
+              "items": [
+                {
+                  "key": "CruiseGapLevels",
+                  "widget": "option",
+                  "title": "Cruise Gap Levels",
+                  "description": "How many follow-gap levels the distance button cycles (2-4). Below the vehicle maximum shortens the cycle.",
+                  "min": 2,
+                  "max": 4,
+                  "step": 1
+                },
+                {
+                  "key": "TFollowGap1",
+                  "widget": "option",
+                  "title": "Follow Gap 1",
+                  "min": 0.5,
+                  "max": 3.0,
+                  "step": 0.05
+                },
+                {
+                  "key": "TFollowGap2",
+                  "widget": "option",
+                  "title": "Follow Gap 2",
+                  "min": 0.5,
+                  "max": 3.0,
+                  "step": 0.05
+                },
+                {
+                  "key": "TFollowGap3",
+                  "widget": "option",
+                  "title": "Follow Gap 3",
+                  "min": 0.5,
+                  "max": 3.0,
+                  "step": 0.05
+                },
+                {
+                  "key": "TFollowGap4",
+                  "widget": "option",
+                  "title": "Follow Gap 4",
+                  "min": 0.5,
+                  "max": 3.0,
+                  "step": 0.05
                 }
               ]
             }
@@ -1223,6 +1304,15 @@
           "title": "Brightness & Timeout",
           "description": "Screen dimming and sleep behavior while driving",
           "items": [
+            {
+              "key": "Brightness",
+              "widget": "option",
+              "title": "Screen Brightness",
+              "description": "Screen brightness when offroad (not driving). 0 uses the device default.",
+              "min": 0,
+              "max": 100,
+              "step": 5
+            },
             {
               "key": "OnroadScreenOffBrightness",
               "widget": "multiple_button",
@@ -1329,7 +1419,7 @@
               "options": [
                 {
                   "value": 0,
-                  "label": "Always On"
+                  "label": "0s"
                 },
                 {
                   "value": 3,
@@ -1537,33 +1627,13 @@
               "key": "TorqueBar",
               "widget": "toggle",
               "title": "Steering Arc",
-              "description": "Display steering arc on the driving screen when lateral control is enabled.",
-              "visibility": [
-                {
-                  "type": "not",
-                  "condition": {
-                    "type": "capability",
-                    "field": "device_type",
-                    "equals": "mici"
-                  }
-                }
-              ]
+              "description": "Display steering arc on the driving screen when lateral control is enabled."
             },
             {
               "key": "ShowTurnSignals",
               "widget": "toggle",
               "title": "Display Turn Signals",
-              "description": "When enabled, visual turn indicators are drawn on the HUD.",
-              "visibility": [
-                {
-                  "type": "not",
-                  "condition": {
-                    "type": "capability",
-                    "field": "device_type",
-                    "equals": "mici"
-                  }
-                }
-              ]
+              "description": "When enabled, visual turn indicators are drawn on the HUD."
             },
             {
               "key": "RoadNameToggle",
@@ -1774,13 +1844,52 @@
               "key": "AlwaysOnDM",
               "widget": "toggle",
               "title": "Always-On Driver Monitoring",
-              "description": "Enable driver monitoring even when sunnypilot is not engaged."
+              "description": "The driver monitoring system can be toggled on/off, but long-term activation is recommended."
+            },
+            {
+              "key": "DistractionDetectionLevel",
+              "widget": "multiple_button",
+              "title": "Distraction Detection Level",
+              "description": "Set how sensitive the driver distraction detection should be. Strict warns on minor distractions; Moderate is balanced; Lenient only alerts on clear distractions.",
+              "options": [
+                {
+                  "value": 0,
+                  "label": "Strict"
+                },
+                {
+                  "value": 1,
+                  "label": "Moderate"
+                },
+                {
+                  "value": 2,
+                  "label": "Lenient"
+                }
+              ],
+              "visibility": [
+                {
+                  "type": "param",
+                  "key": "AlwaysOnDM",
+                  "equals": true
+                }
+              ]
             },
             {
               "key": "IsMetric",
               "widget": "toggle",
               "title": "Use Metric System",
               "description": "Display speed in km/h instead of mph."
+            },
+            {
+              "key": "SunnypilotStoppingController",
+              "widget": "toggle",
+              "needs_onroad_cycle": true,
+              "title": "Stopping Controller",
+              "description": "Take over the end of a stop. The request follows the speed down to the wheel stop, then holds the car at a standstill.",
+              "enablement": [
+                {
+                  "type": "offroad_only"
+                }
+              ]
             }
           ]
         },
@@ -1821,7 +1930,7 @@
           "description": "Power, boot, and unit preferences",
           "items": [
             {
-              "key": "OffroadModeRequested",
+              "key": "OffroadMode",
               "widget": "toggle",
               "title": "Force Offroad Mode"
             },
@@ -1993,6 +2102,38 @@
               "enablement": [
                 {
                   "type": "offroad_only"
+                }
+              ]
+            },
+            {
+              "key": "AlphaLongitudinalEnabled",
+              "widget": "toggle",
+              "needs_onroad_cycle": true,
+              "title": "sunnypilot Longitudinal Control (Alpha)",
+              "description": "WARNING: sunnypilot longitudinal control is in alpha for this car and will disable Automatic Emergency Braking (AEB). On this car, sunnypilot defaults to the car's built-in ACC instead of sunnypilot's longitudinal control. Enable this to switch to sunnypilot longitudinal control. Enabling Experimental mode is recommended when enabling sunnypilot longitudinal control alpha. Changing this setting will restart sunnypilot if the car is powered on.",
+              "visibility": [
+                {
+                  "type": "all",
+                  "conditions": [
+                    {
+                      "type": "capability",
+                      "field": "alpha_long_available",
+                      "equals": true
+                    },
+                    {
+                      "type": "not",
+                      "condition": {
+                        "type": "capability",
+                        "field": "has_icbm",
+                        "equals": true
+                      }
+                    }
+                  ]
+                }
+              ],
+              "enablement": [
+                {
+                  "type": "not_engaged"
                 }
               ]
             },
@@ -2446,6 +2587,61 @@
       "title": "Toyota / Lexus Settings",
       "description": "",
       "items": [
+        {
+          "key": "ToyotaAutoHold",
+          "widget": "toggle",
+          "needs_onroad_cycle": true,
+          "title": "Toyota: Auto Brake Hold FOR TSS2 HYBRID CARS",
+          "enablement": [
+            {
+              "type": "not_engaged"
+            }
+          ]
+        },
+        {
+          "key": "ToyotaBrakeOnset",
+          "widget": "toggle",
+          "needs_onroad_cycle": true,
+          "title": "Toyota: soft brake onset, overshoot limit and regen hand-over",
+          "enablement": [
+            {
+              "type": "not_engaged"
+            }
+          ]
+        },
+        {
+          "key": "ToyotaEnhancedBsm",
+          "widget": "toggle",
+          "needs_onroad_cycle": true,
+          "title": "Toyota: Prius TSS2 BSM and some tssp",
+          "enablement": [
+            {
+              "type": "not_engaged"
+            }
+          ]
+        },
+        {
+          "key": "ToyotaTSS2Long",
+          "widget": "toggle",
+          "needs_onroad_cycle": true,
+          "title": "Toyota: custom longitudinal for TSS2",
+          "enablement": [
+            {
+              "type": "not_engaged"
+            }
+          ]
+        },
+        {
+          "key": "ToyotaDriveMode",
+          "widget": "toggle",
+          "needs_onroad_cycle": true,
+          "title": "Enable drive mode btn link",
+          "enablement": [
+            {
+              "type": "not_engaged"
+            }
+          ]
+        },
         {
           "key": "ToyotaEnforceStockLongitudinal",
           "widget": "toggle",

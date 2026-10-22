@@ -1,5 +1,6 @@
 import configparser
 import json
+import logging
 import os
 import socket
 import subprocess
@@ -15,7 +16,15 @@ from openpilot.common.hardware.base import HardwareBase, ThermalConfig, ThermalZ
 from openpilot.common.hardware.comma.pins import GPIO
 from openpilot.common.hardware.comma.amplifier import Amplifier
 
+LITE = os.getenv("LITE") is not None
+
+DBUS_PROPS = 'org.freedesktop.DBus.Properties'
+
+MM = 'org.freedesktop.ModemManager1'
+MM_MODEM = MM + ".Modem"
+
 MODEM_STATE_PATH = "/dev/shm/modem"
+TIMEOUT = 0.1
 
 NetworkType = log.DeviceState.NetworkType
 NetworkStrength = log.DeviceState.NetworkStrength
@@ -57,6 +66,110 @@ def get_default_route_iface():
     routes = [(int(route[6]), route[0]) for line in f.readlines()[1:] if (route := line.split())[1] == "00000000" and int(route[3], 16) & 0x1]
   return min(routes)[1] if routes else None
 
+_PANEL_BACKLIGHT = Path("/sys/class/backlight/panel0-backlight")
+_PANEL_TOUCH_IRQ = "fts_ts"
+
+
+def _has_panel_touch() -> bool:
+  """Touch controller IRQ — absent when the panel is removed but backlight sysfs remains."""
+  try:
+    with open("/proc/interrupts") as f:
+      if _PANEL_TOUCH_IRQ in f.read():
+        return True
+  except OSError:
+    pass
+  return Path("/dev/input/by-path/platform-894000.i2c-event").exists()
+
+
+def invalidate_display_probe_cache() -> None:
+  """Clear cached panel probe (e.g. after OPENPILOT_HEADLESS override)."""
+  probe_builtin_display.cache_clear()
+
+
+@lru_cache(maxsize=1)
+def probe_builtin_display() -> bool:
+  """Detect comma panel via backlight sysfs + touch IRQ (cached for process lifetime).
+
+  Backlight sysfs is the primary signal: if the panel backlight is present and
+  reports a positive max brightness, we treat the device as having a builtin
+  display. Touch detection is used only as a diagnostic hint, because some
+  boots/AGNOS versions leave the touchscreen driver (fts_ts) unprobed while the
+  display itself is fully functional. In that case the native UI should still
+  start; lack of touch will be obvious to the user and can be investigated
+  separately.
+  """
+  if not _PANEL_BACKLIGHT.is_dir():
+    return False
+  try:
+    with open(_PANEL_BACKLIGHT / "max_brightness") as f:
+      if int(f.read().strip()) <= 0:
+        return False
+  except (OSError, ValueError):
+    return False
+  if not _has_panel_touch():
+    logging.warning("builtin panel backlight detected but touchscreen IRQ/path missing; enabling native ui anyway")
+  return True
+
+
+_PANDA_MCU_CACHE_PATHS = (
+  "/persist/sp_dev_panda_mcu_type",
+  "/persist/dp_dev_panda_mcu_type",
+)
+
+
+def _read_panda_mcu_cache() -> str | None:
+  for path in _PANDA_MCU_CACHE_PATHS:
+    try:
+      value = Path(path).read_text(encoding="utf-8").strip()
+      if value in ("F4", "H7"):
+        return value
+    except OSError:
+      continue
+  return None
+
+
+def _query_internal_panda_mcu() -> str | None:
+  try:
+    from panda import Panda
+    p = Panda(cli=False)
+    try:
+      mcu = str(p.get_mcu_type())
+    finally:
+      p.close()
+  except Exception:
+    return None
+  if "F4" in mcu:
+    return "F4"
+  if "H7" in mcu:
+    return "H7"
+  return None
+
+
+@lru_cache(maxsize=1)
+def is_tici_dos() -> bool:
+  """True for comma three (C3) with internal F4 DOS panda."""
+  if os.getenv("TICI_DOS") == "1":
+    return True
+  if os.getenv("TICI_TRES") == "1":
+    return False
+  cached = _read_panda_mcu_cache()
+  if cached == "F4":
+    return True
+  if cached == "H7":
+    return False
+  device = get_device_type()
+  if device in ("tizi", "mici"):
+    return False
+  if device == "tici":
+    return True
+  queried = _query_internal_panda_mcu()
+  if queried == "F4":
+    return True
+  if queried == "H7":
+    return False
+  return False
+
+
 class HardwareComma(HardwareBase):
   """
     This platform covers the Snapdragon 845-based comma devices:
@@ -69,8 +182,17 @@ class HardwareComma(HardwareBase):
   """
 
   @cached_property
+  def bus(self):
+    import dbus
+    return dbus.SystemBus()
+
+  @property
+  def mm(self):
+    return self.bus.get_object(MM, '/org/freedesktop/ModemManager1')
+
+  @cached_property
   def amplifier(self):
-    if self.get_device_type() == "mici":
+    if self.get_device_type() == "mici" or LITE:
       return None
     return Amplifier()
 
@@ -89,7 +211,7 @@ class HardwareComma(HardwareBase):
     return get_device_type()
 
   def reboot(self, reason=None):
-    subprocess.check_output(["sudo", "reboot"])
+    subprocess.run(["sudo", "reboot"], check=False)
 
   def uninstall(self):
     Path("/data/__system_reset__").touch()
@@ -108,7 +230,7 @@ class HardwareComma(HardwareBase):
       return int(f.read())
 
   def set_ir_power(self, percent: int):
-    if self.get_device_type() == "tizi":
+    if self.get_device_type() in ("tici", "tizi"):
       return
 
     value = int((percent / 100) * 300)
@@ -142,6 +264,11 @@ class HardwareComma(HardwareBase):
         return NetworkType.cell2G
     return NetworkType.none
 
+  def get_modem(self):
+    objects = self.mm.GetManagedObjects(dbus_interface="org.freedesktop.DBus.ObjectManager", timeout=TIMEOUT)
+    modem_path = list(objects.keys())[0]
+    return self.bus.get_object(MM, modem_path)
+
   def get_sim_info(self):
     ms = self.get_modem_state()
     sim_id = ms.get('iccid', '')
@@ -157,11 +284,25 @@ class HardwareComma(HardwareBase):
     from openpilot.common.esim.lpa import LPA
     return LPA()
 
-  def get_imei(self):
-    return self.get_modem_state().get('imei', '')
+  def get_imei(self, slot=0) -> str:
+    if slot != 0:
+      return ""
+    # Prefer ModemManager when available (legacy sunnypilot / C3 with MM running)
+    try:
+      imei = str(self.get_modem().Get(MM_MODEM, 'EquipmentIdentifier', dbus_interface=DBUS_PROPS, timeout=TIMEOUT))
+      if imei:
+        return imei
+    except Exception:
+      pass
+    imei = str(self.get_modem_state().get('imei', ''))
+    if imei:
+      return imei
+    # Fallback: read IMEI directly via AT+CGSN (works without SIM / ModemManager)
+    from openpilot.common.hardware.comma.modem import query_imei_at_port
+    return query_imei_at_port()
 
   def get_network_info(self):
-    if self.get_device_type() == "mici":
+    if self.get_device_type() == "mici" or LITE:
       return None
 
     ms = self.get_modem_state()
@@ -242,6 +383,8 @@ class HardwareComma(HardwareBase):
     return super().get_network_metered(network_type)
 
   def get_modem_temperatures(self):
+    if LITE:
+      return []
     return self.get_modem_state().get('temperatures', [])
 
   def get_current_power_draw(self):
@@ -271,10 +414,33 @@ class HardwareComma(HardwareBase):
                          gnss=gnss,
                          bottomSoc=bottomSoc)
 
+  def has_builtin_display(self) -> bool:
+    override = os.getenv("OPENPILOT_HEADLESS", "").strip().lower()
+    if override in ("1", "true", "yes"):
+      return False
+    if override in ("0", "false", "no"):
+      return True
+    try:
+      from openpilot.common.params import Params
+      pref = Params().get("WebuiHeadlessMode") or "auto"
+      if pref == "on":
+        return False
+      if pref == "off":
+        return True
+    except Exception:
+      pass
+    return probe_builtin_display()
+
   def set_display_power(self, on):
     try:
       with open("/sys/class/backlight/panel0-backlight/bl_power", "w") as f:
-        f.write("0" if on else "4")
+        # Always keep the panel controller powered.  Writing bl_power=4 powers
+        # down the DSI panel and drops the shared VDD rail for the Samsung
+        # touch controller on some C3 units; after wake the controller fails to
+        # re-initialize (no touch IRQs / events) until reboot.  Visible sleep is
+        # handled by set_screen_brightness(0), so leaving the panel controller
+        # on only costs the panel logic power, not the backlight.
+        f.write("0")
     except Exception:
       pass
 
@@ -299,17 +465,55 @@ class HardwareComma(HardwareBase):
     except Exception:
       return 0
 
+  # CPUs isolated with the kernel's `isolcpus=` argument. On carrot's custom SDM845
+  # kernel this is 6,7, and the whole runtime depends on them staying online: modeld
+  # pins itself to 7, camerad to 6, and set_power_save() sends the GPU/camera IRQs
+  # there. Linux does NOT take isolcpus cores offline, so they keep working.
+  ISOLATED_CPUS = (6, 7)
+
+  def get_isolated_cpus(self) -> tuple[int, ...]:
+    """Cores currently isolated by the kernel, from /sys/devices/system/cpu/isolated.
+
+    Reading this instead of trusting ISOLATED_CPUS keeps the power save path honest
+    on stock AGNOS, where nothing is isolated and the full big cluster can be offlined.
+    """
+    try:
+      with open('/sys/devices/system/cpu/isolated') as f:
+        spec = f.read().strip()
+    except OSError:
+      return self.ISOLATED_CPUS
+
+    if not spec:
+      return ()
+
+    isolated: set[int] = set()
+    for part in spec.split(','):
+      if '-' in part:
+        lo, hi = part.split('-', 1)
+        isolated.update(range(int(lo), int(hi) + 1))
+      else:
+        isolated.add(int(part))
+    return tuple(sorted(isolated))
+
   def set_power_save(self, powersave_enabled):
     # amplifier, 100mW at idle
     if self.amplifier is not None:
       self.amplifier.set_global_shutdown(amp_disabled=powersave_enabled)
       if not powersave_enabled:
-        self.amplifier.initialize_configuration()
+        self.amplifier.initialize_configuration(self.get_device_type())
 
     # *** CPU config ***
 
-    # offline big cluster
+    # Offline the big cluster, except for cores the kernel isolated for realtime
+    # work. modeld/camerad hard-pin to 6/7 and hit EINVAL on an offline CPU, so
+    # offlining those cores also breaks every daemon that boots while power save is
+    # active (manager keeps restarting modeld into the same crash). Keeping them
+    # online still saves most of the idle power: nothing but isolated realtime work
+    # runs there, so they sit at their lowest OPP.
+    isolated = set(self.get_isolated_cpus())
     for i in range(4, 8):
+      if i in isolated:
+        continue
       val = '0' if powersave_enabled else '1'
       sudo_write(val, f'/sys/devices/system/cpu/cpu{i}/online')
 
@@ -342,7 +546,7 @@ class HardwareComma(HardwareBase):
 
   def initialize_hardware(self):
     if self.amplifier is not None:
-      self.amplifier.initialize_configuration()
+      self.amplifier.initialize_configuration(self.get_device_type())
 
     # Allow hardwared to write engagement status to kmsg
     subprocess.run("sudo chmod a+w /dev/kmsg", shell=True)
@@ -361,17 +565,19 @@ class HardwareComma(HardwareBase):
     affine_irq(1, "i2c_geni")  # sensors
 
     # *** GPU config ***
-    # https://github.com/commaai/agnos-kernel-sdm845/blob/master/arch/arm64/boot/dts/qcom/sdm845-gpu.dtsi#L216
-    affine_irq(5, "fts_ts")    # touch
-    affine_irq(5, "msm_drm")   # display
-    sudo_write("1", "/sys/class/kgsl/kgsl-3d0/min_pwrlevel")
-    sudo_write("1", "/sys/class/kgsl/kgsl-3d0/max_pwrlevel")
-    sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_bus_on")
-    sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_clk_on")
-    sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_rail_on")
-    sudo_write("1000", "/sys/class/kgsl/kgsl-3d0/idle_timer")
-    sudo_write("performance", "/sys/class/kgsl/kgsl-3d0/devfreq/governor")
-    sudo_write("710", "/sys/class/kgsl/kgsl-3d0/max_clock_mhz")
+    if self.has_builtin_display():
+      # Panel + native UI: pin touch/display IRQs and keep GPU awake for compositor.
+      # https://github.com/commaai/agnos-kernel-sdm845/blob/master/arch/arm64/boot/dts/qcom/sdm845-gpu.dtsi#L216
+      affine_irq(5, "fts_ts")    # touch
+      affine_irq(5, "msm_drm")   # display
+      sudo_write("1", "/sys/class/kgsl/kgsl-3d0/min_pwrlevel")
+      sudo_write("1", "/sys/class/kgsl/kgsl-3d0/max_pwrlevel")
+      sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_bus_on")
+      sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_clk_on")
+      sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_rail_on")
+      sudo_write("1000", "/sys/class/kgsl/kgsl-3d0/idle_timer")
+      sudo_write("performance", "/sys/class/kgsl/kgsl-3d0/devfreq/governor")
+      sudo_write("710", "/sys/class/kgsl/kgsl-3d0/max_clock_mhz")
 
     # setup governors
     sudo_write("performance", "/sys/class/devfreq/soc:qcom,cpubw/governor")
@@ -384,6 +590,10 @@ class HardwareComma(HardwareBase):
 
     # pandad core
     affine_irq(3, "spi_geni")         # SPI
+    # rick - for c3
+    if "tici" in self.get_device_type():
+      affine_irq(3, "xhci-hcd:usb3")  # aux panda USB (or potentially anything else on USB)
+      affine_irq(3, "xhci-hcd:usb1")  # internal panda USB (also modem)
     try:
       pid = subprocess.check_output(["pgrep", "-f", "spi0"], encoding='utf8').strip()
       subprocess.call(["sudo", "chrt", "-f", "-p", "1", pid])

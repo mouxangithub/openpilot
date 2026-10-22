@@ -1,0 +1,955 @@
+.app-branch-picker__sheet {
+  width: min(100%, 500px);
+  max-height: min(72vh, 560px);
+  display: flex;
+  flex-direction: column;
+}
+
+.app-branch-picker__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sp-md);
+  margin-bottom: var(--sp-md);
+}
+
+.app-branch-picker__titles {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-branch-picker__meta {
+  margin-top: 0;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.app-branch-picker__head .smallBtn {
+  flex: 0 0 auto;
+  min-width: 68px;
+  white-space: nowrap;
+  align-self: start;
+}
+
+.app-branch-picker__list {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+  padding-right: 2px;
+}
+
+.app-branch-picker__group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.app-branch-picker__groupHead {
+  width: 100%;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--md-on-surface-var);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: left;
+}
+
+.app-branch-picker__groupIcon {
+  flex: 0 0 auto;
+  width: 16px;
+  color: var(--md-primary);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.app-branch-picker__groupTitle {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-branch-picker__groupCount {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: var(--r-round);
+  background: color-mix(in srgb, var(--md-surface-cont-h) 80%, transparent);
+  color: var(--md-on-surface-var);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.app-branch-picker__groupItems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-sm);
+}
+
+.app-branch-picker__item {
+  width: 100%;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--fs-body-sm);
+  border-radius: var(--popup-item-radius);
+  background: var(--popup-item-bg);
+}
+
+.app-branch-picker__label {
+  min-width: 0;
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-overflow: clip;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.app-branch-picker__label::-webkit-scrollbar {
+  display: none;
+}
+
+.app-branch-picker__badge {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border-radius: var(--r-round);
+  border: 1px solid color-mix(in srgb, var(--md-primary) 42%, transparent);
+  background: var(--md-primary-state-soft);
+  color: var(--md-primary);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.app-branch-picker__item.is-current {
+  border-color: var(--popup-item-active-border);
+  background: var(--popup-item-active-bg);
+  color: var(--md-primary);
+  font-weight: 800;
+}
+
+.app-car-picker__sheet {
+  width: min(100%, 460px);
+}
+
+.app-car-picker__list {
+  gap: 10px;
+}
+
+.app-car-picker__item {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-md);
+}
+
+.git-pull-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 118px;
+  padding-right: 8px;
+}
+
+.git-pull-btn__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--r-round);
+  background: var(--md-error);
+  color: var(--md-on-error);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.git-pull-btn__badge[data-state="current"] {
+  background: #1b7f43;
+  color: #d9ffe8;
+}
+
+.git-pull-btn__badge[data-state="error"] {
+  background: var(--md-error);
+  color: var(--md-on-error);
+}
+
+.git-pull-btn__badge[hidden] {
+  display: none;
+}
+
+.git-pull-btn.has-updates {
+  border-color: color-mix(in srgb, var(--md-error) 54%, var(--md-outline-var));
+  background: color-mix(in srgb, var(--md-error-cont) 32%, var(--md-surface-cont-h));
+}
+
+.git-pull-btn.is-current {
+  border-color: color-mix(in srgb, #1b7f43 46%, var(--md-outline-var));
+}
+
+.git-pull-btn.has-git-error {
+  border-color: color-mix(in srgb, var(--md-error) 54%, var(--md-outline-var));
+}
+/* ── Utility ──────────────────────────────────────────────── */
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-sm);
+}
+
+.row-wrap {
+  display: flex;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+}
+
+.mt-sm  { margin-top: var(--sp-sm); }
+.mt-md  { margin-top: var(--sp-md); }
+.mt-lg  { margin-top: var(--sp-lg); }
+.mb-sm  { margin-bottom: var(--sp-sm); }
+.mb-md  { margin-bottom: var(--sp-md); }
+.hidden { display: none !important; }
+
+/* ── Text Styles ──────────────────────────────────────────── */
+.muted {
+  color: var(--md-on-surface-var);
+  font-size: var(--fs-body-sm);
+}
+
+.text-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Group Buttons (list items) ───────────────────────────── */
+.groupBtn {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 2px;
+  border-radius: 8px;
+  padding: var(--sp-md) var(--sp-lg);
+  background: var(--md-surface-cont);
+  font-size: var(--fs-body-md);
+}
+
+.groupBtn:hover,
+.groupBtn:focus-visible {
+  border-color: color-mix(in srgb, var(--md-primary) 38%, var(--md-outline-var));
+  background: color-mix(in srgb, var(--md-surface-cont-h) 90%, var(--md-primary));
+}
+
+.groupBtn:active {
+  background: var(--md-surface-cont-h);
+}
+
+.groupBtn.active {
+  border-color: color-mix(in srgb, var(--md-primary) 48%, var(--md-outline-var));
+  background: var(--md-primary-state);
+  color: var(--md-primary);
+  font-weight: 850;
+}
+
+/* ── Action Grid (settings/tools/log-style command groups) ── */
+.ui-action-grid {
+  --ui-action-min: 124px;
+  --ui-action-gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--ui-action-min)), 1fr));
+  gap: var(--ui-action-gap);
+  align-items: stretch;
+}
+
+.ui-action-grid--quick {
+  --ui-action-min: 136px;
+  --ui-action-gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ui-action-grid--fixed-four {
+  --ui-action-columns: 4;
+  --ui-action-gap: clamp(4px, 1vw, 8px);
+  grid-template-columns: repeat(var(--ui-action-columns), minmax(0, 1fr));
+}
+
+.ui-action-grid--fixed-four > .btn,
+.ui-action-grid--fixed-four > .smallBtn,
+.ui-action-grid--fixed-four > .ui-action-grid__slot > .btn,
+.ui-action-grid--fixed-four > .ui-action-grid__slot > .smallBtn {
+  justify-content: center;
+  padding-inline: clamp(4px, 1.4vw, 12px);
+  overflow: hidden;
+  font-size: clamp(9px, 2.4vw, var(--fs-body-sm));
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-action-grid__slot {
+  position: relative;
+  min-width: 0;
+  min-height: 46px;
+}
+
+.ui-action-grid > .btn,
+.ui-action-grid > .smallBtn,
+.ui-action-grid > .ui-action-grid__slot > .btn,
+.ui-action-grid > .ui-action-grid__slot > .smallBtn {
+  width: 100%;
+  min-width: 0;
+  min-height: 46px;
+  margin: 0;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--md-surface-cont);
+  color: var(--md-on-surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  text-align: left;
+  line-height: 1.18;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ui-action-grid > .btn:hover,
+.ui-action-grid > .btn:focus-visible,
+.ui-action-grid > .smallBtn:hover,
+.ui-action-grid > .smallBtn:focus-visible,
+.ui-action-grid > .ui-action-grid__slot > .btn:hover,
+.ui-action-grid > .ui-action-grid__slot > .btn:focus-visible,
+.ui-action-grid > .ui-action-grid__slot > .smallBtn:hover,
+.ui-action-grid > .ui-action-grid__slot > .smallBtn:focus-visible {
+  border-color: color-mix(in srgb, var(--md-primary) 36%, var(--md-outline-var));
+  background: color-mix(in srgb, var(--md-surface-cont-h) 92%, var(--md-primary));
+}
+
+.ui-action-grid > .btn:active,
+.ui-action-grid > .smallBtn:active,
+.ui-action-grid > .ui-action-grid__slot > .btn:active,
+.ui-action-grid > .ui-action-grid__slot > .smallBtn:active {
+  background: var(--md-surface-cont-h);
+}
+
+.ui-action-grid__slot--affordance > .btn {
+  padding-inline-end: 44px;
+}
+
+.ui-action-grid__affordance {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  z-index: 1;
+  width: 40px;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--popup-item-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--md-on-surface-var);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-body-sm);
+  font-weight: 900;
+  line-height: 1;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.ui-action-grid__affordance:hover,
+.ui-action-grid__affordance:focus-visible {
+  background: var(--popup-item-active-bg);
+  color: var(--md-primary);
+  outline: none;
+}
+
+.ui-action-grid__affordance:active {
+  background: var(--md-primary-state);
+}
+
+.ui-action-grid__affordance svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.14s ease;
+}
+
+.ui-action-grid__slot.is-open .ui-action-grid__affordance {
+  background: var(--popup-item-active-bg);
+  color: var(--md-primary);
+}
+
+.ui-action-grid__slot.is-open .ui-action-grid__affordance svg {
+  transform: rotate(180deg);
+}
+
+.ui-action-grid > .btn--filled {
+  justify-content: center;
+  background: var(--md-primary);
+  border-color: color-mix(in srgb, var(--md-primary) 76%, var(--md-outline-var));
+  color: var(--md-on-primary);
+  font-weight: 850;
+}
+
+.ui-action-grid > .btn--filled:hover,
+.ui-action-grid > .btn--filled:focus-visible {
+  background: color-mix(in srgb, var(--md-primary) 88%, #fff);
+  border-color: color-mix(in srgb, var(--md-primary) 82%, var(--md-outline-var));
+  color: var(--md-on-primary);
+}
+
+.ui-action-grid > .btn--filled:active {
+  background: color-mix(in srgb, var(--md-primary) 82%, #fff);
+}
+
+.ui-action-grid > .btn--danger,
+.ui-action-grid > .smallBtn.btn--danger {
+  color: color-mix(in srgb, var(--md-error) 78%, var(--md-on-surface));
+}
+
+.ui-action-grid > .btn--danger:hover,
+.ui-action-grid > .btn--danger:focus-visible,
+.ui-action-grid > .smallBtn.btn--danger:hover,
+.ui-action-grid > .smallBtn.btn--danger:focus-visible {
+  border-color: color-mix(in srgb, var(--md-error) 46%, var(--md-outline-var));
+  background: color-mix(in srgb, var(--md-error-cont) 18%, var(--md-surface-cont-h));
+}
+
+/* ── Setting Item ─────────────────────────────────────────── */
+/* Stored text / credential editor used by settings pages. The surface opens
+   a responsive form dialog; secondary operations remain visible beside it. */
+.setting-form-shell {
+  container-name: setting-form-control;
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+}
+
+.setting-form-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-sm);
+  min-width: 0;
+}
+
+.setting-form-control__surface {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-min-height);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: var(--sp-sm) var(--sp-md);
+  border: 1px solid color-mix(in srgb, var(--md-outline-var) 46%, transparent);
+  border-radius: var(--control-radius);
+  background: color-mix(in srgb, var(--md-surface) 72%, transparent);
+  color: var(--md-on-surface-var);
+  cursor: text;
+  font: inherit;
+  font-size: var(--fs-body-md);
+  line-height: 1.35;
+  text-align: start;
+}
+
+.setting-form-control__surface:hover {
+  border-color: color-mix(in srgb, var(--md-primary) 48%, var(--md-outline-var));
+}
+
+.setting-form-control__surface:focus-visible {
+  border-color: color-mix(in srgb, var(--md-primary) 48%, var(--md-outline-var));
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.setting-form-control__surface.is-configured {
+  color: var(--md-on-surface);
+}
+
+.setting-form-control__value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setting-form-control__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 88px), 1fr));
+  gap: var(--sp-sm);
+  min-width: 0;
+}
+
+.setting-form-control__actions:empty {
+  display: none;
+}
+
+.setting-form-control__actions > .smallBtn {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  justify-content: center;
+  line-height: 1.2;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.setting-form-control__actions > .smallBtn:disabled {
+  opacity: var(--state-disabled-opacity);
+  cursor: not-allowed;
+  transform: none;
+}
+
+@container setting-form-control (min-width: 640px) {
+  .setting-form-control {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .setting-form-control__actions {
+    grid-template-columns: repeat(auto-fit, minmax(72px, auto));
+    grid-auto-flow: column;
+  }
+
+  .setting-form-control__actions > .smallBtn {
+    width: auto;
+    white-space: nowrap;
+  }
+}
+
+@supports not (container-type: inline-size) {
+  @media (min-width: 760px) {
+    .setting-form-control {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .setting-form-control__actions {
+      grid-template-columns: repeat(auto-fit, minmax(72px, auto));
+      grid-auto-flow: column;
+    }
+
+    .setting-form-control__actions > .smallBtn {
+      width: auto;
+      white-space: nowrap;
+    }
+  }
+}
+
+.ui-action-grid > .git-pull-btn {
+  justify-content: space-between;
+}
+
+.setting {
+  padding: var(--sp-lg) 0;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--md-stroke-soft);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.setting:last-child {
+  border-bottom: none;
+}
+
+.setting.is-focus-hit {
+  background: var(--md-primary-state-soft);
+  border-bottom-color: color-mix(in srgb, var(--md-primary) 34%, var(--md-stroke-soft));
+}
+
+.settingTop {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-md);
+  align-items: flex-start;
+}
+
+.title {
+  font-weight: 600;
+  font-size: var(--fs-body-lg);
+  color: var(--md-on-surface);
+}
+
+.name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label-md);
+  color: var(--md-outline);
+}
+
+.descr {
+  white-space: pre-wrap;
+  margin-top: var(--sp-sm);
+  color: var(--md-on-surface-var);
+  font-size: var(--fs-body-sm);
+}
+
+.ctrl {
+  display: flex;
+  gap: var(--sp-sm);
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.setting .ctrl {
+  --setting-control-border: color-mix(in srgb, var(--md-outline-var) 62%, transparent);
+  --setting-control-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--md-surface-cont-h) 92%, #101820),
+    color-mix(in srgb, var(--md-surface-cont) 94%, #05080b)
+  );
+  --setting-control-hover-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--md-surface-cont-h) 82%, var(--md-primary)),
+    color-mix(in srgb, var(--md-surface-cont) 88%, var(--md-primary))
+  );
+  gap: 6px;
+}
+
+.setting .ctrl .smallBtn,
+.setting .ctrl .val {
+  min-height: 38px;
+  border: 1px solid var(--setting-control-border);
+  border-radius: 9px;
+  background: var(--setting-control-bg);
+  color: var(--md-on-surface);
+  box-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.setting .ctrl .smallBtn {
+  min-width: 42px;
+  padding: 7px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.setting .ctrl .val {
+  appearance: none;
+  min-width: 84px;
+  padding: 7px 12px;
+  cursor: pointer;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--md-surface-cont) 90%, #111922),
+    color-mix(in srgb, var(--md-surface) 92%, #04070a)
+  );
+  border-color: color-mix(in srgb, var(--md-primary) 28%, var(--setting-control-border));
+}
+
+.setting .ctrl > :nth-child(1),
+.setting .ctrl > :nth-child(3),
+.setting .ctrl > :nth-child(4) {
+  border-radius: 9px;
+}
+
+.setting .ctrl > :nth-child(4) {
+  color: color-mix(in srgb, var(--md-primary) 72%, var(--md-on-surface));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--md-primary) 15%, var(--md-surface-cont-h)),
+    color-mix(in srgb, var(--md-primary) 8%, var(--md-surface-cont))
+  );
+}
+
+.setting .ctrl .smallBtn:hover,
+.setting .ctrl .smallBtn:focus-visible,
+.setting .ctrl .val:hover,
+.setting .ctrl .val:focus-visible {
+  border-color: color-mix(in srgb, var(--md-primary) 42%, var(--md-outline-var));
+  background: var(--setting-control-hover-bg);
+  outline: none;
+}
+
+.setting .ctrl .smallBtn:focus-visible,
+.setting .ctrl .val:focus-visible {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--md-primary) 22%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.setting .ctrl .smallBtn:active,
+.setting .ctrl .val:active {
+  transform: translateY(1px);
+}
+
+/* ── Button Rows ──────────────────────────────────────────── */
+.btnRow {
+  display: flex;
+  gap: var(--sp-sm);
+  flex-wrap: wrap;
+}
+
+.backupRow {
+  display: flex;
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+}
+
+/* ── Pre / Output ─────────────────────────────────────────── */
+pre {
+  white-space: pre-wrap;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-body-sm);
+  line-height: 1.6;
+}
+
+/* ── Screen Transition ────────────────────────────────────── */
+.screen {
+  transition: opacity .16s ease, transform .16s ease;
+  will-change: opacity, transform;
+}
+
+.screen.hidden {
+  opacity: 0;
+  transform: translateX(12px);
+  pointer-events: none;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Shared Primitives
+   ────────────────────────────────────────────────────────────────
+   These are small reusable pieces. Prefer them over hand-rolled
+   versions in page CSS. Pattern usage is documented next to each.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Skeleton ──────────────────────────────────────────────────
+   Loading placeholder. Apply to a box of fixed size; the shimmer
+   animates an inset gradient. Honors prefers-reduced-motion via
+   the global guard in base.css.
+
+   Pattern:
+     <div class="skeleton" style="width:80%; height:14px;"></div>
+     <div class="skeleton skeleton--circle" style="width:36px; height:36px;"></div>
+
+   Replaces: ad-hoc .logs-loading-card style.
+*/
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--md-surface-cont-h) 70%, var(--md-surface-cont));
+  border-radius: var(--r-sm);
+}
+
+.skeleton--circle {
+  border-radius: 50%;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--md-on-surface) 6%, transparent) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1400ms var(--ease-standard) infinite;
+}
+
+@keyframes skeleton-shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* ── Staggered Reveal (.ui-stagger-item) ────────────────────────
+   Plays a 380ms slide-up-and-fade-in animation, with a per-item
+   delay derived from CSS variable `--i` (the item index). Used
+   for list reveals to give a sense of structured loading.
+
+   Pattern (JS sets --i on each item):
+     items.forEach((el, i) => el.style.setProperty('--i', i));
+     items.forEach((el) => el.classList.add('ui-stagger-item'));
+
+   Or directly in HTML:
+     <article class="ui-stagger-item" style="--i:3">…</article>
+
+   The total stagger is capped at 420ms so very long lists don't
+   produce visible delays on the last items. Honors the global
+   prefers-reduced-motion guard via base.css. */
+.ui-stagger-item {
+  animation: uiStaggerIn 380ms var(--ease-emphasized) both;
+  animation-delay: min(calc(var(--i, 0) * 36ms), 420ms);
+}
+
+@keyframes uiStaggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Empty State ────────────────────────────────────────────────
+   Standard empty-state card for lists with no items. Centers a
+   title (required) and optional message + action. Use inside any
+   scrollable list container.
+
+   Pattern:
+     <div class="empty-state" role="status">
+       <div class="empty-state__title">No items</div>
+       <div class="empty-state__message">Try changing filters.</div>
+       <button class="btn empty-state__action">Refresh</button>
+     </div>
+
+   The container becomes a flex layout that auto-centers the
+   empty-state when it's the only child (uses :has). */
+.empty-state {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: center;
+  width: fit-content;
+  max-width: min(100%, 360px);
+  margin: 0 auto;
+  padding: 18px 22px;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--md-outline-var) 28%, transparent);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--md-surface-cont) 46%, transparent);
+  color: var(--md-on-surface);
+  text-align: center;
+}
+
+.empty-state__title {
+  font-size: var(--fs-body-sm);
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+.empty-state__message {
+  font-size: var(--fs-label-md);
+  font-weight: 600;
+  color: var(--md-on-surface-var);
+  line-height: 1.35;
+}
+
+.empty-state__action {
+  margin-top: 6px;
+}
+
+/* ── Visually Hidden ───────────────────────────────────────────
+   For text that should be available to screen readers but not
+   visible. Use this for icon-only buttons that have an aria-label
+   to give them an accessible name without the icon being labeled
+   redundantly.
+
+   Pattern:
+     <button aria-label="Close">
+       <svg>...</svg>
+       <span class="visually-hidden">Close</span>
+     </button>
+*/
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── State Layer Helper ────────────────────────────────────────
+   Adds a Material 3 state layer (hover/focus/pressed tint) on top
+   of any interactive surface without changing its base color. Apply
+   .state-layer to a positioned element; it paints a primary-tinted
+   overlay that intensifies on hover/focus/active.
+
+   Pattern:
+     <button class="my-button state-layer">…</button>
+
+   The element must be position: relative (or have one nearby)
+   because state-layer creates a ::after overlay positioned absolutely.
+*/
+.state-layer {
+  position: relative;
+  isolation: isolate;
+}
+
+.state-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--md-primary);
+  opacity: 0;
+  border-radius: inherit;
+  transition: opacity var(--motion-quick) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .state-layer:hover::after { opacity: var(--state-hover); }
+}
+
+.state-layer:focus-visible::after { opacity: var(--state-focus); }
+.state-layer:active::after        { opacity: var(--state-pressed); }
+
+/* Recording state: elapsed-time label + a soft pulsing red highlight while
+   screen recording is active (tools page record button). */
+#btnRecordToggle[data-state="on"] {
+  border-color: rgba(255, 82, 82, 0.55);
+  color: #ff6b6b;
+  animation: recordButtonPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes recordButtonPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.12);
+    border-color: rgba(255, 82, 82, 0.42);
+  }
+  50% {
+    box-shadow: 0 0 10px 2px rgba(255, 82, 82, 0.4);
+    border-color: rgba(255, 82, 82, 0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #btnRecordToggle[data-state="on"] {
+    animation: none;
+    border-color: rgba(255, 82, 82, 0.85);
+  }
+}

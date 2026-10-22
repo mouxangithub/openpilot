@@ -44,12 +44,17 @@ dependencies = [
 
   # these should be removed
   "pyzmq",
+  "shapely>=2.0",  # carrot navigation path resampling
+  "aiohttp>=3.8",  # carrot 7714 v2 WebSocket receiver
   "setproctitle",
   "jeepney",
   "zstandard",  # this can go once we're on Python 3.14+
 
   # ui
   "comma-deps-raylib",
+
+  # xiaoge ONNX BSD/Lane detection (opencv-python-headless, not opencv-python, for headless inference)
+  "opencv-python-headless>=4.10.0",
 ]
 
 [project.optional-dependencies]
@@ -145,6 +150,146 @@ exclude = [
   "generated",
 ]
 lint.flake8-implicit-str-concat.allow-multiline = false
+
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The whole `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes
+# below are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 - formatting and stdlib-signature habits.
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes below
+# are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 / PIE807 - formatting and stdlib habits.
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes below
+# are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 / PIE807 - formatting and stdlib habits.
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes below
+# are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 / PIE807 - formatting and stdlib habits.
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes below
+# are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 / PIE807 - formatting and stdlib habits.
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes below
+# are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 / PIE807 - formatting and stdlib habits.
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes below
+# are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 / PIE807 - formatting and stdlib habits.
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes below
+# are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 / PIE807 - formatting and stdlib habits.
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes below
+# are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 / PIE807 - formatting and stdlib habits.
+# Files vendored from CarrotPilot and kept close to upstream so they can be re-synced.
+# The `sunnypilot/carrot/server` tree came from `selfdrive/carrot/server`; the codes below
+# are CarrotPilot's own style choices, not defects this fork wants to re-litigate:
+#   TID251 - wall-clock `time.time` where the value is a timestamp reported to a client;
+#   ASYNC* - blocking filesystem/subprocess work inside an async handler, by design there;
+#   RUF006 - fire-and-forget tasks the hub keeps alive through its own registry;
+#   ISC002 / E501 / E701 / A002 / B904 / C401 / PIE807 - formatting and stdlib habits.
+[tool.ruff.lint.per-file-ignores]
+# qcomgpsd/structs.py embeds C struct layouts verbatim as triple-quoted strings
+# (dict_unpacker parses them), so those lines exceed the line limit by design.
+"openpilot/system/qcomgpsd/structs.py" = ["E501"]
+# sp_param_labels.py is a pure data table: each row is one param's four label
+# slots (en title/descr + zh title/descr) and cannot fit the line limit.
+"openpilot/sunnypilot/carrot/tools/sp_param_labels.py" = ["E501"]
+# Ported from CarrotPilot verbatim (signal observation trial + its tools);
+# keep them byte-comparable with cp so re-syncs stay mechanical.
+"openpilot/sunnypilot/carrot/signal_assist.py" = ["C408", "E702"]
+"openpilot/sunnypilot/carrot/signal_assist_runtime.py" = ["C408", "E702"]
+"openpilot/sunnypilot/carrot/signal_display.py" = ["C408", "E702"]
+"openpilot/sunnypilot/carrot/signal_start_guard.py" = ["C408", "E702"]
+"openpilot/sunnypilot/carrot/signal_stop_prepare.py" = ["C408", "E702"]
+"openpilot/sunnypilot/carrot/signal_stop_prepare_runtime.py" = ["C408", "E702"]
+"openpilot/sunnypilot/carrot/signal_mode.py" = ["C408", "E702"]
+"openpilot/selfdrive/modeld/signal_color_shadow.py" = ["C408", "E702", "RUF100"]
+"openpilot/selfdrive/modeld/signal_tracking_shadow.py" = ["C408", "E702", "RUF100"]
+"openpilot/sunnypilot/carrot/recovery/server.py" = ["E501", "ISC002"]
+"openpilot/sunnypilot/carrot/server/features/carrot_navi/client_hub.py" = ["RUF006"]
+"openpilot/sunnypilot/carrot/server/features/dashcam/paths.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/features/dashcam/read_state.py" = ["TID251"]
+# Web Push VAPID JWT exp claims require wall-clock epoch time by RFC 8292.
+"openpilot/sunnypilot/carrot/server/services/web_push.py" = ["TID251"]
+# Ported from StarPilot verbatim (per-vehicle lateral tune library); keep it
+# byte-comparable with upstream so re-syncs stay mechanical.
+"openpilot/selfdrive/controls/lib/latcontrol_vehicle_tunes.py" = ["E501"]
+# Ported from StarPilot verbatim (FLM offline tuning analyzer); long descriptive
+# strings are kept byte-comparable with upstream so re-syncs stay mechanical.
+"openpilot/selfdrive/controls/lib/flm_workspace.py" = ["C401", "E501", "ISC002", "TID251"]
+"openpilot/sunnypilot/carrot/server/features/dashcam/routes.py" = ["ASYNC240"]
+"openpilot/sunnypilot/carrot/server/features/intro/routes.py" = ["ASYNC240"]
+"openpilot/sunnypilot/carrot/server/features/intro/state.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/features/screenrecord/routes.py" = ["ASYNC240"]
+"openpilot/sunnypilot/carrot/server/features/terminal.py" = ["ASYNC240"]
+"openpilot/sunnypilot/carrot/server/features/tools/dispatcher.py" = ["ASYNC220", "ASYNC221", "ASYNC230", "ASYNC240", "E501", "ISC002"]
+"openpilot/sunnypilot/carrot/server/features/tools/jobs.py" = ["ASYNC109", "TID251"]
+"openpilot/sunnypilot/carrot/server/features/tools/routes.py" = ["RUF006", "TID251"]
+"openpilot/sunnypilot/carrot/server/live_runtime/broker.py" = ["ISC002"]
+"openpilot/sunnypilot/carrot/server/live_runtime/runner.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/live_runtime/snapshot.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/services/auto_update.py" = ["ASYNC109", "TID251"]
+"openpilot/sunnypilot/carrot/server/services/git_state.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/services/git_status.py" = ["ASYNC109", "TID251"]
+"openpilot/sunnypilot/carrot/server/services/heartbeat.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/services/params.py" = ["B904", "C401"]
+"openpilot/sunnypilot/carrot/server/services/popular_values.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/services/settings.py" = ["E701"]
+"openpilot/sunnypilot/carrot/server/services/ssh_keys.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/services/support_discord.py" = ["ISC002"]
+"openpilot/sunnypilot/carrot/server/services/support_terminal.py" = ["ASYNC230", "ASYNC240", "ISC002", "RUF006", "TID251"]
+"openpilot/sunnypilot/carrot/server/services/terminal_pty.py" = ["ASYNC220"]
+"openpilot/sunnypilot/carrot/server/services/time_sync.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/services/vision_diag.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/services/vision_test.py" = ["TID251"]
+"openpilot/sunnypilot/carrot/server/services/web_settings.py" = ["A002"]
+"openpilot/sunnypilot/carrot/server/terminal_commands/bridge.py" = ["ISC002"]
+# Offline radar validation toolchain ported verbatim from CarrotPilot's
+# `selfdrive/carrot/radar/tools` + the UI-independent slice of `cluster`
+# (route_replay). No manager registration, no CAN, off-device only. Kept close
+# to upstream so re-syncs stay mechanical: ISC002/C004/C409/E501/RUF009 are
+# upstream formatting/dataclass habits (TpmsInfo default is frozen/safe),
+# B904/B905 are stdlib-signature style.
+"openpilot/sunnypilot/carrot/radar/route_replay/*.py" = ["ISC002", "ISC004", "C409", "E501", "B904", "B905", "RUF009"]
+"openpilot/sunnypilot/carrot/radar_motion/cutin_helpers.py" = ["C420"]
+"openpilot/sunnypilot/carrot/server/tests/test_auto_update.py" = ["ASYNC109"]
+"openpilot/sunnypilot/carrot/server/tests/test_git_config.py" = ["ISC002"]
+"openpilot/sunnypilot/carrot/server/tests/test_setting_profiles.py" = ["PIE807"]
+"openpilot/sunnypilot/carrot/web_upload.py" = ["ASYNC230", "ASYNC240", "E501"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "time.time".msg = "Use time.monotonic. time.time can skip due to its reference clock, you probably want a monotonic clock"

@@ -93,6 +93,15 @@ class VisualsLayout(Widget):
            "This displays what the car is currently doing, not what the planner is requesting."),
         None,
       ),
+      "CarrotSignalHudEnabled": (
+        lambda: tr("Neural Signal Assist Indicator (Experimental)"),
+        tr("Draw a ring on the HUD with the traffic light evidence the neural model currently sees." +
+           "<br>The outer ring is what the model observes; the centre dot is what the planner actually " +
+           "applies, and only appears with SignalAssistMode set to 2." +
+           "<br><br>Experimental and advisory only. Nothing here lets openpilot act on a traffic light " +
+           "on your behalf. Always check the light yourself."),
+        None,
+      ),
     }
     self._toggles = {}
     for param, (title, desc, callback) in self._toggle_defs.items():
@@ -105,6 +114,18 @@ class VisualsLayout(Widget):
       )
       self._toggles[param] = toggle
 
+    # Radar point overlay: carrot's ShowRadarInfo level scale (0-3). Replaces the
+    # old CarrotRadarPointsEnabled bool; ui_state migrates that switch once.
+    self._radar_points_info = multiple_button_item_sp(
+      title=lambda: tr("Display Radar Points"),
+      description=lambda: tr("Label what the front radar tracks on the road view." +
+                             "<br>Speed Only: relative speed on moving tracks. Speed + Distance: adds lateral offset " +
+                             "and distance. Full: every measured point, plus a marker for static returns." +
+                             "<br><br>Display only. It does not change how the car drives."),
+      buttons=[lambda: tr("Off"), lambda: tr("Speed Only"), lambda: tr("Speed + Distance"), lambda: tr("Full")],
+      param="ShowRadarInfo",
+      inline=False,
+    )
     self._chevron_info = multiple_button_item_sp(
       title=lambda: tr("Display Metrics Below Chevron"),
       description="",
@@ -122,6 +143,7 @@ class VisualsLayout(Widget):
     )
 
     items = list(self._toggles.values()) + [
+      self._radar_points_info,
       self._chevron_info,
       self._dev_ui_info,
     ]
@@ -133,6 +155,7 @@ class VisualsLayout(Widget):
     for param in self._toggle_defs:
       self._toggles[param].action_item.set_state(self._params.get_bool(param))
 
+    self._radar_points_info.action_item.set_selected_button(int(self._params.get("ShowRadarInfo", return_default=True)))
     self._dev_ui_info.action_item.set_selected_button(ui_state.params.get("DevUIInfo", return_default=True))
 
     if ui_state.has_longitudinal_control:

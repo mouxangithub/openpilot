@@ -11,6 +11,7 @@ import os
 os.environ['GMMU'] = '0'
 from openpilot.common.hardware import COMMA_HARDWARE
 from openpilot.selfdrive.modeld.helpers import chestnut_present
+from openpilot.selfdrive.modeld.lane_width import LaneWidthEstimator
 CHESTNUT_PRESENT = chestnut_present()
 # tinygrad picks its default device by opening every backend until one works, 2.6 s of every start
 # on a comma 4. Without a chestnut that is QCOM, so name it; tinygrad reads DEV once, at import
@@ -31,12 +32,14 @@ from msgq.visionipc import VisionIpcClient, VisionBuf
 from openpilot.common.file_chunker import open_file_chunked
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.params import Params
+from openpilot.common.dm import is_dm_disabled
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.realtime import config_realtime_process, DT_MDL
 from openpilot.common.transformations.camera import DEVICE_CAMERAS
 from openpilot.common.transformations.model import get_warp_matrix
 from openpilot.selfdrive.controls.lib.desire_helper import DesireHelper
 from openpilot.selfdrive.controls.lib.drive_helpers import get_accel_from_plan, smooth_value
+from openpilot.sunnypilot import jetlink_adapter
 
 from openpilot.sunnypilot.modeld_v2.fill_model_msg import fill_model_msg, fill_pose_msg, PublishState, get_curvature_from_output
 from openpilot.sunnypilot.modeld_v2.parse_model_outputs import Parser
@@ -253,17 +256,63 @@ class ModelState(ModelStateBase):
     return log.ModelDataV2.Action(desiredCurvature=float(desired_curvature), desiredAcceleration=float(desired_accel), shouldStop=bool(stop))
 
 
+class LoopTiming:
+  """Per-stage wall time of the consumption loop, logged as a p50/p99 summary.
+
+  The loop runs with ~zero margin against the 50 ms frame budget (publish-dt
+  p90 = 55-57 ms even on a healthy drive; see selfdrived/modeld_lag.py), and
+  clustered one-frame resync drops are the visible symptom. These numbers show
+  where the non-GPU margin goes so any optimization targets a measured stage
+  instead of a guess. recv = waiting for the next frame pair, pre = state
+  sampling and input building, run = model execution, post = fill and publish.
+
+  Stages: mark('recv') at the loop top closes the previous post; mark('pre')
+  after the frame pair is in hand; mark('run') right before model.run();
+  mark('post') right after it."""
+
+  STAGES = ('recv', 'pre', 'run', 'post')
+  LOG_PERIOD_S = 30.0
+
+  def __init__(self):
+    self._samples = {s: [] for s in self.STAGES}
+    self._t0 = time.perf_counter()
+    self._stage = None
+    self._last_log = time.monotonic()
+
+  def mark(self, stage: str) -> None:
+    now = time.perf_counter()
+    if self._stage is not None:
+      self._samples[self._stage].append(now - self._t0)
+    self._t0, self._stage = now, stage
+
+  def maybe_log(self) -> None:
+    if time.monotonic() - self._last_log < self.LOG_PERIOD_S:
+      return
+    self._last_log = time.monotonic()
+    parts = []
+    for s in self.STAGES:
+      xs = sorted(self._samples[s])
+      if xs:
+        parts.append(f"{s} p50={xs[len(xs) // 2] * 1e3:.1f} p99={xs[int(len(xs) * 0.99)] * 1e3:.1f}ms")
+      self._samples[s] = []
+    if parts:
+      cloudlog.warning("modeld loop timing: " + " ".join(parts))
+
+
 def main(demo=False):
   cloudlog.warning("modeld init")
 
   cloudlog.bind(daemon=PROCESS_NAME)
   setproctitle(PROCESS_NAME)
-  jetlink_adapter.prepare(CHESTNUT_PRESENT)  # before going realtime
-  config_realtime_process(7, 54)
 
   CHESTNUT = CHESTNUT_PRESENT
   if CHESTNUT:
     os.environ['HCQDEV_WAIT_TIMEOUT_MS'] = '3000'
+  # before going realtime: prepare() starts tinygrad's device thread, which would inherit FIFO 54 on core 7.
+  # prepare(chestnut) itself no-ops beside a chestnut, so call it unconditionally.
+  jetlink_adapter.prepare(CHESTNUT)
+
+  config_realtime_process(7, 54)
 
   params = Params()
   params.put_bool("ChestnutLoading", CHESTNUT)
@@ -323,8 +372,9 @@ def main(demo=False):
   # messaging
   pub_socks = ["modelV2", "drivingModelData", "cameraOdometry", "modelDataV2SP"] + (["chestnutGpuState"] if CHESTNUT else [])
   pm = PubMaster(pub_socks)
-  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration", "driverMonitoringState",
-                  "carControl", "controlsState", "lateralDelay"])
+  sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration",
+                  "driverMonitoringState", "carControl", "carControlSP", "controlsState",
+                  "lateralDelay", "carStateSP", "carrotManSP"])
 
   publish_state = PublishState()
   chestnut_state = None
@@ -333,11 +383,29 @@ def main(demo=False):
     from openpilot.selfdrive.modeld.modeld import ChestnutGpuState
     chestnut_state = ChestnutGpuState(pm, model.chestnut)
 
-  # setup filter to track dropped frames
-  frame_dropped_filter = FirstOrderFilter(0., 10., 1. / model.constants.MODEL_FREQ)
+  # setup filter to track dropped frames. A shorter constant than stock's 10 s:
+  # a transient scheduler/IO stall reports its backlog as a one-shot jump in
+  # vipc_dropped_frames, but the 10 s filter kept the smoothed rate above the
+  # 1% lagging threshold for ~15 s after the model was already running at rate,
+  # flashing modeldLagging. 2 s sheds a momentary hiccup within a few seconds
+  # while a genuinely slow model (sustained drops) still crosses within ~1 s.
+  frame_dropped_filter = FirstOrderFilter(0., 2., 1. / model.constants.MODEL_FREQ)
   frame_id = 0
   last_vipc_frame_id = 0
   run_count = 0
+  # The first model frame lands 10-24 s after modeld starts (tinygrad import,
+  # then the model), so the camera has queued a burst of frames by then. The
+  # filter's 10 s time constant would remember that one cold-start backlog for
+  # minutes and keep modeldLagging firing on a perfectly healthy drive. Count
+  # frames from the first real model output and ignore drops through the same
+  # settle the big-model load and selfdrived use; running drops after it count.
+  frames_since_first_output = None
+  # Match the drop filter's own 10 s constant: the small model is still
+  # warming its caches for a few seconds after the first frame, and the first
+  # real burst of post-load stalls lands just past a shorter window. Ignore
+  # drops for 10 s from the first output so cold start never latches
+  # modeldLagging; running drops after it count normally.
+  STARTUP_SETTLE_FRAMES = round(10. * model.constants.MODEL_FREQ)
 
   model_transform_main = np.zeros((3, 3), dtype=np.float32)
   model_transform_extra = np.zeros((3, 3), dtype=np.float32)
@@ -361,8 +429,13 @@ def main(demo=False):
   DH = DesireHelper()
   meta_constants = load_meta_constants()
   RELC = RoadEdgeLaneChangeController()
+  lane_width_left_est = LaneWidthEstimator()
+  lane_width_right_est = LaneWidthEstimator()
+  loop_timing = LoopTiming()
 
   while True:
+    loop_timing.maybe_log()
+    loop_timing.mark('recv')
     # Keep receiving frames until we are at least 1 frame ahead of previous extra frame
     while meta_main.timestamp_sof < meta_extra.timestamp_sof + 25000000:
       buf_main = vipc_client_main.recv()
@@ -395,9 +468,10 @@ def main(demo=False):
       buf_extra = buf_main
       meta_extra = meta_main
 
+    loop_timing.mark('pre')
     sm.update(0)
     desire = DH.desire
-    is_rhd = sm["driverMonitoringState"].isRHD
+    is_rhd = False if is_dm_disabled(params) else sm["driverMonitoringState"].isRHD
     frame_id = sm["narrowRoadCameraState"].frameId
     v_ego = max(sm["carState"].vEgo, 0.)
     if sm.frame % 60 == 0:
@@ -428,6 +502,15 @@ def main(demo=False):
     if run_count < 10: # let frame drops warm up
       frame_dropped_filter.x = 0.
       frames_dropped = 0.
+    # Cold-start backlog: the camera frames piled up while tinygrad and the
+    # model loaded (10-24 s on a comma 4) arrive as one big vipc drop on and
+    # around the first model output. The filter's 10 s constant would hold that
+    # for minutes and keep modeldLagging firing on a healthy drive. Ignore
+    # drops until SETTLE_FRAMES after the first real output (None = not yet);
+    # running drops after the window count normally.
+    if frames_since_first_output is None or frames_since_first_output < STARTUP_SETTLE_FRAMES:
+      frame_dropped_filter.x = 0.
+      frames_dropped = 0.
     run_count = run_count + 1
 
     frame_drop_ratio = frames_dropped / (1 + frames_dropped)
@@ -452,6 +535,7 @@ def main(demo=False):
       inputs['lateral_control_params'] = np.array([v_ego, lat_delay], dtype=np.float32)
 
     model.frame_drop_ratio = frame_drop_ratio
+    loop_timing.mark('run')
     mt1 = time.perf_counter()
     try:
       send_chestnut = (chestnut_state is not None and
@@ -469,16 +553,23 @@ def main(demo=False):
       run_count = 0
       model_output = None
     mt2 = time.perf_counter()
+    loop_timing.mark('post')
     model_execution_time = mt2 - mt1
     if jetlink_adapter.handed_over(model):
       run_count, frame_drop_ratio = 0, 0.
 
     if model_output is not None:
+      # first real output starts the cold-start settle window (frames counted
+      # above next iteration); frames queued during the load are ignored
+      frames_since_first_output = 0 if frames_since_first_output is None else frames_since_first_output + 1
       modelv2_send = messaging.new_message('modelV2')
       drivingdata_send = messaging.new_message('drivingModelData')
       posenet_send = messaging.new_message('cameraOdometry')
       mdv2sp_send = messaging.new_message('modelDataV2SP')
-      mdv2sp_send.modelDataV2SP.zoompilot.acceleratorState = jetlink_adapter.state(model)
+      _accel_state = jetlink_adapter.state(model)
+      mdv2sp_send.modelDataV2SP.zoompilot.acceleratorState = _accel_state
+      # fork's big_model_ready_alert (selfdrived/events.py) reads the top-level field
+      mdv2sp_send.modelDataV2SP.acceleratorState = _accel_state
 
       if not sm['carControl'].latActive:
         prev_action.desiredCurvature = sm['controlsState'].curvature
@@ -495,12 +586,28 @@ def main(demo=False):
       l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]
       r_lane_change_prob = desire_state[log.Desire.laneChangeRight]
       lane_change_prob = l_lane_change_prob + r_lane_change_prob
+      cs_sp = sm['carStateSP']
+      left_lane_line_blocked = cs_sp.carrotLaneValid and cs_sp.carrotLeftLineBlocked
+      right_lane_line_blocked = cs_sp.carrotLaneValid and cs_sp.carrotRightLineBlocked
+
       left_edge, right_edge = RELC.update_and_fill(modelv2_send.modelV2, mdv2sp_send.modelDataV2SP, v_ego)
-      DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge)
+      carrot_man = sm['carrotManSP'] if sm.alive['carrotManSP'] else None
+      DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge,
+                left_lane_line_blocked=left_lane_line_blocked,
+                right_lane_line_blocked=right_lane_line_blocked,
+                carrot_man=carrot_man)
       modelv2_send.modelV2.meta.laneChangeState = DH.lane_change_state
       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
+      # carrot: adjacent-lane widths for the xiaoge BSD gate (cp parity)
+      modelv2_send.modelV2.meta.laneWidthLeft = lane_width_left_est.update(
+        modelv2_send.modelV2.laneLines[0], modelv2_send.modelV2.laneLineProbs[0],
+        modelv2_send.modelV2.laneLines[1], modelv2_send.modelV2.roadEdges[0])
+      modelv2_send.modelV2.meta.laneWidthRight = lane_width_right_est.update(
+        modelv2_send.modelV2.laneLines[3], modelv2_send.modelV2.laneLineProbs[3],
+        modelv2_send.modelV2.laneLines[2], modelv2_send.modelV2.roadEdges[1])
       mdv2sp_send.valid = modelv2_send.valid
       mdv2sp_send.modelDataV2SP.laneTurnDirection = DH.lane_turn_direction
+      mdv2sp_send.valid = modelv2_send.valid
       drivingdata_send.drivingModelData.meta.laneChangeState = DH.lane_change_state
       drivingdata_send.drivingModelData.meta.laneChangeDirection = DH.lane_change_direction
 

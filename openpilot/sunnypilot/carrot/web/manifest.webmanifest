@@ -1,0 +1,19 @@
+{
+  "name": "Carrot Panel",
+  "short_name": "Carrot",
+  "description": "Openpilot device panel: settings, routes, and device status.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1016",
+  "theme_color": "#0b1016",
+  "icons": [
+    {
+      "src": "/shared-assets/img_spinner_comma.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

@@ -35,12 +35,16 @@ VERSION = 0
 
 
 class LatControlTorque(LatControl):
+  # subclasses may override with a speed schedule; the PID must be built with it here,
+  # because the extension captures the constructed object and drives it directly
+  KD_SCHEDULE = KD
+
   def __init__(self, CP, CP_SP, CI, dt):
     super().__init__(CP, CP_SP, CI, dt)
     self.torque_params = CP.lateralTuning.torque.as_builder()
     self.torque_from_lateral_accel = CI.torque_from_lateral_accel()
     self.lateral_accel_from_torque = CI.lateral_accel_from_torque()
-    self.pid = PIDController([INTERP_SPEEDS, KP_INTERP], KI, KD, rate=1/self.dt)
+    self.pid = PIDController([INTERP_SPEEDS, KP_INTERP], KI, self.KD_SCHEDULE, rate=1/self.dt)
     self.update_limits()
     self.steering_angle_deadzone_deg = self.torque_params.steeringAngleDeadzoneDeg
     self.lat_accel_request_buffer_len = int(LAT_ACCEL_REQUEST_BUFFER_SECONDS / self.dt)
@@ -97,12 +101,12 @@ class LatControlTorque(LatControl):
       setpoint = lat_delay * desired_lateral_jerk + expected_lateral_accel
       error = setpoint - measurement
 
-      # do error correction in lateral acceleration space, convert at end to handle non-linear torque responses correctly
+      # Correct error in lateral-acceleration space, then convert for nonlinear torque response.
       pid_log.error = float(error)
       ff = gravity_adjusted_future_lateral_accel
-      # latAccelOffset corrects roll compensation bias from device roll misalignment relative to car roll
+      # latAccelOffset corrects roll bias from device misalignment relative to the car.
       ff -= self.torque_params.latAccelOffset
-      # TODO jerk is weighted by lat_delay for legacy reasons, but should be made independent of it
+      # TODO: Decouple jerk weighting from lat_delay.
       ff += get_friction(error, lateral_accel_deadzone, FRICTION_THRESHOLD, self.torque_params)
 
       freeze_integrator = steer_limited_by_safety or CS.steeringPressed or CS.vEgo < 5
@@ -119,10 +123,21 @@ class LatControlTorque(LatControl):
         output_torque = self.torque_from_lateral_accel(output_lataccel, self.torque_params)
 
       # Lateral acceleration torque controller extension updates
-      # Overrides pid_log.error and output_torque
-      pid_log, output_torque = self.extension.update(CS, VM, self.pid, params, ff, pid_log, setpoint, measurement, calibrated_pose, roll_compensation,
-                                                     future_desired_lateral_accel, measurement, lateral_accel_deadzone, gravity_adjusted_future_lateral_accel,
-                                                     desired_curvature, measured_curvature, steer_limited_by_safety, output_torque)
+      # Overrides pid_log.error and output_torque. Keyword-bound: the signature is long and
+      # shared across controllers; keyword binding protects against signature reordering.
+      pid_log, output_torque = self.extension.update(CS, VM, self.pid, params, ff, pid_log,
+                                                     setpoint=setpoint,
+                                                     measurement=measurement,
+                                                     calibrated_pose=calibrated_pose,
+                                                     roll_compensation=roll_compensation,
+                                                     desired_lateral_accel=future_desired_lateral_accel,
+                                                     actual_lateral_accel=measurement,
+                                                     lateral_accel_deadzone=lateral_accel_deadzone,
+                                                     gravity_adjusted_lateral_accel=gravity_adjusted_future_lateral_accel,
+                                                     desired_curvature=desired_curvature,
+                                                     actual_curvature=measured_curvature,
+                                                     steer_limited_by_safety=steer_limited_by_safety,
+                                                     output_torque=output_torque)
 
       pid_log.active = True
       pid_log.p = float(self.pid.p)
