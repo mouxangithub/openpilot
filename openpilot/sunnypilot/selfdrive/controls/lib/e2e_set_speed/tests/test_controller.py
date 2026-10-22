@@ -11,7 +11,6 @@ import pytest
 
 import openpilot.cereal.messaging as messaging
 from openpilot.common.realtime import DT_MDL as DT
-from openpilot.selfdrive.controls.lib import longitudinal_planner as upstream
 from openpilot.sunnypilot.selfdrive.car.tests.fakes import FakeParams
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed import controller as c
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController, Inhibit
@@ -59,9 +58,10 @@ STOPPING = _plan(lambda t: max(V_EGO - 2. * t, 0.))
 BEND_AHEAD = _plan(lambda t: 1.5 / V_EGO if 5. <= t <= 8. else 0.)  # 1.5 m/s^2 at today's speed
 
 
-def test_friction_circle_matches_upstream():
-  assert c.A_TOTAL_MAX_BP == upstream._A_TOTAL_MAX_BP
-  assert c.A_TOTAL_MAX_V == upstream._A_TOTAL_MAX_V
+def test_friction_circle_keeps_upstreams_last_values():
+  # upstream's chill cruise limit, deleted with chill mode (#39097)
+  assert c.A_TOTAL_MAX_BP == [20., 40.]
+  assert c.A_TOTAL_MAX_V == [1.7, 3.2]
 
 
 def test_disabled_passes_model_through():
@@ -73,7 +73,6 @@ def test_disabled_passes_model_through():
 @pytest.mark.parametrize("kwargs, reason", [
   ({"is_e2e": False}, Inhibit.inactive),
   ({"reset_state": True}, Inhibit.inactive),
-  ({"dec_active": True}, Inhibit.decActive),
 ])
 def test_idle_resets_at_once(kwargs, reason):
   ctl = settled(deliver=True)
@@ -144,14 +143,9 @@ def test_hazards_cut_the_boost_and_hold(sm_kwargs, update_kwargs, reason):
   assert run(ctl, 1, build_sm(V_EGO)) > 0.
 
 
-@pytest.mark.parametrize("kwargs, hold", [
-  ({"dec_active": True}, HOLD_FRAMES),
-  ({"is_e2e": False}, 0),
-])
-def test_leaving_dec_holds_like_a_hazard(kwargs, hold):
+def test_back_in_experimental_lifts_at_once():
   ctl = settled()
-  run(ctl, 1, build_sm(V_EGO), **kwargs)
-  assert run(ctl, hold, build_sm(V_EGO)) == 0.
+  run(ctl, 1, build_sm(V_EGO), is_e2e=False)
   assert run(ctl, 1, build_sm(V_EGO)) > 0.
 
 

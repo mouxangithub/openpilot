@@ -11,7 +11,7 @@ from openpilot.cereal import log
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import T_IDXS
 
 # update() arguments for an engaged, lead-free e2e frame
-ENGAGED = {'is_e2e': True, 'reset_state': False, 'dec_active': False, 'allow_throttle': True, 'fcw': False, 'accel_coast': 0.}
+ENGAGED = {'is_e2e': True, 'reset_state': False, 'allow_throttle': True, 'fcw': False, 'accel_coast': 0.}
 
 
 def plan_pos(vel: np.ndarray) -> np.ndarray:

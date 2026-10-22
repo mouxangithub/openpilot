@@ -303,6 +303,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"TorqueParamsOverrideLatAccelFactor", {PERSISTENT | BACKUP, FLOAT, "2.5"}},
 
     // --- zoompilot params --- //
+    {"ExperimentalMode", {PERSISTENT | BACKUP, BOOL, "1"}},  // upstream removed it with chill; zoompilot keeps the switch
     {"ExperimentalModeLeadGap", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ExperimentalModeSetSpeed", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"LaneChangeSmoothing", {PERSISTENT | BACKUP, INT, "0"}},

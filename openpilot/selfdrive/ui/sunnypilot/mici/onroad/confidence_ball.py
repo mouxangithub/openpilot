@@ -57,7 +57,7 @@ class ConfidenceBallSP:
     return texture
 
   def draw_experimental_knockout(self, center_x: float, center_y: float) -> None:
-    if not ui_state.sm['selfdriveState'].experimentalMode:
+    if not ui_state.experimental_mode:
       return
 
     # the dot's own ring mask already blacks out the corners that overhang it

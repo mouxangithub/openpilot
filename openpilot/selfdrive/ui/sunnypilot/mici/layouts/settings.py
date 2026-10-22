@@ -16,7 +16,6 @@ from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models import ModelsLayoutMi
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.software import SoftwareLayoutSP
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.steering import SteeringLayoutMici
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.sunnylink import SunnylinkLayoutMici
-from openpilot.selfdrive.ui.sunnypilot.mici.layouts.toggles import TogglesLayoutMiciSP
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.trips import TripsLayoutMici
 from openpilot.selfdrive.ui.sunnypilot.mici.layouts.visuals import VisualsLayoutMici
 from openpilot.selfdrive.ui.ui_state import ui_state
@@ -24,10 +23,9 @@ from openpilot.selfdrive.ui.sunnypilot.ui_state import set_always_offroad
 from openpilot.system.ui.lib.application import gui_app, FontWeight
 from openpilot.system.ui.lib.multilang import tr
 
-# experimental mode and the alpha switch move to Cruise > alpha longitudinal. Swapped before the base
-# layout builds them, so the upstream panels are never constructed and their ui_state callbacks
-# (a full params pass each) never register.
-OP.TogglesLayoutMici = TogglesLayoutMiciSP
+# the alpha switch moves to Cruise > alpha longitudinal. Swapped before the base layout builds it, so
+# the upstream panel is never constructed and its ui_state callbacks (a full params pass each) never
+# register.
 OP.DeveloperLayoutMici = DeveloperLayoutMiciSP
 OP.SoftwareLayoutMici = SoftwareLayoutSP
 

@@ -5,8 +5,7 @@ This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 
 The alpha switch and the modes that run on openpilot longitudinal control, at the top of the tizi
-Cruise panel. Toggles and Developer drop their copies of the first two (TogglesLayoutSP,
-DeveloperLayoutSP) so each switch appears once.
+Cruise panel. Developer drops its copy of the alpha switch (DeveloperLayoutSP) so it appears once.
 """
 from openpilot.selfdrive.ui.layouts.settings.developer import DESCRIPTIONS as DEVELOPER_DESCRIPTIONS
 from openpilot.selfdrive.ui.ui_state import ui_state
@@ -16,9 +15,10 @@ from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
 
-# upstream's Toggles text (layouts/settings/toggles.py) with our name, shown again in the confirm dialog
+# upstream's Toggles text from before it retired chill mode, with our name and default
 EXPERIMENTAL_MODE_DESCRIPTION = tr_noop(
-  "zoompilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. " +
+  "zoompilot defaults to driving in experimental mode; turn it off for chill mode. " +
+  "Experimental mode enables alpha-level features that aren't ready for chill mode. " +
   "Experimental features are listed below:<br>" +
   "<h4>End-to-End Longitudinal Control</h4><br>" +
   "Let the driving model control the gas and brakes. zoompilot will drive as it thinks a human would, including stopping for red lights and stop signs. " +
@@ -44,22 +44,15 @@ class AlphaLongitudinalToggles:
       description=lambda: tr(EXPERIMENTAL_MODE_DESCRIPTION),
       callback=self._on_experimental_mode)
 
-    self._dec_toggle = toggle_item_sp(
-      title=lambda: tr("Dynamic Experimental Control"),
-      description=lambda: tr("Switches between chill and Experimental Mode on its own: " +
-                             "experimental for stops and slowdowns ahead, chill otherwise."),
-      param="DynamicExperimentalControl")
-
     self._set_speed_toggle = toggle_item_sp(
       title=lambda: tr("Experimental Mode Speed Assist"),
-      description=lambda: tr("In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down. " +
-                             "Has no effect while Dynamic Experimental Control is on."),
+      description=lambda: tr("In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down."),
       param="ExperimentalModeSetSpeed")
 
     self._lead_gap_toggle = toggle_item_sp(
       title=lambda: tr("Experimental Mode Lead Follow Assist"),
       description=lambda: tr("Closes the gap to your driving personality's following distance behind a steady car. " +
-                             "Never closer than chill mode. No effect while Dynamic Experimental Control is on."),
+                             "Never closer than chill mode."),
       param="ExperimentalModeLeadGap")
 
     self._refresh_toggles = (
@@ -67,7 +60,6 @@ class AlphaLongitudinalToggles:
       ("ExperimentalMode", self._experimental_toggle),
       ("ExperimentalModeSetSpeed", self._set_speed_toggle),
       ("ExperimentalModeLeadGap", self._lead_gap_toggle),
-      ("DynamicExperimentalControl", self._dec_toggle),
     )
     self.items = [item for _, item in self._refresh_toggles]
 
@@ -79,11 +71,8 @@ class AlphaLongitudinalToggles:
     has_long = CP is not None and ui_state.has_longitudinal_control
     self._alpha_long_toggle.set_visible(CP is not None and CP.alphaLongitudinalAvailable)
     self._experimental_toggle.action_item.set_enabled(CP is None or has_long)
-    self._dec_toggle.action_item.set_enabled(has_long)
-    # DEC decides the mode on its own, and the e2e assists never act under it
-    dec = self._dec_toggle.action_item.get_state()
-    self._set_speed_toggle.action_item.set_enabled(has_long and not dec)
-    self._lead_gap_toggle.action_item.set_enabled(has_long and not dec)
+    self._set_speed_toggle.action_item.set_enabled(has_long)
+    self._lead_gap_toggle.action_item.set_enabled(has_long)
 
   def refresh(self):
     for key, item in self._refresh_toggles:
@@ -110,15 +99,4 @@ class AlphaLongitudinalToggles:
     self._confirm(self._alpha_long_toggle, on_result)
 
   def _on_experimental_mode(self, state: bool):
-    if not state or ui_state.params.get_bool("ExperimentalModeConfirmed"):
-      ui_state.params.put_bool("ExperimentalMode", state, block=True)
-      return
-
-    def on_result(result: DialogResult):
-      if result == DialogResult.CONFIRM:
-        ui_state.params.put_bool("ExperimentalMode", True, block=True)
-        ui_state.params.put_bool("ExperimentalModeConfirmed", True, block=True)
-      else:
-        self._experimental_toggle.action_item.set_state(False)
-
-    self._confirm(self._experimental_toggle, on_result)
+    ui_state.set_experimental_mode(state)

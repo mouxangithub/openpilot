@@ -16,12 +16,14 @@ from openpilot.common.constants import CV
 from openpilot.common.realtime import DT_MDL
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.car.cruise import V_CRUISE_MAX
+from openpilot.selfdrive.controls.lib.accel_boost import AccelBoost
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, get_accel_from_plan
 from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_lead_gap.controller import E2ELeadGapController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
 from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import LeadForecast
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import _OP_LONG_A_BUDGET
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot import make_smart_cruise_control
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.assist_mirror import SpeedLimitAssistMirror
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import pcm_machine_owns_sla
@@ -32,6 +34,7 @@ from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.models.helpers import get_active_bundle
 
 LongitudinalPlanSource = custom.LongitudinalPlanSP.LongitudinalPlanSource
+LIMITER_SOURCES = (LongitudinalPlanSource.sccVision, LongitudinalPlanSource.sccMap, LongitudinalPlanSource.speedLimitAssist)
 CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
 ALLOW_THROTTLE_THRESHOLD = 0.4
 MIN_ALLOW_THROTTLE_SPEED = 2.5
@@ -44,6 +47,7 @@ def get_coast_accel(pitch):
 class LongitudinalPlannerSP:
   # set by the host planner before the e2e candidate is built
   CP: structs.CarParams
+  accel_boost: AccelBoost
   fcw: bool
   a_cruise: float
   v_desired_trajectory: np.ndarray
@@ -73,13 +77,15 @@ class LongitudinalPlannerSP:
 
     self.output_v_target = 0.
     self.output_a_target = 0.
+    self.source_a_target = 0.
     self.seed_fault_logged = False
     # the coast limit and throttle gate upstream's chill cruise dropped; the e2e lifts still take them
     self.allow_throttle = True
     self.accel_coast = ACCEL_MAX
 
   def is_e2e(self, sm: messaging.SubMaster) -> bool:
-    return bool(self.CP.openpilotLongitudinalControl)
+    # zoompilot keeps chill (selfdrived_zp): the model's candidate only in experimental mode
+    return bool(self.CP.openpilotLongitudinalControl and sm['selfdriveStateSP'].zoompilot.experimentalMode)
 
   def _sla_owner(self, icbm: bool):
     # the machine exists only on pcm openpilot-long cars, where it owns SLA while ICBM is passive
@@ -138,24 +144,42 @@ class LongitudinalPlannerSP:
       self.source = LongitudinalPlanSource.cruise
 
     self.output_v_target, self.output_a_target = v_target, a_target
+    self.source_a_target = a_target
     return self.output_v_target, self.output_a_target
 
-  def update_e2e_target(self, sm: messaging.SubMaster, a_model: float, reset_state: bool) -> float:
+  def update_cruise_accel(self, a_cruise: float) -> float:
+    """Upstream caps the cruise candidate at A_CRUISE_MIN, gentle for a set-speed drop. SCC and
+    SLA brake through the same candidate by lowering v_cruise, planned on their own budget: let
+    their decel through, down to that budget."""
+    if self.source in LIMITER_SOURCES and self.source_a_target < a_cruise:
+      return max(float(self.source_a_target), -_OP_LONG_A_BUDGET)
+    return a_cruise
+
+  def update_e2e_target(self, sm: messaging.SubMaster, a_model: float, should_stop_model: bool,
+                        reset_state: bool) -> tuple[float, bool]:
+    """The e2e candidate the host planner takes the minimum over. In chill it can never be the
+    minimum (cruise, listed first, wins a tie) and never asks to stop."""
     is_e2e = self.is_e2e(sm)
-    # lateral acceleration from the measured steering, as the host's cruise candidate computes it
-    CS = sm['carState']
-    steer_deg = CS.steeringAngleDeg - sm['vehicleParameters'].angleOffsetDeg
-    steer_lat_accel = CS.vEgo ** 2 * math.radians(steer_deg) / (self.CP.steerRatio * self.CP.wheelbase)
+    # lateral acceleration from the measured steering: controlsd's curvature from the learned steer
+    # ratio, angle offset and roll (both consumers take its magnitude)
+    steer_lat_accel = sm['controlsState'].curvature * sm['carState'].vEgo ** 2
     # output_v_target is this frame's cruise target after SCC and SLA
     a_e2e = self.e2e_set_speed.update(sm, a_model, self.output_v_target, is_e2e, reset_state,
                                       self.allow_throttle, self.fcw, self.accel_coast, steer_lat_accel)
+    # upstream's gas boost learns past the model from gas presses; the set-speed floor already lifts
+    # it, so the boost only runs with the floor off
+    if self.e2e_set_speed.enabled:
+      self.accel_boost.total_boost = 0.
+      self.accel_boost.boost_eligible = False
     # the MPC candidate as the host planner takes it from this frame's solution
     a_mpc = get_accel_from_plan(self.v_desired_trajectory, self.a_desired_trajectory, CONTROL_N_T_IDX,
                                 action_t=self.CP.longitudinalActuatorDelay + DT_MDL)
     # a_cruise is last frame's: the host builds this frame's after the e2e candidate
     self.a_e2e = self.e2e_lead_gap.update(sm, a_e2e, float(a_mpc), is_e2e, reset_state, self.allow_throttle,
                                           self.fcw, self.a_cruise, steer_lat_accel)
-    return self.a_e2e
+    if not is_e2e:
+      return ACCEL_MAX, False
+    return self.a_e2e, should_stop_model
 
   def update(self, sm: messaging.SubMaster) -> None:
     self.events_sp.clear()

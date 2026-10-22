@@ -16,7 +16,8 @@ import openpilot.cereal.messaging as messaging
 from openpilot.cereal import custom
 from opendbc.car import structs
 from openpilot.common.test import OpenpilotTestCase
-from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_planner import LongitudinalPlannerSP
+from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_planner import LIMITER_SOURCES, LongitudinalPlannerSP
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import _OP_LONG_A_BUDGET
 
 LongitudinalPlanSource = custom.LongitudinalPlanSP.LongitudinalPlanSource
 
@@ -93,3 +94,26 @@ class TestSccNeedsLongOrIcbm:
   def test_icbm_or_op_long_lets_scc_run(self):
     assert self._scc_enabled(op_long=False, pcm_cruise_speed=False)
     assert self._scc_enabled(op_long=True, pcm_cruise_speed=True)
+
+
+class TestLimiterDecel(OpenpilotTestCase):
+  """Upstream caps the cruise candidate at A_CRUISE_MIN; SCC and SLA keep their own budget."""
+
+  def make(self, source, a_target):
+    cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=True)
+    planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(), MagicMock())
+    planner.source, planner.source_a_target = source, a_target
+    return planner
+
+  def test_limiters_brake_past_the_cruise_floor(self):
+    for source in LIMITER_SOURCES:
+      assert self.make(source, -1.0).update_cruise_accel(-0.5) == -1.0
+
+  def test_floored_at_the_limiter_budget(self):
+    assert self.make(LongitudinalPlanSource.sccMap, -2.0).update_cruise_accel(-0.5) == -_OP_LONG_A_BUDGET
+
+  def test_set_speed_drop_keeps_upstreams_floor(self):
+    assert self.make(LongitudinalPlanSource.cruise, -1.0).update_cruise_accel(-0.5) == -0.5
+
+  def test_never_raises_the_cruise_candidate(self):
+    assert self.make(LongitudinalPlanSource.speedLimitAssist, -0.2).update_cruise_accel(-0.5) == -0.5

@@ -143,7 +143,6 @@ def test_no_lead():
 @pytest.mark.parametrize("args, reason", [
   ({'is_e2e': False}, Inhibit.inactive),
   ({'reset_state': True}, Inhibit.inactive),
-  ({'dec_active': True}, Inhibit.decActive),
 ])
 def test_idle_states_reset(args, reason):
   ctl, _ = run(build_sm(V, FAR))

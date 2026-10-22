@@ -26,6 +26,12 @@ sections:
       equals: true
     enablement:
     - $ref: '#/macros/not_engaged'
+  - key: ExperimentalMode
+    widget: toggle
+    title: Experimental Mode
+    description: Let the driving model control the gas and brakes. Off is chill mode.
+    enablement:
+    - $ref: '#/macros/longitudinal'
   - key: ExperimentalModeSetSpeed
     widget: toggle
     title: Experimental Mode Speed Assist
