@@ -8,6 +8,9 @@ The mici Cruise panel's Alpha Longitudinal entry.
 """
 from openpilot.system.ui.lib.multilang import tr
 
+# mici's experimental mode icon; upstream retired its copy with chill mode
+EXPERIMENTAL_ICON = "../../sunnypilot/selfdrive/assets/icons_mici/experimental_mode.png"
+
 # the e2e assists, each named by one badge word
 E2E_ASSISTS = (("ExperimentalModeSetSpeed", "speed"), ("ExperimentalModeLeadGap", "follow"))
 

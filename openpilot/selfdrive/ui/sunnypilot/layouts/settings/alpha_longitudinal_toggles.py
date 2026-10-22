@@ -42,7 +42,7 @@ class AlphaLongitudinalToggles:
     self._experimental_toggle = toggle_item_sp(
       title=lambda: tr("Experimental Mode"),
       description=lambda: tr(EXPERIMENTAL_MODE_DESCRIPTION),
-      callback=self._on_experimental_mode)
+      callback=ui_state.set_experimental_mode)
 
     self._set_speed_toggle = toggle_item_sp(
       title=lambda: tr("Experimental Mode Speed Assist"),
@@ -97,6 +97,3 @@ class AlphaLongitudinalToggles:
         self._alpha_long_toggle.action_item.set_state(False)
 
     self._confirm(self._alpha_long_toggle, on_result)
-
-  def _on_experimental_mode(self, state: bool):
-    ui_state.set_experimental_mode(state)

@@ -30,6 +30,9 @@ class HudRendererSP(HudRenderer):
     super()._render(rect)
     self.blind_spot_indicators.render(rect)
 
+  def left_blind_spot_detected(self) -> bool:
+    return self.blind_spot_indicators.left_detected
+
   def _has_blind_spot_detected(self) -> bool:
 
     return self.blind_spot_indicators.detected

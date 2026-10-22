@@ -24,7 +24,7 @@ from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.speed_prof
 # clip from J_CRUISE_VALS. Mirrored from selfdrive/controls/lib/longitudinal_planner.py, which
 # cannot be imported from here (it imports the SP overlay, which imports this package);
 # tests/test_limits.py pins these to the upstream source.
-_OP_LONG_A_BUDGET = 1.2
+OP_LONG_A_BUDGET = 1.2
 _OP_LONG_J_BP = [0., 10., 25., 40.]
 _OP_LONG_J_VALS = [1.6, 1.2, 0.8, 0.6]
 
@@ -88,7 +88,7 @@ class PlanningLimits:
 
 def get_planning_limits(CP: structs.CarParams) -> PlanningLimits:
   if CP.openpilotLongitudinalControl:
-    return PlanningLimits(a_budget=_OP_LONG_A_BUDGET, t_lead=float(CP.longitudinalActuatorDelay), op_long=True)
+    return PlanningLimits(a_budget=OP_LONG_A_BUDGET, t_lead=float(CP.longitudinalActuatorDelay), op_long=True)
 
   profile = get_actuation_profile(CP.brand)
   return PlanningLimits(a_budget=profile.stock_a_budget, t_lead=_STOCK_RESPONSE_T, op_long=False,

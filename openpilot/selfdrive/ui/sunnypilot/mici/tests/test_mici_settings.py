@@ -12,6 +12,8 @@ import os
 import pytest
 from unittest import mock
 
+from opendbc.car.mazda.values import MazdaFlags
+
 os.environ["BIG"] = "0"
 os.environ.setdefault("SCALE", "1")
 
@@ -359,8 +361,9 @@ class TestJerkAwareToggle:
     from openpilot.selfdrive.ui.ui_state import ui_state
 
     class _CP:
+      brand = "mazda"
+      flags = 0
       steerControlType = car.CarParams.SteerControlType.torque
-      enableBsm = False
 
     old_cp = ui_state.CP
     ui_state.CP = _CP()
@@ -406,7 +409,7 @@ class TestMadsLimitedCallSignature:
     class _CP:
       brand = "mazda"
       steerControlType = car.CarParams.SteerControlType.torque
-      enableBsm = True
+      flags = MazdaFlags.HAS_BSM
 
     class _CPSP:
       flags = 0
@@ -622,6 +625,33 @@ class TestLayoutsSurviveRender:
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.home import MiciHomeLayoutSP
 
     render(MiciHomeLayoutSP())
+
+  def test_home_shows_experimental_mode_after_network(self, params, monkeypatch):
+    from openpilot.selfdrive.ui.sunnypilot.mici.layouts.home import MiciHomeLayoutSP
+    from openpilot.selfdrive.ui.ui_state import ui_state
+
+    home = MiciHomeLayoutSP()
+    assert home._status_bar_layout.widgets[2] is home._experimental_icon
+    for has_long, experimental, shown in ((True, True, True), (True, False, False), (False, True, False)):
+      monkeypatch.setattr(ui_state, "has_longitudinal_control", has_long)
+      monkeypatch.setattr(ui_state, "experimental_mode", experimental)
+      assert home._experimental_icon.is_visible == shown
+    render(home)
+
+  def test_home_knows_the_port_jetlink_holds(self, params, monkeypatch):
+    # a Jetson enumerates as nothing comma knows; with the link holding the port it is not unknown
+    from types import SimpleNamespace
+    from openpilot.selfdrive.ui.sunnypilot.mici.layouts.home import MiciHomeLayoutSP
+    from openpilot.selfdrive.ui.ui_state import ui_state
+
+    monkeypatch.setattr(ui_state, "usb_connected", True)
+    monkeypatch.setattr(ui_state, "usb_unknown", True)
+    home = MiciHomeLayoutSP()
+    for jetlink, shown in ((None, True), (SimpleNamespace(holds_port=False), True), (SimpleNamespace(holds_port=True), False)):
+      monkeypatch.setattr(ui_state, "jetlink", jetlink)
+      ui_state._enforce_usb_port()
+      home._set_chestnut_visibility()
+      assert home._usb_icon.is_visible == shown
 
 
 class TestRowDescriptions:
@@ -908,12 +938,10 @@ class TestAlphaLongitudinalPanelMici:
 
   def test_moved_switches_appear_once(self, params):
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.alpha_longitudinal import AlphaLongitudinalLayoutMici
-    from openpilot.selfdrive.ui.sunnypilot.mici.layouts.cruise import CruiseLayoutMici
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.developer import DeveloperLayoutMiciSP
 
     developer = DeveloperLayoutMiciSP()
     assert developer._alpha_long_toggle not in developer._scroller.items
-    assert not hasattr(CruiseLayoutMici(), "_dec_toggle")
 
     alpha = AlphaLongitudinalLayoutMici()
     assert [key for key, _ in alpha._refresh_toggles] == [
@@ -978,7 +1006,7 @@ class TestAlphaLongitudinalPanelMici:
     monkeypatch.setattr(gui_app, "push_widget", pushed.append)
     layout = alpha_longitudinal.AlphaLongitudinalLayoutMici()
     for state in (False, True):
-      layout._on_experimental_mode(state)
+      layout._experimental_toggle._toggle_callback(state)
       assert params.get_bool("ExperimentalMode") is state
     assert not pushed
 
@@ -1026,7 +1054,7 @@ class TestOverriddenToggles:
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.visuals import VisualsLayoutMici
     from openpilot.selfdrive.ui.ui_state import ui_state
 
-    monkeypatch.setattr(ui_state, "CP", car.CarParams.new_message(enableBsm=bsm))
+    monkeypatch.setattr(ui_state, "CP", car.CarParams.new_message(brand="mazda", flags=int(MazdaFlags.HAS_BSM) if bsm else 0))
     toggle = VisualsLayoutMici()._toggles["BlindSpot"]
     assert toggle.enabled == bsm
     assert toggle.superseded == (not bsm)
@@ -1087,3 +1115,20 @@ class TestOverriddenToggles:
     layout._tq_manual_rt.set_checked(False)
     for item in (layout._tq_self_tune, layout._tq_relaxed):
       assert item.enabled and not item.superseded
+
+
+class TestOnroadOverlays:
+  def test_left_blind_spot_hides_the_long_indicator(self, params, monkeypatch):
+    # both sit at the top left; the right blind spot leaves it alone
+    from openpilot.selfdrive.ui.sunnypilot.onroad.blind_spot_indicators import BlindSpotIndicators
+    from openpilot.selfdrive.ui.ui_state import ui_state
+
+    monkeypatch.setattr(ui_state, "blindspot", True)
+    bsm = BlindSpotIndicators()
+    assert not bsm.left_detected
+    bsm._blind_spot_right_alpha_filter.x = 1.
+    assert bsm.detected and not bsm.left_detected
+    bsm._blind_spot_left_alpha_filter.x = 1.
+    assert bsm.left_detected
+    monkeypatch.setattr(ui_state, "blindspot", False)
+    assert not bsm.left_detected

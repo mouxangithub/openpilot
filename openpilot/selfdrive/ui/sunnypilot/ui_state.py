@@ -196,7 +196,6 @@ class UIStateSP(UIStateZP):
       self.reset_onroad_sleep_timer()
 
   def _enforce_constraints(self) -> None:
-    has_long = self.has_longitudinal_control
     CP = self.CP
 
     if CP is not None:
@@ -230,10 +229,8 @@ class UIStateSP(UIStateZP):
         self.params.remove("LateralJerkTorqueController")
         self.params.remove("AlphaLongitudinalEnabled")
 
-    # No longitudinal control: no experimental mode. Speed assist, custom ACC and SCC keep
-    # their values; card and the planner leave them idle until long or ICBM returns.
-    if not has_long:
-      self.params.remove("ExperimentalMode")
+    # Experimental mode, speed assist, custom ACC and SCC keep their values without longitudinal
+    # control; selfdrived, card and the planner leave them idle until long or ICBM returns.
 
     # ICBM has no toggle: the features that act through it can, wherever the car has it
     self.has_icbm = self.CP is not None and self.CP_SP is not None and icbm_applicable(self.CP, self.CP_SP)

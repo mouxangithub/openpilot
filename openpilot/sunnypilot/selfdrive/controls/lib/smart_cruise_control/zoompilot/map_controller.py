@@ -80,13 +80,16 @@ class SmartCruiseControlMap(UpstreamMap):
     age = max(0., (sm.logMonoTime['modelV2'] - self.fix[1]) * 1e-9)
     return age if age <= _FIX_HOLD_T else None
 
+  def _release_target(self) -> None:
+    self.v_target, self.target_lat, self.target_lon, self.target_distance = 0., 0., 0., 0.
+
   def update_calculations(self, sm: messaging.SubMaster) -> None:
-    self.target_velocities = velocities_from_param("MapTargetVelocities", self.mem_params) or []
     age = self.fix_age(sm)
     if age is None:
       self.candidate, self.candidate_age = None, 0
-      self.v_target, self.target_lat, self.target_lon, self.target_distance = 0., 0., 0., 0.
+      self._release_target()
       return
+    self.target_velocities = velocities_from_param("MapTargetVelocities", self.mem_params) or []
     lat, lon = self.last_position.latitude * TO_RADIANS, self.last_position.longitude * TO_RADIANS
     distances = [distance_to_point(lat, lon, p["latitude"] * TO_RADIANS, p["longitude"] * TO_RADIANS) for p in self.target_velocities]
 
@@ -114,7 +117,7 @@ class SmartCruiseControlMap(UpstreamMap):
           # keep the target at its current distance, since the published decel divides by it
           self.target_distance = d
           return
-      self.v_target, self.target_lat, self.target_lon, self.target_distance = 0., 0., 0., 0.
+      self._release_target()
 
     if confirmed:
       self.v_target, self.target_lat, self.target_lon, self.target_distance = best

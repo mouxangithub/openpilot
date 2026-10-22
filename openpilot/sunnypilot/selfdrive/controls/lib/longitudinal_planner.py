@@ -23,7 +23,7 @@ from openpilot.sunnypilot.selfdrive.controls.lib.e2e_lead_gap.controller import 
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
 from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import LeadForecast
-from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import _OP_LONG_A_BUDGET
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import OP_LONG_A_BUDGET
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot import make_smart_cruise_control
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.assist_mirror import SpeedLimitAssistMirror
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import pcm_machine_owns_sla
@@ -77,7 +77,6 @@ class LongitudinalPlannerSP:
 
     self.output_v_target = 0.
     self.output_a_target = 0.
-    self.source_a_target = 0.
     self.seed_fault_logged = False
     # the coast limit and throttle gate upstream's chill cruise dropped; the e2e lifts still take them
     self.allow_throttle = True
@@ -144,15 +143,14 @@ class LongitudinalPlannerSP:
       self.source = LongitudinalPlanSource.cruise
 
     self.output_v_target, self.output_a_target = v_target, a_target
-    self.source_a_target = a_target
     return self.output_v_target, self.output_a_target
 
   def update_cruise_accel(self, a_cruise: float) -> float:
     """Upstream caps the cruise candidate at A_CRUISE_MIN, gentle for a set-speed drop. SCC and
     SLA brake through the same candidate by lowering v_cruise, planned on their own budget: let
     their decel through, down to that budget."""
-    if self.source in LIMITER_SOURCES and self.source_a_target < a_cruise:
-      return max(float(self.source_a_target), -_OP_LONG_A_BUDGET)
+    if self.source in LIMITER_SOURCES and self.output_a_target < a_cruise:
+      return max(float(self.output_a_target), -OP_LONG_A_BUDGET)
     return a_cruise
 
   def update_e2e_target(self, sm: messaging.SubMaster, a_model: float, should_stop_model: bool,

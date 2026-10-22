@@ -538,7 +538,7 @@ struct SelfdriveStateZP @0xde02074862680d1d {
   icbmHold @1 :Bool;
   # Experimental (end-to-end) longitudinal, else chill: the ExperimentalMode param on openpilot
   # long. Upstream deprecated selfdriveState.experimentalMode when it went experimental only.
-  experimentalMode @2 :Bool;
+  experimentalMode @2 :Bool = true;
 }
 
 struct CarParamsZP @0x89825c62ea259087 {
@@ -685,7 +685,7 @@ struct LongitudinalPlanZP @0xc3b0556e1118c2db {
       disabled @0;      # the ExperimentalModeLeadGap toggle is off (and logs from before it)
       none @1;
       inactive @2;      # not e2e, or long control reset
-      decActive @3;
+      decActive @3;     # retired 2026-10, older logs only
       invalid @4;
       hold @5;          # a trip cleared less than the hold time ago
       fcw @6;
@@ -745,7 +745,7 @@ struct LongitudinalPlanZP @0xc3b0556e1118c2db {
       disabled @0;      # the ExperimentalModeSetSpeed toggle is off (and logs from before it)
       none @1;
       inactive @2;      # not e2e, or long control reset
-      decActive @3;
+      decActive @3;     # retired 2026-10, older logs only
       invalid @4;
       hold @5;          # a hazard cleared less than the hold time ago
       fcw @6;

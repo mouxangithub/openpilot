@@ -146,9 +146,8 @@ class E2ESetSpeedController:
     self.boost = 0.
     self.added = 0.
     self.a_model = 0.
-    # DEC here means FCW, standstill or a predicted stop, and invalid means no model to trust: both
-    # hazards. Engaging or leaving experimental mode is not.
-    self.hold_left = self.hold_frames if reason in (Inhibit.decActive, Inhibit.invalid) else 0
+    # invalid means no model to trust, a hazard. Engaging or leaving experimental mode is not.
+    self.hold_left = self.hold_frames if reason == Inhibit.invalid else 0
     self.inhibit = reason
 
   @property
@@ -163,7 +162,7 @@ class E2ESetSpeedController:
   def delivered(self, a_out: float, a_e2e: float) -> None:
     """The planner's output and its final e2e candidate this frame. Everything lifted onto the e2e
     candidate over the model (ours and the gap assist's) that reached the car is speed added."""
-    if self.inhibit in (Inhibit.disabled, Inhibit.inactive, Inhibit.decActive, Inhibit.invalid):
+    if self.inhibit in (Inhibit.disabled, Inhibit.inactive, Inhibit.invalid):
       return
     lift = a_e2e - self.a_model
     self.added = max(0., self.added + float(np.clip(a_out - self.a_model, min(lift, 0.), max(lift, 0.))) * self.dt)

@@ -49,7 +49,7 @@ class TestOpLongMirror:
     # SCC and SLA keep their 1.2 m/s^2 (LongitudinalPlannerSP.update_cruise_accel); a set-speed
     # drop gets upstream's gentler floor
     up = _module_constants(UPSTREAM_PLANNER)
-    assert limits._OP_LONG_A_BUDGET == 1.2 > -up["A_CRUISE_MIN"]
+    assert limits.OP_LONG_A_BUDGET == 1.2 > -up["A_CRUISE_MIN"]
     assert "LongitudinalPlannerSP.update_cruise_accel(self, self.a_cruise)" in UPSTREAM_PLANNER.read_text()
 
 

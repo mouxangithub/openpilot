@@ -6,6 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 
 from opendbc.car.structs import car
+from opendbc.sunnypilot.car.interfaces import has_bsm
 from openpilot.selfdrive.ui.sunnypilot.mici.widgets.button import (
   BigButtonSP,
   BigMultiParamToggleSP,
@@ -312,7 +313,7 @@ class SteeringLayoutMici(NavScroller):
 
   @staticmethod
   def _car_has_bsm() -> bool:
-    return ui_state.CP is not None and ui_state.CP.enableBsm
+    return ui_state.CP is not None and has_bsm(ui_state.CP, ui_state.CP_SP)
 
   def _update_torque_state(self, self_tune_on: bool, custom_on: bool):
     # Controls refresh themselves; the parent only maintains summary badges.

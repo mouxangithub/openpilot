@@ -7,8 +7,10 @@ See the LICENSE.md file in the root directory for more details.
 import pyray as rl
 
 from openpilot.common.constants import CV
+from openpilot.selfdrive.ui import UI_BORDER_SIZE
 from openpilot.selfdrive.ui.mici.onroad.torque_bar import TorqueBar
 from openpilot.selfdrive.ui.sunnypilot.onroad.developer_ui import DeveloperUiRenderer, DeveloperUiState, get_bottom_dev_ui_offset
+from openpilot.selfdrive.ui.sunnypilot.onroad.exp_button import ExpButton
 from openpilot.selfdrive.ui.sunnypilot.onroad.road_name import RoadNameRenderer
 from openpilot.selfdrive.ui.sunnypilot.onroad.rocket_fuel import RocketFuel
 from openpilot.selfdrive.ui.sunnypilot.onroad.speed_limit import SpeedLimitRenderer
@@ -24,6 +26,10 @@ from openpilot.system.ui.lib.text_measure import measure_text_cached
 
 SLA_ACTIVE_COLOR = rl.Color(0x91, 0x9b, 0x95, 0xff)
 
+# the experimental mode button's place, as upstream drew it before retiring chill mode
+EXP_BUTTON_SIZE = 192
+EXP_BUTTON_ICON_SIZE = 144
+
 
 class HudRendererSP(HudRenderer):
   def __init__(self):
@@ -37,6 +43,7 @@ class HudRendererSP(HudRenderer):
     self.circular_alerts_renderer = CircularAlertsRenderer()
     self.speed_renderer = SpeedRenderer()
     self._torque_bar = TorqueBar(scale=3.0, always=True)
+    self._exp_button = ExpButton(EXP_BUTTON_SIZE, EXP_BUTTON_ICON_SIZE)
 
     self.pcm_cruise_speed: bool = True
     self.show_icbm_status: bool = False
@@ -131,6 +138,11 @@ class HudRendererSP(HudRenderer):
   def _render(self, rect: rl.Rectangle) -> None:
     super()._render(rect)
 
+    if ui_state.has_longitudinal_control:
+      button_x = rect.x + rect.width - UI_BORDER_SIZE - EXP_BUTTON_SIZE
+      button_y = rect.y + UI_BORDER_SIZE
+      self._exp_button.render(rl.Rectangle(button_x, button_y, EXP_BUTTON_SIZE, EXP_BUTTON_SIZE))
+
     if ui_state.torque_bar:
       torque_rect = rect
       if ui_state.developer_ui in (DeveloperUiState.BOTTOM, DeveloperUiState.BOTH):
@@ -144,3 +156,6 @@ class HudRendererSP(HudRenderer):
     self.turn_signal_controller.render(rect)
     self.circular_alerts_renderer.render(rect)
     self.rocket_fuel.render(rect, ui_state.sm)
+
+  def user_interacting(self) -> bool:
+    return self._exp_button.is_pressed

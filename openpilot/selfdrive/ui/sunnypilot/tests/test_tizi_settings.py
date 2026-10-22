@@ -27,12 +27,10 @@ def test_alpha_toggle_is_offroad_only(params, monkeypatch):
 
 def test_moved_switches_appear_once(params):
   from openpilot.selfdrive.ui.sunnypilot.layouts.settings.alpha_longitudinal_toggles import AlphaLongitudinalToggles
-  from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise import CruiseLayout
   from openpilot.selfdrive.ui.sunnypilot.layouts.settings.developer import DeveloperLayoutSP
 
   developer = DeveloperLayoutSP()
   assert developer._alpha_long_toggle not in developer._scroller._items
-  assert not hasattr(CruiseLayout(), "dec_toggle")
 
   alpha = AlphaLongitudinalToggles()
   assert [key for key, _ in alpha._refresh_toggles] == [
@@ -67,7 +65,7 @@ def test_experimental_toggle_needs_no_confirm(params, monkeypatch):
   monkeypatch.setattr(gui_app, "push_widget", pushed.append)
   layout = AlphaLongitudinalToggles()
   for state in (False, True):
-    layout._on_experimental_mode(state)
+    layout._experimental_toggle.action_item.toggle._callback(state)
     assert params.get_bool("ExperimentalMode") is state
   assert not pushed
 
@@ -84,3 +82,41 @@ def test_assists_grey_out_without_long(params, monkeypatch):
     layout.update_state()
     assert layout._set_speed_toggle.action_item.enabled == has_long
     assert layout._lead_gap_toggle.action_item.enabled == has_long
+
+
+def test_onroad_button_switches_experimental_mode(params, monkeypatch):
+  from openpilot.selfdrive.ui.sunnypilot.onroad.exp_button import ExpButton
+  from openpilot.selfdrive.ui.ui_state import ui_state
+
+  button = ExpButton(192, 144)
+  monkeypatch.setattr(ui_state, "has_longitudinal_control", True)
+  for start in (True, False):
+    button._experimental_mode = start
+    button._handle_mouse_release(None)
+    assert params.get_bool("ExperimentalMode") is (not start)
+    assert button._held_or_actual_mode() is (not start)  # shown until selfdrived publishes it
+
+  monkeypatch.setattr(ui_state, "has_longitudinal_control", False)
+  button._experimental_mode = True
+  button._handle_mouse_release(None)
+  assert params.get_bool("ExperimentalMode") is True
+
+
+def test_onroad_button_tap_leaves_the_sidebar(params, monkeypatch):
+  from openpilot.selfdrive.ui.sunnypilot.onroad.augmented_road_view import AugmentedRoadViewSP
+  from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import HudRendererSP
+  from openpilot.system.ui.widgets import Widget
+
+  class View(Widget, AugmentedRoadViewSP):
+    def __init__(self):
+      Widget.__init__(self)
+      AugmentedRoadViewSP.__init__(self)
+      self._hud_renderer = HudRendererSP()
+
+    def _render(self, rect):
+      pass
+
+  view = View()
+  assert view._touch_valid()
+  monkeypatch.setattr(type(view._hud_renderer._exp_button), "is_pressed", property(lambda self: True))
+  assert not view._touch_valid()

@@ -6,7 +6,6 @@ See the LICENSE.md file in the root directory for more details.
 """
 
 import pickle
-import requests
 
 from openpilot.common.hardware import hw
 from openpilot.common.test import OpenpilotTestCase
@@ -33,10 +32,10 @@ class TestFallback(OpenpilotTestCase):
     assert big_pkl is not None and lebowski_file in big_pkl
     assert small_pkl is not None and tsfdo_file in small_pkl
 
-  def test_chunked_models_and_init_modelstate_fallback(self, tmp_path, monkeypatch):
+  def test_local_models_and_init_modelstate_fallback(self, tmp_path, monkeypatch):
     monkeypatch.setattr(hw.Paths, 'model_root', staticmethod(lambda: str(tmp_path)))
     # Loader behavior must not depend on whichever model a live catalog lists
-    # last today. Keep both artifacts local, combined and chunked.
+    # last today. Keep both artifacts local.
     big_bundle = DummyBundle(models=[DummyModel('supercombo', 'driving_test_big_tinygrad.pkl')])
     small_bundle = DummyBundle(models=[DummyModel('supercombo', 'driving_test_small_tinygrad.pkl')])
 

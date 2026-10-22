@@ -12,7 +12,6 @@ from openpilot.sunnypilot.selfdrive.selfdrived.events import EVENTS_SP, EventsSP
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import ET
 from openpilot.sunnypilot.selfdrive.selfdrived.selfdrived_zp import DISTANCE_LONG_PRESS, PARAMS_READ_FRAMES, SelfdrivedZP
 
-ButtonEvent = structs.CarState.ButtonEvent
 ButtonType = structs.CarState.ButtonEvent.Type
 EventNameSP = custom.OnroadEventSP.EventName
 
@@ -24,8 +23,9 @@ def cs_sp(farther: bool = False):
 
 
 def car_state(gap: bool | None = None):
-  CS = structs.CarState(cruiseState=structs.CarState.CruiseState(available=True))
-  CS.buttonEvents = [] if gap is None else [ButtonEvent(type=ButtonType.gapAdjustCruise, pressed=gap)]
+  CS = messaging.new_message('carState').carState
+  CS.cruiseState.available = True
+  CS.buttonEvents = [] if gap is None else [{'type': ButtonType.gapAdjustCruise, 'pressed': gap}]
   return CS
 
 
@@ -54,10 +54,9 @@ class Selfdrived:
     self.events_sp.clear()
     self.personality = self.zp.update(CS, cs_sp(farther), self.events, self.events_sp, self.icbm, self.personality)
     if self.zp.CP.openpilotLongitudinalControl:
-      if any(not be.pressed and be.type == ButtonType.gapAdjustCruise for be in CS.buttonEvents):
-        if self.zp.gap_release_steps():
-          self.personality = (self.personality - 1) % 3
-          self.events.add(EventName.personalityChanged)
+      if any(not be.pressed and be.type == ButtonType.gapAdjustCruise for be in CS.buttonEvents) and self.zp.gap_release_steps:
+        self.personality = (self.personality - 1) % 3
+        self.events.add(EventName.personalityChanged)
 
   def hold_gap(self, frames: int) -> None:
     self.step(car_state(True))
@@ -117,11 +116,11 @@ class TestExperimentalSwitch:
     sd.zp.publish(msg)
     assert msg.zoompilot.experimentalMode is True
 
-  def test_alert_names_the_new_mode(self, monkeypatch):
-    from openpilot.sunnypilot.selfdrive.selfdrived import events
+  def test_alert_names_the_new_mode(self):
     alert = EVENTS_SP[EventNameSP.experimentalModeSwitchedDEPRECATED][ET.WARNING]
-    for on, text in ((True, "Experimental On"), (False, "Experimental Off")):
-      monkeypatch.setattr(events, "Params", lambda on=on: FakeParams(ExperimentalMode=on))
+    sd = Selfdrived()
+    for text in ("Experimental Off", "Experimental On"):
+      sd.hold_gap(DISTANCE_LONG_PRESS + 5)
       assert alert(None, None, None, False, 0, None).alert_text_1 == text
 
 

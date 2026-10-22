@@ -12,8 +12,8 @@ from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EventsBase, Pr
   NoEntryAlert, ImmediateDisableAlert, EngagementAlert, NormalPermanentAlert, AlertCallbackType, wrong_car_mode_alert
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import PCM_LONG_REQUIRED_MAX_SET_SPEED, CONFIRM_SPEED_THRESHOLD
 from openpilot.common.hardware import HARDWARE
-from openpilot.common.params import Params
 from openpilot.sunnypilot.selfdrive.selfdrived.events_zp import EVENTS_SP_ZP, EventsWithZP
+from openpilot.sunnypilot.selfdrive.selfdrived.selfdrived_zp import SelfdrivedZP
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -30,8 +30,7 @@ IS_MICI = HARDWARE.get_device_type() == 'mici'
 
 
 def experimental_mode_switched_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
-  # selfdrived_zp writes the param, blocking, just before raising the event
-  state = "On" if Params().get_bool("ExperimentalMode") else "Off"
+  state = "On" if SelfdrivedZP.switched_to else "Off"
   return NormalPermanentAlert(f"Experimental {state}", duration=1.5)
 
 

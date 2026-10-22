@@ -12,7 +12,7 @@ from openpilot.selfdrive.ui.onroad.augmented_road_view import BORDER_COLORS
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.system.ui.lib.application import ASSETS_DIR, gui_app
 
-EXP_ICON = "icons/experimental_white.png"
+EXP_ICON = "../../sunnypilot/selfdrive/assets/icons/experimental_white.png"  # upstream retired its copy with chill
 EXP_ICON_NUCLEUS = (0.479, 0.514, 0.125)  # nucleus centre and clear radius, as fractions of the icon width
 EXP_ORBITS_SIZE = 46  # 0.96 of the 48 px dot
 

@@ -72,8 +72,6 @@ def build_sm(experimental_mode: bool) -> MockSubMaster:
 
 def build_planner(op_long: bool = True) -> LongitudinalPlanner:
   CP = structs.CarParams()
-  CP.steerRatio = 15.0
-  CP.wheelbase = 2.7
   CP.longitudinalActuatorDelay = 0.2
   CP.openpilotLongitudinalControl = op_long
   CP_SP = custom.CarParamsSP.new_message().as_reader()
