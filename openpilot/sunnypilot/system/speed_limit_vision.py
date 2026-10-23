@@ -386,7 +386,10 @@ class SpeedLimitVisionDaemon:
       self.Ratekeeper = Ratekeeper
       self.VisionIpcClient = VisionIpcClient
       self.VisionStreamType = VisionStreamType
-      self.sm = messaging.SubMaster(["deviceState", "mapdOut", "procLog", "livePose", "carState"])
+      # sp has no mapdOut/livePose cereal services (they only exist upstream in
+      # StarPilot's fork). Map context arrives via the mem-params channel instead:
+      # MapSpeedLimit / NextMapSpeedLimit / RoadName written by mapd, read below.
+      self.sm = messaging.SubMaster(["deviceState", "procLog", "carState"])
 
     self.client = None
     self.stream_name = ""
@@ -560,18 +563,6 @@ class SpeedLimitVisionDaemon:
     next_limit_ms = 0.0
     next_distance_m = 0.0
     source = "none"
-
-    if self.sm is not None:
-      try:
-        current_limit_ms = float(self.sm["mapdOut"].speedLimit or 0.0)
-        next_limit_ms = float(self.sm["mapdOut"].nextSpeedLimit or 0.0)
-        next_distance_m = float(self.sm["mapdOut"].nextSpeedLimitDistance or 0.0)
-        if current_limit_ms > 0.0 or next_limit_ms > 0.0:
-          source = "mapd"
-      except Exception:
-        current_limit_ms = 0.0
-        next_limit_ms = 0.0
-        next_distance_m = 0.0
 
     if self.params_memory is not None:
       filler_current_limit_ms = float(self.params_memory.get_float("MapSpeedLimit") or 0.0)
@@ -2528,10 +2519,9 @@ class SpeedLimitVisionDaemon:
         except Exception:
           started = False
           cpu_usage = []
-        try:
-          live_pose_inputs_ok = bool(self.sm["livePose"].inputsOK)
-        except Exception:
-          live_pose_inputs_ok = True
+        # sp has no livePose service; without a pose source we must never claim
+        # pose inputs went bad, so inputs_ok stays True.
+        live_pose_inputs_ok = True
 
       camera_connected = False
       try:
@@ -2736,9 +2726,8 @@ class SpeedLimitVisionDaemon:
         ratekeeper.keep_time()
         continue
 
-      if self.sm.updated["livePose"] and not self.sm["livePose"].inputsOK:
-        self.last_live_pose_inputs_not_ok_at = now
-
+      # No livePose service on sp: the pose-recovery throttle (fed by
+      # last_live_pose_inputs_not_ok_at) stays armed at -inf, i.e. never trips.
       if not self.started_prev:
         self.started_prev = True
         self._start_debug_session()
@@ -2761,7 +2750,7 @@ class SpeedLimitVisionDaemon:
         self.last_inference_at = -float("inf")
         self._publish_runtime_telemetry(now, "parked_exit", force=True)
 
-      road_name = self.sm["mapdOut"].roadName
+      road_name = str(self.params_memory.get("RoadName") or "") if self.params_memory is not None else ""
       if self.last_road_name and road_name and road_name != self.last_road_name:
         self._write_debug_event("road_change", previousRoadName=self.last_road_name, roadName=road_name)
         self._clear_detection()
