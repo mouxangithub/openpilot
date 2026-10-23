@@ -12,6 +12,11 @@ from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise_sub_layouts.speed
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode as SpeedLimitMode
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import OffsetType as SpeedLimitOffsetType
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.tiered_offset import (
+  TIER_COUNT,
+  TIER_KEY_SUFFIXES,
+  tier_label,
+)
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets import get_highlighted_description
 from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp, option_item_sp, simple_button_item_sp, LineSeparatorSP
@@ -20,7 +25,8 @@ from openpilot.system.ui.widgets.network import NavButton
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 
 SPEED_LIMIT_MODE_BUTTONS = [tr("Off"), tr("Info"), tr("Warning"), tr("Assist")]
-SPEED_LIMIT_OFFSET_TYPE_BUTTONS = [tr("None"), tr("Fixed"), tr("%")]
+SPEED_LIMIT_OFFSET_TYPE_BUTTONS = [tr("None"), tr("Fixed"), tr("%"), tr("Tiered")]
+SPEED_LIMIT_CONFIRM_BUTTONS = [tr("Never"), tr("Lower"), tr("Higher"), tr("Both")]
 
 SPEED_LIMIT_MODE_DESCRIPTIONS = [
   tr("Off: Disables the Speed Limit functions."),
@@ -33,12 +39,14 @@ SPEED_LIMIT_OFFSET_DESCRIPTIONS = [
   tr("None: No Offset"),
   tr("Fixed: Adds a fixed offset [Speed Limit + Offset]"),
   tr("Percent: Adds a percent offset [Speed Limit + (Offset % Speed Limit)]"),
+  tr("Tiered: Adds a different offset for each speed limit range."),
 ]
 
 
 class PanelType(IntEnum):
   SETTINGS = 0
   POLICY = 1
+  TIERED_OFFSET = 2
 
 
 class SpeedLimitSettingsLayout(Widget):
@@ -53,6 +61,33 @@ class SpeedLimitSettingsLayout(Widget):
 
     items = self._initialize_items()
     self._scroller = Scroller(items, line_separator=False, spacing=0)
+
+    tiered_items = self._initialize_tiered_items()
+    self._tiered_scroller = Scroller(tiered_items, line_separator=False, spacing=0)
+
+  def _initialize_tiered_items(self):
+    """One offset row per posted-limit band.
+
+    The band label comes from the tier table so the row and the resolver
+    cannot disagree about which band a value belongs to.
+    """
+    self._tiered_offset_items = []
+    for index in range(TIER_COUNT):
+      self._tiered_offset_items.append(option_item_sp(
+        title=lambda idx=index: f"{tr('Limit')} {self._get_tier_label(idx)}",
+        param=TIER_KEY_SUFFIXES[index],
+        min_value=-30,
+        max_value=30,
+        description=lambda: tr("Offset applied to the speed limit in this range."),
+        label_callback=self._get_tiered_offset_label,
+      ))
+
+    return list(self._tiered_offset_items)
+
+  @staticmethod
+  def _get_tier_label(index: int) -> str:
+    unit = "km/h" if ui_state.is_metric else "mph"
+    return f"{tier_label(index, ui_state.is_metric)} {unit}"
 
   def _initialize_items(self):
     self._speed_limit_mode = multiple_button_item_sp(
@@ -86,13 +121,30 @@ class SpeedLimitSettingsLayout(Widget):
       label_callback=self._get_offset_label,
     )
 
+    self._confirm_on_change = multiple_button_item_sp(
+      title=lambda: tr("Confirm Limit Changes"),
+      description=lambda: tr("Ask before taking a new speed limit. Adds to the low-speed confirmation, never replaces it."),
+      buttons=SPEED_LIMIT_CONFIRM_BUTTONS,
+      param="SpeedLimitConfirmOnChange",
+      button_width=450,
+    )
+
+    self._tiered_offset_button = simple_button_item_sp(
+      button_text=lambda: tr("Manage Tiered Offsets"),
+      button_width=720,
+      callback=lambda: self._set_current_panel(PanelType.TIERED_OFFSET)
+    )
+
     items = [
       self._speed_limit_mode,
       LineSeparatorSP(40),
       self._source_button,
       LineSeparatorSP(40),
       self._speed_limit_offset_type,
-      self._speed_limit_value_offset
+      self._speed_limit_value_offset,
+      LineSeparatorSP(40),
+      self._confirm_on_change,
+      self._tiered_offset_button,
     ]
     return items
 
@@ -100,6 +152,8 @@ class SpeedLimitSettingsLayout(Widget):
     self._current_panel = panel
     if panel == PanelType.POLICY:
       self._policy_layout.show_event()
+    elif panel == PanelType.TIERED_OFFSET:
+      self._tiered_scroller.show_event()
 
   @staticmethod
   def _get_mode_description():
@@ -119,6 +173,11 @@ class SpeedLimitSettingsLayout(Widget):
     elif offset_type == int(SpeedLimitOffsetType.fixed):
       return f"{value} {unit}"
     return str(value)
+
+  @staticmethod
+  def _get_tiered_offset_label(value):
+    unit = tr("km/h") if ui_state.is_metric else tr("mph")
+    return f"{value} {unit}"
 
   def _update_state(self):
     super()._update_state()
@@ -156,10 +215,19 @@ class SpeedLimitSettingsLayout(Widget):
 
     offset_type = ui_state.params.get("SpeedLimitOffsetType", return_default=True)
     self._speed_limit_value_offset.set_visible(offset_type != int(SpeedLimitOffsetType.off))
+    self._tiered_offset_button.set_visible(offset_type == int(SpeedLimitOffsetType.tiered))
 
   def _render(self, rect):
     if self._current_panel == PanelType.POLICY:
       self._policy_layout.render(rect)
+      return
+
+    if self._current_panel == PanelType.TIERED_OFFSET:
+      self._back_button.set_position(self._rect.x, self._rect.y + 20)
+      self._back_button.render()
+      content_rect = rl.Rectangle(rect.x, rect.y + self._back_button.rect.height + 40,
+                                  rect.width, rect.height - self._back_button.rect.height - 40)
+      self._tiered_scroller.render(content_rect)
       return
 
     self._back_button.set_position(self._rect.x, self._rect.y + 20)

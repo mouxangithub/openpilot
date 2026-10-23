@@ -19,6 +19,10 @@ from openpilot.sunnypilot.common.param_read import read_bool, read_float
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import COMMIT_FRAC, get_planning_limits
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import LIMIT_MAX_MAP_DATA_AGE, LIMIT_ADAPT_ACC, V_CRUISE_UNSET
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Policy, OffsetType
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.tiered_offset import (
+  TIER_KEY_SUFFIXES,
+  tiered_offset_ms,
+)
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.vision_limit import (
   merge_lower_limit,
   resolve_vision_limit,
@@ -99,6 +103,10 @@ class SpeedLimitResolver:
       self.params
     )
     self.offset_value = self.params.get("SpeedLimitValueOffset", return_default=True)
+    # Tiered offsets: one value per posted-limit band, read once here and
+    # refreshed with the other params. The tiers only apply when the offset
+    # type is `tiered`; the single value above stays in charge otherwise.
+    self.tier_offsets = self._read_tier_offsets()
 
     # carrot phone-navigation limit: folded into the `map` source so it is both
     # displayed by the SLA widget and available to Speed Limit Assist. Opt-out
@@ -137,6 +145,19 @@ class SpeedLimitResolver:
       self.offset_type = self.params.get("SpeedLimitOffsetType", return_default=True)
       self.offset_value = self.params.get("SpeedLimitValueOffset", return_default=True)
       self.use_carrot_limits = self.params.get_bool("CarrotNavCruiseSpeedEnabled")
+      self.tier_offsets = self._read_tier_offsets()
+
+  def _read_tier_offsets(self) -> list[float]:
+    """The per-band offset values, in the unit the user picked.
+
+    A tier whose parameter is missing reads as 0, so a partially configured
+    set of tiers degrades to "no offset on the missing bands" rather than
+    failing the whole feature.
+    """
+    values = []
+    for key in TIER_KEY_SUFFIXES:
+      values.append(float(self.params.get(key, return_default=True)))
+    return values
 
   def _get_speed_limit_offset(self) -> float:
     if self.offset_type == OffsetType.off:
@@ -145,8 +166,18 @@ class SpeedLimitResolver:
       return float(self.offset_value * (CV.KPH_TO_MS if self.is_metric else CV.MPH_TO_MS))
     elif self.offset_type == OffsetType.percentage:
       return float(self.offset_value * 0.01 * self.speed_limit)
+    elif self.offset_type == OffsetType.tiered:
+      return self._get_tiered_offset()
     else:
       raise NotImplementedError("Offset not supported")
+
+  def _get_tiered_offset(self) -> float:
+    """The offset for the band the current posted limit falls into.
+
+    The band is chosen from the posted limit, not from the current speed: a
+    60 km/h sign is the 60 band whether the car is doing 40 or 70 in it.
+    """
+    return tiered_offset_ms(self.speed_limit, self.tier_offsets, self.is_metric)
 
   def _reset_limit_sources(self, source: custom.LongitudinalPlanSP.SpeedLimit.Source) -> None:
     self.limit_solutions[source] = 0.

@@ -20,6 +20,7 @@ class OffsetType(IntEnumBase):
   off = 0
   fixed = 1
   percentage = 2
+  tiered = 3
 
 
 class Mode(IntEnumBase):

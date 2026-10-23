@@ -35,6 +35,19 @@ def confirm_needed_for_change(cluster_conv: int, target_conv: int, is_metric: bo
   return target_conv < cst
 
 
+# Per-direction confirmation policy lives in its own module so it can be
+# tested without this one's swaglog/fcntl chain; re-exported here because
+# callers already import from this module.
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.confirm_direction import (  # noqa: F401
+  CONFIRM_BOTH,
+  CONFIRM_HIGHER,
+  CONFIRM_LOWER,
+  CONFIRM_NEVER,
+  CONFIRM_POLICIES,
+  confirm_needed_for_direction,
+)
+
+
 def settle_conv(v_cap: float, cluster_conv: int, is_metric: bool) -> int:
   """The display speed an SLA cap (m/s) leaves the car at, shared by the pcm SLA machine and
   the cruise arbiter, which announce only when it moves. The cap limits the plan, it never

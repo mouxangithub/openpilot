@@ -297,6 +297,14 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ToyotaStopAndGoHack", {PERSISTENT | BACKUP, BOOL, "0"}},
 
     {"DynamicExperimentalControl", {PERSISTENT | BACKUP, BOOL, "0"}},
+    // Which situations may hand speed control to the driving model under DEC.
+    // All default on, which is the behaviour the controller had before these
+    // switches existed: they can only restrict a blend, never cause one.
+    {"DynamicExperimentalTriggerCurve", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"DynamicExperimentalTriggerLead", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"DynamicExperimentalTriggerSignal", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"DynamicExperimentalTriggerStopLight", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"DynamicExperimentalTriggerLowSpeed", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"BlindSpot", {PERSISTENT | BACKUP, BOOL, "0"}},
     // the model's lead forecast as the long MPC's obstacle; on by default, a hidden off switch
     {"LeadForecast", {PERSISTENT | BACKUP, BOOL, "1"}},
@@ -350,6 +358,25 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // (map_data_priority) ignored the car limit entirely whenever map had one.
     {"SpeedLimitPolicy", {PERSISTENT | BACKUP, INT, "4"}},  // 0=car only, 1=map only, 2=car first, 3=map first, 4=combined (min)
     {"SpeedLimitValueOffset", {PERSISTENT | BACKUP, INT, "0"}},
+
+    // Ask before taking a new speed limit, by direction. 0 = never, 1 = only
+    // when the limit goes down, 2 = only when it goes up, 3 = both. Additive
+    // on top of the existing confirm-speed-threshold rule: it can add a prompt,
+    // never remove one, so 0 reproduces the previous behaviour.
+    {"SpeedLimitConfirmOnChange", {PERSISTENT | BACKUP, INT, "0"}},
+
+    // Tiered speed-limit offsets: one offset per posted-limit band, used when
+    // SpeedLimitOffsetType == 3 (tiered). Bands are the posted limit, not the
+    // current speed: tier 0 is <=30, then 30-50, 50-60, 60-80, 80-100, 100-120,
+    // and the open-ended tier 6 is anything above 120 (all in km/h).
+    // The unit follows the IsMetric setting, exactly like SpeedLimitValueOffset.
+    {"SpeedLimitTierOffset0", {PERSISTENT | BACKUP, INT, "0"}},
+    {"SpeedLimitTierOffset1", {PERSISTENT | BACKUP, INT, "0"}},
+    {"SpeedLimitTierOffset2", {PERSISTENT | BACKUP, INT, "0"}},
+    {"SpeedLimitTierOffset3", {PERSISTENT | BACKUP, INT, "0"}},
+    {"SpeedLimitTierOffset4", {PERSISTENT | BACKUP, INT, "0"}},
+    {"SpeedLimitTierOffset5", {PERSISTENT | BACKUP, INT, "0"}},
+    {"SpeedLimitTierOffset6", {PERSISTENT | BACKUP, INT, "0"}},
 
     // Vision speed limit daemon (speed_limit_vision)
     {"SpeedLimitVisionEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // manager gate: run the vision speed-limit daemon onroad
@@ -449,6 +476,26 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LongitudinalMpcTuningAChangeCost", {PERSISTENT | BACKUP, FLOAT, "200.0"}},
     {"LongitudinalMpcTuningDangerZoneCost", {PERSISTENT | BACKUP, FLOAT, "100.0"}},
     {"LongitudinalMpcTuningLeadDangerFactor", {PERSISTENT | BACKUP, FLOAT, "0.75"}},
+
+    // Three-channel jerk scaling, per personality. The stock path scales every
+    // jerk-related cost with one number, so asking for a gentler acceleration
+    // also softened the approach to the lead and the speed changes. These split
+    // it: `JerkAccel` scales the acceleration-change cost, `JerkSpeed` scales
+    // the jerk cost, and `DangerBias` scales the danger-zone cost on top of
+    // the danger channel. 1.0 means "unchanged", so the defaults reproduce the
+    // stock tuning exactly. Range 0.25 - 2.0; out-of-range values fall back to 1.0.
+    {"LongitudinalMpcTuningAggressiveJerkAccel", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningAggressiveJerkDanger", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningAggressiveJerkSpeed", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningAggressiveDangerBias", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningStandardJerkAccel", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningStandardJerkDanger", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningStandardJerkSpeed", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningStandardDangerBias", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningRelaxedJerkAccel", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningRelaxedJerkDanger", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningRelaxedJerkSpeed", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
+    {"LongitudinalMpcTuningRelaxedDangerBias", {PERSISTENT | BACKUP, FLOAT, "1.0"}},
 
     // Amap / Carrot (phone projection & navigation)
     // CarrotAmapBlindSpotEnabled controls 7706 UDP blind-spot / LiDAR / extBlinker

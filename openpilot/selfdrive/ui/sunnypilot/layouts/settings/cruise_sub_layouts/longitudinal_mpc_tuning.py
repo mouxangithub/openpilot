@@ -51,6 +51,18 @@ class LongitudinalMpcTuningLayout(Widget):
     self._danger_zone_cost = self._opt(tr_noop("Danger Zone Cost"), "LongitudinalMpcTuningDangerZoneCost", 0, 50000, 500, 0)
     self._lead_danger_factor = self._opt(tr_noop("Lead Danger Factor"), "LongitudinalMpcTuningLeadDangerFactor", 25, 150, 5, 2)
 
+    # Three-channel jerk scaling, per personality. 1.00 means "unchanged", so
+    # these are the knobs that let a personality be smoothed on one axis
+    # without moving the other two. Range 0.25 - 2.00.
+    self._jerk_items = []
+    for personality in ("Aggressive", "Standard", "Relaxed"):
+      self._jerk_items += [
+        self._opt(tr_noop(f"Accel Smoothness - {personality}"), f"LongitudinalMpcTuning{personality}JerkAccel", 25, 200, 5, 2),
+        self._opt(tr_noop(f"Speed Smoothness - {personality}"), f"LongitudinalMpcTuning{personality}JerkSpeed", 25, 200, 5, 2),
+        self._opt(tr_noop(f"Safety Gap Bias - {personality}"), f"LongitudinalMpcTuning{personality}DangerBias", 25, 200, 5, 2),
+        self._opt(tr_noop(f"Danger Smoothness - {personality}"), f"LongitudinalMpcTuning{personality}JerkDanger", 25, 200, 5, 2),
+      ]
+
     self._reset_button = simple_button_item_sp(
       button_text=lambda: tr("Reset to Defaults"),
       button_width=720,
@@ -73,6 +85,8 @@ class LongitudinalMpcTuningLayout(Widget):
       (self._danger_zone_cost, 10000),
       (self._lead_danger_factor, 75),
     ]
+    # Every jerk channel defaults to 1.00, i.e. 100 in the scaled control.
+    defaults += [(ctrl, 100) for ctrl in self._jerk_items]
     for ctrl, internal in defaults:
       ctrl.action_item.set_value(internal)
 

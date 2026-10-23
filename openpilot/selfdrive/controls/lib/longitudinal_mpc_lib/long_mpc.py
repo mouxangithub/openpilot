@@ -25,6 +25,10 @@ from openpilot.selfdrive.modeld.constants import index_function
 from openpilot.selfdrive.controls.radard import _LEAD_ACCEL_TAU
 from openpilot.common.params import Params
 from openpilot.sunnypilot.common.param_read import read_bool, read_str
+from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.jerk_channels import (
+  parse_factors,
+  factors_for_personality,
+)
 from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_braking_gap import (
   LeadComfortState, braking_gap_reference, comfort_path_has_reserve,
 )
@@ -66,6 +70,14 @@ CRASH_DISTANCE = .25
 LEAD_DANGER_FACTOR = 0.75
 LIMIT_COST = 1e6
 ACADOS_SOLVER_TYPE = 'SQP_RTI'
+
+# The cereal personality enum values mapped to the names the per-personality
+# tuning params use. Kept next to the costs so the two cannot drift apart.
+_PERSONALITY_NAMES = {
+  log.LongitudinalPersonality.aggressive: "aggressive",
+  log.LongitudinalPersonality.standard: "standard",
+  log.LongitudinalPersonality.relaxed: "relaxed",
+}
 
 # Fewer timestamps don't hurt performance and lead to
 # much better convergence of the MPC with low iterations
@@ -313,6 +325,13 @@ class LongitudinalMpc:
     self.danger_zone_cost = _read_tuning_float(p, "LongitudinalMpcTuningDangerZoneCost", DANGER_ZONE_COST)
     self.lead_danger_factor = _read_tuning_float(p, "LongitudinalMpcTuningLeadDangerFactor", LEAD_DANGER_FACTOR)
 
+    # Three-channel jerk scaling (accel / danger / speed). The per-personality
+    # factors are the user's own values; the personality bias is a separate
+    # multiplier on the danger channel, so the "keep your distance" knob can
+    # differ per personality without the other two channels moving.
+    self.jerk_factors = self._read_jerk_factors(p)
+    self.danger_zone_bias = self._read_danger_bias(p)
+
     # StarPilot speed-dependent following profiles. The document is read once
     # here because Params.get() must stay out of the planning loop; the curve
     # itself is interpolated per frame from this cached copy.
@@ -320,6 +339,36 @@ class LongitudinalMpc:
     if read_bool(p, "LongitudinalFollowingProfileEnabled"):
       raw = read_str(p, "LongitudinalFollowingProfile")
       self.following_profile = load_profile_document(raw) or None
+
+  def _read_jerk_factors(self, p: Params) -> dict[str, tuple[float, float, float]]:
+    """The user's per-personality jerk factors, read from the tuning params.
+
+    The values are plain floats, one per channel and personality, so the
+    settings UI can expose them as sliders without a document parser in the
+    way. A personality the user never configured keeps the stock factors.
+    """
+    factors = {}
+    for personality in ("aggressive", "standard", "relaxed"):
+      values = []
+      for channel in ("Accel", "Danger", "Speed"):
+        key = f"LongitudinalMpcTuning{personality}Jerk{channel}"
+        values.append(_read_tuning_float(p, key, 1.0))
+      factors[personality] = parse_factors(values)
+    return factors
+
+  def _read_danger_bias(self, p: Params) -> dict[str, float]:
+    """The per-personality multiplier on the danger-zone cost.
+
+    This is the "safety gap bias" knob: a higher value makes the car work
+    harder to keep its distance from the car ahead. It is separate from the
+    danger channel of the jerk factors so the two can be reasoned about
+    independently.
+    """
+    bias = {}
+    for personality in ("aggressive", "standard", "relaxed"):
+      key = f"LongitudinalMpcTuning{personality}DangerBias"
+      bias[personality] = _read_tuning_float(p, key, 1.0)
+    return bias
 
   def get_t_follow(self, personality=log.LongitudinalPersonality.standard, v_ego=None):
     """Follow time for a personality.
@@ -424,12 +473,54 @@ class LongitudinalMpc:
     for i in range(N+1):
       self.solver.cost_set(i, 'Zl', Zl)
 
-  def set_weights(self, prev_accel_constraint=True, personality=log.LongitudinalPersonality.standard, jerk_factor=None):
-    if jerk_factor is None:
-      jerk_factor = get_jerk_factor(personality)
+  def set_weights(self, prev_accel_constraint=True, personality=log.LongitudinalPersonality.standard, jerk_factor=None,
+                 jerk_factors=None, danger_bias=None):
+    """Set the MPC cost weights.
+
+    `jerk_factor` is the single scale factor the stock personality path uses,
+    and it is what the carrot source passes when it is in charge. It must keep
+    working: the carrot path scales *all three* channels together, so it takes
+    precedence over the per-personality tuning rather than being replaced by
+    it. Dropping it would silently discard carrot's own contribution.
+
+    `jerk_factors` is the three-channel form: (acceleration, danger, speed).
+    A higher factor makes that channel cost more, so the solver works harder
+    to avoid it - a higher acceleration factor means smoother acceleration,
+    a higher speed factor means smoother speed changes, and the danger factor
+    scales how hard the car works to keep its distance.
+
+    `danger_bias` is the per-personality multiplier on the danger channel,
+    applied on top of the danger factor, so the two knobs compose.
+
+    Precedence, highest first: an explicit `jerk_factors` argument, then an
+    explicit `jerk_factor` (the carrot path), then the user's per-personality
+    tuning, then the stock personality value.
+    """
+    personality_name = _PERSONALITY_NAMES.get(personality, "standard")
+
+    if jerk_factors is None:
+      if jerk_factor is not None:
+        # The carrot source scales every channel by one number; it owns the
+        # weights while it is active, so its value wins over the tuning.
+        jerk_factors = (jerk_factor, jerk_factor, jerk_factor)
+      else:
+        configured = getattr(self, "jerk_factors", None)
+        if configured:
+          jerk_factors = factors_for_personality(personality_name, configured)
+        else:
+          scalar = get_jerk_factor(personality)
+          jerk_factors = (scalar, scalar, scalar)
+
+    if danger_bias is None:
+      bias_map = getattr(self, "danger_zone_bias", None)
+      danger_bias = bias_map.get(personality_name, 1.0) if bias_map else 1.0
+
+    jerk_accel, jerk_danger, jerk_speed = jerk_factors
     a_change_cost = self.a_change_cost if prev_accel_constraint else 0
-    cost_weights = [self.x_ego_obstacle_cost, X_EGO_COST, V_EGO_COST, A_EGO_COST, jerk_factor * a_change_cost, jerk_factor * self.j_ego_cost]
-    constraint_cost_weights = [LIMIT_COST, LIMIT_COST, LIMIT_COST, self.danger_zone_cost]
+    cost_weights = [self.x_ego_obstacle_cost, X_EGO_COST, V_EGO_COST, A_EGO_COST,
+                    jerk_accel * a_change_cost, jerk_speed * self.j_ego_cost]
+    constraint_cost_weights = [LIMIT_COST, LIMIT_COST, LIMIT_COST,
+                               jerk_danger * danger_bias * self.danger_zone_cost]
     self.set_cost_weights(cost_weights, constraint_cost_weights)
 
   def set_cur_state(self, v, a):

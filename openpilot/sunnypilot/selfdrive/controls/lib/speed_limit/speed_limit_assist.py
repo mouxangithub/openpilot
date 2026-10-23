@@ -18,7 +18,7 @@ from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import PCM_LONG_REQUIRED_MAX_SET_SPEED, CONFIRM_SPEED_THRESHOLD
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import compare_cluster_target, confirm_needed_for_change, \
-  set_speed_limit_assist_availability, settle_conv
+  confirm_needed_for_direction, set_speed_limit_assist_availability, settle_conv
 
 ButtonType = car.CarState.ButtonEvent.Type
 EventNameSP = custom.OnroadEventSP.EventName
@@ -64,6 +64,10 @@ class SpeedLimitAssist:
     self.is_metric = self.params.get_bool("IsMetric")
     set_speed_limit_assist_availability(self.CP, self.CP_SP, self.params)
     self.enabled = self.params.get("SpeedLimitMode", return_default=True) == Mode.assist
+    # Which limit changes ask the driver first. 0 = never, 1 = lower only,
+    # 2 = higher only, 3 = both. Additive on top of the confirm-speed-threshold
+    # rule, so the default (never) reproduces the previous behaviour exactly.
+    self.confirm_on_change = int(self.params.get("SpeedLimitConfirmOnChange", return_default=True) or 0)
     self.long_enabled = False
     self.long_enabled_prev = False
     self.is_enabled = False
@@ -84,6 +88,8 @@ class SpeedLimitAssist:
     self._speed_limit_final_last = 0.
     self.speed_limit_prev = 0.
     self.speed_limit_final_last_conv = 0
+    self.speed_limit_final_this_conv = 0
+    self.speed_limit_final_prev_conv = 0
     self.prev_speed_limit_final_last_conv = 0
     self._distance = 0.
     self.prev_settle_conv = 0
@@ -147,6 +153,7 @@ class SpeedLimitAssist:
       self.is_metric = self.params.get_bool("IsMetric")
       set_speed_limit_assist_availability(self.CP, self.CP_SP, self.params)
       self.enabled = self.params.get("SpeedLimitMode", return_default=True) == Mode.assist
+      self.confirm_on_change = int(self.params.get("SpeedLimitConfirmOnChange", return_default=True) or 0)
 
   def update_buttons(self, release_toggle: int) -> None:
     released = self._release_toggle_prev ^ release_toggle
@@ -185,6 +192,13 @@ class SpeedLimitAssist:
     self.speed_limit_final_last_conv = round(self._speed_limit_final_last * speed_conv)
     self.v_cruise_cluster_conv = round(self.v_cruise_cluster * speed_conv)
 
+    # The direction rule needs to know what the limit was *before* this frame,
+    # so the previous value is kept here. `speed_limit_final_last_conv` is
+    # already this frame's value, so comparing it against itself (the earlier
+    # shape of this code) could never see a change.
+    self.speed_limit_final_prev_conv = self.speed_limit_final_this_conv
+    self.speed_limit_final_this_conv = self.speed_limit_final_last_conv
+
     cst_low, cst_high = PCM_LONG_REQUIRED_MAX_SET_SPEED[self.is_metric]
     pcm_long_required_max = cst_low if self._has_speed_limit and self.speed_limit_final_last_conv < CONFIRM_SPEED_THRESHOLD[self.is_metric] else \
                             cst_high
@@ -196,7 +210,17 @@ class SpeedLimitAssist:
   def apply_confirm_speed_threshold(self) -> bool:
     # below CST: always require user confirmation; at/above: a new limit >= CST applies
     # without it (shared rule, speed_limit.helpers.confirm_needed_for_change)
-    return confirm_needed_for_change(self.v_cruise_cluster_conv, self.speed_limit_final_last_conv, self.is_metric)
+    below_threshold = confirm_needed_for_change(self.v_cruise_cluster_conv, self.speed_limit_final_last_conv, self.is_metric)
+
+    # The direction policy is additive: it can ask for a confirmation the
+    # threshold rule would have skipped (a limit going down at high speed,
+    # say), but it never removes one the threshold rule already asks for.
+    by_direction = confirm_needed_for_direction(
+      self.speed_limit_final_prev_conv,
+      self.speed_limit_final_this_conv,
+      self.confirm_on_change,
+    )
+    return below_threshold or by_direction
 
   def get_current_acceleration_as_target(self) -> float:
     return self.a_ego

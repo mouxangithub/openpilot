@@ -62,12 +62,32 @@ class AlphaLongitudinalToggles:
                              "Never closer than chill mode. No effect while Dynamic Experimental Control is on."),
       param="ExperimentalModeLeadGap")
 
+    # Which situations may hand speed control to the model under DEC. All on by
+    # default; a switch that is off can only stop a hand-over, never cause one.
+    self._dec_trigger_specs = (
+      ("DynamicExperimentalTriggerCurve", "DEC: Curves",
+       "Let a curve ahead hand speed control to the model."),
+      ("DynamicExperimentalTriggerLead", "DEC: Slower Lead",
+       "Let a slower or stopped car ahead hand speed control to the model."),
+      ("DynamicExperimentalTriggerSignal", "DEC: Turn Signal",
+       "Let an active turn signal below the lane-change speed hand speed control to the model."),
+      ("DynamicExperimentalTriggerStopLight", "DEC: Stops Ahead",
+       "Let a predicted stop for a light or sign hand speed control to the model."),
+      ("DynamicExperimentalTriggerLowSpeed", "DEC: Low Speed Creep",
+       "Let creeping at very low speed hand speed control to the model."),
+    )
+    self._dec_trigger_toggles = [
+      toggle_item_sp(title=lambda t=title: tr(t), description=lambda d=desc: tr(d), param=param)
+      for param, title, desc in self._dec_trigger_specs
+    ]
+
     self._refresh_toggles = (
       ("AlphaLongitudinalEnabled", self._alpha_long_toggle),
       ("ExperimentalMode", self._experimental_toggle),
       ("ExperimentalModeSetSpeed", self._set_speed_toggle),
       ("ExperimentalModeLeadGap", self._lead_gap_toggle),
       ("DynamicExperimentalControl", self._dec_toggle),
+      *[(param, item) for item, (param, _, _) in zip(self._dec_trigger_toggles, self._dec_trigger_specs, strict=True)],
     )
     self.items = [item for _, item in self._refresh_toggles]
 

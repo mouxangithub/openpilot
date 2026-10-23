@@ -13,6 +13,14 @@ from openpilot.cereal import messaging
 from opendbc.car import structs
 from openpilot.common.params import Params
 from openpilot.selfdrive.modeld.constants import ModelConstants
+from openpilot.sunnypilot.selfdrive.controls.lib.dec.triggers import (
+  TRIGGERS,
+  TRIGGER_CURVE,
+  TRIGGER_LEAD,
+  TRIGGER_LOW_SPEED,
+  TRIGGER_PARAM_KEYS,
+  trigger_allowed,
+)
 
 ModeType = Literal['acc', 'blended']
 
@@ -61,6 +69,31 @@ def should_blend(s: DecSignals) -> bool:
   return slowdown_detected or s.creeping
 
 
+def should_blend_with_triggers(s: DecSignals, triggers: dict[str, bool] | None) -> bool:
+  """`should_blend`, with the per-trigger switches applied.
+
+  The switches only ever *restrict* the decision: a trigger that is off can
+  stop a blend from happening, never cause one. With every trigger on (the
+  default) this is exactly `should_blend`, so the gating is behaviour
+  preserving.
+
+  The curve and low-speed signals are the two `should_blend` reads directly,
+  so they are the two that get swapped out here. The lead participates only
+  as a veto, and the veto has its own confirm frames, so it is gated at its
+  call site instead.
+  """
+  if not triggers:
+    return should_blend(s)
+
+  signals = DecSignals(
+    decel_intent=s.decel_intent,
+    curve_detected=s.curve_detected if trigger_allowed(TRIGGER_CURVE, triggers) else False,
+    model_trust=s.model_trust,
+    creeping=s.creeping if trigger_allowed(TRIGGER_LOW_SPEED, triggers) else False,
+  )
+  return should_blend(signals)
+
+
 class ModeHysteresis:
   def __init__(self):
     self.mode: ModeType = 'acc'
@@ -104,9 +137,27 @@ class DynamicExperimentalController:
     self._creeping = False
     self._lead_veto_frames = 0
 
+    self._triggers = self._read_triggers()
+
     self.signals = DecSignals()
     self.want_blended = False
     self.lead_veto = False
+
+  def _read_triggers(self) -> dict[str, bool]:
+    """The per-trigger switches, all on unless the user turned one off.
+
+    A missing key reads as on, so an install that predates a trigger keeps
+    the behaviour it had.
+    """
+    triggers = {}
+    for trigger in TRIGGERS:
+      key = TRIGGER_PARAM_KEYS[trigger]
+      value = self._params.get(key, return_default=True)
+      if value is None or value == "":
+        triggers[trigger] = True
+      else:
+        triggers[trigger] = str(value).strip() not in ("0", "false", "False")
+    return triggers
 
   def _update_creeping(self, v_ego: float) -> bool:
     self._creeping = v_ego < CREEP_SPEED_EXIT if self._creeping else v_ego <= CREEP_SPEED_ENTER
@@ -115,6 +166,7 @@ class DynamicExperimentalController:
   def _read_params(self) -> None:
     if self._frame % PARAM_READ_FRAMES == 0:
       self._enabled = self._params.get_bool("DynamicExperimentalControl")
+      self._triggers = self._read_triggers()
 
   def mode(self) -> str:
     return self._hysteresis.mode
@@ -181,12 +233,15 @@ class DynamicExperimentalController:
       model_trust=self._model_trust(md),
       creeping=is_creeping and not lead_present,
     )
-    self.want_blended = should_blend(self.signals)
+    self.want_blended = should_blend_with_triggers(self.signals, self._triggers)
 
     crash_override = self._mpc.crash_cnt >= 1
     hard_brake_override = bool(md.meta.hardBrakePredicted)
     strong_stop = self.signals.model_trust >= MODEL_TRUST_MIN and self.signals.decel_intent >= DECEL_INTENT_CURVE_OVERRIDE
-    raw_lead_veto = self._lead_veto(radar_state, md)
+    # The lead only ever participates as a veto (it withholds a blend, it never
+    # causes one), so switching the lead trigger off drops the veto rather than
+    # the signal.
+    raw_lead_veto = self._lead_veto(radar_state, md) if trigger_allowed(TRIGGER_LEAD, self._triggers) else False
     urgent_release = (crash_override or hard_brake_override or strong_stop) and not raw_lead_veto
     self.lead_veto = self._update_lead_veto(raw_lead_veto, lead_present, urgent_release)
 
