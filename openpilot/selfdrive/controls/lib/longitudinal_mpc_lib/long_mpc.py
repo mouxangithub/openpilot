@@ -25,7 +25,7 @@ from openpilot.selfdrive.modeld.constants import index_function
 from openpilot.selfdrive.controls.radard import _LEAD_ACCEL_TAU
 from openpilot.common.params import Params
 from openpilot.sunnypilot.common.param_read import read_bool, read_str
-from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.jerk_channels import (
+from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_mpc_lib.jerk_channels import (
   parse_factors,
   factors_for_personality,
 )
