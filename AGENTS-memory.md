@@ -105,3 +105,11 @@
 - **两个 YOLO 有意共存**：wide 盲区=sp v_asm 模型（单类、条带域、图内 NMS），road 障碍物=Z6 模型（11 类、前视域、代码 NMS）。不可互换：单类喂不动 11 类 KEEP/测距表、训练域不同、输出布局不同
 - XIAOGE_YOLO_TIMEOUT_NS=1.5s 与 BSD 同值是 cadence 决定（同为 250ms→6 帧窗口），已加注释
 - 教训：**判"某模块没有 X"必须看模型本体/资产，不能只 grep 代码字符串**（v_asm 名字掩盖了它已是 YOLO 的事实）
+
+## 2026-10-23（追加 4）· cp xiaoge 分类器同步落地（c6566c65a + PR559 余量）
+
+- **谱系终审修正**："zoompilot 写的新模型"系误判——git blob 谱系证明 sp 的 9.6M 检测版就是 cp 09-28 版（md5 621e8426，逐字节相同），cp 自己在 10-07（212a13a3a=cherry-pick c6566c65a）换成三分类器（6b2b2f4d）。sp 抄的是 cp 换模型之前的版本
+- **已同步**（commit 67ffbe9f0 + opendbc a8b81c552）：模型换代 352×352 letterbox+严格 predictions[1]（检测版输出会 raise 而非解码垃圾）、EMA 平滑+相对迟滞（off=threshold-0.15）、阈值 94/范围 0-100、双侧持续 gate（eligibleSides 仅 2.0m 宽度门，去掉变道方向+30-120km/h 速度门，双侧轮转）、per-side 独立新鲜度（updatedMonoTimeNanosBySide 全链路）、推理前后双 generation 检查点、card.py 拆源写 @95-99（与 cp 同 ordinal；有意跳过 customReservedRawData1 心跳服务——carState 同帧携带双源，免新增 cereal 服务）
+- **控车影响**：desire_helper 变道禁止+lane_turn_controller 现在吃到"全程双侧"blindspot（之前只有变道中单侧）——真实行为变化，94% 默认阈值压误报
+- **环境地雷**：本机 pycapnp 2.2.4/2.1.0 在解析 openpilot 全量 schema 时**非确定性进程 abort**（exit 3，KJ fatal 无 Python 异常；解释器当日被原地升级 3.13.12→3.13.14 所致，重装 pycapnp 无效）→ 全套 carrot discover 收集期即死（opendbc/car/structs.py:10）。测试里加了 win32 条件化 capnp 桩（test_xiaoge_bsd_semantics/lifecycle 的 setUpModule），设备 Linux 不受影响。**设备端部署前必须重编 libparams_c.so（OnnxBsdThreshold 默认值变更）+ capnp 重生成（car.capnp @95-99）+ manager/整车重启**
+- 批次 C（xiaoge_data TCP 7711 遥测裁剪）留待拍板：外部 xiaoge 显示设备若在用 7711 会断
