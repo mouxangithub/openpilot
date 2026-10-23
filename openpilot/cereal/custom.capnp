@@ -1000,6 +1000,17 @@ struct CarrotManSP @0xcd96dafb67a082d0 {
   # Mapping lives in openpilot/sunnypilot/carrot/deceleration_source.py.
   desiredSourceLabel @73 :Text = "";
   desiredSourceColor @74 :Int32 = 0;
+
+  # Section (point-to-point average speed camera) cap, ported from
+  # Carrotpilot joongyu01/carrot-wip-speedcam. xSectionLimitKph is the cap the
+  # driver may hold inside the section: max(section limit * safety factor,
+  # time-bank allowance), already rounded. xSectionAllowanceKph is the raw
+  # allowance (0 when no bank) so the UI can show *why* the cap moved.
+  # Consumers: SLA speed_limit_resolver folds xSectionLimitKph into the map
+  # source while xSectionActive; it must never RAISE the road-class limit.
+  xSectionActive @76 :Bool = false;
+  xSectionLimitKph @77 :Int32 = 0;
+  xSectionAllowanceKph @78 :Float32 = 0;
 }
 
 struct ImuCalibrationSP @0xb057204d7deadf3f {

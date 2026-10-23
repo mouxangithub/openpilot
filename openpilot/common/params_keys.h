@@ -694,6 +694,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AutoNaviSpeedCtrlEnd", {PERSISTENT | BACKUP, INT, "6"}},
     {"VehicleNaviCanControl", {PERSISTENT | BACKUP, INT, "0"}},
     {"VehicleNaviSchoolZoneControl", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"VehicleNaviSectionAvgControl", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"VehicleNaviSectionAvgMargin", {PERSISTENT | BACKUP, INT, "0"}},
     {"VehicleSpeedCameraControlMode", {PERSISTENT | BACKUP, INT, "1"}},
     // Written by the intro wizard's preset table (server/features/intro/presets.py) and
     // by the web panel's HDA step. Registering them is the fix for the preset endpoint

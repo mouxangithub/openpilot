@@ -30,6 +30,7 @@ class _FakeCarrotManSP:
       "trafficCountdown", "szGoalName", "szTBTMainTextNext", "szNearDirName",
       "nSdiSection", "gpsSpeed", "epochTime", "timezone", "nTBTNextRoadWidth",
       "goalPosX", "goalPosY",
+      "xSectionActive", "xSectionLimitKph", "xSectionAllowanceKph",
       "vehicleNaviActive", "vehicleNaviSpeed", "vehicleNaviSectionActive", "vehicleNaviAvailable",
       "sapaName", "sapaDist", "sapaType", "sapaCnt",
       "tmcTotalDistance", "tmcResidualDistance", "tmcSegmentCount", "tmcOverallStatus",
@@ -2328,6 +2329,132 @@ class TestCarrotServCountdown(unittest.TestCase):
     serv._update_countdown_alert(100, "hda", 60.0)
     assert serv.sdi_inform is False
     assert serv.carrot_left_sec == 100
+
+
+class TestSectionAverageCarrotServ(unittest.TestCase):
+  """Section (point-to-point average) integration through CarrotServ.
+
+  Ported from cp speedcam branch semantics onto the SDI chain: carrot_man
+  writes nSdiType=4 + nSdiBlockType=2 + nSdiBlockSpeed while a navigation
+  section is active; CarrotServ must flag it, track the bank with the
+  wheel-integrated distance, and publish a cap = max(limit * factor, bank).
+  """
+
+  def _serv(self, section=True, control=True, factor=100):
+    from openpilot.sunnypilot.carrot.carrot_serv import CarrotServ
+    serv = CarrotServ()
+    serv._raw = {
+      "nSdiType": 4 if section else 1,
+      "nSdiSpeedLimit": 100 if section else 60,
+      "nSdiDist": 500 if section else 300,
+      "nSdiBlockType": 2 if section else -1,
+      "nSdiBlockSpeed": 100 if section else 0,
+      "nSdiBlockDist": 800 if section else 0,
+      "nSdiSection": 1 if section else 5,
+    }
+    serv.vehicle_navi_section_avg_control = control
+    serv.vehicle_navi_section_avg_margin = 0.0
+    serv.auto_navi_speed_safety_factor = factor * 0.01
+    serv.derive(0.0)
+    return serv
+
+  def test_section_flag_from_sdi_stream(self):
+    serv = self._serv(section=True)
+    assert serv.x_section_active is True
+    assert serv.x_section_limit_kph == 100
+
+  def test_plain_camera_is_not_a_section(self):
+    serv = self._serv(section=False)
+    assert serv.x_section_active is False
+    assert serv.x_section_limit_kph == 0
+
+  def test_control_off_means_no_cap(self):
+    serv = self._serv(section=True, control=False)
+    serv.total_distance = 0.0
+    serv._update_section_state(0.0, 0.0)
+    serv._update_section_state(600.0, 0.0)
+    assert serv.x_section_cap_kph == 0.0
+    assert serv.section_average.active is False
+
+  def test_cap_is_section_limit_times_factor(self):
+    serv = self._serv(section=True, factor=100)
+    # On-pace travel inside the section: target = limit = 100 kph = 27.78 m/s.
+    target_ms = 100 / 3.6
+    t, dist = 0.0, 0.0
+    for _ in range(100):
+      t += 1.0
+      dist += target_ms * 1.0
+      serv.total_distance = dist
+      serv._update_section_state(t, target_ms * 1.0)
+    assert serv.section_average.active is True
+    assert serv.x_section_allowance_kph == 0.0  # bank spent below MIN_BANK_S
+    assert serv.x_section_cap_kph == 100.0
+
+  def test_congestion_bank_raises_cap(self):
+    serv = self._serv(section=True, factor=100)
+    # Crawl at 5 m/s for 600 s: covers 3000 m, on-pace time would be
+    # 3000/27.78 = 108 s, so bank = 492 s -> allowance capped at 250 kph.
+    for i in range(600):
+      serv.total_distance += 5.0 * 1.0
+      serv._update_section_state(float(i), 5.0 * 1.0)
+    assert serv.x_section_allowance_kph == 250.0
+    assert serv.x_section_cap_kph == 250.0
+    # The cap must never fall below limit * factor while the bank lasts; the
+    # max() in _update_section_state guarantees it even after the allowance
+    # drains: simulate a drain to a small allowance.
+    serv._update_section_state(700.0, 5.0 * 1.0)
+    assert serv.x_section_cap_kph >= serv.x_section_limit_kph
+
+  def test_margin_reduces_bank(self):
+    serv = self._serv(section=True, factor=100)
+    serv.vehicle_navi_section_avg_margin = 9.0
+    # Crawl 5 m/s for 600 s; with margin 9 the target is 91 kph = 25.28 m/s,
+    # bank = 600 - 3000/25.28 = 441 s, still capped - just assert it lowers
+    # versus margin 0 by draining: pick a case in the uncapped branch instead.
+    # On-pace for target 25.28: bank = t - dist/25.28. Idle 10 s after
+    # travelling exactly on-pace for 974 s at 25.28 m/s.
+    target_ms = 91 / 3.6
+    serv2 = self._serv(section=True, factor=100)
+    serv2.vehicle_navi_section_avg_margin = 9.0
+    serv2.total_distance = 974.0 * target_ms
+    serv2._update_section_state(974.0, target_ms)
+    serv2._update_section_state(984.0, 0.0)
+    # bank = 10 s -> remaining = 1000/25.28 - 10 = 29.6 s -> 1000/29.6 m/s.
+    expected = 1000.0 / (1000.0 / target_ms - 10.0) * 3.6
+    assert abs(serv2.x_section_allowance_kph - expected) < 0.1
+    # margin 0 on the same trace yields a bigger allowance (target 100 kph).
+    serv3 = self._serv(section=True, factor=100)
+    target_ms0 = 100 / 3.6
+    serv3.total_distance = 974.0 * target_ms0
+    serv3._update_section_state(974.0, target_ms0)
+    serv3._update_section_state(984.0, 0.0)
+    assert serv3.x_section_allowance_kph > serv2.x_section_allowance_kph
+
+  def test_section_end_after_debounce_drops_cap(self):
+    serv = self._serv(section=True, factor=100)
+    serv.total_distance = 0.0
+    serv._update_section_state(0.0, 0.0)
+    # Flag drops (App ended the section or we left the route): debounce 3 s.
+    serv.x_section_active = False
+    serv.x_section_limit_kph = 0
+    serv._update_section_state(1.0, 0.0)
+    assert serv.x_section_cap_kph > 0  # still inside the debounce window
+    serv._update_section_state(5.0, 0.0)
+    assert serv.section_average.active is False
+    assert serv.x_section_cap_kph == 0.0
+
+  def test_publish_fields_flow_to_carrot_man_sp(self):
+    from openpilot.sunnypilot.carrot.tests.test_carrot_man import _FakeCarrotManSP
+    cm = _FakeCarrotManSP()
+    serv = self._serv(section=True, factor=105)
+    serv.total_distance = 0.0
+    serv._update_section_state(0.0, 0.0)
+    cm.xSectionActive = bool(serv.x_section_active and serv.section_average.active)
+    cm.xSectionLimitKph = int(round(serv.x_section_cap_kph)) if serv.x_section_cap_kph > 0 else 0
+    cm.xSectionAllowanceKph = float(serv.x_section_allowance_kph)
+    assert cm.xSectionActive is True
+    assert cm.xSectionLimitKph == 105  # 100 * 1.05, no bank yet
+    assert cm.xSectionAllowanceKph == 0.0
 
 
 # Put the real modules back. This has to happen at the very end of the module: this file

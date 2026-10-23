@@ -1049,6 +1049,12 @@ class CarrotManager:
     # them and the car never slowed for a turn on carrot's advice.
     cm.atcSpeed = float(self._carrot_serv.atc_desired_speed)
     cm.atcDist = float(self._carrot_serv.atc_desired_dist)
+    # Section (point-to-point average) cap for SLA. cap 0 = no section active.
+    # See section_average.py: the cap is max(limit * safety factor, bank
+    # allowance) and the resolver only ever lets it lower the map source.
+    cm.xSectionActive = bool(self._carrot_serv.x_section_active and self._carrot_serv.section_average.active)
+    cm.xSectionLimitKph = int(round(self._carrot_serv.x_section_cap_kph)) if self._carrot_serv.x_section_cap_kph > 0 else 0
+    cm.xSectionAllowanceKph = float(self._carrot_serv.x_section_allowance_kph)
     # Curve and route speeds, for SmartCruiseControlMap. vTurnSpeed @11 is already
     # published in kph for the HUD; the m/s copy exists because SCC-M works in m/s and
     # dividing by 3.6 at the consumer would scatter unit conversions.

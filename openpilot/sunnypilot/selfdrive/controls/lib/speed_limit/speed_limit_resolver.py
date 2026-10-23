@@ -332,6 +332,20 @@ class SpeedLimitResolver:
             limit_ms = sdi_limit_ms
             distance = sdi_dist
 
+      # Section (point-to-point average) cap, ported from cp speedcam branch.
+      # Inside a section, carrot publishes max(section limit * safety factor,
+      # time-bank allowance) as xSectionLimitKph; it closes the gap where the
+      # point camera above goes silent past the start camera and nothing else
+      # caps the speed until the section ends. It is an absolute constraint
+      # that takes effect immediately (distance 0) and, like every carrot
+      # contribution here, it can only lower the map solution - the resolver
+      # never lets it raise the road-class limit.
+      if bool(carrot.xSectionActive):
+        section_limit_ms = _carrot_limit_ms(carrot.xSectionLimitKph)
+        if section_limit_ms > 0. and (limit_ms <= 0. or section_limit_ms < limit_ms):
+          limit_ms = section_limit_ms
+          distance = 0.
+
       # NOTE: ATC / curve / route speeds are NOT handled here. They were briefly folded
       # into this map source, but they are navigation-driven deceleration for a point
       # ahead, which SmartCruiseControlMap already models with its jerk/accel-limited

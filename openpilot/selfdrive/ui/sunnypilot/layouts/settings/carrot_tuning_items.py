@@ -126,6 +126,12 @@ def build_navi_items():
     toggle_item_sp(title=tr('School Zone CAN Control'), param='VehicleNaviSchoolZoneControl'),
     option_item_sp(title=tr('Speed Camera Control Mode'), param='VehicleSpeedCameraControlMode', min_value=0, max_value=3, value_change_step=1),
 
+    section_heading_sp(tr('Section Average Speed')),
+    toggle_item_sp(title=tr('Section Avg Control'), param='VehicleNaviSectionAvgControl',
+                   description=tr('Inside a point-to-point average speed section, allow up to the cruise set speed while the running average stays under the limit. Time banked in congestion is spent over the next kilometre.')),  # noqa: E501
+    option_item_sp(title=tr('Section Avg Margin'), param='VehicleNaviSectionAvgMargin', min_value=0, max_value=10, value_change_step=1,
+                   description=tr('Km/h subtracted from the section limit as the target average. Higher = more headroom before the section cap lifts.')),
+
     section_heading_sp(tr('Speed Bumps')),
     option_item_sp(title=tr('Speed Bump End Distance'), param='AutoNaviSpeedBumpEndDistance', min_value=0, max_value=500, value_change_step=10),
     option_item_sp(title=tr('Countdown Mode'), param='AutoNaviCountDownMode', min_value=0, max_value=2, value_change_step=1),

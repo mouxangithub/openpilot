@@ -44,6 +44,8 @@
   "SoundVolumeAdjustEngage": 100,
   "VehicleNaviCanControl": 0,
   "VehicleNaviSchoolZoneControl": 0,
+  "VehicleNaviSectionAvgControl": 0,
+  "VehicleNaviSectionAvgMargin": 0,
   "VehicleSpeedCameraControlMode": 1,
   "LatSuspendAngleDeg": 300,
   "ClusterNaviMapTheme": 1,

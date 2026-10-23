@@ -75,6 +75,8 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "AutoNaviSpeedCtrlEnd": 6,
   "VehicleNaviCanControl": 0,
   "VehicleNaviSchoolZoneControl": 0,
+  "VehicleNaviSectionAvgControl": 0,
+  "VehicleNaviSectionAvgMargin": 0,
   "VehicleSpeedCameraControlMode": 1,
   "VehicleSpeedCameraDistanceTime": 60,
   "LatSuspendAngleDeg": 300,

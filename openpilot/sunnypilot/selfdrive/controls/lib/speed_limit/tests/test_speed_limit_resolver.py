@@ -155,6 +155,9 @@ def carrot_sm(mocker, map_limit: float = 0., **carrot_fields):
     'nRoadLimitSpeed': 0,
     'xSpdLimit': 0,
     'xSpdDist': 0.,
+    'xSectionActive': False,
+    'xSectionLimitKph': 0,
+    'xSectionAllowanceKph': 0.,
   } | carrot_fields, mocker)
   live_map_data = create_mock({
     'speedLimit': map_limit,
@@ -234,6 +237,63 @@ class TestCarrotSpeedLimitMerge(OpenpilotTestCase):
     resolver._get_from_map_data(sm)
     assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 60 * CV.KPH_TO_MS) < 1e-6
     assert resolver.distance_solutions[SpeedLimitSource.map] == 0.
+
+  # ---- section (point-to-point average) cap -------------------------------
+
+  def test_section_cap_takes_effect_immediately(self, mocker):
+    """Inside a section the cap is an absolute constraint with no braking
+    lead: it becomes the map solution at distance 0 even when far above the
+    current speed."""
+    resolver = self._resolver()
+    resolver.v_ego = 120 * CV.KPH_TO_MS
+    sm = carrot_sm(mocker, xSectionActive=True, xSectionLimitKph=90)
+    resolver._get_from_map_data(sm)
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 90 * CV.KPH_TO_MS) < 1e-6
+    assert resolver.distance_solutions[SpeedLimitSource.map] == 0.
+
+  def test_section_cap_fills_empty_map_solution(self, mocker):
+    """No road limit published: the section cap alone still constrains."""
+    resolver = self._resolver()
+    resolver.v_ego = 110 * CV.KPH_TO_MS
+    sm = carrot_sm(mocker, nRoadLimitSpeed=0, xSectionActive=True, xSectionLimitKph=80)
+    resolver._get_from_map_data(sm)
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 80 * CV.KPH_TO_MS) < 1e-6
+
+  def test_section_cap_never_raises_road_limit(self, mocker):
+    """A bank allowance may lift the section cap above the section limit, but
+    never above the road-class limit."""
+    resolver = self._resolver()
+    resolver.v_ego = 60 * CV.KPH_TO_MS
+    sm = carrot_sm(mocker, nRoadLimitSpeed=60, xSectionActive=True, xSectionLimitKph=100)
+    resolver._get_from_map_data(sm)
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 60 * CV.KPH_TO_MS) < 1e-6
+    assert resolver.distance_solutions[SpeedLimitSource.map] == 0.
+
+  def test_section_cap_coexists_with_point_camera(self, mocker):
+    """A stricter point camera ahead keeps its braking-lead semantics; the
+    section cap only lowers the solution when it is the stricter one."""
+    resolver = self._resolver()
+    resolver.v_ego = 90 * CV.KPH_TO_MS
+    sm = carrot_sm(mocker, nRoadLimitSpeed=100, xSpdLimit=60, xSpdDist=15.,
+                   xSectionActive=True, xSectionLimitKph=80)
+    resolver._get_from_map_data(sm)
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 60 * CV.KPH_TO_MS) < 1e-6
+    assert abs(resolver.distance_solutions[SpeedLimitSource.map] - 15.) < 1e-6
+
+    # Now the cap is stricter than the point camera: it replaces it, and its
+    # immediate-effect distance (0) wins.
+    sm2 = carrot_sm(mocker, nRoadLimitSpeed=100, xSpdLimit=60, xSpdDist=15.,
+                    xSectionActive=True, xSectionLimitKph=50)
+    resolver._get_from_map_data(sm2)
+    assert abs(resolver.limit_solutions[SpeedLimitSource.map] - 50 * CV.KPH_TO_MS) < 1e-6
+    assert resolver.distance_solutions[SpeedLimitSource.map] == 0.
+
+  def test_section_inactive_ignored(self, mocker):
+    resolver = self._resolver()
+    resolver.v_ego = 120 * CV.KPH_TO_MS
+    sm = carrot_sm(mocker, xSectionActive=False, xSectionLimitKph=50)
+    resolver._get_from_map_data(sm)
+    assert resolver.limit_solutions[SpeedLimitSource.map] == 0.
 
   def test_carrot_raises_an_existing_map_limit(self, mocker):
     """carrot takes priority over the map provider outright.

@@ -6558,3 +6558,23 @@ msgstr "惡劣天氣下加速度上限降低的百分比。"
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Percent taken off the lateral acceleration ceiling in bad weather, so curves are taken slower."
 msgstr "惡劣天氣下橫向加速度上限降低的百分比，使過彎更慢更穩。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Section Average Speed"
+msgstr "區間平均速度"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Section Avg Control"
+msgstr "區間平均控制"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Inside a point-to-point average speed section, allow up to the cruise set speed while the running average stays under the limit. Time banked in congestion is spent over the next kilometre."
+msgstr "在點位式區間測速路段內，當平均速度低於限速時允許加速至巡航設定速度。擁堵中攢下的時間餘量會在隨後一公里內用掉。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Section Avg Margin"
+msgstr "區間平均餘量"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Km/h subtracted from the section limit as the target average. Higher = more headroom before the section cap lifts."
+msgstr "從區間限速中減去的 km/h，作為目標平均速度。數值越大，區間上限放開前預留的餘量越多。"

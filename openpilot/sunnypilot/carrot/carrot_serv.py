@@ -35,6 +35,7 @@ from openpilot.common.realtime import DT_MDL
 from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.carrot.config import UnifiedParams
 from openpilot.sunnypilot.carrot.gps_sources import Fix, select
+from openpilot.sunnypilot.carrot.section_average import SectionAverage
 
 try:  # the state machine stays importable (and unit-testable) without cereal
   from openpilot.cereal import log
@@ -199,6 +200,14 @@ class CarrotServ:
     self.x_spd_type: int = -1
     self.x_spd_limit: int = 0
     self.x_spd_dist: int = 0
+    # Section (point-to-point average) state, set by derive() from the SDI stream.
+    # x_section_cap_kph is refreshed every tick in update() and published via
+    # carrotManSP.xSection*; SLA folds it into the map source while active.
+    self.x_section_active: bool = False
+    self.x_section_limit_kph: int = 0
+    self.x_section_cap_kph: float = 0.0
+    self.x_section_allowance_kph: float = 0.0
+    self.section_average = SectionAverage()
     self.v_turn_speed: int = 0
     # Metres to the point the vision curve envelope is sized for, pushed in with the
     # curve speed itself. 0.0 = no usable geometry.
@@ -709,6 +718,9 @@ class CarrotServ:
     self._last_packet_mono = 0.0
     self._last_seq = None
     self._reset_derived()
+    # A packet timeout also ends any running section: the SDI stream is the
+    # only section source, so its silence must not leave a stale bank open.
+    self.section_average.reset()
     self._traffic_history.clear()
     self._traffic_state = 0
     self._traffic_light_q.clear()
@@ -794,6 +806,9 @@ class CarrotServ:
     sdi_dist = _safe_int(r.get("nSdiDist"), 0)
     sdi_block_type = _safe_int(r.get("nSdiBlockType"), -1)
     sdi_block_dist = _safe_int(r.get("nSdiBlockDist"), 0)
+    # Section limit carried in the block fields (carrot_man writes it while a
+    # navigation section is active; the phone SDI stream mirrors that shape).
+    sdi_block_speed = _safe_int(r.get("nSdiBlockSpeed"), 0)
     sdi_plus_type = _safe_int(r.get("nSdiPlusType"), -1)
     sdi_plus_dist = _safe_int(r.get("nSdiPlusDist"), 0)
     sdi_plus_speed_limit = _safe_int(r.get("nSdiPlusSpeedLimit"), 0)
@@ -851,6 +866,16 @@ class CarrotServ:
         self.x_spd_limit = 0
         self.x_spd_type = -1
         self.x_spd_dist = 0
+
+    # --- Section (point-to-point average) flag -----------------------------
+    # carrot_man writes nSdiType=4 + nSdiBlockType=2 (+ nSdiBlockSpeed as the
+    # section limit) while a navigation section is active; the phone's own SDI
+    # stream uses the same type-4 + block-2 shape for its section cameras.
+    # Both sources mean "point-to-point average enforcement ahead", so both
+    # feed SectionAverage with the block speed as the section limit. When the
+    # flag drops, SectionAverage debounces 3 s before ending the section.
+    self.x_section_active = sdi_type == 4 and sdi_block_type == 2
+    self.x_section_limit_kph = sdi_block_speed if self.x_section_active else 0
 
     if self.x_spd_type >= 0:
       self.sz_sdi_descr = self._get_sdi_descr(self.x_spd_type)
@@ -928,6 +953,10 @@ class CarrotServ:
     self.x_spd_type = -1
     self.x_spd_limit = 0
     self.x_spd_dist = 0
+    self.x_section_active = False
+    self.x_section_limit_kph = 0
+    self.x_section_cap_kph = 0.0
+    self.x_section_allowance_kph = 0.0
     self.v_turn_speed = 0
     self.sz_sdi_descr = ""
     self.active_carrot = 0
@@ -1032,6 +1061,11 @@ class CarrotServ:
       min(200, max(10, p.get_int("VehicleSpeedCameraDistanceTime", 60)))) * 0.1
     self.vehicle_navi_can_control = min(3, max(0, p.get_int("VehicleNaviCanControl", 0)))
     self.vehicle_navi_school_zone_control = p.get_bool("VehicleNaviSchoolZoneControl", False)
+    # Section (point-to-point average) control, ported from cp speedcam branch.
+    # Margin is kph subtracted from the section limit to build the target the
+    # running average must stay under; the bank spends that headroom later.
+    self.vehicle_navi_section_avg_control = p.get_bool("VehicleNaviSectionAvgControl", False)
+    self.vehicle_navi_section_avg_margin = float(min(10, max(0, p.get_int("VehicleNaviSectionAvgMargin", 0))))
     self.auto_navi_speed_bump_end_distance = float(min(5000, max(0, p.get_int("AutoNaviSpeedBumpEndDistance", 0)))) * 0.01
     # Rear speed-camera hold (TMAP EDC SDI 75/76). Stored in cm by the UI, used in
     # metres. cp clamps to 300 units; the registered default is 100 (= 1.00 m).
@@ -1612,6 +1646,26 @@ class CarrotServ:
       self.left_spd_sec = 100
       self.left_tbt_sec = 100
 
+  def _update_section_state(self, now: float, delta_dist: float) -> None:
+    """Refresh the section (point-to-point average) cap for this tick.
+
+    Called once per update_navi tick with the monotonic clock and the distance
+    travelled this frame. Uses SectionAverage (ported from cp speedcam) on top
+    of our wheel-integrated total_distance, so no vehicle CAN cooperation is
+    required. The cap never lowers what the plain section limit permits:
+    inside a section it is max(limit * safety factor, bank allowance); outside
+    it is 0 and the consumer falls back to the road/point sources.
+    """
+    self.section_average.update(self.vehicle_navi_section_avg_control and self.x_section_active,
+                                float(self.x_section_limit_kph), now, self.total_distance)
+    self.x_section_allowance_kph = self.section_average.allowance_kph(
+      now, self.total_distance, self.vehicle_navi_section_avg_margin)
+    if self.section_average.active:
+      self.x_section_cap_kph = max(
+        self.x_section_limit_kph * self.auto_navi_speed_safety_factor, self.x_section_allowance_kph)
+    else:
+      self.x_section_cap_kph = 0.0
+
   def rear_camera_speed(self, cs: Any | None, delta_dist: float) -> tuple[float, float]:
     """TMAP EDC SDI 75/76: rear speed / rear signal-and-speed camera hold.
 
@@ -1750,6 +1804,13 @@ class CarrotServ:
     self.x_dist_to_turn = int(self.x_dist_to_turn - delta_dist)
     self.x_dist_to_turn_next = int(self.x_dist_to_turn_next - delta_dist)
     self.active_kisa_count = max(self.active_kisa_count - 1, 0)
+
+    # Section (point-to-point average) cap. SectionAverage tracks the bank with
+    # our own wheel-speed distance integration, so it works with any SDI source
+    # and needs no vehicle CAN cooperation. The cap NEVER lowers what the plain
+    # section limit already permits: inside the section it is
+    # max(limit * safety factor, time-bank allowance); outside it is 0.
+    self._update_section_state(time.monotonic(), delta_dist)
 
     if self.x_spd_type < 0 or (self.x_spd_type not in (100, 101) and self.x_spd_dist <= 0) or \
        (self.x_spd_type in (100, 101) and self.x_spd_dist < -250):
