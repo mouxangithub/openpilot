@@ -21,6 +21,9 @@ TOGGLE_PARAMS = [
   (tr("blind spot"), "BlindSpot", tr("Shows a warning on screen when a car is in your blind spot.")),
   (tr("rainbow mode"), "RainbowMode", tr("Draws the driving path as a rainbow.\n" +
                                          "It does not change how the car drives.")),
+  (tr("alerts while engaged"), "E2EAlertsWhenEngaged", tr("Play the green light and lead depart chimes even while cruise is engaged\n" +
+                                                          "and holding at a standstill. Without it they only chime while cruise\n" +
+                                                          "is off. Check the road before you go.")),
   (tr("green light alert"), "GreenLightAlert", tr("Chimes when the light you're stopped at turns green with no car ahead.\n" +
                                                   "Only while cruise is not engaged. Check the road before you go.")),
   (tr("lead depart alert"), "LeadDepartAlert", tr("Chimes when you're stopped and the car ahead pulls away.\n" +

@@ -109,6 +109,12 @@ sections:
     description: 'A chime and on-screen alert will play when you are stopped, and the vehicle in front of you start moving.
       On-screen visual alert is only available on comma 3X. Note: This chime is only designed as a notification. It is the
       driver''s responsibility to observe their environment and make decisions accordingly.'
+  - key: E2EAlertsWhenEngaged
+    widget: toggle
+    title: Alerts While Engaged (Beta)
+    description: 'Play the green traffic light and lead departure alerts even while cruise is engaged and holding the car
+      at a standstill. Without it, those alerts only chime while cruise is not engaged. Note: This chime is only designed
+      as a notification. It is the driver''s responsibility to observe their environment and make decisions accordingly.'
   - key: RainbowMode
     widget: toggle
     title: Tesla Rainbow Mode

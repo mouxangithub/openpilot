@@ -17,6 +17,17 @@ LEAD_DEPART_DIST_THRESHOLD = 1.0
 TRIGGER_TIMER_THRESHOLD = 0.3
 
 
+def standstill_alert_allowed(moving: bool, gas_pressed: bool, cc_enabled: bool, recent_moving: bool, alerts_when_engaged: bool) -> bool:
+  """The armed gate for the standstill chimes, factored out for tests.
+
+  Baseline behaviour chimes only while openpilot longitudinal is disengaged. `alerts_when_engaged`
+  (E2EAlertsWhenEngaged) relaxes exactly that veto: ACC holding at a light with no lead never
+  starts moving by itself, so the stopped wait is when the chime is wanted. Moving, gas and the
+  just-started-moving guard still gate the alert in every configuration.
+  """
+  return not moving and not gas_pressed and not recent_moving and (not cc_enabled or alerts_when_engaged)
+
+
 class E2EStates:
   INACTIVE = 0
   ARMED = 1
@@ -36,6 +47,7 @@ class E2EAlertsHelper:
     self.green_light_alert_enabled = self._params.get_bool("GreenLightAlert")
     self.lead_depart_alert = False
     self.lead_depart_alert_enabled = self._params.get_bool("LeadDepartAlert")
+    self.alerts_when_engaged_enabled = self._params.get_bool("E2EAlertsWhenEngaged")
 
     self.green_light_trigger_timer = 0
     self.lead_depart_trigger_timer = 0
@@ -54,6 +66,7 @@ class E2EAlertsHelper:
     if self.frame % int(PARAMS_UPDATE_PERIOD / DT_MDL) == 0:
       self.green_light_alert_enabled = self._params.get_bool("GreenLightAlert")
       self.lead_depart_alert_enabled = self._params.get_bool("LeadDepartAlert")
+      self.alerts_when_engaged_enabled = self._params.get_bool("E2EAlertsWhenEngaged")
 
   def update_alert_trigger(self, sm: messaging.SubMaster):
     CS = sm['carState']
@@ -71,7 +84,7 @@ class E2EAlertsHelper:
       self.last_moving_frame = self.frame
     recent_moving = self.last_moving_frame == -1 or (self.frame - self.last_moving_frame) * DT_MDL < 2.0
 
-    self.allowed = not moving and not CS.gasPressed and not CC.enabled and not recent_moving
+    self.allowed = standstill_alert_allowed(moving, CS.gasPressed, CC.enabled, recent_moving, self.alerts_when_engaged_enabled)
 
     # Green Light Alert
     green_light_trigger = False

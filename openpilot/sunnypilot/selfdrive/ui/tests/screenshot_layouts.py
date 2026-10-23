@@ -52,6 +52,7 @@ def setup_params():
   params.put_bool("RainbowMode", True)
   params.put_bool("GreenLightAlert", True)
   params.put_bool("LeadDepartAlert", True)
+  params.put_bool("E2EAlertsWhenEngaged", True)
 
   # Display
   params.put("OnroadScreenOffBrightness", 10)

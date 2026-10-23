@@ -256,6 +256,7 @@ PARAM_LABELS: dict[str, tuple[str, str, str, str]] = {
   "CarrotFastRadarEnabled": ("Fast radar refresh", "Refresh an already-selected lead's kinematics from a newer radar frame without promoting a new track (Hyundai only). Off by default.", "快速雷达刷新", "用更新的雷达帧刷新已选中前车的运动学，不提升新目标（仅现代车型）。默认关闭。"),
   "ChevronInfo": ("Chevron info", "What the lead-car chevron shows (distance/time/speed).", "车距信息", "前车箭头（chevron）显示的内容。"),
   "DevUIInfo": ("Developer UI info", "Show developer info overlays onroad.", "开发者信息", "行车界面显示开发者信息。"),
+  "E2EAlertsWhenEngaged": ("Alerts while engaged", "Play the green light and lead depart alerts even while cruise is engaged at a standstill.", "接管时也提醒", "巡航接管停住时也响绿灯/前车起步提醒。"),
   "GreenLightAlert": ("Green light alert", "Alert when the lead departs on a green light.", "绿灯提醒", "绿灯放行时提醒前车已起步。"),
   "HideVEgoUI": ("Hide speed", "Hide the speed readout on the onroad UI.", "隐藏车速", "行车界面隐藏车速读数。"),
   "LeadDepartAlert": ("Lead depart alert", "Alert when the lead starts moving.", "前车起步提醒", "前车起步时发出提醒。"),

@@ -57,6 +57,14 @@ class VisualsLayout(Widget):
            "the OSM panel to fetch the road name."),
         None,
       ),
+      "E2EAlertsWhenEngaged": (
+        lambda: tr("Chime Alerts While Engaged (Beta)"),
+        tr("Play the green traffic light and lead departure alerts even when cruise is engaged and holding the car at a standstill." +
+           "<br>Without this, those alerts only chime while cruise is disengaged. ACC holding at a light never starts moving by itself." +
+           "<br>Note: This chime is only designed as a notification. " +
+           "It is the driver's responsibility to observe their environment and make decisions accordingly."),
+        None,
+      ),
       "GreenLightAlert": (
         lambda: tr("Green Traffic Light Alert (Beta)"),
         tr("A chime and on-screen alert will play when the traffic light you are waiting for " +
