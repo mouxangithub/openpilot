@@ -24,6 +24,7 @@ from aiohttp import web
 
 from ..services.device_info import get_calibration_status, get_device_network_snapshot, refresh_device_network
 from ..services.live_runtime import RuntimeHolder
+from ..services.system_monitor import get_system_monitor
 
 logger = logging.getLogger("openpilot.carrot.server.system")
 
@@ -74,6 +75,15 @@ async def api_live_runtime(request: web.Request) -> web.Response:
   if runtime is None:
     return web.json_response({"ok": False, "error": "cereal unavailable"}, status=503)
   return web.json_response(await asyncio.to_thread(runtime.snapshot))
+
+
+async def api_system_monitor(request: web.Request) -> web.Response:
+  """One-shot process/CPU snapshot for remote support (see services/system_monitor.py)."""
+  try:
+    snapshot = await asyncio.to_thread(get_system_monitor().sample)
+  except Exception as exc:
+    return web.json_response({"ok": False, "error": str(exc)}, status=500)
+  return web.json_response(snapshot)
 
 
 async def api_device_network(request: web.Request) -> web.Response:
@@ -231,6 +241,7 @@ def register(app: web.Application) -> None:
   app[RUNTIME_KEY] = RuntimeHolder()
   app.router.add_get("/api/heartbeat_status", api_heartbeat_status)
   app.router.add_get("/api/live_runtime", api_live_runtime)
+  app.router.add_get("/api/system_monitor", api_system_monitor)
   app.router.add_get("/api/device_network", api_device_network)
   app.router.add_get("/api/calibration_status", api_calibration_status)
   app.router.add_post("/api/reboot", api_reboot)
