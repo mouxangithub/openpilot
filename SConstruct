@@ -245,7 +245,8 @@ cache_size_limit = 4e9 if "CI" in os.environ else 2e9
 _cache_lock_handle = None
 try:
   from openpilot.common.scons_cache_lock import acquire_cache_lock
-  _cache_lock_handle = acquire_cache_lock(Path(cache_dir), timeout=float(ARGUMENTS.get('cache_lock_timeout', 120)))except Exception as _cache_lock_error:
+  _cache_lock_handle = acquire_cache_lock(Path(cache_dir), timeout=float(ARGUMENTS.get('cache_lock_timeout', 120)))
+except Exception as _cache_lock_error:
   print(f"scons cache lock disabled: {_cache_lock_error}")
 CacheDir(cache_dir)
 Clean(["."], cache_dir)
