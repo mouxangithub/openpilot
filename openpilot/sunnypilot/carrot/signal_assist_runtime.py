@@ -64,6 +64,10 @@ class SignalAssistRuntime:
     self.last_log = -1.
     self.last_decision = None
     self.read_ms = 0.
+    # Re-read the file every cycle but decode identical bytes once: the writer
+    # replaces the file atomically at frame rate, so most reads see no change.
+    self._observation_bytes = None
+    self._observation = None
 
   def read(self, sm, now=None):
     now = time.monotonic() if now is None else now
@@ -80,14 +84,19 @@ class SignalAssistRuntime:
         with self.observation_path.open('rb') as f:
           raw = f.read(MAX_BYTES + 1)
         if len(raw) <= MAX_BYTES:
-          obj = json.loads(raw)
+          if raw != self._observation_bytes:
+            self._observation = json.loads(raw)
+            self._observation_bytes = raw
+          obj = self._observation
           if obj.get('version') == 1 and obj.get('stream') == 'road' and obj.get('size') == [1344, 760]:
             # Reject an observation that predates the current enable window, so
             # enabling cannot act on a frame the model wrote last session.
             if obj.get('timestamp', -float('inf')) >= self.enabled_since:
               observation = obj
       except (OSError, ValueError, TypeError, AttributeError):
-        pass
+        # A malformed file must not pin a poisoned cache entry.
+        self._observation_bytes = None
+        self._observation = None
     services = ['carState', 'modelV2', 'radarState', 'carControl']
     cs, cc = sm['carState'], sm['carControl']
     # This fork runs the longitudinal planner inside selfdrived, which publishes

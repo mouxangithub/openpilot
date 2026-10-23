@@ -168,6 +168,10 @@ class VASMService:
     self.snapshot_responses = {"wide": 0, "road": 0}
     self.vasm_inference_lock = threading.Lock()
     self.publish_lock = threading.Lock()
+    # HTTP and both camera threads refresh settings; serialize the read as well
+    # as the model transition so an older read cannot restore a disabled model.
+    self.settings_refresh_lock = threading.Lock()
+    self.bsd_generation = 0
     self.inference = VASMInference(model_path)
     # Start unloaded: the BSD net is only resident while OnnxBsdEnabled is on.
     # The forced settings refresh at the end of __init__ loads it if enabled.
@@ -232,6 +236,13 @@ class VASMService:
     self._refresh_settings_from_params(force=True)
 
   def _refresh_settings_from_params(self, force: bool = False) -> None:
+    # Serialize the read as well as the model transition: without this, a thread
+    # that read params before a disable can commit a stale enabled value after
+    # the unload and revive the model.
+    with self.settings_refresh_lock:
+      self._refresh_settings_locked(force)
+
+  def _refresh_settings_locked(self, force: bool = False) -> None:
     now = time.monotonic()
     with self.lock:
       if not force and now - self.last_param_refresh_at < PARAM_REFRESH_SECONDS:
@@ -245,6 +256,14 @@ class VASMService:
     bsd_enabled = values["OnnxBsdEnabled"] == 1
     with self.lock:
       bsd_enabled_changed = bsd_enabled != self.bsd_enabled
+      if bsd_enabled_changed:
+        # Advance the generation and drop every stale blind-spot artifact so no
+        # result inferred by the previous lifecycle outlives the toggle.
+        self.bsd_generation += 1
+        self.vasm_result = {"left": False, "right": False, "side": "", "updatedMonoTimeNanos": 0}
+        self.last_side_at = {"left": 0.0, "right": 0.0}
+        self.followup_until = 0.0
+        self.last_inference_at = 0.0
       self.bsd_enabled = bsd_enabled
       self.threshold = min(max(values["OnnxBsdThreshold"], 25), 100) / 100.0
       self.smoothing_seconds = min(max(values["OnnxBsdSmoothingMs"], 100), 500) / 1000.0

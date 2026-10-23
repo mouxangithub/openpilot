@@ -47,6 +47,10 @@ class VASMInference:
       self.error = "OpenCV (cv2) is missing - install opencv-python-headless"
       self.valid = False
       return False
+    # Drop any previous net before attempting the read: a failed re-load must
+    # not leave the old (possibly stale or freed) net reference behind.
+    self.net = None
+    self.valid = False
     try:
       self.net = cv2.dnn.readNetFromONNX(str(self.model_path))
       self.net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)

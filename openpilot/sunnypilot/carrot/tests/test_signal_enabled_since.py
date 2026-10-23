@@ -81,5 +81,69 @@ class TestEnabledSinceGate(unittest.TestCase):
       self.assertIsNone(obs)
 
 
+  def test_identical_bytes_decoded_once(self):
+    class SM(dict):
+      def __init__(self):
+        super().__init__(carState=NS(canValid=True, gearShifter='drive'), selfdriveState=NS(enabled=True),
+                         carControl=NS(longActive=True))
+        names = ['carState', 'modelV2', 'radarState', 'carControl']
+        self.seen = dict.fromkeys(names, True)
+        self.valid = dict.fromkeys(names, True)
+        self.alive = dict.fromkeys(names, True)
+        self.recv_time = dict.fromkeys(names, 10.)
+
+    with tempfile.TemporaryDirectory() as d:
+      d = Path(d)
+      flag, path = d / 'enable', d / 'obs'
+      flag.write_text('1')
+      runtime = SignalAssistRuntime(flag, path)
+      publish_observation({'tracks': []}, 1, 10., 'worker', path)
+      obs1, _ = runtime.read(SM(), 10.1)
+      self.assertIsNotNone(obs1)
+      self.assertEqual(runtime._observation_bytes, path.read_bytes())
+      # Same file content again: the cached object is reused, not re-parsed.
+      # The patch stays up for both reads so the re-decode after new bytes is
+      # also counted through the same spy.
+      parsed_calls = []
+      original_loads = json.loads
+      json.loads = lambda *a, **k: (parsed_calls.append(1), original_loads(*a, **k))[1]
+      try:
+        obs2, _ = runtime.read(SM(), 10.2)
+        self.assertEqual(parsed_calls, [])
+        self.assertEqual(obs2, obs1)
+        # Changed bytes re-decode exactly once.
+        publish_observation({'tracks': []}, 2, 10.15, 'worker', path)
+        obs3, _ = runtime.read(SM(), 10.3)
+        self.assertIsNotNone(obs3)
+        self.assertEqual(parsed_calls, [1])
+      finally:
+        json.loads = original_loads
+
+  def test_disabled_cache_cannot_leak_across_disable(self):
+    class SM(dict):
+      def __init__(self):
+        super().__init__(carState=NS(canValid=True, gearShifter='drive'), selfdriveState=NS(enabled=True),
+                         carControl=NS(longActive=True))
+        names = ['carState', 'modelV2', 'radarState', 'carControl']
+        self.seen = dict.fromkeys(names, True)
+        self.valid = dict.fromkeys(names, True)
+        self.alive = dict.fromkeys(names, True)
+        self.recv_time = dict.fromkeys(names, 10.)
+
+    with tempfile.TemporaryDirectory() as d:
+      d = Path(d)
+      flag, path = d / 'enable', d / 'obs'
+      flag.write_text('1')
+      runtime = SignalAssistRuntime(flag, path)
+      publish_observation({'tracks': []}, 1, 10., 'worker', path)
+      obs, _ = runtime.read(SM(), 10.1)
+      self.assertIsNotNone(obs)
+      # Disable: nothing is read and no cached payload is served.
+      flag.write_text('0')
+      obs2, context = runtime.read(SM(), 10.7)
+      self.assertIsNone(obs2)
+      self.assertFalse(context['enabled'])
+
+
 if __name__ == "__main__":
   unittest.main()
