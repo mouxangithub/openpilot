@@ -106,7 +106,10 @@ class TestStore(_TempDirTestCase):
   def test_event_names_for_hat_switch(self):
     self.assertEqual("DPAD_RIGHT", store.event_name(store.hat_event_code(store.ABS_HAT0X, 1)))
     self.assertEqual("DPAD_UP", store.event_name(store.hat_event_code(store.ABS_HAT0X + 1, -1)))
-    self.assertEqual("KEY_42", store.event_name(42))
+    # unknown-keycode fallback: independent of whether the optional `inputs` package
+    # (which gives real key names like KEY_LEFTSHIFT) is installed
+    with mock.patch.object(store, "KEY_NAMES", {}):
+      self.assertEqual("KEY_42", store.event_name(42))
 
   def test_inspect_input_source_filters_internal_bus(self):
     import os
