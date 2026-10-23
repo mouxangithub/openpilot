@@ -195,6 +195,13 @@ class TestParamEndpoints(unittest.IsolatedAsyncioTestCase):
     self.app = create_app()
     self.client = TestClient(TestServer(self.app))
     await self.client.start_server()
+    # One Params handle for the whole test method: separate instances each run
+    # their own writer thread, and cross-instance writes carry no ordering
+    # guarantee, so a queued setup write could land after the value under test
+    # and silently flip the comparison (200 instead of 409). Combined with
+    # block=True below, every write is visible before the request fires.
+    from openpilot.common.params import Params
+    self.params = Params()
 
   async def asyncTearDown(self):
     # This class shares one persistent store across tests inside the prefix,
@@ -203,9 +210,9 @@ class TestParamEndpoints(unittest.IsolatedAsyncioTestCase):
     # while driving" guard for the running manager, so put everything back the
     # way it was found.
     from openpilot.common.params import Params
-    params = Params()
+    params = getattr(self, 'params', None) or Params()
     for key in ('SafeMode', 'ExperimentalMode', 'ExperimentalModeConfirmed'):
-      params.put_bool(key, False)
+      params.put_bool(key, False, block=True)
     for key, value in getattr(self, '_road_originals', {}).items():
       if value is None:
         try:
@@ -263,14 +270,14 @@ class TestParamEndpoints(unittest.IsolatedAsyncioTestCase):
     from a known state rather than inherit one.
     """
     from openpilot.common.params import Params
-    params = Params()
+    params = getattr(self, 'params', None) or Params()
     if not hasattr(self, '_road_originals'):
       self._road_originals = {key: params.get(key) for key in ('IsOnroad', 'IsOffroad')}
-    params.put_bool('IsOnroad', False)
-    params.put_bool('IsOffroad', True)
+    params.put_bool('IsOnroad', False, block=True)
+    params.put_bool('IsOffroad', True, block=True)
     if reset_mode:
-      params.put_bool('ExperimentalMode', False)
-      params.put_bool('ExperimentalModeConfirmed', False)
+      params.put_bool('ExperimentalMode', False, block=True)
+      params.put_bool('ExperimentalModeConfirmed', False, block=True)
 
   async def test_experimental_mode_requires_acknowledgement(self):
     # The settings UI asks for confirmation; the API must not be the way around it.
@@ -300,10 +307,10 @@ class TestParamEndpoints(unittest.IsolatedAsyncioTestCase):
     # Optimistic concurrency: a settings page that missed a newer change is
     # told to refresh rather than silently overwriting it.
     await self._park_the_car()
-    from openpilot.common.params import Params
-    params = Params()
-    params.put_bool('ExperimentalModeConfirmed', True)
-    params.put_bool('ExperimentalMode', True)
+    # block=True + the shared instance: the writes must be visible to the
+    # server before the request fires, otherwise the stale comparison passes.
+    self.params.put_bool('ExperimentalModeConfirmed', True, block=True)
+    self.params.put_bool('ExperimentalMode', True, block=True)
     stale = {'ExperimentalMode': False, 'ExperimentalModeConfirmed': True}
     resp = await self.client.post(
       '/api/param_set', json={'name': 'ExperimentalMode', 'value': 0, 'expected': stale})
@@ -311,10 +318,8 @@ class TestParamEndpoints(unittest.IsolatedAsyncioTestCase):
     self.assertIn('changed elsewhere', (await resp.json())['error'])
 
   async def test_experimental_mode_is_locked_by_safe_mode(self):
-    await self._park_the_car()
-    from openpilot.common.params import Params
-    params = Params()
-    params.put_bool('SafeMode', True)
+    await self._park_the_car(reset_mode=False)
+    self.params.put_bool('SafeMode', True, block=True)
     resp = await self.client.post(
       '/api/param_set', json={'name': 'ExperimentalMode', 'value': 1, 'acknowledge': True})
     self.assertEqual(resp.status, 403)

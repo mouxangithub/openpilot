@@ -249,6 +249,21 @@ sys.modules["opendbc.car"] = _opendbc_car_pkg
 sys.modules["opendbc.car.common"] = _opendbc_car_common_pkg
 sys.modules["opendbc.car.common.conversions"] = _opendbc_conversions_mod
 
+# config.py binds `Params` at import time. If a sibling module imported the
+# carrot subtree earlier in this process (e.g. test_lane_change_gap ->
+# carrot_functions -> config), those cached modules hold the REAL Params and
+# every _store-poking test below dies with AttributeError before the stubs can
+# help. Evict the non-test carrot modules so they re-import under the stubs
+# installed above. Test modules themselves are kept - re-importing them would
+# double-register their classes under unittest discovery.
+def _evict_cached_carrot_modules() -> None:
+  for name in [n for n in sys.modules
+               if n.startswith("openpilot.sunnypilot.carrot.") and ".tests" not in n]:
+    sys.modules.pop(name, None)
+
+
+_evict_cached_carrot_modules()
+
 from openpilot.sunnypilot.carrot.carrot_man import CarrotManager, TURN_TYPE_MAPPING
 from openpilot.sunnypilot.carrot.web_interface import WebInterface
 
