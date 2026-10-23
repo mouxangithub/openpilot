@@ -16,6 +16,15 @@ braking-distance input.
 Grayscale note: Y-only drops chroma, which costs a little detection accuracy
 versus full BGR but keeps the head inside the road thread's frame budget
 alongside lane segmentation.
+
+Model choice: xiaoge already carries a YOLO detector for the WIDE camera -
+``v_asm_model.onnx`` (256x352 in, (N,6) out, zoompilot-merged, single class 0,
+consumed as a blind-spot occupancy score by ``v_asm_inference``). It cannot
+drive this head: one class cannot feed the 11-class KEEP/REAL_HEIGHT_M tables,
+its training domain is the wide-camera blind-spot band rather than the forward
+road scene, and its graph-internal NMS output shape differs from this model's
+raw (84, N) layout. The two detectors deliberately coexist: wide camera blind
+spot = v_asm_model, road camera obstacles = this COCO yolov8n-192.
 """
 import collections
 

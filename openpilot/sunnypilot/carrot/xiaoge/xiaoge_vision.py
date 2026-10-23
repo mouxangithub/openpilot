@@ -20,6 +20,8 @@ from openpilot.sunnypilot.carrot.xiaoge.yolo_inference import HIGH_RISK_CLASSES
 
 XIAOGE_LANE_TIMEOUT_NS = 4_000_000_000
 XIAOGE_BLINDSPOT_TIMEOUT_NS = 1_500_000_000
+# Same value as the blind-spot window on purpose, not by copy-paste: both heads
+# run at the same cadence (~250 ms), so 1.5 s is six missed frames for each.
 XIAOGE_YOLO_TIMEOUT_NS = 1_500_000_000
 XIAOGE_LANE_TYPES = (-1, 0, 1)
 
