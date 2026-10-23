@@ -16,8 +16,11 @@ from dataclasses import dataclass
 import json
 from typing import Protocol
 
+from openpilot.sunnypilot.carrot.xiaoge.yolo_inference import HIGH_RISK_CLASSES
+
 XIAOGE_LANE_TIMEOUT_NS = 4_000_000_000
 XIAOGE_BLINDSPOT_TIMEOUT_NS = 1_500_000_000
+XIAOGE_YOLO_TIMEOUT_NS = 1_500_000_000
 XIAOGE_LANE_TYPES = (-1, 0, 1)
 
 
@@ -31,12 +34,20 @@ class XiaogeVisionResult:
   right_blindspot: bool
   blindspot_valid: bool
   blindspot_received_nanos: int
+  # Optional YOLO section: None when the head is off or the payload predates it
+  # (the section key is absent, not version-bumped, so v1 readers keep working).
+  yolo: dict | None = None
 
 
 class CarStateSP(Protocol):
   """carStateSP fields written by xiaoge vision."""
   xiaogeLeftLaneLine: int
   xiaogeRightLaneLine: int
+  yoloVruPresent: bool
+  yoloVruNearestDist: float
+  yoloVruBlockLeft: bool
+  yoloVruBlockRight: bool
+  yoloVruMonoTimeNanos: int
 
 
 class CarState(Protocol):
@@ -95,7 +106,22 @@ def parse_xiaoge_vision_payload(payload: bytes) -> XiaogeVisionResult:
     _bool(blindspot.get("right"), "blindspot.right"),
     _bool(blindspot.get("valid"), "blindspot.valid"),
     _received_nanos(blindspot.get("receivedMonoTimeNanos"), "blindspot.receivedMonoTimeNanos"),
+    yolo=_yolo_section(data.get("yolo")),
   )
+
+
+def _yolo_section(section: object) -> dict | None:
+  """Validate the optional YOLO section; absent/None passes through as None."""
+  if section is None:
+    return None
+  if not isinstance(section, dict):
+    raise ValueError("yolo section must be an object")
+  _bool(section.get("valid"), "yolo.valid")
+  _received_nanos(section.get("receivedMonoTimeNanos"), "yolo.receivedMonoTimeNanos")
+  dets = section.get("dets")
+  if not isinstance(dets, list):
+    raise ValueError("yolo.dets must be a list")
+  return section
 
 
 def merge_xiaoge_lane_type(current: int, detected: int) -> int:
@@ -147,8 +173,46 @@ def apply_xiaoge_vision_result_to_cs_sp(
       CS_SP.xiaogeRightLaneLine = merge_xiaoge_lane_type(
         int(CS_SP.xiaogeRightLaneLine), result.right_lane
       )
-    return True
-  return False
+    lane_applied = True
+  else:
+    lane_applied = False
+
+  yolo_applied = apply_yolo_summary_to_cs_sp(CS_SP, result, now_nanos)
+  return lane_applied or yolo_applied
+
+
+def apply_yolo_summary_to_cs_sp(
+    CS_SP: CarStateSP, result: XiaogeVisionResult | None, now_nanos: int
+) -> bool:
+  """Write the YOLO control-side digest into carStateSP.
+
+  Block flags are always False here: the VRU gate (path projection) owns them
+  and lands separately. Distance 0.0 means "no valid target".
+  """
+  if result is None or result.yolo is None:
+    return False
+  if not result.yolo.get("valid") or not _is_fresh(
+      int(result.yolo.get("receivedMonoTimeNanos", 0)), now_nanos, XIAOGE_YOLO_TIMEOUT_NS
+  ):
+    return False
+
+  nearest = None
+  for det in result.yolo.get("dets", []):
+    if not isinstance(det, dict):
+      continue
+    if det.get("cid") in HIGH_RISK_CLASSES and det.get("d") is not None:
+      try:
+        d = float(det["d"])
+      except (TypeError, ValueError):
+        continue
+      if nearest is None or d < nearest:
+        nearest = d
+  CS_SP.yoloVruPresent = nearest is not None
+  CS_SP.yoloVruNearestDist = nearest if nearest is not None else 0.0
+  CS_SP.yoloVruBlockLeft = False
+  CS_SP.yoloVruBlockRight = False
+  CS_SP.yoloVruMonoTimeNanos = int(result.yolo.get("receivedMonoTimeNanos", 0))
+  return True
 
 
 def apply_xiaoge_vision_result(

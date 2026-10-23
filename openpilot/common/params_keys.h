@@ -895,6 +895,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MuteDoor", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"MuteSeatbelt", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"OnnxLaneIntervalMs", {PERSISTENT | BACKUP, INT, "400"}},
+    {"YoloObstacleEnabled", {PERSISTENT | BACKUP, INT, "0"}},  // xiaoge YOLOv8n obstacle head: resident only while on (device-verified before enabling)
     {"OnnxLaneThreshold", {PERSISTENT | BACKUP, INT, "25"}},
     {"RecordRoadCam", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ShareData", {PERSISTENT | BACKUP, BOOL, "0"}},

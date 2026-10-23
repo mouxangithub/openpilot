@@ -751,6 +751,19 @@ struct CarStateSP @0xb86e6369214c01c8 {
   # zoompilot-specific fields (CarStateZP): lkasArming, distanceFarther.
   # Added at @11 to avoid wire conflicts with sunnypilot fields @0-@10.
   zoompilot @11 :CarStateZP;
+
+  # Xiaoge YOLO obstacle-head summary (CarStateYolo). The raw detection list
+  # never enters capnp: it is for HUD painting, so the UI subscribes to
+  # customReservedRawData0 directly. These five fields are the control-side
+  # digest, computed by the xiaoge ONNX YOLO head plus path projection and
+  # written by card.py (single writer, same pattern as the lane fields above).
+  # yoloVruNearestDist uses 0.0 = no valid target; block flags stay False until
+  # the VRU gate consumes them.
+  yoloVruPresent @12 :Bool;
+  yoloVruNearestDist @13 :Float32;
+  yoloVruBlockLeft @14 :Bool;
+  yoloVruBlockRight @15 :Bool;
+  yoloVruMonoTimeNanos @16 :Int64;
 }
 
 # CarStateZP (the fork's CarState nest, including the Mazda stock-ECU fields) is

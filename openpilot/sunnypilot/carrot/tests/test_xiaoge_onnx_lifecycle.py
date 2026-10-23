@@ -148,6 +148,10 @@ class TestSettingsRefreshLifecycle(unittest.TestCase):
     svc.followup_until = 99.0
     svc.last_inference_at = 7.0
     svc.inference = types.SimpleNamespace(load=lambda: True, unload=lambda: None, valid=False)
+    svc.yolo_enabled = False
+    svc.yolo = types.SimpleNamespace(load=lambda: True, unload=lambda: None, valid=False, error="")
+    svc.yolo_tracker = types.SimpleNamespace(reset=lambda: None)
+    svc.yolo_result = None
     svc.config = None
     return svc
 

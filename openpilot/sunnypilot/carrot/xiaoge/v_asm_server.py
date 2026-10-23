@@ -30,6 +30,7 @@ from openpilot.sunnypilot.carrot.xiaoge.lane_inference import DEFAULT_LANE_MODEL
 from openpilot.sunnypilot.carrot.xiaoge.nv12 import nv12_y_plane, pack_nv12
 from openpilot.sunnypilot.carrot.xiaoge.v_asm_inference import DEFAULT_MODEL_PATH, VASMInference
 from openpilot.sunnypilot.carrot.xiaoge.xiaoge_vision import XIAOGE_BLINDSPOT_TIMEOUT_NS, XIAOGE_LANE_TIMEOUT_NS, lane_width_meters
+from openpilot.sunnypilot.carrot.xiaoge.yolo_inference import DEFAULT_FOCAL_PX, DEFAULT_HEIGHT_PX, DEFAULT_WIDTH_PX, Tracker, YoloInference
 
 try:
   import cv2
@@ -72,7 +73,10 @@ PARAM_SETTING_DEFAULTS = {
   "OnnxBsdIntervalMs": 250,
   "OnnxLaneThreshold": 25,
   "OnnxLaneIntervalMs": 1000,
+  "YoloObstacleEnabled": 0,
 }
+# Road-thread YOLO target cadence (with backpressure stretching it as needed).
+YOLO_INTERVAL_SECONDS = 0.25
 
 # Measured on SDM845 (comma 3): the lane model needs ~421 ms on a Gold core and
 # 941-1104 ms on a Silver core, and doubles again while both camera threads infer
@@ -209,6 +213,19 @@ class VASMService:
     # Lane inference engine setup
     self.lane_inference = LaneInference(DEFAULT_LANE_MODEL_PATH)
     self.lane_inference.load()
+    # YOLO obstacle head (road camera, serialised with lane inference). Starts
+    # unloaded: the net is only resident while YoloObstacleEnabled is on, and
+    # the forced settings refresh at the end of __init__ loads it if enabled.
+    self.yolo_enabled = False
+    self.yolo = YoloInference(focal_px=DEFAULT_FOCAL_PX, width_px=DEFAULT_WIDTH_PX, height_px=DEFAULT_HEIGHT_PX)
+    self.yolo_tracker = Tracker()
+    self.yolo_result = None
+    self.last_yolo_inference_at = 0.0
+    self.last_yolo_inference_ms = 0.0
+    self.yolo_inference_fps = 0.0
+    self.yolo_inference_count = 0
+    self._yolo_fps_window_start = time.monotonic()
+    self._yolo_fps_window_count = 0
     self.lane_threshold = 0.25
     self.lane_interval_seconds = 1.0
     self.lane_camera_error = "waiting for road camera"
@@ -281,6 +298,22 @@ class VASMService:
             self.inference.load_config(self.config)
         else:
           self.inference.unload()
+
+    # Same lifecycle for the YOLO obstacle head: toggling drops every tracked
+    # trajectory and the last result so nothing from the old lifecycle survives.
+    yolo_enabled = values["YoloObstacleEnabled"] == 1
+    with self.lock:
+      yolo_enabled_changed = yolo_enabled != self.yolo_enabled
+      if yolo_enabled_changed:
+        self.yolo_result = None
+      self.yolo_enabled = yolo_enabled
+    if yolo_enabled_changed:
+      self.yolo_tracker.reset()
+      with self.vasm_inference_lock:
+        if yolo_enabled:
+          self.yolo.load()
+        else:
+          self.yolo.unload()
 
   def _persist_settings(self, values: dict[str, int]) -> None:
     if self.params is None:
@@ -464,6 +497,19 @@ class VASMService:
             "lastAgeSeconds": round(time.monotonic() - self.last_lane_inference_at, 2) if self.last_lane_inference_at else None,
           },
         },
+        "yolo": {
+          "enabled": self.yolo_enabled,
+          "loaded": self.yolo.valid,
+          "error": self.yolo.error,
+          "intervalSeconds": YOLO_INTERVAL_SECONDS,
+          "resultAgeSeconds": round(time.monotonic() - self.last_yolo_inference_at, 2) if self.last_yolo_inference_at else None,
+          "inference": {
+            "latencyMs": round(self.last_yolo_inference_ms, 1),
+            "fps": self.yolo_inference_fps,
+            "count": self.yolo_inference_count,
+            "tracks": len(self.yolo_tracker.tracks),
+          },
+        },
       }
 
   def snapshot(self, stream_type: str) -> bytes | None:
@@ -509,7 +555,7 @@ class VASMService:
     blindspot_valid = any(side["valid"] for side in status["vehicleSide"].values())
     blindspot_side = next((side for side in ("left", "right") if sides[side]["valid"]), "")
     now_nanos = time.monotonic_ns()
-    payload = json.dumps({
+    document = {
       "type": "xiaogeVision",
       "version": 1,
       "lane": {
@@ -526,7 +572,14 @@ class VASMService:
         "side": blindspot_side,
         "receivedMonoTimeNanos": status["inference"]["updatedMonoTimeNanos"] or now_nanos,
       },
-    }, separators=(",", ":")).encode()
+    }
+    # Optional section: readers built for version 1 must keep parsing when the
+    # YOLO head is off, so the key is simply absent instead of version-bumped.
+    with self.lock:
+      yolo_result = self.yolo_result if self.yolo_enabled else None
+    if yolo_result is not None:
+      document["yolo"] = yolo_result
+    payload = json.dumps(document, separators=(",", ":")).encode()
     with self.publish_lock:
       msg = messaging.new_message("customReservedRawData0", size=len(payload), valid=True)
       msg.customReservedRawData0 = payload
@@ -661,42 +714,95 @@ class VASMService:
             self.last_road_jpeg = self._lane_jpeg_from_nv12(buffer.data, buffer.width, buffer.height, buffer.stride)
             self.snapshot_responses["road"] = self.snapshot_requests["road"]
             self.snapshot_condition.notify_all()
-          if not self.lane_inference.valid:
-            continue
-          interval = self.lane_interval_seconds
-          if self.last_lane_inference_ms > 0.0:
-            interval = max(interval, self.last_lane_inference_ms * INFERENCE_BACKPRESSURE_FACTOR / 1000.0)
-          if now - self.last_lane_inference_at < interval:
-            continue
 
-          lane_threshold = self.lane_threshold
-        t0 = time.monotonic()
-        cpu0 = time.thread_time()
-        res = self.lane_inference.infer(
-          frame, buffer.width, buffer.height, conf_thresh=lane_threshold
-        )
-        t1 = time.monotonic()
-        thread_cpu_ms = (time.thread_time() - cpu0) * 1000.0
+        # Lane and YOLO share this thread but throttle independently, so neither
+        # cadence can starve the other. Reserving the slot before inferring
+        # keeps one slow frame from double-firing its own head.
         with self.lock:
-          self.last_lane_inference_ms = (t1 - t0) * 1000.0
-          self.last_lane_inference_thread_cpu_ms = thread_cpu_ms
-          self.lane_inference_count += 1
-          self._lane_fps_window_count += 1
-          if t1 - self._lane_fps_window_start >= 1.0:
-            self.lane_inference_fps = round(self._lane_fps_window_count / (t1 - self._lane_fps_window_start), 1)
-            self._lane_fps_window_start = t1
-            self._lane_fps_window_count = 0
+          lane_due = self.lane_inference.valid and \
+            now - self.last_lane_inference_at >= self._lane_interval_for(now)
+          lane_threshold = self.lane_threshold
+          if lane_due:
+            self.last_lane_inference_at = now
+          yolo_due = self.yolo_enabled and self.yolo.valid and \
+            now - self.last_yolo_inference_at >= self._yolo_interval_for(now)
+          if yolo_due:
+            self.last_yolo_inference_at = now
 
-          self.last_lane_inference_at = now
-          res["updatedMonoTimeNanos"] = time.monotonic_ns()
-          self.lane_result = res
-        self.publish_vision_result()
+        if lane_due:
+          t0 = time.monotonic()
+          cpu0 = time.thread_time()
+          res = self.lane_inference.infer(
+            frame, buffer.width, buffer.height, conf_thresh=lane_threshold
+          )
+          t1 = time.monotonic()
+          thread_cpu_ms = (time.thread_time() - cpu0) * 1000.0
+          with self.lock:
+            self.last_lane_inference_ms = (t1 - t0) * 1000.0
+            self.last_lane_inference_thread_cpu_ms = thread_cpu_ms
+            self.lane_inference_count += 1
+            self._lane_fps_window_count += 1
+            if t1 - self._lane_fps_window_start >= 1.0:
+              self.lane_inference_fps = round(self._lane_fps_window_count / (t1 - self._lane_fps_window_start), 1)
+              self._lane_fps_window_start = t1
+              self._lane_fps_window_count = 0
+            res["updatedMonoTimeNanos"] = time.monotonic_ns()
+            self.lane_result = res
+
+        if yolo_due:
+          t0 = time.monotonic()
+          dets = self.yolo.infer(frame, buffer.width, buffer.height)
+          self.yolo_tracker.update(dets, now)
+          t1 = time.monotonic()
+          with self.lock:
+            self.last_yolo_inference_ms = (t1 - t0) * 1000.0
+            self.yolo_inference_count += 1
+            self._yolo_fps_window_count += 1
+            if t1 - self._yolo_fps_window_start >= 1.0:
+              self.yolo_inference_fps = round(self._yolo_fps_window_count / (t1 - self._yolo_fps_window_start), 1)
+              self._yolo_fps_window_start = t1
+              self._yolo_fps_window_count = 0
+            self.yolo_result = {
+              "valid": True,
+              "receivedMonoTimeNanos": time.monotonic_ns(),
+              "dets": self._yolo_payload_dets(),
+            }
+
+        if lane_due or yolo_due:
+          self.publish_vision_result()
       except (OSError, ValueError, AttributeError) as error:
         # See run_camera: guard against cereal-schema drift killing the thread silently.
         with self.lock:
           self.lane_camera_error = str(error)
         client = None
         time.sleep(1.0)
+
+  def _lane_interval_for(self, now: float) -> float:
+    interval = self.lane_interval_seconds
+    if self.last_lane_inference_ms > 0.0:
+      interval = max(interval, self.last_lane_inference_ms * INFERENCE_BACKPRESSURE_FACTOR / 1000.0)
+    return interval
+
+  def _yolo_interval_for(self, now: float) -> float:
+    interval = YOLO_INTERVAL_SECONDS
+    if self.last_yolo_inference_ms > 0.0:
+      interval = max(interval, self.last_yolo_inference_ms * INFERENCE_BACKPRESSURE_FACTOR / 1000.0)
+    return interval
+
+  def _yolo_payload_dets(self) -> list[dict]:
+    """Serialise tracked objects; must be called with self.lock held."""
+    return [{
+      "tid": tr.tid,
+      "cid": tr.cid,
+      "conf": tr.conf,
+      "cx": round(tr.box[0], 4),
+      "cy": round(tr.box[1], 4),
+      "w": round(tr.box[2], 4),
+      "h": round(tr.box[3], 4),
+      "d": tr.d,
+      "y": tr.y,
+      "pred": [[round(px, 4), round(py, 4)] for px, py in self.yolo_tracker.predict(tr)],
+    } for tr in self.yolo_tracker.tracks.values()]
 
 
 class Handler(BaseHTTPRequestHandler):
