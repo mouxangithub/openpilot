@@ -5,6 +5,7 @@ import sysconfig
 import platform
 import shlex
 import importlib
+from pathlib import Path
 import numpy as np
 
 import SCons.Errors
@@ -238,6 +239,14 @@ Export('env', 'arch', 'acados', 'release', 'ffmpeg_libs')
 default_cache_dir = '/data/scons_cache' if arch == "comma_arm64" else '/tmp/scons_cache'
 cache_dir = ARGUMENTS.get('cache_dir', default_cache_dir)
 cache_size_limit = 4e9 if "CI" in os.environ else 2e9
+# Hold a process-lifetime flock on a sibling of the cache so two concurrent
+# builds (or a build racing a cache prune) cannot corrupt shared cache entries.
+# Optional and best-effort: keep building if the guard cannot be acquired.
+_cache_lock_handle = None
+try:
+  from openpilot.common.scons_cache_lock import acquire_cache_lock
+  _cache_lock_handle = acquire_cache_lock(Path(cache_dir), timeout=float(ARGUMENTS.get('cache_lock_timeout', 120)))except Exception as _cache_lock_error:
+  print(f"scons cache lock disabled: {_cache_lock_error}")
 CacheDir(cache_dir)
 Clean(["."], cache_dir)
 

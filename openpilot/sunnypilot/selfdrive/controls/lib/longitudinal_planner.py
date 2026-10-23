@@ -32,7 +32,6 @@ from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
 from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import LeadForecast
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot import make_smart_cruise_control
-from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_assist import SpeedLimitAssist
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.assist_mirror import SpeedLimitAssistMirror
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import pcm_machine_owns_sla
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.lead_drop_relaxation import LeadDropRelaxation
@@ -296,7 +295,48 @@ class LongitudinalPlannerSP:
     # the machine exists only on pcm openpilot-long cars, where it owns SLA while ICBM is passive
     return self.sla_machine if self.sla_machine is not None and not icbm else self.sla_mirror
 
-  def update_targets(self, sm: messaging.SubMaster, v_ego: float, a_ego: float, v_cruise: float) -> tuple[float, float]:
+  def _coasting_vetoed(self, sm: messaging.SubMaster, reset_state: bool, v_cruise: float) -> bool:
+    """Whether brake relief must be withheld this frame.
+
+    Coasting only ever *removes* brake, so every condition that requires the
+    brake to stay applied has to veto it. The checks are ordered so the cheap
+    controller and driver state is rejected before the planner walks
+    subscriber health or reads navigation.
+    """
+    if self._coasting_percent <= 0:
+      return True
+    # The user is not in control and the plan is not running: a coasting band
+    # from the previous engagement must not survive into a new one.
+    if reset_state or not self.CP.openpilotLongitudinalControl:
+      return True
+    # The solver is not in its normal cruise solution, so its output is not the
+    # plan the coasting band was derived from. This fork's MPC has no `mode`
+    # field; the plan source and the solver status carry the same meaning.
+    if self.mpc.source != MpcPlanSource.cruise or self.mpc.solution_status != 0:
+      return True
+
+    cs = sm['carState']
+    # The driver, the standstill state, or a soft hold all require the brake.
+    if cs.gasPressed or cs.brakePressed or cs.standstill:
+      return True
+    if getattr(cs, 'softHoldActive', 0) != 0:
+      return True
+    # A stop was already decided, so the brake is doing work.
+    if self.output_should_stop or self.dec.active():
+      return True
+    # The driver asked for a speed change that is not the set speed, or a
+    # lane change is in progress: the band is not valid in either case.
+    if self.carrot_lane_change_active:
+      return True
+    if not self._no_coasting_lead(sm['radarState']):
+      return True
+    # The set speed moved under the band, so the band is stale.
+    if not math.isfinite(v_cruise) or v_cruise <= 0.0:
+      return True
+    return False
+
+  def update_targets(self, sm: messaging.SubMaster, v_ego: float, a_ego: float, v_cruise: float,
+                     reset_state: bool = False) -> tuple[float, float]:
     CS = sm['carState']
     v_cruise_cluster_kph = min(CS.vCruiseCluster, V_CRUISE_MAX)
     v_cruise_cluster = v_cruise_cluster_kph * CV.KPH_TO_MS
@@ -386,19 +426,28 @@ class LongitudinalPlannerSP:
     # reference for the overspeed band; longcontrol consumes it to relax the
     # brake. Only ever releases brake within the band and never changes the
     # speed target or creates thrust, so the stock target selection is untouched.
+    #
+    # Coasting relaxes the brake, so every state in which the brake must be
+    # held has to veto it. The vetoes are ordered cheapest-first: controller
+    # and driver state before subscriber health and navigation. Every veto
+    # still clears the coasting stability history, so a veto cannot leave a
+    # stale band behind for the next frame.
     self._coasting_target = 0.0
     if self._coasting_enabled:
       self._coasting_param_count += 1
       if self._coasting_param_count >= 20:  # ~1 s at 20 Hz
         self._coasting_param_count = 0
         self._coasting_percent = self._coasting_percent_fn(self._params.get_int("CarrotCruiseCoastingPercent"))
-      external_limit = min(v for v, _ in self.targets.values())
-      self._coasting_target = self._coasting.update(
-        enabled=True, percent=self._coasting_percent, set_speed=v_cruise * CV.MS_TO_KPH,
-        target=v_cruise, external_limit=external_limit, dt=DT_MDL,
-      ) if self._no_coasting_lead(sm['radarState']) else 0.0
-      if self._coasting_target <= 0.0:
+      if self._coasting_vetoed(sm, reset_state, v_cruise):
         self._coasting.reset()
+      else:
+        external_limit = min(v for v, _ in self.targets.values())
+        self._coasting_target = self._coasting.update(
+          enabled=True, percent=self._coasting_percent, set_speed=v_cruise * CV.MS_TO_KPH,
+          target=v_cruise, external_limit=external_limit, dt=DT_MDL,
+        )
+        if self._coasting_target <= 0.0:
+          self._coasting.reset()
 
     self.source = min(self.targets, key=lambda k: self.targets[k][0])
     v_target, a_target = self.targets[self.source]

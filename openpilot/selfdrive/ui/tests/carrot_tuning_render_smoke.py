@@ -332,6 +332,11 @@ def install_stubs() -> None:
                "jeepney.bus_messages", "jeepney.low_level", "jeepney.wrappers"):
     sys.modules.setdefault(name, _FakeModule(name))
 
+  # emoji.py imports PIL at module scope; pillow is not installed on a bare PC
+  # and none of its calls are exercised by a headless layout render.
+  for name in ("PIL", "PIL.Image", "PIL.ImageDraw", "PIL.ImageFont"):
+    sys.modules.setdefault(name, _FakeModule(name))
+
   # Make sure `from openpilot.system.ui.lib.application import X` resolves the
   # parent packages to the real (empty) __init__ modules, not to a fabricated one.
   for pkg in ("openpilot", "openpilot.system", "openpilot.system.ui", "openpilot.system.ui.lib",

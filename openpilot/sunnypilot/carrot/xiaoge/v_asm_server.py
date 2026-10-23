@@ -66,6 +66,7 @@ CAMERA_POLL_INTERVAL_SECONDS = 0.005
 PARAM_REFRESH_SECONDS = 1.0
 
 PARAM_SETTING_DEFAULTS = {
+  "OnnxBsdEnabled": 0,
   "OnnxBsdThreshold": 45,
   "OnnxBsdSmoothingMs": 200,
   "OnnxBsdIntervalMs": 250,
@@ -168,7 +169,9 @@ class VASMService:
     self.vasm_inference_lock = threading.Lock()
     self.publish_lock = threading.Lock()
     self.inference = VASMInference(model_path)
-    self.inference.load()
+    # Start unloaded: the BSD net is only resident while OnnxBsdEnabled is on.
+    # The forced settings refresh at the end of __init__ loads it if enabled.
+    self.bsd_enabled = False
     self.config = self._read_config()
     if self.config:
       self.inference.load_config(self.config)
@@ -239,12 +242,26 @@ class VASMService:
       name: read_param_int(self.params, name, default)
       for name, default in PARAM_SETTING_DEFAULTS.items()
     }
+    bsd_enabled = values["OnnxBsdEnabled"] == 1
     with self.lock:
+      bsd_enabled_changed = bsd_enabled != self.bsd_enabled
+      self.bsd_enabled = bsd_enabled
       self.threshold = min(max(values["OnnxBsdThreshold"], 25), 100) / 100.0
       self.smoothing_seconds = min(max(values["OnnxBsdSmoothingMs"], 100), 500) / 1000.0
       self.base_interval_seconds = min(max(values["OnnxBsdIntervalMs"], 50), 1000) / 1000.0
       self.lane_threshold = min(max(values["OnnxLaneThreshold"], 5), 100) / 100.0
       self.lane_interval_seconds = min(max(values["OnnxLaneIntervalMs"], MIN_LANE_INTERVAL_MS), 2000) / 1000.0
+
+    # Apply the resident-model lifecycle outside the state lock: a load touches
+    # ONNX/dnn and can be slow, and inference takes the dedicated dnn lock.
+    if bsd_enabled_changed:
+      with self.vasm_inference_lock:
+        if bsd_enabled:
+          self.inference.load()
+          if self.inference.valid and self.config:
+            self.inference.load_config(self.config)
+        else:
+          self.inference.unload()
 
   def _persist_settings(self, values: dict[str, int]) -> None:
     if self.params is None:

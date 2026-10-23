@@ -1066,7 +1066,7 @@ class CarrotServ:
     Skipped while phone navigation supplies its own distance, so the two sources
     cannot disagree (cp gates the virtual distance the same way).
     """
-    distance = float(getattr(cs, "speedLimitDistance", 0.0) or 0.0)
+    distance = float(cs.speedLimitDistance)
     if distance > 0:
       return distance
     speed_kph = float(getattr(cs, "speedLimit", 0.0) or 0.0)
@@ -1176,7 +1176,7 @@ class CarrotServ:
       getattr(cs, "vehicleNaviActive", False)
     )
     if vehicle_navi_active:
-      camera_distance = getattr(cs, "speedLimitDistance", 0.0)
+      camera_distance = cs.speedLimitDistance
       if camera_distance > 0:
         distances.append(float(camera_distance))
       bump_distance = getattr(cs, "speedBumpDistance", 0.0)

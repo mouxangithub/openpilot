@@ -56,6 +56,11 @@ class SignalAssistRuntime:
     self.assist = SignalAssist(producer_red_history=requested(self.enable_path.parent / 'revalidated_enabled')) if requested(self.enable_path) else None
     self.last_mode_check = -1.
     self.enabled = self.assist is not None
+    # Timestamp of the most recent off->on transition. Observations produced
+    # before it (a stale tmpfs file left from a previous session) must not be
+    # acted on the instant the user enables the feature. -inf on the very first
+    # enabled state keeps a boot-with-feature-on permissive.
+    self.enabled_since = -float('inf') if self.enabled else float('inf')
     self.last_log = -1.
     self.last_decision = None
     self.read_ms = 0.
@@ -64,7 +69,10 @@ class SignalAssistRuntime:
     now = time.monotonic() if now is None else now
     start = time.monotonic()
     if now - self.last_mode_check >= .5:
-      self.enabled = requested(self.enable_path)
+      enabled = requested(self.enable_path)
+      if enabled and not self.enabled:
+        self.enabled_since = now
+      self.enabled = enabled
       self.last_mode_check = now
     observation = None
     if self.enabled:
@@ -74,7 +82,10 @@ class SignalAssistRuntime:
         if len(raw) <= MAX_BYTES:
           obj = json.loads(raw)
           if obj.get('version') == 1 and obj.get('stream') == 'road' and obj.get('size') == [1344, 760]:
-            observation = obj
+            # Reject an observation that predates the current enable window, so
+            # enabling cannot act on a frame the model wrote last session.
+            if obj.get('timestamp', -float('inf')) >= self.enabled_since:
+              observation = obj
       except (OSError, ValueError, TypeError, AttributeError):
         pass
     services = ['carState', 'modelV2', 'radarState', 'carControl']

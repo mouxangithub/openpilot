@@ -1509,7 +1509,7 @@ class CarrotManager:
     log_carrot = ""
     if self.sm.valid.get('carState', False):
       carState = self.sm['carState']
-      log_carrot = getattr(carState, 'logCarrot', '')
+      log_carrot = carState.logCarrot
 
     msg['v_ego_kph'] = v_ego_kph
     msg['v_cruise_kph'] = v_cruise_kph

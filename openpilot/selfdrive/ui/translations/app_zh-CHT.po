@@ -6429,6 +6429,14 @@ msgid "ONNX Vision Detection (BSD / Lane)"
 msgstr "ONNX 視覺偵測（盲區/車道）"
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "ONNX Blind Spot Detection"
+msgstr "ONNX 盲區偵測"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Run the ONNX blind-spot model on the camera image and report side obstacles in the UI. Off unloads the model and frees its memory; the thresholds below have no effect."
+msgstr "在攝影機畫面上執行 ONNX 盲區模型，並在 UI 中報告側方障礙物。關閉時卸載模型並釋放記憶體；下方閾值設定將不起作用。"
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "BSD Detection Threshold"
 msgstr "盲區偵測閾值"
 

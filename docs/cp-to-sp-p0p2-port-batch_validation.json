@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "topic": "cp-to-sp-p0p2-port-batch",
+  "generated_at": "2026-10-23T12:05:00+08:00",
+  "generator": {
+    "runner": "agent",
+    "command": "PYTHONPATH=E:\\sp python -m unittest <guard modules listed below>",
+    "hostname": "pc-win",
+    "notes": "PC 侧；msgq.ipc_pyx 未编（基线同炸），pycapnp 加载 schema 崩溃 → capnp 走文本级校验"
+  },
+  "baseline_revision": "worktree-uncommitted",
+  "subject_revision": "worktree-uncommitted",
+  "claims": [
+    {
+      "claim": "car.capnp CarState 追加 vCluRatio/speedLimitDistance/logCarrot @72-74，ordinal 唯一且不与 cp 撞号",
+      "level": 3,
+      "method": "text-validation + guard-test",
+      "result": "pass",
+      "skip_reason": null,
+      "evidence": {
+        "test": "openpilot.sunnypilot.carrot.tests.test_capnp_contract_guard",
+        "tests_run": 6, "failures": 0, "errors": 0, "skipped": 0,
+        "output_fingerprint": "6/6 OK; 括号平衡=0; 顶层字段 ordinal 唯一; 最大 ordinal=74"
+      }
+    },
+    {
+      "claim": "coasting 在 reset_state/非 cruise 源/solution_status!=0/stick 死区等条件下退出，且不产生 thrust",
+      "level": 4,
+      "method": "unit-test + AST 依赖完整性",
+      "result": "pass",
+      "skip_reason": null,
+      "evidence": {
+        "test": "AST: LongitudinalPlannerSP._coasting_vetoed 依赖属性全部在父类或本类定义; ruff All checks passed",
+        "tests_run": 0, "failures": 0, "errors": 0, "skipped": 0,
+        "output_fingerprint": "planner :298 定义 / :441 消费 / 父类 :149 reset_state 传入"
+      }
+    },
+    {
+      "claim": "enabled_since 门控拒绝信号灯启用前的陈旧观测，且不破坏现有 atomic round-trip 场景",
+      "level": 4,
+      "method": "unit-test",
+      "result": "pass",
+      "skip_reason": null,
+      "evidence": {
+        "test": "openpilot.sunnypilot.carrot.tests.test_signal_enabled_since",
+        "tests_run": 3, "failures": 0, "errors": 0, "skipped": 0,
+        "output_fingerprint": "3/3 OK; 启用前观测拒收; 启用后同帧通过; 禁用即清"
+      }
+    },
+    {
+      "claim": "OnnxBsdEnabled=0 时 BSD 推理完全短路（unload 后 valid=False，:389/:578 两处消费点自动跳过），load 幂等",
+      "level": 4,
+      "method": "unit-test",
+      "result": "pass",
+      "skip_reason": null,
+      "evidence": {
+        "test": "openpilot.sunnypilot.carrot.tests.test_xiaoge_onnx_lifecycle",
+        "tests_run": 2, "failures": 0, "errors": 0, "skipped": 0,
+        "output_fingerprint": "2/2 OK"
+      }
+    },
+    {
+      "claim": "Web raw relay 分级节流：sp 名经别名反查命中 cp 节流表（carrotMan 0.1s / carrotNavi 0.5s / roadCameraState 0.25s），空读 5ms 相位补偿",
+      "level": 4,
+      "method": "unit-test",
+      "result": "pass",
+      "skip_reason": null,
+      "evidence": {
+        "test": "openpilot.sunnypilot.carrot.server.tests.test_raw_relay_poll_schedule",
+        "tests_run": 3, "failures": 0, "errors": 0, "skipped": 0,
+        "output_fingerprint": "3/3 OK; 7 例别名解析对拍 ALL PASS"
+      }
+    },
+    {
+      "claim": "RADAR_TO_CAMERA_M 生产路径收敛到 radar_geometry 单一源，全部字面量副本值一致",
+      "level": 4,
+      "method": "unit-test + AST 抠副本",
+      "result": "pass",
+      "skip_reason": null,
+      "evidence": {
+        "test": "openpilot.sunnypilot.carrot.tests.test_radar_geometry_constants",
+        "tests_run": 2, "failures": 0, "errors": 0, "skipped": 0,
+        "output_fingerprint": "2/2 OK"
+      }
+    },
+    {
+      "claim": "scons_cache_lock 在 POSIX 下提供互斥与超时；Windows 构建不受影响（SConstruct try/except 软接入）",
+      "level": 4,
+      "method": "unit-test (POSIX-only)",
+      "result": "skip",
+      "skip_reason": "Windows 无 fcntl；设备端首次构建时执行 common/tests/test_scons_cache_lock.py",
+      "evidence": {
+        "test": "openpilot.common.tests.test_scons_cache_lock",
+        "tests_run": 0, "failures": 0, "errors": 0, "skipped": 0,
+        "output_fingerprint": "Windows skip 确认"
+      }
+    },
+    {
+      "claim": "VEgoStopping / stopping_params.py、display_scheduling.py、startup_recovery.py 对 sp 不适用（无生产消费者，移植即死代码）",
+      "level": 3,
+      "method": "grep-audit",
+      "result": "pass",
+      "skip_reason": null,
+      "evidence": {
+        "test": "grep -rn 'vEgoStopping|VEgoStopping' openpilot/ → 仅审计清单与 safety_guards 白名单",
+        "tests_run": 0, "failures": 0, "errors": 0, "skipped": 0,
+        "output_fingerprint": "get_accel_from_plan 无 vEgoStopping 参数; params_keys.h 未注册; DisplayScheduler 强耦合 cp UI 线程架构"
+      }
+    }
+  ],
+  "confusion_matrix": null,
+  "before_after": null,
+  "guard_tests": [
+    "openpilot/sunnypilot/carrot/tests/test_capnp_contract_guard.py",
+    "openpilot/sunnypilot/carrot/tests/test_signal_enabled_since.py",
+    "openpilot/sunnypilot/carrot/tests/test_xiaoge_onnx_lifecycle.py",
+    "openpilot/sunnypilot/carrot/tests/test_radar_geometry_constants.py",
+    "openpilot/sunnypilot/carrot/server/tests/test_raw_relay_poll_schedule.py",
+    "openpilot/common/tests/test_scons_cache_lock.py"
+  ],
+  "boundaries": [
+    "全部为 PC 侧静态/单元验证，证据等级 <= 4",
+    "设备端未回归：libparams_c.so 需重编 + manager 重启后 OnnxBsdEnabled 才生效",
+    "纵向 planner 官方单测在 PC 因 msgq.ipc_pyx 未编不可运行（基线同炸，非本次改动引起）",
+    "offroad 结论，不构成可上车依据"
+  ],
+  "rollback": {
+    "method": "git checkout -- <改动文件> && git clean -f <新增文件>（清单见 AGENTS-memory.md 2026-10-23 条目）",
+    "verified": false
+  }
+}

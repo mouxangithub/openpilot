@@ -4,14 +4,21 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-"""Advisory signal HUD: outer ring = fresh evidence, centre dot = planner intervention.
+"""Advisory signal HUD: an outer ring and a centre dot, both showing evidence.
 
 Ported from carrot's ``selfdrive/ui/signal_status.py``, reading
-``longitudinalPlanSP`` where carrot reads ``longitudinalPlan``. The ring carries
-the fresh evidence recorded by the modeld tmpfs shadow, the centre dot carries
-the action the planner actually applied, so a grey ring with a red dot is a
-retained veto without fresh colour, and mixed evidence is amber rather than a
-green "cleared to go".
+``longitudinalPlanSP`` where carrot reads ``longitudinalPlan``.
+
+The ring and the dot are drawn from the same value. This fork publishes
+``signalAssistAction`` as the *observed light evidence* recorded by the modeld
+tmpfs shadow (0 unknown, 1 red, 2 green, 3 mixed) and never publishes a
+separate planner action, so the ring and the dot can only differ in shape, not
+in meaning. Mixed evidence is amber rather than a green "cleared to go".
+
+Carrot's design has two independent channels: the ring carries the evidence
+and the dot carries the action the planner applied, which makes "a grey ring
+with a red dot" reachable there. It is not reachable here, and copying
+carrot's rendering verbatim would mislabel this fork's evidence as an action.
 
 All of it is advisory: a painted colour never means the car is responding to
 the signal. The ring is only reachable at all when SignalAssistMode > 0,

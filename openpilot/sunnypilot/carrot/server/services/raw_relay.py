@@ -31,6 +31,7 @@ from collections import OrderedDict
 
 from ...realtime.compact_state import compact_service_interval, encode_carrot_state_frame
 from .raw_protocol import encode_raw_multiplex_frame
+from .raw_services import device_service_interval
 
 try:
   from ...realtime.compact_state_pyx import encode_frame as _encode_compact_frame_native
@@ -41,13 +42,27 @@ logger = logging.getLogger("openpilot.carrot.server.raw_relay")
 
 
 class RawRelayHub:
-  POLL_INTERVAL = 0.02      # 50 Hz: a conflated read is cheap and bounds added latency
+  POLL_INTERVAL = 0.02      # fallback when a service has no compact cadence entry
   EMPTY_READ_RETRY = 0.005  # re-check sooner when a publisher happened to be idle
   IDLE_SLEEP = 0.05
   IDLE_STOP_SEC = 30.0      # park the poll task when nobody is watching
   SEND_TIMEOUT = 0.75
   MAX_SERVICES_PER_CLIENT = 32
   CLOSE_SEND_TIMEOUT = 1011
+
+  def _service_read_delay(self, device: str, payload_received: bool) -> float:
+    """Delay before the next read for one device.
+
+    On a received payload, pace to the service's own display cadence (so a
+    10 Hz liveTracks feed is not polled at 50 Hz). On an empty read, retry
+    much sooner: always sleeping for the full cadence when the publisher was
+    momentarily idle would make a 20 Hz modelV2 publisher aliases to half its
+    rate whenever two clocks drifted onto the same boundary.
+    """
+    if not payload_received:
+      return self.EMPTY_READ_RETRY
+    interval = device_service_interval(device)
+    return interval if interval > self.EMPTY_READ_RETRY else self.POLL_INTERVAL
 
   def __init__(self, messaging):
     self._messaging = messaging
@@ -176,7 +191,7 @@ class RawRelayHub:
           if payload is None:
             self._next_read[device] = now + self.EMPTY_READ_RETRY
           else:
-            self._next_read[device] = now + self.POLL_INTERVAL
+            self._next_read[device] = now + self._service_read_delay(device, True)
             self._broadcast(device, payload)
           next_due = min(next_due, self._next_read[device])
 

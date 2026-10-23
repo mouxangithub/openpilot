@@ -307,6 +307,9 @@ class Car:
     # TODO: mirror the carState.cruiseState struct?
     CS.vCruise = float(self.v_cruise_helper.v_cruise_kph)
     CS.vCruiseCluster = float(self.v_cruise_helper.v_cruise_cluster_kph)
+    # Debug string the cruise helper accumulates (button events, gap changes).
+    # Empty when nothing happened; carrot consumers read it as informational only.
+    CS.logCarrot = getattr(self.v_cruise_helper, "log", "") or ""
     # Published for the brand controllers: soft-hold state after a cancel, and whether the
     # car should be auto-engaged (GM auto-cruise). getattr-guarded because the helper
     # implementation may be VCruiseHelper alone, which does not define these.

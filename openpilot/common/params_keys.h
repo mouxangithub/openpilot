@@ -811,6 +811,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LaneChangeNeedTorque", {PERSISTENT | BACKUP, INT, "0"}},
     {"LaneChangeSmoothing", {PERSISTENT | BACKUP, INT, "0"}},
     {"LaneLineCheck", {PERSISTENT | BACKUP, INT, "0"}},
+    {"OnnxBsdEnabled", {PERSISTENT | BACKUP, INT, "0"}},
     {"OnnxBsdIntervalMs", {PERSISTENT | BACKUP, INT, "250"}},
     {"OnnxBsdSmoothingMs", {PERSISTENT | BACKUP, INT, "200"}},
     {"OnnxBsdThreshold", {PERSISTENT | BACKUP, INT, "45"}},

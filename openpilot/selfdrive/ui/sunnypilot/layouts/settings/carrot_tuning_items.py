@@ -316,6 +316,13 @@ def build_dev_items():
                    description=tr('Let the phone app guided-lane arrows block lane changes toward ' +
                                   'non-guided lanes. Only ever adds blocking.')),
     section_heading_sp(tr('ONNX Vision Detection (BSD / Lane)')),
+    # Master switch for the xiaoge v_asm ONNX blind-spot / lane server. Off
+    # unloads the resident model entirely (see carrot/xiaoge/v_asm_server.py),
+    # so the toggle also gates whether the thresholds below do anything.
+    toggle_item_sp(title=tr('ONNX Blind Spot Detection'), param='OnnxBsdEnabled',
+                   description=tr('Run the ONNX blind-spot model on the camera image and report ' +
+                                  'side obstacles in the UI. Off unloads the model and frees its ' +
+                                  'memory; the thresholds below have no effect.')),
     # Thresholds and cadence for the xiaoge v_asm ONNX blind-spot / lane server.
     # Ranges mirror the clamps in carrot/xiaoge/v_asm_server.py; anything outside
     # is silently clamped there, so the UI cannot write an unusable value.

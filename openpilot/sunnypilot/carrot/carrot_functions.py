@@ -43,6 +43,7 @@ from opendbc.car.common.conversions import Conversions as CV
 from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot.carrot.config import UnifiedParams
 from openpilot.sunnypilot.carrot.curve_speed import TARGET_LAT_ACCEL, VisionCurveSpeed, curve_speed
+from openpilot.sunnypilot.carrot.radar_geometry import RADAR_TO_CAMERA_M
 from openpilot.sunnypilot.carrot.radar_motion.lane_change_gap import (
   LaneChangeGapPlan,
   LaneChangeGapTracker,
@@ -60,9 +61,8 @@ from openpilot.sunnypilot.carrot.signal_assist_runtime import SignalAssistRuntim
 
 
 # Model leads in modelV2.leadsV3 are expressed in the radar frame; remove the
-# forward offset so they line up with the radar lead's dRel (camera frame). Kept
-# local so this module stays importable without the controls package / capnp.
-RADAR_TO_CAMERA = 1.52  # RADAR is ~ 1.5 m ahead of the center of the mesh frame
+# forward offset so they line up with the radar lead's dRel (camera frame).
+RADAR_TO_CAMERA = RADAR_TO_CAMERA_M  # m; single source is carrot.radar_geometry
 
 
 # --------------------------------------------------------------------------- #
@@ -1202,7 +1202,8 @@ class CarrotPlanner:
       # The cluster ratio corrects for a car whose dashboard speed differs from
       # the wheel-speed estimate; a_ego biases the response distance under
       # acceleration, so a car already accelerating gets more room to unwind.
-      speed_ratio=float(getattr(cs, "vCluRatio", 1.0) or 1.0),
+      # 0 in the schema means "not measured", which is a ratio of 1.0.
+      speed_ratio=float(cs.vCluRatio) or 1.0,
       a_ego=float(getattr(cs, "aEgo", 0.0) or 0.0),
     )
 
@@ -1261,8 +1262,11 @@ class CarrotPlanner:
     v_cruise_kph, atc_active = self._update_carrot_man(sm, v_ego_kph, v_cruise_kph)
     self._atc_active = atc_active
 
-    # Default vCluRatio to 1.0 (SunnyPilot does not always expose vCluRatio).
-    v_clu_ratio = float(getattr(cs, "vCluRatio", 1.0) or 1.0)
+    # Cluster-to-body speed ratio. carState now carries it (derived centrally in
+    # opendbc's CarInterface, not per brand), so this reads the field directly
+    # instead of guessing a default: 0 is the schema's "not measured" sentinel
+    # and means the dashboard agrees with the wheel speed.
+    v_clu_ratio = float(cs.vCluRatio) or 1.0
     v_cruise = v_cruise_kph * CV.KPH_TO_MS
     if v_clu_ratio > 0.5:
       v_cruise *= v_clu_ratio

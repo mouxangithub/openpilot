@@ -126,3 +126,20 @@ def resolve_services(names) -> list:
     seen.add(name)
     resolved.append((name, device_service))
   return resolved
+
+
+# Reverse of RAW_SERVICE_ALIASES: the poll loop holds this fork's device names
+# (e.g. carrotManSP) but the compact-service cadence table is keyed on the
+# shared CarrotPilot names (e.g. carrotMan). Keeping one table here avoids that
+# lookup silently returning the default for every renamed service.
+_DEVICE_TO_CLIENT_ALIAS = {device: client for client, device in RAW_SERVICE_ALIASES.items()}
+
+
+def device_service_interval(device: str) -> float:
+  """Polling cadence for a fork device name.
+
+  Resolves the renamed services (carrotManSP -> carrotMan) before looking up
+  the shared interval table; stock names pass straight through.
+  """
+  from openpilot.sunnypilot.carrot.realtime.compact_state import compact_service_interval
+  return compact_service_interval(_DEVICE_TO_CLIENT_ALIAS.get(device, device))

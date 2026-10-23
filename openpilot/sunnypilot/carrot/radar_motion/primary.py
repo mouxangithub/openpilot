@@ -9,6 +9,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any
 
+from openpilot.sunnypilot.carrot.radar_geometry import RADAR_TO_CAMERA_M
 from openpilot.sunnypilot.carrot.radar_motion.predictor import (
   MIN_PREDICTED_PATH_OVERLAP_S,
   RadarMotionPrediction,
@@ -17,7 +18,6 @@ from openpilot.sunnypilot.carrot.radar_motion.predictor import (
 )
 
 
-RADAR_TO_CAMERA_M = 1.52
 VISION_LEAD_MIN_PROB = 0.40
 VISION_LEAD_HOLD_MIN_PROB = 0.35
 VISION_LEAD_HOLD_MAX_FRAMES = 10

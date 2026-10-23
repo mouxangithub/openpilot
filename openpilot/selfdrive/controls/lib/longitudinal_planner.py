@@ -158,7 +158,9 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     prev_accel_constraint = not (reset_state or sm['carState'].standstill)
 
     # Get new v_cruise and a_target from Smart Cruise Control and Speed Limit Assist
-    v_cruise, self.output_a_target = LongitudinalPlannerSP.update_targets(self, sm, self.v_desired_filter.x, self.output_a_target, v_cruise)
+    v_cruise, self.output_a_target = LongitudinalPlannerSP.update_targets(self, sm, self.v_desired_filter.x,
+                                                                          self.output_a_target, v_cruise,
+                                                                          reset_state=reset_state)
 
     self.mpc.set_weights(prev_accel_constraint, personality=sm['selfdriveState'].personality,
                          jerk_factor=self.carrot_jerk_factor if self.carrot_source_active else None)

@@ -33,6 +33,21 @@ def drop_realtime() -> None:
     os.sched_setscheduler(0, os.SCHED_OTHER, os.sched_param(0))
 
 
+def drop_realtime_safe() -> bool:
+  """Lower the calling thread to SCHED_OTHER without ever raising.
+
+  Ported from carrotpilot's ``cluster/cluster_git_status.py``. Use this for a
+  helper thread that must not preempt the control path (periodic git status,
+  network or storage polling) and whose failure to change policy must not take
+  the process down. Returns whether the demotion was applied.
+  """
+  try:
+    os.sched_setscheduler(0, os.SCHED_OTHER, os.sched_param(0))
+    return True
+  except (AttributeError, OSError, ValueError):
+    return False
+
+
 def get_available_cores() -> set[int]:
   """CPUs this process is currently allowed to run on.
 

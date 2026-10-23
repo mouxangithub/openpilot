@@ -257,6 +257,11 @@ def install_stubs():
                "jeepney.bus_messages", "jeepney.low_level", "jeepney.wrappers"):
     sys.modules.setdefault(name, _FakeModule(name))
 
+  # emoji.py imports PIL at module scope; pillow is not installed on a bare PC
+  # and none of its calls are exercised by a headless layout render.
+  for name in ("PIL", "PIL.Image", "PIL.ImageDraw", "PIL.ImageFont"):
+    sys.modules.setdefault(name, _FakeModule(name))
+
   # Stub urllib so the panel can fetch state without a real server.
   import json
   try:
