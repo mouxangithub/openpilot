@@ -113,6 +113,7 @@ class TestSettingsRefreshLifecycle(unittest.TestCase):
   @classmethod
   def setUpClass(cls):
     import sys
+    import platform
     fake_ipc = types.ModuleType("msgq.ipc_pyx")
     for name in ("Context", "Poller", "SubSocket", "PubSocket", "SocketEventHandle"):
       setattr(fake_ipc, name, type(name, (), {}))
@@ -130,6 +131,25 @@ class TestSettingsRefreshLifecycle(unittest.TestCase):
     sys.modules.setdefault("cv2", fake_cv2)
     for name in ("PIL", "PIL.Image", "PIL.ImageDraw", "PIL.ImageFont"):
       sys.modules.setdefault(name, types.ModuleType(name))
+    # Windows pycapnp aborts the process parsing the full openpilot schemas
+    # (KJ fatal, no Python exception), so importing openpilot.cereal kills the
+    # test run. Stub capnp with a permissive dummy on Windows only; the device
+    # keeps the real one. See test_xiaoge_bsd_semantics.py for the long version.
+    if platform.system() == "Windows" and "openpilot.cereal" not in sys.modules:
+      class _Meta(type):
+        def __getattr__(cls, name):
+          return _CapnpDummy
+      class _CapnpDummy(BaseException, metaclass=_Meta):
+        def __init__(self, *args, **kwargs):
+          pass
+        def __getattr__(self, name):
+          return _CapnpDummy
+      class _FakeModule(types.ModuleType):
+        def __getattr__(self, name):
+          return _CapnpDummy
+      sys.modules["capnp"] = _FakeModule("capnp")
+      sys.modules["capnp.lib"] = _FakeModule("capnp.lib")
+      sys.modules["capnp.lib.capnp"] = _FakeModule("capnp.lib.capnp")
 
   @staticmethod
   def _bare_service():
@@ -143,9 +163,11 @@ class TestSettingsRefreshLifecycle(unittest.TestCase):
     svc.params = None  # read_param_int falls back to PARAM_SETTING_DEFAULTS
     svc.bsd_enabled = True
     svc.bsd_generation = 0
-    svc.vasm_result = {"left": True, "right": False, "side": "left", "updatedMonoTimeNanos": 123}
+    svc.vasm_result = {"left": True, "right": False, "side": "left", "updatedMonoTimeNanos": 123,
+                       "updatedMonoTimeNanosBySide": {"left": 123, "right": 0}}
     svc.last_side_at = {"left": 9.0, "right": 8.0}
-    svc.followup_until = 99.0
+    svc.followup_until = {"left": 99.0, "right": 98.0}
+    svc.last_bsd_generation = -1
     svc.last_inference_at = 7.0
     svc.inference = types.SimpleNamespace(load=lambda: True, unload=lambda: None, valid=False)
     svc.yolo_enabled = False
@@ -166,7 +188,8 @@ class TestSettingsRefreshLifecycle(unittest.TestCase):
     self.assertEqual(svc.vasm_result["left"], False)
     self.assertEqual(svc.vasm_result["side"], "")
     self.assertEqual(svc.last_side_at, {"left": 0.0, "right": 0.0})
-    self.assertEqual(svc.followup_until, 0.0)
+    self.assertEqual(svc.followup_until, {"left": 0.0, "right": 0.0})
+    self.assertEqual(svc.vasm_result["updatedMonoTimeNanosBySide"], {"left": 0, "right": 0})
     self.assertEqual(svc.last_inference_at, 0.0)
 
   def test_stale_read_cannot_revive_disabled_model(self):

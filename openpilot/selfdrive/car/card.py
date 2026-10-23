@@ -28,6 +28,7 @@ from openpilot.sunnypilot.carrot.carrot_navi_fusion import merge_carrot_navi_lan
 from openpilot.sunnypilot.carrot.xiaoge.xiaoge_vision import (
   apply_xiaoge_vision_result,
   parse_xiaoge_vision_payload,
+  xiaoge_blindspot_vision,
 )
 from openpilot.sunnypilot.selfdrive.car.card_ext import CardExt
 from openpilot.sunnypilot.common.mode_state_runtime import experimental_mode_requested
@@ -277,6 +278,17 @@ class Car:
       if sm_done_ns - self._xiaoge_vision_error_log_at_ns >= 60_000_000_000:
         cloudlog.exception("xiaoge vision parse error")
         self._xiaoge_vision_error_log_at_ns = sm_done_ns
+    # Source-aware blindspot split (cp c6566c65a): snapshot the vehicle (OEM)
+    # state before the ONNX merge, then record both sources alongside the
+    # merged left/rightBlindspot in the SAME carState frame so UI never sees a
+    # new warning with unknown source attribution.
+    sm_oem_left, sm_oem_right = bool(CS.leftBlindspot), bool(CS.rightBlindspot)
+    sm_vision_left, sm_vision_right = xiaoge_blindspot_vision(self._xiaoge_vision_result, sm_done_ns)
+    CS.leftBlindspotOem = sm_oem_left
+    CS.rightBlindspotOem = sm_oem_right
+    CS.leftBlindspotOnnx = sm_vision_left
+    CS.rightBlindspotOnnx = sm_vision_right
+    CS.blindspotSplitSourcesValid = True
     apply_xiaoge_vision_result(CS, CS_SP, self._xiaoge_vision_result, sm_done_ns)
 
     can_rcv_valid = len(can_strs) > 0

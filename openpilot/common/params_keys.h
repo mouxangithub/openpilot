@@ -815,7 +815,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"OnnxBsdEnabled", {PERSISTENT | BACKUP, INT, "0"}},
     {"OnnxBsdIntervalMs", {PERSISTENT | BACKUP, INT, "250"}},
     {"OnnxBsdSmoothingMs", {PERSISTENT | BACKUP, INT, "200"}},
-    {"OnnxBsdThreshold", {PERSISTENT | BACKUP, INT, "45"}},
+    {"OnnxBsdThreshold", {PERSISTENT | BACKUP, INT, "94"}},
     {"UseAutoSteerDelay", {PERSISTENT | BACKUP, BOOL, "1"}},  // FLM: derive steer delay from CP instead of the manual knob
     {"UseLaneLineCurveSpeed", {PERSISTENT | BACKUP, INT, "0", std::nullopt, 2, SETTINGS_ADVANCED}},
     // Carrot steering / lateral tuning surface.

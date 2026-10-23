@@ -41,7 +41,10 @@ SHARED_WITH_CARROT = {
 # 71 was the last upstream ordinal before the carrot-ported fields were added.
 # 72-74 are vCluRatio / speedLimitDistance / logCarrot, appended so the readers
 # in carrot_functions.py and carrot_serv.py stop falling back to a default.
-CAR_STATE_LAST_ORDINAL = 74
+# 95-99 are the source-aware blindspot split (cp c6566c65a) — same ordinals as
+# carrot's CarState, which shares this struct's upstream base (unlike the
+# custom.capnp structs above, whose ordinal spaces genuinely diverge).
+CAR_STATE_LAST_ORDINAL = 99
 
 # The carrot-ported appends, pinned so a later edit cannot renumber them onto an
 # existing field (which would read as a wrong value rather than fail).
@@ -49,6 +52,11 @@ CAR_STATE_CARROT_FIELDS = {
   "vCluRatio": 72,
   "speedLimitDistance": 73,
   "logCarrot": 74,
+  "leftBlindspotOem": 95,
+  "rightBlindspotOem": 96,
+  "leftBlindspotOnnx": 97,
+  "rightBlindspotOnnx": 98,
+  "blindspotSplitSourcesValid": 99,
 }
 
 

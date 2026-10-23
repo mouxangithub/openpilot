@@ -179,7 +179,7 @@ _DEFAULT_NAV_PARAMS: dict[str, Any] = {
   "MyDrivingModeAuto": 0,
   "OnnxBsdIntervalMs": 250,
   "OnnxBsdSmoothingMs": 200,
-  "OnnxBsdThreshold": 45,
+  "OnnxBsdThreshold": 94,
   "OnnxLaneIntervalMs": 400,
   "OnnxLaneThreshold": 25,
   "PathOffset": 0,
