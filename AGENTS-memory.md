@@ -113,3 +113,27 @@
 - **控车影响**：desire_helper 变道禁止+lane_turn_controller 现在吃到"全程双侧"blindspot（之前只有变道中单侧）——真实行为变化，94% 默认阈值压误报
 - **环境地雷**：本机 pycapnp 2.2.4/2.1.0 在解析 openpilot 全量 schema 时**非确定性进程 abort**（exit 3，KJ fatal 无 Python 异常；解释器当日被原地升级 3.13.12→3.13.14 所致，重装 pycapnp 无效）→ 全套 carrot discover 收集期即死（opendbc/car/structs.py:10）。测试里加了 win32 条件化 capnp 桩（test_xiaoge_bsd_semantics/lifecycle 的 setUpModule），设备 Linux 不受影响。**设备端部署前必须重编 libparams_c.so（OnnxBsdThreshold 默认值变更）+ capnp 重生成（car.capnp @95-99）+ manager/整车重启**
 - 批次 C（xiaoge_data TCP 7711 遥测裁剪）留待拍板：外部 xiaoge 显示设备若在用 7711 会断
+
+## 2026-10-23（追加 5）· C3 ensure_params_build 卡顿分析 + ordinal 空洞 P0 修复
+
+- **卡顿根因**（192.168.7.233 实测）：①overlay 更新后 .so 缺失→每次更新后首开机必进构建分支；②`jobs=$(nproc)` 在开机早期只有 1 CPU online（hotplug 未完成）→ **-j1 串行**（截图"(1 jobs)"实锤）；③swaglog.o 依赖 4 个 cereal gen 头 → 链条含 capnpc 全量代码生成（实测仅 0.136s，不是瓶颈）+ params/swaglog/watchdog.o 重编；④git pull 改 params_keys.h/car.capnp → 缓存 miss 单核重编分钟级；⑤scons cache 锁并发等待最多 120s
+- **实测**：scons 决策 2.4s；热缓存 -j8 全程 36s（含锁等待）；冷缓存 -j1 = 用户体感的"卡很久"
+- **P0 修复（上午埋的雷被这次分析抓出）**：sp CarState 止于 @74，照搬 cp 的 @95-99 造成 ordinal 空洞 → capnpc abort"Skipped ordinal @75"（cp 的 @75-94 被它自己的字段填了）。**capnp 禁止 ordinal 空洞；cp CarState 的 ordinal 绝不能照抄**（守卫测试文档早有警告，还是踩了）。已改 @75-79 顺位追加（opendbc 52ab07220），设备 pull 后构建 EXIT=0 验证
+- **launch 修复**（b5061ca8c）：jobs 改 `grep -c ^processor /proc/cpuinfo`（不受 affinity/online 影响）+ 失败时 tail 日志上屏（之前失败静默）
+- 设备现状：双修复已 pull，.so 15:42 已重建，下次开机不再卡
+
+## 2026-10-23（追加 6）· 今日推送三层回归 + 台架模拟行车验证
+
+- **三层全绿**：PC 目标套件 55/55；UI smoke 三件套（含 171 字符串简繁覆盖）；设备 carrot 全套 727 OK skip=0
+- **修 2 个测试陈旧 pin**（b82043d2a）：①test_carrot_man 钉死 OnnxBsdThreshold=45，默认值改 94 未同步；②test_lane_change_gap carState 桩缺 vCluRatio(@72)——update() 现在读它，桩给 0.0 走 or-1.0 兜底。教训：**推送改 params 默认值/CarState 字段时，grep 测试桩里的旧值和 SimpleNamespace 字段**
+- **台架模拟行车（IsOnroadPreview=1，用完已 remove）**：camerad+modeld 拉起，wide/road 帧全通；lane 推理 fps 1.0；**分类器 6b2b2f4d 设备加载成功**；**YOLO M1-M3 端到端真推理**（count 181、fps 1.8-2.5、latency 188ms、resultAge 0.31s、无 crash）；BSD gate 正确停在等 carState（预览不拉 card）；开关关闭→模型自动 unload 干净
+- **注意**：YOLO 188ms/帧接近 4Hz 间隔上限，实车看 frameDropPerc；设备 OnnxBsdThreshold 持久化值已刷 94（旧默认 45 残留会压不住新模型的误报校准）；BSD 端到端（carState 合并→变道禁止）需实车 CAN 验证，台架不可测
+
+## 2026-10-23（追加 7）· 今日 23 笔提交全量测试 + 两个流程漏洞修复
+
+- **今日提交实为 23 笔**（父仓 20 + opendbc 3，含其他会话的 29174dca7/2dc4d8de3/8a7e93181 等），全部测毕
+- **流程漏洞①（已修 4c4c654fe）**：carrot/server/tests 缺 __init__.py → unittest discover 静默跳过全部 25 个 server 测试文件（~50 测试）——今天新增的 favorite_slots/system_monitor/wheel_controls_service 从未进过全套回归。**新仓库加 tests/ 目录必带 __init__.py，否则 discover 静默漏测**
+- **流程漏洞②（已修 b82043d2a）**：改 params 默认值/CarState 字段时必须 grep 测试里的旧 pin 和 SimpleNamespace 桩（OnnxBsdThreshold 45→94、vCluRatio 桩）
+- **测试面补齐**：carrot 之外的测试目录（sunnypilot controls dec/mpc/speed_limit、system wheel_controls/speed_limit_vision、e2e_alerts）129+3 全绿；long_mpc import 设备验证 OK
+- **flaky 记录**：test_system_monitor 的 2 个时钟用例（cache_window/second_sample）在 suite4/5（模拟行车满负荷后立即跑）稳定失败（特征=mock patch 未生效，elapsed=0.0），后续 4 次全套全绿——root cause 未定位，观察项：满负载后首跑全套时留意这两个用例
+- 设备最终态：carrot 全套 765 OK skip=0（连续两次），今日 23 笔全部有测试覆盖
