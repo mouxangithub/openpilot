@@ -256,13 +256,20 @@ sys.modules["opendbc.car.common.conversions"] = _opendbc_conversions_mod
 # help. Evict the non-test carrot modules so they re-import under the stubs
 # installed above. Test modules themselves are kept - re-importing them would
 # double-register their classes under unittest discovery.
-def _evict_cached_carrot_modules() -> None:
-  for name in [n for n in sys.modules
-               if n.startswith("openpilot.sunnypilot.carrot.") and ".tests" not in n]:
-    sys.modules.pop(name, None)
-
-
-_evict_cached_carrot_modules()
+# config.py binds `Params` at import time. If a sibling test module imported
+# the carrot subtree earlier in this process (e.g. test_lane_change_gap ->
+# carrot_functions -> config), that binding is the REAL Params and the
+# _store-poking tests below die with AttributeError before the module-level
+# sys.modules stubs can help. Rebind the attribute instead of evicting the
+# modules: eviction re-imports the carrot subtree under different module
+# objects, which tears apart class references already held by test modules
+# loaded earlier in the same discovery pass (mock.patch by path then hits the
+# new copy while the test still runs the old class - this is how
+# test_system_monitor's fake clock silently stopped being used). UnifiedParams
+# instances are only constructed inside test setUps, after this line.
+import openpilot.sunnypilot.carrot.config as _carrot_config
+if _carrot_config.Params is not _FakeParams:
+  _carrot_config.Params = _FakeParams
 
 from openpilot.sunnypilot.carrot.carrot_man import CarrotManager, TURN_TYPE_MAPPING
 from openpilot.sunnypilot.carrot.web_interface import WebInterface

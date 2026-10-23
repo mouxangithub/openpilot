@@ -77,7 +77,12 @@ class TestSystemMonitor(unittest.TestCase):
     self.storage = Path(self.tmp.name) / "data"
     self.storage.mkdir()
     self.clock = FakeClock()
-    patcher = mock.patch("openpilot.sunnypilot.carrot.server.services.system_monitor.time", self.clock)
+    # Patch the module dict the class's functions actually close over, not the
+    # sys.modules entry: if the carrot subtree is ever re-imported mid-discovery
+    # (sibling test module housekeeping), the class we hold and the module the
+    # path resolves to can be different objects, and a path-based patch would
+    # silently miss the code under test.
+    patcher = mock.patch.dict(SystemMonitor.sample.__globals__, {"time": self.clock})
     patcher.start()
     self.addCleanup(patcher.stop)
 
