@@ -7,8 +7,10 @@ from ..config import CARROT_SETTING_FAVORITES_PATH
 
 
 MAX_SETTING_FAVORITES = 200
+MAX_FAVORITE_SLOTS = 3
 DEFAULT_SETTING_FAVORITES: dict[str, Any] = {
   "favorites": [],
+  "slots": [],
 }
 
 
@@ -29,10 +31,31 @@ def _normalize_favorites(value: Any) -> list[str]:
   return out
 
 
+def _normalize_slots(value: Any) -> list[dict[str, Any]]:
+  """Executable favorite slots, stored alongside the names-only list.
+
+  A slot is ``{"key": "<setting name>"}`` or an explicit null (empty slot).
+  Keys are NOT validated against the catalog here - the catalog changes with
+  settings releases, and a stored key that no longer exists must stay visible
+  as an empty/stale slot rather than silently vanishing from the file. Apply
+  time validation lives in services.favorite_slots."""
+  if not isinstance(value, list):
+    return []
+  out: list[dict[str, Any]] = []
+  for item in value[:MAX_FAVORITE_SLOTS]:
+    if not isinstance(item, dict):
+      out.append({"key": ""})
+      continue
+    key = str(item.get("key") or "").strip()
+    out.append({"key": key if len(key) <= 128 else ""})
+  return out
+
+
 def sanitize_setting_favorites(raw: dict[str, Any] | None) -> dict[str, Any]:
   raw = raw or {}
   return {
     "favorites": _normalize_favorites(raw.get("favorites")),
+    "slots": _normalize_slots(raw.get("slots")),
   }
 
 
@@ -62,4 +85,6 @@ def update_setting_favorites(updates: dict[str, Any]) -> dict[str, Any]:
   current = read_setting_favorites()
   if "favorites" in updates:
     current["favorites"] = updates.get("favorites")
+  if "slots" in updates:
+    current["slots"] = updates.get("slots")
   return write_setting_favorites(current)
