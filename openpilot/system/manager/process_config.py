@@ -408,6 +408,15 @@ procs += [
   # has no `TICI` symbol - `COMMA_HARDWARE` (AGNOS present) is its equivalent.
   PythonProcess("carrot_bluetooth", "openpilot.sunnypilot.carrot.bluetooth.daemon", always_run, enabled=COMMA_HARDWARE, restart_if_crash=True),
 
+  # Generic external-input daemon (wheel controls): reads /dev/input/event* directly
+  # (stdlib only, no evdev package) for USB/Bluetooth HID devices and maps buttons onto
+  # favorite slots / the personality cycle / the existing cruise command channel.
+  # Opt-in at the config layer ("enabled" in wheel_controls.json), so the process itself
+  # is always_run like carrot_bluetooth; a device mapped here must not also be mapped in
+  # carrot_bluetooth (both daemons receive every event of a node).
+  PythonProcess("wheel_controlsd", "openpilot.sunnypilot.system.wheel_controls.wheel_controlsd",
+                always_run, enabled=COMMA_HARDWARE, restart_if_crash=True),
+
   # locationd
   NativeProcess("locationd_llk", "openpilot/sunnypilot/selfdrive/locationd", ["./locationd"], only_onroad),
 

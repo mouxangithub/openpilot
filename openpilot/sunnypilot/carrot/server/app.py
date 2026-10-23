@@ -46,6 +46,7 @@ from .features import unsupported as unsupported_feature
 from .features import vision_diag as vision_diag_feature
 from .features import vision_test as vision_test_feature
 from .features import web_settings as web_settings_feature
+from .features import wheel_controls as wheel_controls_feature
 from .features import push as push_feature
 from .features import web_sound as web_sound_feature
 from .features import ws as ws_feature
@@ -102,6 +103,7 @@ def create_app(params=None) -> web.Application:
   setting_popular_values_feature.register(app)
   setting_profiles_feature.register(app)
   web_settings_feature.register(app)
+  wheel_controls_feature.register(app)
   push_feature.register(app)            # PWA manifest/sw + Web Push subscriptions
   ssh_keys_feature.register(app)
   mapbox_tokens_feature.register(app)
