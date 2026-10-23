@@ -618,10 +618,18 @@ bootstrap_deps_retry() {
 ensure_params_build() {
   local so="$DIR/openpilot/common/libparams_c.so"
   [ -f "$so" ] && return 0
-  local jobs=$(nproc 2>/dev/null || echo 2)
+  # nproc counts CPUs in the CURRENT affinity mask with ONLINE status. Early in
+  # AGNOS boot secondary CPUs are not yet hotplugged, so nproc can return 1 and
+  # this build crawls at -j1 (minutes). /proc/cpuinfo lists all present CPUs.
+  local jobs=$(grep -c '^processor' /proc/cpuinfo 2>/dev/null)
+  [ "$jobs" -ge 1 ] 2>/dev/null || jobs=4
   echo "[ensure_params_build] building libparams_c.so ($jobs jobs)..."
   if ! (cd "$DIR" && PYTHONPATH="$PY_PATH" scons -j"$jobs" openpilot/common/libparams_c.so >> /tmp/params_build.log 2>&1); then
+    # Surface the tail so a broken schema/toolchain is visible on the boot
+    # screen instead of a silent fall-back to dev/mock mode (the full log is
+    # in /tmp/params_build.log).
     echo "[warn] ensure_params_build failed, webui may fall back to dev/mock mode"
+    tail -5 /tmp/params_build.log
   fi
 }
 
