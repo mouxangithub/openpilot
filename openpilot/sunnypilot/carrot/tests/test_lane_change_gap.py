@@ -96,6 +96,9 @@ class _FakeSM:
       leftBlindspot=left_blindspot, rightBlindspot=right_blindspot,
       aEgo=0.0, gasPressed=False, brakePressed=False, steeringAngleDeg=0.0,
       vEgoCluster=v_ego, softHoldActive=0,
+      # carrot_functions.update() reads the cluster-ratio append (CarState @72);
+      # 0.0 falls through the `or 1.0` default, which is what this stub wants.
+      vCluRatio=0.0,
     )
     # A straight, well-formed model path (increasing t, monotonic x/y) so the
     # path validation branch in the tracker is satisfiable.
