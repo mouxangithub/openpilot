@@ -244,5 +244,100 @@ class TestControlGating(unittest.TestCase):
     self.assertEqual(ctrl.traffic.lamp, "red")
 
 
+class TestControlOwnerArbitration(unittest.TestCase):
+  """GAP-1 port from CarrotPilot: a second control WebSocket must never
+  invalidate the still-connected publisher's session."""
+
+  def test_control_owner_defaults_and_app_key(self):
+    owner = carrot_navi.ControlOwner()
+    self.assertIsNone(owner.socket)
+    self.assertIsNotNone(carrot_navi.CONTROL_OWNER_KEY)
+
+  def _requirements_query(self) -> dict:
+    return {
+      "type": "requirements_query",
+      "protocol_version": carrot_navi.PROTOCOL_VERSION,
+      "catalog_revision": carrot_navi.CATALOG_REVISION,
+      "streams": [
+        {"kind": kind, "name": name, "schema_version": 1}
+        for kind, name in carrot_navi.CATALOG
+      ],
+    }
+
+  @unittest.skipUnless(getattr(carrot_navi, "_AIOHTTP_AVAILABLE", False),
+                       "aiohttp required for WebSocket end-to-end (device)")
+  def test_second_control_cannot_invalidate_active_session(self):
+    import asyncio
+
+    from aiohttp.test_utils import TestClient, TestServer
+
+    async def scenario():
+      receiver = carrot_navi.CarrotNaviReceiver()
+      client = TestClient(TestServer(carrot_navi.create_app(receiver)))
+      await client.start_server()
+      sockets = []
+      try:
+        first = await client.ws_connect("/api/navi/ws/v2/control/first")
+        sockets.append(first)
+        await first.send_json(self._requirements_query())
+        manifest = await first.receive_json()
+        session_id = manifest["session_id"]
+        vehicle = next(s for s in manifest["streams"] if s["name"] == "vehicle")
+        item = await client.ws_connect(f"/api/navi/ws/v2/json/{session_id}/vehicle")
+        sockets.append(item)
+
+        async def publish(sequence: int) -> None:
+          await item.send_json({
+            "type": "item_update", "protocol_version": 2, "session_id": session_id,
+            "manifest_revision": manifest["revision"], "schema_version": 1,
+            "kind": "json", "name": "vehicle", "stream_handle": vehicle["stream_handle"],
+            "sequence": sequence, "source_timestamp_ms": 1234, "sent_at_ms": 1235,
+            "present": True, "value": {"speed_kph": 42.},
+          })
+          for _ in range(100):
+            if receiver.health()["session_received_count"] == sequence:
+              return
+            await asyncio.sleep(0.005)
+          self.fail("original navigation stream stopped receiving")
+
+        await publish(1)
+
+        # Second phone: refused with receiver_busy (1013), session untouched.
+        second = await client.ws_connect("/api/navi/ws/v2/control/second")
+        sockets.append(second)
+        await second.send_json(self._requirements_query())
+        error = await second.receive_json()
+        self.assertEqual(error["code"], "receiver_busy")
+        self.assertTrue(error["recoverable"])
+        from aiohttp import WSMsgType
+        close = await second.receive(timeout=1)
+        self.assertIn(close.type, (WSMsgType.CLOSE, WSMsgType.CLOSED))
+        self.assertEqual(receiver.health()["session_id"], session_id)
+        self.assertIsNone(receiver.health()["error"])
+        await publish(2)
+
+        # First phone releases: owner cleared, third phone can negotiate.
+        await first.close()
+        for _ in range(100):
+          if receiver.health()["control_connections"] == 0:
+            break
+          await asyncio.sleep(0.005)
+        third = await client.ws_connect("/api/navi/ws/v2/control/third")
+        sockets.append(third)
+        await third.send_json(self._requirements_query())
+        replacement = await third.receive_json()
+        self.assertEqual(replacement["type"], "subscription_manifest")
+        self.assertNotEqual(replacement["session_id"], session_id)
+      finally:
+        for ws in sockets:
+          try:
+            await ws.close()
+          except Exception:
+            pass
+        await client.close()
+
+    asyncio.run(scenario())
+
+
 if __name__ == "__main__":
   unittest.main()

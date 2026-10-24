@@ -60,6 +60,11 @@ def _refuse_if_engaged(request: web.Request):
   return None
 
 
+def is_drive_engaged(request: web.Request) -> bool:
+  """Public hook for feature modules that record whether the car was moving."""
+  return _engaged(request)
+
+
 async def api_heartbeat_status(request: web.Request) -> web.Response:
   """The app's liveness probe; `hb` is the age of the last heartbeat it sent."""
   return web.json_response({"ok": True, "hb": request.app.get("hb_last"), "now": time.monotonic()})
@@ -178,26 +183,39 @@ async def api_set_default(request: web.Request) -> web.Response:
 
 
 async def api_time_sync(request: web.Request) -> web.Response:
-  """Accept the client's clock. Setting the system clock needs root, so this reports only.
+  """Accept the client's clock and apply it when the drift exceeds the threshold.
 
-  AGNOS keeps time via NTP; a phone is not a more trustworthy source. The endpoint exists
-  so the app's call is answered rather than 404'd, and it always reports `applied: false`.
+  AGNOS keeps time via NTP, but this device family has no battery-backed RTC:
+  after a cold boot the clock can sit far in the past until NTP succeeds (and
+  on networks where NTP is blocked it never does - the known git-certificate
+  failure). The phone's clock is strictly better there, so this runs the same
+  sync CarrotPilot runs (services/time_sync.py: localtime link + `date -s`
+  through sudo, skipping diffs within TIME_SYNC_THRESHOLD_SEC).
   """
   try:
     body = await request.json()
-  except Exception:
-    return web.json_response({"ok": False, "error": "invalid json"}, status=400)
+  except Exception as e:
+    return web.json_response({"ok": False, "error": f"bad json: {e}"}, status=400)
   if not isinstance(body, dict):
     return web.json_response({"ok": False, "error": "object required"}, status=400)
   epoch_ms = body.get("epoch_ms")
   if not isinstance(epoch_ms, (int, float)):
     return web.json_response({"ok": False, "error": "epoch_ms required"}, status=400)
-  return web.json_response({
-    "ok": True,
-    "applied": False,
-    "reason": "device time is managed by AGNOS/NTP",
-    "epoch_ms": epoch_ms,
-  })
+
+  timezone_name = str(body.get("timezone") or "").strip() or "UTC"
+  debug = bool(body.get("debug", False))
+  try:
+    from ..services.time_sync import sync_system_time_from_browser
+
+    result = await asyncio.to_thread(sync_system_time_from_browser, int(epoch_ms), timezone_name, debug)
+  except Exception as exc:
+    return web.json_response({"ok": False, "error": str(exc)}, status=500)
+
+  if debug:
+    summary = (f"client={request.remote} tz={timezone_name} applied={result.get('applied')} "
+               + f"diff_sec={result.get('diff_sec')} message={result.get('message')}")
+    print(f"[time_sync] {summary}", flush=True)
+  return web.json_response(result, status=200 if result.get("ok") else 500)
 
 
 async def _close_runtime(app: web.Application) -> None:

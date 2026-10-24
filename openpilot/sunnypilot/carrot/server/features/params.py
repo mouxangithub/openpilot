@@ -103,9 +103,13 @@ async def api_param_set(request: web.Request) -> web.Response:
   # cannot turn a successful write into a reported failure.
   if before != stored:
     try:
+      from .system import is_drive_engaged
       from ..services.param_changes import append_param_change
 
-      append_param_change(name, before, json_safe(stored), source=body.get("source", "web_ui"))
+      # Changing settings while driving stays allowed on purpose; the history
+      # just records that it happened (same contract as CarrotPilot).
+      append_param_change(name, before, json_safe(stored), source=body.get("source", "web_ui"),
+                          engaged=is_drive_engaged(request))
     except Exception:  # pragma: no cover - a history miss must never fail a write
       pass
 
