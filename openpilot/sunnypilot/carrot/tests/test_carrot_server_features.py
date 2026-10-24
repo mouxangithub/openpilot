@@ -226,10 +226,36 @@ class TestFeatureEndpoints(unittest.IsolatedAsyncioTestCase):
     resp = await self.client.post("/api/bluetooth/scan", headers={"Sec-Fetch-Site": "cross-site"})
     self.assertEqual(resp.status, 403)
 
-  async def test_time_sync_reports_rather_than_sets_the_clock(self):
-    resp = await self.client.post("/api/time_sync", json={"epoch_ms": 1})
-    self.assertEqual(resp.status, 200)
-    self.assertFalse((await resp.json())["applied"])
+  async def test_time_sync_runs_the_sync_service(self):
+    # The endpoint must apply the client's clock through the real service
+    # (threshold-gated `date -s`), so the service is mocked here: posting an
+    # unmocked epoch must never reach `sudo date -s` on a device that can
+    # actually set its clock.
+    from unittest import mock
+
+    from openpilot.sunnypilot.carrot.server.services import time_sync
+
+    fake = {"ok": True, "applied": True, "diff_sec": 3600, "message": "time updated"}
+    with mock.patch.object(time_sync, "sync_system_time_from_browser", return_value=dict(fake)) as m:
+      resp = await self.client.post("/api/time_sync", json={"epoch_ms": 1799838400000, "timezone": "Asia/Shanghai"})
+      self.assertEqual(resp.status, 200)
+      body = await resp.json()
+      self.assertTrue(body["ok"])
+      self.assertTrue(body["applied"])
+      m.assert_called_once()
+      self.assertEqual(m.call_args.args[0], 1799838400000)
+      self.assertEqual(m.call_args.args[1], "Asia/Shanghai")
+
+  async def test_time_sync_surfaces_service_failure_as_500(self):
+    from unittest import mock
+
+    from openpilot.sunnypilot.carrot.server.services import time_sync
+
+    with mock.patch.object(time_sync, "sync_system_time_from_browser",
+                           return_value={"ok": False, "applied": False, "message": "failed to set date"}):
+      resp = await self.client.post("/api/time_sync", json={"epoch_ms": 1})
+      self.assertEqual(resp.status, 500)
+      self.assertFalse((await resp.json())["applied"])
 
   async def test_time_sync_rejects_a_bad_body(self):
     resp = await self.client.post("/api/time_sync", json={"nope": 1})
