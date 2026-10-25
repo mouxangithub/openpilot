@@ -178,11 +178,13 @@ class TestFeatureEndpoints(unittest.IsolatedAsyncioTestCase):
   async def test_heartbeat_answers_a_document_not_null(self):
     # cp parity: hb_last is initialised at startup; a null `hb` reads as
     # "7000 未收到信息" in the CarrotPilot App even though the server is fine.
+    # The live heartbeat loop may have already replaced the initial document
+    # with a real (possibly failed) probe result, so only the shape is asserted.
     status, body = await self._get_json("/api/heartbeat_status")
     self.assertEqual(status, 200)
     self.assertTrue(body["ok"])
     self.assertIsInstance(body["hb"], dict)
-    self.assertEqual(body["hb"]["msg"], "not yet")
+    self.assertIsInstance(body["hb"]["msg"], str)
 
   async def test_background_task_keys_are_registered(self):
     # The cp-parity loops are wired through the cleanup ctx, so they exist once
