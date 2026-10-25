@@ -53,12 +53,90 @@ from .features import ws as ws_feature
 from .features import xiaoge as xiaoge_feature
 from .features.static import handle_index
 from .services import weather as weather_service
+from .services.auto_update import auto_update_loop
+from .services.git_status import git_status_loop
+from .services.heartbeat import heartbeat_loop
+from .services.params import HAS_PARAMS
+from .services.popular_values import start_popular_value_upload
+from .services.settings import get_settings_cached
+from .services.static_assets import start_precompress
 
 logger = logging.getLogger("openpilot.carrot.server")
 
 # The app payloads here are small JSON documents; the 8 MB CarrotPilot allows is for the
 # camera/raw WebSockets, which will be added as separate transports.
 MAX_BODY_BYTES = 1024 * 1024
+
+
+def _do_gc_and_trim() -> None:
+  """gc.collect + malloc_trim; runs in the thread pool (cp parity, app.py)."""
+  import gc
+
+  gc.collect()
+  try:
+    import ctypes
+
+    libc = ctypes.CDLL("libc.so.6")
+    libc.malloc_trim(0)
+  except Exception:
+    pass
+
+
+async def _malloc_trim_loop(app: web.Application) -> None:
+  """Periodic gc + malloc_trim to reclaim leaked objects and return C heap (cp parity).
+
+  Skipped while raw WebSocket clients are attached or CarrotVision is active, so the
+  trim never competes with an active vision consumer."""
+  while True:
+    await asyncio.sleep(30.0)
+    hub = app.get(ws_feature.RAW_HUB_KEY)
+    if hub is not None and hub.client_count() > 0:
+      continue
+    params = app.get(params_feature.PARAMS_KEY)
+    try:
+      if params is not None and params.get_bool("CarrotVisionActive"):
+        continue
+    except Exception:
+      pass
+    await asyncio.to_thread(_do_gc_and_trim)
+
+
+async def _warm_settings_cache() -> None:
+  """Build the /api/settings cache at startup so the first settings-page open does not
+  pay for it on its critical path. Best-effort (cp parity)."""
+  try:
+    await asyncio.to_thread(get_settings_cached)
+  except Exception:
+    pass
+
+
+async def _background_tasks_ctx(app: web.Application):
+  """cp-parity background services for the 7000 server.
+
+  cp's app.py starts these in on_startup; this fork wires them through a cleanup ctx
+  instead. Most visibly, `hb_last` is initialised here so /api/heartbeat_status always
+  answers with a heartbeat document - a null `hb` reads as "7000 未收到信息" in the App.
+  """
+  app["hb_last"] = {"ok": None, "msg": "not yet", "ts": 0}
+  if HAS_PARAMS:
+    app["hb_task"] = asyncio.create_task(heartbeat_loop(app))
+  app["git_status_task"] = asyncio.create_task(git_status_loop())
+  app["auto_update_task"] = asyncio.create_task(auto_update_loop())
+  app["popular_value_upload_task"] = start_popular_value_upload(app)
+  app["malloc_trim_task"] = asyncio.create_task(_malloc_trim_loop(app))
+  app["settings_warm_task"] = asyncio.create_task(_warm_settings_cache())
+  app["precompress_task"] = start_precompress(config.WEB_DIR)
+  try:
+    yield
+  finally:
+    task_keys = ("hb_task", "git_status_task", "auto_update_task", "popular_value_upload_task",
+                 "malloc_trim_task", "settings_warm_task", "precompress_task")
+    for key in task_keys:
+      task = app.pop(key, None)
+      if task is not None:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+          await task
 
 
 @web.middleware
@@ -170,6 +248,11 @@ def create_app(params=None) -> web.Application:
         await task
 
   app.cleanup_ctx.append(_weather_ctx)
+
+  # cp-parity background loops: heartbeat, git status, auto update, popular value
+  # upload, malloc trim, settings warm-up, static precompress. Started after the
+  # http session ctx so app["http"] exists for the popular-value upload.
+  app.cleanup_ctx.append(_background_tasks_ctx)
   return app
 
 

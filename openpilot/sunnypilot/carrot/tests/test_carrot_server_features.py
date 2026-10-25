@@ -162,7 +162,8 @@ class TestFeatureEndpoints(unittest.IsolatedAsyncioTestCase):
     await self.client.start_server()
 
   async def asyncTearDown(self):
-    await self.client.close()
+    if self.client is not None:
+      await self.client.close()
 
   async def _get_json(self, path):
     resp = await self.client.get(path)
@@ -174,10 +175,23 @@ class TestFeatureEndpoints(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(status, 200)
     self.assertTrue(body["ok"])
 
-  async def test_heartbeat_has_no_heartbeat_yet(self):
+  async def test_heartbeat_answers_a_document_not_null(self):
+    # cp parity: hb_last is initialised at startup; a null `hb` reads as
+    # "7000 未收到信息" in the CarrotPilot App even though the server is fine.
     status, body = await self._get_json("/api/heartbeat_status")
     self.assertEqual(status, 200)
-    self.assertIsNone(body["hb"])
+    self.assertTrue(body["ok"])
+    self.assertIsInstance(body["hb"], dict)
+    self.assertEqual(body["hb"]["msg"], "not yet")
+
+  async def test_background_task_keys_are_registered(self):
+    # The cp-parity loops are wired through the cleanup ctx, so they exist once
+    # the server is up and are gone after close.
+    for key in ("hb_last", "git_status_task", "auto_update_task", "malloc_trim_task", "settings_warm_task"):
+      self.assertIn(key, self.app, key)
+    await self.client.close()
+    self.assertNotIn("git_status_task", self.app)
+    self.client = None
 
   async def test_device_network_answers(self):
     status, body = await self._get_json("/api/device_network")
