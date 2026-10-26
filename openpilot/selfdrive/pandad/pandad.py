@@ -6,7 +6,7 @@ import time
 import signal
 import subprocess
 
-from panda import Panda, PandaDFU, PandaProtocolMismatch, McuType, FW_PATH
+from panda import Panda, PandaDFU, PandaProtocolMismatch, FW_PATH
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
 from openpilot.common.hardware import HARDWARE
@@ -15,9 +15,16 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.selfdrive.pandad.rivian_long_flasher import flash_rivian_long
 
 
-def get_expected_signature() -> bytes:
-  fn = os.path.join(FW_PATH, McuType.H7.config.app_fn)
-  return Panda.get_signature_from_firmware(fn)
+def get_expected_signature(panda: Panda) -> bytes:
+  # MCU-aware (our fork supports the comma three dos F4 panda, which zp's
+  # hardcoded McuType.H7 does not): pick the app binary by the panda's actual
+  # MCU type, so dos (F4 -> panda.bin.signed) and H7 devices both match.
+  try:
+    fn = os.path.join(FW_PATH, panda.get_mcu_type().config.app_fn)
+    return Panda.get_signature_from_firmware(fn)
+  except Exception:
+    cloudlog.exception("Error computing expected signature")
+    return b""
 
 def flash_panda(panda_serial: str):
   panda = Panda(panda_serial)
@@ -28,7 +35,7 @@ def flash_panda(panda_serial: str):
     panda.close()
     return
 
-  fw_signature = get_expected_signature()
+  fw_signature = get_expected_signature(panda)
   internal_panda = panda.is_internal()
 
   panda_version = "bootstub" if panda.bootstub else panda.get_version()
