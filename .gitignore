@@ -131,3 +131,6 @@ sessions/
 
 # Screenshot output stays untracked because PNG files use an LFS remote unavailable to installers.
 openpilot/sunnypilot/selfdrive/ui/tests/screenshots/
+
+# Cython-generated radar_motion build artifact
+openpilot/sunnypilot/carrot/radar_motion/_motion_native.cpp
