@@ -550,17 +550,28 @@ class VCruiseCarrot(VCruiseHelper):
     self.cruise_state_available_last = CS.cruiseState.available
     self.enabled_last = CC.enabled
 
-  def initialize_v_cruise(self, CS, experimental_mode: bool) -> None:
-    """No-op override; v_cruise init lives in this class's update_v_cruise flow.
+  def initialize_v_cruise(self, CS, initial_speed: int) -> None:
+    """Initial set speed at openpilot engagement (zp VCruiseHelper semantics).
 
     The signature must stay identical to the base class because card.py calls the
     helper polymorphically. It used to carry a third dynamic_experimental_control
     argument; DEC was removed 2026-10 (upstream sunset #2056) and the zp base
-    dropped the flag too, so the chain is back to two arguments. The previous
-    narrower override raised
-    `TypeError: takes 3 positional arguments but 4 were given` on every SET press.
+    dropped the flag too, so the chain is two arguments with the second one now
+    being the InitialCruiseSpeedKph floor (default 40).
+
+    For PCM-cruise cars the car owns the set speed and this is a no-op, same as
+    the zp base. For non-PCM cars carrot assigns the set speed in update_v_cruise
+    (which runs before this on the engage frame), so this override decides the
+    value that sticks for the frame openpilot engages, floored at initial_speed.
     """
-    return
+    if self.CP.pcmCruise:
+      return
+
+    if any(b.type in (ButtonType.accelCruise, ButtonType.resumeCruise) for b in CS.buttonEvents) and self.v_cruise_initialized:
+      self.v_cruise_kph = self.v_cruise_kph_last
+    else:
+      self.v_cruise_kph = int(round(np.clip(max(CS.vEgo * CV.MS_TO_KPH, initial_speed), V_CRUISE_INITIAL, V_CRUISE_MAX)))
+      self.v_cruise_cluster_kph = self.v_cruise_kph
 
   def _prepare_buttons(self, CS, v_cruise_kph, CS_SP=None, remote=None):
     button_kph = v_cruise_kph

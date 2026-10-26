@@ -199,6 +199,7 @@ class Car:
 
     self.is_metric = self.params.get_bool("IsMetric")
     self.experimental_mode = experimental_mode_requested(self.params)
+    self.initial_cruise_speed = self.params.get("InitialCruiseSpeedKph", return_default=True)
     self.carrot_enabled = self.params.get_bool("CarrotEnabled")
     self.carrot_navi_v2_enabled = self.params.get_bool("CarrotNaviV2Enabled")
     self.carrot_nav_lane_guide_block = self.params.get_bool("CarrotNavLaneGuideBlockEnabled")
@@ -310,7 +311,11 @@ class Car:
     self.v_cruise_helper.update_v_cruise(CS, self.sm['carControl'].enabled, self.is_metric, self.sm, CS_SP)
     if self.sm['carControl'].enabled and not self.CC_prev.enabled:
       # Use CarState w/ buttons from the step selfdrived enables on
-      self.v_cruise_helper.initialize_v_cruise(self.CS_prev, self.experimental_mode)
+      # InitialCruiseSpeedKph (zp semantics): the second argument is the initial
+      # set-speed floor, re-read on the engage edge so a settings change applies
+      # without a reboot.
+      self.initial_cruise_speed = self.params.get("InitialCruiseSpeedKph", return_default=True)
+      self.v_cruise_helper.initialize_v_cruise(self.CS_prev, self.initial_cruise_speed)
     self.card_ext.update_v_cruise_post(CS, CS_SP)
 
     # TODO: mirror the carState.cruiseState struct?
