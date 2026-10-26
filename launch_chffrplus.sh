@@ -327,13 +327,23 @@ ensure_magic_service() {
 # boots into a permanent splash loop. Self-heal the vendor symlinks on boot.
 ensure_egl_vendor() {
   local lib="/usr/lib/aarch64-linux-gnu"
+  local gles_real
+  # EGL: force the Adreno blob (mesa can never get a display here, see above).
+  # GLESv2: heal only when dangling, and repoint at whichever real versioned
+  # file the image actually ships - never hardcode the version (stock AGNOS
+  # has libGLESv2.so.2.0.0, our carrot-bt2 image ships libGLESv2.so.2.1.0;
+  # hardcoding .2.0.0 here broke the symlink on every boot and stuck the
+  # device on the splash screen with "libGLESv2.so.2: cannot open shared
+  # object file" from the raylib cffi extension).
   [ "$(readlink "$lib/libEGL.so.1" 2>/dev/null)" = "libEGL_adreno.so" ] && \
-    [ "$(readlink "$lib/libGLESv2.so.2" 2>/dev/null)" = "libGLESv2.so.2.0.0" ] && return 0
+    [ -e "$lib/libGLESv2.so.2" ] && return 0
+  gles_real="$(ls "$lib"/libGLESv2.so.2.* 2>/dev/null | head -1)"
+  [ -n "$gles_real" ] || return 0
   sudo -n mount -o remount,rw / || return 0
   sudo -n ln -sfn libEGL_adreno.so "$lib/libEGL.so.1"
-  sudo -n ln -sfn libGLESv2.so.2.0.0 "$lib/libGLESv2.so.2"
+  sudo -n ln -sfn "$(basename "$gles_real")" "$lib/libGLESv2.so.2"
   sudo -n mount -o remount,ro /
-  echo "egl: restored Adreno vendor symlinks"
+  echo "egl: restored Adreno vendor symlinks (libGLESv2.so.2 -> $(basename "$gles_real"))"
 }
 
 comma_device_slug() {
