@@ -14,7 +14,7 @@ from openpilot.system.ui.lib.application import ASSETS_DIR, gui_app
 
 EXP_ICON = "../../sunnypilot/selfdrive/assets/icons/experimental_white.png"  # upstream retired its copy with chill
 EXP_ICON_NUCLEUS = (0.479, 0.514, 0.125)  # nucleus centre and clear radius, as fractions of the icon width
-EXP_ORBITS_SIZE = 46  # 0.96 of the 48 px dot
+EXP_ORBITS_SIZE = 40  # orbit tips reach 0.56 of this from the nucleus (~22.5 px), just inside the 24 px dot
 
 
 class ConfidenceBallSP:
@@ -60,6 +60,6 @@ class ConfidenceBallSP:
     if not ui_state.experimental_mode:
       return
 
-    # the dot's own ring mask already blacks out the corners that overhang it
-    pos = rl.Vector2(int(center_x - EXP_ORBITS_SIZE / 2), int(center_y - EXP_ORBITS_SIZE / 2))
+    # centre the nucleus, not the icon, on the dot
+    pos = rl.Vector2(round(center_x - EXP_ICON_NUCLEUS[0] * EXP_ORBITS_SIZE), round(center_y - EXP_ICON_NUCLEUS[1] * EXP_ORBITS_SIZE))
     rl.draw_texture_ex(self._exp_orbits, pos, 0.0, 1.0, rl.BLACK)
