@@ -87,7 +87,7 @@ def main():
         stopping_radar_state = stopping_lead_filter.update(
           planner_sm['radarState'],
           stopping=(sm['controlsState'].longControlState == car.CarControl.Actuators.LongControlState.stopping
-                    and not sm['selfdriveState'].experimentalMode
+                    and not sm['selfdriveStateSP'].zoompilot.experimentalMode
                     and not sm['carState'].gasPressed),
           v_ego=sm['carState'].vEgo,
           mono_time_ns=sm.logMonoTime['radarState'],

@@ -190,9 +190,10 @@ class LongitudinalPlannerSP:
     self._signal_prepare_previous = None
 
   def is_e2e(self, sm: messaging.SubMaster) -> bool:
-    # DEC removed 2026-10: experimental mode is always e2e, which matches the
-    # old DEC-disabled behaviour (the default) exactly.
-    return sm['selfdriveState'].experimentalMode
+    # DEC removed 2026-10: e2e is the model candidate behind the experimental/chill switch.
+    # Upstream (zp) deprecated selfdriveState.experimentalMode; the live value lives in the
+    # SP extension (selfdriveStateSP.zoompilot.experimentalMode, fed from the ExperimentalMode param).
+    return bool(self.CP.openpilotLongitudinalControl and sm['selfdriveStateSP'].zoompilot.experimentalMode)
 
   def refresh_weather_offsets(self) -> None:
     """Re-read the weather offsets from Params.
