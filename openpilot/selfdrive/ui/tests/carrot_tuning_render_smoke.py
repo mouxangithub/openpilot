@@ -206,7 +206,7 @@ class FakeGuiApp:
   def fallback_font(self, text: str = ""):
     return self._font_cache.setdefault("__fallback__", Font(999))
 
-  def texture(self, path, w=0, h=0):
+  def texture(self, path, w=0, h=0, keep_aspect_ratio=False):
     return Texture()
 
   def big_ui(self):
@@ -218,6 +218,15 @@ class FakeGuiApp:
 
   def render(self):
     return iter(())
+
+  def set_show_touches(self, v):
+    self.show_touches = bool(v)
+
+  def set_show_fps(self, v):
+    self.show_fps = bool(v)
+
+  def set_show_mouse_coords(self, v):
+    self.show_mouse_coords = bool(v)
 
 
 def build_fake_application() -> types.ModuleType:
@@ -234,6 +243,7 @@ def build_fake_application() -> types.ModuleType:
   m.FONT_SCALE = 1.16
   m.DEFAULT_TEXT_SIZE = 60
   m.DEFAULT_TEXT_COLOR = Color(255, 255, 255, 230)
+  m.GL_VERSION = "#version 330 es\n"  # shader_polygon concatenates this at module scope
   m.MAX_TOUCH_SLOTS = 2
   m.MousePos = Vec2  # NamedTuple of (x, y) - a Vec2 is a faithful stand-in
   m.MouseEvent = types.SimpleNamespace
@@ -266,6 +276,12 @@ def build_fake_params() -> types.ModuleType:
   store: dict[str, Any] = {}
 
   class Params:
+    def __init__(self, *a, **k):
+      pass
+
+    def all_keys(self):
+      return list(store.keys())
+
     def get(self, key, return_default=False):
       return store.get(key, 0 if return_default else None)
 
@@ -275,7 +291,7 @@ def build_fake_params() -> types.ModuleType:
     def put(self, key, value, block=False):
       store[key] = value
 
-    def put_bool(self, key, value):
+    def put_bool(self, key, value, block=False):
       store[key] = value
 
     def remove(self, key):

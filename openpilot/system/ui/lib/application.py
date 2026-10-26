@@ -539,6 +539,13 @@ class GuiApplication(GuiApplicationExt):
     """Load and resize an image, storing it for later automatic unloading."""
     image = rl.load_image(image_path)
 
+    # A missing/failed asset load returns a zero-sized image; dividing by its
+    # width below would ZeroDivisionError and take the whole ui down. Log it
+    # and hand back a blank 1x1 so the widget renders without the icon.
+    if image.width == 0 or image.height == 0:
+      cloudlog.error(f"failed to load asset image: {image_path}")
+      return rl.gen_image_color(1, 1, rl.BLANK)
+
     if alpha_premultiply:
       rl.image_alpha_premultiply(image)
 

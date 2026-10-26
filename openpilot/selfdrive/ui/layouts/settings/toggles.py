@@ -70,6 +70,12 @@ class TogglesLayout(Widget):
         "chffr_wheel.png",
         True,
       ),
+      "ExperimentalMode": (
+        lambda: tr("Experimental Mode"),
+        "",
+        "../../sunnypilot/selfdrive/assets/icons/experimental_white.png",
+        False,
+      ),
       "DisengageOnAccelerator": (
         lambda: tr("Disengage on Accelerator Pedal"),
         DESCRIPTIONS["DisengageOnAccelerator"],
@@ -297,8 +303,9 @@ class TogglesLayout(Widget):
       self._toggles["DistractionDetectionLevel"].set_visible(always_on_dm_enabled)
 
   def _update_experimental_mode_icon(self):
+    icon_root = "../../sunnypilot/selfdrive/assets/icons/"
     icon = "experimental.png" if self._toggles["ExperimentalMode"].action_item.get_state() else "experimental_white.png"
-    self._toggles["ExperimentalMode"].set_icon(icon)
+    self._toggles["ExperimentalMode"].set_icon(icon_root + icon)
 
   def _clear_experimental_mode(self):
     """Turn the mode off and forget the acknowledgement with it.
@@ -354,6 +361,10 @@ class TogglesLayout(Widget):
       self._apply_experimental_mode(state, True)
 
   def _toggle_callback(self, state: bool, param: str):
+    if param == "ExperimentalMode":
+      # the mode is written through the state machine, not straight into the store
+      self._handle_experimental_mode_toggle(state)
+      return
     self._params.put_bool(param, state, block=True)
     if param == "IsMetric":
       self._update_toggles()
