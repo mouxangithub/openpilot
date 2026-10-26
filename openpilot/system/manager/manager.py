@@ -20,9 +20,9 @@ from openpilot.common.swaglog import cloudlog, add_file_handler
 from openpilot.common.version import get_build_metadata
 from openpilot.common.hardware.hw import Paths
 
-from openpilot.sunnypilot.selfdrive.car.mazda_torque_seed import seed_car_defaults_offroad
 from openpilot.sunnypilot.selfdrive.car.stock_ecu_handback import StockEcuHandBackGate
 from openpilot.sunnypilot.system.params_migration import run_migration
+from openpilot.sunnypilot.system.params_migration_zp import run_migration_zp
 
 
 def manager_init() -> None:
@@ -54,7 +54,7 @@ def manager_init() -> None:
 
   if not PC:
     run_migration(params)
-    seed_car_defaults_offroad(params)
+    run_migration_zp(params)
 
   # set unset params to their default value
   for k in params.all_keys():

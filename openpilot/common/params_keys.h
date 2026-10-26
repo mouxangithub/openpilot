@@ -304,8 +304,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     // --- zoompilot params --- //
     {"ExperimentalMode", {PERSISTENT | BACKUP, BOOL, "1"}},  // upstream removed it with chill; zoompilot keeps the switch
-    {"ExperimentalModeLeadGap", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"ExperimentalModeSetSpeed", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"ExperimentalModeLeadGap", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"ExperimentalModeSetSpeed", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"LaneChangeSmoothing", {PERSISTENT | BACKUP, INT, "0"}},
     {"LeadForecast", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"LiveTorqueParametersSP", {PERSISTENT | DONT_LOG, BYTES}},
@@ -329,6 +329,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"JetlinkChargePhone", {PERSISTENT, BOOL, "0"}},
 
     // one-time markers
+    {"ExperimentalAssistsDefaultOn", {PERSISTENT | BACKUP, BOOL}},  // Speed/Lead Follow Assist turned on once when they became default (params_migration_zp.py)
     {"DefaultModelApplied", {PERSISTENT | BACKUP, BOOL}},  // Firehose Model applied as the default once (models/default_bootstrap.py)
     {"IcbmDemandMigrated", {PERSISTENT | BACKUP, BOOL}},  // ICBM toggle to ICBM on demand (intelligent_cruise_button_management/migration.py)
     {"MazdaTorqueDefaultsApplied", {PERSISTENT | BACKUP, BOOL}},  // steer-to-zero Mazda torque defaults seeded once
