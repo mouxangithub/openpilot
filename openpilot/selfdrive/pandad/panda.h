@@ -45,7 +45,7 @@ struct can_frame {
 
 class Panda {
 private:
-  std::unique_ptr<PandaSpiHandle> handle;
+  std::unique_ptr<PandaCommsHandle> handle;
 
 public:
   Panda(std::string serial);
@@ -57,7 +57,7 @@ public:
   std::string hw_serial();
 
   // Static functions
-  static std::vector<std::string> list();
+  static std::vector<std::string> list(bool usb_only=false);
 
   // Panda functionality
   cereal::PandaState::PandaType get_hw_type();
