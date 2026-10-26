@@ -281,6 +281,11 @@ MSG_05 byte 1 bit 0, and across 66 h of drives LANE_LINES never read 0 without s
 without ERR_BIT (faded lanes read 1). The CAM_SETTINGS path is the one route 00000105 showed,
 toggled by the wheel's TJA button.
 
+A faulted camera also sends LANE_LINES 0, so LANE_LINES 0 with CAM_LANEINFO ERR_BIT or CAM_LKAS
+ERR_BIT_1 set is not the switch. Read as one, it put mici's standing "LKAS is off" over the
+camera fault's "LKAS Fault: Restart the car to engage" (route 55b9388c74f60c82/00000157, an AU
+CX-5 2022 faulted from power-on).
+
 **It pauses lateral, it does not disable it.** The first build (2026-09-25) disabled MADS. The
 panda then dropped its own lateral three heartbeats later (`mads_heartbeat_engaged_check`, fed
 `selfdriveStateSP.mads.enabled`) and only re-arms on an ACC main, MADS button or cruise-engage
