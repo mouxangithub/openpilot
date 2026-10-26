@@ -9,7 +9,7 @@ from openpilot.common.test import OpenpilotTestCase
 
 from openpilot.common.realtime import DT_MDL
 from openpilot.sunnypilot.selfdrive.controls.lib.relc import (
-  RoadEdgeLaneChangeController, EDGE_REACTION_TIME, EDGE_CLEAR_TIME, MIN_SPEED,
+  RoadEdgeLaneChangeController, RoadEdgeMode, EDGE_REACTION_TIME, EDGE_CLEAR_TIME, MIN_SPEED,
   VEHICLE_EDGE_MARGIN, EDGE_CLEARANCE,
 )
 
@@ -31,9 +31,9 @@ FAR_EDGES = edges(-10.0, 10.0)
 
 
 def relc(mocker):
-  mocker.patch("openpilot.sunnypilot.selfdrive.controls.lib.relc.Params")
+  params = mocker.patch("openpilot.sunnypilot.selfdrive.controls.lib.relc.Params")
+  params.return_value.get.return_value = RoadEdgeMode.AUDIBLE
   controller = RoadEdgeLaneChangeController()
-  controller.enabled = True
   return controller
 
 
@@ -105,7 +105,7 @@ class TestRELC(OpenpilotTestCase):
     drive(relc, [0.0, 0.9], [0.0, 0.8, 0.8, 0.8], EDGE_REACTION_TIME + 0.1)
     assert relc.left_edge_detected
 
-    relc.params.get_bool.return_value = False
+    relc.params.get.return_value = RoadEdgeMode.OFF
     relc.read_params()
     relc.update([0.0, 0.9], [0.0, 0.8, 0.8, 0.8], V_HIGH, CLOSE_EDGES)
     assert not relc.left_edge_detected
@@ -123,9 +123,16 @@ class TestRELC(OpenpilotTestCase):
     assert not relc.left_edge_detected
 
 
+  def test_silent_still_blocks(self, relc):
+    relc.params.get.return_value = RoadEdgeMode.SILENT
+    relc.read_params()
+    drive(relc, [0.0, 0.9], [0.0, 0.8, 0.8, 0.8], EDGE_REACTION_TIME + 0.1)
+    assert relc.left_edge_detected
+
+
   def test_disabled_no_detection(self, relc):
     relc.enabled = False
-    relc.params.get_bool.return_value = False
+    relc.params.get.return_value = RoadEdgeMode.OFF
     drive(relc, [0.0, 0.0], [0.0, 0.8, 0.8, 0.0], EDGE_REACTION_TIME + 0.1)
     assert not relc.left_edge_detected
     assert not relc.right_edge_detected

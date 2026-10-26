@@ -4,16 +4,22 @@ Copyright (c) 2026-, Zeph Leggett.
 This file is part of zoompilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-from openpilot.cereal import custom, messaging
+import pytest
+
+from openpilot.cereal import custom, log, messaging
 from opendbc.car import structs
 from openpilot.selfdrive.selfdrived.events import EventName, Events
 from openpilot.sunnypilot.selfdrive.car.tests.fakes import FakeParams
+from openpilot.sunnypilot.selfdrive.controls.lib.relc import RoadEdgeMode
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EVENTS_SP, EventsSP
+from openpilot.sunnypilot.selfdrive.selfdrived.events_zp import EVENTS_SP_ZP
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import ET
 from openpilot.sunnypilot.selfdrive.selfdrived.selfdrived_zp import DISTANCE_LONG_PRESS, PARAMS_READ_FRAMES, SelfdrivedZP
 
 ButtonType = structs.CarState.ButtonEvent.Type
 EventNameSP = custom.OnroadEventSP.EventName
+AudibleAlert = structs.CarControl.HUDControl.AudibleAlert
+AlertSize = log.SelfdriveState.AlertSize
 
 
 def cs_sp(farther: bool = False):
@@ -162,3 +168,15 @@ class TestDistanceFarther:
     for farther in (True, False, True):
       sd.step(farther=farther)
     assert sd.icbm.activations == [True, False, True]
+
+
+class TestRoadEdgeAlert:
+  @pytest.mark.parametrize("mode, audible", [(RoadEdgeMode.AUDIBLE, AudibleAlert.prompt), (RoadEdgeMode.SILENT, AudibleAlert.none)])
+  def test_silent_drops_only_the_chime(self, mode, audible):
+    sd = Selfdrived()
+    sd.params.put("RoadEdgeLaneChangeEnabled", mode)
+    for _ in range(PARAMS_READ_FRAMES):
+      sd.step()
+    alert = EVENTS_SP_ZP[EventNameSP.laneChangeRoadEdge][ET.WARNING](None, None, None, False, 0, 0)
+    assert alert.audible_alert == audible
+    assert alert.alert_size == AlertSize.small, "the on-screen alert is the same in both modes"

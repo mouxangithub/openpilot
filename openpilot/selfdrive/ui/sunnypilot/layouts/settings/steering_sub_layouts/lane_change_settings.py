@@ -63,10 +63,15 @@ class LaneChangeSettingsLayout(Widget):
       button_width=280,
       inline=False,
     )
-    self._road_edge_block = toggle_item_sp(
-      param="RoadEdgeLaneChangeEnabled",
+    # stored value is relc.RoadEdgeMode
+    self._road_edge_block = multiple_button_item_sp(
       title=lambda: tr("Block Lane Change: Road Edge Detection"),
-      description=lambda: tr("Blocks the lane change if the model sees a road edge on your signaled side."),
+      description=lambda: tr("Blocks the lane change if the model sees a road edge on your signaled side. " +
+                             "Silent shows the alert without the chime."),
+      buttons=[lambda: tr("Off"), lambda: tr("Audible"), lambda: tr("Silent")],
+      param="RoadEdgeLaneChangeEnabled",
+      button_width=280,
+      inline=False,
     )
 
     items = [

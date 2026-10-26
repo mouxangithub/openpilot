@@ -562,9 +562,23 @@
             },
             {
               "key": "RoadEdgeLaneChangeEnabled",
-              "widget": "toggle",
+              "widget": "multiple_button",
               "title": "Block Lane Change: Road Edge Detection",
-              "description": "Blocks lane change when the model sees a road edge on the side you signal."
+              "description": "Blocks lane change when the model sees a road edge on the side you signal. Silent shows the alert without the chime.",
+              "options": [
+                {
+                  "value": 0,
+                  "label": "Off"
+                },
+                {
+                  "value": 1,
+                  "label": "Audible"
+                },
+                {
+                  "value": 2,
+                  "label": "Silent"
+                }
+              ]
             },
             {
               "key": "LaneChangeSmoothing",

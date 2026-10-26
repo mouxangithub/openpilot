@@ -281,13 +281,11 @@ class BigMultiParamToggleSP(SupersededPill, BigMultiParamToggle):
     if blocked:
       self._select_skipping(mouse_pos, blocked)
       return
-    if self._values is None:
-      super()._handle_mouse_release(mouse_pos)
-      return
-    # Cycle the label without writing the option index.
+    # Cycle the label; the base class's own write is not synchronous.
     BigMultiToggle._handle_mouse_release(self, mouse_pos)
     # refresh reads this value every frame, so commit it synchronously.
-    self._params.put(self._param, self._values[self._options.index(self.value)], block=True)
+    idx = self._options.index(self.value)
+    self._params.put(self._param, self._values[idx] if self._values is not None else idx, block=True)
 
   def _select_skipping(self, mouse_pos, blocked: set[int]):
     BigToggle._handle_mouse_release(self, mouse_pos)
