@@ -47,7 +47,8 @@ class AlphaLongitudinalLayoutMici(NavScroller):
     )
     self._scroller.add_widgets([item for _, item in self._refresh_toggles])
 
-    self._alpha_long_toggle.set_enabled(ui_state.is_offroad)
+    # onroad too, for devices powered only with the car on; never mid-engagement
+    self._alpha_long_toggle.set_enabled(lambda: not ui_state.engaged)
     ui_state.add_offroad_transition_callback(self._refresh)
     ui_state.add_engaged_transition_callback(self._refresh)
 
@@ -80,7 +81,5 @@ class AlphaLongitudinalLayoutMici(NavScroller):
       self._set_alpha_long(False)
 
   def _set_alpha_long(self, state: bool):
-    # param only: card watches for the change and requests the onroad cycle itself, after any
-    # radar hand-back the brand needs
-    ui_state.params.put_bool("AlphaLongitudinalEnabled", state, block=True)
+    ui_state.set_alpha_longitudinal(state)
     self._alpha_long_toggle.set_checked(state)

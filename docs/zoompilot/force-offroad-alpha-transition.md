@@ -50,10 +50,12 @@ car the radar answers within 10 ms (route fe).
 
 One lifecycle owner (hardwared, with manager for mandatory stops), one vehicle ownership
 authority (`RadarSessionManager`), one status, one line of UI. The alpha switch is the saved
-preference and is editable offroad only, forced offroad included: a change applies at the next
-start, natural or Force Offroad exit. There is no onroad toggle path any more (the old toggle
-monitor, its standstill gate and `AlphaLongCycleAttempted` are gone), so the only moving change
-of mode is the explicit developer workflow.
+preference, editable offroad or onroad while disengaged (since 2026-10-26, for devices powered
+only with the car on). Offroad a change applies at the next start; onroad
+`UIStateZP.set_alpha_longitudinal` requests `OnroadCycleRequested`, which hardwared holds for the
+hand-back like any other cycle. The old toggle monitor, its standstill gate and
+`AlphaLongCycleAttempted` stay gone: a Mazda turned on while moving takes the radar at the next
+stop (`parkToTakeOver`).
 
 ### Vehicle transition contract
 
@@ -130,9 +132,8 @@ shows while a request is pending and withdraws it.
 
 ### Presentation
 
-No status line. The alpha switch is the saved preference, offroad-only (forced offroad
-included), through upstream's developer layouts on both families (one line each: the enable
-predicate). The running session's state reaches the driver the way upstream's no-entry
+No status line. The alpha switch is the saved preference, locked only while engaged, at the
+top of Cruise on both families. The running session's state reaches the driver the way upstream's no-entry
 conditions do ("Gear not D", "Seatbelt Unlatched"): a SET/RES press before the radar is owned
 raises `stockEcuNotReady` (`car_specific.py`, brand-independent, fed from `carStateSP`), an
 alert in the no-entry shape (title, one line, refuse chime, 3 s) keyed on the published state:
@@ -172,15 +173,15 @@ stock engagement to be cancelled ("Turn Off Stock Cruise").
 
 The 2026-09-10 cut carried one line under the switch (`initializing`, `ready`, `failed`,
 `ui_state.alpha_long_status`, a mici subtitle and a tizi description). Removed the next day:
-a line on a settings page, on a switch that is disabled onroad, says nothing at the moment
-of the press, and the alert already carried the reason.
+a line on a settings page says nothing at the moment of the press, and the alert already carried the reason.
 
 ## Behaviour as built
 
 | State | Shown | Done |
 | --- | --- | --- |
 | Offroad, natural or forced | switch editable | preference only; applies at the next start |
-| Onroad | switch disabled (upstream idiom for offroad-only toggles) | nothing; the moving change of mode is Force Offroad and back |
+| Onroad, disengaged | switch editable | onroad cycle, held for the hand-back; the new mode starts with the next session |
+| Onroad, engaged | switch disabled | nothing |
 | Force Offroad requested, disengaged, moving or stopped | exit button (the cancel) | hand-back (0.63 s on record at 117 km/h), then OffroadMode |
 | Force Offroad requested while engaged | upstream's "disengage" dialog | nothing starts; the server never starts a hand-back on an engaged car |
 | Exit into stock | nothing | old CarParams cleared first; stock CarParams and safety; cruise from CRZ_CTRL |

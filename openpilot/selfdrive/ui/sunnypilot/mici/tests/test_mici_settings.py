@@ -908,18 +908,27 @@ class TestDefaultBigModelMici:
 
 
 class TestAlphaLongSwitchMici:
-  """The alpha switch is the saved preference, editable offroad only (forced offroad included)."""
+  """The alpha switch is the saved preference, editable offroad or disengaged onroad."""
 
-  def test_switch_is_offroad_only(self, params, monkeypatch):
+  @pytest.mark.parametrize("engaged", [True, False])
+  def test_switch_locks_only_while_engaged(self, params, monkeypatch, engaged):
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.alpha_longitudinal import AlphaLongitudinalLayoutMici
-    from openpilot.selfdrive.ui.ui_state import ui_state
+    from openpilot.selfdrive.ui.ui_state import UIState
+    monkeypatch.setattr(UIState, "engaged", property(lambda _: engaged))
     layout = AlphaLongitudinalLayoutMici()
-    monkeypatch.setattr(ui_state, "started", True)
     render(layout)
-    assert not layout._alpha_long_toggle.enabled
-    monkeypatch.setattr(ui_state, "started", False)  # naturally offroad or forced offroad
-    render(layout)
-    assert layout._alpha_long_toggle.enabled
+    assert layout._alpha_long_toggle.enabled == (not engaged)
+
+  @pytest.mark.parametrize("started", [True, False])
+  def test_switch_cycles_onroad_only(self, params, monkeypatch, started):
+    # set_alpha_longitudinal is shared by the tizi and mici switches
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    monkeypatch.setattr(ui_state, "started", started)
+    params.put_bool("OnroadCycleRequested", False, block=True)
+    ui_state.set_alpha_longitudinal(False)
+    assert not params.get_bool("AlphaLongitudinalEnabled")
+    # card reads the switch at fingerprint: onroad needs a cycle, offroad the next start does it
+    assert params.get_bool("OnroadCycleRequested") == started
 
   def test_force_offroad_writes_the_preference_only(self, params, monkeypatch):
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.settings import SettingsLayoutSP

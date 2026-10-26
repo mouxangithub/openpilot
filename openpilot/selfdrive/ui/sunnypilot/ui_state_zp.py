@@ -61,6 +61,13 @@ class UIStateZP:
     self.params.put_bool("ExperimentalMode", on, block=True)
     self._experimental_mode_setting = on
 
+  def set_alpha_longitudinal(self, on: bool) -> None:
+    """The setting, offroad or disengaged onroad. card reads it at fingerprint, so onroad it
+    cycles the onroad state; hardwared holds that cycle for any stock ECU hand-back first."""
+    self.params.put_bool("AlphaLongitudinalEnabled", on, block=True)
+    if self.started:
+      self.params.put_bool("OnroadCycleRequested", True, block=True)
+
   def _update_icbm_start_lock(self) -> None:
     """card moves ICBM only between engagements (icbm_latch), so a feature that needs it,
     turned on while engaged with ICBM off, would wait for the next engage. Settings lock

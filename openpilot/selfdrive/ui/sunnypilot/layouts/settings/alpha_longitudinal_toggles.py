@@ -37,7 +37,7 @@ class AlphaLongitudinalToggles:
       title=lambda: tr("Alpha Longitudinal"),
       description=lambda: tr(DEVELOPER_DESCRIPTIONS["alpha_longitudinal"]),
       callback=self._on_alpha_long,
-      enabled=ui_state.is_offroad)
+      enabled=lambda: not ui_state.engaged)
 
     self._experimental_toggle = toggle_item_sp(
       title=lambda: tr("Experimental Mode"),
@@ -85,14 +85,12 @@ class AlphaLongitudinalToggles:
 
   def _on_alpha_long(self, state: bool):
     if not state:
-      ui_state.params.put_bool("AlphaLongitudinalEnabled", False, block=True)
+      ui_state.set_alpha_longitudinal(False)
       return
 
     def on_result(result: DialogResult):
       if result == DialogResult.CONFIRM:
-        # param only: card watches for the change and requests the onroad cycle itself, after
-        # any radar hand-back the brand needs
-        ui_state.params.put_bool("AlphaLongitudinalEnabled", True, block=True)
+        ui_state.set_alpha_longitudinal(True)
       else:
         self._alpha_long_toggle.action_item.set_state(False)
 
