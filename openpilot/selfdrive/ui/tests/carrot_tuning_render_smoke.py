@@ -191,6 +191,8 @@ class FakeGuiApp:
     # Widget._process_mouse_events iterates this every render; an empty list is
     # exactly the "no touch this frame" case.
     self._mouse_events: list = []
+    # widget stack (push_widget/pop_widget) - click-flow smoke tests assert on it
+    self.pushed_widgets: list = []
 
   @property
   def mouse_events(self):
@@ -227,6 +229,13 @@ class FakeGuiApp:
 
   def set_show_mouse_coords(self, v):
     self.show_mouse_coords = bool(v)
+
+  def push_widget(self, widget):
+    self.pushed_widgets.append(widget)
+
+  def pop_widget(self, widget=None):
+    if self.pushed_widgets and (widget is None or self.pushed_widgets[-1] is widget):
+      self.pushed_widgets.pop()
 
 
 def build_fake_application() -> types.ModuleType:

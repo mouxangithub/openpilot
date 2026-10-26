@@ -114,7 +114,13 @@ class _FakeUiState:
     self.status = 0
     self.started_frame = 0
     self.started_time = 0.0
+    self._experimental_mode_setting = False
     self.prime_state = _AnyAttr()
+
+  def set_experimental_mode(self, on: bool) -> None:
+    """Mirror ui_state_zp.set_experimental_mode: param write + offroad cache."""
+    self.params.put_bool("ExperimentalMode", on, block=True)
+    self._experimental_mode_setting = on
 
     class _FakeSunnylinkState:
       def get_sponsor_tier(self):
@@ -491,6 +497,47 @@ def main() -> int:
       layout.render(full)
 
     check(f"panel {panel_label} reopens cleanly", panel_reopens)
+
+  # Click-flow for the experimental mode switch (Cruise panel, the single home
+  # after the zp sync): unconfirmed -> confirm dialog -> acknowledged state
+  # machine write -> disable keeps the bit -> confirmed enable skips the dialog.
+  # This is the path that shipped the DialogResult NameError.
+  def exp_toggle_flow():
+    cruise_key = next(k for k in layout._panels
+                      if "CRUISE" in str(getattr(k, "name", k)).upper())
+    cruise_panel = layout._panels[cruise_key].instance
+    alpha = getattr(cruise_panel, "_alpha_long", None)
+    assert alpha is not None, "cruise panel has no AlphaLongitudinalToggles"
+
+    from openpilot.selfdrive.ui.ui_state import ui_state as _ui
+    store = sys.modules["openpilot.common.params"].store
+    assert _ui.params is not None
+    for key in ("ExperimentalMode", "ExperimentalModeConfirmed"):
+      store.pop(key, None)
+    # the state machine refuses mode changes with an unknown road state;
+    # selfdrived keeps these flags live on a real device.
+    store["IsOffroad"] = True
+    store["IsOnroad"] = False
+    gui_app.pushed_widgets.clear()
+
+    alpha._on_experimental_mode(True)
+    assert gui_app.pushed_widgets, "no confirm dialog pushed for unconfirmed enable"
+    assert not store.get("ExperimentalMode"), "store written before confirmation"
+
+    alpha._apply_experimental_mode(True, acknowledged=True)
+    assert store.get("ExperimentalMode"), "acknowledged enable did not write the mode"
+    assert store.get("ExperimentalModeConfirmed"), "acknowledgement bit not recorded"
+
+    alpha._on_experimental_mode(False)
+    assert not store.get("ExperimentalMode"), "disable did not clear the mode"
+    assert store.get("ExperimentalModeConfirmed"), "disable must keep the acknowledgement bit"
+
+    gui_app.pushed_widgets.clear()
+    alpha._on_experimental_mode(True)
+    assert not gui_app.pushed_widgets, "confirmed enable must not re-prompt"
+    assert store.get("ExperimentalMode"), "confirmed enable did not write the mode"
+
+  check("experimental mode switch click flow (cruise panel)", exp_toggle_flow)
 
   print()
   if failures:

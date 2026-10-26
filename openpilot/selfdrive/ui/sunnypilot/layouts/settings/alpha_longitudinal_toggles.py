@@ -14,11 +14,11 @@ from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp
 from openpilot.system.ui.widgets import DialogResult
-from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog
+from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog, alert_dialog
 
 # upstream's Toggles text (layouts/settings/toggles.py) with our name, shown again in the confirm dialog
 EXPERIMENTAL_MODE_DESCRIPTION = tr_noop(
-  "zoompilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. " +
+  "sunnypilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. " +
   "Experimental features are listed below:<br>" +
   "<h4>End-to-End Longitudinal Control</h4><br>" +
   "Let the driving model control the gas and brakes. zoompilot will drive as it thinks a human would, including stopping for red lights and stop signs. " +
@@ -100,14 +100,27 @@ class AlphaLongitudinalToggles:
 
   def _on_experimental_mode(self, state: bool):
     if not state or ui_state.params.get_bool("ExperimentalModeConfirmed"):
-      ui_state.params.put_bool("ExperimentalMode", state, block=True)
+      self._apply_experimental_mode(state)
       return
 
     def on_result(result: DialogResult):
       if result == DialogResult.CONFIRM:
-        ui_state.params.put_bool("ExperimentalMode", True, block=True)
-        ui_state.params.put_bool("ExperimentalModeConfirmed", True, block=True)
+        self._apply_experimental_mode(True, acknowledged=True)
       else:
         self._experimental_toggle.action_item.set_state(False)
 
     self._confirm(self._experimental_toggle, on_result)
+
+  def _apply_experimental_mode(self, enabled: bool, *, acknowledged: bool = False):
+    """Write through the mode state machine, like the wheel buttons and
+    carrot_server: Safe Mode lock, road-state prerequisite, read-back check.
+    A refusal restores the drawn switch."""
+    from openpilot.sunnypilot.common.mode_state_runtime import ModeStateError, set_experimental_mode
+
+    try:
+      set_experimental_mode(ui_state.params, enabled, acknowledged=acknowledged)
+    except ModeStateError as exc:
+      self._experimental_toggle.action_item.set_state(not enabled)
+      gui_app.push_widget(alert_dialog(str(exc)))
+      return
+    ui_state.set_experimental_mode(enabled)  # syncs the offroad cache

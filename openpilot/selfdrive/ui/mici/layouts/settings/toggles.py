@@ -175,15 +175,23 @@ class TogglesLayoutMici(NavScroller):
     self._accel_personality_toggle.refresh()
 
   def _on_experimental_mode(self, state: bool):
+    from openpilot.sunnypilot.common.mode_state_runtime import ModeStateError, set_experimental_mode
+
     if state and not ui_state.params.get_bool("ExperimentalModeConfirmed"):
       # Don't show enabled state until confirm
       self._experimental_btn.set_checked(False)
 
       def on_confirm():
-        ui_state.params.put_bool("ExperimentalModeConfirmed", True)
-        ui_state.params.put_bool("ExperimentalMode", True)
-        self._experimental_btn.set_checked(True)
+        try:
+          set_experimental_mode(ui_state.params, True, acknowledged=True)
+          self._experimental_btn.set_checked(True)
+        except ModeStateError:
+          self._experimental_btn.set_checked(False)
 
       gui_app.push_widget(ExperimentalModeConfirmPage(on_confirm))
     else:
-      ui_state.params.put_bool("ExperimentalMode", state)
+      try:
+        set_experimental_mode(ui_state.params, state)
+        self._experimental_btn.set_checked(state)
+      except ModeStateError:
+        self._experimental_btn.set_checked(not state)
