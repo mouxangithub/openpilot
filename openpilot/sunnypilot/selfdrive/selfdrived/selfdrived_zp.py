@@ -55,6 +55,11 @@ class SelfdrivedZP:
         if self.gap_timers[ButtonType.gapAdjustCruise] >= DISTANCE_LONG_PRESS and not self.experimental_mode_switched:
           self.experimental_mode = not self.experimental_mode
           self.params.put_bool("ExperimentalMode", self.experimental_mode)
+          # A wheel-button long press is the driver's own acknowledgement, so
+          # enabling also records the confirmation bit; disabling leaves it alone.
+          # (Inherited from the sp CruiseHelper this class replaced.)
+          if self.experimental_mode:
+            self.params.put_bool("ExperimentalModeConfirmed", True)
           SelfdrivedZP.switched_to = self.experimental_mode
           events_sp.add(EventNameSP.experimentalModeSwitchedDEPRECATED)
           self.experimental_mode_switched = True

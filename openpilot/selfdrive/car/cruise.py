@@ -7,9 +7,10 @@ from openpilot.common.constants import CV
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.selfdrive.car.cruise_ext import VCruiseHelperSP
-# The gap-cycle helpers live with the distance-button handling; VCruiseCarrot reuses them
+# The gap-cycle helpers live in carrot.cruise_gap (their policy home since the
+# DEC-era cruise_helpers.py was removed); VCruiseCarrot reuses them
 # so both paths agree on how many levels a car has.
-from openpilot.sunnypilot.selfdrive.car.cruise_helpers import (
+from openpilot.sunnypilot.carrot.cruise_gap import (
   cruise_gap_levels, next_gap_personality, supported_gap_levels,
 )
 # Bluetooth HID remote command reader (carrot_bluetooth daemon publishes to shared memory).

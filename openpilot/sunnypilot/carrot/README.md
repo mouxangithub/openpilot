@@ -108,7 +108,7 @@ This fork's equivalent, `web_interface.py`, binds `0.0.0.0:8088` and serves an
 
 | CarrotPilot | This fork | Note |
 |---|---|---|
-| `cruise_gap.py` | `openpilot/sunnypilot/selfdrive/car/cruise_helpers.py` | same three helpers (`supported_gap_levels`, `cruise_gap_levels`, `next_gap_personality`), covered by `test_cruise_gap_personality.py` |
+| `cruise_gap.py` | `openpilot/sunnypilot/carrot/cruise_gap.py` | same three helpers (`supported_gap_levels`, `cruise_gap_levels`, `next_gap_personality`), covered by `test_cruise_gap_personality.py` |
 | `driving_mode.py` | `openpilot/sunnypilot/carrot/carrot_functions.py` | `DrivingMode`, `DrivingModeDetector`, `get_mode_lead_response`, `get_driving_mode_factors`, wired to `MyDrivingMode` / `MyDrivingModeAuto` |
 | `t_follow.py` | `openpilot/sunnypilot/carrot/t_follow.py` | fork keeps only the helpers its planner uses |
 | `xiaoge/` | `openpilot/sunnypilot/carrot/xiaoge/` | all files present; upstream ships an extra `README.md` |

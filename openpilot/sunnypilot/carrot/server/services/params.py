@@ -220,7 +220,7 @@ def get_param_values(names: list[str], defaults: dict[str, Any] | None = None) -
       continue
     values[name] = _read_param_value(params, name, defaults.get(name, 0))
   if "CruiseGapLevels" in values:
-    from openpilot.sunnypilot.selfdrive.car.cruise_helpers import cruise_gap_levels
+    from openpilot.sunnypilot.carrot.cruise_gap import cruise_gap_levels
     from .settings import current_max_gap_levels
     try:
       requested = int(values["CruiseGapLevels"])

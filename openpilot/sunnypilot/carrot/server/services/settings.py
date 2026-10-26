@@ -6,7 +6,7 @@ from typing import Any
 
 from ..config import DEFAULT_SETTINGS_PATH
 from .settings_sp import attach_tuning_metadata
-from openpilot.sunnypilot.selfdrive.car.cruise_helpers import supported_gap_levels
+from openpilot.sunnypilot.carrot.cruise_gap import supported_gap_levels
 
 
 # mtime-based cache for carrot_settings.json

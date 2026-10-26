@@ -238,7 +238,7 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
   },
 
   # zoompilot renamed the event with the DEPRECATED suffix (custom.capnp @14);
-  # cruise_helpers (sp DEC path) now raises the renamed event too.
+  # selfdrived_zp (the ex-CruiseHelper path, removed with DEC) now raises it.
   EventNameSP.experimentalModeSwitchedDEPRECATED: {
     ET.WARNING: experimental_mode_switched_alert,
   },

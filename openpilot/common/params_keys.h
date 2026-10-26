@@ -545,9 +545,9 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // cp tuning alignment: params present in CarrotPilot settings but newly
     // registered here so webui read/reset works and defaults match cp.
     {"CruiseGapLevels", {PERSISTENT | BACKUP, INT, "4"}},
-    // How many follow-gap levels the vehicle exposes (3 or 4). Read by
-    // sunnypilot CruiseHelper when the distance button cycles the gap; spans the
-    // cluster personality range. Same default as cp.
+    // How many follow-gap levels the vehicle exposes (3 or 4). Read by the
+    // carrot server (cruise_gap.py) when the distance button cycles the gap;
+    // spans the cluster personality range. Same default as cp.
     {"LongitudinalPersonalityMax", {PERSISTENT | BACKUP, INT, "3"}},
     // Restored with the VCruiseCarrot port (cp L7). These were removed in the dead-key
     // cleanup because nothing read them; VCruiseCarrot is their reader.

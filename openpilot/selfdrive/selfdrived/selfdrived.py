@@ -39,7 +39,6 @@ from openpilot.sunnypilot.selfdrive.selfdrived.button_state_tracker import Butto
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.selfdrive.selfdrived.model_events import ModelEventsSP
 from openpilot.sunnypilot.selfdrive.controls.lib.radar_only_warning import RadarOnlyWarning
-from openpilot.sunnypilot.selfdrive.car.cruise_helpers import CruiseHelper  # sp DEC engine (sunset on zp side, still active here)
 from openpilot.sunnypilot.selfdrive.selfdrived.selfdrived_zp import SelfdrivedZP
 
 REPLAY = "REPLAY" in os.environ
@@ -68,7 +67,7 @@ TurnDirection = custom.ModelDataV2SP.TurnDirection
 IGNORED_SAFETY_MODES = (SafetyModel.silent, SafetyModel.noOutput)
 
 
-class SelfdriveD(CruiseHelper):
+class SelfdriveD:
   def __init__(self, CP=None, CP_SP=None):
     self.params = Params()
 
@@ -213,7 +212,6 @@ class SelfdriveD(CruiseHelper):
 
     self.car_events_sp = CarSpecificEventsSP(self.CP, self.CP_SP)
 
-    CruiseHelper.__init__(self, self.CP)
     self.button_state_tracker = ButtonStateTracker()
     self.selfdrived_zp = SelfdrivedZP(self.CP, self.params)
 
@@ -597,9 +595,6 @@ class SelfdriveD(CruiseHelper):
     # mute canBusMissing event if in Park, as it sometimes may trigger a false alarm with MADS in Paused state
     if CS.gearShifter == car.CarState.GearShifter.park and self.mads.enabled:
       self.events.remove(EventName.canBusMissing)
-
-    # sp DEC engine (CruiseHelper) runs its state machine on the shared events_sp
-    CruiseHelper.update(self, CS, self.events_sp, self.experimental_mode)
 
     self.personality = self.selfdrived_zp.update(CS, self.sm['carStateSP'], self.events, self.events_sp, self.icbm, self.personality)
 
