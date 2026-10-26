@@ -134,7 +134,7 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     bigModelFailed @102;
     # Carrot advisory: a measured front/corner obstacle with no selected lead.
     # Display/alert only; never changes radar selection or longitudinal targets.
-    radarStationaryLead @104;
+    radarStationaryLead @107;
     # One-shot notice naming the NNFF torque model card loaded at boot, emitted
     # once per onroad session by selfdrived.
     torqueNNLoad @105;
