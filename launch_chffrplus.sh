@@ -327,23 +327,32 @@ ensure_magic_service() {
 # boots into a permanent splash loop. Self-heal the vendor symlinks on boot.
 ensure_egl_vendor() {
   local lib="/usr/lib/aarch64-linux-gnu"
-  local gles_real
+  local gles_target
   # EGL: force the Adreno blob (mesa can never get a display here, see above).
-  # GLESv2: heal only when dangling, and repoint at whichever real versioned
-  # file the image actually ships - never hardcode the version (stock AGNOS
-  # has libGLESv2.so.2.0.0, our carrot-bt2 image ships libGLESv2.so.2.1.0;
-  # hardcoding .2.0.0 here broke the symlink on every boot and stuck the
-  # device on the splash screen with "libGLESv2.so.2: cannot open shared
-  # object file" from the raylib cffi extension).
+  # GLESv2: the 20.2-carrot-bt2 graphics rework ships a standalone
+  # libGLESv2_adreno.so and the image expects libGLESv2.so.2 -> libGLESv2_adreno.so
+  # (mesa's .so.2.1.0 sits next to it). Pointing that symlink at mesa instead of
+  # the blob makes glGetString return NULL inside raylib's rlLoadExtensions and
+  # magic.py SIGSEGVs before it can serve /tmp/drmfd.sock - the UI then cannot
+  # get a DRM master fd and the device boots into a permanent splash loop.
+  # Prefer the blob whenever the image has one; on older images, heal only when
+  # dangling and never hardcode the version.
+  if [ -f "$lib/libGLESv2_adreno.so" ]; then
+    gles_target="libGLESv2_adreno.so"
+  else
+    [ "$(readlink "$lib/libEGL.so.1" 2>/dev/null)" = "libEGL_adreno.so" ] && \
+      [ -e "$lib/libGLESv2.so.2" ] && return 0
+    gles_target="$(ls "$lib"/libGLESv2.so.2.* 2>/dev/null | head -1)"
+    gles_target="$(basename "$gles_target" 2>/dev/null)"
+    [ -n "$gles_target" ] || return 0
+  fi
   [ "$(readlink "$lib/libEGL.so.1" 2>/dev/null)" = "libEGL_adreno.so" ] && \
-    [ -e "$lib/libGLESv2.so.2" ] && return 0
-  gles_real="$(ls "$lib"/libGLESv2.so.2.* 2>/dev/null | head -1)"
-  [ -n "$gles_real" ] || return 0
+    [ "$(readlink "$lib/libGLESv2.so.2" 2>/dev/null)" = "$gles_target" ] && return 0
   sudo -n mount -o remount,rw / || return 0
   sudo -n ln -sfn libEGL_adreno.so "$lib/libEGL.so.1"
-  sudo -n ln -sfn "$(basename "$gles_real")" "$lib/libGLESv2.so.2"
+  sudo -n ln -sfn "$gles_target" "$lib/libGLESv2.so.2"
   sudo -n mount -o remount,ro /
-  echo "egl: restored Adreno vendor symlinks (libGLESv2.so.2 -> $(basename "$gles_real"))"
+  echo "egl: restored Adreno vendor symlinks (libGLESv2.so.2 -> $gles_target)"
 }
 
 comma_device_slug() {
@@ -835,7 +844,12 @@ launch() {
   # panel backlight is present but the touch controller did not probe, the
   # system magic.service fails; we fall back to a virtual touch device and a
   # userspace magic.py instance.
-  is_comma_big_hw && { ensure_touch_input; ensure_egl_vendor; ensure_magic_service; }
+  # EGL vendor symlinks must point at the Adreno blob on every comma device:
+  # a stale overlay/upper symlink at mesa (e.g. left by a previous image's
+  # self-heal) SIGSEGVs magic.py before it can serve /tmp/drmfd.sock, and the
+  # UI splash-loops for lack of a DRM master fd. Idempotent, fails safe.
+  ensure_egl_vendor
+  is_comma_big_hw && { ensure_touch_input; ensure_magic_service; }
 
   # AGNOS OS update (may loop updater)
   [ -f /AGNOS ] && agnos_init

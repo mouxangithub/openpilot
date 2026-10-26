@@ -306,6 +306,11 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"BlindSpot", {PERSISTENT | BACKUP, BOOL, "0"}},
     // the model's lead forecast as the long MPC's obstacle; on by default, a hidden off switch
     {"LeadForecast", {PERSISTENT | BACKUP, BOOL, "1"}},
+    // zoompilot keeps the experimental mode switch (upstream removed it with chill);
+    // ExperimentalModeConfirmed is the explicit-acknowledgement bit used by the
+    // mode_state runtime (write_plan) and both settings UIs.
+    {"ExperimentalMode", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"ExperimentalModeConfirmed", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ExperimentalModeSetSpeed", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ExperimentalModeLeadGap", {PERSISTENT | BACKUP, BOOL, "0"}},
 
