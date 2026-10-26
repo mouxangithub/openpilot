@@ -1,5 +1,13 @@
 zoompilot vUNRELEASED
 ========================
+* Synced with sunnypilot, through openpilot of 2026-10-16.
+* First boot re-downloads your driving models, which can be large on cellular.
+* Cruise
+  * Experimental Mode is now on by default for alpha long. If you never changed it, you
+    are now in Experimental Mode; long-press the distance button to switch back to chill.
+  * Dynamic Experimental Control is removed.
+  * Lowering the set speed slows down more gently on alpha long. Slow for Curves and
+    speed limit assist still brake as firmly as before.
 * Experimental Mode shows its orbits in the confidence dot.
 * CX-5: steering delay learning starts at 0.25 s.
 * jetlink

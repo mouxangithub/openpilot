@@ -41,8 +41,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"DriverTooDistracted", {CLEAR_ON_MANAGER_START | CLEAR_ON_IGNITION_ON, BOOL}},
     {"DriverLockoutCount", {CLEAR_ON_MANAGER_START | CLEAR_ON_IGNITION_ON, INT, "0"}},
     {"AlphaLongitudinalEnabled", {PERSISTENT | DEVELOPMENT_ONLY | BACKUP, BOOL}},
-    {"ExperimentalMode", {PERSISTENT | BACKUP, BOOL}},
-    {"ExperimentalModeConfirmed", {PERSISTENT | BACKUP, BOOL}},
     {"FirmwareQueryDone", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, BOOL}},
     {"ForcePowerDown", {PERSISTENT, BOOL}},
     {"FLMActiveOverrides", {PERSISTENT | BACKUP, JSON}},  // FLM active override blob (friction curves + vehicle knobs)
@@ -101,7 +99,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"JoystickDebugMode", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, BOOL}},
     {"LanguageSetting", {PERSISTENT | BACKUP, STRING, "en"}},
     {"LastAthenaPingTime", {CLEAR_ON_MANAGER_START, INT}},
-    {"LastGPSPosition", {PERSISTENT, STRING}},
+    {"LastGPSPosition", {PERSISTENT, BYTES}},
     {"LastManagerExitReason", {CLEAR_ON_MANAGER_START, STRING}},
     {"LastOffroadStatusPacket", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, JSON}},
     {"LastAgnosPowerMonitorShutdown", {CLEAR_ON_MANAGER_START, STRING}},
@@ -175,6 +173,14 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"UptimeOnroad", {PERSISTENT, FLOAT, "0.0"}},
     {"ChestnutActive", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION | CLEAR_ON_IGNITION_ON, BOOL}},
     {"ChestnutLoading", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION | CLEAR_ON_IGNITION_ON, BOOL}},
+    {"ChestnutRetry", {CLEAR_ON_MANAGER_START | CLEAR_ON_IGNITION_ON, BOOL}},
+    {"InitialCruiseSpeedKph", {PERSISTENT, INT, "40"}},
+    {"NavigationEnabled", {PERSISTENT, BOOL, "0"}},
+    {"Offroad_ChestnutModelError", {CLEAR_ON_MANAGER_START, JSON}},
+    {"Offroad_Pairing", {CLEAR_ON_MANAGER_START, JSON}},
+    {"Offroad_UploadsIgnored", {CLEAR_ON_MANAGER_START, JSON}},
+    {"PairingEmail", {PERSISTENT, STRING}},
+    {"PairingProvider", {PERSISTENT, STRING}},
     {"Version", {PERSISTENT, STRING}},
 
     // --- sunnypilot params --- //

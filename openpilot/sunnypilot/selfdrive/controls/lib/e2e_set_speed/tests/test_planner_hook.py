@@ -11,10 +11,11 @@ import pytest
 
 from openpilot.cereal import messaging
 from openpilot.common.realtime import DT_MDL
+from openpilot.selfdrive.controls.lib.accel_boost import AccelBoost
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDXS as T_IDXS_MPC
 from openpilot.selfdrive.controls.lib.longitudinal_planner import LongitudinalPlanner, LongitudinalPlanSource
 from openpilot.sunnypilot.selfdrive.car.tests.fakes import FakeParams
-from openpilot.sunnypilot.selfdrive.controls.lib.dec.tests.test_dec_planner_gate import build_planner, build_sm
+from openpilot.sunnypilot.selfdrive.controls.lib.tests.test_experimental_gate import build_planner, build_sm
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import FLOOR_MAX, E2ESetSpeedController, Inhibit
 
 MODEL_ACCEL = 0.
@@ -32,7 +33,7 @@ def no_lead_mpc(mpc) -> None:
 
 
 def planner_sm():
-  # DEC's gate fixture: experimental mode, 20 m/s under a 100 km/h set speed; a model holding its pace
+  # the experimental gate's fixture: experimental mode, 20 m/s under a 100 km/h set speed; a model holding its pace
   sm = build_sm(experimental_mode=True)
   model = sm['modelV2'].as_builder()
   model.action.desiredAcceleration = MODEL_ACCEL
@@ -41,7 +42,7 @@ def planner_sm():
 
 
 def run_planner(enabled: bool, frames: int = 200) -> LongitudinalPlanner:
-  planner = build_planner(dec_active=False, dec_mode='acc')
+  planner = build_planner()
   no_lead_mpc(planner.mpc)
   planner.e2e_set_speed = E2ESetSpeedController(params=FakeParams(ExperimentalModeSetSpeed=enabled))
   sm = planner_sm()
@@ -89,3 +90,25 @@ def test_publishing_counts_the_speed_that_reached_the_car():
   boost = planner.e2e_set_speed.boost
   assert boost > 0.
   assert planner.e2e_set_speed.added > 0.5 * boost * 100 * DT_MDL
+
+
+def gas_pressed_planner(enabled: bool) -> LongitudinalPlanner:
+  """Model-limited with the gas held: upstream's boost latches eligibility, then learns."""
+  planner = run_planner(enabled, frames=0)
+  planner.accel_boost.total_boost = 0.1
+  planner.accel_boost.boost_eligible = True
+  sm = planner_sm()
+  car_state = sm['carState'].as_builder()
+  car_state.gasPressed = True
+  sm['carState'] = car_state.as_reader()
+  for _ in range(50):
+    planner.update(sm)
+  return planner
+
+
+def test_gas_boost_only_without_the_floor():
+  # the names the hook writes: a rename upstream must fail here, not silently boost again
+  assert {'total_boost', 'boost_eligible'} <= set(vars(AccelBoost()))
+  assert gas_pressed_planner(False).accel_boost.total_boost > 0.1
+  on = gas_pressed_planner(True).accel_boost
+  assert (on.total_boost, on.boost_eligible) == (0., False)

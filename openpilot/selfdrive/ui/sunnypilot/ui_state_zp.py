@@ -14,7 +14,8 @@ from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.icb
 
 class UIStateZP:
   """zoompilot's additions to UIStateSP: jetlink's snapshot and the USB port it holds, the
-  torque bar's rail scale, the ICBM start lock and the brand the settings gate on."""
+  torque bar's rail scale, the ICBM start lock, the brand the settings gate on and experimental
+  mode, which upstream retired."""
 
   def __init__(self):
     self.icbm_start_locked: bool = False
@@ -29,6 +30,9 @@ class UIStateZP:
     # lane lines: a torque tune saturates at the rail, below the carcontroller's full scale
     self.torque_utilization: float = 0.0
     self._steer_rail_schedule = None
+    # experimental (end-to-end) longitudinal: as selfdrived runs it onroad, the setting offroad
+    self.experimental_mode: bool = False
+    self._experimental_mode_setting: bool = False
     self.sm_services_ext.append("modelDataV2SP")
 
   def update(self) -> None:
@@ -36,8 +40,13 @@ class UIStateZP:
     self._accelerator_state_name = str(self.sm['modelDataV2SP'].zoompilot.acceleratorState)
     self._update_torque_utilization()
     self._update_icbm_start_lock()
+    if self.started and self.sm.recv_frame['selfdriveStateSP'] >= self.started_frame:
+      self.experimental_mode = self.sm['selfdriveStateSP'].zoompilot.experimentalMode
+    else:
+      self.experimental_mode = self._experimental_mode_setting
 
   def update_params(self) -> None:
+    self._experimental_mode_setting = self.params.get_bool("ExperimentalMode")
     self._steer_rail_schedule = get_steer_rail_schedule(self.CP) if self.CP is not None else None
     # on the 5 Hz params pass, not per frame in a layout; a fitted chestnut owns chestnut_state
     self.jetlink = None if self.sm['deviceState'].chestnutPresent else jetlink_adapter.status()
@@ -46,6 +55,11 @@ class UIStateZP:
     # usb_unknown decision; recognising it late still clears "unknown"
     if (view := self.jetlink_view) is not None and view.present and self.usb_unknown:
       self.usb_unknown = False
+
+  def set_experimental_mode(self, on: bool) -> None:
+    """The setting, from a toggle or a long press; selfdrived picks it up within a second."""
+    self.params.put_bool("ExperimentalMode", on, block=True)
+    self._experimental_mode_setting = on
 
   def _update_icbm_start_lock(self) -> None:
     """card moves ICBM only between engagements (icbm_latch), so a feature that needs it,

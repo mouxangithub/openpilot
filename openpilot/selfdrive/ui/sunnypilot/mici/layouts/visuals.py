@@ -6,6 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 
 
+from opendbc.sunnypilot.car.interfaces import has_bsm
 from openpilot.selfdrive.ui.sunnypilot.mici.widgets.button import BigParamControlSP
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr
@@ -43,7 +44,7 @@ class VisualsLayoutMici(NavScroller):
       items.append(toggle)
 
     # the indicators need the car's blind spot monitor
-    self._toggles["BlindSpot"].set_superseded(lambda: ui_state.CP is not None and not ui_state.CP.enableBsm)
+    self._toggles["BlindSpot"].set_superseded(lambda: ui_state.CP is not None and not has_bsm(ui_state.CP, ui_state.CP_SP))
     self._scroller.add_widgets(items)
 
   def _update_state(self):

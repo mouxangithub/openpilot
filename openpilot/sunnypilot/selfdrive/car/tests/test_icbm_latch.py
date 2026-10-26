@@ -220,7 +220,9 @@ class TestCardHandover:
 class TestPlannerHandover:
   def _targets(self, planner, activation):
     cc = messaging.new_message('carControl').carControl
-    sm = {'carState': messaging.new_message('carState').carState, 'carControl': cc, 'carStateSP': _cs_sp(activation)}
+    gps = planner.scc.map.gps_location_service  # no fix: the map controller holds nothing
+    sm = {'carState': messaging.new_message('carState').carState, 'carControl': cc, 'carStateSP': _cs_sp(activation),
+          gps: getattr(messaging.new_message(gps), gps)}
     planner.update_targets(sm, 20., 0., 25.)
 
   def test_alpha_long_switches_sla_owner(self, params):

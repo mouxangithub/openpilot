@@ -19,7 +19,7 @@ from openpilot.common.test import OpenpilotTestCase
 from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDXS
 from openpilot.selfdrive.controls.radard import RADAR_TO_CAMERA
 from openpilot.sunnypilot.selfdrive.car.tests.fakes import FakeParams
-from openpilot.sunnypilot.selfdrive.controls.lib.dec.tests.test_dec_planner_gate import V_EGO, build_planner, build_sm
+from openpilot.sunnypilot.selfdrive.controls.lib.tests.test_experimental_gate import V_EGO, build_planner, build_sm
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_lead_gap.controller import Inhibit as GapInhibit
 from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import LEAD_T_IDXS, Inhibit, forecast_trajectory
 
@@ -53,7 +53,7 @@ def lead_sm():
 
 
 def run(enabled: bool, frames: int = 20):
-  planner = build_planner(dec_active=False, dec_mode='acc')
+  planner = build_planner()
   planner.lead_forecast.params = FakeParams(LeadForecast=enabled)
   planner.lead_forecast.frame = -1  # re-read the param on the next update
   planner.e2e_lead_gap.params = FakeParams(ExperimentalModeLeadGap=enabled)

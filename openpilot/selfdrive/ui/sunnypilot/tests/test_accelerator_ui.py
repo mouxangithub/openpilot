@@ -228,7 +228,7 @@ class TestUIStateJetlinkView(UITest):
   @contextmanager
   def _usb(present):
     from openpilot.selfdrive.ui import ui_state as module
-    with mock.patch.object(module, 'read_int', return_value=1), mock.patch.object(module, 'get_usb_state', return_value=[]), \
+    with mock.patch.object(module, 'cable_connected', return_value=True), mock.patch.object(module, 'get_usb_state', return_value=[]), \
          mock.patch("openpilot.sunnypilot.jetlink_adapter.status", return_value=jetlink_status(present=present)):
       yield
 

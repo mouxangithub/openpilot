@@ -242,7 +242,6 @@ struct ModelManagerSP @0xaedffd8f31e7b55d {
 }
 
 struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
-  dec @0 :DynamicExperimentalControl;
   longitudinalPlanSource @1 :LongitudinalPlanSource;
   smartCruiseControl @2 :SmartCruiseControl;
   speedLimit @3 :SpeedLimit;
@@ -268,7 +267,11 @@ struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
   cruiseCoastingTarget @17 :Float32;
   cruiseCoastingPercent @18 :UInt8;
 
-  struct DynamicExperimentalControl {
+  deprecated :group {
+    dec @0 :DynamicExperimentalControlDEPRECATED;
+  }
+
+  struct DynamicExperimentalControlDEPRECATED {
     state @0 :DynamicExperimentalControlState;
     enabled @1 :Bool;
     active @2 :Bool;
@@ -554,7 +557,7 @@ struct OnroadEventSP @0xda96579883444c35 {
     silentParkBrake @11;
     controlsMismatchLateral @12;
     hyundaiRadarTracksConfirmed @13;
-    experimentalModeSwitched @14;
+    experimentalModeSwitchedDEPRECATED @14;
     wrongCarModeAlertOnly @15;
     pedalPressedAlertOnly @16;
     laneTurnLeft @17;
@@ -1238,6 +1241,9 @@ struct CustomReserved19 @0xa4f1eb3323f5f582 {
   # points and only the restore path reads them (LiveTorqueParametersSP param)
   speedBinPoints @5 :List(List(List(Float32)));
   seedVersion @6 :Int32;           # speed_dependent.toml seed_version the bins were learned under; 0 before the field existed
+  # cache-only, empty on the published message and in a cache from before 2026-10-21
+  speedBinDecays @7 :List(Float32);  # per-bin filter decay
+  speedBinLearned @8 :List(Bool);    # the bin has been fit since its last reseed, whatever its points now
 }
 
 # ---- zoompilot -----------------------------------------------------------------------------
@@ -1255,6 +1261,9 @@ struct SelfdriveStateZP @0xde02074862680d1d {
   # large moves (interleaved with the wheel's own frames it registers as paced presses, never
   # as a held button). sendButton keeps the direction.
   icbmHold @1 :Bool;
+  # Experimental (end-to-end) longitudinal, else chill: the ExperimentalMode param on openpilot
+  # long. Upstream deprecated selfdriveState.experimentalMode when it went experimental only.
+  experimentalMode @2 :Bool = true;
 }
 
 struct CarParamsZP @0x89825c62ea259087 {
@@ -1392,7 +1401,7 @@ struct LongitudinalPlanZP @0xc3b0556e1118c2db {
       disabled @0;      # the ExperimentalModeLeadGap toggle is off (and logs from before it)
       none @1;
       inactive @2;      # not e2e, or long control reset
-      decActive @3;
+      decActive @3;     # retired 2026-10, older logs only
       invalid @4;
       hold @5;          # a trip cleared less than the hold time ago
       fcw @6;
@@ -1452,7 +1461,7 @@ struct LongitudinalPlanZP @0xc3b0556e1118c2db {
       disabled @0;      # the ExperimentalModeSetSpeed toggle is off (and logs from before it)
       none @1;
       inactive @2;      # not e2e, or long control reset
-      decActive @3;
+      decActive @3;     # retired 2026-10, older logs only
       invalid @4;
       hold @5;          # a hazard cleared less than the hold time ago
       fcw @6;

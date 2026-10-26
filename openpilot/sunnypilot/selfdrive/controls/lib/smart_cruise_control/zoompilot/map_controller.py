@@ -10,8 +10,9 @@ speed must persist before it binds. The state machine and update loop are sunnyp
 """
 import numpy as np
 
+import openpilot.cereal.messaging as messaging
 from openpilot.common.realtime import DT_MDL
-from openpilot.sunnypilot.navd.helpers import Coordinate, coordinate_from_param
+from openpilot.sunnypilot.navd.helpers import Coordinate
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import COMMIT_FRAC, PlanningLimits, get_planning_limits, \
   publish_cap_decel
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.map_controller import (
@@ -31,6 +32,10 @@ _T_FALLBACK = 2.8  # s; decel horizon when the target's distance is degenerate
 # tightest real curve 0.6 s of slack after the actuation lead
 _CONFIRM_V_BP = [20.1, 22.4]  # m/s (45, 50 mph)
 _CONFIRM_T = [0., 2.5]  # s
+# gpsLocation is 1 Hz: between fixes the distances are dead-reckoned from v_ego, or the published
+# decel (which divides by the distance) saws at every fix. A tunnel or underpass sends no fix; past
+# this the position counts as lost rather than reckoned on
+_FIX_HOLD_T = 3.  # s
 
 
 def target_binds(v_ego: float, tv, d, lim: PlanningLimits) -> np.ndarray:
@@ -53,6 +58,7 @@ class SmartCruiseControlMap(UpstreamMap):
     self.candidate = None  # (v, lat, lon) selected this frame, bound once confirmed
     self.candidate_age = 0  # frames the same candidate has been selected
     self._a_out = 0.
+    self.fix: tuple[Coordinate, int] | None = None  # the last position with a fix, and its logMonoTime
 
   def get_a_target_from_control(self) -> float:
     # keys ICBM's overshoot gap on stock ACC; ramped since the plan aTarget seeds the MPC
@@ -62,16 +68,38 @@ class SmartCruiseControlMap(UpstreamMap):
       self._a_out = self.a_ego
     return self._a_out
 
-  def update_calculations(self) -> None:
-    self.last_position = coordinate_from_param("LastGPSPosition", self.mem_params) or Coordinate(0.0, 0.0)
+  def fix_age(self, sm: messaging.SubMaster) -> float | None:
+    """Seconds since the last fix, which becomes last_position; None with no fix in _FIX_HOLD_T.
+    Upstream takes every message, and one without a fix reads as (0, 0), thousands of km away."""
+    gps = sm[self.gps_location_service]
+    if gps.hasFix:
+      self.fix = Coordinate(gps.latitude, gps.longitude), sm.logMonoTime[self.gps_location_service]
+    if self.fix is None:
+      return None
+    self.last_position = self.fix[0]
+    age = max(0., (sm.logMonoTime['modelV2'] - self.fix[1]) * 1e-9)
+    return age if age <= _FIX_HOLD_T else None
+
+  def _release_target(self) -> None:
+    self.v_target, self.target_lat, self.target_lon, self.target_distance = 0., 0., 0., 0.
+
+  def update_calculations(self, sm: messaging.SubMaster) -> None:
+    age = self.fix_age(sm)
+    if age is None:
+      self.candidate, self.candidate_age = None, 0
+      self._release_target()
+      return
     self.target_velocities = velocities_from_param("MapTargetVelocities", self.mem_params) or []
     lat, lon = self.last_position.latitude * TO_RADIANS, self.last_position.longitude * TO_RADIANS
     distances = [distance_to_point(lat, lon, p["latitude"] * TO_RADIANS, p["longitude"] * TO_RADIANS) for p in self.target_velocities]
 
-    # only the path from our position forward (the nearest point, if one is within 1 km)
+    # only the path from our position forward (the nearest point, if one is within 1 km), less the
+    # road covered since the fix; a point that falls behind is passed
     start = int(np.argmin(distances)) if distances and min(distances) < 1000. else 0
-    forward = self.target_velocities[start:]
-    forward_d = distances[start:]
+    travelled = self.v_ego * age
+    ahead = [(p, d - travelled) for p, d in zip(self.target_velocities[start:], distances[start:], strict=True) if d >= travelled]
+    forward = [p for p, _ in ahead]
+    forward_d = [d for _, d in ahead]
     binds = target_binds(self.v_ego, [p["velocity"] for p in forward], forward_d, self.limits)
     valid = [(float(p["velocity"]), p["latitude"], p["longitude"], d) for p, d, b in zip(forward, forward_d, binds, strict=True) if b]
     best = min(valid, key=lambda x: x[0], default=None)  # the slowest target, nearest on a tie
@@ -89,7 +117,7 @@ class SmartCruiseControlMap(UpstreamMap):
           # keep the target at its current distance, since the published decel divides by it
           self.target_distance = d
           return
-      self.v_target, self.target_lat, self.target_lon, self.target_distance = 0., 0., 0., 0.
+      self._release_target()
 
     if confirmed:
       self.v_target, self.target_lat, self.target_lon, self.target_distance = best

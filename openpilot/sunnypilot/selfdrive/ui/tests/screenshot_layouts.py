@@ -35,7 +35,6 @@ def setup_params():
   params = Params()
 
   cp = car.CarParams.new_message(
-    enableBsm=True,
     brand="debug",
     openpilotLongitudinalControl=True,
     steerControlType="torque",
@@ -100,7 +99,6 @@ def setup_ui_state():
 
   ui_state.params = Params()
   ui_state.CP = car.CarParams.new_message(
-    enableBsm=True,
     brand="debug",
     openpilotLongitudinalControl=True,
     steerControlType="torque",

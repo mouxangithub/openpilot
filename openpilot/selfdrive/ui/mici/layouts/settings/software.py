@@ -5,24 +5,16 @@ from enum import IntEnum
 from collections.abc import Callable
 
 from openpilot.common.time_helpers import system_time_valid
-from openpilot.selfdrive.ui.mici.layouts.settings.device import EngagedConfirmationButton
+from openpilot.selfdrive.ui.mici.layouts.settings.device.device_layout import EngagedConfirmationButton
+from openpilot.selfdrive.ui.mici.widgets.info import InfoLayoutMici
 from openpilot.selfdrive.ui.mici.widgets.button import BigButton
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigDialog
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.system.ui.lib.application import gui_app, FontWeight, MousePos
+from openpilot.system.ui.lib.application import gui_app, MousePos
 from openpilot.system.ui.lib.multilang import tr
-from openpilot.system.ui.widgets import Widget
-from openpilot.system.ui.widgets.label import UnifiedLabel
 from openpilot.system.ui.widgets.scroller import NavScroller
 
 UPDATER_TIMEOUT = 10.0  # seconds to wait for updater to respond
-
-# State keys for CheckUpdateButton — raw English used for compares; display goes through tr()
-_STATE_DOWNLOAD_UPDATE = "download update"
-_STATE_FAILED_TO_UPDATE = "failed to update"
-_STATE_UPDATER_FAILED_TO_RESPOND = "updater failed\nto respond"
-_STATE_CHECKING = "checking..."
-_STATE_UP_TO_DATE = "up to date"
 
 
 def _split_description(desc: str) -> tuple[str, str, str, str] | None:
@@ -40,44 +32,21 @@ class UpdaterState(IntEnum):
   UPDATER_RESPONDING = 2
 
 
-class SoftwareInfoLayoutMici(Widget):
+class SoftwareInfoLayoutMici(InfoLayoutMici):
   def __init__(self):
-    super().__init__()
-
-    self.set_rect(rl.Rectangle(0, 0, 360, 180))
-
-    subheader_color = rl.Color(255, 255, 255, int(255 * 0.9 * 0.65))
-    max_width = int(self._rect.width - 20)
-    self._version_label = UnifiedLabel(tr("version"), 48, max_width=max_width, font_weight=FontWeight.DISPLAY, wrap_text=False)
-    self._version_text_label = UnifiedLabel("", 32, max_width=max_width, text_color=subheader_color,
-                                            font_weight=FontWeight.ROMAN, wrap_text=False)
-
-    self._branch_label = UnifiedLabel(tr("branch"), 48, max_width=max_width, font_weight=FontWeight.DISPLAY, wrap_text=False)
-    self._branch_text_label = UnifiedLabel("", 32, max_width=max_width, text_color=subheader_color,
-                                           font_weight=FontWeight.ROMAN, wrap_text=False, scroll=True)
+    super().__init__("version", "", "branch", "")
 
   def _update_state(self):
+    super()._update_state()
+
     desc = _split_description(ui_state.params.get("UpdaterCurrentDescription") or "")
     if desc is not None:
       version, branch, commit, date = desc
-      self._version_text_label.set_text(f"{version} ({date})")
-      self._branch_text_label.set_text(f"{branch} ({commit})")
+      self.subtext1.set_text(f"{version} ({date})")
+      self.subtext2.set_text(f"{branch} ({commit})")
     else:
-      self._version_text_label.set_text(ui_state.params.get("Version") or "N/A")
-      self._branch_text_label.set_text(ui_state.params.get("GitBranch") or "N/A")
-
-  def _render(self, _):
-    self._version_label.set_position(self._rect.x + 20, self._rect.y - 10)
-    self._version_label.render()
-
-    self._version_text_label.set_position(self._rect.x + 20, self._rect.y + 68 - 25)
-    self._version_text_label.render()
-
-    self._branch_label.set_position(self._rect.x + 20, self._rect.y + 114 - 30)
-    self._branch_label.render()
-
-    self._branch_text_label.set_position(self._rect.x + 20, self._rect.y + 161 - 25)
-    self._branch_text_label.render()
+      self.subtext1.set_text(ui_state.params.get("Version") or "N/A")
+      self.subtext2.set_text(ui_state.params.get("GitBranch") or "N/A")
 
 
 class CheckUpdateButton(BigButton):
@@ -88,12 +57,11 @@ class CheckUpdateButton(BigButton):
   def __init__(self):
     self._txt_update_icon = gui_app.texture("icons_mici/settings/device/update.png", 64, 75)
     self._txt_up_to_date_icon = gui_app.texture("icons_mici/settings/device/up_to_date.png", 64, 64)
-    super().__init__(tr("check for update"), "", self._txt_update_icon)
+    super().__init__("check for update", "", self._txt_update_icon)
 
     self._waiting_for_updater_t: float | None = None
     self._hide_value_t: float | None = None
     self._state: UpdaterState = UpdaterState.IDLE
-    self._state_key: str = ""
 
     ui_state.add_offroad_transition_callback(self.offroad_transition)
 
@@ -127,12 +95,11 @@ class CheckUpdateButton(BigButton):
     threading.Thread(target=run, daemon=True).start()
 
   def set_value(self, value: str):
-    self._state_key = value
-    super().set_value(tr(value) if value else "")
+    super().set_value(value)
     if value:
       self.set_text("")
     else:
-      self.set_text(tr("check for update"))
+      self.set_text("check for update")
 
   def _update_state(self):
     super()._update_state()
@@ -166,24 +133,24 @@ class CheckUpdateButton(BigButton):
         self._state = UpdaterState.IDLE
         self._hide_value_t = rl.get_time()
       else:
-        if self._state_key != updater_state:
+        if self.get_value() != updater_state:
           self.set_value(updater_state)
 
     elif self._state == UpdaterState.IDLE:
       self.set_rotate_icon(False)
       if failed:
         self.set_enabled(True)  # allow retry when failure came from updater param
-        if self._state_key != _STATE_FAILED_TO_UPDATE:
+        if self.get_value() != "failed to update":
           self.set_value("failed to update")
 
       elif ui_state.params.get_bool("UpdaterFetchAvailable"):
         self.set_enabled(True)
-        if self._state_key != _STATE_DOWNLOAD_UPDATE:
+        if self.get_value() != "download update":
           self.set_value("download update")
 
       elif self._hide_value_t is not None:
         self.set_enabled(True)
-        if self._state_key == _STATE_CHECKING:
+        if self.get_value() == "checking...":
           self.set_value("up to date")
           self.set_icon(self._txt_up_to_date_icon)
 
@@ -193,7 +160,7 @@ class CheckUpdateButton(BigButton):
           self.set_value("")
           self.set_icon(self._txt_update_icon)
       else:
-        if self._state_key != "":
+        if self.get_value() != "":
           self.set_value("")
 
     if self._state != UpdaterState.WAITING_FOR_UPDATER:
@@ -202,7 +169,7 @@ class CheckUpdateButton(BigButton):
 
 class InstallUpdateButton(BigButton):
   def __init__(self):
-    super().__init__(tr("install now"), "", gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70))
+    super().__init__("install now", "", gui_app.texture("icons_mici/settings/device/reboot.png", 64, 70))
     self.set_visible(lambda: ui_state.is_offroad() and ui_state.params.get_bool("UpdateAvailable"))
 
   def _update_state(self):
@@ -251,8 +218,8 @@ class BranchSelectPage(NavScroller):
 
 class TargetBranchButton(BigButton):
   def __init__(self, check_update_btn: CheckUpdateButton):
-    super().__init__(tr("target branch"), ui_state.params.get("UpdaterTargetBranch") or "",
-                     description=tr("Select the software branch to download on the next update check."))
+    super().__init__("target branch", ui_state.params.get("UpdaterTargetBranch") or "",
+                     description="Select the software branch to download on the next update check.")
     self._check_update_btn = check_update_btn
     self.set_click_callback(self._on_click)
     self.set_visible(not ui_state.params.get_bool("IsTestedBranch"))
@@ -284,7 +251,7 @@ class SoftwareLayoutMici(NavScroller):
     def uninstall_openpilot_callback():
       ui_state.params.put_bool("DoUninstall", True, block=True)
 
-    uninstall_openpilot_btn = EngagedConfirmationButton(tr("uninstall sunnypilot"), tr("uninstall"),
+    uninstall_openpilot_btn = EngagedConfirmationButton("uninstall sunnypilot", "uninstall",
                                                         gui_app.texture("icons_mici/settings/device/uninstall.png", 64, 64),
                                                         uninstall_openpilot_callback, exit_on_confirm=False,
                                                         description="Remove openpilot from this device.",

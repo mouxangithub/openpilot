@@ -111,5 +111,5 @@ class CruiseHelper:
       if self._experimental_mode:
         self.params.put_bool("ExperimentalModeConfirmed", True)
       self.params.put_bool("ExperimentalMode", self._experimental_mode)
-      events.add(EventNameSP.experimentalModeSwitched)
+      events.add(EventNameSP.experimentalModeSwitchedDEPRECATED)
       self.experimental_mode_switched = True

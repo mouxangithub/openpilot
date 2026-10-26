@@ -34,12 +34,13 @@ from openpilot.common.hardware import HARDWARE
 from openpilot.sunnypilot.mads.mads import ModularAssistiveDrivingSystem
 from openpilot.sunnypilot import get_sanitize_int_param
 from openpilot.sunnypilot.selfdrive.car.car_specific import CarSpecificEventsSP
-from openpilot.sunnypilot.selfdrive.car.cruise_helpers import CruiseHelper
 from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.controller import IntelligentCruiseButtonManagement
 from openpilot.sunnypilot.selfdrive.selfdrived.button_state_tracker import ButtonStateTracker
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.selfdrive.selfdrived.model_events import ModelEventsSP
 from openpilot.sunnypilot.selfdrive.controls.lib.radar_only_warning import RadarOnlyWarning
+from openpilot.sunnypilot.selfdrive.car.cruise_helpers import CruiseHelper  # sp DEC engine (sunset on zp side, still active here)
+from openpilot.sunnypilot.selfdrive.selfdrived.selfdrived_zp import SelfdrivedZP
 
 REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ or os.getenv("LITE") is not None
@@ -141,8 +142,6 @@ class SelfdriveD(CruiseHelper):
     # cleanup old params
     if not self.CP.alphaLongitudinalAvailable:
       self.params.remove("AlphaLongitudinalEnabled")
-    if not self.CP.openpilotLongitudinalControl:
-      self.params.remove("ExperimentalMode")
 
     self.CS_prev = car.CarState.new_message()
     self.AM = AlertManager()
@@ -174,7 +173,6 @@ class SelfdriveD(CruiseHelper):
     # reported immediately.
     self.comm_issue_grace = CommIssueGrace()
     self.not_running_prev = None
-    self.experimental_mode = False
     self.personality = get_sanitize_int_param(
       "LongitudinalPersonality",
       min(log.LongitudinalPersonality.schema.enumerants.values()),
@@ -217,6 +215,7 @@ class SelfdriveD(CruiseHelper):
 
     CruiseHelper.__init__(self, self.CP)
     self.button_state_tracker = ButtonStateTracker()
+    self.selfdrived_zp = SelfdrivedZP(self.CP, self.params)
 
   def update_events(self, CS):
     """Compute onroadEvents from carState"""
@@ -242,6 +241,7 @@ class SelfdriveD(CruiseHelper):
     big_failed = big_active is False or model_unavailable or (self.big_model_active and not chestnut_present)
     if big_failed and not self.big_model_failed:
       self.events.add(EventName.bigModelFailed)
+      self.big_model_ready_t = time.monotonic()
     self.big_model_failed = big_failed
 
     # soft disable if the big model fails
@@ -273,7 +273,9 @@ class SelfdriveD(CruiseHelper):
 
     # Check for user bookmark press
     if self.sm.updated['userBookmark']:
-      self.events.add(EventName.userBookmark)
+      prime_type = self.params.get("PrimeType")
+      paired = prime_type is not None and int(prime_type) >= 0
+      self.events.add(EventName.userBookmark if paired else EventName.userBookmarkNotPaired)
 
     # Don't add any more events while in dashcam mode
     if self.CP.passive:
@@ -587,7 +589,7 @@ class SelfdriveD(CruiseHelper):
       # climbs past MODEL_LAG_PERC within a second and soft-disables via
       # modeldLagging. See modeld_lag.py for the on-device measurements.
       severe, mild = self.modeld_lag_monitor.update(self.sm['modelV2'].frameDropPerc)
-      if severe:
+      if severe and not big_model_settling:
         self.events.add(EventName.modeldLagging)
       if mild:
         self.events.add(EventName.modeldLaggingMild)
@@ -596,16 +598,17 @@ class SelfdriveD(CruiseHelper):
     if CS.gearShifter == car.CarState.GearShifter.park and self.mads.enabled:
       self.events.remove(EventName.canBusMissing)
 
+    # sp DEC engine (CruiseHelper) runs its state machine on the shared events_sp
     CruiseHelper.update(self, CS, self.events_sp, self.experimental_mode)
 
-    # decrement personality on distance button press
+    self.personality = self.selfdrived_zp.update(CS, self.sm['carStateSP'], self.events, self.events_sp, self.icbm, self.personality)
+
+    # Decrement personality on distance button press
     if self.CP.openpilotLongitudinalControl:
-      if any(not be.pressed and be.type == ButtonType.gapAdjustCruise for be in CS.buttonEvents):
-        if not self.experimental_mode_switched:
-          self.personality = (self.personality - 1) % 3
-          self.params.put('LongitudinalPersonality', self.personality)
-          self.events.add(EventName.personalityChanged)
-        self.experimental_mode_switched = False
+      if any(not be.pressed and be.type == ButtonType.gapAdjustCruise for be in CS.buttonEvents) and self.selfdrived_zp.gap_release_steps:
+        self.personality = (self.personality - 1) % 3
+        self.params.put('LongitudinalPersonality', self.personality)
+        self.events.add(EventName.personalityChanged)
 
     self.icbm.run(CS, self.sm['carControl'], self.sm['longitudinalPlanSP'], self.is_metric)
 
@@ -684,7 +687,7 @@ class SelfdriveD(CruiseHelper):
     clear_event_types = set()
     if ET.WARNING not in self.state_machine.current_alert_types:
       clear_event_types.add(ET.WARNING)
-    if self.enabled:
+    if self.enabled or (ET.NO_ENTRY not in (c := self.state_machine.current_alert_types) and (ET.ENABLE in c or ET.USER_DISABLE in c)):
       clear_event_types.add(ET.NO_ENTRY)
 
     pers = LONGITUDINAL_PERSONALITY_MAP[self.personality]
@@ -706,7 +709,6 @@ class SelfdriveD(CruiseHelper):
     ss.active = self.active
     ss.state = self.state_machine.state
     ss.engageable = not self.events.contains(ET.NO_ENTRY)
-    ss.experimentalMode = self.experimental_mode
     ss.personality = self.personality
 
     ss.alertText1 = self.AM.current_alert.alert_text_1
@@ -739,6 +741,7 @@ class SelfdriveD(CruiseHelper):
     mads.lateralHeld = self.mads.lateral_held
     ss_sp.zoompilot.madsLateralHeld = self.mads.lateral_held
     ss_sp.zoompilot.icbmHold = self.icbm.fast_active
+    self.selfdrived_zp.publish(ss_sp)
 
     icbm = ss_sp.intelligentCruiseButtonManagement
     icbm.state = self.icbm.state

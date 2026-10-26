@@ -41,21 +41,21 @@ def test_a_failed_fetch_skips_the_big_model_instead_of_failing_the_build(tmp_pat
   path = model(tmp_path, POINTER)
   for failure in (subprocess.CalledProcessError(2, 'git'), subprocess.TimeoutExpired('git', 1), FileNotFoundError('git')):
     with mock.patch.object(B.subprocess, 'run', side_effect=failure):
-      assert not B.ensure_big_pkl(path, str(tmp_path), path.parent)
+      assert not B.ensure_big_pkl(path, str(tmp_path))
   with mock.patch.object(B.subprocess, 'run'):   # "succeeded" but left the pointer
-    assert not B.ensure_big_pkl(path, str(tmp_path), path.parent)
+    assert not B.ensure_big_pkl(path, str(tmp_path))
 
 
-def test_a_failed_fetch_drops_big_warps_left_by_an_earlier_build(tmp_path):
-  # chestnut_compiled() would take the pointer for a model while the warps are there
+def test_a_pointer_is_not_compiled(tmp_path):
+  # the big warps are tracked now, so only the model tells a fetched install from a pointer
+  from openpilot.selfdrive.modeld import helpers
   path = model(tmp_path, POINTER)
-  warp = path.parent / 'big_driving_warp_1344x760_tinygrad.pkl'
-  small_warp = path.parent / 'driving_warp_1344x760_tinygrad.pkl'
-  warp.write_bytes(b'w')
-  small_warp.write_bytes(b'w')
-  with mock.patch.object(B.subprocess, 'run', side_effect=FileNotFoundError('git')):
-    assert not B.ensure_big_pkl(path, str(tmp_path), path.parent)
-  assert not warp.exists() and small_warp.exists()
+  for size in ('1344x760', '1928x1208'):
+    (path.parent / f'big_driving_warp_{size}_tinygrad.pkl').write_bytes(b'w')
+  with mock.patch.object(helpers, 'MODELS_DIR', path.parent), mock.patch.object(helpers, 'modeld_pkl_path', lambda chestnut: path):
+    assert not helpers.chestnut_compiled()
+    path.write_bytes(b'\x80\x05pkl')
+    assert helpers.chestnut_compiled()
 
 
 def test_a_missing_file_is_not_a_model(tmp_path):

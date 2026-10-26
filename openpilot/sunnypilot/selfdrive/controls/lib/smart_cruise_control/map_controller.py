@@ -3,13 +3,15 @@ import math
 import platform
 import time
 
+import openpilot.cereal.messaging as messaging
 from openpilot.cereal import custom
 from openpilot.common.constants import CV
+from openpilot.common.gps import get_gps_location_service
 from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 from openpilot.selfdrive.car.cruise import V_CRUISE_UNSET
 from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD
-from openpilot.sunnypilot.navd.helpers import coordinate_from_param, Coordinate
+from openpilot.sunnypilot.navd.helpers import Coordinate
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control import MIN_V
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode
 
@@ -173,7 +175,8 @@ class SmartCruiseControlMap:
     self.target_lon = 0.0
     self.frame = -1
 
-    self.last_position = coordinate_from_param("LastGPSPosition", self.mem_params) or Coordinate(0.0, 0.0)
+    self.gps_location_service = get_gps_location_service(self.params)
+    self.last_position = Coordinate(0.0, 0.0)
     self.target_velocities = velocities_from_param("MapTargetVelocities", self.mem_params) or []
 
     # Carrot TMC congestion (killswitch default OFF, see update_params()).
@@ -366,8 +369,9 @@ class SmartCruiseControlMap:
       if not self.enabled and self.params.get_bool("CarrotEnabled"):
         self.enabled = (self.use_carrot_congestion or self.use_carrot_map_decel)
 
-  def update_calculations(self) -> None:
-    self.last_position = coordinate_from_param("LastGPSPosition", self.mem_params) or Coordinate(0.0, 0.0)
+  def update_calculations(self, sm: messaging.SubMaster) -> None:
+    gps = sm[self.gps_location_service]
+    self.last_position = Coordinate(gps.latitude, gps.longitude)
     lat = self.last_position.latitude
     lon = self.last_position.longitude
 
@@ -509,7 +513,7 @@ class SmartCruiseControlMap:
 
     return enabled, active
 
-  def update(self, long_enabled: bool, long_override: bool, v_ego, a_ego, v_cruise, sm=None) -> None:
+  def update(self, sm: messaging.SubMaster, long_enabled: bool, long_override: bool, v_ego, a_ego, v_cruise) -> None:
     self.long_enabled = long_enabled
     self.long_override = long_override
     self.v_ego = v_ego
@@ -517,10 +521,9 @@ class SmartCruiseControlMap:
     self.v_cruise = v_cruise
 
     self.update_params()
-    self.update_calculations()
+    self.update_calculations(sm)
     # Fold in phone TMC congestion AFTER the map velocities so the cap can only
-    # lower the target, never raise it. `sm` is optional so existing callers
-    # that only exercise the map-velocity path keep working unchanged.
+    # lower the target, never raise it.
     self._update_congestion(sm)
     # Same folding rule as the congestion cap: after the map velocities, lower-only.
     self._update_carrot_map_decel(sm)

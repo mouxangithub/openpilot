@@ -2,10 +2,12 @@ import io
 import pickle
 import shutil
 import struct
+import sys
 import tempfile
+import time
 from pathlib import Path
 
-from openpilot.common.file_chunker import get_manifest_path
+from openpilot.common.hardware import AGNOS
 from openpilot.common.hardware.usb import CHESTNUT_USB_PRODUCT, USB_DEVICES_PATH, is_chestnut_usb_id
 
 MODELS_DIR = Path(__file__).resolve().parent / 'models'
@@ -34,15 +36,12 @@ def modeld_pkl_path(chestnut: bool):
   prefix = 'big_' if chestnut else ''
   return MODELS_DIR / f'{prefix}driving_tinygrad.pkl'
 
-def load_oob(f):
-  opcodes = f.read(struct.unpack('<q', f.read(8))[0])
-  def buffers():
-    while (h := f.read(8)):
-      pb = pickle.PickleBuffer(bytearray(struct.unpack('<q', h)[0]))
-      if f.readinto(pb) != pb.raw().nbytes:
-        raise EOFError("incomplete model buffer")
-      yield pb
-  return pickle.load(io.BytesIO(opcodes), buffers=buffers())
+def load_oob(path, chestnut=False):
+  from tinygrad import Context
+  device = 'USB+AMD:LLVM' if chestnut else 'QCOM' if AGNOS else 'METAL' if sys.platform == 'darwin' else 'CPU:LLVM'
+  with Context(DEV=device):
+    from tinygrad_repo.examples.openpilot.helpers import load_pickle
+    return load_pickle(path, out_of_band=True)
 
 # the top level of the pkl compile_modeld.py writes. checked at both ends: a pkl from another
 # compile_modeld.py unpickles fine and only fails on the first key it lacks, as a bare KeyError
@@ -84,7 +83,17 @@ def chestnut_present() -> bool:
       pass
   return False
 
+def wait_for_chestnut(timeout: float = 10.) -> None:
+  # the cable is detected before chestnut enumerates
+  st = time.monotonic()
+  while not chestnut_present():
+    if time.monotonic() - st > timeout:
+      raise TimeoutError("chestnut did not enumerate")
+    time.sleep(0.1)
+
 def chestnut_compiled() -> bool:
+  from openpilot.sunnypilot.models.big_model_source import is_lfs_pointer
   path = modeld_pkl_path(chestnut=True)
-  return (path.is_file() or Path(get_manifest_path(path)).is_file()) and all(
+  # zoompilot installs leave the big model a pointer (.lfsconfig); the big warps are tracked
+  return path.is_file() and not is_lfs_pointer(path) and all(
     (MODELS_DIR / f'big_driving_warp_{size}_tinygrad.pkl').is_file() for size in ('1344x760', '1928x1208'))

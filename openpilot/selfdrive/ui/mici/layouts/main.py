@@ -78,6 +78,8 @@ class MiciMainLayout(Scroller):
     return True
 
   def _setup_callbacks(self):
+    self._alerts_layout.set_enabled(lambda: self.enabled)
+    self._alerts_layout.set_pairing_callback(self._settings_layout.show_pairing)
     self._home_layout.set_callbacks(
       on_settings=lambda: gui_app.push_widget(self._settings_layout),
       on_alerts=lambda: self._scroll_to(self._alerts_layout),

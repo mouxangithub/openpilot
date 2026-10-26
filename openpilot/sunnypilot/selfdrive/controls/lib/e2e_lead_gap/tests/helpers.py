@@ -14,7 +14,7 @@ from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.tests.helpers imp
 __all__ = ['ENGAGED', 'build_sm', 'desired_gap']
 
 # update() arguments for an engaged e2e frame
-ENGAGED = {'is_e2e': True, 'reset_state': False, 'dec_active': False, 'allow_throttle': True, 'fcw': False}
+ENGAGED = {'is_e2e': True, 'reset_state': False, 'allow_throttle': True, 'fcw': False}
 STANDARD = log.LongitudinalPersonality.standard
 
 

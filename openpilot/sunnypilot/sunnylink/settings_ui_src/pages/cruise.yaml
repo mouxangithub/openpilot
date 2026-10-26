@@ -29,39 +29,25 @@ sections:
   - key: ExperimentalMode
     widget: toggle
     title: Experimental Mode
-    enablement:
-    - $ref: '#/macros/longitudinal'
-  - key: DynamicExperimentalControl
-    widget: toggle
-    title: Dynamic Experimental Control
-    description: Let the model decide when to use sunnypilot ACC or sunnypilot End to End Longitudinal.
-    visibility:
-    - $ref: '#/macros/longitudinal'
+    description: Let the driving model control the gas and brakes. Off is chill mode.
     enablement:
     - $ref: '#/macros/longitudinal'
   - key: ExperimentalModeSetSpeed
     widget: toggle
     title: Experimental Mode Speed Assist
-    description: In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down. Has
-      no effect while Dynamic Experimental Control is on.
+    description: In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down.
     visibility:
     - $ref: '#/macros/longitudinal'
     enablement:
     - $ref: '#/macros/longitudinal'
-    - type: param
-      key: DynamicExperimentalControl
-      equals: false
   - key: ExperimentalModeLeadGap
     widget: toggle
     title: Experimental Mode Lead Follow Assist
-    description: Closes the gap to your driving personality's following distance behind a steady car. Never closer than chill mode. No effect while Dynamic Experimental Control is on.
+    description: Closes the gap to your driving personality's following distance behind a steady car. Never closer than chill mode.
     visibility:
     - $ref: '#/macros/longitudinal'
     enablement:
     - $ref: '#/macros/longitudinal'
-    - type: param
-      key: DynamicExperimentalControl
-      equals: false
 - id: core_cruise_features
   title: ''
   description: ''

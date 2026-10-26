@@ -113,8 +113,6 @@ jobs:
           mkdir -p "$BUILD_DIR/tmp"
           export TMPDIR="$BUILD_DIR/tmp"
           scons -j$(nproc) cache_dir=${{ env.SCONS_CACHE_DIR }} --minimal
-          # GitHub rejects files over 100 MB; modeld opens chunked pkls through file_chunker
-          find openpilot/selfdrive/modeld/models -name '*.pkl' -size +95M -exec ./openpilot/common/file_chunker.py {} \;
           touch ${BUILD_DIR}/prebuilt
 
       - name: Prepare output
