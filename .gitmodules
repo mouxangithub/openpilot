@@ -3,15 +3,15 @@
 [submodule "panda"]
   path = panda
   url = https://github.com/mouxangithub/panda.git
-	branch = master-c3
+	branch = master
 [submodule "opendbc"]
   path = opendbc_repo
   url = https://github.com/mouxangithub/opendbc.git
-	branch = master-c3
+	branch = test
 [submodule "jetlink"]
   path = jetlink_repo
   url = https://github.com/mouxangithub/jetlink.git
-	branch = c3
+	branch =cn
 [submodule "msgq"]
   path = msgq_repo
   url = https://github.com/sunnypilot/msgq.git
