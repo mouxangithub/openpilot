@@ -15,7 +15,6 @@ def _make_planner():
   cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=True, longitudinalActuatorDelay=0.36)
   planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(), MagicMock())
   planner.dt = 0.05
-  planner.dec.active = lambda: False  # acc mode
   cs = messaging.new_message('carState').carState
   cs.vEgo = 12.0
   cs.aEgo = 0.0

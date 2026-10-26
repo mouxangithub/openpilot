@@ -116,7 +116,6 @@ class TestAccelControllerClosedLoop(OpenpilotTestCase):
   @unittest.expectedFailure
   def test_blended_positive_model_request_uses_profile_cruise_cap(self):
     params = Params()
-    params.put_bool("DynamicExperimentalControl", False, block=True)
     params.put_bool("AccelPersonalityEnabled", True, block=True)
     params.put("AccelPersonality", AccelProfile.eco, block=True)
 

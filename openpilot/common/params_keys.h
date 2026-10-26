@@ -303,15 +303,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ToyotaEnforceStockLongitudinal", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ToyotaStopAndGoHack", {PERSISTENT | BACKUP, BOOL, "0"}},
 
-    {"DynamicExperimentalControl", {PERSISTENT | BACKUP, BOOL, "0"}},
-    // Which situations may hand speed control to the driving model under DEC.
-    // All default on, which is the behaviour the controller had before these
-    // switches existed: they can only restrict a blend, never cause one.
-    {"DynamicExperimentalTriggerCurve", {PERSISTENT | BACKUP, BOOL, "1"}},
-    {"DynamicExperimentalTriggerLead", {PERSISTENT | BACKUP, BOOL, "1"}},
-    {"DynamicExperimentalTriggerSignal", {PERSISTENT | BACKUP, BOOL, "1"}},
-    {"DynamicExperimentalTriggerStopLight", {PERSISTENT | BACKUP, BOOL, "1"}},
-    {"DynamicExperimentalTriggerLowSpeed", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"BlindSpot", {PERSISTENT | BACKUP, BOOL, "0"}},
     // the model's lead forecast as the long MPC's obstacle; on by default, a hidden off switch
     {"LeadForecast", {PERSISTENT | BACKUP, BOOL, "1"}},

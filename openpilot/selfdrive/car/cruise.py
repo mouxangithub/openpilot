@@ -549,12 +549,14 @@ class VCruiseCarrot(VCruiseHelper):
     self.cruise_state_available_last = CS.cruiseState.available
     self.enabled_last = CC.enabled
 
-  def initialize_v_cruise(self, CS, experimental_mode: bool, dynamic_experimental_control: bool = False) -> None:
-    """No-op override; the inherited VCruiseHelper.initialize_v_cruise owns v_cruise.
+  def initialize_v_cruise(self, CS, experimental_mode: bool) -> None:
+    """No-op override; v_cruise init lives in this class's update_v_cruise flow.
 
     The signature must stay identical to the base class because card.py calls the
-    helper polymorphically with (CS, experimental_mode, dynamic_experimental_control).
-    The previous two-argument override raised
+    helper polymorphically. It used to carry a third dynamic_experimental_control
+    argument; DEC was removed 2026-10 (upstream sunset #2056) and the zp base
+    dropped the flag too, so the chain is back to two arguments. The previous
+    narrower override raised
     `TypeError: takes 3 positional arguments but 4 were given` on every SET press.
     """
     return

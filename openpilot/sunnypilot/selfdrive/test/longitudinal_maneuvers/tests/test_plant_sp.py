@@ -133,7 +133,6 @@ class TestPlantSP(OpenpilotTestCase):
     assert first["acceleration"] == first["realized_acceleration"]
     assert abs(first["realized_acceleration"]) < abs(first["actuator_command"])
     assert first["mpc_source"] is not None
-    assert first["dec_mode"] in ("acc", "blended")
     assert "controller_active" in first
     assert first["lead_one_observation"] is not None
     assert first["truth_lead"] == first["lead_one_observation"]

@@ -26,7 +26,6 @@ from openpilot.sunnypilot.selfdrive.controls.lib.cutin_predecel import get_cutin
 from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_preview import (
   apply_preview_target, clip_preview_offset, get_lead_preview_request, rate_limit_preview,
 )
-from openpilot.sunnypilot.selfdrive.controls.lib.dec.dec import DynamicExperimentalController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_lead_gap.controller import E2ELeadGapController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
@@ -46,7 +45,6 @@ from openpilot.sunnypilot.selfdrive.controls.lib.traffic_light_fusion import (
 )
 from openpilot.sunnypilot.carrot.config import UnifiedParams
 
-DecState = custom.LongitudinalPlanSP.DynamicExperimentalControl.DynamicExperimentalControlState
 LongitudinalPlanSource = custom.LongitudinalPlanSP.LongitudinalPlanSource
 CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
 MpcPlanSource = log.LongitudinalPlan.LongitudinalPlanSource
@@ -69,8 +67,6 @@ _TRAFFIC_LIGHT_SOURCE_MAP = {
 # NOTE: FusedSource.AMAP / TrafficLightState.Source.amap are kept in their
 # respective enums for cereal ordinal compatibility, but no live Amap Web source
 # exists any more.
-
-E2E_BRAKE_HOLD_ACCEL = -0.2  # m/s^2
 
 
 def _to_float(value, default: float = 0.0) -> float:
@@ -107,7 +103,6 @@ class LongitudinalPlannerSP:
     self.accel_controller_active = False
     self.lead_one = None
     self.events_sp = EventsSP()
-    self.dec = DynamicExperimentalController(CP, mpc)
     self.e2e_set_speed = E2ESetSpeedController()
     self.e2e_lead_gap = E2ELeadGapController()
     self.a_e2e = 0.  # the e2e candidate both lifts produced, for the floor's count of added speed
@@ -195,17 +190,9 @@ class LongitudinalPlannerSP:
     self._signal_prepare_previous = None
 
   def is_e2e(self, sm: messaging.SubMaster) -> bool:
-    experimental_mode = sm['selfdriveState'].experimentalMode
-    if not experimental_mode:
-      return False
-
-    if not self.dec.active() or self.dec.mode() == "blended":
-      return True
-
-    if self.mpc.source == MpcPlanSource.e2e and sm['modelV2'].action.desiredAcceleration < E2E_BRAKE_HOLD_ACCEL:
-      return True
-
-    return False
+    # DEC removed 2026-10: experimental mode is always e2e, which matches the
+    # old DEC-disabled behaviour (the default) exactly.
+    return sm['selfdriveState'].experimentalMode
 
   def refresh_weather_offsets(self) -> None:
     """Re-read the weather offsets from Params.
@@ -322,7 +309,7 @@ class LongitudinalPlannerSP:
     if getattr(cs, 'softHoldActive', 0) != 0:
       return True
     # A stop was already decided, so the brake is doing work.
-    if self.output_should_stop or self.dec.active():
+    if self.output_should_stop:
       return True
     # The driver asked for a speed change that is not the set speed, or a
     # lane change is in progress: the band is not valid in either case.
@@ -412,8 +399,9 @@ class LongitudinalPlannerSP:
     self.carrot_lane_change_gap = None
     self.carrot_dynamic_t_follow_lc = 1.0
     if self._carrot_enabled:
-      mpc_mode = self.dec.mode() if self.dec.active() else "acc"
-      self.carrot_source.update(sm, v_cruise * CV.MS_TO_KPH, mpc_mode)
+      # DEC removed 2026-10: always "acc"; carrot may still promote itself to
+      # blended internally (carrot_functions XState.e2ePrepare).
+      self.carrot_source.update(sm, v_cruise * CV.MS_TO_KPH, "acc")
       # Carrot as a 5th speed source: its curve-speed / driving-mode target can
       # only ever slow the car below the user-set cruise, never command more
       # speed (clamped to v_cruise), and only on a fresh packet (the adapter's
@@ -518,7 +506,7 @@ class LongitudinalPlannerSP:
       return action_t, output_a_target_mpc
     try:
       cs = sm['carState']
-      preview_enabled = (not self.dec.active() and not reset_state
+      preview_enabled = (not reset_state
                          and not cs.gasPressed and not cs.brakePressed)
       lead = sm['radarState'].leadOne
       lead_status = (preview_enabled and bool(getattr(lead, 'present', False))
@@ -625,7 +613,6 @@ class LongitudinalPlannerSP:
       and getattr(cs, "softHoldActive", 0) == 0
       and 0 < elapsed <= 0.2
       and not self.output_should_stop
-      and not self.dec.active()
       and not prepare_lead_blocked(sm['radarState'])
     )
     previous = cs.aEgo if self._signal_prepare_previous is None else self._signal_prepare_previous
@@ -641,19 +628,21 @@ class LongitudinalPlannerSP:
     """The e2e candidate after the set-speed floor and the follow-distance assist. The host
     planner min()s it against the MPC and cruise candidates; neither assist can raise it above
     the MPC's behind a lead, so the plan never follows closer than long_mpc would."""
-    is_e2e, dec_active = self.is_e2e(sm), self.dec.active()
+    is_e2e = self.is_e2e(sm)
     # lateral acceleration from the measured steering, as the host's cruise candidate computes it
     CS = sm['carState']
     steer_deg = CS.steeringAngleDeg - sm['vehicleParameters'].angleOffsetDeg
     steer_lat_accel = CS.vEgo ** 2 * math.radians(steer_deg) / (self.CP.steerRatio * self.CP.wheelbase)
     # output_v_target is this frame's cruise target after SCC and SLA
-    a_e2e = self.e2e_set_speed.update(sm, a_model, self.output_v_target, is_e2e, reset_state, dec_active,
+    # DEC removed 2026-10: allow_throttle is False (the old DEC-disabled
+    # default), so e2e never adds positive accel beyond the coast cap.
+    a_e2e = self.e2e_set_speed.update(sm, a_model, self.output_v_target, is_e2e, reset_state, False,
                                       self.allow_throttle, self.fcw, accel_coast, steer_lat_accel)
     # the MPC candidate as the host planner takes it from this frame's solution
     a_mpc = get_accel_from_plan(self.v_desired_trajectory, self.a_desired_trajectory, CONTROL_N_T_IDX,
                                 action_t=self.CP.longitudinalActuatorDelay + DT_MDL)
     # a_cruise is last frame's: the host builds this frame's after the e2e candidate
-    self.a_e2e = self.e2e_lead_gap.update(sm, a_e2e, float(a_mpc), is_e2e, reset_state, dec_active, self.allow_throttle,
+    self.a_e2e = self.e2e_lead_gap.update(sm, a_e2e, float(a_mpc), is_e2e, reset_state, False, self.allow_throttle,
                                           self.fcw, self.a_cruise, steer_lat_accel)
     return self.a_e2e
 
@@ -661,15 +650,8 @@ class LongitudinalPlannerSP:
     self.accel_controller.update()
     self.lead_one = sm['radarState'].leadOne
     self.events_sp.clear()
-    # DEC is driven separately through update_dec() by the host (stock
-    # LongitudinalPlanner.update calls it), so it is not ticked here - doing
-    # both double-updates it and breaks __new__-based tests that bypass
-    # __init__ (no self.dec).
     self.lead_forecast.update(sm)
     self.e2e_alerts_helper.update(sm, self.events_sp)
-
-  def update_dec(self, sm: messaging.SubMaster) -> None:
-    self.dec.update(sm)
 
   def publish_longitudinal_plan_sp(self, sm: messaging.SubMaster, pm: messaging.PubMaster) -> None:
     # the host has chosen: tell the set-speed floor how much of the lift reached the car
@@ -684,16 +666,6 @@ class LongitudinalPlannerSP:
     longitudinalPlanSP.vTarget = float(self.output_v_target)
     longitudinalPlanSP.aTarget = float(self.output_a_target)
     longitudinalPlanSP.events = self.events_sp.to_msg()
-
-    # Dynamic Experimental Control
-    dec = longitudinalPlanSP.dec
-    dec.state = DecState.blended if self.dec.mode() == 'blended' else DecState.acc
-    dec.enabled = self.dec.enabled()
-    dec.active = self.dec.active()
-    dec.decelIntent = float(self.dec.signals.decel_intent)
-    dec.curveDetected = bool(self.dec.signals.curve_detected)
-    dec.wantBlended = bool(self.dec.want_blended)
-    dec.leadVeto = bool(self.dec.lead_veto)
 
     longitudinalPlanSP.signalAssistAction = int(self.get_signal_assist_action(sm))
     longitudinalPlanSP.signalDetectionSuspended = bool(self.get_signal_detection_suspended())

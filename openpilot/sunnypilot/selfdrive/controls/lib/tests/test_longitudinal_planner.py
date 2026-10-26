@@ -53,9 +53,6 @@ class TestCarrotTargetUnification(OpenpilotTestCase):
     planner.resolver.speed_limit_valid = True
     planner.resolver.speed_limit_last_valid = True
     planner.resolver.distance = 0.0
-    planner.dec = MagicMock()
-    planner.dec.mode.return_value = "acc"
-    planner.dec.active.return_value = False
     planner.carrot_source = MagicMock()
     planner.carrot_source.active = False
     planner._carrot_enabled = True  # simulate CarrotLongitudinalSourceEnabled

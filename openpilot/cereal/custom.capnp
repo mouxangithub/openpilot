@@ -267,6 +267,8 @@ struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
   cruiseCoastingTarget @17 :Float32;
   cruiseCoastingPercent @18 :UInt8;
 
+  # retired 2026-10: DEC removed from the planner; the field is kept only so
+  # older logs keep loading. Nothing writes or reads it any more.
   deprecated :group {
     dec @0 :DynamicExperimentalControlDEPRECATED;
   }

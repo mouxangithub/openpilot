@@ -5,8 +5,7 @@ Why this exists
 card.py calls the cruise helper polymorphically:
 
     self.v_cruise_helper.update_v_cruise(CS, self.sm['carControl'].enabled, self.is_metric, self.sm)
-    self.v_cruise_helper.initialize_v_cruise(self.CS_prev, self.experimental_mode,
-                                             self.dynamic_experimental_control)
+    self.v_cruise_helper.initialize_v_cruise(self.CS_prev, self.experimental_mode)
 
 `self.v_cruise_helper` is VCruiseHelper at runtime but VCruiseCarrot in cp ports,
 so every override MUST keep a signature the base-class call site satisfies. Two
@@ -34,7 +33,7 @@ CRUISE_PATH = Path(__file__).resolve().parents[1] / 'cruise.py'
 # (method name, number of positional args card.py passes, excluding self)
 CARD_CALL_SITES = {
   'update_v_cruise': 3,        # CS, enabled, is_metric  (+ sm as the 4th for VCruiseCarrot)
-  'initialize_v_cruise': 3,    # CS, experimental_mode, dynamic_experimental_control
+  'initialize_v_cruise': 2,    # CS, experimental_mode (DEC flag removed 2026-10)
 }
 
 

@@ -44,50 +44,22 @@ class AlphaLongitudinalToggles:
       description=lambda: tr(EXPERIMENTAL_MODE_DESCRIPTION),
       callback=self._on_experimental_mode)
 
-    self._dec_toggle = toggle_item_sp(
-      title=lambda: tr("Dynamic Experimental Control"),
-      description=lambda: tr("Switches between chill and Experimental Mode on its own: " +
-                             "experimental for stops and slowdowns ahead, chill otherwise."),
-      param="DynamicExperimentalControl")
-
     self._set_speed_toggle = toggle_item_sp(
       title=lambda: tr("Experimental Mode Speed Assist"),
-      description=lambda: tr("In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down. " +
-                             "Has no effect while Dynamic Experimental Control is on."),
+      description=lambda: tr("In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down."),
       param="ExperimentalModeSetSpeed")
 
     self._lead_gap_toggle = toggle_item_sp(
       title=lambda: tr("Experimental Mode Lead Follow Assist"),
       description=lambda: tr("Closes the gap to your driving personality's following distance behind a steady car. " +
-                             "Never closer than chill mode. No effect while Dynamic Experimental Control is on."),
+                             "Never closer than chill mode."),
       param="ExperimentalModeLeadGap")
-
-    # Which situations may hand speed control to the model under DEC. All on by
-    # default; a switch that is off can only stop a hand-over, never cause one.
-    self._dec_trigger_specs = (
-      ("DynamicExperimentalTriggerCurve", "DEC: Curves",
-       "Let a curve ahead hand speed control to the model."),
-      ("DynamicExperimentalTriggerLead", "DEC: Slower Lead",
-       "Let a slower or stopped car ahead hand speed control to the model."),
-      ("DynamicExperimentalTriggerSignal", "DEC: Turn Signal",
-       "Let an active turn signal below the lane-change speed hand speed control to the model."),
-      ("DynamicExperimentalTriggerStopLight", "DEC: Stops Ahead",
-       "Let a predicted stop for a light or sign hand speed control to the model."),
-      ("DynamicExperimentalTriggerLowSpeed", "DEC: Low Speed Creep",
-       "Let creeping at very low speed hand speed control to the model."),
-    )
-    self._dec_trigger_toggles = [
-      toggle_item_sp(title=lambda t=title: tr(t), description=lambda d=desc: tr(d), param=param)
-      for param, title, desc in self._dec_trigger_specs
-    ]
 
     self._refresh_toggles = (
       ("AlphaLongitudinalEnabled", self._alpha_long_toggle),
       ("ExperimentalMode", self._experimental_toggle),
       ("ExperimentalModeSetSpeed", self._set_speed_toggle),
       ("ExperimentalModeLeadGap", self._lead_gap_toggle),
-      ("DynamicExperimentalControl", self._dec_toggle),
-      *[(param, item) for item, (param, _, _) in zip(self._dec_trigger_toggles, self._dec_trigger_specs, strict=True)],
     )
     self.items = [item for _, item in self._refresh_toggles]
 
@@ -99,11 +71,8 @@ class AlphaLongitudinalToggles:
     has_long = CP is not None and ui_state.has_longitudinal_control
     self._alpha_long_toggle.set_visible(CP is not None and CP.alphaLongitudinalAvailable)
     self._experimental_toggle.action_item.set_enabled(CP is None or has_long)
-    self._dec_toggle.action_item.set_enabled(has_long)
-    # DEC decides the mode on its own, and the e2e assists never act under it
-    dec = self._dec_toggle.action_item.get_state()
-    self._set_speed_toggle.action_item.set_enabled(has_long and not dec)
-    self._lead_gap_toggle.action_item.set_enabled(has_long and not dec)
+    self._set_speed_toggle.action_item.set_enabled(has_long)
+    self._lead_gap_toggle.action_item.set_enabled(has_long)
 
   def refresh(self):
     for key, item in self._refresh_toggles:

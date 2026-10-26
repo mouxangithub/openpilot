@@ -27,7 +27,6 @@ lib/
 
 | Feature | Integration | Param gate |
 |---------|-------------|------------|
-| **DEC** | longitudinal_planner.py | `DynamicExperimentalControl` |
 | **NNLC** | latcontrol_torque_ext.py via `CarParamsSP.NeuralNetworkLateralControl` | `NeuralNetworkLateralControl` |
 | **SCC-V/M** | longitudinal_planner.py | `SmartCruiseControlVision`, `SmartCruiseControlMap` |
 | **SLA** | longitudinal_planner.py via [speed_limit/resolver.py](file:///Users/cyonsun/Documents/Code/sunnypilot/openpilot/sunnypilot/selfdrive/controls/lib/speed_limit) | `SpeedLimitMode` |

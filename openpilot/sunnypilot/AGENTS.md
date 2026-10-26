@@ -56,7 +56,7 @@ SP-specific structs use reserved IDs (DO NOT change identifiers):
 
 ## FEATURE FLAGS (Params)
 
-Features are param-gated via [openpilot/common/params_keys.h](file:///Users/cyonsun/Documents/Code/sunnypilot/openpilot/common/params_keys.h). Common SP keys: `Mads`, `MadsMainCruiseAllowed`, `MadsUnifiedEngagementMode`, `IntelligentCruiseButtonManagement`, `NeuralNetworkLateralControl`, `EnforceTorqueControl`, `SpeedLimitMode`, `LagdToggle`, `BlinkerPauseLateralControl`, `AutoLaneChangeTimer`, `LaneTurnDesire`, `DynamicExperimentalControl`, `SunnylinkEnabled`.
+Features are param-gated via [openpilot/common/params_keys.h](file:///Users/cyonsun/Documents/Code/sunnypilot/openpilot/common/params_keys.h). Common SP keys: `Mads`, `MadsMainCruiseAllowed`, `MadsUnifiedEngagementMode`, `IntelligentCruiseButtonManagement`, `NeuralNetworkLateralControl`, `EnforceTorqueControl`, `SpeedLimitMode`, `LagdToggle`, `BlinkerPauseLateralControl`, `AutoLaneChangeTimer`, `LaneTurnDesire`, `SunnylinkEnabled`.
 
 ## ANTI-PATTERNS (THIS DIR)
 

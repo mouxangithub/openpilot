@@ -86,7 +86,6 @@ class TestPlannerGate(unittest.TestCase):
     cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=True, longitudinalActuatorDelay=0.36)
     planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(), MagicMock())
     planner._lead_preview_enabled = enabled
-    planner.dec.active = lambda: False
     return planner
 
   def _sm(self, lead_present=True, braking=True):

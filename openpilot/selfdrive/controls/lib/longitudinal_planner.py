@@ -261,7 +261,6 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
                     panic_bypass=panic_bypass,
                     v_ego=v_ego,
                     **mpc_carrot_kwargs)
-    self.update_dec(sm)
 
     self.v_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.v_solution)
     self.a_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.a_solution)

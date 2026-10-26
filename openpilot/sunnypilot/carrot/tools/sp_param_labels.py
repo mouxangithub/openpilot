@@ -94,7 +94,6 @@ PARAM_LABELS: dict[str, tuple[str, str, str, str]] = {
 
   # ---- on-device pages: alpha_longitudinal_toggles ------------------------
   "AlphaLongitudinalEnabled": ("Alpha longitudinal", "End-to-end longitudinal control for supported vehicles.", "Alpha 纵向控制", "受支持车型启用端到端纵向控制。"),
-  "DynamicExperimentalControl": ("Dynamic experimental control", "Switch between calm and experimental profiles from live driving behavior.", "动态实验模式", "根据实时驾驶表现自动切换 静音/实验 模式。"),
   "ExperimentalMode": ("Experimental mode", "Enable the experimental (end-to-end) driving profile.", "实验模式", "启用实验（端到端）驾驶模式。"),
   "ExperimentalModeConfirmed": ("Experimental mode confirmed", "Set once the experimental-mode risk notice has been acknowledged.", "实验模式已确认", "实验模式风险提示已确认过的标记。"),
   "ExperimentalModeLeadGap": ("Experimental mode lead gap", "Activate experimental mode when following closely.", "实验模式跟车条件", "近距跟车时自动进入实验模式。"),

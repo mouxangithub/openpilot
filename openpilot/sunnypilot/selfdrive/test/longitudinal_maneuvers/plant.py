@@ -7,7 +7,7 @@ See the LICENSE.md file in the root directory for more details.
 
 from collections import deque
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 import math
 import time
 from typing import Any
@@ -418,10 +418,6 @@ class PlantSP(Plant):
       "distance_lead": self.distance_lead,
       "fcw": fcw,
       "mpc_source": self.planner.mpc.source,
-      "dec_mode": self.planner.dec.mode(),
-      "dec_want_blended": self.planner.dec.want_blended,
-      "dec_signals": asdict(self.planner.dec.signals),
-      "dec_lead_veto": self.planner.dec.lead_veto,
       "controller_active": self.planner.accel_controller_active,
       "model_action": {
         "desiredAcceleration": float(model_acceleration),
