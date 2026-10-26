@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from openpilot.cereal import log
 
 from openpilot.system.ui.widgets.scroller import NavScroller
