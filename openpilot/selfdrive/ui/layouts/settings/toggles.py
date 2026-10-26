@@ -1,6 +1,6 @@
 from openpilot.cereal import log
 from openpilot.common.params import Params, UnknownKeyName
-from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.widgets import Widget, DialogResult
 from openpilot.system.ui.widgets.list_view import ListItem, multiple_button_item, toggle_item
 from openpilot.system.ui.widgets.scroller_tici import Scroller
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog, alert_dialog
