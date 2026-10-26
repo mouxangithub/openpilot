@@ -15,7 +15,7 @@ from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.icb
 class UIStateZP:
   """zoompilot's additions to UIStateSP: jetlink's snapshot and the USB port it holds, the
   torque bar's rail scale, the ICBM start lock, the brand the settings gate on and experimental
-  mode, which upstream retired."""
+  mode, which upstream retired, and the home screens' model name."""
 
   def __init__(self):
     self.icbm_start_locked: bool = False
@@ -33,6 +33,8 @@ class UIStateZP:
     # experimental (end-to-end) longitudinal: as selfdrived runs it onroad, the setting offroad
     self.experimental_mode: bool = False
     self._experimental_mode_setting: bool = False
+    # the carrying model's short name for the home screens; None with HomeShowActiveModel off
+    self.home_model_name: str | None = None
     self.sm_services_ext.append("modelDataV2SP")
 
   def update(self) -> None:
@@ -55,6 +57,9 @@ class UIStateZP:
     # usb_unknown decision; recognising it late still clears "unknown"
     if (view := self.jetlink_view) is not None and view.present and self.usb_unknown:
       self.usb_unknown = False
+    # here rather than per frame: it reads the model slots and, on a list refetch, the lists
+    from openpilot.selfdrive.ui.sunnypilot.home_model import carrying_short_name
+    self.home_model_name = carrying_short_name() if self.params.get_bool("HomeShowActiveModel") else None
 
   def set_experimental_mode(self, on: bool) -> None:
     """The setting, from a toggle or a long press; selfdrived picks it up within a second."""
