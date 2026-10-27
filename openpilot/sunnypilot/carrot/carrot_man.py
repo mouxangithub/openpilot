@@ -303,6 +303,9 @@ NAVI_ROUTE_MAX_POINTS = 4096
 NAVI_IMAGE_PARAM = "CarrotNaviImage"
 NAVI_IMAGE_BASE64_MAX_CHARS = 6 * 1024 * 1024
 NAVI_DEBUG_PARAM = "CarrotNaviDebug"
+# Heartbeat cadence for the NavInstructionState param bridge to the onroad
+# navigation card: rewrite at most 1 Hz when the payload is unchanged.
+NAV_INSTRUCTION_STATE_WRITE_INTERVAL = 1.0
 
 # Korean TMAP turn-type codes from the CarrotMan app -> (maneuverType, maneuverModifier, xTurnInfo).
 # xTurnInfo semantics used by the sunnypilot UI/planner:
@@ -709,6 +712,12 @@ class CarrotManager:
     self._navi_event_lock = threading.Lock()
     self._last_rgdata_timestamp_ms = 0
     self._rgdata_ts_lock = threading.Lock()
+
+    # Navigation card bridge (NavInstructionState param writer). Tracks the last
+    # dict written so the 10 Hz publish loop only touches the param on change or
+    # at a 1 Hz heartbeat.
+    self._last_nav_instruction_state: dict[str, Any] | None = None
+    self._last_nav_state_write = 0.0
 
   def _carrot_amap_blind_spot_enabled(self) -> bool:
     """Return True when the 7706 blind-spot/LiDAR parser should run."""
@@ -1193,7 +1202,70 @@ class CarrotManager:
 
     self._send_or_recreate('carrotManSP', carrot_msg)
     self._send_or_recreate('navInstructionCarrotSP', navi_msg)
+    self._sync_nav_instruction_state(ni, active_carrot)
     self._write_navi_debug()
+
+  def _sync_nav_instruction_state(self, ni: Any, active_carrot: int) -> None:
+    """Mirror the published navInstructionCarrotSP into the NavInstructionState param.
+
+    The onroad NavigationCardRenderer (selfdrive/ui/sunnypilot/onroad/navigation_card.py)
+    is param-driven: it reads this JSON dict instead of subscribing to the cereal
+    service, mirroring StarPilot's navigationd. Writes are throttled - the param is
+    touched only when the payload actually changes, or once per second as a
+    heartbeat, so the 10 Hz publish loop does not hammer the params store.
+
+    valid=True whenever the instruction we just published carries a maneuver with
+    a non-empty primary text, for BOTH sources ni can hold: active Carrot phone
+    navigation (activeCarrot > 0) and the stock navd fallback
+    (_apply_stock_nav_instruction). When neither is active the param is removed
+    once (navigationd-style cleanup), which collapses the UI card.
+    """
+    primary_text = _safe_str(getattr(ni, "maneuverPrimaryText", ""), "")
+    has_stock_fallback = active_carrot == 0 and self._stock_nav_instruction_active()
+    valid = bool((active_carrot > 0 or has_stock_fallback) and primary_text)
+
+    if not valid:
+      # Only clear once on the transition into the inactive state.
+      if self._last_nav_instruction_state is not None:
+        self._last_nav_instruction_state = None
+        try:
+          self.params.remove("NavInstructionState")
+        except Exception as e:
+          cloudlog.error(f"carrot_man: NavInstructionState remove error: {e}")
+      return
+
+    next_maneuver = {}
+    maneuvers = list(getattr(ni, "allManeuvers", []) or [])
+    if len(maneuvers) > 1:
+      next_maneuver = {
+        "type": _safe_str(getattr(maneuvers[1], "type", ""), ""),
+        "modifier": _safe_str(getattr(maneuvers[1], "modifier", ""), ""),
+      }
+
+    # Empty maneuver type/modifier strings are normalized here so the renderer's
+    # icon lookup always sees a usable value.
+    state: dict[str, Any] = {
+      "valid": True,
+      "maneuverPrimaryText": primary_text,
+      "maneuverSecondaryText": _safe_str(getattr(ni, "maneuverSecondaryText", ""), ""),
+      "maneuverDistance": float(getattr(ni, "maneuverDistance", 0.0) or 0.0),
+      "maneuverType": _safe_str(getattr(ni, "maneuverType", ""), "") or "turn",
+      "maneuverModifier": _safe_str(getattr(ni, "maneuverModifier", ""), "") or "straight",
+      "nextManeuverType": next_maneuver.get("type", ""),
+      "nextManeuverModifier": next_maneuver.get("modifier", ""),
+    }
+
+    now = time.monotonic()
+    if state == self._last_nav_instruction_state and now - self._last_nav_state_write < NAV_INSTRUCTION_STATE_WRITE_INTERVAL:
+      return
+    self._last_nav_instruction_state = state
+    self._last_nav_state_write = now
+    try:
+      # NavInstructionState is a JSON param, so hand it the dict directly - a str
+      # would be rejected by the declared-type cast, same as NavDestination above.
+      self.params.put("NavInstructionState", state)
+    except Exception as e:
+      cloudlog.error(f"carrot_man: NavInstructionState put error: {e}")
 
   def _send_or_recreate(self, service: str, msg) -> None:
     """Publish ``msg``, rebuilding the PubMaster socket when it was taken over.

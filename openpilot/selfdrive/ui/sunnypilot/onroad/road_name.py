@@ -16,6 +16,7 @@ class RoadNameRenderer(Widget):
   def __init__(self):
     super().__init__()
     self.road_name = ""
+    self.carrot_road_name = ""
     self.is_metric = False
     self.font_demi = gui_app.font(FontWeight.SEMI_BOLD)
 
@@ -26,7 +27,17 @@ class RoadNameRenderer(Widget):
 
     self.is_metric = ui_state.is_metric
 
-    if sm.updated["liveMapDataSP"]:
+    # Carrot's own road name wins while Carrot phone nav is active; fall back to
+    # the live map data road name otherwise. Refreshed only on new carrotManSP
+    # frames so a stale carrot road name cannot stick after Carrot goes inactive.
+    if sm.updated["carrotManSP"]:
+      cm = sm["carrotManSP"]
+      carrot_name = str(cm.szPosRoadName or "")
+      self.carrot_road_name = carrot_name if (sm.valid.get("carrotManSP", False) and cm.activeCarrot > 0 and carrot_name) else ""
+
+    if self.carrot_road_name:
+      self.road_name = self.carrot_road_name
+    elif sm.updated["liveMapDataSP"]:
       lmd = sm["liveMapDataSP"]
       self.road_name = lmd.roadName
 

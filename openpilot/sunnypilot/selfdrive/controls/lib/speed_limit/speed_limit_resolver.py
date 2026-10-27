@@ -4,6 +4,7 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
+import datetime
 import platform
 import time
 
@@ -14,11 +15,13 @@ from openpilot.common.gps import get_gps_location_service
 from openpilot.common.params import Params
 from openpilot.common.realtime import DT_MDL
 from openpilot.common.swaglog import cloudlog
+from openpilot.common.time_helpers import system_time_valid
 from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD, get_sanitize_int_param
 from openpilot.sunnypilot.common.param_read import read_bool, read_float
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import COMMIT_FRAC, OP_LONG_COAST_A, get_planning_limits
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import LIMIT_MAX_MAP_DATA_AGE, LIMIT_ADAPT_ACC, V_CRUISE_UNSET
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Policy, OffsetType
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.mapbox_speed_limit import MapboxSpeedLimit
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.tiered_offset import (
   TIER_KEY_SUFFIXES,
   tiered_offset_ms,
@@ -119,6 +122,26 @@ class SpeedLimitResolver:
     self.use_carrot_limits = self.params.get_bool("CarrotNavCruiseSpeedEnabled")
     self._carrot_merge_warned = False  # one-shot: avoid a log flood every frame
 
+    # Mapbox Driving-Match filler: when every configured source comes up empty
+    # (no offline map section, carrot offline, no vision reading) a Mapbox
+    # lookup around the GPS fix fills the gap. Requests are async, so the
+    # plannerd loop is never blocked. The retrieved limit is folded into the
+    # `map` source for the same reason as the carrot and vision limits: adding
+    # an enumerant to ``LongitudinalPlanSP.SpeedLimit.Source`` would change the
+    # cereal schema and invalidate every recorded route. Opt-out via
+    # SLCMapboxFiller; the actual speed control still requires
+    # SpeedLimitMode == assist, so this alone never changes vehicle behaviour.
+    self.use_mapbox_filler = read_bool(self.params, "SLCMapboxFiller")
+    self.mapbox = MapboxSpeedLimit(self.params)
+    self._mapbox_warned = False  # one-shot: avoid a log flood every frame
+
+    # PreviousSpeedLimit: the last valid limit, persisted so the sign survives
+    # a reboot (the UI falls back to it while the resolver has no
+    # speedLimitLast yet). Written only when the value changes to keep the
+    # 10 Hz loop from hammering the params store.
+    self._last_written_previous_limit = 0.
+    self._previous_limit_write_warned = False  # one-shot: avoid a log flood every frame
+
     self.v_ego = 0.
     self.distance = 0.
     self.speed_limit = 0.
@@ -133,6 +156,26 @@ class SpeedLimitResolver:
     if self.speed_limit > 0.:
       self.speed_limit_last = self.speed_limit
       self.speed_limit_final_last = self.speed_limit_final
+      self._persist_previous_speed_limit()
+
+  def _persist_previous_speed_limit(self) -> None:
+    """Persist the last valid limit into PreviousSpeedLimit (m/s).
+
+    Only written when the value actually changes: this runs at plannerd rate,
+    and the params store does not need a write every frame for a value that
+    just moved once per sign.
+    """
+    if abs(self.speed_limit_last - self._last_written_previous_limit) < 0.01:
+      return
+    try:
+      self.params.put_float("PreviousSpeedLimit", float(self.speed_limit_last))
+      self._last_written_previous_limit = self.speed_limit_last
+    except Exception as e:
+      # A libparams build without the key registered must not kill plannerd;
+      # the feature degrades to "no sign after reboot".
+      if not self._previous_limit_write_warned:
+        self._previous_limit_write_warned = True
+        cloudlog.warning(f"speed_limit_resolver: PreviousSpeedLimit write failed: {type(e).__name__}: {e}")
 
   @property
   def speed_limit_valid(self) -> bool:
@@ -149,6 +192,7 @@ class SpeedLimitResolver:
       self.offset_type = self.params.get("SpeedLimitOffsetType", return_default=True)
       self.offset_value = self.params.get("SpeedLimitValueOffset", return_default=True)
       self.use_carrot_limits = self.params.get_bool("CarrotNavCruiseSpeedEnabled")
+      self.use_mapbox_filler = read_bool(self.params, "SLCMapboxFiller")
       self.tier_offsets = self._read_tier_offsets()
 
   def _read_tier_offsets(self) -> list[float]:
@@ -267,6 +311,54 @@ class SpeedLimitResolver:
     if merged != current:
       self.limit_solutions[SpeedLimitSource.map] = merged
       self.distance_solutions[SpeedLimitSource.map] = 0.0
+
+  def _mapbox_fill(self, sm: messaging.SubMaster) -> None:
+    """Fill an empty solution with a Mapbox Driving-Match lookup, folded into the `map` source.
+
+    The filler is a navigation/map provider in the same sense as carrot and the
+    offline map, so it is merged into the existing ``map`` source instead of
+    adding a new enumerant to ``LongitudinalPlanSP.SpeedLimit.Source`` (which
+    would change the cereal schema and invalidate route logs). It only applies
+    when every configured source came up empty, so it can never outvote the
+    car's CAN limit, the offline map, carrot or vision.
+
+    Never blocks: MapboxSpeedLimit.update only submits/collects an async
+    future. No new requests at standstill (MapboxSpeedLimit gates new requests
+    on v_ego >= 1). Like the carrot merge, failures are logged once instead of
+    flooding swaglog every frame.
+    """
+    try:
+      gps_data = sm[self._gps_location_service]
+      position = {
+        "latitude": float(gps_data.latitude),
+        "longitude": float(gps_data.longitude),
+        "bearing": float(gps_data.bearingDeg),
+      }
+      gps_valid = bool(gps_data.hasFix) and (position["latitude"] != 0. or position["longitude"] != 0.)
+
+      # plannerd does not subscribe to liveParameters; without it the steering
+      # sanity check compares against a 0 offset, which is close enough to the
+      # true value for its 45 deg window at the speeds this filler runs at.
+      try:
+        angle_offset = float(sm['liveParameters'].angleOffsetDeg)
+      except Exception:
+        angle_offset = 0.0
+
+      self.mapbox.update(
+        datetime.datetime.now(), system_time_valid(), self.v_ego, gps_valid, position,
+        float(sm['carState'].steeringAngleDeg), angle_offset,
+      )
+
+      if self.mapbox.limit >= 1.:
+        self.limit_solutions[SpeedLimitSource.map] = self.mapbox.limit
+        self.distance_solutions[SpeedLimitSource.map] = 0.
+    except Exception as e:
+      # Log rather than swallow, but only once - same one-shot pattern as the
+      # carrot merge above.
+      if not self._mapbox_warned:
+        self._mapbox_warned = True
+        cloudlog.warning(f"speed_limit_resolver: mapbox limit fill failed: {type(e).__name__}: {e}")
+      return
 
   def _get_from_map_data(self, sm: messaging.SubMaster) -> None:
     self._reset_limit_sources(SpeedLimitSource.map)
@@ -437,6 +529,17 @@ class SpeedLimitResolver:
     self._get_from_map_data(sm)
 
     source = self._get_source_solution_according_to_policy()
+
+    # Mapbox filler: only when every configured source came up empty and the
+    # feature is on. A live source keeps the filler reset, matching
+    # StarPilot's _apply_mapbox_filler guard.
+    if source != SpeedLimitSource.none or not self.use_mapbox_filler:
+      self.mapbox.reset()
+    else:
+      self._mapbox_fill(sm)
+      if self.limit_solutions[SpeedLimitSource.map] > 0.:
+        source = SpeedLimitSource.map
+
     speed_limit = self.limit_solutions[source] if source else 0.
     distance = self.distance_solutions[source] if source else 0.
 

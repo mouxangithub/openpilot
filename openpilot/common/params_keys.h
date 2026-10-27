@@ -360,6 +360,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // (map_data_priority) ignored the car limit entirely whenever map had one.
     {"SpeedLimitPolicy", {PERSISTENT | BACKUP, INT, "4"}},  // 0=car only, 1=map only, 2=car first, 3=map first, 4=combined (min)
     {"SpeedLimitValueOffset", {PERSISTENT | BACKUP, INT, "0"}},
+    {"PreviousSpeedLimit", {PERSISTENT, FLOAT, "0.0"}},  // m/s; last valid limit so the sign survives a reboot
+    {"SpeedLimitChangedAlert", {PERSISTENT | BACKUP, BOOL, "0"}},  // chime + alert whenever the displayed limit changes
 
     // Ask before taking a new speed limit, by direction. 0 = never, 1 = only
     // when the limit goes down, 2 = only when it goes up, 3 = both. Additive
@@ -386,6 +388,22 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"VisionSpeedLimitLowLimitFilter", {PERSISTENT | BACKUP, BOOL, "0"}},  // drop vision limits at or below the threshold (usually a misread sign)
     {"VisionSpeedLimitLowLimitThreshold", {PERSISTENT | BACKUP, FLOAT, "0.0"}},  // m/s
     {"VASMEnabled", {PERSISTENT, BOOL, "0"}},  // coexistence mode with the VASM detection stack
+
+    // Conditional Experimental Mode: auto-switch ExperimentalMode from driving context.
+    // All writers go through selfdrived; the flag itself is the existing ExperimentalMode param
+    // so planner/UI keep their single consumption path.
+    {"ConditionalExperimental", {PERSISTENT | BACKUP, BOOL, "0"}},  // master switch; off = manual-only (stock behaviour)
+    {"CECurves", {PERSISTENT | BACKUP, BOOL, "1"}},  // trigger EXP in demanding curves (lat-accel based)
+    {"CECurvesLead", {PERSISTENT | BACKUP, BOOL, "1"}},  // allow the curve trigger while following a lead
+    {"CELead", {PERSISTENT | BACKUP, BOOL, "1"}},  // trigger EXP when closing on a slower lead
+    {"CESignalSpeed", {PERSISTENT | BACKUP, FLOAT, "0.0"}},  // m/s; blinker + speed below this triggers EXP (0 = disabled)
+    {"CEStatus", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, INT, "0"}},  // 0=off 1=curves 2=lead 3=signal 4=manual; UI hint of why EXP is on
+
+    // Mapbox speed-limit filler: when car/map/vision/carrot sources are all empty, ask the Mapbox
+    // Driving-Match API for the segment maxspeed. Needs a user token; without one it stays inert.
+    {"SLCMapboxFiller", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"MapboxSecretKey", {PERSISTENT, STRING}},  // access token; PERSISTENT-only so it survives reinstalls
+    {"MapBoxRequests", {PERSISTENT, JSON, "{}"}},  // {total_requests, month} monthly quota bookkeeping
     {"VisionSpeedLimit", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, FLOAT, "0.0"}},  // latest published vision limit in m/s
     {"VisionSpeedLimitAutoBookmark", {PERSISTENT, BOOL, "0"}},  // capture debug bookmarks on confirmed detections
     {"VisionSpeedLimitAutoPreserveSegment", {PERSISTENT, BOOL, "0"}},
@@ -654,6 +672,15 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // carrot's copy only survived because of a broad except.
     // JSON type: writers must pass a dict, not a json.dumps() string.
     {"NavDestination", {PERSISTENT, JSON, "{}"}},
+    // Onroad navigation instruction card (StarPilot port). carrot_man folds navInstructionCarrotSP
+    // into this JSON every publish; the card renders it and long-press cancel clears it.
+    {"NavigationCardEnabled", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"NavInstructionState", {CLEAR_ON_OFFROAD_TRANSITION, JSON, "{}"}},
+    {"NavInstructionCollapsed", {PERSISTENT, BOOL, "0"}},
+
+    // Personality profiles: per-personality accel/following/jerk overrides (StarPilot port).
+    {"CustomPersonalities", {PERSISTENT | BACKUP, BOOL, "0"}},  // enable the profile overrides below
+    {"LongitudinalPersonalityProfiles", {PERSISTENT, JSON, "{}"}},  // {"0": {"accel": ..., ...}, "1": ..., "2": ...}
     // Timezone the phone pushed, plus who set it. carrot_serv writes them after
     // syncing the clock from the app so timed.py does not immediately overwrite
     // the app's value with the device's own guess.

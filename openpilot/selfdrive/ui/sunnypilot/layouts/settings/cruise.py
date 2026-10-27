@@ -9,6 +9,7 @@ from enum import IntEnum
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.alpha_longitudinal_toggles import AlphaLongitudinalToggles
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise_sub_layouts.speed_limit_settings import SpeedLimitSettingsLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise_sub_layouts.longitudinal_mpc_tuning import LongitudinalMpcTuningLayout
+from openpilot.selfdrive.ui.sunnypilot.layouts.settings.following_profile_toggles import FollowingProfileToggles
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.multilang import tr, tr_noop
 from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp, option_item_sp, simple_button_item_sp
@@ -41,6 +42,7 @@ class CruiseLayout(Widget):
     self._speed_limit_layout = SpeedLimitSettingsLayout(lambda: self._set_current_panel(PanelType.CRUISE))
     self._longitudinal_mpc_tuning_layout = LongitudinalMpcTuningLayout(lambda: self._set_current_panel(PanelType.CRUISE))
     self._alpha_long = AlphaLongitudinalToggles()
+    self._following_profile = FollowingProfileToggles()
 
     items = self._initialize_items()
     self._scroller = Scroller(items, line_separator=True, spacing=0)
@@ -61,6 +63,29 @@ class CruiseLayout(Widget):
       title=tr("Slow for Curves: Map"),
       description=tr("Use map data to estimate the appropriate speed to drive through turns ahead."),
       param="SmartCruiseControlMap")
+
+    # Conditional experimental mode: selfdrived flips ExperimentalMode from driving context.
+    # The sub-toggles map one-to-one onto the CEM conditions (curves / lead); the signal
+    # trigger stays param-only (CESignalSpeed, 0 = off) until someone asks for a dial.
+    self.cem_toggle = toggle_item_sp(
+      title=tr("Conditional Experimental Mode"),
+      description=tr("Automatically switch experimental mode on demanding curves, slow leads and low-speed turns. A manual switch keeps priority for a minute."),
+      param="ConditionalExperimental")
+
+    self.cem_curves_toggle = toggle_item_sp(
+      title=tr("  CEM: Curves"),
+      description=tr("Experimental mode follows lateral acceleration while cornering."),
+      param="CECurves")
+
+    self.cem_curves_lead_toggle = toggle_item_sp(
+      title=tr("  CEM: Curves While Following"),
+      description=tr("Allow the curve trigger while following a lead car."),
+      param="CECurvesLead")
+
+    self.cem_lead_toggle = toggle_item_sp(
+      title=tr("  CEM: Slow Leads"),
+      description=tr("Experimental mode follows when closing on a slower lead."),
+      param="CELead")
 
     self.custom_acc_toggle = toggle_item_sp(
       title=tr("Custom ACC Speed Increments"),
@@ -95,10 +120,15 @@ class CruiseLayout(Widget):
 
     items = [
       *self._alpha_long.items,
+      *self._following_profile.items,
       self.icbm_toggle,
       self.scc_v_toggle,
       self.scc_m_toggle,
       self.sla_settings_button,
+      self.cem_toggle,
+      self.cem_curves_toggle,
+      self.cem_curves_lead_toggle,
+      self.cem_lead_toggle,
       self.custom_acc_toggle,
       self.custom_acc_short_increment,
       self.custom_acc_long_increment,
@@ -118,6 +148,7 @@ class CruiseLayout(Widget):
     self._set_current_panel(PanelType.CRUISE)
     self._scroller.show_event()
     self._alpha_long.refresh()
+    self._following_profile.refresh()
     self.icbm_toggle.show_description(True)
     self.custom_acc_toggle.show_description(True)
 
@@ -131,6 +162,7 @@ class CruiseLayout(Widget):
   def _update_state(self):
     super()._update_state()
     self._alpha_long.update_state()
+    self._following_profile.update_state()
 
     if ui_state.CP is not None and ui_state.CP_SP is not None:
       has_icbm = ui_state.has_icbm

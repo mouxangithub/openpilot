@@ -7,6 +7,7 @@ See the LICENSE.md file in the root directory for more details.
 
 from dataclasses import dataclass
 from enum import StrEnum
+import math
 import pyray as rl
 
 from openpilot.cereal import custom
@@ -26,6 +27,9 @@ METER_TO_MILE = 0.000621371
 AHEAD_THRESHOLD = 5
 SET_SPEED_NA = 255
 KM_TO_MILE = 0.621371
+# PreviousSpeedLimit fallback: re-read the persisted value at most this often
+# (frames at the UI rate, ~0.5 s) while the resolver has no last limit.
+PREVIOUS_LIMIT_READ_INTERVAL = 25
 
 AssistState = custom.LongitudinalPlanSP.SpeedLimit.AssistState
 SpeedLimitSource = custom.LongitudinalPlanSP.SpeedLimit.Source
@@ -110,6 +114,12 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
     self.speed_limit_ahead_valid = False
     self.speed_limit_ahead_frame = 0
 
+    # PreviousSpeedLimit fallback (m/s): when the resolver has no
+    # speedLimitLast yet - e.g. right after a reboot - the sign comes back from
+    # this persisted param instead of blinking out. Read throttled, cached.
+    self._previous_speed_limit_ms = 0.0
+    self._previous_limit_read_frame = 0
+
     self.is_cruise_set: bool = False
     self.is_cruise_available: bool = True
     self.set_speed: float = SET_SPEED_NA
@@ -160,6 +170,16 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
       self.speed_limit_source = resolver.source
       self.speed_limit_assist_state = assist.state
 
+      if not resolver.speedLimitLastValid:
+        self._read_previous_speed_limit()
+
+    # Fallback display: until a live limit arrives, show the persisted last
+    # limit from before the reboot. speed_limit_last_valid is promoted too, so
+    # the sign renders (in grey, since speed_limit_valid stays False).
+    if not self.speed_limit_last_valid and self._previous_speed_limit_ms > 0.0:
+      self.speed_limit_last = self._previous_speed_limit_ms * self.speed_conv
+      self.speed_limit_last_valid = True
+
     if sm.updated["liveMapDataSP"]:
       lmd = sm["liveMapDataSP"]
       self.speed_limit_ahead_valid = lmd.speedLimitAheadValid
@@ -187,6 +207,19 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
     self.v_ego_cluster_seen = self.v_ego_cluster_seen or car_state.vEgoCluster != 0.0
     v_ego = car_state.vEgoCluster if self.v_ego_cluster_seen else car_state.vEgo
     self.speed = max(0.0, v_ego * self.speed_conv)
+
+  def _read_previous_speed_limit(self):
+    """Throttled read of PreviousSpeedLimit (m/s) while there is no live last limit."""
+    if self._previous_limit_read_frame > 0:
+      self._previous_limit_read_frame -= 1
+      return
+    self._previous_limit_read_frame = PREVIOUS_LIMIT_READ_INTERVAL
+    try:
+      value = float(ui_state.params.get_float("PreviousSpeedLimit"))
+      if math.isfinite(value) and value > 0.0:
+        self._previous_speed_limit_ms = value
+    except Exception:
+      pass  # keep whatever we cached; the fallback simply stays absent
 
   @staticmethod
   def _draw_text_centered(font, text, size, pos_center, color):

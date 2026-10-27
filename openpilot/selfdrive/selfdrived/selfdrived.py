@@ -39,6 +39,7 @@ from openpilot.sunnypilot.selfdrive.selfdrived.button_state_tracker import Butto
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.selfdrive.selfdrived.model_events import ModelEventsSP
 from openpilot.sunnypilot.selfdrive.controls.lib.radar_only_warning import RadarOnlyWarning
+from openpilot.sunnypilot.selfdrive.selfdrived.conditional_experimental_mode import ConditionalExperimentalMode
 from openpilot.sunnypilot.selfdrive.selfdrived.selfdrived_zp import SelfdrivedZP
 
 REPLAY = "REPLAY" in os.environ
@@ -214,6 +215,7 @@ class SelfdriveD:
 
     self.button_state_tracker = ButtonStateTracker()
     self.selfdrived_zp = SelfdrivedZP(self.CP, self.params)
+    self.conditional_experimental = ConditionalExperimentalMode(self.CP, self.params)
 
   def update_events(self, CS):
     """Compute onroadEvents from carState"""
@@ -595,6 +597,10 @@ class SelfdriveD:
     # mute canBusMissing event if in Park, as it sometimes may trigger a false alarm with MADS in Paused state
     if CS.gearShifter == car.CarState.GearShifter.park and self.mads.enabled:
       self.events.remove(EventName.canBusMissing)
+
+    # Conditional experimental mode: may write the ExperimentalMode param when its master
+    # switch is on. Runs before selfdrived_zp so its 1 s param re-read picks the new value up.
+    self.conditional_experimental.update(CS, self.sm)
 
     self.personality = self.selfdrived_zp.update(CS, self.sm['carStateSP'], self.events, self.events_sp, self.icbm, self.personality)
 

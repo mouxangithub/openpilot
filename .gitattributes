@@ -91,3 +91,6 @@ openpilot/selfdrive/assets/images/traffic_red.png -filter -diff -merge binary
 openpilot/selfdrive/assets/images/traffic_green.png -filter -diff -merge binary
 openpilot/selfdrive/assets/fonts/KaiGenGothicKR-Bold.ttf -filter -diff -merge binary
 openpilot/selfdrive/assets/img_spinner_comma.png -filter -diff -merge binary
+# Navigation maneuver icons (wave 5 port): same small-asset rule as above - plain git,
+# no LFS push route available for this repo.
+openpilot/selfdrive/assets/navigation/*.png -filter -diff -merge binary

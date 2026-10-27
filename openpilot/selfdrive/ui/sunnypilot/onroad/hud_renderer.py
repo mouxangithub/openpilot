@@ -11,6 +11,7 @@ from openpilot.selfdrive.ui import UI_BORDER_SIZE
 from openpilot.selfdrive.ui.mici.onroad.torque_bar import TorqueBar
 from openpilot.selfdrive.ui.sunnypilot.onroad.developer_ui import DeveloperUiRenderer, DeveloperUiState, get_bottom_dev_ui_offset
 from openpilot.selfdrive.ui.sunnypilot.onroad.exp_button import ExpButton
+from openpilot.selfdrive.ui.sunnypilot.onroad.navigation_card import NavigationCardRenderer
 from openpilot.selfdrive.ui.sunnypilot.onroad.road_name import RoadNameRenderer
 from openpilot.selfdrive.ui.sunnypilot.onroad.rocket_fuel import RocketFuel
 from openpilot.selfdrive.ui.sunnypilot.onroad.signal_hud import SignalHudRenderer
@@ -37,6 +38,7 @@ class HudRendererSP(HudRenderer):
     super().__init__()
     self.developer_ui = DeveloperUiRenderer()
     self.road_name_renderer = RoadNameRenderer()
+    self.navigation_card = NavigationCardRenderer()
     self.rocket_fuel = RocketFuel()
     self.speed_limit_renderer = SpeedLimitRenderer()
     self.smart_cruise_control_renderer = SmartCruiseControlRenderer()
@@ -153,6 +155,9 @@ class HudRendererSP(HudRenderer):
 
     self.developer_ui.render(rect)
     self.road_name_renderer.render(rect)
+    # StarPilot-style navigation instruction card, right edge above the bottom
+    # HUD cluster; its own 0.1 s params throttle keeps this per-frame call cheap.
+    self.navigation_card.render(rect)
     self.speed_limit_renderer.render(rect)
     self.smart_cruise_control_renderer.render(rect)
     self.turn_signal_controller.render(rect)
@@ -161,4 +166,4 @@ class HudRendererSP(HudRenderer):
     self.signal_hud.render(rect, ui_state.sm)
 
   def user_interacting(self) -> bool:
-    return self._exp_button.is_pressed
+    return self._exp_button.is_pressed or self.navigation_card.is_pressed

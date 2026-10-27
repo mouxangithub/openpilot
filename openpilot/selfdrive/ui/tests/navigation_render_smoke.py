@@ -47,10 +47,16 @@ _harness.install_stubs()
 # stub ui_state instead of fighting the environment.
 _ui_mod = types.ModuleType('openpilot.selfdrive.ui.ui_state')
 
+# Own params module so tests can reach the same store the fake ui_state hands to
+# widgets under test (navigation_card reads ui_state.params directly).
+_ui_params_mod = _harness.build_fake_params()
+
 
 class _FakeUiState:
-  params = _harness.build_fake_params().Params()
+  params = _ui_params_mod.Params()
   started = True
+  started_frame = 0
+  is_metric = False
 
   @staticmethod
   def is_offroad() -> bool:
@@ -260,6 +266,173 @@ def main() -> int:
       missing = sorted(s for s in strings if s not in have)
       assert not missing, f'{lang} missing {missing}'
   check('every navigation string is translated', every_string_translated)
+
+  # ---------------------------------------------------------------------------
+  # Onroad navigation instruction card (StarPilot port)
+  # ---------------------------------------------------------------------------
+
+  import importlib
+
+  # _get_icon() loads real PNGs through raylib; give the fake pyray image/texture
+  # loaders plausible stand-ins so render() walks the whole card path headless.
+  _pyray = sys.modules['pyray']
+
+  class _FakeImage:
+    width, height = 64, 64
+
+  _pyray.load_image = lambda path: _FakeImage()
+  _pyray.load_texture_from_image = lambda image: _harness.Texture(7)
+  _pyray.unload_image = lambda image: None
+
+  nav_card_mod = importlib.import_module('openpilot.selfdrive.ui.sunnypilot.onroad.navigation_card')
+  NavigationCardRenderer = nav_card_mod.NavigationCardRenderer
+
+  NAV_CARD_ASSETS = nav_card_mod.ASSETS_PATH
+  # The store backing ui_state.params (what the navigation card actually reads).
+  nav_store = _ui_params_mod.store
+  ui_state_obj = sys.modules['openpilot.selfdrive.ui.ui_state'].ui_state
+
+  def nav_card_assets_present():
+    assert NAV_CARD_ASSETS.is_dir(), f'missing maneuver icon assets at {NAV_CARD_ASSETS}'
+    pngs = sorted(NAV_CARD_ASSETS.glob('*.png'))
+    assert len(pngs) == 88, f'expected 88 maneuver icons, found {len(pngs)}'
+    assert (NAV_CARD_ASSETS / nav_card_mod.FALLBACK_ICON).exists(), 'fallback icon missing'
+  check('navigation card ships the 88 maneuver icons', nav_card_assets_present)
+
+  def nav_card_icon_mapping():
+    card = NavigationCardRenderer()
+    assert card._icon_filename('turn', 'left') == 'direction_turn_left.png'
+    # no bare direction_turn.png in the asset set -> known fallback
+    assert card._icon_filename('turn', '') == nav_card_mod.FALLBACK_ICON
+    assert card._icon_filename('rotary', 'straight') == 'direction_roundabout_straight.png'
+    assert card._icon_filename('new name', '') == nav_card_mod.FALLBACK_ICON
+    # unknown combos fall back instead of crashing the render loop
+    fallback = card._icon_filename('ferry', 'train')
+    assert (NAV_CARD_ASSETS / fallback).exists(), f'{fallback} does not exist'
+  check('navigation card maps maneuver types to existing icons', nav_card_icon_mapping)
+
+  def nav_card_state_update():
+    card = NavigationCardRenderer()
+
+    def refresh():
+      # bypass the 0.1 s params-read throttle for back-to-back mutations
+      card._last_state_update = float('-inf')
+      card._update_state()
+
+    nav_store.clear()
+    nav_store['NavigationCardEnabled'] = True
+    nav_store['NavDestination'] = {'latitude': 37.7, 'longitude': -122.4, 'place_name': 'x'}
+    nav_store['NavInstructionState'] = {
+      'valid': True, 'maneuverPrimaryText': 'Marin St', 'maneuverSecondaryText': 'toward I-80 East',
+      'maneuverDistance': 350.0, 'maneuverType': 'turn', 'maneuverModifier': 'left',
+      'nextManeuverType': 'roundabout', 'nextManeuverModifier': '',
+    }
+    ui_state_obj.is_metric = True
+    try:
+      refresh()
+      assert card._valid, 'card did not become valid with a live instruction'
+      assert card._primary_text == 'Marin St'
+      assert card._distance == '350 m'
+      assert card._maneuver_type == 'turn' and card._modifier == 'left'
+      assert card._has_next and card._next_maneuver_type == 'roundabout'
+    finally:
+      ui_state_obj.is_metric = False
+
+    # missing primary text -> hidden
+    nav_store['NavInstructionState'] = {'valid': True, 'maneuverPrimaryText': ''}
+    refresh()
+    assert not card._valid, 'card shown without primary text'
+
+    # disabled master switch -> hidden even with a live instruction
+    nav_store['NavigationCardEnabled'] = False
+    nav_store['NavInstructionState'] = {'valid': True, 'maneuverPrimaryText': 'Marin St'}
+    refresh()
+    assert not card._valid, 'card shown while NavigationCardEnabled is off'
+
+    # no route destination -> hidden
+    nav_store['NavigationCardEnabled'] = True
+    nav_store.pop('NavDestination')
+    refresh()
+    assert not card._valid, 'card shown without a NavDestination'
+  check('navigation card update honours params gating', nav_card_state_update)
+
+  def nav_card_toggle_and_cancel():
+    card = NavigationCardRenderer()
+    nav_store.clear()
+    nav_store['NavigationCardEnabled'] = True
+    nav_store['NavDestination'] = {'latitude': 37.7, 'longitude': -122.4}
+    nav_store['NavInstructionState'] = {'valid': True, 'maneuverPrimaryText': 'Marin St', 'maneuverDistance': 100.0}
+    card._update_state()
+    assert card._valid
+
+    card._toggle_collapsed()
+    assert card._collapsed, 'short tap did not collapse'
+    assert nav_store.get('NavInstructionCollapsed') is True, 'collapsed state not persisted'
+    card._toggle_collapsed()
+    assert nav_store.get('NavInstructionCollapsed') is False
+
+    card._cancel_navigation()
+    assert 'NavDestination' not in nav_store, 'cancel did not clear NavDestination'
+    assert nav_store.get('NavInstructionState') == {}, 'cancel did not reset NavInstructionState'
+    assert not card._valid, 'card still valid after cancel'
+  check('navigation card collapse toggle and long-press cancel persist', nav_card_toggle_and_cancel)
+
+  def nav_card_renders_headless():
+    card = NavigationCardRenderer()
+    nav_store.clear()
+    nav_store['NavigationCardEnabled'] = True
+    nav_store['NavDestination'] = {'latitude': 37.7, 'longitude': -122.4}
+    nav_store['NavInstructionState'] = {
+      'valid': True, 'maneuverPrimaryText': 'Marin St', 'maneuverDistance': 350.0,
+      'maneuverType': 'turn', 'maneuverModifier': 'left',
+    }
+    card._update_state()
+    rect = _harness.Rect(0, 0, 2160, 1080)
+    card.render(rect)  # expanded card
+    assert card._interactive_rect.width > 0, 'expanded card left no hit rect'
+    card._toggle_collapsed()
+    card._last_state_update = float('-inf')
+    card._update_state()
+    card.render(rect)  # collapsed chip
+    assert card._interactive_rect.width > 0, 'collapsed chip left no hit rect'
+    drawn = [d for d in _harness.DRAWN if 'Marin St' in str(d[1])]
+    assert drawn, 'expanded card never drew its primary text'
+  check('navigation card renders expanded and collapsed headless', nav_card_renders_headless)
+
+  def road_name_prefers_carrot():
+    from openpilot.selfdrive.ui.sunnypilot.onroad import road_name as road_name_mod
+
+    renderer = road_name_mod.RoadNameRenderer()
+
+    class _FakeSm:
+      recv_frame = {'carState': 100}
+      valid = {'carrotManSP': True}
+      updated = {'carrotManSP': True, 'liveMapDataSP': True}
+
+      def __getitem__(self, key):
+        if key == 'carrotManSP':
+          return types.SimpleNamespace(activeCarrot=2, szPosRoadName='G104 国道')
+        return types.SimpleNamespace(roadName='Live Map Rd')
+
+    original_sm = getattr(ui_state_obj, 'sm', None)
+    ui_state_obj.sm = _FakeSm()
+    try:
+      renderer.update()
+      assert renderer.road_name == 'G104 国道', f'carrot road name not preferred: {renderer.road_name!r}'
+
+      # carrot inactive -> fall back to the live map data road name
+      class _InactiveSm(_FakeSm):
+        def __getitem__(self, key):
+          if key == 'carrotManSP':
+            return types.SimpleNamespace(activeCarrot=0, szPosRoadName='G104 国道')
+          return types.SimpleNamespace(roadName='Live Map Rd')
+
+      ui_state_obj.sm = _InactiveSm()
+      renderer.update()
+      assert renderer.road_name == 'Live Map Rd', f'did not fall back to live map name: {renderer.road_name!r}'
+    finally:
+      ui_state_obj.sm = original_sm
+  check('road name prefers carrot road name with live map fallback', road_name_prefers_carrot)
 
   print()
   if FAILURES:
