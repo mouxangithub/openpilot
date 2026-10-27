@@ -67,8 +67,21 @@ def flash_panda(panda_serial: str):
   panda.close()
 
 
-def check_panda_support(panda_serials: list[str]) -> list[str]:
+def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -> list[str]:
   spi_serials = set(Panda.spi_list())
+  if use_red_panda:
+    # user opts in to an external Red Panda (H7 CAN-FD) as the active panda;
+    # fall through to the internal-panda preference when none is present
+    for serial in panda_serials:
+      if serial in spi_serials:
+        continue
+      panda = Panda(serial)
+      try:
+        if panda.get_type() == Panda.HW_TYPE_RED_PANDA:
+          return [serial]
+      finally:
+        panda.close()
+
   for serial in panda_serials:
     if serial in spi_serials:
       return [serial]
@@ -127,16 +140,26 @@ def main() -> None:
       if len(panda_serials):
         # custom flasher for xnor's Rivian Longitudinal Upgrade Kit
         flash_rivian_long(panda_serials)
-        # find the internal supported panda (e.g. skip external Black Panda)
-        panda_serials = check_panda_support(panda_serials)
+        # find the internal supported panda (e.g. skip external Black Panda),
+        # or the external Red Panda when UseRedPanda is set
+        panda_serials = check_panda_support(panda_serials, use_red_panda=Params().get_bool("UseRedPanda"))
+
+        if not panda_serials:
+          # e.g. only an external panda is visible while the internal one is
+          # mid-reset; retry instead of crashing so the loop stays calm
+          cloudlog.warning("no supported panda found, retrying...")
+          time.sleep(2)
+          continue
 
         assert len(panda_serials) == 1
         cloudlog.info(f"{len(panda_serials)} panda found, connecting - {panda_serials}")
         flash_panda(panda_serials[0])
 
-        # run real pandad
+        # run real pandad; pass the verified serial so the C++ daemon connects
+        # the selected panda instead of picking USB enumeration order, which
+        # with an external panda plugged in may be the unverified one
         os.environ['MANAGER_DAEMON'] = 'pandad'
-        process = subprocess.Popen(["./pandad"], cwd=os.path.join(BASEDIR, "openpilot/selfdrive/pandad"))
+        process = subprocess.Popen(["./pandad", panda_serials[0]], cwd=os.path.join(BASEDIR, "openpilot/selfdrive/pandad"))
         process.wait()
     # TODO: wrap all panda exceptions in a base panda exception
     except (usb1.USBErrorNoDevice, usb1.USBErrorPipe):
