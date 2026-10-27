@@ -42,6 +42,7 @@ from .features import support_terminal as support_terminal_feature
 from .features import system as system_feature
 from .features import terminal as terminal_feature
 from .features import tools as tools_feature
+from .features import version_history as version_history_feature
 from .features import unsupported as unsupported_feature
 from .features import vision_diag as vision_diag_feature
 from .features import vision_test as vision_test_feature
@@ -182,6 +183,7 @@ def create_app(params=None) -> web.Application:
   setting_profiles_feature.register(app)
   web_settings_feature.register(app)
   wheel_controls_feature.register(app)
+  version_history_feature.register(app)
   push_feature.register(app)            # PWA manifest/sw + Web Push subscriptions
   ssh_keys_feature.register(app)
   mapbox_tokens_feature.register(app)

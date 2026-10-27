@@ -15,6 +15,7 @@ from openpilot.selfdrive.controls.lib.weather_offsets import WeatherOffsets
 from openpilot.sunnypilot import PARAMS_UPDATE_PERIOD
 from openpilot.sunnypilot.common.param_read import read_bool, read_float, read_str
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control import MIN_V
+from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.envelope import extract_curve_profile
 
 VisionState = custom.LongitudinalPlanSP.SmartCruiseControl.VisionState
 
@@ -129,6 +130,12 @@ class SmartCruiseControlVision:
     self.weather_enabled = False
     self.weather_offsets = WeatherOffsets()
     self._learning_loaded = False
+    # StarPilot distance-envelope control half (gated, default off). Replaces
+    # the 97th-percentile point estimate with a per-point approach envelope;
+    # the state machine and the downstream _filtered_v_target are unchanged.
+    from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.envelope import EnvelopeController
+    self.envelope_enabled = False
+    self.envelope = EnvelopeController(dt=DT_MDL)
 
   def _load_learning_data(self):
     try:
@@ -273,6 +280,9 @@ class SmartCruiseControlVision:
         self.weather_offsets = WeatherOffsets(state, lateral=lateral)
       else:
         self.weather_offsets = WeatherOffsets()
+      self.envelope_enabled = read_bool(self.params, "CscVisionEnvelopeEnabled")
+      if not self.envelope_enabled:
+        self.envelope.reset()
 
   def _update_learning(self, sm: messaging.SubMaster, long_enabled: bool) -> None:
     """Feed the StarPilot curvature learner (sampling + override watch)."""
@@ -328,6 +338,26 @@ class SmartCruiseControlVision:
         # ceiling, so the car takes the bend more slowly.
         a_lat_ceiling *= self._weather_lat_accel_scale()
         self.v_target = min(float((a_lat_ceiling / max_pred_curvature) ** 0.5), V_CRUISE_UNSET)
+
+    # Distance-envelope control half (default off): same output channel
+    # (self.v_target), same state machine - it either owns the target or the
+    # percentile path does, never both. max_pred_lat_acc above still feeds the
+    # state machine so entering/leaving behaviour is unchanged.
+    if self.envelope_enabled:
+      curvatures, distances = extract_curve_profile(sm['modelV2'])
+      envelope_v = self.envelope.compute(
+        self.v_ego, self.v_cruise_setpoint, curvatures, distances,
+        self._envelope_lat_accel)
+      if envelope_v is not None:
+        self.v_target = min(envelope_v, V_CRUISE_UNSET)
+
+  def _envelope_lat_accel(self, curvature: float) -> float:
+    """Lateral-acceleration ceiling for one envelope point (learning + carrot
+    factor scale + weather, mirroring the percentile path's ceiling)."""
+    a_lat = self.tuned_a_lat_reg_max
+    if self.learning_enabled:
+      a_lat = self.learning.lat_accel_for_curvature(curvature) * (self.tuned_a_lat_reg_max / _A_LAT_REG_MAX)
+    return a_lat * self._weather_lat_accel_scale()
 
   def _update_state_machine(self) -> tuple[bool, bool]:
     # ENABLED, ENTERING, TURNING, LEAVING, OVERRIDING

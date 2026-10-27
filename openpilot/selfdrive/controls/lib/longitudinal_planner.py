@@ -84,6 +84,10 @@ def get_cruise_accel(e2e, v_cruise, v_ego, a_cruise_prev, angle_steers, CP, dt, 
   return target_accel
 
 
+from openpilot.sunnypilot.common.param_read import read_bool
+from openpilot.sunnypilot.selfdrive.controls.lib.lane_change_close_gap import LaneChangeCloseGap
+
+
 class LongitudinalPlanner(LongitudinalPlannerSP):
   def __init__(self, CP, CP_SP, init_v=0.0, init_a=0.0, dt=DT_MDL):
     self.CP = CP
@@ -106,6 +110,10 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     self.duplicate_guard_enabled = self._params.get_bool("LeadDuplicateGuardEnabled")
     self.model_lead_enabled = self._params.get_bool("ModelLeadTrajectoryEnabled")
     self._uncert_tracker = None  # lazy: UncertaintyTracker(self.dt)
+    # Absolute lane-change headway (default off until the key is registered;
+    # read fault-tolerantly so an unregistered key cannot kill the planner).
+    self.lane_change_close_gap_enabled = read_bool(self._params, "LaneChangeCloseGapEnabled")
+    self._lc_close_gap = LaneChangeCloseGap(dt=dt)
 
     self.v_desired_filter = FirstOrderFilter(init_v, 2.0, self.dt)
     self.a_cruise = init_a
@@ -188,6 +196,20 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     # base is in use, then the stock personality value.
     base_t_follow = carrot_t_follow if carrot_t_follow is not None else self.mpc.get_t_follow(personality, v_ego)
     effective_t_follow = base_t_follow + weather_t_follow
+
+    # Absolute lane-change headway shortening (default off). While the driver
+    # signals out of the lane, ramp toward an absolute headway that can only
+    # shorten the gap; blindspot / braking-lead / low-speed gates trip it back.
+    if self.lane_change_close_gap_enabled:
+      meta = sm['modelV2'].meta
+      lead_one = sm['radarState'].leadOne
+      effective_t_follow = self._lc_close_gap.update(
+        bool(sm['selfdriveState'].enabled), v_ego, bool(sm['carState'].standstill),
+        int(meta.laneChangeState), int(meta.laneChangeDirection),
+        bool(sm['carState'].leftBlindspot), bool(sm['carState'].rightBlindspot),
+        bool(lead_one.status), float(lead_one.aLeadK), effective_t_follow)
+    else:
+      self._lc_close_gap.reset()
 
     # CarrotPlanner longitudinal overrides (Option C). Only applied when the
     # carrot source is active, so stock behavior is untouched otherwise. These
@@ -323,6 +345,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     self._policy_frame += 1
     if self._policy_frame % 20 == 0:
       self.lead_follow_policy_enabled = self._params.get_bool("LeadFollowPolicyEnabled")
+      self.lane_change_close_gap_enabled = read_bool(self._params, "LaneChangeCloseGapEnabled")
     if self.lead_follow_policy_enabled and self.mpc.source in (LongitudinalPlanSource.lead0, LongitudinalPlanSource.lead1):
       follow_result = apply_follow_policy(
         sm['radarState'].leadOne, sm['radarState'].leadTwo,

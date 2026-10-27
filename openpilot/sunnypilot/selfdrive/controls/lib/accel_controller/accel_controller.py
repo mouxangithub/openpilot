@@ -10,6 +10,8 @@ import numpy as np
 from openpilot.cereal import custom
 from openpilot.common.params import Params
 from openpilot.sunnypilot import get_sanitize_int_param
+from openpilot.sunnypilot.common.param_read import read_bool
+from openpilot.sunnypilot.selfdrive.controls.lib.accel_controller.interpolation import akima_interp
 
 AccelProfile = custom.LongitudinalPlanSP.AccelController.Profile
 
@@ -56,6 +58,9 @@ class AccelController:
   def update(self) -> None:
     self._profile = get_sanitize_int_param("AccelPersonality", AccelProfile.eco, AccelProfile.sport, self.params)
     self._enabled = self.params.get_bool("AccelPersonalityEnabled")
+    # Smoothstep envelope (default off until the key is registered): removes the
+    # slope discontinuity np.interp leaves at every breakpoint of the accel curves.
+    self._smoothstep = read_bool(self.params, "AccelSmoothstepEnabled")
 
   @property
   def profile(self) -> int:
@@ -65,10 +70,11 @@ class AccelController:
     return self._enabled
 
   def get_max_accel(self, v_ego: float, engine_off: bool = False, lead=None) -> float:
+    interp = akima_interp if self._smoothstep else np.interp
     if engine_off and self._profile == AccelProfile.eco:
-      base = float(np.interp(max(0.0, v_ego), ECO_ENGINE_OFF_BP, ECO_ENGINE_OFF_MAX_ACCEL))
+      base = float(interp(max(0.0, v_ego), ECO_ENGINE_OFF_BP, ECO_ENGINE_OFF_MAX_ACCEL))
     else:
-      base = float(np.interp(max(0.0, v_ego), MAX_ACCEL_BREAKPOINTS, MAX_ACCEL_PROFILES[self._profile]))
+      base = float(interp(max(0.0, v_ego), MAX_ACCEL_BREAKPOINTS, MAX_ACCEL_PROFILES[self._profile]))
     if self._profile != AccelProfile.eco:
       self._boost = 0.0
       return base
