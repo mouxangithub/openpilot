@@ -456,6 +456,10 @@ mount_nvme() {
 
 set_lite_hw() {
   [ "$(comma_device_slug)" = "tici" ] || return 0
+  # the probe needs i2c-tools; AGNOS images without it would read as "Lite HW"
+  # on every full-fat C3 and disable DM (dmonitoringd) for good. A missing
+  # probe must not count as a missing chip.
+  command -v i2cget >/dev/null 2>&1 || return 0
   [ -z "$(i2cget -y 0 0x10 0x00 2>/dev/null)" ] && echo "Lite HW" && export LITE=1
 }
 
