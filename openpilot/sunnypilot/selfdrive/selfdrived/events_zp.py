@@ -19,6 +19,7 @@ from openpilot.selfdrive.selfdrived.events import get_display_speed
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EventsBase, Priority, ET, Alert, NoEntryAlert, \
   EngagementAlert, NormalPermanentAlert, AlertCallbackType
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit import PCM_LONG_REQUIRED_MAX_SET_SPEED, CONFIRM_SPEED_THRESHOLD
+from openpilot.sunnypilot.selfdrive.selfdrived.selfdrived_zp import SelfdrivedZP
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -44,6 +45,15 @@ STOCK_ECU_ALERT_TEXT = {
   StockEcuState.RESTORING: ("Longitudinal Handing Back", "Stock cruise returns when it completes"),
   StockEcuState.FAILED: ("Longitudinal Initializing Failed", "Restart the car to retry"),
 }
+
+
+def road_edge_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
+  # mici renders text1 above 16 chars at the smallest font and clips; silent mode keeps the
+  # alert and drops its chime
+  audible = AudibleAlert.none if SelfdrivedZP.road_edge_silent else AudibleAlert.prompt
+  return Alert("Road Edge Ahead" if IS_MICI else "Lane Change Unavailable: Road Edge", "",
+               AlertStatus.userPrompt, AlertSize.small,
+               Priority.LOW, VisualAlert.none, audible, 0.1)
 
 
 def big_model_ready_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
@@ -139,12 +149,7 @@ EVENTS_SP_ZP: dict[int, dict[str, Alert | AlertCallbackType]] = {
   },
 
   EventNameSP.laneChangeRoadEdge: {
-    ET.WARNING: Alert(
-      # mici renders text1 above 16 chars at the smallest font and clips
-      "Road Edge Ahead" if IS_MICI else "Lane Change Unavailable: Road Edge",
-      "",
-      AlertStatus.userPrompt, AlertSize.small,
-      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 0.1),
+    ET.WARNING: road_edge_alert,
   },
 
   EventNameSP.bigModelReady: {

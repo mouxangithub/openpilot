@@ -94,6 +94,9 @@ class DisplayLayoutMici(NavScroller):
                      "Default keeps the stock timing."),
     )
 
+    self._home_model = BigParamControl(tr("model on home"), "HomeShowActiveModel",
+                                       description=tr("Shows the driving model's name at the bottom of the home screen."))
+
     self._screensaver = BigParamControl(tr("screen saver"), "ScreenSaverEnabled",
                                         description=tr("Shows a screen saver when offroad and idle, instead of a dark screen."))
     # Match the TICI screen-saver range and one-minute step.
@@ -107,13 +110,14 @@ class DisplayLayoutMici(NavScroller):
     )
 
     self._scroller.add_widgets([self._brightness, self._brightness_timer, self._ui_timeout,
-                                self._screensaver, self._screensaver_timeout])
+                                self._home_model, self._screensaver, self._screensaver_timeout])
 
   def _update_state(self):
     super()._update_state()
     self._brightness.refresh()
     self._brightness_timer.refresh()
     self._ui_timeout.refresh()
+    self._home_model.refresh()
     self._screensaver.refresh()
     self._screensaver_timeout.refresh()
 

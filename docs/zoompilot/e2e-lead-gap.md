@@ -3,7 +3,7 @@
 Code: `openpilot/sunnypilot/selfdrive/controls/lib/e2e_lead_gap/controller.py`, chained after the
 set-speed floor in `LongitudinalPlannerSP.update_e2e_target` (no new hunk in the upstream
 planner). Toggle "Experimental Mode Lead Follow Assist" ("lead follow assist" on mici)
-(`ExperimentalModeLeadGap`), off by default, under Cruise > Alpha Longitudinal (tizi, mici,
+(`ExperimentalModeLeadGap`), on by default since 2026-10-26, under Cruise > Alpha Longitudinal (tizi, mici,
 sunnylink), greyed while Dynamic Experimental Control is on. Logged in
 `longitudinalPlanSP.zoompilot.e2eLeadGap`. Tests: `e2e_lead_gap/tests/`. Tool:
 `tools/mazda_long/e2e_lead_gap_replay.py` (`--from-index` replays every experimental segment

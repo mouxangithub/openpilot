@@ -8,6 +8,7 @@ from openpilot.cereal import custom, log
 from opendbc.car import structs
 from openpilot.common.params import Params
 from openpilot.sunnypilot.selfdrive.car.cruise_ext import update_manual_button_timers
+from openpilot.sunnypilot.selfdrive.controls.lib.relc import RoadEdgeMode, read_road_edge_mode
 
 ButtonType = structs.CarState.ButtonEvent.Type
 EventName = log.OnroadEvent.EventName
@@ -20,10 +21,13 @@ PARAMS_READ_FRAMES = 100
 
 class SelfdrivedZP:
   """zoompilot's additions to selfdrived: the experimental/chill switch (upstream went experimental
-  only), the wheel's "farther" distance button and ICBM's activation following card."""
+  only), the wheel's "farther" distance button, ICBM's activation following card and the road edge
+  alert's sound."""
 
   # the mode the last long press switched to, for the alert (one selfdrived per process)
   switched_to: bool = True
+  # RoadEdgeLaneChangeEnabled is silent: the road edge alert drops its chime
+  road_edge_silent: bool = False
 
   def __init__(self, CP: structs.CarParams, params: Params | None = None):
     self.CP = CP
@@ -31,6 +35,7 @@ class SelfdrivedZP:
     self.frame = 0
 
     self.experimental_mode = self._read_experimental_mode()
+    self._read_road_edge_silent()
     self.gap_timers = {ButtonType.gapAdjustCruise: 0}
     self.experimental_mode_switched = False
     # upstream steps the personality down on a gapAdjustCruise release unless it ended a long press
@@ -40,11 +45,15 @@ class SelfdrivedZP:
   def _read_experimental_mode(self) -> bool:
     return self.CP.openpilotLongitudinalControl and self.params.get_bool("ExperimentalMode")
 
+  def _read_road_edge_silent(self) -> None:
+    SelfdrivedZP.road_edge_silent = read_road_edge_mode(self.params) == RoadEdgeMode.SILENT
+
   def update(self, CS, CS_SP, events, events_sp, icbm, personality: int) -> int:
     """Run just before selfdrived's own personality step; returns the personality."""
     self.frame += 1
     if self.frame % PARAMS_READ_FRAMES == 0:
       self.experimental_mode = self._read_experimental_mode()
+      self._read_road_edge_silent()
 
     self.gap_release_steps = True
     if self.CP.openpilotLongitudinalControl:

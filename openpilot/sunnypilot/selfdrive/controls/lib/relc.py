@@ -19,10 +19,22 @@ VEHICLE_EDGE_MARGIN = 1.08
 EDGE_CLEARANCE = 3.7
 
 
+class RoadEdgeMode:
+  # RoadEdgeLaneChangeEnabled was a bool: its stored 0/1 still mean off/audible
+  OFF = 0
+  AUDIBLE = 1
+  SILENT = 2  # blocks and shows the alert, without the chime
+
+
+def read_road_edge_mode(params: Params) -> int:
+  """The clamped mode, the single sanitization point for every consumer."""
+  return min(max(int(params.get("RoadEdgeLaneChangeEnabled") or RoadEdgeMode.OFF), RoadEdgeMode.OFF), RoadEdgeMode.SILENT)
+
+
 class RoadEdgeLaneChangeController:
   def __init__(self):
     self.params = Params()
-    self.enabled = self.params.get_bool("RoadEdgeLaneChangeEnabled")
+    self.read_params()
     self.param_read_counter = 0
     self.left_edge_detected = False
     self.right_edge_detected = False
@@ -32,7 +44,7 @@ class RoadEdgeLaneChangeController:
     self.right_clear_timer = 0.0
 
   def read_params(self) -> None:
-    self.enabled = self.params.get_bool("RoadEdgeLaneChangeEnabled")
+    self.enabled = read_road_edge_mode(self.params) != RoadEdgeMode.OFF
 
   def update_params(self) -> None:
     if self.param_read_counter % 50 == 0:

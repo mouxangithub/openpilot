@@ -8,12 +8,17 @@ import math
 
 import pyray as rl
 
-from openpilot.selfdrive.ui.mici.layouts.home import MiciHomeLayout
+from openpilot.selfdrive.ui.mici.layouts.home import MiciHomeLayout, HOME_PADDING
 from openpilot.selfdrive.ui.sunnypilot.longitudinal_mode import EXPERIMENTAL_ICON
 from openpilot.selfdrive.ui.ui_state import ui_state, ChestnutState
-from openpilot.system.ui.lib.application import FontWeight
+from openpilot.system.ui.lib.application import FontWeight, TextAlignment
 from openpilot.system.ui.widgets.icon_widget import IconWidget
-from openpilot.system.ui.widgets.label import UnifiedLabel
+from openpilot.system.ui.widgets.label import UnifiedLabel, gui_label
+
+MODEL_FONT_SIZE = 32
+MODEL_ROW_HEIGHT = 48  # upstream's footer row
+MODEL_ICON_GAP = 24
+MODEL_COLOR = rl.Color(255, 255, 255, int(255 * 0.9 * 0.65))
 
 
 class MiciHomeLayoutSP(MiciHomeLayout):
@@ -51,3 +56,20 @@ class MiciHomeLayoutSP(MiciHomeLayout):
                                     chestnut_state in (ChestnutState.READY, ChestnutState.ACTIVE,
                                                        ChestnutState.WAITING))
     self._chestnut_failed_icon.set_visible(not usb_unknown and chestnut_state in (ChestnutState.UNCOMPILED, ChestnutState.FAILED))
+
+  def _render(self, rect):
+    super()._render(rect)
+    if ui_state.home_model_name:
+      self._render_model_name(ui_state.home_model_name.lower())
+
+  def _render_model_name(self, name: str):
+    # right aligned in the footer between the last status icon (settings always shows) and the
+    # alerts pill; it elides rather than overlap either
+    last_icon = next(w for w in reversed(self._status_bar_layout.widgets) if w.is_visible)
+    left = last_icon.rect.x + last_icon.rect.width + MODEL_ICON_GAP
+    right = self.rect.x + self.rect.width - HOME_PADDING
+    if self._alert_count_callback and self._alert_count_callback() > 0:
+      right = self._alerts_pill.rect.x - HOME_PADDING
+    if right > left:
+      gui_label(rl.Rectangle(left, self.rect.y + self.rect.height - MODEL_ROW_HEIGHT, right - left, MODEL_ROW_HEIGHT),
+                name, MODEL_FONT_SIZE, MODEL_COLOR, FontWeight.ROMAN, alignment=TextAlignment.RIGHT)
