@@ -30,6 +30,7 @@ from opendbc.can import CANParser
 from opendbc.car.structs import car
 from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper
+from openpilot.sunnypilot.common.param_read import read_bool
 
 
 TESLA_DAS_ROAD_ADDRESS = 605
@@ -126,6 +127,16 @@ class XiaogeDataBroadcaster:
       self.server_socket = None
 
   def start_vision_server(self) -> None:
+    # The vision service consumes NARROW_ROAD + WIDE_ROAD concurrently with
+    # modeld. On the C3 that combination reproducibly kills the camera
+    # pipeline (camerad wedges in cam_sync_wait, modeld stops publishing
+    # modelV2) and takes down longitudinal control with the commIssue cascade.
+    # Default OFF: the TCP broadcast on 7711 keeps serving the carrot app;
+    # vision BSM opts in via this param once the pipeline conflict is fixed.
+    if not read_bool(self.params, "CarrotXiaogeVisionEnabled", False):
+      print("[xiaoge_data] vision disabled (CarrotXiaogeVisionEnabled unset); TCP broadcast only")
+      return
+
     from openpilot.sunnypilot.carrot.xiaoge.v_asm_server import create_server
 
     self.vision_service, self.vision_server = create_server()
