@@ -208,14 +208,12 @@ class TestSpuriousOffroadGatesDropped(OpenpilotTestCase):
 
 
 class TestNotEngagedReplacement(OpenpilotTestCase):
-  @parameterized.expand(
-    [
-      "AlphaLongitudinalEnabled",
-      "ToyotaEnforceStockLongitudinal",
-      "ToyotaStopAndGoHack",
-    ],
-    names=["key"],
-  )
+  @parameterized.expand([
+    "AlphaLongitudinalEnabled",
+    "ToyotaEnforceStockLongitudinal",
+    "ToyotaStopAndGoHack",
+    "ToyotaTSS2Smooth",
+  ], names=["key"])
   def test_offroad_only_replaced_with_not_engaged(self, schema, key):
     """These items should use not_engaged, not offroad_only."""
     item = _find_item(schema, key)
