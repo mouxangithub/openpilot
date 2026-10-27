@@ -61,6 +61,9 @@ class EGLState:
 
 # Create a single instance of the state
 _egl = EGLState()
+# Native EGL images outlive GL textures unless explicitly destroyed. Keep an
+# ownership ledger so shutdown also releases images held in widget cycles.
+_images: dict[int, EGLImage] = {}
 
 
 def init_egl(retries: int = 5, delay_s: float = 0.2) -> bool:
@@ -176,20 +179,38 @@ def create_egl_image(width: int, height: int, stride: int, fd: int, uv_offset: i
     os.close(dup_fd)
     return None
 
-  return EGLImage(egl_image=egl_image, fd=dup_fd)
+  image = EGLImage(egl_image=egl_image, fd=dup_fd)
+  _images[id(image)] = image
+  return image
 
 
 def destroy_egl_image(egl_image: EGLImage) -> None:
+  # Camera widgets can be finalized after the application has closed its GL
+  # window. Retire handles before native calls so this is safe and idempotent.
+  if egl_image.egl_image is None:
+    return
   assert _egl.initialized, "EGL not initialized"
-
-  _egl.destroy_image_khr(_egl.display, egl_image.egl_image)
-
-  # Close the duplicated fd we created in create_egl_image()
-  # We need to handle OSError since the fd might already be closed
+  handle, fd = egl_image.egl_image, egl_image.fd
+  egl_image.egl_image, egl_image.fd = None, -1
+  _images.pop(id(egl_image), None)
   try:
-    os.close(egl_image.fd)
-  except OSError:
-    pass
+    _egl.destroy_image_khr(_egl.display, handle)
+  finally:
+    # Close the duplicated fd we created in create_egl_image()
+    # We need to handle OSError since the fd might already be closed
+    try:
+      os.close(fd)
+    except OSError:
+      pass
+
+
+def destroy_all_egl_images() -> None:
+  """Release imports while the display is alive, including cyclic widgets."""
+  for image in list(_images.values()):
+    try:
+      destroy_egl_image(image)
+    except Exception:
+      cloudlog.exception("Failed to release camera EGL image during shutdown")
 
 
 def bind_egl_image_to_texture(texture_id: int, egl_image: EGLImage) -> None:
