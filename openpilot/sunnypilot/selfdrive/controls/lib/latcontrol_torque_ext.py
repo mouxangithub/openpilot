@@ -35,6 +35,8 @@ class LatControlTorqueExt(LatControlTorqueExtZP, NeuralNetworkLateralControl, La
     # what the carcontroller reported back, pushed by controlsd_ext after its classifier
     self._applied_torque = 0.0
     self._at_rail = False
+    # the car's TOML speed-dep seeds, built once by update_speed_dep_torque
+    self._speed_dep_car_cfg = None
 
   def adjust_desired_curvature(self, desired_curvature, CS, active):
     return self.lateral_lane_assist.update(desired_curvature, CS.vEgo, active, CS.steeringPressed, self.model_v2,
