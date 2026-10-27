@@ -28,7 +28,7 @@ from openpilot.system.ui.widgets import Widget
 BTN_SIZE = 192
 PARAM_REFRESH_INTERVAL = 0.25  # seconds; params are not per-frame data
 
-# cereal LongitudinalPersonality: aggressive @1, standard @2, relaxed @3
+# cereal LongitudinalPersonality: aggressive @0, standard @1, relaxed @2
 AGGRESSIVE = int(log.LongitudinalPersonality.aggressive)
 STANDARD = int(log.LongitudinalPersonality.standard)
 RELAXED = int(log.LongitudinalPersonality.relaxed)
@@ -71,7 +71,9 @@ class PersonalityButton(Widget):
     self._refresh_params()
     sm = ui_state.sm
     if sm.valid.get("selfdriveState", False) and sm.recv_frame["selfdriveState"] >= ui_state.started_frame:
-      self._personality = int(sm["selfdriveState"].personality)
+      # pycapnp >= 0.8: message-field enumerants come back as _DynamicEnum,
+      # which raises on int(); only .raw yields the underlying ordinal
+      self._personality = int(getattr(sm["selfdriveState"].personality, "raw", sm["selfdriveState"].personality))
 
   def _handle_mouse_release(self, _):
     super()._handle_mouse_release(_)
