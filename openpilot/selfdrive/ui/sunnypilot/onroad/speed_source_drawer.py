@@ -281,8 +281,8 @@ class SpeedSourceDrawerRenderer(Widget):
     self._drawer = SpeedSourceDrawer()
     self._enabled = False
     self._last_param_refresh = float("-inf")
-    # memory params hold the vision pipeline's transient limit value
-    self._vision_params = Params(memory=True)
+    # memory params hold the vision pipeline's transient limit value (same store the resolver reads)
+    self._vision_params = Params("/dev/shm/params")
     # SLC priority settings, cached at the same slow cadence as the gate.
     self._primary_priority = "Map Data"
     self._secondary_priority = "None"
