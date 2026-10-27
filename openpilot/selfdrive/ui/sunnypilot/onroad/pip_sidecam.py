@@ -6,7 +6,7 @@ adjacent side window as a circular "bubble" over the road view when the
 blinker is on or a blind-spot is detected.
 
 !!! HARDWARE NOTE (Lite build) !!!
-This widget consumes the ``VISION_STREAM_DRIVER`` stream from camerad (the
+This widget consumes the ``VISION_STREAM_CABIN`` stream from camerad (the
 driver-facing camera). The target vehicle runs Lite hardware with NO driver
 camera, so on this car there is no publisher for that stream: the client never
 connects and the widget renders nothing. The port is kept complete so it
@@ -34,7 +34,8 @@ import weakref
 
 import pyray as rl
 
-from msgq.visionipc import VisionIpcClient, VisionStreamType
+from msgq.visionipc import VisionIpcClient
+from openpilot.cereal.visionipc import VisionStreamType
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.sunnypilot.onroad.param_guards import safe_get_bool
 from openpilot.selfdrive.ui.ui_state import ui_state
@@ -146,14 +147,14 @@ class PipSideCamera(Widget):
   """Overlays the adjacent side window from the driver camera as a bubble.
 
   NOTE (Lite hardware): there is no driver camera on this car, so the
-  VISION_STREAM_DRIVER client never connects and the widget stays invisible.
+  VISION_STREAM_CABIN client never connects and the widget stays invisible.
   See the module docstring.
   """
 
   def __init__(self):
     super().__init__()
-    self.client = VisionIpcClient("camerad", VisionStreamType.VISION_STREAM_DRIVER, conflate=True)
-    self._stream_type = VisionStreamType.VISION_STREAM_DRIVER
+    self.client = VisionIpcClient("camerad", VisionStreamType.VISION_STREAM_CABIN, conflate=True)
+    self._stream_type = VisionStreamType.VISION_STREAM_CABIN
     self._last_connection_attempt = 0.0
     self.frame = None
     self._last_frame_id = -1
