@@ -5,7 +5,7 @@ import time
 import subprocess
 from collections.abc import Callable, ValuesView
 from abc import ABC, abstractmethod
-from multiprocessing import Process
+from multiprocessing import Process, get_context
 
 from setproctitle import setproctitle
 
@@ -198,7 +198,7 @@ class NativeProcess(ManagerProcess):
 
 
 class PythonProcess(ManagerProcess):
-  def __init__(self, name, module, should_run, enabled=True, sigkill=False, restart_if_crash=False, watchdog_max_dt=None):
+  def __init__(self, name, module, should_run, enabled=True, sigkill=False, restart_if_crash=False, watchdog_max_dt=None, spawn=False):
     self.name = name
     self.module = module
     self.should_run = should_run
@@ -207,6 +207,9 @@ class PythonProcess(ManagerProcess):
     self.restart_if_crash = restart_if_crash
     self.watchdog_max_dt = watchdog_max_dt
     self.launcher = launcher
+    # 'spawn' starts the module in a fresh interpreter instead of forking the
+    # manager, so restarts don't inherit the manager's IPC/file-descriptor state.
+    self.process_factory = get_context('spawn').Process if spawn else Process
 
   def start(self) -> None:
     # In case we only tried a non blocking stop we need to stop it before restarting
@@ -217,7 +220,7 @@ class PythonProcess(ManagerProcess):
       return
 
     cloudlog.info(f"starting python {self.module}")
-    self.proc = Process(name=self.name, target=self.launcher, args=(self.module, self.name))
+    self.proc = self.process_factory(name=self.name, target=self.launcher, args=(self.module, self.name))
     self.proc.start()
     self.shutting_down = False
 
@@ -272,6 +275,11 @@ def ensure_running(procs: ValuesView[ManagerProcess], started: bool, params: Par
 
   running = []
   for p in procs:
+    # Reap dead processes so start() can launch a replacement; without this a
+    # crashed process without restart_if_crash would never come back.
+    if p.proc is not None and p.proc.exitcode is not None:
+      p.stop(block=False)
+
     if p.enabled and p.name not in not_run and p.should_run(started, params, CP):
       if p.restart_if_crash and p.proc is not None and not p.proc.is_alive():
         cloudlog.error(f"Restarting {p.name} (exitcode {p.proc.exitcode})")
