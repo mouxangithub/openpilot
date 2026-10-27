@@ -22,7 +22,7 @@ Adaptations for sunnypilot:
   ``rightBlindspot`` plus the carrot LiDAR hints
   (``carStateSP.carrotLeftBlindHint`` / ``carrotRightBlindHint``).
 - ``ui_state.params_memory`` does not exist on this UIState, so memory params
-  use a local ``Params(memory=True)``.
+  use the memory params directory.
 - The mask/crop JSON param ``PIPPreviewMask`` is unchanged; without a
   configured mask no bubble is drawn.
 """
@@ -165,7 +165,6 @@ class PipSideCamera(Widget):
 
     # memory params: the mask and enable flags are transient tuning values
     self._params = ui_state.params
-    self._params_memory = Params(memory=True)
 
     self._enabled = False
     self._show_on_blinker = False
