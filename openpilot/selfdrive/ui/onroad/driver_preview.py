@@ -72,11 +72,14 @@ class DriverPreview(Widget):
       self._model_frame, self._model_progress = model.frameId, now
     driver_fresh = driver_fresh and now - self._model_progress < PREVIEW_MAX_AGE
     vision = dm.visionPolicyState
-    state = preview_state(monitoring_fresh=monitoring_fresh, camera_unavailable=dm.cameraUnavailable,
+    # cp's DriverMonitoringState has cameraUnavailable; the zp rework dropped it.
+    # getattr guards both schemas (capnp raises AttributeError on missing members).
+    camera_unavailable = getattr(dm, 'cameraUnavailable', False)
+    state = preview_state(monitoring_fresh=monitoring_fresh, camera_unavailable=camera_unavailable,
                           driver_fresh=driver_fresh, face_detected=vision.faceDetected,
                           distracted=vision.isDistracted, lockout=dm.lockout or dm.alwaysOnLockout,
                           wheel_policy=str(dm.activePolicy) == 'wheeltouch')
-    animate = (monitoring_fresh and driver_fresh and not dm.cameraUnavailable and vision.faceDetected and
+    animate = (monitoring_fresh and driver_fresh and not camera_unavailable and vision.faceDetected and
                state.kind in ('tracking', 'warning'))
     if animate:
       if self._driver_side != dm.isRHD or now - self._draw_time >= PREVIEW_MAX_AGE:

@@ -6,6 +6,7 @@ instead of cp's mici compact hookup.
 """
 import importlib.util
 import math
+import re
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace as NS
@@ -275,3 +276,33 @@ def test_pearl_eyes_gated_by_param_in_road_view():
   source = (root / 'onroad/augmented_road_view.py').read_text(encoding='utf-8')
   assert 'DriverPreview()' in source
   assert 'ui_state.pearl_eyes' in source
+
+
+def _struct_members(capnp_text: str, struct_name: str) -> set[str]:
+  """Top-level members (2-space indent) of a log.capnp struct, up to the next struct."""
+  match = re.search(rf'^struct {struct_name} \{{\n(.*?)^struct ', capnp_text, re.M | re.S)
+  assert match, f'struct {struct_name} not found'
+  return set(re.findall(r'^  ([a-z]\w+) @\d+', match.group(1), re.M))
+
+
+def _nested_members(capnp_text: str, struct_name: str, nested_name: str) -> set[str]:
+  match = re.search(rf'^  struct {nested_name} \{{\n(.*?)^  \}}', capnp_text, re.M | re.S)
+  assert match, f'{struct_name}.{nested_name} not found'
+  return set(re.findall(r'^    ([a-z]\w+) @\d+', match.group(1), re.M))
+
+
+def test_driver_preview_reads_only_real_cereal_members():
+  """The cp port originally read dm.cameraUnavailable, which this fork's
+  (zp-reworked) DriverMonitoringState dropped. Mocked tests passed, but the
+  first real render with cruise engaged crashed ui in a loop -> spinner/home
+  flicker. Field references here must stay aligned with cereal/log.capnp."""
+  root = Path(__file__).resolve().parents[3]
+  capnp = (root / 'cereal' / 'log.capnp').read_text(encoding='utf-8')
+  source = (root / 'selfdrive' / 'ui' / 'onroad' / 'driver_preview.py').read_text(encoding='utf-8')
+
+  dm_refs = set(re.findall(r'\bdm\.(\w+)', source))
+  assert dm_refs <= _struct_members(capnp, 'DriverMonitoringState'), dm_refs
+  vision_refs = set(re.findall(r'\bvision\.(\w+)', source))
+  assert vision_refs <= _nested_members(capnp, 'DriverMonitoringState', 'VisionPolicyState'), vision_refs
+  model_refs = set(re.findall(r'\bmodel\.(\w+)', source))
+  assert model_refs <= _struct_members(capnp, 'DriverStateV2'), model_refs
