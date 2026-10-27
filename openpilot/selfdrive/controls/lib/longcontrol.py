@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 from opendbc.car.structs import car
 from openpilot.common.realtime import DT_CTRL
@@ -9,6 +11,32 @@ from openpilot.sunnypilot.selfdrive.controls.lib.longcontrol import LongControlS
 CONTROL_N_T_IDX = ModelConstants.T_IDXS[:CONTROL_N]
 
 STOPPING_DECEL_RATE = 0.3  # m/s^2/s while trying to stop
+
+# CP-4: user-tunable stopping deceleration (StarringAccel / cp-style StoppingAccel).
+# Param is a FLOAT in m/s^2 (not hundredths like cp); unset/invalid values keep
+# the stock per-car CP.stopAccel so default behavior is fully equivalent.
+# NOTE: settings-page entry intentionally not wired yet (menu owner will add it);
+# the key is deliberately NOT registered in params_keys.h, default lives in code.
+STOPPING_ACCEL_PARAM_KEY = "StoppingAccel"
+STOPPING_ACCEL_MIN = -4.0  # m/s^2, most aggressive allowed
+STOPPING_ACCEL_MAX = -0.3  # m/s^2, least aggressive allowed
+
+
+def clamp_stopping_accel(value, default: float) -> float:
+  """Clamp a user-provided stopping accel to [STOPPING_ACCEL_MIN, STOPPING_ACCEL_MAX].
+
+  Any unset / unparseable / non-finite / out-of-range value falls back to
+  ``default`` (the stock per-car stopAccel) instead of being clamped to the
+  nearest bound, so stale or hostile param writes can never change behavior
+  beyond the safe envelope.
+  """
+  try:
+    v = float(value)
+  except (TypeError, ValueError):
+    return float(default)
+  if not math.isfinite(v) or not (STOPPING_ACCEL_MIN <= v <= STOPPING_ACCEL_MAX):
+    return float(default)
+  return v
 
 LongCtrlState = car.CarControl.Actuators.LongControlState
 
@@ -67,6 +95,10 @@ class LongControl(LongControlSP):
     self._creep_guard_enabled = False
     self._params = None
     self._stop_release_tracker = None
+    # CP-4: param-tunable stopping deceleration, defaults to the stock
+    # per-car constant; refreshed at 1 Hz alongside the gates below.
+    self._stopping_accel_frame = 0
+    self.stopping_accel = self.CP.stopAccel
 
   def _refresh_gates(self):
     self._gate_frame += 1
@@ -83,6 +115,20 @@ class LongControl(LongControlSP):
       self._stop_release_enabled = False
       self._creep_guard_enabled = False
 
+  def _refresh_stopping_accel(self):
+    self._stopping_accel_frame += 1
+    if self._stopping_accel_frame % 100 != 0:  # 1 s @ 100 Hz
+      return
+    try:
+      if self._params is None:
+        from openpilot.common.params import Params
+        self._params = Params()
+      value = self._params.get_float(STOPPING_ACCEL_PARAM_KEY, default=0.0)
+    except Exception:
+      # PC test hosts (no libparams) or unknown key: keep stock behavior.
+      value = None
+    self.stopping_accel = clamp_stopping_accel(value, self.CP.stopAccel)
+
   def reset(self):
     self.pid.reset()
 
@@ -92,6 +138,7 @@ class LongControl(LongControlSP):
     self.pid.pos_limit = accel_limits[1]
 
     self._refresh_gates()
+    self._refresh_stopping_accel()
 
     previous_state = self.long_control_state
 
@@ -123,9 +170,10 @@ class LongControl(LongControlSP):
 
     elif self.long_control_state == LongCtrlState.stopping:
       output_accel = self.last_output_accel
-      if output_accel > self.CP.stopAccel:
+      if output_accel > self.stopping_accel:
         output_accel = min(output_accel, 0.0)
-        # TODO: can we just go straight to stopAccel?
+        # CP-4: hold accel while stopping is user-tunable (StoppingAccel);
+        # defaults to CP.stopAccel so unset behavior is unchanged.
         output_accel -= self.stopping_decel_rate(CS.vEgo) * DT_CTRL
       self.reset()
 

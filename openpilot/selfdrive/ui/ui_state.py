@@ -18,6 +18,11 @@ from openpilot.selfdrive.modeld.helpers import chestnut_compiled
 from openpilot.selfdrive.selfdrived.alertmanager import OFFROAD_ALERTS
 
 from openpilot.selfdrive.ui.sunnypilot.ui_state import UIStateSP, DeviceSP
+from openpilot.selfdrive.ui.screen_settings import (
+  apply_offset,
+  calculate_screen_brightness,
+  read_screen_brightness,
+)
 
 BACKLIGHT_OFFROAD = 65 if HARDWARE.get_device_type() == "mici" else 50
 PARAM_UPDATE_TIME = 1 / 5.0
@@ -316,6 +321,12 @@ class Device(DeviceSP):
     self._awake: bool = True
 
     self._offroad_brightness: int = BACKLIGHT_OFFROAD
+    # StarPilot-style screen settings: onroad/offroad levels + offsets.
+    # Keys are unregistered (defaults in code); unset = stock behavior.
+    self._screen_brightness_onroad: int | None = None
+    self._screen_brightness_onroad_offset: float = 0.0
+    self._screen_brightness_offroad: int | None = None
+    self._screen_brightness_offroad_offset: float = 0.0
     self._last_brightness: int = 0
     self._brightness_filter = FirstOrderFilter(BACKLIGHT_OFFROAD, 10.00, 1 / gui_app.target_fps)
     self._brightness_thread: threading.Thread | None = None
@@ -383,23 +394,42 @@ class Device(DeviceSP):
     else:
       self.set_offroad_brightness(int(val))
 
+    # StarPilot-style screen settings: dedicated offroad level + offset.
+    # Unknown keys read as unset and leave the stock Brightness handling
+    # above untouched. Settings-page entry to be added separately.
+    try:
+      (self._screen_brightness_onroad, self._screen_brightness_onroad_offset,
+       self._screen_brightness_offroad, self._screen_brightness_offroad_offset) = read_screen_brightness(ui_state.params)
+    except Exception:
+      self._screen_brightness_onroad, self._screen_brightness_onroad_offset = None, 0.0
+      self._screen_brightness_offroad, self._screen_brightness_offroad_offset = None, 0.0
+    self._offroad_brightness = calculate_screen_brightness(
+      self._offroad_brightness, self._screen_brightness_offroad, self._screen_brightness_offroad_offset)
+
   def _update_brightness(self):
     clipped_brightness = self._offroad_brightness
 
     if ui_state.started and ui_state.light_sensor >= 0:
-      clipped_brightness = ui_state.light_sensor
+      # StarPilot-style screen settings: ScreenBrightnessOnroad (unset = auto)
+      # overrides the light-sensor path; the offset scales the automatic path
+      # only and is ignored in manual mode, matching StarPilot semantics.
+      if self._screen_brightness_onroad is None:
+        clipped_brightness = ui_state.light_sensor
 
-      # CIE 1931 - https://www.photonstophotos.net/GeneralTopics/Exposure/Psychometric_Lightness_and_Gamma.htm
-      if clipped_brightness <= 8:
-        clipped_brightness = clipped_brightness / 903.3
+        # CIE 1931 - https://www.photonstophotos.net/GeneralTopics/Exposure/Psychometric_Lightness_and_Gamma.htm
+        if clipped_brightness <= 8:
+          clipped_brightness = clipped_brightness / 903.3
+        else:
+          clipped_brightness = ((clipped_brightness + 16.0) / 116.0) ** 3.0
+
+        min_brightness = 30
+        if gui_app.sunnypilot_ui():
+          min_brightness = DeviceSP.set_min_onroad_brightness(ui_state, min_brightness)
+
+        clipped_brightness = float(np.interp(clipped_brightness, [0, 1], [min_brightness, 100]))
+        clipped_brightness = apply_offset(clipped_brightness, self._screen_brightness_onroad_offset)
       else:
-        clipped_brightness = ((clipped_brightness + 16.0) / 116.0) ** 3.0
-
-      min_brightness = 30
-      if gui_app.sunnypilot_ui():
-        min_brightness = DeviceSP.set_min_onroad_brightness(ui_state, min_brightness)
-
-      clipped_brightness = float(np.interp(clipped_brightness, [0, 1], [min_brightness, 100]))
+        clipped_brightness = float(self._screen_brightness_onroad)
 
     brightness = round(self._brightness_filter.update(clipped_brightness))
 
