@@ -171,7 +171,6 @@ msgid "UI Debug Mode"
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\developer.py
-#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\onboarding.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
@@ -372,7 +371,6 @@ msgid "Firehose Mode"
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\firehose.py
-#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
 msgid ""
 "sunnypilot learns to drive by watching humans, like you, drive.\n"
 "\n"
@@ -487,6 +485,34 @@ msgstr ""
 #: openpilot\selfdrive\ui\layouts\settings\imu_calibration.py
 #: openpilot\selfdrive\ui\mici\layouts\settings\imu_calibration.py
 msgid "Disengage to reset calibration"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\initial_cruise_speed.py
+#: openpilot\selfdrive\ui\mici\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\initial_cruise_speed.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_renderer.py
+msgid "km/h"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\initial_cruise_speed.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\initial_cruise_speed.py
+#: openpilot\selfdrive\ui\mici\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\onroad\hud_renderer.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\initial_cruise_speed.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
+#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_renderer.py
+msgid "mph"
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\settings.py
@@ -672,6 +698,10 @@ msgid "The driver monitoring system can be toggled on/off, but long-term activat
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Replace the driver monitoring camera thumbnail with animated pearl cartoon eyes that mirror head pose and blinks."
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Set how sensitive the driver distraction detection should be. Strict: Very sensitive, warns on minor distractions. Moderate: Balanced between sensitivity and false positives. Lenient: Only alerts on clear distractions. "
 msgstr ""
 
@@ -692,12 +722,8 @@ msgid "Record and store microphone audio while driving. The audio will be includ
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "sunnypilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. Experimental features are listed below:<br><h4>End-to-End Longitudinal Control</h4><br>Let the driving model control the gas and brakes. sunnypilot will drive as it thinks a human would, including stopping for red lights and stop signs. Since the driving model decides the speed to drive, the set speed will only act as an upper bound. This is an alpha quality feature; mistakes should be expected.<br><h4>New Driving Visualization</h4><br>The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. The Experimental mode logo will also be shown in the top right corner."
-msgstr ""
-
-#: openpilot\selfdrive\ui\layouts\settings\toggles.py
-msgid "Driving Personality"
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Following Distance"
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
@@ -717,16 +743,7 @@ msgid "Changing this setting will restart sunnypilot if the car is powered on."
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
-msgid "Experimental mode is currently unavailable on this car since the car's stock ACC is used for longitudinal control."
-msgstr ""
-
-#: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Enable sunnypilot"
-msgstr ""
-
-#: openpilot\selfdrive\ui\layouts\settings\toggles.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "Experimental Mode"
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
@@ -739,6 +756,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Always-On Driver Monitoring"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "DM Pearl Eyes Display"
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
@@ -758,7 +779,11 @@ msgid "Use Metric System"
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
-msgid "sunnypilot longitudinal control may come in a future update."
+msgid "Initial Max Speed"
+msgstr ""
+
+#: openpilot\selfdrive\ui\layouts\settings\toggles.py
+msgid "Max speed when engaging openpilot. If you are already driving faster, your current speed is used. Resume restores the previous max speed. Changes apply the next time you engage."
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
@@ -795,14 +820,6 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\settings\toggles.py
 msgid "Sport"
-msgstr ""
-
-#: openpilot\selfdrive\ui\layouts\settings\toggles.py
-msgid "Enable the sunnypilot longitudinal control (alpha) toggle to allow Experimental mode."
-msgstr ""
-
-#: openpilot\selfdrive\ui\layouts\settings\toggles.py
-msgid "An alpha version of sunnypilot longitudinal control can be tested, along with Experimental mode, on non-release branches."
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\sidebar.py
@@ -861,6 +878,7 @@ msgid "OFFLINE"
 msgstr ""
 
 #: openpilot\selfdrive\ui\layouts\sidebar.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
 msgid "Unknown"
 msgstr ""
 
@@ -938,6 +956,7 @@ msgid "You must accept the Terms of Service to use sunnypilot."
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\onboarding.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\network\esim_ui.py
 #: openpilot\selfdrive\ui\mici\onroad\cabin_camera_dialog.py
 #: openpilot\selfdrive\ui\onroad\cabin_camera_dialog.py
 msgid "camera starting"
@@ -1016,6 +1035,10 @@ msgid "or go to https://sunnypilot.ai/terms"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "Use alpha openpilot longitudinal control instead of stock ACC. This may disable Automatic Emergency Braking (AEB)."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
 msgid ""
 "enable alpha\n"
 "longitudinal"
@@ -1026,7 +1049,9 @@ msgid "SSH keys"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
-msgid "joystick debug mode"
+msgid ""
+"joystick debug\n"
+"mode"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
@@ -1044,6 +1069,10 @@ msgid "alpha longitudinal"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "navigation (alpha)"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
 msgid "ui debug mode"
 msgstr ""
 
@@ -1053,6 +1082,46 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
 msgid "Not set"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "Grant SSH access to all public keys in your GitHub settings. Only enter your own username."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "Use Android Debug Bridge (ADB) over USB or the network."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "enable ADB"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "Access the device remotely using your SSH keys."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "enable SSH"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "Control the car with a joystick for debugging."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "Run longitudinal maneuvers for testing gas and brake control."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "Run lateral maneuvers for testing steering control."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "Turn-by-turn navigation with a route map. Set a destination from comma connect."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
+msgid "Show touch locations and the UI frame rate."
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\developer.py
@@ -1085,82 +1154,19 @@ msgstr ""
 msgid "Loading..."
 msgstr ""
 
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid "device ID"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid "serial"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
-msgid "pair"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid "reset calibration"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid "reset"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid "reboot"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid "power off"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid "regulatory info"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid ""
-"driver\n"
-"camera preview"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid ""
-"onroad\n"
-"preview"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid ""
-"review\n"
-"training guide"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid ""
-"terms &\n"
-"conditions"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
-msgid "paired"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\device\device_layout.py
 msgid "Please connect to Wi-Fi to complete initial pairing."
 msgstr ""
 
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid "subscribed"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
-msgid "upgrade to prime"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\device.py
+#: openpilot\selfdrive\ui\mici\layouts\settings\device\device_layout.py
 msgid "Device must be registered with the comma.ai backend to pair."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
+msgid ""
+"sunnypilot learns to drive by watching humans, like you, drive.\n"
+"\n"
+"Firehose Mode allows you to maximize your training data uploads to improve openpilot's driving models. More data means bigger models, which means better driving."
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\firehose.py
@@ -1256,6 +1262,19 @@ msgstr ""
 msgid "Cancelled"
 msgstr ""
 
+#: openpilot\selfdrive\ui\mici\layouts\settings\initial_cruise_speed.py
+msgid "KPH"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\initial_cruise_speed.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
+msgid "MPH"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\initial_cruise_speed.py
+msgid "kph"
+msgstr ""
+
 #: openpilot\selfdrive\ui\mici\layouts\settings\network\__init__.py
 msgid "wi-fi"
 msgstr ""
@@ -1275,6 +1294,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\network\__init__.py
 msgid "obtaining IP..."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\network\esim_ui.py
+msgid "Ensure you're connected to the internet and try again."
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\network\network_layout.py
@@ -1310,6 +1333,10 @@ msgid "enter APN..."
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\network\network_layout.py
+msgid "Share the device's internet connection through a Wi-Fi hotspot."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\network\network_layout.py
 #: openpilot\selfdrive\ui\mici\layouts\settings\network\wifi_ui.py
 msgid "enter password..."
 msgstr ""
@@ -1329,6 +1356,22 @@ msgstr ""
 #: openpilot\selfdrive\ui\mici\layouts\settings\network\network_layout.py
 #: openpilot\system\ui\widgets\network.py
 msgid "unmetered"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\network\network_layout.py
+msgid "Metered prevents large uploads on this Wi-Fi connection. Default uses the network's detected setting."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\network\network_layout.py
+msgid "Allow cellular data roaming."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\network\network_layout.py
+msgid "Set the access point name required by your cellular carrier. Leave blank for automatic configuration."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\network\network_layout.py
+msgid "Prevent large uploads over the cellular connection."
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\network\wifi_ui.py
@@ -1400,34 +1443,6 @@ msgid "imu calibration"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\software.py
-msgid "version"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\software.py
-msgid "branch"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\software.py
-msgid "check for update"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\software.py
-msgid "install now"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\software.py
-msgid "target branch"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\software.py
-msgid "uninstall sunnypilot"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\software.py
-msgid "uninstall"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\software.py
 msgid "Please connect to Wi-Fi to update."
 msgstr ""
 
@@ -1446,16 +1461,16 @@ msgid "driving personality"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
+msgid "experimental mode"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
 msgid "enable accel controller"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
 msgid "acceleration profile"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
-msgid "experimental mode"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
@@ -1475,7 +1490,7 @@ msgid "distraction detection level"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
-msgid "record & upload driver camera"
+msgid "record & upload cabin camera"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
@@ -1499,6 +1514,24 @@ msgid "relaxed"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
+msgid ""
+"Standard is recommended.\n"
+"Aggressive follows closer, with firmer gas and braking.\n"
+"Relaxed leaves more space.\n"
+"Use the steering wheel distance button on supported cars."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
+msgid ""
+"Let the driving model control gas and brakes.\n"
+"Includes stopping for red lights and stop signs.\n"
+"Set speed is a maximum, not a target.\n"
+"These are alpha features. Expect mistakes.\n"
+"The path colors show acceleration and braking."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
 msgid "eco"
 msgstr ""
 
@@ -1511,6 +1544,16 @@ msgid "sport"
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
+msgid ""
+"Warn when you drift across a detected lane line.\n"
+"Only above 31 mph (50 km/h), with no turn signal."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
+msgid "Monitor the driver even when sunnypilot is not engaged."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
 msgid "strict"
 msgstr ""
 
@@ -1520,6 +1563,22 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
 msgid "lenient"
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
+msgid "Upload cabin camera data to help improve driver monitoring."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
+msgid ""
+"Record microphone audio while driving.\n"
+"Audio is included in dashcam videos in sunnylink."
+msgstr ""
+
+#: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
+msgid ""
+"Enable to use sunnypilot driver assistance.\n"
+"Disable to use your car's stock driver assistance."
 msgstr ""
 
 #: openpilot\selfdrive\ui\mici\layouts\settings\toggles.py
@@ -1611,38 +1670,6 @@ msgstr ""
 msgid "MAX"
 msgstr ""
 
-#: openpilot\selfdrive\ui\mici\onroad\hud_renderer.py
-#: openpilot\selfdrive\ui\onroad\hud_renderer.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
-#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
-#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
-#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_renderer.py
-msgid "km/h"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\onroad\hud_renderer.py
-#: openpilot\selfdrive\ui\onroad\hud_renderer.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
-#: openpilot\selfdrive\ui\sunnypilot\onroad\chevron_metrics.py
-#: openpilot\selfdrive\ui\sunnypilot\onroad\developer_ui\elements.py
-#: openpilot\selfdrive\ui\sunnypilot\onroad\speed_renderer.py
-msgid "mph"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\widgets\pairing_dialog.py
-msgid "pair with comma connect"
-msgstr ""
-
-#: openpilot\selfdrive\ui\mici\widgets\pairing_dialog.py
-#: openpilot\selfdrive\ui\widgets\pairing_dialog.py
-msgid "QR Code Error"
-msgstr ""
-
 #: openpilot\selfdrive\ui\onroad\alert_renderer.py
 msgid "sunnypilot Unavailable"
 msgstr ""
@@ -1664,25 +1691,47 @@ msgid "Reboot Device"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\accelerator_link.py
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
 #: openpilot\selfdrive\ui\sunnypilot\tests\test_usb_port.py
 msgid "Join the device's hotspot and open Jetlink there."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\accelerator_link.py
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
+#: openpilot\selfdrive\ui\sunnypilot\model_info.py
+msgid "check cable or app"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\accelerator_link.py
+#: openpilot\selfdrive\ui\sunnypilot\model_info.py
+msgid "check cable"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\accelerator_link.py
+msgid "Jetlink connected:"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\accelerator_link.py
 #: openpilot\selfdrive\ui\sunnypilot\tests\test_usb_port.py
 msgid "Nothing on the USB port."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\accelerator_link.py
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
 msgid "A device is on the USB port."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\accelerator_link.py
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
-msgid "Jetlink connected:"
+#: openpilot\selfdrive\ui\sunnypilot\model_info.py
+msgid "{}, {} ({} drops)"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\accelerator_link.py
+#: openpilot\selfdrive\ui\sunnypilot\model_info.py
+msgid "ready on Jetson"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\accelerator_link.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+#: openpilot\selfdrive\ui\sunnypilot\model_info.py
+msgid "downloaded"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\onboarding.py
@@ -1705,15 +1754,15 @@ msgid "sunnylink is designed to be enabled as part of sunnypilot's core function
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
+msgid "sunnypilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. Experimental features are listed below:<br><h4>End-to-End Longitudinal Control</h4><br>Let the driving model control the gas and brakes. zoompilot will drive as it thinks a human would, including stopping for red lights and stop signs. Since the driving model decides the speed to drive, the set speed will only act as an upper bound. This is an alpha quality feature; mistakes should be expected.<br><h4>New Driving Visualization</h4><br>The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. The Experimental mode logo will also be shown in the top right corner."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
 msgid "Alpha Longitudinal"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "Dynamic Experimental Control"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "Enable toggle to allow the model to determine when to use sunnypilot ACC or sunnypilot End to End Longitudinal."
+msgid "Experimental Mode"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
@@ -1721,7 +1770,7 @@ msgid "Experimental Mode Speed Assist"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down. Has no effect while Dynamic Experimental Control is on."
+msgid "In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
@@ -1729,7 +1778,7 @@ msgid "Experimental Mode Lead Follow Assist"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "Closes the gap to your driving personality's following distance behind a steady car. Never closer than chill mode. No effect while Dynamic Experimental Control is on."
+msgid "Closes the gap to your driving personality's following distance behind a steady car. Never closer than chill mode."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
@@ -2233,11 +2282,11 @@ msgid "Cruise Buttons & Speed"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
-msgid "Following Distance"
+msgid "Longitudinal Gains"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
-msgid "Longitudinal Gains"
+msgid "Weather Adaptation"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
@@ -2257,7 +2306,15 @@ msgid "Vehicle CAN Speed Arbitration"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Section Average Speed"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Speed Bumps"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Rear Camera"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
@@ -2313,15 +2370,11 @@ msgid "Longitudinal Control (advanced)"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
-msgid "Carrot Longitudinal Source"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
-msgid "Let the phone app drive the longitudinal plan: its target speed becomes a plan source, and its follow time, comfort braking and stop point reach the MPC. Off keeps stock sunnypilot behaviour. Needs a connected phone - without a fresh packet the source stays inactive."
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Navigation Control (advanced)"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "ONNX Vision Detection (BSD / Lane)"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
@@ -2429,6 +2482,50 @@ msgid "Follow Deceleration Boost"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Lengthen the follow time, widen the stopped gap and lower the acceleration and lateral limits in bad weather. The weather is detected from the car's position; these offsets are what gets applied."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Detect Weather Automatically"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Ask Open-Meteo for the conditions where the car is, instead of entering them by hand. Uses the mobile data connection while driving."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Extra Follow Time"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Seconds added to the follow time in bad weather."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Extra Stopped Gap"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Metres added to the distance held behind a stopped lead in bad weather."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Acceleration Reduction"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Percent taken off the acceleration ceiling in bad weather."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Lateral Acceleration Reduction"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Percent taken off the lateral acceleration ceiling in bad weather, so curves are taken slower."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Navigation Speed Ctrl Mode"
 msgstr ""
 
@@ -2513,6 +2610,22 @@ msgid "Speed Camera Control Mode"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Section Avg Control"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Inside a point-to-point average speed section, allow up to the cruise set speed while the running average stays under the limit. Time banked in congestion is spent over the next kilometre."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Section Avg Margin"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Km/h subtracted from the section limit as the target average. Higher = more headroom before the section cap lifts."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Speed Bump End Distance"
 msgstr ""
 
@@ -2526,6 +2639,14 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Speed Bump Hold Time"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Rear Camera Hold Distance"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Distance over which navigation speed control stays paused while the rear camera (reverse gear) is active, in centimetres."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
@@ -2666,6 +2787,14 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Curve Speed Lower Limit"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Lane Line Curve Speed Gate"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Below this curve speed (km/h), the lane-line curvature correction is suppressed so tight bends rely on the map/vision curve speed alone. 0 disables the gate."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
@@ -2869,6 +2998,14 @@ msgid "Show Debug Log"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Carrot Longitudinal Source"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Let the phone app drive the longitudinal plan: its target speed becomes a plan source, and its follow time, comfort braking and stop point reach the MPC. Off keeps stock sunnypilot behaviour. Needs a connected phone - without a fresh packet the source stays inactive."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Traffic Congestion Slowdown"
 msgstr ""
 
@@ -2882,6 +3019,54 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 msgid "Let the phone app guided-lane arrows block lane changes toward non-guided lanes. Only ever adds blocking."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "ONNX Blind Spot Detection"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Run the ONNX blind-spot model on the camera image and report side obstacles in the UI. Off unloads the model and frees its memory; the thresholds below have no effect."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "BSD Detection Threshold"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Confidence threshold for ONNX blind-spot detection, in percent. Higher means fewer, more certain detections."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "BSD Smoothing Time"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "How long a blind-spot object must persist before it is reported."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "BSD Inference Interval"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Time between blind-spot inferences."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Lane Detection Threshold"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Confidence threshold for ONNX lane detection, in percent."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Lane Inference Interval"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+msgid "Time between lane inferences. Values below 600 ms are raised by the server, which would saturate a CPU core."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
@@ -2900,7 +3085,6 @@ msgstr ""
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
 msgid "Default"
 msgstr ""
 
@@ -2945,6 +3129,7 @@ msgid "Vehicle Speed"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
 msgid "Speed + Distance"
 msgstr ""
 
@@ -3014,7 +3199,7 @@ msgid "Enable custom Short & Long press increments for cruise speed increase/dec
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
-msgid "This feature can only be used with sunnypilot longitudinal control enabled."
+msgid "This feature can only be used with zoompilot longitudinal control enabled."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
@@ -3046,6 +3231,38 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
 msgid "Use map data to estimate the appropriate speed to drive through turns ahead."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Conditional Experimental Mode"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Automatically switch experimental mode on demanding curves, slow leads and low-speed turns. A manual switch keeps priority for a minute."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "  CEM: Curves"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Experimental mode follows lateral acceleration while cornering."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "  CEM: Curves While Following"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Allow the curve trigger while following a lead car."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "  CEM: Slow Leads"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
+msgid "Experimental mode follows when closing on a slower lead."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise.py
@@ -3178,6 +3395,26 @@ msgid "%"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Tiered"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Never"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Lower"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Higher"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Both"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
 msgid "Off: Disables the Speed Limit functions."
 msgstr ""
 
@@ -3206,6 +3443,10 @@ msgid "Percent: Adds a percent offset [Speed Limit + (Offset % Speed Limit)]"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Tiered: Adds a different offset for each speed limit range."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
 msgid "Customize Source"
 msgstr ""
 
@@ -3213,12 +3454,32 @@ msgstr ""
 msgid "Speed Limit Offset"
 msgstr ""
 
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Confirm Limit Changes"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Ask before taking a new speed limit. Adds to the low-speed confirmation, never replaces it."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Manage Tiered Offsets"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Offset applied to the speed limit in this range."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\cruise_sub_layouts\speed_limit_settings.py
+msgid "Limit"
+msgstr ""
+
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
 msgid "Show Advanced Controls"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
-msgid "Toggle visibility of advanced sunnypilot controls.<br>This only changes the visibility of the toggles; it does not change the actual enabled/disabled state."
+msgid "Toggle visibility of advanced zoompilot controls.<br>This only changes the visibility of the toggles; it does not change the actual enabled/disabled state."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
@@ -3246,7 +3507,7 @@ msgid "Error Log"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
-msgid "View the error log for sunnypilot crashes."
+msgid "View the error log for zoompilot crashes."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\developer.py
@@ -3282,6 +3543,14 @@ msgid "Are you sure you want to enter Always Offroad mode?"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Undo Safe Mode and put back the values it replaced?"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Safe Mode forces every driving knob this fork adds back to a conservative value and remembers what it replaced. Continue?"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
 msgid "Always On"
 msgstr ""
 
@@ -3295,6 +3564,14 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
 msgid "Enable Always Offroad"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Exit Safe Mode"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Enable Safe Mode"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
@@ -3332,7 +3609,7 @@ msgid "Reset Settings"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
-msgid "Are you sure you want to reset all sunnypilot settings to default? Once the settings are reset, there is no going back."
+msgid "Are you sure you want to reset all zoompilot settings to default? Once the settings are reset, there is no going back."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
@@ -3353,6 +3630,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
 msgid "Offroad"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
+msgid "Safe Mode is on. Reboot so every process picks up the forced values."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\device.py
@@ -3408,6 +3689,14 @@ msgid "Hide the Firehose prompt on the home screen. The prompt will not be rende
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Show Driving Model on Home Screen"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+msgid "Name the active driving model on the offroad home screen."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
 msgid "Screen Saver"
 msgstr ""
 
@@ -3420,6 +3709,7 @@ msgid "Screen Saver Duration"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\display.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\display.py
 msgid "How long the screen saver runs before the screen turns off."
 msgstr ""
 
@@ -3431,12 +3721,66 @@ msgstr ""
 msgid "{} m"
 msgstr ""
 
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Replace the single following distance per personality with a speed-dependent profile. The follow time is interpolated over speed, so the gap can be shorter in town and longer on the highway."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Following Profile"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Aggressive Personality"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Standard Personality"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Relaxed Personality"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Preset used for the aggressive driving personality: close (1.25 s -> 1.0 s), medium (1.45 s -> 1.2 s) or far (1.6 s -> 1.4 s), low speed -> highway speed."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Preset used for the standard driving personality: close (1.25 s -> 1.0 s), medium (1.45 s -> 1.2 s) or far (1.6 s -> 1.4 s), low speed -> highway speed."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Preset used for the relaxed driving personality: close (1.25 s -> 1.0 s), medium (1.45 s -> 1.2 s) or far (1.6 s -> 1.4 s), low speed -> highway speed."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
+msgid "Close"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Medium"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Far"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\following_profile_toggles.py
+msgid "Custom Following Profiles"
+msgstr ""
+
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Run big models over a connected device running Jetlink. USB and iOS turn off ADB."
+msgid "Run big models over a connected device running Jetlink. Turns off ADB."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 msgid "Enable this for the car to learn and adapt its steering response time. Disable to use a fixed steering response time. Keeping this on provides the stock openpilot experience."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Jetlink"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
@@ -3485,10 +3829,6 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 msgid "Virtually shift camera's perspective to move model's center to Left(+ values) or Right (- values)"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Jetlink"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
@@ -3573,6 +3913,11 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "canceling..."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
 #: openpilot\system\ui\mici_setup.py
 msgid "download failed"
 msgstr ""
@@ -3637,17 +3982,14 @@ msgid "queued"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
 msgid "{} is ready. Disengage fully, then re-engage to switch."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
 msgid "{} will drive when Jetlink is ready."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
 msgid "{} will drive."
 msgstr ""
 
@@ -3685,7 +4027,6 @@ msgid "{} drives until the big model is ready."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
 msgid "{} drives until {} is ready."
 msgstr ""
 
@@ -3922,7 +4263,7 @@ msgid "Disable Updates"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
-msgid "Enable the beloved MADS feature. Disable toggle to revert back to stock sunnypilot engagement/disengagement."
+msgid "Lets zoompilot steer while cruise control is off. When off, steering and cruise engage and disengage together."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
@@ -3970,7 +4311,7 @@ msgid "Enforce Torque Lateral Control"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
-msgid "Enable this to enforce sunnypilot to steer with Torque lateral control."
+msgid "Enable this to enforce zoompilot to steer with Torque lateral control."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
@@ -3979,6 +4320,26 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
 msgid "Neural Network Lateral Control (NNLC)"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Steer Ratio Rate"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Scales the live steering ratio, in percent. 100 keeps the vehicle's ratio."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Custom Steer Ratio"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Fixed steering ratio in 0.1 units (e.g. 130 = 13.0). Overrides the live ratio when above 10. 0 uses the vehicle's ratio."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
+msgid "Stock"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering.py
@@ -4005,11 +4366,39 @@ msgid "Toggle to enable a delay timer for seamless lane changes when blind spot 
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Lane Change Smoothing"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Slow automatic lane changes to a chosen pace. Off is stock; every pace is gentler than stock. The end-of-maneuver correction keeps its authority at every pace, so the car settles into the new lane without a wheel snap."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
 msgid "Block Lane Change: Road Edge Detection"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
-msgid "Blocks the lane change if the model sees a road edge on your signaled side."
+msgid "Blocks the lane change if the model sees a road edge on your signaled side. Silent shows the alert without the chime."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Fast"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Slow"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Extra Slow"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Audible"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
+msgid "Silent"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
@@ -4022,6 +4411,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
 msgid "Note: For vehicles without LFA/LKAS button, disabling this will prevent lateral control engagement."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "The physical TJA button toggles Automatic Lane Centering and MRCC only controls cruise. Main Cruise and UEM no longer engage or disengage lateral control. Enable only if your car has the button."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
@@ -4069,7 +4462,7 @@ msgid "Note: Once lateral control is engaged via UEM, it will remain engaged unt
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
-msgid "Choose how Automatic Lane Centering (ALC) behaves after the brake pedal is manually pressed in sunnypilot."
+msgid "Choose how Automatic Lane Centering (ALC) behaves after the brake pedal is manually pressed in zoompilot."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
@@ -4082,6 +4475,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
 msgid "Steering Mode on Brake Pedal"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\mads_settings.py
+msgid "Mazda TJA Button"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
@@ -4097,11 +4494,19 @@ msgid "Select Torque Control Tune Version"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
-msgid "Torque Control Tune Version"
+msgid "Torque Control Tune Version (Small Models)"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
-msgid "Select the version of Torque Control Tune to use."
+msgid "Select the version of Torque Control Tune to use while the small model is driving."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Torque Control Tune Version (Big Models)"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
+msgid "Select the version of Torque Control Tune to use while a big model is driving."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
@@ -4269,7 +4674,7 @@ msgid "Click the Sponsor button for more details"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
-msgid "Enable sunnylink uploader to allow sunnypilot to upload your driving data to sunnypilot servers. "
+msgid "Enable sunnylink uploader to allow zoompilot to upload your driving data to sunnylink servers. "
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
@@ -4414,7 +4819,7 @@ msgid "This feature is unavailable while the car is onroad."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\hyundai.py
-msgid "This feature is unavailable because sunnypilot Longitudinal Control (Alpha) is not enabled."
+msgid "This feature is unavailable because Alpha Longitudinal is not enabled."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\subaru.py
@@ -4426,6 +4831,7 @@ msgid "Stop and Go for Manual Parking Brake (Beta)"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\subaru.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
 msgid "This feature is currently not available on this platform."
 msgstr ""
 
@@ -4523,6 +4929,10 @@ msgid "Link the Toyota drive-mode button (ECO/NORMAL/SPORT) into sunnypilot logi
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
+msgid "Enable smoother longitudinal control for TSS2 vehicles. Uses a custom speed-dependent integral gain curve for smoother traffic driving."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
 msgid "Enforce Factory Longitudinal Control"
 msgstr ""
 
@@ -4544,6 +4954,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
 msgid "Enable drive mode btn link"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\brands\toyota.py
+msgid "TSS2 Smooth Longitudinal (Alpha)"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\vehicle\platform_selector.py
@@ -4595,11 +5009,11 @@ msgid "Enter model year (e.g., 2021) and model (Toyota Corolla):"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
-msgid "Display useful metrics below the chevron that tracks the lead car only applicable to cars with sunnypilot longitudinal control."
+msgid "Display useful metrics below the chevron that tracks the lead car only applicable to cars with zoompilot longitudinal control."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
-msgid "This feature requires sunnypilot longitudinal control to be available."
+msgid "This feature requires zoompilot longitudinal control to be available."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
@@ -4620,6 +5034,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
 msgid "Displays the name of the road the car is traveling on.<br>The OpenStreetMap database of the location must be downloaded from the OSM panel to fetch the road name."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Play the green traffic light and lead departure alerts even when cruise is engaged and holding the car at a standstill.<br>Without this, those alerts only chime while cruise is disengaged. ACC holding at a light never starts moving by itself.<br>Note: This chime is only designed as a notification. It is the driver's responsibility to observe their environment and make decisions accordingly."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
@@ -4647,6 +5065,10 @@ msgid "Show an indicator on the left side of the screen to display real-time veh
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Draw a ring on the HUD with the traffic light evidence the neural model currently sees.<br>The outer ring is what the model observes; the centre dot is what the planner actually applies, and only appears with SignalAssistMode set to 2.<br><br>Experimental and advisory only. Nothing here lets openpilot act on a traffic light on your behalf. Always check the light yourself."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
 msgid "Show Blind Spot Warnings"
 msgstr ""
 
@@ -4664,6 +5086,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
 msgid "Display Road Name"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Chime Alerts While Engaged (Beta)"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
@@ -4691,6 +5117,18 @@ msgid "Real-time Acceleration Bar"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Neural Signal Assist Indicator (Experimental)"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Display Radar Points"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Label what the front radar tracks on the road view.<br>Speed Only: relative speed on moving tracks. Speed + Distance: adds lateral offset and distance. Full: every measured point, plus a marker for static returns.<br><br>Display only. It does not change how the car drives."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
 msgid "Display Metrics Below Chevron"
 msgstr ""
 
@@ -4700,6 +5138,14 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
 msgid "Display real-time parameters and metrics from various sources."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Speed Only"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Full"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
@@ -4755,15 +5201,7 @@ msgid "exp."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\longitudinal_mode.py
-msgid "dynamic"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\longitudinal_mode.py
 msgid "experimental"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
-msgid "dynamic experimental control"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
@@ -4772,6 +5210,24 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
 msgid "lead follow assist"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
+msgid ""
+"Lets zoompilot control the gas and brakes instead of stock cruise.\n"
+"This may turn off Automatic Emergency Braking (AEB)."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
+msgid ""
+"Experimental Mode often cruises below your set speed.\n"
+"It gently raises your speed toward it when the road ahead is clear."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
+msgid ""
+"Experimental Mode often follows farther back than your following distance.\n"
+"It closes the gap behind a steady car, never closer than chill mode."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
@@ -4813,10 +5269,6 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
 msgid "none"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
-msgid "intelligent cruise button management"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
@@ -4864,7 +5316,55 @@ msgid "offset value"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
+msgid ""
+"Slows for curves the camera sees, then resumes your set speed.\n"
+"Works alone or with slow for curves: map."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
+msgid ""
+"Slows for curves in map data, then resumes your set speed.\n"
+"Download maps in sunnylink first."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
+msgid "Set how far a short press and a long press of + or - move your set speed."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
+msgid "How far one tap of + or - moves your set speed."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
+msgid "How far holding + or - moves your set speed at each step."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
+msgid ""
+"Assist: when the limit changes, press - or + to set your speed to match.\n"
+"Info and warn show the sign on a comma 3X only."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
+msgid ""
+"Car uses the signs your car reads. Map uses downloaded maps.\n"
+"Car-first and map-first use the other when the first has none.\n"
+"Combined uses the lower of the two.\n"
+"On a Mazda, car needs a nav SD card."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
 msgid "fixed"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
+msgid ""
+"Adds an offset to the speed limit.\n"
+"Fixed adds a set amount of speed. % adds a percentage of the limit."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
+msgid "The amount added to the speed limit. Negative values go below it."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
@@ -4918,6 +5418,10 @@ msgid "ui timeout"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\display.py
+msgid "model on home"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\display.py
 msgid "screen saver"
 msgstr ""
 
@@ -4929,16 +5433,38 @@ msgstr ""
 msgid "second"
 msgstr ""
 
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\display.py
+msgid ""
+"Screen brightness while driving, after the brightness delay.\n"
+"Auto (dark) lets auto brightness go dimmer.\n"
+"Alerts brighten the screen again."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\display.py
+msgid "How long to wait before the brightness setting applies."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\display.py
+msgid ""
+"How long settings stay open without a touch.\n"
+"Offroad, the screen then turns off, or the screen saver starts.\n"
+"Default keeps the stock timing."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\display.py
+msgid "Shows the driving model's name at the bottom of the home screen."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\display.py
+msgid "Shows a screen saver when offroad and idle, instead of a dark screen."
+msgstr ""
+
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
 msgid "small model"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
 msgid "big model"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
-msgid "jetlink"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
@@ -4966,7 +5492,38 @@ msgid "cancel download"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "jetlink"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
 msgid "clear cache"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid ""
+"Choose the driving model. Small models run on the comma.\n"
+"Big models run on a Chestnut or over Jetlink."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "Fetches the latest list of driving models."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid "Stops the model download in progress."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid ""
+"Runs big models on a computer or phone plugged into the comma.\n"
+"USB for a Mac, Jetson, Linux PC or Android. iOS for an iPhone or iPad.\n"
+"Turns off ADB. The small model drives until the big model is ready."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
+msgid ""
+"Deletes downloaded models to free up space.\n"
+"Your selected small and big models are kept."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
@@ -5020,11 +5577,6 @@ msgstr ""
 msgid "progress"
 msgstr ""
 
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
-#: openpilot\selfdrive\ui\sunnypilot\model_info.py
-msgid "downloaded"
-msgstr ""
-
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onboarding.py
 msgid ""
 "enable\n"
@@ -5039,10 +5591,6 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onboarding.py
 msgid "sunnylink enables secured remote access to your comma device from anywhere."
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
-msgid "MPH"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onroad_info_panel.py
@@ -5086,6 +5634,12 @@ msgid "km"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
+msgid ""
+"Keeps the device offroad while the car is on, so zoompilot won't engage.\n"
+"Settings that need the car off can be changed."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
 msgid "models"
 msgstr ""
 
@@ -5107,6 +5661,18 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
 msgid "trips"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
+msgid "enable always offroad"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
+msgid "exit always offroad"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
+msgid "Ends always offroad, so zoompilot can engage again."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\settings.py
@@ -5155,11 +5721,23 @@ msgid "extra slow"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid "audible"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid "silent"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
 msgid "nudge"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
 msgid "nudgeless"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid "v2 turns in earlier for curves and makes fewer highway corrections."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
@@ -5267,7 +5845,128 @@ msgid "friction"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Neural Network Lateral Control.\n"
+"Steers with a neural network instead of the torque controller."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Lets zoompilot steer while cruise control is off.\n"
+"When off, steering and cruise engage and disengage together."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Turning cruise main on also turns steering on.\n"
+"Cars without a lane keep button need this on to steer."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Engaging cruise also turns steering on.\n"
+"Steering then stays on until you switch it off or turn off the car."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"What steering does when you press the brake.\n"
+"Remain keeps steering. Pause resumes it when you let go.\n"
+"Disengage turns steering off."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"The wheel's TJA button becomes the only steering switch.\n"
+"The MRCC main button then only controls cruise.\n"
+"Turn on only if your car has the button."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Nudge: signal, then nudge the wheel to change lanes.\n"
+"Nudgeless changes lanes as soon as you signal. A time waits that long first.\n"
+"Off: zoompilot never changes lanes."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid "Waits an extra second after the blind spot clears."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Blocks a lane change toward a road edge the model sees.\n"
+"Silent shows the alert without the chime."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
 msgid "smoothing"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Makes lane changes slower and smoother.\n"
+"Off is stock. Every other pace is slower."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid "Pauses steering while you signal at low speed, so you can turn by hand."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid "Below this speed, the blinker pauses steering."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid "How long steering waits to resume after the blinker turns off."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Steers with torque control, using zoompilot's tunes.\n"
+"The tune version, self tune and custom tune settings need it on."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Looks ahead at planned steering to reduce sudden corrections.\n"
+"The wheel moves more smoothly through turns."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Learns how your car steers as you drive and tunes to match.\n"
+"It learns each speed range separately."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Self-tune learns from fewer samples.\n"
+"It accepts values further from the car's defaults."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Use your own lateral acceleration and friction as the starting tune.\n"
+"Self-tune still learns from there unless manual realtime is on."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Steers with your values at every speed, ignoring self-tune.\n"
+"Changes apply within a few seconds, even while driving."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"Lateral acceleration factor: how much the car turns per unit of torque.\n"
+"Higher values steer with less torque."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid ""
+"How much steering friction the controller pushes through first.\n"
+"Higher values add more torque for small corrections."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
@@ -5284,6 +5983,14 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
 msgid "tune version"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid "The steering tune used while a small model drives."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
+msgid "The steering tune used while a big model drives."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\steering.py
@@ -5375,7 +6082,33 @@ msgid "enable sunnylink"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid ""
+"Connects to sunnylink for backups, map downloads and remote settings.\n"
+"Off stops all sunnylink requests."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "Saves your zoompilot settings to sunnylink."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid ""
+"Restores your settings from your last sunnylink backup.\n"
+"Restart to apply them."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
 msgid "sunnylink uploader"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid ""
+"Uploads your driving data to sunnylink servers.\n"
+"A test for the highest sponsor tiers. It does nothing for you yet."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "Pair and manage sunnylink apps on phones connected to the same Wi-Fi network."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
@@ -5384,6 +6117,14 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
 msgid "sponsor"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "paired"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "pair"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
@@ -5400,6 +6141,16 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
 msgid "backing up"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid "Pair your GitHub account to give this device your sponsor benefits."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
+msgid ""
+"Shows a QR code to sponsor sunnypilot, the project behind sunnylink.\n"
+"Sponsors get early access to new sunnylink features."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\sunnylink.py
@@ -5475,7 +6226,28 @@ msgid "blind spot"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\visuals.py
+msgid "Shows a warning on screen when a car is in your blind spot."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\visuals.py
 msgid "rainbow mode"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\visuals.py
+msgid ""
+"Draws the driving path as a rainbow.\n"
+"It does not change how the car drives."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\visuals.py
+msgid "alerts while engaged"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\visuals.py
+msgid ""
+"Play the green light and lead depart chimes even while cruise is engaged\n"
+"and holding at a standstill. Without it they only chime while cruise\n"
+"is off. Check the road before you go."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\visuals.py
@@ -5483,7 +6255,19 @@ msgid "green light alert"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\visuals.py
+msgid ""
+"Chimes when the light you're stopped at turns green with no car ahead.\n"
+"Only while cruise is not engaged. Check the road before you go."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\visuals.py
 msgid "lead depart alert"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\visuals.py
+msgid ""
+"Chimes when you're stopped and the car ahead pulls away.\n"
+"Only while cruise is not engaged. Check the road before you go."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\widgets\button.py
@@ -5499,20 +6283,7 @@ msgid "pair with sunnylink"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\model_info.py
-msgid "check cable"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\model_info.py
-msgid "{}, {} ({} drops)"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\model_info.py
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
-msgid "ready on Jetson"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\model_info.py
-msgid "check cable or app"
+msgid "{}% on disk"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\model_info.py
@@ -5636,16 +6407,8 @@ msgstr ""
 msgid "NW"
 msgstr ""
 
-#: openpilot\selfdrive\ui\sunnypilot\tests\test_accelerator_ui.py
-msgid "USB and iOS turn off ADB."
-msgstr ""
-
-#: openpilot\selfdrive\ui\widgets\exp_mode_button.py
-msgid "EXPERIMENTAL MODE ON"
-msgstr ""
-
-#: openpilot\selfdrive\ui\widgets\exp_mode_button.py
-msgid "CHILL MODE ON"
+#: openpilot\selfdrive\ui\sunnypilot\onroad\navigation_card.py
+msgid "Then"
 msgstr ""
 
 #: openpilot\selfdrive\ui\widgets\offroad_alerts.py
@@ -5718,10 +6481,6 @@ msgid "<b>Unsupported branch detected</b> - The current version of <b><u>%1</u><
 msgstr ""
 
 #: openpilot\selfdrive\ui\widgets\offroad_alerts.py
-msgid "Close"
-msgstr ""
-
-#: openpilot\selfdrive\ui\widgets\offroad_alerts.py
 msgid "Snooze Update"
 msgstr ""
 
@@ -5747,6 +6506,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\widgets\pairing_dialog.py
 msgid "Bookmark connect.comma.ai to your home screen to use it like an app"
+msgstr ""
+
+#: openpilot\selfdrive\ui\widgets\pairing_dialog.py
+msgid "QR Code Error"
 msgstr ""
 
 #: openpilot\selfdrive\ui\widgets\prime.py
