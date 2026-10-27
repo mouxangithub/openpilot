@@ -12,6 +12,10 @@ import os
 
 LITE = os.getenv("LITE") is not None
 
+# Params whose registered default is on: get_bool() ignores the registered
+# default, so these must be read with return_default=True.
+DEFAULT_ON_PARAMS = {"CarrotDMPearlEyes"}
+
 if gui_app.sunnypilot_ui():
   from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp as toggle_item
   from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp as multiple_button_item
@@ -43,6 +47,8 @@ DESCRIPTIONS = {
     "without a turn signal activated while driving over 31 mph (50 km/h)."
   ),
   "AlwaysOnDM": tr_noop("The driver monitoring system can be toggled on/off, but long-term activation is recommended"),
+  "CarrotDMPearlEyes": tr_noop(
+    "Replace the driver monitoring camera thumbnail with animated pearl cartoon eyes that mirror head pose and blinks."),
   "DistractionDetectionLevel": tr_noop(
     "Set how sensitive the driver distraction detection should be. " +
     "Strict: Very sensitive, warns on minor distractions. " +
@@ -84,6 +90,12 @@ class TogglesLayout(Widget):
       "AlwaysOnDM": (
         lambda: tr("Always-On Driver Monitoring"),
         DESCRIPTIONS["AlwaysOnDM"],
+        "monitoring.png",
+        False,
+      ),
+      "CarrotDMPearlEyes": (
+        lambda: tr("DM Pearl Eyes Display"),
+        DESCRIPTIONS["CarrotDMPearlEyes"],
         "monitoring.png",
         False,
       ),
@@ -170,7 +182,7 @@ class TogglesLayout(Widget):
       toggle = toggle_item(
         title,
         desc,
-        self._params.get_bool(param),
+        self._toggle_state(param),
         callback=lambda state, p=param: self._toggle_callback(state, p),
         icon=icon,
       )
@@ -220,6 +232,11 @@ class TogglesLayout(Widget):
     self._scroller.show_event()
     self._update_toggles()
 
+  def _toggle_state(self, param: str) -> bool:
+    if param in DEFAULT_ON_PARAMS:
+      return self._params.get(param, return_default=True)
+    return self._params.get_bool(param)
+
   def _update_toggles(self):
     ui_state.update_params()
     accel_controller_enabled = self._params.get_bool("AccelPersonalityEnabled")
@@ -240,7 +257,7 @@ class TogglesLayout(Widget):
     # TODO: make a param control list item so we don't need to manage internal state as much here
     # refresh toggles from params to mirror external changes
     for param in self._toggle_defs:
-      self._toggles[param].action_item.set_state(self._params.get_bool(param))
+      self._toggles[param].action_item.set_state(self._toggle_state(param))
     self._accel_controller_enabled.action_item.set_state(accel_controller_enabled)
     self._accel_personality_setting.action_item.set_selected_button(self._params.get("AccelPersonality", return_default=True))
 

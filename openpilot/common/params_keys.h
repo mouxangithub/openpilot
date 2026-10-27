@@ -10,6 +10,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AdbEnabled", {PERSISTENT | BACKUP, BOOL}},
     {"AdvancedLateralTune", {PERSISTENT | BACKUP, BOOL, "0"}},  // FLM advanced lateral master switch
     {"AlwaysOnDM", {PERSISTENT | BACKUP, BOOL}},
+    {"CarrotDMPearlEyes", {PERSISTENT | BACKUP, BOOL, "1"}},  // Pearl cartoon eyes replace the DM camera thumbnail (default on)
     {"ApiCache_Device", {PERSISTENT, STRING}},
     {"ApiCache_FirehoseStats", {PERSISTENT, JSON}},
     {"AssistNowToken", {PERSISTENT, STRING}},
