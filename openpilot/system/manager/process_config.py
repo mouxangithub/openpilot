@@ -131,6 +131,24 @@ def speed_limit_vision_enabled(started: bool, params: Params, CP: car.CarParams)
   """
   return started and params.get_bool("SpeedLimitVisionEnabled") and not CP.passive
 
+def bluetooth_audio_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  """Bluetooth audio manager (bluetooth_managerd, ported from StarPilot): opt-in
+  through BluetoothAudioEnabled (default off, code-level - not in params_keys.h).
+
+  The daemon itself further gates every radio operation behind its own
+  BluetoothEnabled param, mirroring StarPilot's bluetooth_enabled gate.
+
+  KNOWN LIMITATION (kept documented, mirrors the task's feasibility report): AGNOS
+  does not ship bluez/D-Bus or the bluez-alsa plugin, and sunnypilot does not
+  install StarPilot's /usr/comma/bluetooth-radio helper or its radio systemd
+  service. With the param on, the daemon starts, reports available=False and
+  every Bluetooth operation fails with "Bluetooth radio support is not
+  installed"; it never touches the Qualcomm stack (/dev/btpower, /dev/ttyHS1)
+  that AGNOS actually uses. This port is for forks/images that do ship bluez
+  (e.g. custom radio bring-up); keep the param off on stock devices.
+  """
+  return params.get_bool("BluetoothAudioEnabled")
+
 def sunnylink_ready_shim(started, params, CP: car.CarParams) -> bool:
   """Shim for sunnylink_ready to match the process manager signature."""
   return sunnylink_ready(params)
@@ -431,6 +449,14 @@ procs += [
   # classifier ONNX pipeline). Off by default; opt-in through SpeedLimitVisionEnabled.
   # The process renices itself to 19 and throttles on CPU/memory pressure.
   PythonProcess("speed_limit_vision", "openpilot.sunnypilot.system.speed_limit_vision", speed_limit_vision_enabled),
+
+  # Bluetooth audio device manager (bluetooth_managerd), ported from StarPilot's
+  # starpilot/system/bluetooth (bluez D-Bus + bluez-alsa A2DP output). Opt-in through
+  # BluetoothAudioEnabled (default off). See the feasibility note on the gate function
+  # above: stock AGNOS has no bluez, so this is inert on comma hardware unless a
+  # custom image ships bluez + the radio helper. Distinct from carrot_bluetooth
+  # (HID remotes via evdev) - that one stays always_run.
+  PythonProcess("bluetooth_managerd", "openpilot.sunnypilot.system.bluetooth.daemon", bluetooth_audio_enabled),
 ]
 procs = extend_procs(procs)
 
