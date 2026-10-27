@@ -94,12 +94,12 @@ class TestStockEcuNotReady:
     assert alert.duration == int(3. / DT_CTRL)  # frames
 
   @pytest.mark.parametrize("state, standstill, expected", [
-    ("starting", True, {"Longitudinal Initializing", "Remain parked"}),
-    ("starting", False, {"Longitudinal Initializing", "Wait for the radar takeover"}),
-    ("parkToTakeOver", False, {"Park to Engage Longitudinal", "Alpha longitudinal takes over at the next stop"}),
-    ("stockCruiseOn", False, {"Turn Off Stock Cruise", "Alpha longitudinal waits for it"}),
-    ("restoring", False, {"Longitudinal Handing Back", "Stock cruise returns when it completes"}),
-    ("failed", True, {"Longitudinal Initializing Failed", "Restart the car to retry"}),
+    ("starting", True, {"纵向控制初始化中", "请保持停车"}),
+    ("starting", False, {"纵向控制初始化中", "等待雷达接管"}),
+    ("parkToTakeOver", False, {"停车以启用纵向控制", "Alpha 纵向将在下次停车时接管"}),
+    ("stockCruiseOn", False, {"请关闭原厂巡航", "Alpha 纵向正在等待"}),
+    ("restoring", False, {"纵向控制交还中", "完成后恢复原厂巡航"}),
+    ("failed", True, {"纵向控制初始化失败", "重启车辆以重试"}),
   ])
   def test_text_names_what_the_driver_has_to_do(self, state, standstill, expected):
     assert _alert(state, standstill)[1] == expected
@@ -143,8 +143,8 @@ class TestStockEcuUnprompted:
     ready = EVENTS_ZP[EventNameZP.stockEcuReady][ET.PERMANENT]
     for alert in (initializing, ready):
       assert alert.audible_alert == AudibleAlert.none
-    assert {initializing.alert_text_1, initializing.alert_text_2} == {"Longitudinal Initializing", "Remain parked"}
-    assert ready.alert_text_1 == "Alpha Longitudinal Ready"
+    assert {initializing.alert_text_1, initializing.alert_text_2} == {"纵向控制初始化中", "请保持停车"}
+    assert ready.alert_text_1 == "Alpha 纵向已就绪"
     assert ready.duration == int(2. / DT_CTRL)
 
   def test_both_show_with_nothing_engaged(self):

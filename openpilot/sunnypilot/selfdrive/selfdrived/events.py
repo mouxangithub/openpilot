@@ -256,16 +256,16 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # tizi only its border.
   EventNameSP.stockLkasOff: {
     ET.NO_ENTRY: Alert(
-      "Lateral Disabled",
-      "LKAS is off",
+      "横向已停用",
+      "LKAS 已关闭",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.refuse, 3.),
-    **({ET.PERMANENT: NormalPermanentAlert("Lateral Disabled", "LKAS is off", priority=Priority.LOW)} if IS_MICI else {}),
+    **({ET.PERMANENT: NormalPermanentAlert("横向已停用", "LKAS 已关闭", priority=Priority.LOW)} if IS_MICI else {}),
   },
 
   # LKA back on with lateral resuming, the EPS not delivering yet: still disabled to the driver.
   EventNameSP.stockLkasArming: {
-    ET.PERMANENT: NormalPermanentAlert("Lateral Disabled", "Waiting for steering", priority=Priority.LOW),
+    ET.PERMANENT: NormalPermanentAlert("横向已停用", "等待转向就绪", priority=Priority.LOW),
   } if IS_MICI else {},
 
   EventNameSP.laneTurnLeft: {

@@ -44,19 +44,19 @@ def mici(monkeypatch):
 
 
 class TestPreActivePrompt:
-  @pytest.mark.parametrize("set_speed, text", [(40, "Press + for\n45 mph"), (55, "Press - for\n45 mph")])
+  @pytest.mark.parametrize("set_speed, text", [(40, "按 + 键调至\n45 mph"), (55, "按 - 键调至\n45 mph")])
   def test_names_the_target(self, mici, set_speed, text):
     assert _alert(EventNameSP.speedLimitPreActive, 45, set_speed).alert_text_1 == text
 
   def test_metric(self, mici):
-    assert _alert(EventNameSP.speedLimitPreActive, 80, 100, metric=True).alert_text_1 == "Press - for\n80 km/h"
+    assert _alert(EventNameSP.speedLimitPreActive, 80, 100, metric=True).alert_text_1 == "按 - 键调至\n80 km/h"
 
   def test_tizi_draws_the_sign_instead(self):
     assert _alert(EventNameSP.speedLimitPreActive, 45, 40).alert_size == AlertSize.none
 
   def test_pcm_long_asks_for_the_required_max(self, mici):
     assert _alert(EventNameSP.speedLimitPreActive, 45, 40, pcm_long=True).alert_text_1 == \
-      "Speed Limit Assist: set to 70 mph to engage"
+      "限速辅助：请将设定速度调至 70 英里/时 以启用"
 
 
 class TestActiveNotice:
@@ -66,18 +66,18 @@ class TestActiveNotice:
   ])
   def test_names_the_speed_it_settles_at(self, target, set_speed, speed):
     alert = _alert(EventNameSP.speedLimitActive, target, set_speed)
-    assert alert.alert_text_1 == f"Adjusting to {speed} mph"
+    assert alert.alert_text_1 == f"正在调整至限速 {speed} mph"
     assert alert.alert_size == AlertSize.small
 
   def test_metric(self):
-    assert _alert(EventNameSP.speedLimitActive, 80, 100, metric=True).alert_text_1 == "Adjusting to 80 km/h"
+    assert _alert(EventNameSP.speedLimitActive, 80, 100, metric=True).alert_text_1 == "正在调整至限速 80 km/h"
 
   def test_below_the_confirm_threshold_says_the_same(self):
-    assert _alert(EventNameSP.speedLimitChanged, 35, 45).alert_text_1 == "Adjusting to 35 mph"
+    assert _alert(EventNameSP.speedLimitChanged, 35, 45).alert_text_1 == "正在调整至限速 35 mph"
 
   def test_mici_keeps_the_unit_with_its_number(self, mici):
-    assert _alert(EventNameSP.speedLimitActive, 45, 60).alert_text_1 == "Adjusting to\n45 mph"
+    assert _alert(EventNameSP.speedLimitActive, 45, 60).alert_text_1 == "正在调整至限速\n45 mph"
 
   def test_unset_set_speed_falls_back_to_the_target(self):
     # vCruiseCluster 0 falls back to controlsState's vCruise, 0 when nothing published
-    assert _alert(EventNameSP.speedLimitActive, 45, 0).alert_text_1 == "Adjusting to 45 mph"
+    assert _alert(EventNameSP.speedLimitActive, 45, 0).alert_text_1 == "正在调整至限速 45 mph"
