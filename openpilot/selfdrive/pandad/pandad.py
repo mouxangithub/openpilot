@@ -67,7 +67,15 @@ def flash_panda(panda_serial: str):
   panda.close()
 
 
-def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -> list[str]:
+def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -> tuple[list[str], bool]:
+  """Pick the active panda; also report whether an external Red Panda is visible.
+
+  The Red Panda flag feeds PANDAD_MASK_DOS_IGNITION: on comma three setups with
+  an external Red Panda the dos reports false ignitions via the harness box
+  without a harness connector, so the C++ daemon must mask the dos ignition
+  line (ported from master-c3's red_panda_comma_three).
+  """
+  red_panda_present = False
   spi_serials = set(Panda.spi_list())
   if use_red_panda:
     # user opts in to an external Red Panda (H7 CAN-FD) as the active panda;
@@ -77,23 +85,33 @@ def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -
         continue
       panda = Panda(serial)
       try:
-        if panda.get_type() == Panda.HW_TYPE_RED_PANDA:
-          return [serial]
+        hw_type = panda.get_type()
+        red_panda_present |= hw_type == Panda.HW_TYPE_RED_PANDA
+        if hw_type == Panda.HW_TYPE_RED_PANDA:
+          return [serial], red_panda_present
       finally:
         panda.close()
 
   for serial in panda_serials:
     if serial in spi_serials:
-      return [serial]
+      return [serial], red_panda_present
 
+  # scan every USB panda once: an external Red Panda next to the internal dos
+  # must be detected even though the dos itself wins the selection, so do not
+  # return on the first internal panda before the rest have been inspected
+  internal_serial = None
   for serial in panda_serials:
     panda = Panda(serial)
-    is_internal = panda.is_internal()
-    panda.close()
-    if is_internal:
-      return [serial]
+    try:
+      red_panda_present |= panda.get_type() == Panda.HW_TYPE_RED_PANDA
+      if internal_serial is None and panda.is_internal():
+        internal_serial = serial
+    finally:
+      panda.close()
+  if internal_serial is not None:
+    return [internal_serial], red_panda_present
 
-  return []
+  return [], red_panda_present
 
 
 def main() -> None:
@@ -142,7 +160,7 @@ def main() -> None:
         flash_rivian_long(panda_serials)
         # find the internal supported panda (e.g. skip external Black Panda),
         # or the external Red Panda when UseRedPanda is set
-        panda_serials = check_panda_support(panda_serials, use_red_panda=Params().get_bool("UseRedPanda"))
+        panda_serials, red_panda_present = check_panda_support(panda_serials, use_red_panda=Params().get_bool("UseRedPanda"))
 
         if not panda_serials:
           # e.g. only an external panda is visible while the internal one is
@@ -154,6 +172,16 @@ def main() -> None:
         assert len(panda_serials) == 1
         cloudlog.info(f"{len(panda_serials)} panda found, connecting - {panda_serials}")
         flash_panda(panda_serials[0])
+
+        # comma three + external Red Panda: the dos gets false positive
+        # ignitions from the harness box without a harness connector; tell the
+        # C++ daemon to mask the dos ignition line (master-c3
+        # red_panda_comma_three, adapted to the single-panda architecture)
+        if red_panda_present:
+          cloudlog.warning("external Red Panda detected, masking dos ignition line false positives")
+          os.environ['PANDAD_MASK_DOS_IGNITION'] = '1'
+        else:
+          os.environ.pop('PANDAD_MASK_DOS_IGNITION', None)
 
         # run real pandad; pass the verified serial so the C++ daemon connects
         # the selected panda instead of picking USB enumeration order, which

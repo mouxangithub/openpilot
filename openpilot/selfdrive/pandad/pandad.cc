@@ -203,6 +203,16 @@ std::optional<bool> send_panda_states(PubMaster *pm, Panda *panda, bool is_onroa
     health.flags_pkt |= HEALTH_FLAG_IGNITION_LINE;
   }
 
+  // on comma three setups with an external Red Panda, the dos can get false
+  // positive ignitions due to the harness box without a harness connector, so
+  // ignore its ignition line (ported from master-c3's red_panda_comma_three;
+  // pandad.py exports PANDAD_MASK_DOS_IGNITION when it sees a Red Panda
+  // alongside the internal dos)
+  static const bool mask_dos_ignition = getenv("PANDAD_MASK_DOS_IGNITION") != nullptr;
+  if (mask_dos_ignition && (panda->hw_type == cereal::PandaState::PandaType::DOS)) {
+    health.flags_pkt &= ~HEALTH_FLAG_IGNITION_LINE;
+  }
+
   bool ignition_local = ((health.flags_pkt & (HEALTH_FLAG_IGNITION_LINE | HEALTH_FLAG_IGNITION_CAN)) != 0U) && !always_offroad;
 
   // Make sure CAN buses are live: safety_setter_thread does not work if Panda CAN are silent and there is only one other CAN node
