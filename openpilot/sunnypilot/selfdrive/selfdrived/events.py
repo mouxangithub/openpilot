@@ -65,6 +65,16 @@ def big_model_ready_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.Sub
                Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 2.)
 
 
+def speed_limit_changed_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
+  # StarPilot's speedLimitChanged standing alert: the posted limit moved and stayed moved.
+  # Detection lives in selfdrived (SpeedLimitChangedAlertTracker); this only presents it.
+  return Alert(
+    "限速已变化",
+    "",
+    AlertStatus.normal, AlertSize.small,
+    Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 3.0)
+
+
 def speed_limit_pre_active_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
   speed_conv = CV.MS_TO_KPH if metric else CV.MS_TO_MPH
   # vCruise/vCruiseCluster are kph; the resolver speeds below are m/s
@@ -302,6 +312,13 @@ EVENTS_SP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       "",
       AlertStatus.normal, AlertSize.small,
       Priority.LOW, VisualAlert.none, AudibleAlertSP.promptSingleHigh, 5.),
+  },
+
+  # speed limit change announcement, opt-in (SpeedLimitChangedAlert, default off):
+  # a sustained speedLimitLast jump chimes once per change, the same shape as
+  # StarPilot's speedLimitChanged (standing PERMANENT alert, low priority, prompt chime)
+  EventNameSP.speedLimitChangedAlert: {
+    ET.PERMANENT: speed_limit_changed_alert,
   },
 
   EventNameSP.e2eChime: {

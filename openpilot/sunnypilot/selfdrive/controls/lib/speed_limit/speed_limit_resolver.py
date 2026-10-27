@@ -41,6 +41,74 @@ ALL_SOURCES = tuple(SpeedLimitSource.schema.enumerants.values())
 CARROT_LIMIT_MIN_KPH = 1
 CARROT_LIMIT_MAX_KPH = 250
 
+# Speed limit change announcement (SpeedLimitChangedAlert param, default off): the jump the
+# limit must cross before it counts as a change, how long the new value must hold steady
+# before the alert fires, and how much the "steady" value may wobble while it holds.
+SPEED_LIMIT_CHANGED_ALERT_MIN_DELTA_KPH = 5.  # kph
+SPEED_LIMIT_CHANGED_ALERT_HOLD_S = 2.         # s
+SPEED_LIMIT_CHANGED_ALERT_STABLE_KPH = 1.     # kph
+
+
+class SpeedLimitChangedAlertTracker:
+  """Detects a sustained jump of the resolver's speedLimitLast.
+
+  Ported from StarPilot's slc limit-change announcement (starpilot_events): when the last
+  valid speed limit moves by at least SPEED_LIMIT_CHANGED_ALERT_MIN_DELTA_KPH and the new
+  value holds steady for SPEED_LIMIT_CHANGED_ALERT_HOLD_S, update() returns True exactly
+  once. The hold-time debounce rides out flaky sources - a map handoff, a one-frame vision
+  flicker, a carrot reconnect - which either snap back inside the hold window or keep
+  moving, both of which reset the timer without alerting.
+
+  The announced baseline only follows values that stay within the jump threshold of it, so
+  a slow re-grade (50 -> 52 -> 54 km/h) never chimes; only a genuine sign change does.
+  """
+
+  def __init__(self):
+    self._announced = 0.  # m/s, the limit the driver has already been living with
+    self._candidate = 0.  # m/s, the new limit waiting out its hold time
+    self._timer = 0.      # s, how long the candidate has held steady
+
+  def reset(self) -> None:
+    self._announced = 0.
+    self._candidate = 0.
+    self._timer = 0.
+
+  def update(self, speed_limit_last: float, dt: float) -> bool:
+    """Feed one frame of speedLimitLast (m/s); True exactly once per confirmed change."""
+    if speed_limit_last <= 0.:
+      # no limit: nothing to announce and nothing to compare against
+      self.reset()
+      return False
+
+    if self._announced <= 0.:
+      # first limit after a reset (plannerd start, or the first sign of a session):
+      # seed the baseline without alerting
+      self._announced = speed_limit_last
+      self._candidate = 0.
+      self._timer = 0.
+      return False
+
+    if abs(speed_limit_last - self._announced) * CV.MS_TO_KPH < SPEED_LIMIT_CHANGED_ALERT_MIN_DELTA_KPH:
+      # back on (or drifting within the threshold of) the announced value: re-arm
+      self._announced = speed_limit_last
+      self._candidate = 0.
+      self._timer = 0.
+      return False
+
+    if self._candidate > 0. and abs(speed_limit_last - self._candidate) * CV.MS_TO_KPH < SPEED_LIMIT_CHANGED_ALERT_STABLE_KPH:
+      self._timer += dt
+    else:
+      # a new (or still-moving) value: restart the hold timer on it
+      self._candidate = speed_limit_last
+      self._timer = 0.
+
+    if self._timer >= SPEED_LIMIT_CHANGED_ALERT_HOLD_S:
+      self._announced = self._candidate
+      self._candidate = 0.
+      self._timer = 0.
+      return True
+    return False
+
 
 def _carrot_limit_ms(kph) -> float:
   """carrot limit (kph) → m/s, or 0.0 when it is not a plausible value."""

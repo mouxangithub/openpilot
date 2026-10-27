@@ -4,13 +4,16 @@ import os
 
 from openpilot.cereal import log
 from opendbc.car.structs import car
+from opendbc.car.hyundai.values import HyundaiFlags
 import openpilot.cereal.messaging as messaging
 from openpilot.common.constants import CV
 from openpilot.common.git import get_short_branch
+from openpilot.common.params import Params
 from openpilot.common.realtime import DT_CTRL
 from openpilot.selfdrive.locationd.calibrationd import MIN_SPEED_FILTER
 from openpilot.common.hardware import HARDWARE
 from openpilot.common.dm import is_dm_disabled
+from openpilot.sunnypilot.common.param_read import read_bool
 
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EventsBase, Priority, ET, Alert, \
   NoEntryAlert, SoftDisableAlert, UserSoftDisableAlert, ImmediateDisableAlert, EngagementAlert, NormalPermanentAlert, \
@@ -303,6 +306,26 @@ def nnff_load_alert(model_name: str, fuzzy: bool) -> Alert:
   text = f"{model_name}（替代模型）" if fuzzy else model_name
   return Alert("NNFF 扭矩模型已加载", text, AlertStatus.userPrompt, AlertSize.mid,
                Priority.LOW, VisualAlert.none, AudibleAlert.prompt, 6.0)
+
+
+def can_error_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
+  # cp's camera-SCC hint (selfdrived/events.py car_parser_result): on a Hyundai whose
+  # fingerprint has no CAMERA_SCC flag and whose HyundaiCameraSCC toggle is off, a canError
+  # is often the camera-bus SCC that nobody told openpilot about, so name the fix instead of
+  # the symptom. Gated on HyundaiCameraSccHint (BOOL, default off — no other behaviour
+  # changes); every non-Hyundai car, this repo's Toyota included, always gets the plain text.
+  if (CP.brand == "hyundai" and not (CP.flags & HyundaiFlags.CAMERA_SCC)
+      and Params().get_int("HyundaiCameraSCC") == 0 and read_bool(Params(), "HyundaiCameraSccHint")):
+    return Alert(
+      "CAN错误：请开启 CameraSCC",
+      "摄像头总线检测到 SCC",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.LOW, VisualAlert.none, AudibleAlert.none, 1., creation_delay=1.)
+  return Alert(
+    "CAN总线错误：请检查连接",
+    "",
+    AlertStatus.normal, AlertSize.small,
+    Priority.LOW, VisualAlert.none, AudibleAlert.none, 1., creation_delay=1.)
 
 
 EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
@@ -892,11 +915,7 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   # If you're not writing a new car port, this is usually cause by faulty wiring
   EventName.canError: {
     ET.IMMEDIATE_DISABLE: ImmediateDisableAlert("CAN总线错误：请检查连接"),
-    ET.PERMANENT: Alert(
-      "CAN总线错误：请检查连接",
-      "",
-      AlertStatus.normal, AlertSize.small,
-      Priority.LOW, VisualAlert.none, AudibleAlert.none, 1., creation_delay=1.),
+    ET.PERMANENT: can_error_alert,
     ET.NO_ENTRY: NoEntryAlert("CAN总线错误：请检查连接"),
   },
 

@@ -594,6 +594,11 @@ struct OnroadEventSP @0xda96579883444c35 {
     trafficSignGreen @26;
     trafficSignChanged @27;
     trafficStopping @28;
+
+    # speed limit change announcement (SpeedLimitChangedAlert param, default off):
+    # a sustained speedLimitLast jump (>= 5 kph holding > 2 s) fires this once per change,
+    # mirroring StarPilot's speedLimitChanged standing alert
+    speedLimitChangedAlert @37;
   }
 }
 

@@ -33,14 +33,16 @@ from openpilot.common.hardware import HARDWARE
 
 from openpilot.sunnypilot.mads.mads import ModularAssistiveDrivingSystem
 from openpilot.sunnypilot import get_sanitize_int_param
+from openpilot.sunnypilot.common.param_read import read_bool
 from openpilot.sunnypilot.selfdrive.car.car_specific import CarSpecificEventsSP
 from openpilot.sunnypilot.selfdrive.car.intelligent_cruise_button_management.controller import IntelligentCruiseButtonManagement
 from openpilot.sunnypilot.selfdrive.selfdrived.button_state_tracker import ButtonStateTracker
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 from openpilot.sunnypilot.selfdrive.selfdrived.model_events import ModelEventsSP
 from openpilot.sunnypilot.selfdrive.controls.lib.radar_only_warning import RadarOnlyWarning
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.speed_limit_resolver import SpeedLimitChangedAlertTracker
 from openpilot.sunnypilot.selfdrive.selfdrived.conditional_experimental_mode import ConditionalExperimentalMode
-from openpilot.sunnypilot.selfdrive.selfdrived.selfdrived_zp import SelfdrivedZP
+from openpilot.sunnypilot.selfdrive.selfdrived.selfdrived_zp import SelfdrivedZP, lateral_only_experimental_available
 
 REPLAY = "REPLAY" in os.environ
 SIMULATION = "SIMULATION" in os.environ or os.getenv("LITE") is not None
@@ -216,6 +218,13 @@ class SelfdriveD:
     self.button_state_tracker = ButtonStateTracker()
     self.selfdrived_zp = SelfdrivedZP(self.CP, self.params)
     self.conditional_experimental = ConditionalExperimentalMode(self.CP, self.params)
+
+    # Speed limit change announcement (default off): selfdrived owns the detection because the
+    # resolver's speedLimitLast is what moved, but the resolver has no events wire of its own
+    # and the SLA session machine is split between the planner (pcm) and card's arbiter
+    # (stock ACC). Reading the published speedLimitLast here covers every car the same way.
+    self._speed_limit_change_tracker = SpeedLimitChangedAlertTracker()
+    self.speed_limit_changed_alert_enabled = read_bool(self.params, "SpeedLimitChangedAlert")
 
   def update_events(self, CS):
     """Compute onroadEvents from carState"""
@@ -428,6 +437,14 @@ class SelfdriveD:
       self.events_sp.add(custom.OnroadEventSP.EventName.laneTurnLeft)
     elif lane_turn_direction == TurnDirection.turnRight:
       self.events_sp.add(custom.OnroadEventSP.EventName.laneTurnRight)
+
+    # Speed limit change announcement (default off): the tracker consumes the resolver's
+    # published speedLimitLast and confirms the change only after the hold-time debounce,
+    # so a flickering source never reaches the driver.
+    if self.speed_limit_changed_alert_enabled:
+      limit_last = self.sm['longitudinalPlanSP'].speedLimit.resolver.speedLimitLast
+      if self._speed_limit_change_tracker.update(limit_last, DT_CTRL):
+        self.events_sp.add(custom.OnroadEventSP.EventName.speedLimitChangedAlert)
 
     for i, pandaState in enumerate(self.sm['pandaStates']):
       # All pandas must match the list of safetyConfigs, and if outside this list, must be silent or noOutput
@@ -784,11 +801,17 @@ class SelfdriveD:
       self.disengage_on_accelerator = self.params.get_bool("DisengageOnAccelerator")
       # The switch alone is not a request: the confirmation bit is part of it,
       # so a writer that skipped the dialog cannot turn the mode on by itself.
-      self.experimental_mode = experimental_mode_requested(self.params) and self.CP.openpilotLongitudinalControl
+      self.experimental_mode = experimental_mode_requested(self.params) and self.experimental_mode_available()
+      self.speed_limit_changed_alert_enabled = read_bool(self.params, "SpeedLimitChangedAlert")
       self.personality = self.params.get("LongitudinalPersonality", return_default=True)
 
       self.mads.read_params()
       time.sleep(0.1)
+
+  def experimental_mode_available(self) -> bool:
+    """Whether Experimental Mode is valid for this car: openpilot long, or a
+    lateral-only whitelist car (selfdrived_zp.lateral_only_experimental_available)."""
+    return self.CP.openpilotLongitudinalControl or lateral_only_experimental_available(self.CP)
 
   def run(self):
     e = threading.Event()

@@ -14,6 +14,25 @@ ButtonType = structs.CarState.ButtonEvent.Type
 EventName = log.OnroadEvent.EventName
 EventNameSP = custom.OnroadEventSP.EventName
 
+# StarPilot's lateral-only experimental allow-list (starpilot/common/lateral_only_experimental.py),
+# copied verbatim: stock-ACC platforms that may run Experimental Mode for lateral/model testing
+# while the longitudinal actuator gate stays closed. Kept narrow on purpose so stock-ACC
+# vehicles do not gain an experimental control path accidentally.
+# sp's opendbc does not fingerprint HYUNDAI_PALISADE_2023 as its own platform yet, so the
+# allow-list matches nothing today and lights up when the platform is ported.
+LATERAL_ONLY_EXPERIMENTAL_CARS = frozenset({
+  "HYUNDAI_PALISADE_2023",  # StarPilot CAR.HYUNDAI_PALISADE_2023 (also identifies 2023+ Kia Telluride)
+})
+
+
+def lateral_only_experimental_available(CP) -> bool:
+  """Return whether this car may expose Experimental Mode without openpilot long."""
+  return (
+    not bool(getattr(CP, "openpilotLongitudinalControl", False)) and
+    getattr(CP, "carFingerprint", None) in LATERAL_ONLY_EXPERIMENTAL_CARS
+  )
+
+
 # selfdrived runs at 100 Hz
 DISTANCE_LONG_PRESS = 50  # frames the distance button is held to switch experimental mode
 PARAMS_READ_FRAMES = 100
@@ -34,6 +53,9 @@ class SelfdrivedZP:
     self.params = params or Params()
     self.frame = 0
 
+    # Experimental Mode is valid with openpilot long, or on a lateral-only whitelist car
+    # (stock ACC) - StarPilot's experimental_mode_available, see the allow-list above.
+    self.experimental_mode_available = self.CP.openpilotLongitudinalControl or lateral_only_experimental_available(self.CP)
     self.experimental_mode = self._read_experimental_mode()
     self._read_road_edge_silent()
     self.gap_timers = {ButtonType.gapAdjustCruise: 0}
@@ -43,7 +65,7 @@ class SelfdrivedZP:
     self.distance_farther_prev = False
 
   def _read_experimental_mode(self) -> bool:
-    return self.CP.openpilotLongitudinalControl and self.params.get_bool("ExperimentalMode")
+    return self.experimental_mode_available and self.params.get_bool("ExperimentalMode")
 
   def _read_road_edge_silent(self) -> None:
     SelfdrivedZP.road_edge_silent = read_road_edge_mode(self.params) == RoadEdgeMode.SILENT
@@ -56,7 +78,7 @@ class SelfdrivedZP:
       self._read_road_edge_silent()
 
     self.gap_release_steps = True
-    if self.CP.openpilotLongitudinalControl:
+    if self.experimental_mode_available:
       gap_released = any(not be.pressed and be.type == ButtonType.gapAdjustCruise for be in CS.buttonEvents)
       if CS.cruiseState.available:
         update_manual_button_timers(CS, self.gap_timers)
@@ -77,8 +99,9 @@ class SelfdrivedZP:
         self.experimental_mode_switched = False
 
       # the farther button steps the personality up, unless upstream's gapAdjustCruise release
-      # steps it down this frame
-      if self.distance_farther_released(CS_SP) and not gap_released:
+      # steps it down this frame. Longitudinal personality has no actuator to act on without
+      # openpilot long, so the step stays long-only (lateral-only whitelist cars skip it).
+      if self.distance_farther_released(CS_SP) and not gap_released and self.CP.openpilotLongitudinalControl:
         personality = (personality + 1) % 3
         self.params.put('LongitudinalPersonality', personality)
         events.add(EventName.personalityChanged)
