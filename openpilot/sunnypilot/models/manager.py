@@ -406,8 +406,8 @@ class ModelManagerSP:
         self.chestnut_present = self.sm['deviceState'].chestnutPresent
         self.source_models = {source: self.model_fetcher.get_bundles_for_source(source) for source in ModelFetcher.MODEL_SOURCES}
         self.available_models = self.source_models[ModelFetcher.active_source(self.chestnut_present)]
-        carry_over_picks(self.params, self.source_models)
-        validate_active_bundles(self.params, self.source_models)
+        cleared = validate_active_bundles(self.params, self.source_models)
+        carry_over_picks(self.params, self.source_models, cleared)
         self.active_bundle = get_active_bundle(self.params, chestnut=self.chestnut_present)
         maybe_apply_default_model(self.params, self.source_models["qcom"])
 

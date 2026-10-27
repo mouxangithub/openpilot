@@ -27,6 +27,7 @@ zoompilot vUNRELEASED
   * Flip Flop and Mountain Dew v3 are listed separately.
   * The Jetlink port draws less power at boot.
   * comma 3X: no forced reboot with a laptop plugged in.
+  * A picked big model is kept when the model list changes, instead of going back to the default.
 
 zoompilot v2026.10.16-16
 ========================

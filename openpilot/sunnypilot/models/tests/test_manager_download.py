@@ -553,8 +553,9 @@ class TestActiveBundle(OpenpilotTestCase):
     catalog = {"qcom": [custom.ModelManagerSP.ModelBundle(**small)], "chestnut": [custom.ModelManagerSP.ModelBundle(**big)]}
     with mock.patch("openpilot.sunnypilot.models.helpers._bundle_is_valid_locally", return_value=False), \
          mock.patch("openpilot.sunnypilot.models.helpers.chestnut_present", return_value=True):
-      validate_active_bundles(params, catalog)
+      cleared = validate_active_bundles(params, catalog)
     params.remove.assert_called_once_with("ModelManager_ActiveBundle")
+    assert cleared == {"qcom": small}, "the cleared pick goes back to carry_over_picks"
 
   def test_the_accelerator_link_leaves_the_small_pick_in_charge(self):
     # the small model is the fallback under an accelerator, so it stays the

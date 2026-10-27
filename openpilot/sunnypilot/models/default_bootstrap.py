@@ -14,13 +14,13 @@ This runs from the model manager main loop, which refreshes the available bundle
 Applied once, guarded by ``DefaultModelApplied``: a device that already has a model selected keeps
 it, and a user who later reverts to the stock model is never overridden again.
 
-``carry_over_picks`` keeps each device's pick across a selector bump (``REQUIRED_JSON_VERSION``),
-which would otherwise drop every device back to the stock model.
+``carry_over_picks`` keeps each device's pick across a selector bump (``REQUIRED_JSON_VERSION``) or a
+catalog that rebuilt the model, which would otherwise drop every device back to the stock model.
 """
 
 from openpilot.common.swaglog import cloudlog
 from openpilot.cereal import custom
-from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, REQUIRED_JSON_VERSION, get_selected_bundle
+from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_selected_bundle
 
 # Firehose Model in sunnypilot's driving_models manifest. Matched by short name rather than
 # index: the manifest is renumbered on every regeneration (FM was 30 in v17, 28 in v22).
@@ -57,17 +57,18 @@ def maybe_apply_default_model(params, available_bundles: list["custom.ModelManag
   cloudlog.warning(f"Applying {bundle.displayName} as the default model (queued ref {bundle.ref})")
 
 
-def carry_over_picks(params, source_bundles: dict[str, list["custom.ModelManagerSP.ModelBundle"]]) -> None:
-  """Run before validate_active_bundles. A pick stored under an older selector version no longer
-  parses, so validation clears its slot. Remember it first, and once the new catalog lists the same
-  model (by ref, else by short name) queue that download, which fills the slot again. Kept until the
-  slot is filled, so an offline first boot or a download cleared by going onroad tries again; queued
-  once per model per process, so a download that keeps failing does not spin."""
+def carry_over_picks(params, source_bundles: dict[str, list["custom.ModelManagerSP.ModelBundle"]],
+                     cleared: dict[str, dict]) -> None:
+  """Run after validate_active_bundles, with the picks it cleared: one stored under an older selector
+  version no longer parses, and one whose catalog entry changed (a new catalog, or a big model first
+  picked through jetlink's newer catalogs and now listed natively) no longer matches. Once the catalog
+  lists the same model (by ref, else by short name) queue that download, which fills the slot again.
+  Kept until the slot is filled, so an offline first boot or a download cleared by going onroad tries
+  again; queued once per model per process, so a download that keeps failing does not spin."""
   pending = params.get(CARRY_OVER_KEY) or {}
   changed = False
-  for source, key in ACTIVE_BUNDLE_KEYS.items():
-    raw = params.get(key)
-    if isinstance(raw, dict) and raw and raw.get("minimumSelectorVersion") != REQUIRED_JSON_VERSION:
+  for source, raw in cleared.items():
+    if isinstance(raw, dict) and raw:
       pending[source] = {"ref": raw.get("ref", ""), "internalName": raw.get("internalName", "")}
       changed = True
 
@@ -88,7 +89,7 @@ def carry_over_picks(params, source_bundles: dict[str, list["custom.ModelManager
     elif match.ref not in _carry_over_queued and params.get("ModelManager_DownloadRef") is None:
       _carry_over_queued.add(match.ref)
       params.put("ModelManager_DownloadRef", match.ref)
-      cloudlog.warning(f"Carrying the {source} pick {match.displayName} over the selector bump (queued ref {match.ref})")
+      cloudlog.warning(f"Carrying the {source} pick {match.displayName} over to the new catalog (queued ref {match.ref})")
 
   if changed:
     if pending:
