@@ -10,7 +10,7 @@ import math
 import numpy as np
 
 from openpilot.common.realtime import DT_CTRL
-from openpilot.selfdrive.controls.lib.longcontrol import LongCtrlState
+from openpilot.selfdrive.controls.lib.longcontrol import STOPPING_ACCEL_PARAM_KEY, LongCtrlState, clamp_stopping_accel
 
 
 STOP_LEVEL_V = 0.4  # m/s
@@ -106,8 +106,13 @@ class StoppingController:
   CF_SETTLE_JERK = 0.72  # m/s^3
   CF_HOLD_RATE = 0.3  # m/s^2/s
 
-  def __init__(self, stop_accel):
+  def __init__(self, stop_accel, params=None):
     self.stop_accel = stop_accel
+    self._default_stop_accel = stop_accel
+    self._params = params
+    # CP-4 parity with LongControl: tunable StoppingAccel refreshed at 1 Hz, clamped,
+    # unknown/invalid values fall back to the per-car default.
+    self._stopping_accel_frame = 0
     self.stop_confirm = StopConfirm()
     self.cf_t: float | None = None
     self.cf_vmax = 0.0
@@ -179,8 +184,23 @@ class StoppingController:
       self.cf_stopping = True
     return self.cf_stopping
 
+  def _refresh_stop_accel(self):
+    self._stopping_accel_frame += 1
+    if self._stopping_accel_frame % 100 != 0:  # 1 s @ 100 Hz
+      return
+    try:
+      if self._params is None:
+        from openpilot.common.params import Params
+        self._params = Params()
+      value = self._params.get_float(STOPPING_ACCEL_PARAM_KEY, default=0.0)
+    except Exception:
+      # PC test hosts (no libparams) or unknown key: keep stock behavior.
+      value = None
+    self.stop_accel = clamp_stopping_accel(value, self._default_stop_accel)
+
   def update(self, prev_state, state, CS, a_target, prev_accel, stock_accel, accel_limits, has_lead=False, pitch=None,
              a_long=None):
+    self._refresh_stop_accel()
     if prev_state == LongCtrlState.stopping and state == LongCtrlState.pid and CS.standstill:
       self.go_t += DT_CTRL
       if self.go_t < self.STOPPING_EXIT_DEBOUNCE:

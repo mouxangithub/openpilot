@@ -404,6 +404,42 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"SLCMapboxFiller", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"MapboxSecretKey", {PERSISTENT, STRING}},  // access token; PERSISTENT-only so it survives reinstalls
     {"MapBoxRequests", {PERSISTENT, JSON, "{}"}},  // {total_requests, month} monthly quota bookkeeping
+
+    // Speed-limit change alert (ST-6): debounced >=5 kph jump held >2 s, one alert per change.
+    {"SpeedLimitChangedAlert", {PERSISTENT | BACKUP, BOOL, "0"}},
+
+    // Fork-gap alignment wave 6 params. Consumers fall back to in-code defaults when a key is
+    // unset, so registered defaults only feed UI discovery and stock_value reporting.
+    {"HyundaiCameraSccHint", {PERSISTENT | BACKUP, BOOL, "0"}},  // CP-3: hint on CAN error for hyundai cars without camera SCC
+    {"BluetoothAudioEnabled", {PERSISTENT, BOOL, "0"}},  // ST-7: bluez-based audio out; NOT available on AGNOS (qcom stack), kept inert
+    {"StoppingAccel", {PERSISTENT | BACKUP, FLOAT, "0.0"}},  // CP-4: m/s^2, 0 = per-car default, clamped [-4.0, -0.3]
+    {"BlinkerLatchedTurn", {PERSISTENT | BACKUP, FLOAT, "0.0"}},  // CP-1: kph gate for latched-stalk turn intent, 0 = off
+    {"AdjustLaneOffsetEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // CP-2: keep-away offset from the adjacent lane
+    {"AdjustLaneOffset", {PERSISTENT | BACKUP, FLOAT, "0.20"}},  // CP-2: full offset (m) at >=2.9 m lane width
+    {"KeepMinDistanceFromLane", {PERSISTENT | BACKUP, FLOAT, "1.35"}},  // CP-2: min clearance (m) to the offset-side edge line
+    {"ScreenBrightnessOnroad", {PERSISTENT | BACKUP, FLOAT}},  // ST-8: unset = ambient auto
+    {"ScreenBrightnessOnroadOffset", {PERSISTENT | BACKUP, FLOAT, "0.0"}},  // ST-8: percent, clamped [-30, 30]
+    {"ScreenBrightnessOffroad", {PERSISTENT | BACKUP, FLOAT}},  // ST-8: unset = stock offroad brightness
+    {"ScreenBrightnessOffroadOffset", {PERSISTENT | BACKUP, FLOAT, "0.0"}},  // ST-8: percent, clamped [-30, 30]
+    {"ShowStoppingPoint", {PERSISTENT | BACKUP, BOOL, "0"}},  // ST-10: draw the projected stop point on the path
+    {"ShowStoppingPointMetrics", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"ShowTorqueBar", {PERSISTENT | BACKUP, BOOL, "0"}},  // ST-10: lateral torque arc
+    {"ShowPersonalityButton", {PERSISTENT | BACKUP, BOOL, "0"}},  // ST-10: quick personality cycler under the exp button
+    {"ShowSpeedLimitSources", {PERSISTENT | BACKUP, BOOL, "0"}},  // ST-6: per-source limit values drawer next to the sign
+    {"DeveloperSidebar", {PERSISTENT | BACKUP, BOOL, "0"}},  // ST-9: onroad metrics sidebar
+    {"DeveloperSidebarMetric1", {PERSISTENT | BACKUP, INT, "0"}},  // 0 = slot off, 1..17 = metric id
+    {"DeveloperSidebarMetric2", {PERSISTENT | BACKUP, INT, "0"}},
+    {"DeveloperSidebarMetric3", {PERSISTENT | BACKUP, INT, "0"}},
+    {"DeveloperSidebarMetric4", {PERSISTENT | BACKUP, INT, "0"}},
+    {"DeveloperSidebarMetric5", {PERSISTENT | BACKUP, INT, "0"}},
+    {"DeveloperSidebarMetric6", {PERSISTENT | BACKUP, INT, "0"}},
+    {"DeveloperSidebarMetric7", {PERSISTENT | BACKUP, INT, "0"}},
+    {"PIPPreviewEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // ST-10: side-cam PiP; needs the driver camera stream (Lite HW: inert)
+    {"PIPPreviewShowOnBlinker", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"PIPPreviewShowOnBSM", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"PIPPreviewInvert", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"PIPPreviewMask", {PERSISTENT, JSON, "{}"}},  // crop polygon for the PiP feed
+
     {"VisionSpeedLimit", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, FLOAT, "0.0"}},  // latest published vision limit in m/s
     {"VisionSpeedLimitAutoBookmark", {PERSISTENT, BOOL, "0"}},  // capture debug bookmarks on confirmed detections
     {"VisionSpeedLimitAutoPreserveSegment", {PERSISTENT, BOOL, "0"}},

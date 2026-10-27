@@ -546,17 +546,17 @@ def main() -> int:
     assert hud.user_interacting() is False, 'press state leaked after restore'
   check('user_interacting counts the ported buttons', hud_user_interacting_includes_ports)
 
-  def new_params_not_in_params_keys():
+  def new_params_registered_in_params_keys():
     header = (REPO_ROOT / 'openpilot' / 'common' / 'params_keys.h').read_text(encoding='utf-8')
     new_keys = ['ShowStoppingPoint', 'ShowStoppingPointMetrics', 'ShowTorqueBar',
                 'ShowPersonalityButton', 'ShowSpeedLimitSources', 'DeveloperSidebar',
                 'PIPPreviewEnabled', 'PIPPreviewShowOnBlinker', 'PIPPreviewShowOnBSM',
                 'PIPPreviewInvert', 'PIPPreviewMask']
-    leaked = [k for k in new_keys if f'"{k}"' in header]
-    assert not leaked, f'params leaked into params_keys.h: {leaked}'
+    missing = [k for k in new_keys if f'"{k}"' not in header]
+    assert not missing, f'params not registered in params_keys.h: {missing}'
     for i in range(1, 8):
-      assert f'"DeveloperSidebarMetric{i}"' not in header, f'DeveloperSidebarMetric{i} leaked'
-  check('gating params stay unregistered (params_keys.h untouched)', new_params_not_in_params_keys)
+      assert f'"DeveloperSidebarMetric{i}"' in header, f'DeveloperSidebarMetric{i} not registered'
+  check('gating params are registered in params_keys.h (lead-owned contract)', new_params_registered_in_params_keys)
 
   print()
   if FAILURES:
