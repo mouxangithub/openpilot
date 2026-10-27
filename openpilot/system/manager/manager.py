@@ -229,7 +229,36 @@ def manager_thread() -> None:
       break
 
 
+def _acquire_singleton_lock() -> bool:
+  """Refuse to start when another manager instance is already running.
+
+  Double managers fight over msgq publisher endpoints: the losers die with
+  MultiplePublishersError, loggers interleave (corrupt rlogs), and onroad this
+  shows up as the "进程间通信问题" disengage cascade with modelV2 dead. Every
+  second entry point (systemd restart racing, the AI agent's manager_control
+  tool, a stray manual launch) must lose here instead of taking down the stack.
+
+  Uses an flock on /dev/shm so the kernel releases it even on SIGKILL. PC/dev
+  machines without fcntl just skip the check.
+  """
+  try:
+    import fcntl
+  except ImportError:
+    return True
+  lock_path = "/dev/shm/openpilot_manager.lock"
+  try:
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+  except OSError:
+    print("manager: another instance is already running (singleton lock held), exiting")
+    return False
+  # fd intentionally never closed: the lock lives for the process lifetime.
+  return True
+
+
 def main() -> None:
+  if not _acquire_singleton_lock():
+    return
   manager_init()
   if os.getenv("PREPAREONLY") is not None:
     return
