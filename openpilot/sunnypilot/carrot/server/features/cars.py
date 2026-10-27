@@ -17,19 +17,21 @@ from aiohttp import web
 logger = logging.getLogger("openpilot.carrot.server.cars")
 
 SUPPORTED_CAR_BRANDS = (
-  "hyundai",
-  "gm",
-  "toyota",
-  "mazda",
-  "ford",
-  "volkswagen",
-  "tesla",
-  "honda",
-  "nissan",
-  "subaru",
+  "byd",
   "chrysler",
-  "volvo",
-  "audi",
+  "ford",
+  "gm",
+  "honda",
+  "hyundai",
+  "mazda",
+  "mg",
+  "nissan",
+  "psa",
+  "rivian",
+  "subaru",
+  "tesla",
+  "toyota",
+  "volkswagen",
 )
 
 
