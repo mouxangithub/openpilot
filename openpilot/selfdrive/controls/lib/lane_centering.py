@@ -17,6 +17,14 @@ DT_CTRL kept local so PC test hosts skip the realtime import chain.
 In this fork the existing integral LateralLaneCentering (lateral_lane_assist)
 is a separate feature; this controller is gated by LaneCenteringEnabled and
 the two should not be enabled together.
+
+CP-2 (adjustLaneOffset port): when the sunnypilot LaneOffsetAdjust feature is
+enabled (AdjustLaneOffsetEnabled), a lane-geometry offset (narrow-lane /
+adjacent-lane avoidance, see sunnypilot lane_offset_adjust.py) is added to the
+driver's offset before the target computation. It is default-off: with stock
+params the effective offset equals the passed offset and every output is
+identical to the pre-CP-2 controller. The handle is created lazily on the
+first update() so importing this module stays PC-safe without libparams.
 """
 import numpy as np
 
@@ -46,6 +54,9 @@ _E2E_BOUNDARY_MARGIN = 0.40
 # this module stays importable on PC hosts (realtime -> zstandard).
 _DT_CTRL = 0.01
 
+# Sentinel for "the sunnypilot LaneOffsetAdjust module is unavailable on this host".
+_OFFSET_ADJUST_UNAVAILABLE = object()
+
 
 def _smooth_value(val, prev_val, tau, dt=_DT_CTRL):
   alpha = 1 - np.exp(-dt / tau) if tau > 0 else 1
@@ -55,9 +66,28 @@ def _smooth_value(val, prev_val, tau, dt=_DT_CTRL):
 class LaneCenteringController:
   def __init__(self) -> None:
     self._correction = 0.0
+    # CP-2 lane-geometry offset handle (default off), created lazily in
+    # _maybe_offset_adjust() on the first update() call.
+    self._offset_adjust = None
+    self._offset_adjust_checked = False
+
+  def _maybe_offset_adjust(self):
+    """Lazy LaneOffsetAdjust handle; None when the SP module is unavailable on this host."""
+    if not self._offset_adjust_checked:
+      self._offset_adjust_checked = True
+      try:
+        from openpilot.sunnypilot.selfdrive.controls.lib.lane_offset_adjust import LaneOffsetAdjust
+        self._offset_adjust = LaneOffsetAdjust()
+      except Exception:
+        self._offset_adjust = _OFFSET_ADJUST_UNAVAILABLE
+    if self._offset_adjust is _OFFSET_ADJUST_UNAVAILABLE:
+      return None
+    return self._offset_adjust
 
   def reset(self) -> None:
     self._correction = 0.0
+    if self._offset_adjust is not None and self._offset_adjust is not _OFFSET_ADJUST_UNAVAILABLE:
+      self._offset_adjust.reset()
 
   def update(self, model_curvature, model_v2, v_ego, enabled, offset, e2e_authority, lat_active,
              model_valid, lane_change_active=False, pause_on_signal=False,
@@ -75,6 +105,17 @@ class LaneCenteringController:
     if not np.isfinite([v_ego, offset, e2e_authority]).all():
       self.reset()
       return model_curvature
+
+    # CP-2: lane-geometry offset (default off). When disabled this is exactly
+    # 0.0, effective_offset == offset, and every output below is identical to
+    # the pre-CP-2 behavior. Inactive frames reset the offset filters.
+    effective_offset = offset
+    offset_adjust = self._maybe_offset_adjust()
+    if offset_adjust is not None:
+      offset_active = (model_valid and enabled and lat_active and v_ego >= _MIN_V_EGO and
+                       not driver_override and not lane_change_active and
+                       not (pause_on_signal and turn_signal_active))
+      effective_offset = offset + offset_adjust.update(model_v2, v_ego, offset_active)
 
     if not model_valid or not enabled or not lat_active or v_ego < _MIN_V_EGO:
       self.reset()
@@ -95,7 +136,7 @@ class LaneCenteringController:
     valid, raw_correction = self._raw_correction(
       model_v2,
       v_ego,
-      float(np.clip(offset, -_MAX_OFFSET, _MAX_OFFSET)),
+      float(np.clip(effective_offset, -_MAX_OFFSET, _MAX_OFFSET)),
       float(np.clip(e2e_authority, 0.0, 1.0)),
     )
     if not valid:
