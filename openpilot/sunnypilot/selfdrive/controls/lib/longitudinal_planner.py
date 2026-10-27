@@ -638,12 +638,12 @@ class LongitudinalPlannerSP:
     # DEC removed 2026-10: allow_throttle is False (the old DEC-disabled
     # default), so e2e never adds positive accel beyond the coast cap.
     a_e2e = self.e2e_set_speed.update(sm, a_model, self.output_v_target, is_e2e, reset_state, False,
-                                      self.allow_throttle, self.fcw, accel_coast, steer_lat_accel)
+                                      self.fcw, accel_coast, steer_lat_accel)
     # the MPC candidate as the host planner takes it from this frame's solution
     a_mpc = get_accel_from_plan(self.v_desired_trajectory, self.a_desired_trajectory, CONTROL_N_T_IDX,
                                 action_t=self.CP.longitudinalActuatorDelay + DT_MDL)
     # a_cruise is last frame's: the host builds this frame's after the e2e candidate
-    self.a_e2e = self.e2e_lead_gap.update(sm, a_e2e, float(a_mpc), is_e2e, reset_state, False, self.allow_throttle,
+    self.a_e2e = self.e2e_lead_gap.update(sm, a_e2e, float(a_mpc), is_e2e, reset_state, False,
                                           self.fcw, self.a_cruise, steer_lat_accel)
     return self.a_e2e
 
