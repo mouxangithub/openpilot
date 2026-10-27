@@ -19,7 +19,13 @@ from openpilot.selfdrive.ui.sunnypilot.onroad.speed_limit import SpeedLimitRende
 from openpilot.selfdrive.ui.sunnypilot.onroad.smart_cruise_control import SmartCruiseControlRenderer
 from openpilot.selfdrive.ui.sunnypilot.onroad.turn_signal import TurnSignalController
 from openpilot.selfdrive.ui.sunnypilot.onroad.circular_alerts import CircularAlertsRenderer
+from openpilot.selfdrive.ui.sunnypilot.onroad.developer_sidebar import SIDEBAR_WIDTH as DEV_SIDEBAR_WIDTH, DeveloperSidebar
+from openpilot.selfdrive.ui.sunnypilot.onroad.personality_button import BTN_SIZE as PERSONALITY_BUTTON_SIZE, PersonalityButton
+from openpilot.selfdrive.ui.sunnypilot.onroad.pip_sidecam import PipSideCamera
 from openpilot.selfdrive.ui.sunnypilot.onroad.speed_renderer import SpeedRenderer
+from openpilot.selfdrive.ui.sunnypilot.onroad.speed_source_drawer import SpeedSourceDrawerRenderer
+from openpilot.selfdrive.ui.sunnypilot.onroad.stopping_point import StoppingPointRenderer
+from openpilot.selfdrive.ui.sunnypilot.onroad.torque_bar import StarPilotTorqueBar
 from openpilot.selfdrive.ui.ui_state import ui_state, UIStatus
 from openpilot.selfdrive.ui.onroad.hud_renderer import HudRenderer, UI_CONFIG, FONT_SIZES, COLORS, CRUISE_DISABLED_CHAR
 from openpilot.system.ui.lib.application import gui_app
@@ -48,6 +54,14 @@ class HudRendererSP(HudRenderer):
     self.signal_hud = SignalHudRenderer()
     self._torque_bar = TorqueBar(scale=3.0, always=True)
     self._exp_button = ExpButton(EXP_BUTTON_SIZE, EXP_BUTTON_ICON_SIZE)
+    # StarPilot widget ports - each one reads its own gating params (throttled,
+    # code-side defaults; none of the keys are registered in params_keys.h).
+    self.stopping_point_renderer = StoppingPointRenderer()
+    self.star_pilot_torque_bar = StarPilotTorqueBar()
+    self.personality_button = PersonalityButton()
+    self.pip_sidecam = PipSideCamera()
+    self.developer_sidebar = DeveloperSidebar()
+    self.speed_source_drawer = SpeedSourceDrawerRenderer()
 
     self.pcm_cruise_speed: bool = True
     self.show_icbm_status: bool = False
@@ -153,6 +167,11 @@ class HudRendererSP(HudRenderer):
         torque_rect = rl.Rectangle(rect.x, rect.y, rect.width, rect.height - get_bottom_dev_ui_offset())
       self._torque_bar.render(torque_rect)
 
+    # --- StarPilot widget ports -------------------------------------------
+    # Stop marker sits on the road: draw it under the HUD cluster so cards,
+    # alerts and the dev UI stay on top of it.
+    self.stopping_point_renderer.render(rect)
+
     self.developer_ui.render(rect)
     self.road_name_renderer.render(rect)
     # StarPilot-style navigation instruction card, right edge above the bottom
@@ -165,5 +184,37 @@ class HudRendererSP(HudRenderer):
     self.rocket_fuel.render(rect, ui_state.sm)
     self.signal_hud.render(rect, ui_state.sm)
 
-  def user_interacting(self) -> bool:
-    return self._exp_button.is_pressed or self.navigation_card.is_pressed
+    # --- StarPilot widget ports (part 2) ----------------------------------
+    # StarPilot arc torque bar (param ShowTorqueBar, default off). Shrink the
+    # rect when the bottom dev UI is shown, same as the stock torque bar above.
+    star_torque_rect = rect
+    if ui_state.developer_ui in (DeveloperUiState.BOTTOM, DeveloperUiState.BOTH):
+      star_torque_rect = rl.Rectangle(rect.x, rect.y, rect.width, rect.height - get_bottom_dev_ui_offset())
+    self.star_pilot_torque_bar.render(star_torque_rect)
+
+    # Source drawer slides out to the right of the speed-limit sign; draw it
+    # right after the sign so the sign's outline stays visible underneath.
+    self.speed_source_drawer.render(rect)
+
+    # Configurable diagnostics sidebar on the right edge (param DeveloperSidebar).
+    sidebar_rect = rl.Rectangle(rect.x + rect.width - DEV_SIDEBAR_WIDTH, rect.y, DEV_SIDEBAR_WIDTH, rect.height)
+    self.developer_sidebar.render(sidebar_rect)
+
+    # Personality quick-switch under the exp button (top-right column).
+    if ui_state.has_longitudinal_control:
+      pb_x = rect.x + rect.width - UI_BORDER_SIZE - PERSONALITY_BUTTON_SIZE
+      pb_y = rect.y + UI_BORDER_SIZE + EXP_BUTTON_SIZE + 12
+      pb_rect = rl.Rectangle(pb_x, pb_y, PERSONALITY_BUTTON_SIZE, PERSONALITY_BUTTON_SIZE)
+      self.personality_button.set_rect(pb_rect)
+      self.personality_button.render(pb_rect)
+
+    # Side-camera picture-in-picture bubbles render above everything else.
+    # NOTE: needs a driver-camera stream (unavailable on Lite hardware - see
+    # pip_sidecam.py); inert until such a camera is fitted.
+    self.pip_sidecam.render(rect)
+
+  def user_interacting(self, mouse_pos=None) -> bool:
+    interacting = self._exp_button.is_pressed or self.navigation_card.is_pressed or self.personality_button.is_pressed
+    if mouse_pos is not None and self.speed_source_drawer.is_pressed_in(mouse_pos):
+      interacting = True
+    return interacting
