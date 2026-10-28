@@ -284,7 +284,7 @@ void send_peripheral_state(Panda *panda, PubMaster *pm) {
   pm->send("peripheralState", msg);
 }
 
-void process_panda_state(Panda *panda, PubMaster *pm, bool engaged, bool engaged_mads, bool is_onroad, bool spoofing_started, bool always_offroad) {
+void process_panda_state(Panda *panda, Panda *peripheral_panda, PubMaster *pm, bool engaged, bool engaged_mads, bool is_onroad, bool spoofing_started, bool always_offroad) {
   auto ignition_opt = send_panda_states(pm, panda, is_onroad, spoofing_started, always_offroad);
   if (!ignition_opt) {
     LOGE("Failed to get ignition_opt");
@@ -300,6 +300,12 @@ void process_panda_state(Panda *panda, PubMaster *pm, bool engaged, bool engaged
   }
 
   panda->send_heartbeat(engaged, engaged_mads);
+
+  // keep the aux (peripheral) panda's heartbeat fed so its firmware never
+  // flags heartbeat_lost; it does not do CAN safety, it only drives the fan
+  if (peripheral_panda != nullptr && peripheral_panda != panda && peripheral_panda->connected()) {
+    peripheral_panda->send_heartbeat(engaged, engaged_mads);
+  }
 }
 
 void process_peripheral_state(Panda *panda, PubMaster *pm, bool no_fan_control, bool is_onroad) {
@@ -383,7 +389,7 @@ void process_peripheral_state(Panda *panda, PubMaster *pm, bool no_fan_control, 
   }
 }
 
-void pandad_run(Panda *panda) {
+void pandad_run(Panda *panda, Panda *peripheral_panda) {
   const bool no_fan_control = getenv("NO_FAN_CONTROL") != nullptr;
   const bool spoofing_started = getenv("STARTED") != nullptr;
   const bool fake_send = getenv("FAKESEND") != nullptr;
@@ -406,7 +412,7 @@ void pandad_run(Panda *panda) {
 
     // Process peripheral state at 20 Hz
     if (rk.frame() % 5 == 0) {
-      process_peripheral_state(panda, &pm, no_fan_control, is_onroad);
+      process_peripheral_state(peripheral_panda, &pm, no_fan_control, is_onroad);
     }
 
     // Process panda state at 10 Hz
@@ -418,13 +424,13 @@ void pandad_run(Panda *panda) {
       }
       engaged_mads = process_mads_heartbeat(&sm);
       always_offroad = panda_safety.getOffroadMode();
-      process_panda_state(panda, &pm, engaged, engaged_mads, is_onroad, spoofing_started, always_offroad);
+      process_panda_state(panda, peripheral_panda, &pm, engaged, engaged_mads, is_onroad, spoofing_started, always_offroad);
       panda_safety.configureSafetyMode(is_onroad);
     }
 
     // Send out peripheralState at 2Hz
     if (rk.frame() % 50 == 0) {
-      send_peripheral_state(panda, &pm);
+      send_peripheral_state(peripheral_panda, &pm);
     }
 
     // Forward logs from panda to cloudlog if available
@@ -451,7 +457,7 @@ void pandad_run(Panda *panda) {
   send_thread.join();
 }
 
-void pandad_main_thread(std::string serial) {
+void pandad_main_thread(std::string serial, std::string aux_serial) {
   if (serial.empty()) {
     auto serials = Panda::list();
 
@@ -471,10 +477,31 @@ void pandad_main_thread(std::string serial) {
     util::sleep_for(100);
   }
 
+  // aux (peripheral) panda: when the active CAN panda is an external device
+  // (e.g. Red Panda on the harness with UseRedPanda), the internal dos is
+  // connected here so it keeps fan/peripheral control - master-c3 achieves
+  // the same by sorting the internal panda first and using it as
+  // peripheral_panda. Non-fatal: without it the fan falls back to the
+  // firmware's own thermal default.
+  Panda *aux_panda = nullptr;
+  if (!aux_serial.empty() && aux_serial != serial) {
+    try {
+      aux_panda = connect(aux_serial);
+    } catch (std::exception &e) {
+      aux_panda = nullptr;
+    }
+    if (aux_panda) {
+      LOGW("connected aux peripheral panda: %s", aux_serial.c_str());
+    } else {
+      LOGW("failed to connect aux peripheral panda %s, fan control unavailable", aux_serial.c_str());
+    }
+  }
+
   if (!do_exit) {
     LOGW("connected to panda");
-    pandad_run(panda);
+    pandad_run(panda, aux_panda ? aux_panda : panda);
   }
 
   delete panda;
+  delete aux_panda;
 }

@@ -17,6 +17,7 @@ int main(int argc, char *argv[]) {
   }
 
   std::string serial = (argc > 1) ? argv[1] : "";
-  pandad_main_thread(serial);
+  std::string aux_serial = (argc > 2) ? argv[2] : "";
+  pandad_main_thread(serial, aux_serial);
   return 0;
 }

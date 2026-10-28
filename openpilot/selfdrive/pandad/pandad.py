@@ -67,8 +67,15 @@ def flash_panda(panda_serial: str):
   panda.close()
 
 
-def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -> tuple[list[str], bool]:
-  """Pick the active panda; also report whether an external Red Panda is visible.
+def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -> tuple[list[str], str | None, bool]:
+  """Pick the active (CAN/safety) panda and, when it is external, the internal aux panda.
+
+  Returns (active_serials, aux_serial, red_panda_present).
+
+  master-c3 connects every panda and sorts the internal one first, so the
+  internal dos always ends up as peripheral_panda and keeps the fan. Our C++
+  core is single-CAN, so the split is expressed as an aux slot instead: the
+  active panda runs CAN/safety, the aux (internal dos) runs fan/peripherals.
 
   The Red Panda flag feeds PANDAD_MASK_DOS_IGNITION: on comma three setups with
   an external Red Panda the dos reports false ignitions via the harness box
@@ -77,41 +84,39 @@ def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -
   """
   red_panda_present = False
   spi_serials = set(Panda.spi_list())
-  if use_red_panda:
-    # user opts in to an external Red Panda (H7 CAN-FD) as the active panda;
-    # fall through to the internal-panda preference when none is present
-    for serial in panda_serials:
-      if serial in spi_serials:
-        continue
-      panda = Panda(serial)
-      try:
-        hw_type = panda.get_type()
-        red_panda_present |= hw_type == Panda.HW_TYPE_RED_PANDA
-        if hw_type == Panda.HW_TYPE_RED_PANDA:
-          return [serial], red_panda_present
-      finally:
-        panda.close()
+  usb_serials = [s for s in panda_serials if s not in spi_serials]
 
-  for serial in panda_serials:
-    if serial in spi_serials:
-      return [serial], red_panda_present
-
-  # scan every USB panda once: an external Red Panda next to the internal dos
-  # must be detected even though the dos itself wins the selection, so do not
-  # return on the first internal panda before the rest have been inspected
+  # scan every USB panda once: both the external Red Panda and the internal
+  # dos must be found regardless of which one enumerates first
+  red_serial = None
   internal_serial = None
-  for serial in panda_serials:
+  for serial in usb_serials:
     panda = Panda(serial)
     try:
-      red_panda_present |= panda.get_type() == Panda.HW_TYPE_RED_PANDA
+      hw_type = panda.get_type()
+      red_panda_present |= hw_type == Panda.HW_TYPE_RED_PANDA
+      if red_serial is None and hw_type == Panda.HW_TYPE_RED_PANDA:
+        red_serial = serial
       if internal_serial is None and panda.is_internal():
         internal_serial = serial
     finally:
       panda.close()
-  if internal_serial is not None:
-    return [internal_serial], red_panda_present
 
-  return [], red_panda_present
+  # 1. SPI panda (comma 3X internal) wins unconditionally
+  for serial in panda_serials:
+    if serial in spi_serials:
+      return [serial], None, red_panda_present
+
+  # 2. UseRedPanda: the external Red Panda is the active CAN panda; the
+  #    internal dos stays on fan/peripheral duty via the aux slot
+  if use_red_panda and red_serial is not None:
+    return [red_serial], internal_serial, red_panda_present
+
+  # 3. default: the internal panda is the active (and only) panda
+  if internal_serial is not None:
+    return [internal_serial], None, red_panda_present
+
+  return [], None, red_panda_present
 
 
 def main() -> None:
@@ -129,8 +134,14 @@ def main() -> None:
 
   # check health for lost heartbeat
   try:
+    use_red_panda = Params().get_bool("UseRedPanda")
     for s in Panda.list():
       with Panda(s) as p:
+        # when a Red Panda is the active CAN panda, the internal dos runs as the
+        # aux peripheral panda and is heartbeated by the C++ daemon; skip it so
+        # a pre-update flag never false-triggers PandaHeartbeatLost
+        if use_red_panda and p.is_internal():
+          continue
         health = p.health()
         if p.is_internal() and health["heartbeat_lost"]:
           Params().put_bool("PandaHeartbeatLost", True, block=True)
@@ -158,20 +169,21 @@ def main() -> None:
       if len(panda_serials):
         # custom flasher for xnor's Rivian Longitudinal Upgrade Kit
         flash_rivian_long(panda_serials)
-        # find the internal supported panda (e.g. skip external Black Panda),
-        # or the external Red Panda when UseRedPanda is set
-        panda_serials, red_panda_present = check_panda_support(panda_serials, use_red_panda=Params().get_bool("UseRedPanda"))
+        # find the active (CAN) panda and the internal aux for peripherals
+        active_serials, aux_serial, red_panda_present = check_panda_support(panda_serials, use_red_panda=Params().get_bool("UseRedPanda"))
 
-        if not panda_serials:
+        if not active_serials:
           # e.g. only an external panda is visible while the internal one is
           # mid-reset; retry instead of crashing so the loop stays calm
           cloudlog.warning("no supported panda found, retrying...")
           time.sleep(2)
           continue
 
-        assert len(panda_serials) == 1
-        cloudlog.info(f"{len(panda_serials)} panda found, connecting - {panda_serials}")
-        flash_panda(panda_serials[0])
+        assert len(active_serials) == 1
+        cloudlog.info(f"{len(active_serials)} active panda found, connecting - {active_serials}, aux (peripherals/fan) - {aux_serial}")
+        to_flash = list(dict.fromkeys(active_serials + ([aux_serial] if aux_serial else [])))
+        for serial in to_flash:
+          flash_panda(serial)
 
         # comma three + external Red Panda: the dos gets false positive
         # ignitions from the harness box without a harness connector; tell the
@@ -185,9 +197,11 @@ def main() -> None:
 
         # run real pandad; pass the verified serial so the C++ daemon connects
         # the selected panda instead of picking USB enumeration order, which
-        # with an external panda plugged in may be the unverified one
+        # with an external panda plugged in may be the unverified one; the aux
+        # serial keeps fan/peripheral control on the internal dos (master-c3)
         os.environ['MANAGER_DAEMON'] = 'pandad'
-        process = subprocess.Popen(["./pandad", panda_serials[0]], cwd=os.path.join(BASEDIR, "openpilot/selfdrive/pandad"))
+        cmd = ["./pandad", *active_serials] + ([aux_serial] if aux_serial else [])
+        process = subprocess.Popen(cmd, cwd=os.path.join(BASEDIR, "openpilot/selfdrive/pandad"))
         process.wait()
     # TODO: wrap all panda exceptions in a base panda exception
     except (usb1.USBErrorNoDevice, usb1.USBErrorPipe):

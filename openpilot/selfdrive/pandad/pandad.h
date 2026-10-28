@@ -5,7 +5,7 @@
 #include "common/params.h"
 #include "selfdrive/pandad/panda.h"
 
-void pandad_main_thread(std::string serial);
+void pandad_main_thread(std::string serial, std::string aux_serial);
 
 // deprecated devices
 static const std::vector<cereal::PandaState::PandaType> SUPPORTED_PANDA_TYPES = {
