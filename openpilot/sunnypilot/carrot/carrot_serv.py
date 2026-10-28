@@ -50,6 +50,28 @@ COUNTDOWN_NEW_TARGET_MIN_JUMP_M = 20.0
 # How long the driver can override a school-zone slowdown before it is suppressed.
 SCHOOL_ZONE_GAS_OVERRIDE_TIMEOUT_S = 3.0
 
+# How long cached navigation fields stay trusted after the last packet that
+# carried the main navi block. The 7706 stream mixes block types, so only a
+# navi-carrying packet refreshes this window; when it lapses (navigation ended,
+# app switched away) while heartbeats keep the link alive, the road limit /
+# road name / TBT / SDI cache is cleared instead of lingering forever. Matches
+# cp's active_count = 80 ticks at ~10 Hz. KISA updates refresh the same window.
+NAVI_BLOCK_TIMEOUT_S = 8.0
+
+# _raw keys owned by the navi block; cleared together on navi-block expiry.
+NAVI_BLOCK_KEYS = (
+  "nRoadLimitSpeed", "szPosRoadName", "szTBTMainText", "szNearDirName",
+  "szFarDirName", "szTBTMainTextNext", "nTBTDist", "nTBTTurnType",
+  "nTBTDistNext", "nTBTTurnTypeNext", "nGoPosDist", "nGoPosTime",
+  "nSdiType", "nSdiSpeedLimit", "nSdiDist", "nSdiBlockType", "nSdiBlockSpeed",
+  "nSdiBlockDist", "nSdiPlusType", "nSdiPlusSpeedLimit", "nSdiPlusDist",
+  "nSdiPlusBlockType", "nSdiPlusBlockSpeed", "nSdiPlusBlockDist",
+  "nSdiSection", "roadcate", "sapaName", "sapaDist", "sapaType", "sapaCnt",
+  "tmcTotalDistance", "tmcResidualDistance", "tmcSegmentCount",
+  "tmcOverallStatus", "tmcSegmentStatuses", "tmcSegmentDistances",
+  "navLaneGuide", "navLaneGuideCnt", "nTBTNextRoadWidth",
+)
+
 
 # Turn type -> (maneuver type, modifier, xTurnInfo). xTurnInfo follows the
 # convention used by the carrot UI:
@@ -187,6 +209,12 @@ class CarrotServ:
     self._last_packet_mono: float = 0.0
     self._last_seq: int | None = None
     self._remote_addr: str = ""
+    # Navigation-block tracking: 7706 packets mix block types (GPS / cmd / SDI
+    # events ride the same socket as the main navi block, which arrives at a
+    # lower rate), so only a packet that actually carried navi fields refreshes
+    # how long the cached navi state stays trustworthy.
+    self._last_navi_block_mono: float = 0.0
+    self._navi_expired: bool = False
 
     # Derived state.
     self.nav_type: str = "invalid"
@@ -391,7 +419,17 @@ class CarrotServ:
   # ---- packet ingestion -------------------------------------------------- #
 
   def update_raw(self, msg: dict, recv_mono: float = 0.0) -> None:
-    """Apply a single phone-packet dict to the cached state."""
+    """Apply a single phone-packet dict to the cached state.
+
+    The 7706 stream mixes block types: GPS / cmd / heartbeat packets share the
+    socket with the main navi block (road limit, TBT, SDI, road names), which
+    arrives at a lower rate. A packet therefore only overwrites the fields it
+    actually carries - absent fields keep the last known value (cp semantics:
+    navi state is persistent until a newer packet or the navi-block timeout in
+    derive() replaces it). Rebuilding the whole cache from every packet made
+    the road limit and road name oscillate between blocks, blinking the UI
+    speed-limit sign and the webui road name roughly once a second.
+    """
     if not isinstance(msg, dict):
       return
     self._last_packet_mono = recv_mono
@@ -401,34 +439,47 @@ class CarrotServ:
       return  # ignore out-of-order packets
     self._last_seq = seq
 
-    raw_limit = _safe_int(msg.get("nRoadLimitSpeed"), 0)
-    if raw_limit > 0:
-      if raw_limit > 200:
-        raw_limit = int((raw_limit - 20) / 10)
-      elif raw_limit == 120:
-        raw_limit = 115
-    raw_limit = self._apply_road_limit_filter(raw_limit)
+    prev = self._raw
 
-    # Manual road-type override and low-limit boost (aligned with cuda).
-    roadcate = _safe_int(msg.get("roadcate"), 0)
-    if self.road_type >= 0:
-      roadcate = self.road_type
-    if 0 < raw_limit < 60:
-      if roadcate <= 1 and self.auto_up_highway_road_limit:
-        max_add = self.auto_up_highway_road_limit_40kmh
-      elif roadcate > 1 and self.auto_up_road_limit:
-        max_add = self.auto_up_road_limit_40kmh
-      else:
-        max_add = 0
-      if max_add > 0:
-        if raw_limit <= 40:
-          add_val = float(max_add)
+    # Road-type override (independent of the limit block; the navi block
+    # carries both, but a roadcate-only packet must still update it).
+    if "roadcate" in msg:
+      roadcate = _safe_int(msg.get("roadcate"), 0)
+      if self.road_type >= 0:
+        roadcate = self.road_type
+      prev["roadcate"] = roadcate
+
+    # Road limit: decode + low-limit boost + jitter filter, only when the
+    # packet actually carries the field. Feeding the filter on packets without
+    # the key used to reset its state through the 0 branch.
+    if "nRoadLimitSpeed" in msg:
+      raw_limit = _safe_int(msg.get("nRoadLimitSpeed"), 0)
+      if raw_limit > 0:
+        if raw_limit > 200:
+          raw_limit = int((raw_limit - 20) / 10)
+        elif raw_limit == 120:
+          raw_limit = 115
+      # A zero is "no limit data", not a road change: it passes through the
+      # same confirmation filter as any other value (see the filter docstring).
+      raw_limit = self._apply_road_limit_filter(raw_limit)
+
+      roadcate = _safe_int(prev.get("roadcate"), 0)
+      if 0 < raw_limit < 60:
+        if roadcate <= 1 and self.auto_up_highway_road_limit:
+          max_add = self.auto_up_highway_road_limit_40kmh
+        elif roadcate > 1 and self.auto_up_road_limit:
+          max_add = self.auto_up_road_limit_40kmh
         else:
-          add_val = float(max_add) * (60 - raw_limit) / 20.0
-        raw_limit = int(min(raw_limit + add_val, 60))
+          max_add = 0
+        if max_add > 0:
+          if raw_limit <= 40:
+            add_val = float(max_add)
+          else:
+            add_val = float(max_add) * (60 - raw_limit) / 20.0
+          raw_limit = int(min(raw_limit + add_val, 60))
+      prev["nRoadLimitSpeed"] = raw_limit
 
-    self._raw = {
-      "nRoadLimitSpeed": raw_limit,
+    new_raw = {
       "nSdiType": _safe_int(msg.get("nSdiType"), -1),
       "nSdiSpeedLimit": _safe_int(msg.get("nSdiSpeedLimit"), 0),
       "nSdiDist": _safe_int(msg.get("nSdiDist"), 0),
@@ -462,7 +513,6 @@ class CarrotServ:
       "carrotCmdIndex": seq,
       "carrotCmd": _safe_str(msg.get("carrotCmd"), ""),
       "carrotArg": _safe_str(msg.get("carrotArg"), ""),
-      "roadcate": roadcate,
       "nSdiSection": _safe_int(msg.get("nSdiSection"), -1),
       # navipilot sends snake_case "gps_speed"; cp sends camelCase "gpsSpeed".
       "gpsSpeed": _safe_float(msg.get("gpsSpeed") if "gpsSpeed" in msg else msg.get("gps_speed"), 0.0),
@@ -492,6 +542,23 @@ class CarrotServ:
       "navLaneGuide": _safe_str(msg.get("navLaneGuide"), ""),
       "navLaneGuideCnt": _safe_int(msg.get("navLaneGuideCnt"), 0),
     }
+
+    # Keep every field this packet did not carry at its last known value: the
+    # decoded defaults above are only meaningful when the key is present.
+    for key, value in new_raw.items():
+      if key == "gpsSpeed":
+        # navipilot sends snake_case "gps_speed"; cp sends camelCase.
+        if "gpsSpeed" in msg or "gps_speed" in msg:
+          prev[key] = value
+      elif key in msg:
+        prev[key] = value
+    self._raw = prev
+
+    # A packet that carried (part of) the main navi block refreshes the
+    # trust window for all cached navi fields.
+    if "nRoadLimitSpeed" in msg or "nGoPosDist" in msg:
+      self._last_navi_block_mono = recv_mono
+      self._navi_expired = False
 
     if "carrotCmd" in msg:
       self._raw["carrotCmdIndex"] = seq
@@ -524,11 +591,15 @@ class CarrotServ:
                                    _safe_str(msg.get("timezone"), "Asia/Seoul"))
 
   def _apply_road_limit_filter(self, raw_limit: int) -> int:
-    """5-frame confirmation filter to avoid jitter in road limit speed."""
-    if raw_limit <= 0:
-      self._n_road_limit_speed_last = 0
-      self._n_road_limit_speed_counter = 0
-      return 0
+    """5-packet confirmation filter to avoid jitter in road limit speed.
+
+    Only fed by packets that carry ``nRoadLimitSpeed``. Any change - including
+    a drop to 0 - must hold for more than 5 carrying packets before it is
+    applied; in between, the previous value is kept. A transient zero between
+    valid blocks therefore cannot snap the published limit to 0 and blink the
+    sign. (cp maps a 0 to 30 before this filter; here 0 stays a candidate so
+    "no limit" can still win eventually.)
+    """
     if raw_limit != self._n_road_limit_speed_last:
       self._n_road_limit_speed_counter += 1
       if self._n_road_limit_speed_counter > 5:
@@ -717,6 +788,8 @@ class CarrotServ:
     self._raw = {}
     self._last_packet_mono = 0.0
     self._last_seq = None
+    self._last_navi_block_mono = 0.0
+    self._navi_expired = False
     self._reset_derived()
     # A packet timeout also ends any running section: the SDI stream is the
     # only section source, so its silence must not leave a stale bank open.
@@ -779,6 +852,20 @@ class CarrotServ:
     if not r:
       self._reset_derived()
       return
+
+    # --- navi-block expiry -----------------------------------------------
+    # When the main navi block stops arriving (navigation ended, app switched
+    # away) while heartbeats keep the link alive, the cached navi fields must
+    # not linger forever: the road limit would keep feeding SLA/display and
+    # the road name would stay on the HUD after the route is gone. Clear them
+    # once, then wait for the next navi-carrying packet to repopulate.
+    if not self._navi_expired and self._last_navi_block_mono > 0.0 and \
+        (time.monotonic() - self._last_navi_block_mono) > NAVI_BLOCK_TIMEOUT_S:
+      self._navi_expired = True
+      for key in NAVI_BLOCK_KEYS:
+        r.pop(key, None)
+      self._n_road_limit_speed_last = 0
+      self._n_road_limit_speed_counter = 0
 
     # --- TBT turn mapping ------------------------------------------------
     self.nav_type, self.nav_modifier, self.x_turn_info = NavTypeMapper.resolve(
@@ -2010,6 +2097,11 @@ class CarrotServ:
     string produced by older Kisa transmitters.
     """
     self.active_kisa_count = 100
+    # KISA carries the same road-limit / road-name fields as the navi block, so
+    # it refreshes the same trust window (cp keeps a separate 100-tick KISA
+    # counter; sharing the window is close enough and keeps expiry uniform).
+    self._last_navi_block_mono = time.monotonic()
+    self._navi_expired = False
     if "kisawazecurrentspd" in data:
       pass
     if "kisawazeroadspdlimit" in data:

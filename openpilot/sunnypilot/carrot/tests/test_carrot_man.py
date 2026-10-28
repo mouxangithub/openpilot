@@ -475,6 +475,67 @@ class TestCarrotManager(unittest.TestCase):
     self.mgr._update_raw({"carrotCmd": "heartbeat"}, time.monotonic())
     assert self.mgr._carrot_serv.raw["nRoadLimitSpeed"] == 80
 
+  def test_navi_fields_survive_packets_without_navi_block(self):
+    # Regression: update_raw used to rebuild the whole cache from every
+    # packet, so GPS/cmd packets between navi blocks wiped the road limit and
+    # road name - the UI speed-limit sign and the webui road name blinked at
+    # the navi-block rate. Absent fields must keep their last known value.
+    for _ in range(6):
+      self.mgr._update_raw(
+        {"nRoadLimitSpeed": 60, "nGoPosDist": 5000, "szPosRoadName": "G4"},
+        time.monotonic(),
+      )
+    cs = self.mgr._carrot_serv
+    self.mgr._derive_state(0.0)
+    assert cs.n_road_limit_speed == 60
+    for _ in range(20):
+      self.mgr._update_raw({"vpPosPointLat": 31.2, "vpPosPointLon": 121.4}, time.monotonic())
+      self.mgr._derive_state(0.0)
+      assert cs.n_road_limit_speed == 60
+      assert cs.raw["szPosRoadName"] == "G4"
+
+  def test_transient_zero_limit_does_not_blink(self):
+    # A single navi block carrying 0 ("no limit data") must not snap the
+    # published limit to 0; only a sustained run of zeros may drop it.
+    for _ in range(6):
+      self.mgr._update_raw({"nRoadLimitSpeed": 60, "nGoPosDist": 5000}, time.monotonic())
+    cs = self.mgr._carrot_serv
+    self.mgr._derive_state(0.0)
+    assert cs.n_road_limit_speed == 60
+    self.mgr._update_raw({"nRoadLimitSpeed": 0, "nGoPosDist": 5000}, time.monotonic())
+    self.mgr._derive_state(0.0)
+    assert cs.n_road_limit_speed == 60
+    for _ in range(8):
+      self.mgr._update_raw({"nRoadLimitSpeed": 0, "nGoPosDist": 5000}, time.monotonic())
+    self.mgr._derive_state(0.0)
+    assert cs.n_road_limit_speed == 0
+
+  def test_navi_block_expiry_clears_cached_navi_state(self):
+    # When the navi block goes silent (navigation ended) while the link stays
+    # up, the cached road limit / road name / TBT state must be cleared
+    # instead of lingering forever (cp decays the same state via active_count).
+    now = time.monotonic()
+    for _ in range(6):
+      self.mgr._update_raw(
+        {"nRoadLimitSpeed": 60, "nGoPosDist": 5000, "szPosRoadName": "G4", "nTBTDist": 900, "nTBTTurnType": 12},
+        now,
+      )
+    cs = self.mgr._carrot_serv
+    self.mgr._derive_state(0.0)
+    assert cs.n_road_limit_speed == 60
+    assert cs.active_carrot >= 1
+    cs._last_navi_block_mono = now - 9.0  # NAVI_BLOCK_TIMEOUT_S = 8
+    self.mgr._derive_state(0.0)
+    assert cs.n_road_limit_speed == 0
+    assert "szPosRoadName" not in cs._raw
+    assert "nGoPosDist" not in cs._raw
+    assert cs.x_dist_to_turn == 0
+    assert cs.active_carrot == 0
+    # A fresh navi block repopulates and re-arms the window.
+    self.mgr._update_raw({"nRoadLimitSpeed": 80, "nGoPosDist": 4000}, time.monotonic())
+    self.mgr._derive_state(0.0)
+    assert cs.n_road_limit_speed == 0  # still inside the 5-packet filter window
+
   def test_derive_state_maps_turn(self):
     self.mgr._update_raw({"nTBTDist": 50, "nTBTTurnType": 12}, time.monotonic())
     self.mgr._derive_state(0.0)
