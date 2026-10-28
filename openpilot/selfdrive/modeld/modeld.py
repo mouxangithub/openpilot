@@ -29,6 +29,7 @@ from msgq.visionipc import VisionIpcClient, VisionBuf
 from opendbc.car.car_helpers import get_demo_car_params
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.params import Params
+from openpilot.sunnypilot.carrot.carrot_man_input import get_carrot_man
 from openpilot.common.dm import is_dm_disabled
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.common.realtime import config_realtime_process, DT_MDL
@@ -490,7 +491,7 @@ def main(demo=False):
       # fork's big_model_ready_alert (selfdrived/events.py) reads the top-level field
       mdv2sp_send.modelDataV2SP.acceleratorState = _accel_state
       left_edge, right_edge = RELC.update_and_fill(modelv2_send.modelV2, mdv2sp_send.modelDataV2SP, v_ego)
-      carrot_man = sm['carrotManSP'] if sm.alive['carrotManSP'] else None
+      carrot_man = get_carrot_man(sm)
       DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge,
                 left_lane_line_blocked=left_lane_line_blocked,
                 right_lane_line_blocked=right_lane_line_blocked,

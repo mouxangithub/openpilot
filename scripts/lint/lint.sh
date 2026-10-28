@@ -111,6 +111,11 @@ while IFS= read -r -d '' f; do
   if [[ $f =~ ^openpilot/third_party/.* ]]; then
     continue
   fi
+  # Vendored USB smart-screen driver shipped inside the carrot cluster tree
+  # (upstream project import, kept byte-comparable for re-syncs).
+  if [[ $f =~ ^openpilot/sunnypilot/carrot/cluster/\.vendor/.* ]]; then
+    continue
+  fi
   if [[ -f $f ]]; then
     ALL_FILES+=("$f")
     if [[ $f == *.py ]]; then

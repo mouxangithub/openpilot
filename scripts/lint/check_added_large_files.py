@@ -20,9 +20,21 @@ def lfs_files(filenames: list[str]) -> set[str]:
   return {fields[i] for i in range(0, len(fields), 3) if fields[i + 2] == "lfs"}
 
 
+# Fork-level allowlist: these files exceed the size gate but must ship as plain git
+# blobs because this fork cannot push to the sunnypilot LFS endpoint (see the
+# cluster rules in .gitattributes, same precedent as the UI fonts/icons).
+FORK_LARGE_ALLOWLIST = {
+  "openpilot/sunnypilot/carrot/cluster/cluster_renderer.py",
+  "openpilot/sunnypilot/carrot/cluster/cluster_route_replay.py",
+  "openpilot/sunnypilot/carrot/cluster/cluster_scene.py",
+  "openpilot/sunnypilot/carrot/cluster/radar_trajectory_labels.json",
+  "openpilot/sunnypilot/carrot/cluster/assets/models/cybertruck/cybertruck_cluster.obj",
+}
+
+
 def check_added_large_files(filenames: list[str], max_kb: int) -> int:
   failed = False
-  ignored = lfs_files(filenames)
+  ignored = lfs_files(filenames) | FORK_LARGE_ALLOWLIST
   for filename in filenames:
     if filename in ignored:
       continue

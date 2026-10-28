@@ -94,3 +94,13 @@ openpilot/selfdrive/assets/img_spinner_comma.png -filter -diff -merge binary
 # Navigation maneuver icons (wave 5 port): same small-asset rule as above - plain git,
 # no LFS push route available for this repo.
 openpilot/selfdrive/assets/navigation/*.png -filter -diff -merge binary
+# CarrotPilot cluster subsystem (ported 2026-10-28): plain git blobs, same rule as
+# the fonts/icons above - this fork cannot push to the sunnypilot LFS endpoint, so
+# oversized files ship as regular git objects and are exempted from the 120 KB lint
+# gate via the allowlist in scripts/lint/check_added_large_files.py.
+openpilot/sunnypilot/carrot/cluster/cluster_renderer.py -filter -diff -merge binary
+openpilot/sunnypilot/carrot/cluster/cluster_route_replay.py -filter -diff -merge binary
+openpilot/sunnypilot/carrot/cluster/cluster_scene.py -filter -diff -merge binary
+openpilot/sunnypilot/carrot/cluster/radar_trajectory_labels.json -filter -diff -merge binary
+openpilot/sunnypilot/carrot/cluster/assets/images/*.png -filter -diff -merge binary
+openpilot/sunnypilot/carrot/cluster/assets/models/**/*.obj -filter -diff -merge binary

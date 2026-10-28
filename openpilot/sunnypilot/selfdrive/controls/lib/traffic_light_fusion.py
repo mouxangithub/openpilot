@@ -29,6 +29,7 @@ done by the caller (``LongitudinalPlannerSP``) which already imports custom.
 from enum import Enum
 from typing import Any
 
+from openpilot.sunnypilot.carrot.carrot_man_input import get_carrot_man
 from openpilot.sunnypilot.carrot.config import UnifiedParams
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode
 
@@ -107,7 +108,9 @@ class TrafficLightFusion:
     state = RawLight.OFF
     distance = 0.0
     try:
-      carrot = sm["carrotManSP"]
+      # Freshness gate (cp carrot_man_input): alive/valid alone do not prove the
+      # traffic frame is still fresh; a stalled publisher must read as OFF.
+      carrot = get_carrot_man(sm)
     except Exception:
       carrot = None
     if carrot is not None:

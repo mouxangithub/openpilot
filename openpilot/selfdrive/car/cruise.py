@@ -6,6 +6,7 @@ from opendbc.car.structs import car
 from openpilot.common.constants import CV
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
+from openpilot.sunnypilot.carrot.carrot_man_input import get_carrot_man
 from openpilot.sunnypilot.selfdrive.car.cruise_ext import VCruiseHelperSP
 # The gap-cycle helpers live in carrot.cruise_gap (their policy home since the
 # DEC-era cruise_helpers.py was removed); VCruiseCarrot reuses them
@@ -404,9 +405,12 @@ class VCruiseCarrot(VCruiseHelper):
 
   def _update_carrot_man(self, sm):
     # sunnypilot publishes the phone-projection state on carrotManSP; the legacy
-    # cp 'carrotMan' service is not registered in cereal/services.py.
-    if sm.valid.get('carrotManSP', False):
-      carrot_man = sm['carrotManSP']
+    # cp 'carrotMan' service is not registered in cereal/services.py. The gate
+    # also rejects frames older than 1 s or with an out-of-range desiredSpeed,
+    # so a stalled publisher cannot freeze nRoadLimitSpeed into the cruise
+    # speed table (ported from cp's carrot_man_input.get_carrot_man).
+    carrot_man = get_carrot_man(sm)
+    if carrot_man is not None:
       self.nRoadLimitSpeed = carrot_man.nRoadLimitSpeed
       self.desiredSpeed = carrot_man.desiredSpeed
       self.carrot_cmd_index = carrot_man.carrotCmdIndex

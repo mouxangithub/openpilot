@@ -285,6 +285,19 @@ lint.flake8-implicit-str-concat.allow-multiline = false
 # upstream formatting/dataclass habits (TpmsInfo default is frozen/safe),
 # B904/B905 are stdlib-signature style.
 "openpilot/sunnypilot/carrot/radar/route_replay/*.py" = ["ISC002", "ISC004", "C409", "E501", "B904", "B905", "RUF009"]
+# Cluster external-screen subsystem ported verbatim from CarrotPilot's
+# `selfdrive/carrot/cluster`. Kept close to upstream so re-syncs stay
+# mechanical: ISC*/C401/C409/E501/RUF009 are upstream formatting/dataclass
+# habits; B904/B905/UP031/UP022/PIE810 are stdlib-signature style; W291/W293
+# trailing whitespace is left as upstream. F841 (one dead tuple in
+# cluster_scene) and F403 (cluster_ui's `from cluster_config import *`) are
+# upstream patterns kept for byte-comparability. TID251: cluster_renderer
+# formats the ETA arrival clock from wall time (same need as web_push), and
+# its private cached measure_text_ex wrapper already carries the font
+# argument the ban exists to enforce.
+"openpilot/sunnypilot/carrot/cluster/**/*.py" = ["ISC002", "ISC004", "C401", "C409", "E501", "B904", "B905", "RUF009", "UP031", "UP022", "PIE810", "W291", "W293", "F841", "F403", "TID251"]
+# Launcher for the cluster subsystem (see the cluster entry above).
+"openpilot/sunnypilot/carrot/cluster_autorun.py" = ["ISC002"]
 "openpilot/sunnypilot/carrot/radar_motion/cutin_helpers.py" = ["C420"]
 "openpilot/sunnypilot/carrot/server/tests/test_auto_update.py" = ["ASYNC109"]
 "openpilot/sunnypilot/carrot/server/tests/test_git_config.py" = ["ISC002"]

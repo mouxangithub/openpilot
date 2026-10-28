@@ -14,6 +14,7 @@ os.environ.setdefault('AM_POWER_LIMIT', '100')
 os.environ.setdefault('AM_PERF_LEVEL', 'high')
 from openpilot.common.hardware import COMMA_HARDWARE
 from openpilot.selfdrive.modeld.helpers import chestnut_present
+from openpilot.sunnypilot.carrot.carrot_man_input import get_carrot_man
 from openpilot.selfdrive.modeld.lane_width import LaneWidthEstimator
 CHESTNUT_PRESENT = chestnut_present()
 # tinygrad picks its default device by opening every backend until one works, 2.6 s of every start
@@ -609,7 +610,7 @@ def main(demo=False):
       right_lane_line_blocked = cs_sp.carrotLaneValid and cs_sp.carrotRightLineBlocked
 
       left_edge, right_edge = RELC.update_and_fill(modelv2_send.modelV2, mdv2sp_send.modelDataV2SP, v_ego)
-      carrot_man = sm['carrotManSP'] if sm.alive['carrotManSP'] else None
+      carrot_man = get_carrot_man(sm)
       DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge,
                 left_lane_line_blocked=left_lane_line_blocked,
                 right_lane_line_blocked=right_lane_line_blocked,

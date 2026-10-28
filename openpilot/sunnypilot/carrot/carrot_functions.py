@@ -41,6 +41,7 @@ import numpy as np
 
 from opendbc.car.common.conversions import Conversions as CV
 from openpilot.common.realtime import DT_MDL
+from openpilot.sunnypilot.carrot.carrot_man_input import get_carrot_man
 from openpilot.sunnypilot.carrot.config import UnifiedParams
 from openpilot.sunnypilot.carrot.curve_speed import TARGET_LAT_ACCEL, VisionCurveSpeed, curve_speed
 from openpilot.sunnypilot.carrot.radar_geometry import RADAR_TO_CAMERA_M
@@ -868,10 +869,9 @@ class CarrotPlanner:
     control is requesting a maneuver.
     """
     atc_active = False
-    if not sm.valid.get("carrotManSP", False) or not sm.alive.get("carrotManSP", False):
+    carrot = get_carrot_man(sm)
+    if carrot is None:
       return v_cruise_kph, atc_active
-
-    carrot = sm["carrotManSP"]
     traffic_state_carrot = getattr(carrot, "trafficState", 0) or 0
     trigger_start = False
 

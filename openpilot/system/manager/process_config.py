@@ -101,6 +101,20 @@ def enable_webrtc(started: bool, params: Params, CP: car.CarParams) -> bool:
   # The web encoder remains idle until a Carrot Vision session requests it.
   return params.get_bool("CarrotVisionEnabled")
 
+def cluster_hud_active(params: Params) -> bool:
+  try:
+    return params.get_int("ClusterHud") == 1
+  except Exception:
+    return False
+
+def enable_cluster_hud(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # Optional external cluster screen (ported from CarrotPilot's cluster
+  # subsystem). Off by default; the sunnypilot onroad overlay stays the
+  # primary in-cabin presentation and this process only runs when the user
+  # explicitly enables the external display. Matches cp: cluster_autorun
+  # handles device checks internally.
+  return cluster_hud_active(params)
+
 def radar_tracks_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   """Carrot radar stack: radarcan (CAN -> liveTracks) and the dPath radard.
 
@@ -393,6 +407,7 @@ procs += [
   # gated process cannot come up on demand, because the manager only re-evaluates
   # its gates on its own cycle, so the link would stay dead until a manager pass.
   PythonProcess("carrot_man", "openpilot.sunnypilot.carrot.carrot_man", always_run, restart_if_crash=True),
+  PythonProcess("carrot_cluster", "openpilot.sunnypilot.carrot.cluster_autorun", enable_cluster_hud, restart_if_crash=True),
   PythonProcess("carrot_navi", "openpilot.sunnypilot.carrot.carrot_navi", always_run, restart_if_crash=True),
   # CarrotPilot-compatible API server on port 7000: the parameter REST API plus, as they
   # are ported, the /ws raw and camera streams. The companion app (navipilot / CP 搭子)

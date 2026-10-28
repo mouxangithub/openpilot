@@ -24,6 +24,7 @@ from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_cap
 
 from openpilot.sunnypilot.mads.helpers import set_alternative_experience, set_car_specific_params
 from openpilot.sunnypilot.selfdrive.car import interfaces as sunnypilot_interfaces
+from openpilot.sunnypilot.carrot.carrot_man_input import get_carrot_man
 from openpilot.sunnypilot.carrot.carrot_navi_fusion import merge_carrot_navi_lanes
 from openpilot.sunnypilot.carrot.xiaoge.xiaoge_vision import (
   apply_xiaoge_vision_result,
@@ -238,7 +239,9 @@ class Car:
       self._carrot_navi_cache_mono = time.monotonic()
     carrot_navi = self._carrot_navi_cache
     navi_fresh = carrot_navi is not None and time.monotonic() - self._carrot_navi_cache_mono <= 0.5
-    carrot_man = self.sm['carrotManSP'] if self.sm.valid.get('carrotManSP', False) else None
+    # Freshness gate (cp carrot_man_input): a stalled carrot_man must not keep
+    # feeding lane-blocking hints after its publisher died mid-route.
+    carrot_man = get_carrot_man(self.sm)
     nav_guide = getattr(carrot_man, 'navLaneGuide', "") if carrot_man is not None else ""
     nav_guide_cnt = int(getattr(carrot_man, 'navLaneGuideCnt', 0) or 0) if carrot_man is not None else 0
     if self.carrot_enabled:

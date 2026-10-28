@@ -951,6 +951,13 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ClusterHudRadarSourceColor", {PERSISTENT | BACKUP, INT, "0"}},
     {"ClusterHudScreenMode", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"ClusterHudTheme", {PERSISTENT | BACKUP, INT, "0"}},
+    {"ClusterHudConnected", {CLEAR_ON_MANAGER_START, BOOL}},  // a USB cluster display is attached (carrot cluster autorun)
+    {"UsbGpuPresent", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, BOOL}},
+    {"UsbGpuHardwareSeen", {PERSISTENT, BOOL}},
+    {"UsbGpuCompiled", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, BOOL}},
+    {"UsbGpuLoading", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION | CLEAR_ON_IGNITION_ON, BOOL}},
+    {"UsbGpuActive", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION | CLEAR_ON_IGNITION_ON, BOOL}},
+    {"UsbGpuStartupFailed", {CLEAR_ON_MANAGER_START | CLEAR_ON_IGNITION_ON, BOOL}},
     {"EnableRadarTracks", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"EnableCornerRadar", {PERSISTENT, INT, "0"}},  // corner-radar object groups (Hyundai)
     {"RadarTrackFlip", {PERSISTENT, BOOL, "0"}},  // invert frontRadar yRel/yvRel once per drive
