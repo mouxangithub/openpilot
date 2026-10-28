@@ -228,6 +228,9 @@ class UIState(UIStateSP):
 
   def _update_chestnut_state(self) -> None:
     if (view := self.jetlink_view) is not None:
+      # jetlink defers to a fitted chestnut (no view beside one), so whatever the onroad edge
+      # guessed from the cable on the port, here it was the Jetson's
+      self.chestnut_present = False
       self.chestnut_state = self._jetlink_state(view)
       return
 

@@ -157,6 +157,21 @@ class TestUIStateJetlinkView(UITest):
       ui_state.chestnut_compiled = compiled
       self._restore(saved)
 
+  def test_a_jetlink_view_means_no_chestnut_is_fitted(self):
+    """Going onroad, upstream counts any cable plus a compiled model as a late chestnut, and a
+    tinygrad small pick reads compiled: the Jetson's cable sent the model names down the chestnut's
+    paths, CD210 (Default) with no big pick. A board is upstream's to judge."""
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    saved = self._with(FakeSM(board=False), started=True)
+    try:
+      for installed, expected in ((True, False), (False, True)):
+        ui_state.chestnut_present = True  # the onroad edge's guess
+        with jetlink(installed=installed, enabled=True, present=True):
+          ui_state._update_chestnut_state()
+        assert ui_state.chestnut_present is expected, installed
+    finally:
+      self._restore(saved)
+
   @staticmethod
   def _state(view, state='none', sm=None, started=False):
     """chestnut_state for jetlink's snapshot `view` and modeld's acceleratorState by name."""
