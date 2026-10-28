@@ -29,6 +29,16 @@ FORK_LARGE_ALLOWLIST = {
   "openpilot/sunnypilot/carrot/cluster/cluster_scene.py",
   "openpilot/sunnypilot/carrot/cluster/radar_trajectory_labels.json",
   "openpilot/sunnypilot/carrot/cluster/assets/models/cybertruck/cybertruck_cluster.obj",
+  # Vision models. .gitattributes deliberately overrides the global *.onnx LFS
+  # rule for these paths so they ship as plain blobs, which means the LFS
+  # exemption above does not cover them.
+  "openpilot/sunnypilot/assets/vision_models/speed_limit_us_detector.onnx",
+  "openpilot/sunnypilot/assets/vision_models/speed_limit_us_reject_classifier.onnx",
+  "openpilot/sunnypilot/assets/vision_models/speed_limit_us_value_classifier.onnx",
+  "openpilot/sunnypilot/assets/vision_models/signal_light_detector.onnx",
+  "openpilot/sunnypilot/carrot/xiaoge/assets/lane.onnx",
+  "openpilot/sunnypilot/carrot/xiaoge/assets/v_asm_model.onnx",
+  "openpilot/sunnypilot/carrot/xiaoge/assets/yolov8n_192.onnx",
 }
 
 

@@ -131,6 +131,17 @@ def signal_color_observer(started: bool, params: Params, CP: car.CarParams) -> b
   from openpilot.selfdrive.modeld.signal_color_shadow import requested
   return started and requested()
 
+
+def signal_yolo_observer(started: bool, params: Params, CP: car.CarParams) -> bool:
+  """YOLO traffic-light detector observer; opt-in through a local artifact install.
+
+  This is a second, independent observation producer. It never writes the
+  transport the classical observer uses, so the two cannot fight over the same
+  file, and it holds no control permission at all.
+  """
+  from openpilot.selfdrive.modeld.signal_yolo_shadow import requested
+  return started and requested()
+
 def onroad_preview(started: bool, params: Params, CP: car.CarParams) -> bool:
   return params.get_bool("IsOnroadPreview")
 
@@ -312,6 +323,8 @@ procs = [
   PythonProcess("modeld", "openpilot.selfdrive.modeld.modeld", and_(or_(only_onroad, onroad_preview), is_stock_model)),
   # Signal-light colour observation (camera comparison only, never control).
   PythonProcess("signalcolord", "openpilot.selfdrive.modeld.signal_color_shadow", signal_color_observer, restart_if_crash=True),
+  # YOLO traffic-light detector observer (camera comparison only, never control).
+  PythonProcess("signalyolod", "openpilot.selfdrive.modeld.signal_yolo_shadow", signal_yolo_observer, restart_if_crash=True),
   PythonProcess("dmonitoringmodeld", "openpilot.selfdrive.modeld.dmonitoringmodeld", dm_process, enabled=(WEBCAM or not PC) and not LITE),
   PythonProcess("navd", "openpilot.selfdrive.navigation.navd", navigation),
   PythonProcess("mapsd", "openpilot.selfdrive.navigation.mapsd", navigation),
