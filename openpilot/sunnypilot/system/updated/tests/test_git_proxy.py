@@ -20,6 +20,7 @@ if "openpilot.common.swaglog" not in sys.modules:
 
 from openpilot.sunnypilot.system.updated.git_proxy import (
   MAX_ACCEPTABLE_MS,
+  PROBE_TIMEOUT_S,
   ProbeResult,
   build_candidates,
   probe_once,
@@ -124,6 +125,50 @@ class TestProbe(unittest.TestCase):
                            deadline=time.monotonic() - 1)
     self.assertFalse(result.ok)
     self.assertEqual(result.samples, [])
+
+  def test_one_flaky_sample_does_not_condemn_a_working_source(self):
+    """A source that answers on the retry is usable.
+
+    These links time out intermittently; condemning a source on its first
+    timeout would throw away a working mirror.
+    """
+    calls = []
+
+    def fake_probe(url, cwd=None, timeout_s=PROBE_TIMEOUT_S):
+      calls.append(url)
+      if len(calls) == 1:
+        return False, 12000, "timeout"
+      return True, 1800, ""
+
+    import openpilot.sunnypilot.system.updated.git_proxy as mod
+    original = mod.probe_once
+    mod.probe_once = fake_probe
+    try:
+      result = mod.probe_source("https://example.test/x.git", samples=3)
+    finally:
+      mod.probe_once = original
+
+    self.assertTrue(result.ok)
+    # the median is taken over the answers that came back
+    self.assertEqual(result.median_ms, 1800)
+
+  def test_a_source_that_never_answers_is_failed(self):
+    calls = []
+
+    def fake_probe(url, cwd=None, timeout_s=PROBE_TIMEOUT_S):
+      calls.append(url)
+      return False, 900, "timeout"
+
+    import openpilot.sunnypilot.system.updated.git_proxy as mod
+    original = mod.probe_once
+    mod.probe_once = fake_probe
+    try:
+      result = mod.probe_source("https://example.test/x.git", samples=3)
+    finally:
+      mod.probe_once = original
+
+    self.assertFalse(result.ok)
+    self.assertEqual(result.error, "timeout")
 
 
 class TestGitmodulesParsing(unittest.TestCase):

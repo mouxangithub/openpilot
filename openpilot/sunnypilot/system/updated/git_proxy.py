@@ -122,14 +122,17 @@ def probe_source(url: str, cwd: str | None = None, samples: int = PROBE_SAMPLES,
                  deadline: float | None = None) -> ProbeResult:
   """Sample a source several times and judge it on its median.
 
-  A source counts as healthy only when every sample it ran came back ok: a
-  link that answers one request in three is not usable for a fetch.
+  A source is healthy when it answered at least once and its median is
+  good. One flaky sample does not condemn a working source: the links
+  here time out intermittently, and a source that answered on the retry
+  is usable. A source that never answers is not.
 
   `deadline` is a monotonic timestamp past which no further sample is
   taken, so a slow source cannot hold up the whole probe.
   """
   timings: list[int] = []
-  outcomes: list[bool] = []
+  good_timings: list[int] = []
+  successes = 0
   last_error = ""
 
   for _ in range(samples):
@@ -139,21 +142,24 @@ def probe_source(url: str, cwd: str | None = None, samples: int = PROBE_SAMPLES,
 
     ok, ms, err = probe_once(url, cwd=cwd)
     timings.append(ms)
-    outcomes.append(ok)
-    if not ok:
+    if ok:
+      successes += 1
+      good_timings.append(ms)
+    else:
       last_error = err
-    # A source that answered cleanly does not need the remaining samples; a
-    # source that failed once gets the rest of them to be sure.
-    if ok and len(outcomes) >= 2:
+    # A source that answered cleanly does not need the remaining samples.
+    if successes >= 2:
       break
 
-  ordered = sorted(timings)
+  # The median is taken over the answers that came back, so one timeout
+  # does not make a source that answers in 2s look like a 12s link.
+  ordered = sorted(good_timings)
   median_ms = ordered[len(ordered) // 2] if ordered else 0
 
   if not timings:
     return ProbeResult(url=url, ok=False, median_ms=0, samples=[], error=last_error or "no samples")
 
-  if not all(outcomes):
+  if successes == 0:
     return ProbeResult(url=url, ok=False, median_ms=median_ms, samples=timings, error=last_error or "failed")
 
   return ProbeResult(url=url, ok=True, median_ms=median_ms, samples=timings, error="")
