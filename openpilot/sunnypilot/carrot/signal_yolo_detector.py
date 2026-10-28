@@ -255,21 +255,120 @@ def detect(rgb, net, *, conf_threshold=CONF_THRESHOLD, nms_threshold=NMS_THRESHO
   return group_housings(detections)
 
 
-def observation_record(observations, frame_id, timestamp, session_id, *, width, height):
+def observation_record(observations, frame_id, timestamp, session_id, *, width, height,
+                       tracker: 'HousingTracker | None' = None):
   """Build the record shape the existing signal transport already speaks.
 
   The field names match what ``signal_assist_runtime.publish_observation`` and
   ``signal_display.publish_display`` consume, so this detector can feed the
   existing consumers without either side learning a new protocol.
+
+  With a ``tracker``, ids stay stable across frames and ``observations``
+  counts every frame the track matched; ``age`` stays 0 because only
+  current-frame tracks are published — stale housings must never be
+  presented as fresh evidence.
   """
-  tracks = []
-  for index, observation in enumerate(observations, start=1):
-    tracks.append({'id': index, 'box': list(observation.box), 'state': observation.state, 'age': 0,
-                   'observations': 1, 'evidence': {'raw': observation.state},
-                   'lamps': [{'cls': lamp.cls, 'conf': lamp.conf, 'box': list(lamp.box)}
-                             for lamp in observation.lamps]})
+  if tracker is not None:
+    tracks = tracker.update(observations)
+  else:
+    tracks = []
+    for index, observation in enumerate(observations, start=1):
+      tracks.append({'id': index, 'box': list(observation.box), 'state': observation.state, 'age': 0,
+                     'observations': 1, 'evidence': {'raw': observation.state},
+                     'lamps': [{'cls': lamp.cls, 'conf': lamp.conf, 'box': list(lamp.box)}
+                               for lamp in observation.lamps]})
   return {'version': 1, 'stream': 'road', 'size': [width, height], 'frame_id': frame_id,
           'timestamp': timestamp, 'session': session_id, 'tracks': tracks}
+
+
+class HousingTracker:
+  """Greedy IoU tracker giving housings identities that survive frames.
+
+  The raw detector re-derives boxes every frame, so a consumer cannot tell
+  "the same housing, still red" from "a new housing". This layer matches the
+  current observations to remembered tracks by IoU (best match first, one
+  observation per track), keeps the id and the cumulative observation count,
+  and forgets a track after ``max_age`` consecutive misses so a housing that
+  leaves view cannot haunt the record. Tracks that are not matched this frame
+  are never published: only fresh observations leave this module.
+  """
+
+  def __init__(self, iou_threshold: float = 0.3, max_age: int = 10, max_tracks: int = 64):
+    if not 0. < iou_threshold <= 1. or max_age < 1:
+      raise ValueError('invalid tracker configuration')
+    self.iou_threshold = iou_threshold
+    self.max_age = max_age
+    self.max_tracks = max_tracks
+    self._boxes: dict[int, tuple[float, float, float, float]] = {}
+    self._observations: dict[int, int] = {}
+    self._misses: dict[int, int] = {}
+    self._states: dict[int, str] = {}
+    self._lamps: dict[int, list] = {}
+    self._next_id = 1
+
+  def update(self, observations: list) -> list[dict]:
+    pairs = []
+    for index, observation in enumerate(observations):
+      for track_id, box in self._boxes.items():
+        overlap = _iou(observation.box, box)
+        if overlap >= self.iou_threshold:
+          pairs.append((overlap, index, track_id))
+    # Best overlaps first; the explicit tie-break keeps the match deterministic.
+    pairs.sort(key=lambda pair: (-pair[0], pair[1], pair[2]))
+    matched_observations: set[int] = set()
+    matched_tracks: set[int] = set()
+    index_to_track: dict[int, int] = {}
+    for _, index, track_id in pairs:
+      if index in matched_observations or track_id in matched_tracks:
+        continue
+      observation = observations[index]
+      self._boxes[track_id] = observation.box
+      self._observations[track_id] += 1
+      self._misses[track_id] = 0
+      self._states[track_id] = observation.state
+      self._lamps[track_id] = list(observation.lamps)
+      matched_observations.add(index)
+      matched_tracks.add(track_id)
+      index_to_track[index] = track_id
+
+    for track_id in set(self._boxes) - matched_tracks:
+      self._misses[track_id] = self._misses.get(track_id, 0) + 1
+      if self._misses[track_id] > self.max_age:
+        self._drop(track_id)
+
+    for index, observation in enumerate(observations):
+      if index in matched_observations:
+        continue
+      track_id = self._next_id
+      self._next_id += 1
+      self._boxes[track_id] = observation.box
+      self._observations[track_id] = 1
+      self._misses[track_id] = 0
+      self._states[track_id] = observation.state
+      self._lamps[track_id] = list(observation.lamps)
+      matched_tracks.add(track_id)
+      index_to_track[index] = track_id
+
+    if len(self._boxes) > self.max_tracks:
+      # Bounded memory: retire the tracks closest to expiry first.
+      for track_id in sorted(self._boxes, key=lambda t: self._misses[t])[:len(self._boxes) - self.max_tracks]:
+        self._drop(track_id)
+
+    tracks = []
+    for index, observation in enumerate(observations):
+      track_id = index_to_track[index]
+      tracks.append({'id': track_id, 'box': list(observation.box), 'state': observation.state, 'age': 0,
+                     'observations': self._observations[track_id], 'evidence': {'raw': observation.state},
+                     'lamps': [{'cls': lamp.cls, 'conf': lamp.conf, 'box': list(lamp.box)}
+                               for lamp in observation.lamps]})
+    return tracks
+
+  def _drop(self, track_id: int) -> None:
+    self._boxes.pop(track_id, None)
+    self._observations.pop(track_id, None)
+    self._misses.pop(track_id, None)
+    self._states.pop(track_id, None)
+    self._lamps.pop(track_id, None)
 
 
 def valid_box(box, width, height):

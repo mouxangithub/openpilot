@@ -29,7 +29,8 @@ import time
 import pyray as rl
 
 from openpilot.selfdrive.ui.signal_status import (
-  POINT_COLOR_BACKDROP, POINT_COLOR_SHADOW, signal_action, signal_colors, signal_suspended, signal_visible,
+  POINT_COLOR_BACKDROP, POINT_COLOR_SHADOW, SIGNAL_PALETTE, signal_action, signal_colors,
+  signal_suspended, signal_visible,
 )
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import FontWeight, gui_app
@@ -53,6 +54,16 @@ BRAKE_CANDIDATE_TEXT = 'BRAKE?'
 BRAKE_CANDIDATE_COLOR = (255, 100, 40, 255)
 BRAKE_CAPTION_SIZE = 30
 
+# YOLO traffic-light observer dot (display only): sits to the right of the
+# planner-evidence ring so the two sources can never be mistaken for one
+# another. Direct palette colours, no amber swap — this is the detector's own
+# reading, not a plan. Only red/green are shown; an unknown or yellow reading
+# stays silent.
+YOLO_DOT_OFFSET_X = 56
+YOLO_DOT_RADIUS = 9
+YOLO_DOT_BACKDROP_RATIO = 1.7
+YOLO_DOT_COLORS = {'red': SIGNAL_PALETTE[1], 'green': SIGNAL_PALETTE[2]}
+
 
 class SignalHudRenderer:
   """Display-only signal indicator: render() only reads from the plan."""
@@ -61,6 +72,9 @@ class SignalHudRenderer:
     self._font = gui_app.font(FontWeight.SEMI_BOLD)
     self._brake_next_read = 0.
     self._brake_candidate = False
+    self._yolo_reader = None
+    self._yolo_next_read = 0.
+    self._yolo_state: str | None = None
 
   def _update_brake_candidate(self, now: float | None = None) -> None:
     """Throttled (10 Hz) read of the modeld lead-brake-lamp tmpfs record.
@@ -77,9 +91,35 @@ class SignalHudRenderer:
       except Exception:
         self._brake_candidate = False
 
+  def _update_yolo_observation(self, now: float | None = None) -> None:
+    """Throttled (5 Hz) read of the YOLO traffic-light observer's record.
+
+    Display only: the observer's own opt-in gates it, staleness clears it, and
+    only an agreed red/green reading is shown. Never imported when the signal
+    modules are absent (e.g. stripped UI builds).
+    """
+    now = time.monotonic() if now is None else now
+    if now < self._yolo_next_read:
+      return
+    self._yolo_next_read = now + .2
+    self._yolo_state = None
+    try:
+      from openpilot.sunnypilot.carrot.signal_yolo_display import YoloObservationReader
+      if self._yolo_reader is None:
+        self._yolo_reader = YoloObservationReader()
+      record = self._yolo_reader.read(now=now)
+      state = record.get('prediction') if isinstance(record, dict) else None
+      self._yolo_state = state if state in YOLO_DOT_COLORS else None
+    except Exception:
+      self._yolo_state = None
+
   def render(self, rect: rl.Rectangle, sm) -> None:
     """Paint the ring and dot for the current evidence."""
     self._update_brake_candidate()
+    self._update_yolo_observation()
+
+    if self._yolo_state:
+      self._draw_yolo_dot(rect)
 
     try:
       plan = sm['longitudinalPlanSP']
@@ -104,6 +144,14 @@ class SignalHudRenderer:
       rl.draw_circle(cx, cy, SIGNAL_RADIUS * SIGNAL_DOT_RATIO, rl.Color(*dot))
     if suspended:
       self._draw_caption(cx, cy + SIGNAL_RADIUS + SIGNAL_CAPTION_GAP)
+
+  def _draw_yolo_dot(self, rect: rl.Rectangle) -> None:
+    """Observer dot beside the planner ring; independent of that ring's gates."""
+    cx = int(rect.x + rect.width / 2) + YOLO_DOT_OFFSET_X
+    cy = int(rect.y + SIGNAL_CENTER_Y_OFFSET)
+    rl.draw_circle(cx, cy, YOLO_DOT_RADIUS * YOLO_DOT_BACKDROP_RATIO, rl.Color(*POINT_COLOR_BACKDROP))
+    rl.draw_circle_lines(cx, cy, YOLO_DOT_RADIUS, rl.Color(*POINT_COLOR_SHADOW))
+    rl.draw_circle(cx, cy, YOLO_DOT_RADIUS, rl.Color(*YOLO_DOT_COLORS[self._yolo_state]))
 
   def _draw_brake_caption(self, rect: rl.Rectangle) -> None:
     """Shadowed BRAKE? caption at the top edge of the signal ring area."""

@@ -33,19 +33,23 @@ MODEL_SHA256 = '7fdf89728e86d33e8d4d67902c10804762301cc8c3dc2f28ee168adad5b893fd
 MODEL_CLASSES = ['traffic_light', 'green_light', 'left_light', 'red_light', 'right_light', 'yellow_light']
 MODEL_INPUT_SIZE = 416
 
-# The road camera on the comma 3 (mici) is 1344x760; the 3X is 1928x1208.
-# The existing signal transport is defined for the mici geometry, so the
-# observer refuses to publish anything from a different camera.
-REFERENCE_SIZE = (1344, 760)
+# Road camera geometries in this fork: the comma 3X (mici, OS04C10) delivers
+# 1344x760 road frames and the comma 3 (tici, OX03C10) delivers 1928x1208. The
+# detector maps boxes back per-axis and every record carries its own size, so
+# both geometries publish self-describing records; anything else is refused
+# rather than guessed.
+SUPPORTED_SIZES = ((1344, 760), (1928, 1208))
+REFERENCE_SIZE = SUPPORTED_SIZES[0]
 
 MAX_OBSERVATION_BYTES = 32768
 MAX_INPUT_AGE_MS = 300
 MAX_RESULT_AGE_MS = 200
 
-# One inference per second with a bounded CPU duty: a 416x416 YOLOv8n forward
-# costs ~120 ms on the C3's little cores, so a faster rate would starve the
-# driving stack.
-TARGET_HZ = 1.0
+# At most two inferences per second with a bounded CPU duty: a 416x416 YOLOv8n
+# forward costs ~120 ms on the C3's little cores, so ``next_delay``'s 3x-CPU
+# floor auto-throttles toward ~1 Hz on slower devices while never exceeding
+# ~25% of one little core.
+TARGET_HZ = 2.0
 TARGET_CPU_DUTY = .25
 
 
@@ -200,15 +204,17 @@ def run(directory=DIRECTORY, duration=None, model_path=MODEL_PATH, observation_p
       os.environ[name] = '1'
     from msgq.visionipc import VisionIpcClient, VisionStreamType
     from openpilot.common.swaglog import cloudlog
-    from openpilot.sunnypilot.carrot.signal_yolo_detector import detect, observation_record, valid_box
+    from openpilot.sunnypilot.carrot.signal_yolo_detector import (HousingTracker, detect,
+                                                                  observation_record, valid_box)
     path, manifest = validate_artifact(directory, model_path)
     net = build_net(path)
+    tracker = HousingTracker()
     client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_ROAD, True)
     start = time.monotonic()
     session_id = f'{os.getpid()}:{time.monotonic_ns()}'
     cloudlog.event('signalYoloShadowLoaded', **manifest, pid=os.getpid(), target_hz=TARGET_HZ,
                    target_cpu_duty=TARGET_CPU_DUTY, stream='road',
-                   reference_width=REFERENCE_SIZE[0], reference_height=REFERENCE_SIZE[1],
+                   supported_sizes=[list(size) for size in SUPPORTED_SIZES],
                    control_permission=False)
     previous_id = None
     while requested(directory) and (duration is None or time.monotonic() - start < duration):
@@ -232,9 +238,9 @@ def run(directory=DIRECTORY, duration=None, model_path=MODEL_PATH, observation_p
         time.sleep(1)
         continue
       width, height = int(frame.width), int(frame.height)
-      if (width, height) != REFERENCE_SIZE:
-        # A different road camera geometry has no agreed box mapping for the
-        # existing consumers, so nothing is published for it.
+      if (width, height) not in SUPPORTED_SIZES:
+        # An unknown road camera geometry is refused rather than guessed; the
+        # two known ones are self-describing in the record.
         cloudlog.event('signalYoloShadowSkipped', frame_id=frame_id, reason='unsupported_camera_geometry',
                        width=width, height=height)
         time.sleep(1)
@@ -249,7 +255,8 @@ def run(directory=DIRECTORY, duration=None, model_path=MODEL_PATH, observation_p
       observations = [o for o in observations if valid_box(o.box, width, height)]
       elapsed, cpu = time.monotonic() - work_start, time.process_time() - cpu_start
       age = (time.monotonic_ns() - eof) / 1e6
-      record = observation_record(observations, frame_id, eof / 1e9, session_id, width=width, height=height)
+      record = observation_record(observations, frame_id, eof / 1e9, session_id, width=width, height=height,
+                                  tracker=tracker)
       record.update(mode='camera_comparison_only', model_sha256=MODEL_SHA256, stream='road',
                     timestamp_eof=eof, recorded_monotonic_ns=time.monotonic_ns(),
                     input_age_ms=input_age, result_age_ms=age,
@@ -272,14 +279,18 @@ def _overall_state(observations):
 
 
 def main():
-  # The manager calls main() without CLI arguments. Ordinary failures are
-  # latched until a disable/ignition restart; the manager would otherwise
-  # re-launch an exited process in a loop.
+  # The manager calls main() without CLI arguments. An unexpected failure
+  # exits nonzero so the manager's restart_if_crash re-launches a clean
+  # process that re-validates the artifact — a fixed or reinstalled model is
+  # picked up without an ignition cycle. A normal return means the observer
+  # is off, or another worker holds the lock; hold the idle slot while still
+  # requested so the manager does not churn relaunches.
   try:
     run()
   except Exception:
     from openpilot.common.swaglog import cloudlog
-    cloudlog.exception('signalYoloShadowDisabled; original control unchanged')
+    cloudlog.exception('signalYoloShadowCrashed; original control unchanged, manager will relaunch')
+    raise SystemExit(1) from None
   while requested():
     time.sleep(1)
 

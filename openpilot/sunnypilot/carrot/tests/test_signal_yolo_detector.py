@@ -11,7 +11,7 @@ import numpy as np
 
 from openpilot.sunnypilot.carrot.signal_yolo_detector import (
   CLASSES, GREEN, HOUSING, INPUT_SIZE, LEFT, RED, RIGHT, YELLOW,
-  Detection, HousingObservation, decode_output, detect, group_housings,
+  Detection, HousingObservation, HousingTracker, decode_output, detect, group_housings,
   resize_params, observation_record, valid_box,
 )
 
@@ -158,6 +158,73 @@ class TestObservationRecord(unittest.TestCase):
     json.dumps(record, allow_nan=False)
 
 
+def _obs(box, state='red'):
+  return HousingObservation(conf=.9, box=box, state=state)
+
+
+class TestHousingTracker(unittest.TestCase):
+  def test_same_housing_keeps_its_id_across_frames(self):
+    tracker = HousingTracker()
+    first = tracker.update([_obs((100., 50., 140., 110.), 'red')])
+    second = tracker.update([_obs((101., 51., 141., 111.), 'red')])
+    self.assertEqual(first[0]['id'], second[0]['id'])
+    self.assertEqual(second[0]['observations'], 2)
+    self.assertEqual(second[0]['age'], 0)
+    self.assertEqual(second[0]['state'], 'red')
+
+  def test_two_housings_get_distinct_stable_ids(self):
+    tracker = HousingTracker()
+    tracker.update([_obs((100., 50., 140., 110.)), _obs((600., 50., 640., 110.), 'green')])
+    rows = tracker.update([_obs((600., 50., 640., 110.), 'green'), _obs((100., 50., 140., 110.))])
+    ids = {row['state']: row['id'] for row in rows}
+    self.assertNotEqual(ids['red'], ids['green'])
+    self.assertEqual({row['observations'] for row in rows}, {2})
+
+  def test_moved_housing_stays_matched_within_the_iou_gate(self):
+    tracker = HousingTracker()
+    first = tracker.update([_obs((100., 50., 140., 110.))])
+    # IoU(100,50,140,110 vs 110,55,150,115) ~= .52, matched;
+    # a teleport is a new one.
+    second = tracker.update([_obs((110., 55., 150., 115.))])
+    third = tracker.update([_obs((900., 60., 940., 120.))])
+    self.assertEqual(first[0]['id'], second[0]['id'])
+    self.assertNotEqual(second[0]['id'], third[0]['id'])
+
+  def test_state_flip_is_carried_by_the_track(self):
+    tracker = HousingTracker()
+    tracker.update([_obs((100., 50., 140., 110.), 'red')])
+    row = tracker.update([_obs((100., 50., 140., 110.), 'green')])
+    self.assertEqual(row[0]['state'], 'green')
+    self.assertEqual(row[0]['evidence'], {'raw': 'green'})
+
+  def test_unseen_track_is_forgotten_after_max_age(self):
+    tracker = HousingTracker(max_age=2)
+    first = tracker.update([_obs((100., 50., 140., 110.))])
+    tracker.update([])  # miss 1
+    tracker.update([])  # miss 2
+    tracker.update([])  # miss 3 exceeds max_age: the track is forgotten
+    row = tracker.update([_obs((100., 50., 140., 110.))])
+    self.assertNotEqual(row[0]['id'], first[0]['id'])
+    self.assertEqual(row[0]['observations'], 1)
+
+  def test_only_current_frame_tracks_are_published(self):
+    tracker = HousingTracker()
+    tracker.update([_obs((100., 50., 140., 110.))])
+    rows = tracker.update([])
+    self.assertEqual(rows, [])
+
+  def test_invalid_configuration_is_rejected(self):
+    for kwargs in ({'iou_threshold': 0.}, {'iou_threshold': 1.5}, {'max_age': 0}):
+      with self.assertRaises(ValueError):
+        HousingTracker(**kwargs)
+
+  def test_tracked_record_is_json_serialisable(self):
+    import json
+    tracker = HousingTracker()
+    record = observation_record([_obs((1., 2., 3., 4.))], 1, 0., 's', width=1344, height=760, tracker=tracker)
+    json.dumps(record, allow_nan=False)
+
+
 class TestValidBox(unittest.TestCase):
   def test_inside_the_frame_is_valid(self):
     self.assertTrue(valid_box((0., 0., 1344., 760.), 1344, 760))
@@ -173,6 +240,7 @@ class TestValidBox(unittest.TestCase):
 
 
 class TestDetect(unittest.TestCase):
+  @unittest.skipUnless(__import__('importlib').util.find_spec('cv2') is not None, 'needs cv2')
   def test_detect_runs_on_a_blank_frame_without_inventing_signals(self):
     import cv2
     net = cv2.dnn.readNetFromONNX(

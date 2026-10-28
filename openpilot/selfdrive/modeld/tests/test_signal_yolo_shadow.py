@@ -13,9 +13,15 @@ from pathlib import Path
 
 import numpy as np
 
+try:
+  import cv2  # noqa: F401
+  HAS_CV2 = True
+except ImportError:
+  HAS_CV2 = False
+
 from openpilot.selfdrive.modeld.signal_yolo_shadow import (
-  MAX_OBSERVATION_BYTES, MODEL_CLASSES, MODEL_SHA256, REFERENCE_SIZE,
-  _overall_state, copy_nv12_rgb, install, next_delay, publish_observation, requested,
+  MAX_OBSERVATION_BYTES, MODEL_CLASSES, MODEL_SHA256, REFERENCE_SIZE, SUPPORTED_SIZES,
+  TARGET_HZ, _overall_state, copy_nv12_rgb, install, next_delay, publish_observation, requested,
   validate_artifact,
 )
 from openpilot.sunnypilot.carrot.signal_yolo_detector import HousingObservation
@@ -144,17 +150,18 @@ class TestInstall(unittest.TestCase):
 
 class TestScheduling(unittest.TestCase):
   def test_rate_is_bounded(self):
-    self.assertGreaterEqual(next_delay(0., 0.), .9)
+    self.assertGreaterEqual(next_delay(0., 0.), 1.0 / TARGET_HZ - .01)
 
   def test_cpu_duty_is_bounded(self):
     # A slow frame must not be followed immediately by another one.
-    self.assertGreaterEqual(next_delay(.1, .3), .9)
+    self.assertGreaterEqual(next_delay(.1, .3), 3 * .3)
 
   def test_delay_never_goes_negative(self):
     self.assertGreaterEqual(next_delay(10., 10.), .05)
 
 
 class TestNv12Copy(unittest.TestCase):
+  @unittest.skipUnless(HAS_CV2, 'needs cv2')
   def test_padded_buffer_is_copied_without_mutation(self):
     raw = np.full(60, 77, np.uint8)
     raw[:8] = raw[12:20] = [16, 16, 235, 235, 81, 81, 145, 145]
@@ -164,12 +171,14 @@ class TestNv12Copy(unittest.TestCase):
     np.testing.assert_array_equal(raw, before)
     self.assertEqual(rgb.shape, (2, 8, 3))
 
+  @unittest.skipUnless(HAS_CV2, 'needs cv2')
   def test_invalid_layout_is_rejected(self):
     frame = type('F', (), {'width': 3, 'height': 2, 'stride': 4, 'uv_offset': 8,
                            'data': bytes(12)})()
     with self.assertRaises(ValueError):
       copy_nv12_rgb(frame)
 
+  @unittest.skipUnless(HAS_CV2, 'needs cv2')
   def test_truncated_buffer_is_rejected(self):
     frame = type('F', (), {'width': 4, 'height': 2, 'stride': 4, 'uv_offset': 8,
                            'data': bytes(10)})()
@@ -213,7 +222,13 @@ class TestOverallState(unittest.TestCase):
 
 
 class TestReferenceGeometry(unittest.TestCase):
-  def test_reference_size_is_the_mici_road_camera(self):
+  def test_both_fork_camera_geometries_are_supported(self):
+    # comma 3X (mici, OS04C10) and comma 3 (tici, OX03C10) road frames must
+    # both publish; anything else is refused by the caller.
+    self.assertIn((1344, 760), SUPPORTED_SIZES)
+    self.assertIn((1928, 1208), SUPPORTED_SIZES)
+
+  def test_reference_size_still_names_the_mici_road_camera(self):
     self.assertEqual(REFERENCE_SIZE, (1344, 760))
 
 

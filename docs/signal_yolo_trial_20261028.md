@@ -113,9 +113,10 @@ and it is cheaper here. The two backends produce the same detections once the
 preprocessing matches (max absolute difference 0.002 over the validation
 frames), so the choice costs nothing in accuracy.
 
-The observer runs at **1 Hz** with a bounded CPU duty (a forward costs ~120 ms
-on the C3's little cores, so a faster rate would starve the driving stack).
-It is pinned to the little cores at the lowest priority.
+The observer runs at up to **2 Hz** with a bounded CPU duty (a forward costs
+~120 ms on the C3's little cores, so ``next_delay``'s 3x-CPU floor
+auto-throttles toward ~1 Hz on slower devices while never exceeding ~25% of
+one little core). It is pinned to the little cores at the lowest priority.
 
 ## Using it on a device
 
@@ -135,12 +136,26 @@ The observer refuses to start unless:
 - the manifest says `mode: camera_comparison_only` and
   `control_permission: false`;
 - the model's sha256 matches the pinned digest;
-- the road camera is 1344x760 (the comma 3's mici). A different geometry has no
-  agreed box mapping for the existing consumers, so nothing is published.
+- the road camera is 1344x760 (comma 3X / mici, OS04C10) or 1928x1208
+  (comma 3 / tici, OX03C10). Both records are self-describing (they carry
+  their own size and per-axis box mapping); any other geometry is refused
+  rather than guessed. An unexpected crash now exits nonzero so the manager's
+  restart re-validates the artifact — a fixed or reinstalled model is picked
+  up without an ignition cycle.
 
 Observations are written to `/dev/shm/carrot_signal_yolo_observation.json` -
 a **separate** file from the classical observer's transport, so the two
-producers cannot fight over the same path.
+producers cannot fight over the same path. Housings keep their ids across
+frames through a greedy IoU tracker (`HousingTracker`), so a consumer can
+tell "the same housing, still red" from "a new housing"; only current-frame
+tracks are published (`age` stays 0), and a track unseen for more than
+`max_age` frames is forgotten.
+
+The signal HUD (`SignalHudRenderer`) draws a small **observer dot** to the
+right of the planner-evidence ring whenever the observer is enabled and a
+fresh record carries an agreed red or green reading. It is display only,
+independent of the `SignalAssistMode` ring gate, and paints the direct palette
+colour (no amber swap) so it can never be mistaken for the planner's evidence.
 
 ## Limitations
 
@@ -148,6 +163,10 @@ producers cannot fight over the same path.
   straight-on and near. Behaviour on oblique, distant, occluded or adverse-
   weather signals is not measured.
 - `right_light` is effectively untrained.
+- The 91.8% squash accuracy was measured on 1344x760 frames; the comma 3's
+  1928x1208 has a different aspect ratio (1.60 vs 1.77) and must be re-evaluated
+  on-device (`tools/signal_analysis/eval_signal_yolo.py`) before any
+  precision claim carries over.
 - The colour read is per-frame with no temporal confirmation of its own. A
   consumer that needs stability must add it; the existing `SignalAssist`
   already does this for the classical observer.

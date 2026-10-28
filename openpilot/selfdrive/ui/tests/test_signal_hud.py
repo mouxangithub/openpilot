@@ -66,9 +66,12 @@ class TestSignalHudRender(unittest.TestCase):
     signal_hud.measure_text_cached = lambda font, text, size, spacing=0: NS(x=float(len(text)) * size * 0.5)
     self.renderer = signal_hud.SignalHudRenderer.__new__(signal_hud.SignalHudRenderer)
     self.renderer._font = None
-    # Keep the throttled lead-brake-lamp read inert unless a test enables it.
+    # Keep the throttled lead-brake-lamp and yolo reads inert unless a test enables them.
     self.renderer._brake_next_read = float('inf')
     self.renderer._brake_candidate = False
+    self.renderer._yolo_next_read = float('inf')
+    self.renderer._yolo_state = None
+    self.renderer._yolo_reader = None
 
   def tearDown(self):
     ui_state.carrot_signal_hud = self._orig_flag
@@ -103,6 +106,54 @@ class TestSignalHudRender(unittest.TestCase):
     self.renderer.render(_rect(), {'longitudinalPlanSP': object()})
 
 
+class TestYoloDot(unittest.TestCase):
+  """Observer dot: independent of the planner ring's gates, colour-direct."""
+
+  def setUp(self):
+    self._orig_flag = ui_state.carrot_signal_hud
+    ui_state.carrot_signal_hud = False  # the yolo dot must not need the ring gate
+    self._orig_rl = signal_hud.rl
+    self._orig_measure = signal_hud.measure_text_cached
+    self._fake = _FakeRL()
+    signal_hud.rl = self._fake
+    signal_hud.measure_text_cached = lambda font, text, size, spacing=0: NS(x=float(len(text)) * size * 0.5)
+    self.renderer = signal_hud.SignalHudRenderer.__new__(signal_hud.SignalHudRenderer)
+    self.renderer._font = None
+    self.renderer._brake_next_read = float('inf')
+    self.renderer._brake_candidate = False
+    self.renderer._yolo_next_read = float('inf')
+    self.renderer._yolo_reader = None
+    self.renderer._yolo_state = None
+
+  def tearDown(self):
+    ui_state.carrot_signal_hud = self._orig_flag
+    signal_hud.rl = self._orig_rl
+    signal_hud.measure_text_cached = self._orig_measure
+
+  def test_red_state_draws_backdrop_outline_and_dot(self):
+    self.renderer._yolo_state = 'red'
+    self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})
+    self.assertEqual(self._fake.calls.count('circle'), 2)  # backdrop + dot
+    self.assertEqual(self._fake.calls.count('ring'), 1)  # dark outline
+    self.assertEqual(self._fake.calls.count('text'), 0)
+
+  def test_unknown_state_draws_nothing(self):
+    self.renderer._yolo_state = None
+    self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})
+    self.assertEqual(self._fake.calls, [])
+
+  def test_dot_ignores_the_ring_gate(self):
+    self.renderer._yolo_state = 'green'
+    ui_state.carrot_signal_hud = False
+    self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})
+    self.assertEqual(self._fake.calls.count('circle'), 2)
+
+  def test_throttled_read_failure_is_swallowed(self):
+    self.renderer._yolo_next_read = 0.
+    self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})
+    self.assertIsNone(self.renderer._yolo_state)
+
+
 class TestBrakeCaption(unittest.TestCase):
   """Lead brake-lamp caption: display only, candidate-gated, never holds."""
 
@@ -118,6 +169,9 @@ class TestBrakeCaption(unittest.TestCase):
     self.renderer._font = None
     self.renderer._brake_next_read = float('inf')
     self.renderer._brake_candidate = False
+    self.renderer._yolo_next_read = float('inf')
+    self.renderer._yolo_state = None
+    self.renderer._yolo_reader = None
 
   def tearDown(self):
     ui_state.carrot_signal_hud = self._orig_flag
