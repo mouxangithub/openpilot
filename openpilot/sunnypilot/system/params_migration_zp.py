@@ -14,12 +14,12 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.selfdrive.car.mazda_torque_seed import seed_car_defaults_offroad
 
 E2E_ASSISTS_MIGRATED = "ExperimentalAssistsDefaultOn"
-E2E_ASSISTS = ("ExperimentalModeSetSpeed", "ExperimentalModeLeadGap")
+E2E_ASSISTS = ("ExperimentalModeSetSpeed",)
 
 
 def _migrate_e2e_assists_on(params: Params) -> None:
-  # Speed Assist and Lead Follow Assist became default on 2026-10-26; turn them on once for
-  # every install, after which the driver's choice stands.
+  # Set Speed Assist became default on 2026-10-26; turn it on once for every install, after which
+  # the driver's choice stands. (Lead Follow Assist was folded into it 2026-10-27.)
   if params.get_bool(E2E_ASSISTS_MIGRATED):
     return
   try:

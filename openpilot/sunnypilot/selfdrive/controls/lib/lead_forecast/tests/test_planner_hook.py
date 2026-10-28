@@ -15,7 +15,6 @@ from openpilot.selfdrive.controls.lib.longitudinal_mpc_lib.long_mpc import T_IDX
 from openpilot.selfdrive.controls.radard import RADAR_TO_CAMERA
 from openpilot.sunnypilot.selfdrive.car.tests.fakes import FakeParams
 from openpilot.sunnypilot.selfdrive.controls.lib.tests.test_experimental_gate import V_EGO, build_planner, build_sm
-from openpilot.sunnypilot.selfdrive.controls.lib.e2e_lead_gap.controller import Inhibit as GapInhibit
 from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import LEAD_T_IDXS, Inhibit, forecast_trajectory
 
 SLOWING = np.array([V_EGO - 2., V_EGO - 6., V_EGO - 10., V_EGO - 12., V_EGO - 13., V_EGO - 13.])
@@ -51,8 +50,6 @@ def run(enabled: bool, frames: int = 20):
   planner = build_planner()
   planner.lead_forecast.params = FakeParams(LeadForecast=enabled)
   planner.lead_forecast.frame = -1  # re-read the param on the next update
-  planner.e2e_lead_gap.params = FakeParams(ExperimentalModeLeadGap=enabled)
-  planner.e2e_lead_gap.frame = -1
   sm = lead_sm()
   for _ in range(frames):
     planner.update(sm)
@@ -72,7 +69,6 @@ def test_off_reaches_the_mpc_as_upstream():
   report = publish(planner, sm)
   assert report.leadForecast.leadOne.inhibit == Inhibit.disabled
   assert report.leadForecast.leadOne.weight == 0.
-  assert report.e2eLeadGap.inhibit == GapInhibit.disabled
 
 
 def test_on_reaches_the_mpc():
@@ -85,8 +81,3 @@ def test_on_reaches_the_mpc():
   # a lead the model sees slowing hard: the plan brakes harder than upstream's extrapolation
   assert planner.mpc.a_solution[:6].min() < off.mpc.a_solution[:6].min() - 0.1
 
-
-def test_lead_gap_reports_why_it_idles():
-  planner, sm = run(True)
-  # the lead's forecast slows by far more than LEAD_SLOWDOWN
-  assert publish(planner, sm).e2eLeadGap.inhibit == GapInhibit.leadBraking

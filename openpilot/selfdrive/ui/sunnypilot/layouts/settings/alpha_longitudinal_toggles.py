@@ -45,21 +45,15 @@ class AlphaLongitudinalToggles:
       callback=ui_state.set_experimental_mode)
 
     self._set_speed_toggle = toggle_item_sp(
-      title=lambda: tr("Experimental Mode Speed Assist"),
-      description=lambda: tr("In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down."),
+      title=lambda: tr("Set Speed Assist"),
+      description=lambda: tr("In Experimental Mode, drive toward your set speed and following distance as chill mode does " +
+                             "whenever the model holds back. The model still makes every slowdown."),
       param="ExperimentalModeSetSpeed")
-
-    self._lead_gap_toggle = toggle_item_sp(
-      title=lambda: tr("Experimental Mode Lead Follow Assist"),
-      description=lambda: tr("Closes the gap to your driving personality's following distance behind a steady car. " +
-                             "Never closer than chill mode."),
-      param="ExperimentalModeLeadGap")
 
     self._refresh_toggles = (
       ("AlphaLongitudinalEnabled", self._alpha_long_toggle),
       ("ExperimentalMode", self._experimental_toggle),
       ("ExperimentalModeSetSpeed", self._set_speed_toggle),
-      ("ExperimentalModeLeadGap", self._lead_gap_toggle),
     )
     self.items = [item for _, item in self._refresh_toggles]
 
@@ -71,8 +65,8 @@ class AlphaLongitudinalToggles:
     has_long = CP is not None and ui_state.has_longitudinal_control
     self._alpha_long_toggle.set_visible(CP is not None and CP.alphaLongitudinalAvailable)
     self._experimental_toggle.action_item.set_enabled(CP is None or has_long)
-    self._set_speed_toggle.action_item.set_enabled(has_long)
-    self._lead_gap_toggle.action_item.set_enabled(has_long)
+    # only acts in experimental mode: locked without it, keeping its value
+    self._set_speed_toggle.action_item.set_enabled(has_long and self._experimental_toggle.action_item.get_state())
 
   def refresh(self):
     for key, item in self._refresh_toggles:

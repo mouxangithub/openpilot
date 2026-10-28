@@ -12,7 +12,7 @@ from openpilot.system.ui.lib.multilang import tr
 EXPERIMENTAL_ICON = "../../sunnypilot/selfdrive/assets/icons_mici/experimental_mode.png"
 
 # the e2e assists, each named by one badge word
-E2E_ASSISTS = (("ExperimentalModeSetSpeed", "speed"), ("ExperimentalModeLeadGap", "follow"))
+E2E_ASSISTS = (("ExperimentalModeSetSpeed", "speed"),)
 
 
 def alpha_longitudinal_reachable(ui_state) -> bool:
@@ -28,7 +28,7 @@ def longitudinal_mode_labels(ui_state) -> list[str]:
     return []
   if not ui_state.experimental_mode:
     return [tr("chill")]
-  # beside other badges experimental is "exp." and each assist one word, so the widest state,
-  # both assists on, still fits one row under the two-line card title (test_cruise_entry_shows_the_mode)
+  # beside the assist's badge experimental is "exp.", so the widest state still fits one row under
+  # the two-line card title (test_cruise_entry_shows_the_mode)
   assists = [tr(label) for param, label in E2E_ASSISTS if ui_state.params.get_bool(param)]
   return [tr("exp."), *assists] if assists else [tr("experimental")]

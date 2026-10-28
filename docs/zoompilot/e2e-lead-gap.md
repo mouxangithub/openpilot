@@ -1,5 +1,11 @@
 # Following distance in experimental mode
 
+**Retired 2026-10-27.** Set Speed Assist now lifts the model toward chill mode's answer, the
+lower of the lead MPC and cruise candidates, so it follows at the personality's gap the way chill
+does, and this assist's trips and 3 s hold (which kept its lift on only 18-20% of the time with room
+to close on the 10-21 and 10-27 drives) are gone with it. See `docs/zoompilot/e2e-set-speed.md`.
+Kept for the record.
+
 Code: `openpilot/sunnypilot/selfdrive/controls/lib/e2e_lead_gap/controller.py`, chained after the
 set-speed floor in `LongitudinalPlannerSP.update_e2e_target` (no new hunk in the upstream
 planner). Toggle "Experimental Mode Lead Follow Assist" ("lead follow assist" on mici)

@@ -32,18 +32,15 @@ class AlphaLongitudinalLayoutMici(NavScroller):
                                                          "Set speed is a maximum, not a target.\n" +
                                                          "These are alpha features. Expect mistakes.\n" +
                                                          "The path colors show acceleration and braking."))
-    self._set_speed_toggle = BigParamControlSP(tr("speed assist"), "ExperimentalModeSetSpeed",
-                                               description=tr("Experimental Mode often cruises below your set speed.\n" +
-                                                              "It gently raises your speed toward it when the road ahead is clear."))
-    self._lead_gap_toggle = BigParamControlSP(tr("lead follow assist"), "ExperimentalModeLeadGap",
-                                              description=tr("Experimental Mode often follows farther back than your following distance.\n" +
-                                                             "It closes the gap behind a steady car, never closer than chill mode."))
+    self._set_speed_toggle = BigParamControlSP(tr("set speed assist"), "ExperimentalModeSetSpeed",
+                                               description=tr("Experimental Mode often cruises below your set speed and follows farther back.\n" +
+                                                              "This drives as chill mode does whenever the model holds back.\n" +
+                                                              "The model still makes every slowdown."))
 
     self._refresh_toggles = (
       ("AlphaLongitudinalEnabled", self._alpha_long_toggle),
       ("ExperimentalMode", self._experimental_toggle),
       ("ExperimentalModeSetSpeed", self._set_speed_toggle),
-      ("ExperimentalModeLeadGap", self._lead_gap_toggle),
     )
     self._scroller.add_widgets([item for _, item in self._refresh_toggles])
 
@@ -63,10 +60,8 @@ class AlphaLongitudinalLayoutMici(NavScroller):
     has_long = CP is not None and ui_state.has_longitudinal_control
     self._alpha_long_toggle.set_visible(CP is not None and CP.alphaLongitudinalAvailable and not ui_state.is_release)
     self._experimental_toggle.set_enabled(CP is None or has_long)
-    # these only act in experimental mode: locked without it, keeping their values
-    idle = not has_long or not self._experimental_toggle._checked
-    for toggle in (self._set_speed_toggle, self._lead_gap_toggle):
-      toggle.set_superseded(idle)
+    # only acts in experimental mode: locked without it, keeping its value
+    self._set_speed_toggle.set_superseded(not has_long or not self._experimental_toggle._checked)
 
   def _refresh(self):
     for key, item in self._refresh_toggles:
