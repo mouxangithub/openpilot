@@ -17,7 +17,7 @@ from openpilot.common.markdown import parse_markdown
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.common.hardware import AGNOS, HARDWARE
-from openpilot.common.version import get_build_metadata
+from openpilot.common.version import get_build_metadata, SP_BRANCH_MIGRATIONS
 
 LOCK_FILE = os.getenv("UPDATER_LOCK_FILE", "/tmp/safe_staging_overlay.lock")
 STAGING_ROOT = os.getenv("UPDATER_STAGING_ROOT", "/data/safe_staging")
@@ -225,23 +225,61 @@ class Updater:
     return self._has_internet
 
   @property
-  def target_branch(self) -> str:
+  def requested_branch(self) -> str:
+    """The branch the device asked for, before any device-specific mapping.
+
+    This is what the UpdaterTargetBranch param holds and what the
+    settings page shows. It is kept separate from target_branch so the
+    param never records a branch the remote does not have: a mapping that
+    points at a missing branch would otherwise be written back and lock
+    the device out of updating.
+    """
     b: str | None = self.params.get("UpdaterTargetBranch")
     if b is None:
       b = self.get_branch(BASEDIR)
-    b = {
-      ("tizi", "release3"): "release-tizi",
-      ("tizi", "release3-staging"): "release-tizi-staging",
-      ("mici", "release3"): "release-mici",
-      ("mici", "release3-staging"): "release-mici-staging",
-    }.get((HARDWARE.get_device_type(), b), b)
     return b
+
+  @property
+  def target_branch(self) -> str:
+    return self._migrate_branch(self.requested_branch)
+
+  def _migrate_branch(self, branch: str) -> str:
+    """Map a branch onto the one this device's channel is served from.
+
+    Upstream sunnypilot serves a device-specific branch per hardware, so a
+    comma three on "master" tracks "master-tici" there. A fork whose
+    remote does not publish those names has nothing to migrate to, so the
+    mapping only applies when the remote actually has the branch: without
+    that check the lookup below would fail on a branch that does not
+    exist.
+    """
+    device_type = HARDWARE.get_device_type()
+    migrated = SP_BRANCH_MIGRATIONS.get((device_type, branch))
+    if migrated is None or migrated == branch:
+      return branch
+
+    if self.branches and migrated not in self.branches:
+      cloudlog.info(f"branch migration {branch} -> {migrated} skipped: the remote has no {migrated}")
+      return branch
+
+    cloudlog.info(f"branch migration {branch} -> {migrated}")
+    return migrated
+
+  def _target_commit(self) -> str | None:
+    """The remote commit the target branch points at, if it is known.
+
+    None when the remote has not been listed yet or does not carry the
+    branch: the branch list is filled in by check_for_update, and a
+    branch that is not on the remote cannot be compared against.
+    """
+    return self.branches.get(self.target_branch)
 
   @property
   def update_ready(self) -> bool:
     consistent_file = Path(os.path.join(FINALIZED, ".overlay_consistent"))
-    if consistent_file.is_file():
-      hash_mismatch = self.get_commit_hash(BASEDIR) != self.branches[self.target_branch]
+    target_commit = self._target_commit()
+    if consistent_file.is_file() and target_commit is not None:
+      hash_mismatch = self.get_commit_hash(BASEDIR) != target_commit
       branch_mismatch = self.get_branch(BASEDIR) != self.target_branch
       on_target_branch = self.get_branch(FINALIZED) == self.target_branch
       return ((hash_mismatch or branch_mismatch) and on_target_branch)
@@ -249,8 +287,9 @@ class Updater:
 
   @property
   def update_available(self) -> bool:
-    if os.path.isdir(OVERLAY_MERGED) and len(self.branches) > 0:
-      hash_mismatch = self.get_commit_hash(OVERLAY_MERGED) != self.branches[self.target_branch]
+    target_commit = self._target_commit()
+    if os.path.isdir(OVERLAY_MERGED) and target_commit is not None:
+      hash_mismatch = self.get_commit_hash(OVERLAY_MERGED) != target_commit
       branch_mismatch = self.get_branch(OVERLAY_MERGED) != self.target_branch
       return hash_mismatch or branch_mismatch
     return False
@@ -263,7 +302,9 @@ class Updater:
 
   def set_params(self, update_success: bool, failed_count: int, exception: str | None) -> None:
     self.params.put("UpdateFailedCount", failed_count, block=True)
-    self.params.put("UpdaterTargetBranch", self.target_branch, block=True)
+    # The requested branch, not the migrated one: writing the migrated name
+    # back would pin the device to a branch the fork's remote may not have.
+    self.params.put("UpdaterTargetBranch", self.requested_branch, block=True)
 
     self.params.put_bool("UpdaterFetchAvailable", self.update_available, block=True)
     if len(self.branches):
@@ -439,7 +480,10 @@ class Updater:
     cur_branch = self.get_branch(OVERLAY_MERGED)
     cur_commit = self.get_commit_hash(OVERLAY_MERGED)
     new_branch = self.target_branch
-    new_commit = self.branches[new_branch]
+    new_commit = self.branches.get(new_branch)
+    if new_commit is None:
+      cloudlog.warning(f"the remote has no branch {new_branch}, available: {', '.join(self.branches.keys())}")
+      return
     if (cur_branch, cur_commit) != (new_branch, new_commit):
       cloudlog.info(f"update available, {cur_branch} ({str(cur_commit)[:7]}) -> {new_branch} ({str(new_commit)[:7]})")
     else:
