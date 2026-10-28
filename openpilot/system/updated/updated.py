@@ -31,6 +31,7 @@ OVERLAY_INIT = Path(os.path.join(BASEDIR, ".overlay_init"))
 
 from openpilot.sunnypilot.system.updated.connectivity import HOURS_NO_CONNECTIVITY_MAX, ROUTES_NO_CONNECTIVITY_MAX
 from openpilot.sunnypilot.system.updated.connectivity import HOURS_NO_CONNECTIVITY_PROMPT, ROUTES_NO_CONNECTIVITY_PROMPT
+from openpilot.sunnypilot.system.updated import git_proxy
 
 
 class UserRequest:
@@ -214,6 +215,10 @@ class Updater:
     self.params = Params()
     self.branches = defaultdict(str)
     self._has_internet: bool = False
+    # The proxy prefix in use, empty when the official origin is reachable.
+    self._proxy_prefix: str = ""
+    # Whether a source has already been selected and applied this run.
+    self._source_applied: bool = False
 
   @property
   def has_internet(self) -> bool:
@@ -326,10 +331,94 @@ class Updater:
         remaining = max(HOURS_NO_CONNECTIVITY_MAX - dt_uptime_onroad, 1)
         set_offroad_alert("Offroad_ConnectivityNeededPrompt", True, extra_text=f"{remaining} hour{'' if remaining == 1 else 's'}.")
 
+  def ensure_git_source(self) -> bool:
+    """Point the repo and its submodules at whichever source answers fastest.
+
+    GitHub is unreachable from some networks, so the official origin is
+    measured against read-through proxies and the quickest one is used for
+    the main repo and every submodule. The official origin wins ties, so a
+    working github is never displaced by a proxy.
+
+    Returns whether a usable source was found and applied.
+    """
+    if self._source_applied:
+      return True
+
+    upstream = self._origin_url(OVERLAY_MERGED)
+    if not upstream:
+      cloudlog.warning("git_proxy: no origin url found, keeping the current remotes")
+      return False
+
+    try:
+      best, prefix = git_proxy.measure_and_select(OVERLAY_MERGED, upstream)
+    except Exception as e:
+      cloudlog.exception(f"git_proxy: probe failed: {e}")
+      return False
+
+    if best is None:
+      cloudlog.warning("git_proxy: no source answered, keeping the current remotes")
+      return False
+
+    if prefix:
+      cloudlog.info(f"git_proxy: using proxy {prefix} ({best.median_ms}ms)")
+      try:
+        changed = git_proxy.apply_source(OVERLAY_MERGED, upstream, prefix)
+        cloudlog.info(f"git_proxy: rewrote {changed} remotes to the proxy")
+      except Exception as e:
+        cloudlog.exception(f"git_proxy: failed to apply the proxy: {e}")
+        return False
+      self._proxy_prefix = prefix
+    else:
+      cloudlog.info(f"git_proxy: using the official origin ({best.median_ms}ms)")
+      self._proxy_prefix = ""
+
+    self._source_applied = True
+    return True
+
+  def fallback_to_official(self) -> bool:
+    """Drop the proxy and go back to the real github.
+
+    Used when a proxy that measured well still fails mid-fetch. Returns
+    whether there was a proxy to drop.
+    """
+    if not self._proxy_prefix:
+      return False
+
+    upstream = self._origin_url(OVERLAY_MERGED)
+    if not upstream:
+      return False
+
+    cloudlog.info("git_proxy: falling back to the official origin")
+    try:
+      git_proxy.restore_source(OVERLAY_MERGED, upstream)
+    except Exception as e:
+      cloudlog.exception(f"git_proxy: failed to restore the official origin: {e}")
+      return False
+
+    self._proxy_prefix = ""
+    return True
+
+  def _origin_url(self, path: str) -> str:
+    """The repo's origin url, without any proxy prefix already applied."""
+    try:
+      url = run(["git", "config", "--get", "remote.origin.url"], path).strip()
+    except subprocess.CalledProcessError:
+      return ""
+
+    # Strip a proxy prefix left by an earlier attempt so the probe always
+    # compares against the true upstream.
+    for prefix in git_proxy.PROXY_PREFIXES:
+      if url.startswith(prefix):
+        return url[len(prefix):]
+    return url
+
   def check_for_update(self) -> None:
     cloudlog.info("checking for updates")
 
     excluded_branches = ('release2', 'release2-staging')
+
+    # Pick a reachable source before probing refs; github may be blocked here.
+    self.ensure_git_source()
 
     try:
       run(["git", "ls-remote", "origin", "HEAD"], OVERLAY_MERGED)
@@ -380,11 +469,29 @@ class Updater:
       ["git", "reset", "--hard"],
       ["git", "clean", "-xdff"],
       ["git", "submodule", "sync"],
-      ["git", "submodule", "update", "--init", "--recursive"],
-      ["git", "submodule", "foreach", "--recursive", "git", "reset", "--hard"],
     ]
     r = [run(cmd, OVERLAY_MERGED) for cmd in cmds]
     cloudlog.info("git reset success: %s", '\n'.join(r))
+
+    # `git submodule sync` copies the .gitmodules urls into
+    # submodule.<name>.url, so the proxy has to be written after it or the
+    # sync puts github back. This must also precede the update below, which
+    # clones any submodule that is not present yet using that url.
+    upstream = self._origin_url(OVERLAY_MERGED)
+    if self._proxy_prefix and upstream:
+      try:
+        changed = git_proxy.apply_submodules(OVERLAY_MERGED, self._proxy_prefix)
+        cloudlog.info(f"git_proxy: rewrote {changed} submodule urls to the proxy")
+      except Exception as e:
+        cloudlog.exception(f"git_proxy: failed to apply the proxy to submodules: {e}")
+
+    r = [
+      run(cmd, OVERLAY_MERGED) for cmd in [
+        ["git", "submodule", "update", "--init", "--recursive"],
+        ["git", "submodule", "foreach", "--recursive", "git", "reset", "--hard"],
+      ]
+    ]
+    cloudlog.info("git submodule update success: %s", '\n'.join(r))
 
     # TODO: show agnos download progress
     if AGNOS:
@@ -461,7 +568,14 @@ def main() -> None:
         elif wait_helper.user_request == UserRequest.CHECK:
           cloudlog.info("skipping fetch, only checking")
         else:
-          updater.fetch_update()
+          try:
+            updater.fetch_update()
+          except Exception:
+            # A proxy that measured well can still fail mid-fetch. Drop back
+            # to the real github and try once more before giving up.
+            if not updater.fallback_to_official():
+              raise
+            updater.fetch_update()
           write_time_to_param(params, "UpdaterLastFetchTime")
         update_failed_count = 0
       except subprocess.CalledProcessError as e:
