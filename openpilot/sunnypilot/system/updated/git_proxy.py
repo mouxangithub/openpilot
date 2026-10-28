@@ -42,7 +42,11 @@ MAX_ACCEPTABLE_MS = 15000
 PROBE_SAMPLES = 3
 
 # A probe that has not answered in this long is a dead source.
-PROBE_TIMEOUT_S = 20
+PROBE_TIMEOUT_S = 12
+
+# The whole probe runs under this budget. Without it a dead source on a
+# slow link would stall the updater for the sum of every timeout.
+PROBE_BUDGET_S = 45
 
 
 @dataclass
@@ -114,17 +118,25 @@ def probe_once(url: str, cwd: str | None = None, timeout_s: int = PROBE_TIMEOUT_
   return True, elapsed_ms, ""
 
 
-def probe_source(url: str, cwd: str | None = None, samples: int = PROBE_SAMPLES) -> ProbeResult:
+def probe_source(url: str, cwd: str | None = None, samples: int = PROBE_SAMPLES,
+                 deadline: float | None = None) -> ProbeResult:
   """Sample a source several times and judge it on its median.
 
   A source counts as healthy only when every sample it ran came back ok: a
   link that answers one request in three is not usable for a fetch.
+
+  `deadline` is a monotonic timestamp past which no further sample is
+  taken, so a slow source cannot hold up the whole probe.
   """
   timings: list[int] = []
   outcomes: list[bool] = []
   last_error = ""
 
   for _ in range(samples):
+    if deadline is not None and time.monotonic() >= deadline:
+      last_error = last_error or "probe budget exhausted"
+      break
+
     ok, ms, err = probe_once(url, cwd=cwd)
     timings.append(ms)
     outcomes.append(ok)
@@ -139,7 +151,7 @@ def probe_source(url: str, cwd: str | None = None, samples: int = PROBE_SAMPLES)
   median_ms = ordered[len(ordered) // 2] if ordered else 0
 
   if not timings:
-    return ProbeResult(url=url, ok=False, median_ms=0, samples=[], error="no samples")
+    return ProbeResult(url=url, ok=False, median_ms=0, samples=[], error=last_error or "no samples")
 
   if not all(outcomes):
     return ProbeResult(url=url, ok=False, median_ms=median_ms, samples=timings, error=last_error or "failed")
@@ -334,17 +346,23 @@ def restore_source(root: str, upstream_url: str) -> None:
     set_submodule_config_url(root, section, upstream)
 
 
-def measure_and_select(root: str, upstream_url: str, use_proxies: bool = True) -> tuple[ProbeResult | None, str]:
+def measure_and_select(root: str, upstream_url: str, use_proxies: bool = True,
+                        budget_s: float = PROBE_BUDGET_S) -> tuple[ProbeResult | None, str]:
   """Probe every candidate and return the winner plus the prefix to use.
 
   The prefix is empty for the official source, so the caller can tell an
   origin that needs no rewriting apart from one that does.
+
+  The whole probe runs under a time budget. A dead source can otherwise
+  stall the updater for the sum of every timeout, and the updater is
+  expected to answer a user-initiated check within a few seconds.
   """
   candidates = build_candidates(upstream_url, use_proxies=use_proxies)
   results: list[ProbeResult] = []
+  deadline = time.monotonic() + budget_s
 
   for url in candidates:
-    result = probe_source(url, cwd=root)
+    result = probe_source(url, cwd=root, deadline=deadline)
     results.append(result)
     cloudlog.info(
       f"git_proxy: probe {'OK ' if result.ok else 'FAIL'} {result.median_ms:>6}ms {url}"

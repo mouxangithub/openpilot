@@ -104,6 +104,27 @@ class TestProbe(unittest.TestCase):
     self.assertFalse(result.ok)
     self.assertTrue(result.error)
 
+  def test_probe_stops_at_the_deadline(self):
+    """A slow source must not hold up the whole probe.
+
+    The updater answers a user-initiated check, so the probe has to stay
+    inside its budget even when several sources hang.
+    """
+    import time
+
+    deadline = time.monotonic() + 0.01
+    result = probe_source("https://127.0.0.1:1/x.git", samples=3, deadline=deadline)
+    self.assertFalse(result.ok)
+    self.assertLessEqual(len(result.samples), 3)
+
+  def test_an_expired_deadline_takes_no_samples(self):
+    import time
+
+    result = probe_source("https://127.0.0.1:1/x.git", samples=3,
+                           deadline=time.monotonic() - 1)
+    self.assertFalse(result.ok)
+    self.assertEqual(result.samples, [])
+
 
 class TestGitmodulesParsing(unittest.TestCase):
   def test_reads_paths_and_urls(self):
