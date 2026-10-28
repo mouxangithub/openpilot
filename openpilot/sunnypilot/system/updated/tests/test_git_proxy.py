@@ -171,6 +171,67 @@ class TestProbe(unittest.TestCase):
     self.assertEqual(result.error, "timeout")
 
 
+class TestMeasureAndSelect(unittest.TestCase):
+  """The selection runs the probes concurrently, so it needs its own cover."""
+
+  def test_official_source_wins_when_it_is_fastest(self):
+    import openpilot.sunnypilot.system.updated.git_proxy as mod
+
+    def fake_probe(url, cwd=None, timeout_s=PROBE_TIMEOUT_S):
+      if "github.com/" in url and "gh-" not in url and "cdn" not in url and "fast" not in url and "proxy.net" not in url:
+        return True, 900, ""
+      return True, 3000, ""
+
+    original = mod.probe_once
+    mod.probe_once = fake_probe
+    try:
+      best, prefix = mod.measure_and_select(".", "https://github.com/x/y.git", budget_s=5)
+    finally:
+      mod.probe_once = original
+
+    self.assertIsNotNone(best)
+    self.assertEqual(best.url, "https://github.com/x/y.git")
+    self.assertEqual(prefix, "")
+
+  def test_a_proxy_wins_when_the_official_source_is_down(self):
+    import openpilot.sunnypilot.system.updated.git_proxy as mod
+
+    official = "https://github.com/x/y.git"
+
+    def fake_probe(url, cwd=None, timeout_s=PROBE_TIMEOUT_S):
+      if url == official:
+        return False, 30, "timeout"
+      return True, 1200, ""
+
+    original = mod.probe_once
+    mod.probe_once = fake_probe
+    try:
+      best, prefix = mod.measure_and_select(".", official, budget_s=5)
+    finally:
+      mod.probe_once = original
+
+    self.assertIsNotNone(best)
+    self.assertNotEqual(best.url, official)
+    self.assertTrue(prefix)
+    self.assertEqual(best.url, prefix + official)
+
+  def test_no_usable_source_returns_none(self):
+    import openpilot.sunnypilot.system.updated.git_proxy as mod
+
+    def fake_probe(url, cwd=None, timeout_s=PROBE_TIMEOUT_S):
+      return False, 30, "timeout"
+
+    original = mod.probe_once
+    mod.probe_once = fake_probe
+    try:
+      best, prefix = mod.measure_and_select(".", "https://github.com/x/y.git", budget_s=5)
+    finally:
+      mod.probe_once = original
+
+    self.assertIsNone(best)
+    self.assertEqual(prefix, "")
+
+
 class TestGitmodulesParsing(unittest.TestCase):
   def test_reads_paths_and_urls(self):
     content = (

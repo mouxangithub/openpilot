@@ -19,6 +19,7 @@ import os
 import shutil
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from openpilot.common.swaglog import cloudlog
@@ -47,6 +48,9 @@ PROBE_TIMEOUT_S = 12
 # The whole probe runs under this budget. Without it a dead source on a
 # slow link would stall the updater for the sum of every timeout.
 PROBE_BUDGET_S = 45
+
+# How many sources are probed at once.
+MAX_PROBE_WORKERS = 7
 
 
 @dataclass
@@ -127,12 +131,17 @@ def probe_source(url: str, cwd: str | None = None, samples: int = PROBE_SAMPLES,
   here time out intermittently, and a source that answered on the retry
   is usable. A source that never answers is not.
 
+  A source that fails its first sample is given one more chance, then
+  dropped: retrying a dead source three times only burns the budget the
+  remaining candidates need.
+
   `deadline` is a monotonic timestamp past which no further sample is
   taken, so a slow source cannot hold up the whole probe.
   """
   timings: list[int] = []
   good_timings: list[int] = []
   successes = 0
+  failures = 0
   last_error = ""
 
   for _ in range(samples):
@@ -146,9 +155,14 @@ def probe_source(url: str, cwd: str | None = None, samples: int = PROBE_SAMPLES,
       successes += 1
       good_timings.append(ms)
     else:
+      failures += 1
       last_error = err
+
     # A source that answered cleanly does not need the remaining samples.
     if successes >= 2:
+      break
+    # A source that failed twice is not going to answer.
+    if failures >= 2:
       break
 
   # The median is taken over the answers that came back, so one timeout
@@ -359,21 +373,33 @@ def measure_and_select(root: str, upstream_url: str, use_proxies: bool = True,
   The prefix is empty for the official source, so the caller can tell an
   origin that needs no rewriting apart from one that does.
 
-  The whole probe runs under a time budget. A dead source can otherwise
-  stall the updater for the sum of every timeout, and the updater is
-  expected to answer a user-initiated check within a few seconds.
+  The candidates are probed concurrently: the sources are independent, and
+  probing them one after another made a dead source add its timeout to
+  every candidate behind it. In parallel the whole probe costs about as
+  much as the slowest single source.
   """
   candidates = build_candidates(upstream_url, use_proxies=use_proxies)
-  results: list[ProbeResult] = []
   deadline = time.monotonic() + budget_s
 
-  for url in candidates:
-    result = probe_source(url, cwd=root, deadline=deadline)
-    results.append(result)
-    cloudlog.info(
-      f"git_proxy: probe {'OK ' if result.ok else 'FAIL'} {result.median_ms:>6}ms {url}"
-      + (f" ({result.error})" if result.error else "")
-    )
+  results: list[ProbeResult] = []
+  with ThreadPoolExecutor(max_workers=min(len(candidates), MAX_PROBE_WORKERS)) as pool:
+    futures = {pool.submit(probe_source, url, root, PROBE_SAMPLES, deadline): url for url in candidates}
+    for future in futures:
+      url = futures[future]
+      try:
+        result = future.result(timeout=budget_s + PROBE_TIMEOUT_S)
+      except Exception as e:
+        result = ProbeResult(url=url, ok=False, median_ms=0, samples=[], error=str(e))
+      results.append(result)
+      cloudlog.info(
+        f"git_proxy: probe {'OK ' if result.ok else 'FAIL'} {result.median_ms:>6}ms {url}"
+        + (f" ({result.error})" if result.error else "")
+      )
+
+  # The results come back in completion order; sort by the candidate order
+  # so a tie still goes to the official origin.
+  order = {url: i for i, url in enumerate(candidates)}
+  results.sort(key=lambda r: order.get(r.url, len(order)))
 
   best = select_best(results)
   if best is None:
