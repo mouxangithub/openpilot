@@ -599,6 +599,7 @@ struct OnroadEventZP @0xeff60a9f4d5cb12f {
     longitudinalEnableChime @8;
     longitudinalDisableChime @9;
     stockLkasArming @10;
+    stockCruiseFailed @11;
   }
 }
 

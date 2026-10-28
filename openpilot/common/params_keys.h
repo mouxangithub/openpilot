@@ -315,6 +315,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"OffroadModeRequested", {CLEAR_ON_MANAGER_START, BOOL}},
     {"StockEcuHandBackRequest", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, JSON}},
     {"StockEcuHandBackResult", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, JSON}},
+    {"StockEcuHandBackFailed", {CLEAR_ON_IGNITION_ON, BOOL}},  // an onroad cycle went ahead on a failed hand-back: stock cruise is down until ignition
     {"TorqueControlTuneBig", {PERSISTENT | BACKUP, FLOAT, "1.0"}},  // big-model tune
 
     // Accelerators: what runs the large model. See sunnypilot/jetlink_adapter/.

@@ -6,7 +6,7 @@ See the LICENSE.md file in the root directory for more details.
 """
 from opendbc.car import structs
 from opendbc.sunnypilot.car.stock_ecu import StockEcuState
-from openpilot.sunnypilot.selfdrive.car.stock_ecu_handback import (HANDBACK_WAIT_T, REQUEST_KEY, RESULT_KEY,
+from openpilot.sunnypilot.selfdrive.car.stock_ecu_handback import (FAILED_KEY, HANDBACK_WAIT_T, REQUEST_KEY, RESULT_KEY,
                                                                    StockEcuHandBackGate, StockEcuHandBackServer)
 from openpilot.sunnypilot.selfdrive.car.tests.fakes import FakeClock, FakeParams, answer
 
@@ -71,12 +71,14 @@ class TestStockEcuHandBackGate:
     assert not gate.ready(started=True, hold_on_failure=True)
     answer(params, RESTORED)
     assert gate.ready(started=True, hold_on_failure=True)
+    assert not params.get_bool(FAILED_KEY)  # recovered, nothing to tell
 
   def test_a_stop_with_no_cancel_proceeds_on_failure(self):
     gate, params, _ = _gate()
     gate.ready(started=True)
     answer(params, FAILED)
     assert gate.ready(started=True)
+    assert params.get_bool(FAILED_KEY)  # the next session tells the driver
 
   def test_no_answer_at_all_is_bounded(self):
     # no card alive to answer: nothing holds the ECU, so nothing is gained by waiting
@@ -87,6 +89,7 @@ class TestStockEcuHandBackGate:
       assert not gate.ready(started=True, hold_on_failure=hold)
       clock.t = HANDBACK_WAIT_T + 0.1
       assert gate.ready(started=True, hold_on_failure=hold)
+      assert not params.get_bool(FAILED_KEY)  # nobody answered: the radar's state is unknown
 
   def test_going_offroad_mid_wait_releases(self):
     gate, params, _ = _gate()
