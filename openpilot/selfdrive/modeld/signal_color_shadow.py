@@ -171,7 +171,8 @@ def run(directory=DIRECTORY, duration=None):
       os.environ[name] = '1'
     sys.path.insert(0, '/data/signal-model-shadow/runtime')
     import onnxruntime as ort
-    from msgq.visionipc import VisionIpcClient, VisionStreamType
+    from openpilot.cereal.visionipc import VisionStreamType
+    from msgq.visionipc import VisionIpcClient
     from openpilot.common.swaglog import cloudlog
     path, meta = validate_artifact(directory)
     options = ort.SessionOptions()
@@ -179,7 +180,7 @@ def run(directory=DIRECTORY, duration=None):
     options.inter_op_num_threads = 1
     options.add_session_config_entry('session.intra_op.allow_spinning', '0')
     session = ort.InferenceSession(str(path), options, providers=['CPUExecutionProvider'])
-    client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_ROAD, True)
+    client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_NARROW_ROAD, True)
     start = time.monotonic()
     cloudlog.event('signalColorShadowLoaded', **meta, runtime=ort.__version__, pid=os.getpid(),
                    max_hz=1, target_cpu_duty=.25, stream='road', nv12='bt601_limited',

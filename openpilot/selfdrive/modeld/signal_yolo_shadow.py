@@ -43,12 +43,15 @@ REFERENCE_SIZE = SUPPORTED_SIZES[0]
 
 MAX_OBSERVATION_BYTES = 32768
 MAX_INPUT_AGE_MS = 300
-MAX_RESULT_AGE_MS = 200
+# Camera-to-publish bound. The mici path lands around ~100 ms; the comma 3's
+# little-core forward is ~400 ms, so the published result always lags its
+# frame by more than the old 200 ms and ``fresh`` was structurally false there.
+MAX_RESULT_AGE_MS = 1000
 
-# At most two inferences per second with a bounded CPU duty: a 416x416 YOLOv8n
-# forward costs ~120 ms on the C3's little cores, so ``next_delay``'s 3x-CPU
-# floor auto-throttles toward ~1 Hz on slower devices while never exceeding
-# ~25% of one little core.
+# At most two inferences per second with a bounded CPU duty: on the comma 3's
+# little cores a 416x416 forward costs ~400 ms wall on two cv2 threads, so the
+# 3x-wall duty floor throttles to ~0.6 Hz there while never exceeding ~25% of
+# each little core. Faster devices run at the TARGET_HZ cap.
 TARGET_HZ = 2.0
 TARGET_CPU_DUTY = .25
 
@@ -111,13 +114,16 @@ def install(directory=DIRECTORY, model_path=MODEL_PATH, source_model=REPO_MODEL)
   return manifest
 
 
-def next_delay(work_wall, work_cpu):
+def next_delay(work_wall):
   """Bound the rate and the CPU duty of one core.
 
   A slow frame never catches up on queued frames: the observer always waits,
-  it never runs two inferences back to back to make up for lost time.
+  it never runs two inferences back to back to make up for lost time. The
+  duty floor is measured against wall time: the forward runs two cv2 threads
+  (see ``build_net``), so at the floor each thread sees ~25% of its core —
+  process_time would double-count the threads and idle the observer.
   """
-  return max(.05, 1.0 / TARGET_HZ - work_wall, 3 * work_cpu)
+  return max(.05, 1.0 / TARGET_HZ - work_wall, 3 * work_wall)
 
 
 def configure_worker_scheduling():
@@ -179,9 +185,12 @@ def build_net(model_path):
 
   OpenCV is already a dependency of this fork, and it is cheaper here than
   ONNX Runtime (69 ms vs 122 ms for one 416x416 forward on the same machine)
-  while producing the same detections.
+  while producing the same detections. Thread count is pinned: the little
+  cores are shared with the driving stack, and unbounded cv2 fan-out showed
+  ~2.7 threads' worth of CPU per forward on the comma 3.
   """
   import cv2
+  cv2.setNumThreads(2)
   net = cv2.dnn.readNetFromONNX(str(model_path))
   net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
   net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
@@ -202,20 +211,20 @@ def run(directory=DIRECTORY, duration=None, model_path=MODEL_PATH, observation_p
     configure_worker_scheduling()
     for name in ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS'):
       os.environ[name] = '1'
-    from msgq.visionipc import VisionIpcClient, VisionStreamType
+    from openpilot.cereal.visionipc import VisionStreamType
+    from msgq.visionipc import VisionIpcClient
     from openpilot.common.swaglog import cloudlog
     from openpilot.sunnypilot.carrot.signal_yolo_detector import (HousingTracker, detect,
                                                                   observation_record, valid_box)
     path, manifest = validate_artifact(directory, model_path)
     net = build_net(path)
     tracker = HousingTracker()
-    client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_ROAD, True)
+    client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_NARROW_ROAD, True)
     start = time.monotonic()
     session_id = f'{os.getpid()}:{time.monotonic_ns()}'
     cloudlog.event('signalYoloShadowLoaded', **manifest, pid=os.getpid(), target_hz=TARGET_HZ,
                    target_cpu_duty=TARGET_CPU_DUTY, stream='road',
-                   supported_sizes=[list(size) for size in SUPPORTED_SIZES],
-                   control_permission=False)
+                   supported_sizes=[list(size) for size in SUPPORTED_SIZES])
     previous_id = None
     while requested(directory) and (duration is None or time.monotonic() - start < duration):
       if not client.is_connected() and not client.connect(False):
@@ -269,7 +278,7 @@ def run(directory=DIRECTORY, duration=None, model_path=MODEL_PATH, observation_p
       except (OSError, ValueError):
         cloudlog.exception('signalYoloObservationPublishFailed')
       cloudlog.event('signalYoloShadow', **record)
-      time.sleep(next_delay(elapsed, cpu))
+      time.sleep(next_delay(elapsed))
 
 
 def _overall_state(observations):

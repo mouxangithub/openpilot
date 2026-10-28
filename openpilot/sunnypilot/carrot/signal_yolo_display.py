@@ -15,9 +15,10 @@ from openpilot.selfdrive.modeld.signal_yolo_shadow import (
   ENABLE_PATH, MAX_OBSERVATION_BYTES, OBSERVATION_PATH,
 )
 
-# The producer runs at up to ~2 Hz (duty-bound); a 1.5 s window rides out a
-# couple of dropped frames without showing a light that has left view.
-UI_MAX_AGE = 1.5
+# The producer's cadence on a comma 3 is ~1.6 s (a ~400 ms little-core forward
+# plus the duty floor) and faster on a comma 3X; a 3.5 s window rides out a
+# couple of dropped frames without showing a light that has long left view.
+UI_MAX_AGE = 3.5
 # Colours the HUD can show; housings without agreed colour stay silent.
 UI_STATES = ('red', 'green')
 

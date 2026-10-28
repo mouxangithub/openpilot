@@ -372,7 +372,8 @@ class SpeedLimitVisionDaemon:
 
     if self.use_runtime:
       from cereal import messaging
-      from msgq.visionipc import VisionIpcClient, VisionStreamType
+      from openpilot.cereal.visionipc import VisionStreamType
+      from msgq.visionipc import VisionIpcClient
       from openpilot.common.params import Params
       from openpilot.common.realtime import Ratekeeper
 
@@ -1189,8 +1190,8 @@ class SpeedLimitVisionDaemon:
 
     desired_stream = None
     stream_name = ""
-    if self.VisionStreamType.VISION_STREAM_ROAD in available_streams:
-      desired_stream = self.VisionStreamType.VISION_STREAM_ROAD
+    if self.VisionStreamType.VISION_STREAM_NARROW_ROAD in available_streams:
+      desired_stream = self.VisionStreamType.VISION_STREAM_NARROW_ROAD
       stream_name = "road camera"
     elif self.VisionStreamType.VISION_STREAM_WIDE_ROAD in available_streams:
       desired_stream = self.VisionStreamType.VISION_STREAM_WIDE_ROAD

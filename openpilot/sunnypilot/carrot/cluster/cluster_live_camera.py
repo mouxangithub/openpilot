@@ -65,7 +65,8 @@ class LiveRoadCamera:
   """Low-overhead camerad road stream renderer for Linux devices."""
 
   def __init__(self) -> None:
-    from msgq.visionipc import VisionIpcClient, VisionStreamType
+    from openpilot.cereal.visionipc import VisionStreamType
+    from msgq.visionipc import VisionIpcClient
 
     self._zero_copy = Path("/TICI").is_file()
     if self._zero_copy:
@@ -76,8 +77,8 @@ class LiveRoadCamera:
         self._zero_copy = False
 
     self._client_cls = VisionIpcClient
-    self._stream_type = VisionStreamType.VISION_STREAM_ROAD
-    self._road_stream_type = VisionStreamType.VISION_STREAM_ROAD
+    self._stream_type = VisionStreamType.VISION_STREAM_NARROW_ROAD
+    self._road_stream_type = VisionStreamType.VISION_STREAM_NARROW_ROAD
     self._wide_stream_type = VisionStreamType.VISION_STREAM_WIDE_ROAD
     self._client = self._new_client()
     self._target_client = None

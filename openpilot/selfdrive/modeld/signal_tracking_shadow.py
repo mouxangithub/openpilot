@@ -89,7 +89,8 @@ def run(directory=DIRECTORY, duration=None, comparison_override=None):
     import cv2
     from openpilot.common.repo_tools import load
     signal_tracker = load('signal_analysis/signal_tracker.py')
-    from msgq.visionipc import VisionIpcClient, VisionStreamType
+    from openpilot.cereal.visionipc import VisionStreamType
+    from msgq.visionipc import VisionIpcClient
     from openpilot.common.swaglog import cloudlog
     cv2.setNumThreads(1)
     cv2.ocl.setUseOpenCL(False)
@@ -102,7 +103,7 @@ def run(directory=DIRECTORY, duration=None, comparison_override=None):
     def new_tracker():
       return (*new_trackers(signal_tracker.SignalTracker, comparison, revalidated), f'{os.getpid()}:{time.monotonic_ns()}')
     tracker, daytime_tracker, session_id = new_tracker()
-    client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_ROAD, True)
+    client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_NARROW_ROAD, True)
     # Independent display/log experiment. Instantiated lazily-by-import: on any
     # import failure it stays None and the loop skips it entirely. It can never
     # influence control: the tmpfs record carries control_permission False and

@@ -135,7 +135,8 @@ def run(directory=DIRECTORY, duration=None, backend_override=None):
     sys.path.insert(0, '/data/signal-model-shadow/runtime')
     import cv2
     import numpy as np
-    from msgq.visionipc import VisionIpcClient, VisionStreamType
+    from openpilot.cereal.visionipc import VisionStreamType
+    from msgq.visionipc import VisionIpcClient
     from openpilot.common.swaglog import cloudlog
     from tools.signal_analysis import neural_signal
     from openpilot.selfdrive.modeld.signal_tracking_shadow import copy_nv12_rgb, next_delay, MAX_INPUT_AGE_MS
@@ -158,7 +159,7 @@ def run(directory=DIRECTORY, duration=None, backend_override=None):
     def reset():
       return neural_signal.NeuralSignalSequence(network), f'neural:{os.getpid()}:{time.monotonic_ns()}'
     sequence, session = reset()
-    client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_ROAD, True)
+    client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_NARROW_ROAD, True)
     start = time.monotonic()
     cloudlog.event('signalNeuralShadowLoaded', backend=backend, algorithm_sha256=source_sha,
                    detector_sha256=network.DETECTOR_SHA, classifier_sha256=network.CLASSIFIER_SHA,

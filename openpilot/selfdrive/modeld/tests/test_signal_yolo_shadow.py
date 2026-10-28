@@ -150,14 +150,15 @@ class TestInstall(unittest.TestCase):
 
 class TestScheduling(unittest.TestCase):
   def test_rate_is_bounded(self):
-    self.assertGreaterEqual(next_delay(0., 0.), 1.0 / TARGET_HZ - .01)
+    self.assertGreaterEqual(next_delay(0.), 1.0 / TARGET_HZ - .01)
 
   def test_cpu_duty_is_bounded(self):
-    # A slow frame must not be followed immediately by another one.
-    self.assertGreaterEqual(next_delay(.1, .3), 3 * .3)
+    # A slow frame must not be followed immediately by another one; the floor
+    # is measured against wall time (the forward runs two cv2 threads).
+    self.assertGreaterEqual(next_delay(.1), 3 * .1)
 
   def test_delay_never_goes_negative(self):
-    self.assertGreaterEqual(next_delay(10., 10.), .05)
+    self.assertGreaterEqual(next_delay(10.), .05)
 
 
 class TestNv12Copy(unittest.TestCase):

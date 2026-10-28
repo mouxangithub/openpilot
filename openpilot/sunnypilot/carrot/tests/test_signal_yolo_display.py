@@ -123,8 +123,12 @@ class TestYoloObservationReader(unittest.TestCase):
     with tempfile.TemporaryDirectory() as directory:
       path = Path(directory) / 'obs.json'
       path.write_text(json.dumps(_record()))
-      reader = display.YoloObservationReader(path)
-      self.assertIsNone(reader.read())
+      # Point the opt-in flag into the temp dir: on a device where the real
+      # observer is enabled, the unpatched flag would read 'on' and the test
+      # would pass for the wrong reason (or fail outright).
+      with mock.patch.object(display, 'ENABLE_PATH', Path(directory) / 'enabled'):
+        reader = display.YoloObservationReader(path)
+        self.assertIsNone(reader.read())
 
   def test_requested_reader_returns_the_record(self):
     with tempfile.TemporaryDirectory() as directory:
