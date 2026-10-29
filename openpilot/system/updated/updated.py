@@ -12,6 +12,7 @@ from pathlib import Path
 
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
+from openpilot.sunnypilot.common.param_read import read_str
 from openpilot.common.time_helpers import sync_system_time_http, system_time_valid
 from openpilot.common.markdown import parse_markdown
 from openpilot.common.swaglog import cloudlog
@@ -425,8 +426,13 @@ class Updater:
     proxy that is reachable on their network without waiting for an
     update. Comma separated, each an http(s) origin; a trailing slash is
     added if missing since the prefix is prepended verbatim.
+
+    The key is deliberately not registered in params_keys.h: registering
+    it would tie this read to a rebuilt libparams_c.so, and a device that
+    has not been rebuilt must simply see no extra proxies rather than
+    have the whole source selection fail on UnknownKeyName.
     """
-    raw = (self.params.get("GitProxyPrefixes") or "").strip()
+    raw = read_str(self.params, "GitProxyPrefixes")
     if not raw:
       return ()
     prefixes = []
