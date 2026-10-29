@@ -11,8 +11,13 @@ import types
 import unittest
 
 # cloudlog pulls in the hardware stack, which needs opendbc; that is a device
-# dependency. Stub it so these pure-logic tests run on a PC.
-if "openpilot.common.swaglog" not in sys.modules:
+# dependency. Stub it so these pure-logic tests run on a PC — but only when
+# the real module cannot be imported: other suites in the same process (the
+# branch migration tests) need the real swaglog, and a stub installed here
+# would shadow it for them.
+try:
+  import openpilot.common.swaglog  # noqa: F401
+except Exception:
   stub = types.ModuleType("openpilot.common.swaglog")
   stub.cloudlog = types.SimpleNamespace(info=lambda *a, **k: None, warning=lambda *a, **k: None,
                                         exception=lambda *a, **k: None)
