@@ -187,7 +187,7 @@ class TorqueBar(Widget):
       else:
         self._torque_filter.update(np.clip((lateral_acceleration + accel_diff) / max_lateral_acceleration, -1, 1))
     else:
-      self._torque_filter.update(-ui_state.torque_utilization)
+      self._torque_filter.update(-ui_state.sm['carOutput'].actuatorsOutput.torque)
 
   def _render(self, rect: rl.Rectangle) -> None:
     # adjust y pos with torque
@@ -208,7 +208,6 @@ class TorqueBar(Widget):
     # draw curved line polygon torque bar
     torque_line_radius = 1200 * self._scale
     top_angle = -90
-    # sunnypilot: tizi draws this at scale 3, whose full-width view is wider than 476 px at scale 1
     torque_bg_angle_span = self._torque_line_alpha_filter.x * TORQUE_ANGLE_SPAN * min(1.0, rect.width / (476 * self._scale))
     torque_start_angle = top_angle - torque_bg_angle_span / 2
     torque_end_angle = top_angle + torque_bg_angle_span / 2
