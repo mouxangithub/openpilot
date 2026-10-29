@@ -491,7 +491,16 @@ void pandad_main_thread(std::string serial, std::string aux_serial) {
       aux_panda = nullptr;
     }
     if (aux_panda) {
-      LOGW("connected aux peripheral panda: %s", aux_serial.c_str());
+      // The aux panda's CAN pins sit on the vehicle harness (the internal dos
+      // is wired to the OBD port), and a panda nobody configures does not come
+      // up silent: it keeps whatever state it was last left in - typically the
+      // elm327 passthrough from fingerprinting, which bridges every CAN
+      // channel it has. Its spare channels are unwired, so frames sent there
+      // never see an ACK and the controller retries them forever, flooding the
+      // vehicle bus with errors until a camera ECU cries fault. Force it
+      // silent: it drives the fan and reports health, it never talks CAN.
+      aux_panda->set_safety_model(cereal::CarParams::SafetyModel::NO_OUTPUT);
+      LOGW("connected aux peripheral panda: %s (safety forced to NO_OUTPUT)", aux_serial.c_str());
     } else {
       LOGW("failed to connect aux peripheral panda %s, fan control unavailable", aux_serial.c_str());
     }
