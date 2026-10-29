@@ -243,10 +243,34 @@ gh-proxy 类前缀代理不了 huggingface.co、hf-mirror 只服务 HF——两�
 - **参数保留注册**（params_keys.h 不动）作为离 UI 高级覆盖：老用户设置的值继续生效（自定义值排候选最前），私有镜像/内网镜像场景留后门。
 - po 翻译文件中的死 msgid 无害保留，下次 xgettext 再生自动清除。
 
-### 9.6 测试
+### 9.6 jetlink 的大模型获取（独立子模块，2026-10-29）
+
+jetlink 的 registry 在**自己的仓库**（`mouxangithub/jetlink`，分支 `cn`，commit `37b05fc`），stdlib-only——不能 import openpilot 的模块，所以在那边实现了同款探测器 `jetlink/registry/sources.py`。
+
+**jetlink 要访问的 3 个主机，每类各配一套候选**：
+
+| 用途 | 官方源 | 候选 |
+|---|---|---|
+| git-lfs pointer | raw.githubusercontent.com | 1 官源 + 4 CDN（路径式）+ 14 代理（前缀式）= **19** |
+| commit patch / pull patch | github.com | 1 官源 + 14 代理 = **15** |
+| model repo tree (HF API) | huggingface.co/api/models/... | 1 官源 + 2 镜像（hf-mirror.com/.net）= **3** |
+| catalog | raw.githubusercontent.com | 同 pointer，**19** |
+| LFS 批量下载 | gitlab.com / huggingface.co | 已有顺序兜底，未改 |
+
+**关键约束：官方源必须恒定第一**（`keep_first=True`）。catalog 的版本探测依赖「官方源 404 = 该版本未发布」，若被探测重排就会误判——这是实测跑出来的 bug，已修。
+
+**探测用独立 opener**，不用调用方的：调用方的 opener 常是测试夹具（记录每个被请求的 URL），测量不该算作调用方的请求。
+
+**设备实测**（J3-office 10.255.128.121，commit 2ba5363e0 + 子模块 37b05fc）：
+- catalog 19 候选 → 探测 1.6s → fastly.jsdelivr.net 第一 → 成功拉取 79665 bytes
+- jetlink `fetch_catalog` 0.9s → 14 bundles
+- jetlink `fetch_pointer` 8.8s → oid=404a18cfd86d2963 / 730MB（真实模型）
+
+### 9.7 测试
 
 - `test_http_probe.py`（16 个，mock requests，PC 可跑）：判活/空 body 防 captive portal/排序/平局原序/host 缓存/缓存过期/**失败即止**/**测量上限 6**/未测源不冒充快。
 - `test_mirror.py` 增 `TestHfMirrorCandidates`（5 个）+ catalog 候选表重构（4 个）：auto/off/自定义/去重/非 HF 直通、19 个候选的完整性与唯一性、用户代理替换代理族但保留 CDN 族。
 - `test_git_proxy.py` 增 2 个：OTA 表只收 git 实测通过的代理、每个前缀都是 https + 尾斜杠。
+- `test_sources.py`（jetlink 侧，10 个）：两种 URL 形状、CDN 先于代理、排序/死源末尾/keep_first/测量上限/同 host 只测一次。
 - `test_manager_download.py`：状态序列兼容已核对（失败路径不多报 verifying）；本地服务器 URL 非 HF host → 单候选直通，测试不触网。该文件及 `test_default_bootstrap.py` 因 fcntl/libparams/msgq 原生库限制只能在设备跑。
-- PC 全套 100 个测试通过（test_git_proxy 30 + test_mirror 16 + test_http_probe 16 + test_chunked_download + test_time_helpers 14）。
+- **PC 100 个全绿**（test_git_proxy 30 + test_mirror 16 + test_http_probe 16 + test_chunked_download + test_time_helpers 14）；**jetlink 侧 131 个全绿**（registry + conformance + models + sources）；**设备 77 个全绿、skip=0**。
