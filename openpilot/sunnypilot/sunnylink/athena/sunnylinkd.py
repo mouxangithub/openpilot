@@ -35,7 +35,7 @@ from openpilot.sunnypilot.selfdrive.car.sync_sunnylink_params import update_car_
 from openpilot.system.athena import rpc as rpc_module
 from openpilot.sunnypilot.sunnylink.api import SunnylinkApi
 from openpilot.sunnypilot.sunnylink.utils import sunnylink_need_register, sunnylink_ready, get_param_as_byte, save_param_from_base64_encoded_string
-from openpilot.sunnypilot.sunnylink.capabilities import generate_capabilities, CAPABILITY_LABELS
+from openpilot.sunnypilot.sunnylink.capabilities import generate_capabilities, CAPABILITY_LABELS, CAR_CAPABILITY_FIELDS
 from openpilot.sunnypilot.sunnylink.tools.generate_settings_schema import generate_schema
 from openpilot.sunnypilot.sunnylink.athena.local_discovery import LOCAL_BEACON_FRESH_S, AppBeacon, LocalDiscovery
 from openpilot.sunnypilot.sunnylink.athena.local_pairing import (
@@ -210,6 +210,7 @@ def getParamsMetadata() -> str:
     schema = generate_schema()
     schema["capabilities"] = generate_capabilities()
     schema["capability_labels"] = CAPABILITY_LABELS
+    schema["car_capability_fields"] = CAR_CAPABILITY_FIELDS
     schema["default_model"] = DEFAULT_MODEL
     schema["default_big_model"] = jetlink_adapter.default_big_model(chestnut_present(), jetlink_adapter.status())
     schema["chestnut_active"] = params.get_bool("ChestnutActive")

@@ -825,6 +825,17 @@ struct ModelDataV2SP @0xa1680744031fdb2d {
     ready @5;      # link up, engine loaded, waiting for a window to switch
   }
 
+  # Blendful lateral policy (sunnypilot). Renumbered off sunnypilot's @3-@9
+  # (which collide with zoompilot @3 / acceleratorState @4 / deprecated @5);
+  # these are our own log fields, read straight from modeld_v2.
+  blendfulCurvature @6 :Float32;
+  blendfulTrust @7 :Float32;
+  modelCurvature @8 :Float32;
+  blendfulGoingAround @9 :Bool;
+  blendfulLeftProb @10 :Float32;
+  blendfulRightProb @11 :Float32;
+  blendfulLaneWidth @12 :Float32;
+
   enum TurnDirection {
     none @0;
     turnLeft @1;
