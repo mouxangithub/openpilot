@@ -685,11 +685,12 @@ class LongitudinalPlannerSP:
         report.v = lead_xv[:, 1].tolist()
 
     # e2e assists: what each added to the model's acceleration and, when nothing, why
+    # Set Speed Assist's lift lands in boost (the retired authority field is no
+    # longer written), mirroring the controller's own fill() into the ZP plan.
     e2eSetSpeed = longitudinalPlanSP.e2eSetSpeed
-    e2eSetSpeed.authority = float(self.e2e_set_speed.authority)
     e2eSetSpeed.gain = float(self.e2e_set_speed.gain)
     e2eSetSpeed.floor = float(self.e2e_set_speed.floor)
-    e2eSetSpeed.boost = float(self.e2e_set_speed.boost)
+    e2eSetSpeed.boost = float(self.e2e_set_speed.lift)
     e2eSetSpeed.inhibit = self.e2e_set_speed.inhibit
 
     # Smart Cruise Control
