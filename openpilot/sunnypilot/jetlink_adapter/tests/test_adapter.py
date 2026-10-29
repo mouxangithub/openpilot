@@ -188,7 +188,25 @@ class TestModeld(OpenpilotTestCase):
     self.assertEqual(face.desire_len, ModelConstants.DESIRE_LEN)
     self.assertIs(face.constants, V2ModelConstants)
     self.assertEqual((face.lat_smooth_seconds, face.long_smooth_seconds), (modeld.LAT_SMOOTH_SECONDS, modeld.LONG_SMOOTH_SECONDS))
-    self.assertIs(face.get_action_from_model, modeld.get_action_from_model)
+
+  def test_the_action_function_is_modelds_plus_blendful(self):
+    import numpy as np
+    from openpilot.cereal import log
+    from openpilot.selfdrive.modeld import modeld
+    # adding Blendful after stock's action function equals adding it before only
+    # while stock leaves the curvature unsmoothed
+    self.assertEqual(modeld.LAT_SMOOTH_SECONDS, 0.0)
+    action = Adapter().model_face().get_action_from_model
+    prev = log.ModelDataV2.Action(desiredCurvature=0.002, desiredAcceleration=0.1)
+    for v_ego in (0.1, 20.0):
+      output = {'action': np.array([[0.001 * max(1.0, v_ego) ** 2, 0.5]], dtype=np.float32)}
+      stock = modeld.get_action_from_model(output, prev, 0.3, 0.3, v_ego)
+      self.assertEqual(action(output, prev, 0.3, 0.3, v_ego).to_dict(), stock.to_dict(), 'stock modeld passes no callback')
+      blendful = mock.Mock(return_value=0.0005)
+      blended = action(output, prev, 0.3, 0.3, v_ego, blendful)
+      blendful.assert_called_once_with(stock.desiredCurvature)
+      self.assertAlmostEqual(blended.desiredCurvature, stock.desiredCurvature + (0.0005 if v_ego > modeld.MIN_LAT_CONTROL_SPEED else 0.0), places=6)
+      self.assertEqual(blended.desiredAcceleration, stock.desiredAcceleration)
 
   def test_in_control_shuts_the_swap_window_on_anything_in_control_or_unknown(self):
     op = Adapter()

@@ -35,7 +35,6 @@ class UIStateZP:
     self._experimental_mode_setting: bool = False
     # the carrying model's short name for the home screens; None with HomeShowActiveModel off
     self.home_model_name: str | None = None
-    self.sm_services_ext.append("modelDataV2SP")
 
   def update(self) -> None:
     # read where sm is updated, so the params thread never touches a message
