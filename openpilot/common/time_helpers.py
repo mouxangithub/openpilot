@@ -103,7 +103,8 @@ def set_system_time(new_time: datetime.datetime) -> None:
 
 def sync_system_time_http(endpoints: tuple[str, ...] = TIME_HTTP_ENDPOINTS,
                           timeout_s: int = TIME_HTTP_TIMEOUT_S,
-                          candidates: list[datetime.datetime] | None = None) -> bool:
+                          candidates: list[datetime.datetime] | None = None,
+                          now: datetime.datetime | None = None) -> bool:
   """Bootstrap the clock from HTTP Date headers.
 
   Returns whether the clock is valid after the attempt. Used by the update
@@ -112,7 +113,8 @@ def sync_system_time_http(endpoints: tuple[str, ...] = TIME_HTTP_ENDPOINTS,
   """
   if candidates is None:
     candidates = http_time_candidates(endpoints, timeout_s)
-  now = datetime.datetime.now()
+  if now is None:
+    now = datetime.datetime.now()
   new_time = pick_http_time(now, candidates)
   if new_time is None:
     return system_time_valid()
