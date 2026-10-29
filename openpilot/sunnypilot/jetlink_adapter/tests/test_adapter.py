@@ -103,7 +103,7 @@ class TestParams(OpenpilotTestCase):
     self.assertNotEqual(settings.marks()[KEYS.big_model], before)
 
   def test_every_key_is_declared_with_its_type(self):
-    types = {'link': ParamKeyType.INT, 'offroad': ParamKeyType.BOOL, 'charge_phone': ParamKeyType.BOOL}
+    types = {'link': ParamKeyType.INT, 'offroad': ParamKeyType.BOOL, 'charge_phone': ParamKeyType.BOOL, 'select': ParamKeyType.STRING}
     params = Params()
     for field, key in KEYS._asdict().items():
       self.assertEqual(params.get_type(key), types.get(field, ParamKeyType.JSON), key)

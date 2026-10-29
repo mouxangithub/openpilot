@@ -43,12 +43,15 @@ MODES = ('off', 'usb', 'ios')
 
 # the params jetlink reads and writes, all declared in params_keys.h. big_model
 # and catalog are the model manager's big-model slot and catalog
-# (models.helpers.ACTIVE_BUNDLE_KEYS['chestnut'] and ModelFetcher's cache): the
-# owner cannot import the model manager, so they are written out here
-_Keys = namedtuple('_Keys', 'link offroad progress spec pointers big_model catalog charge_phone')
+# (models.helpers.ACTIVE_BUNDLE_KEYS['chestnut'] and ModelFetcher's cache), and
+# select is where a pick is asked for by its ref, which jetlink writes for a
+# newer pick made on the server: the owner cannot import the model manager, so
+# they are written out here
+_Keys = namedtuple('_Keys', 'link offroad progress spec pointers big_model catalog charge_phone select')
 KEYS = _Keys(link='JetlinkLink', offroad='IsOffroad', progress='AcceleratorProgress', spec='JetlinkSpec',
              pointers='JetlinkModelPointers', big_model='ModelManager_ActiveBundleChestnut',
-             catalog='ModelManager_ModelsCache_Chestnut', charge_phone='JetlinkChargePhone')
+             catalog='ModelManager_ModelsCache_Chestnut', charge_phone='JetlinkChargePhone',
+             select='ModelManager_DownloadRef')
 
 _AGNOS = os.path.isfile('/AGNOS')
 
