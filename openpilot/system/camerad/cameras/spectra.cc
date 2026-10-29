@@ -5,6 +5,7 @@
 #include <cassert>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 #include "media/cam_defs.h"
 #include "media/cam_isp.h"
@@ -1454,10 +1455,21 @@ bool SpectraCamera::validateEvent(uint64_t request_id, uint64_t ife_frame_id) {
       LOGE("camera %d reset after half second of invalid requests", cc.camera_num);
       clearAndRequeue(last_valid_request_id + 1);
       invalid_request_count = 0;
+      // The clear-and-requeue path assumes the IFE comes back on its own, but
+      // on a broken bring-up it answers every retry with request 0 forever and
+      // this loop never terminates - the camera stayed dead until the next
+      // reboot. A fresh process bring-up recovers what an in-process reset
+      // cannot, so give up after a few rounds and let the manager restart us.
+      if (++camera_reset_cycles >= 3) {
+        LOGE("camera %d still invalid after %d resets, exiting for a manager restart", cc.camera_num, camera_reset_cycles);
+        sleep(1);  // give the log socket a moment before the abrupt exit
+        _exit(1);
+      }
     }
     return false;
   }
   invalid_request_count = 0;
+  camera_reset_cycles = 0;
 
   // check for skips in frame_id or request_id
   if (!skip_expected) {
