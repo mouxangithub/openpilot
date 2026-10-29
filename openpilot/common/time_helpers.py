@@ -2,6 +2,7 @@ import datetime
 import email.utils
 import os
 import subprocess
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -11,10 +12,15 @@ MAX_DATE = datetime.datetime(year=2035, month=1, day=1)
 # Endpoints used to bootstrap the clock when NTP is unreachable. These are
 # domestic CDNs that answer even on a walled network, which is exactly the
 # situation where the device has no GPS fix and NTP is blocked.
+#
+# Plain http, not https: the clock being bootstrapped is wrong, and a wrong
+# clock fails TLS certificate validation ("certificate is not yet valid"),
+# so https could not bootstrap the clock it depends on. A redirect to
+# https is fine — the 301 response itself carries the endpoint's Date.
 TIME_HTTP_ENDPOINTS = (
-  "https://www.baidu.com",
-  "https://www.aliyun.com",
-  "https://www.qq.com",
+  "http://www.baidu.com",
+  "http://www.aliyun.com",
+  "http://www.qq.com",
 )
 
 TIME_HTTP_TIMEOUT_S = 10
@@ -36,6 +42,17 @@ def system_time_valid():
   return min_date() < datetime.datetime.now() < MAX_DATE
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+  """Stop at the 301: its Date header is all this needs, and following it
+  would land on https, which a bogus clock cannot negotiate."""
+
+  def redirect_request(self, req, fp, code, msg, headers, newurl):
+    return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def http_time_candidates(endpoints: tuple[str, ...] = TIME_HTTP_ENDPOINTS,
                          timeout_s: int = TIME_HTTP_TIMEOUT_S) -> list[datetime.datetime]:
   """Wall times reported by each endpoint's HTTP Date header.
@@ -47,8 +64,12 @@ def http_time_candidates(endpoints: tuple[str, ...] = TIME_HTTP_ENDPOINTS,
   for url in endpoints:
     try:
       req = urllib.request.Request(url, method="HEAD")
-      with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-        raw = resp.headers.get("Date")
+      try:
+        with _OPENER.open(req, timeout=timeout_s) as resp:
+          raw = resp.headers.get("Date")
+      except urllib.error.HTTPError as e:
+        # A redirect response is good enough; its headers are real.
+        raw = e.headers.get("Date")
       if not raw:
         continue
       dt = email.utils.parsedate_to_datetime(raw)
