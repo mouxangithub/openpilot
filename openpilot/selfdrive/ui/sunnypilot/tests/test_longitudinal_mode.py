@@ -13,17 +13,15 @@ from openpilot.selfdrive.ui.sunnypilot.longitudinal_mode import alpha_longitudin
 from openpilot.sunnypilot.selfdrive.car.tests.fakes import FakeParams
 
 
-@pytest.mark.parametrize(("has_long", "experimental", "speed", "follow", "labels"), [
-  (False, True, True, True, []),
-  (True, False, True, True, ["chill"]),
-  (True, True, False, False, ["experimental"]),
-  (True, True, True, False, ["exp.", "speed"]),
-  (True, True, False, True, ["exp.", "follow"]),
-  (True, True, True, True, ["exp.", "speed", "follow"]),
+@pytest.mark.parametrize(("has_long", "experimental", "speed", "labels"), [
+  (False, True, True, []),
+  (True, False, True, ["chill"]),
+  (True, True, False, ["experimental"]),
+  (True, True, True, ["exp.", "speed"]),
 ])
-def test_cruise_shows_the_mode_that_drives(has_long, experimental, speed, follow, labels):
+def test_cruise_shows_the_mode_that_drives(has_long, experimental, speed, labels):
   ui_state = SimpleNamespace(has_longitudinal_control=has_long, experimental_mode=experimental,
-                             params=FakeParams(ExperimentalModeSetSpeed=speed, ExperimentalModeLeadGap=follow))
+                             params=FakeParams(ExperimentalModeSetSpeed=speed))
   assert longitudinal_mode_labels(ui_state) == labels
 
 

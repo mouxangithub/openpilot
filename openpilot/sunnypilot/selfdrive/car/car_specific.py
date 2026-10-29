@@ -13,6 +13,8 @@ from opendbc.car.mazda.values import MazdaFlags
 from openpilot.selfdrive.selfdrived.events import Events
 from openpilot.sunnypilot.mads.mads import SET_SPEED_BUTTONS
 from opendbc.sunnypilot.car.stock_ecu import ENGAGES_NORMALLY
+from openpilot.common.params import Params
+from openpilot.sunnypilot.selfdrive.car.stock_ecu_handback import FAILED_KEY
 from openpilot.sunnypilot.selfdrive.selfdrived.events import EventsSP
 
 EventName = log.OnroadEvent.EventName
@@ -30,12 +32,14 @@ class CarEventsSP(EventsSP):
 
 
 class CarSpecificEventsSP:
-  def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP):
+  def __init__(self, CP: structs.CarParams, CP_SP: structs.CarParamsSP, params=None):
     self.CP = CP
     self.CP_SP = CP_SP
 
     self.low_speed_alert = False
     self.stock_ecu_prev = StockEcuState.notNeeded
+    # set by the stop that ended the last session; selfdrived starts fresh every session
+    self.stock_cruise_failed = (params or Params()).get_bool(FAILED_KEY)
 
   def update(self, CS: structs.CarState, events: Events, CS_SP, mads_enabled_toggle: bool = False, mads_enabled: bool = False):
     events_sp = CarEventsSP()
@@ -89,12 +93,14 @@ class CarSpecificEventsSP:
     # A SET/RES press before the stock ECU openpilot stands in for is owned lands on a body
     # that will not engage (Mazda route 0000020d: six presses, nothing shown): name what the
     # driver has to do. Alert-only; the press itself does nothing.
+    if self.stock_cruise_failed:
+      events_sp.zp.add(EventNameZP.stockCruiseFailed)
     stock_ecu = CS_SP.zoompilot.stockEcu
     if str(stock_ecu) not in ENGAGES_NORMALLY and any(be.pressed and be.type in SET_SPEED_BUTTONS for be in CS.buttonEvents):
       events_sp.zp.add(EventNameZP.stockEcuNotReady)
-    # Unprompted only where waiting changes the outcome: parked with the takeover still
+    # Unprompted only where waiting changes the outcome: stopped with the takeover still
     # starting (route 0000021b pulled away 5 s short of it). Rolling, the press alert carries
-    # "park to engage"; a standing banner would nag a whole drive. One line on the ready edge.
+    # "stop to engage"; a standing banner would nag a whole drive. One line on the ready edge.
     if stock_ecu == StockEcuState.starting and CS.standstill:
       events_sp.zp.add(EventNameZP.stockEcuInitializing)
     if stock_ecu == StockEcuState.ready and self.stock_ecu_prev != StockEcuState.ready:

@@ -14,7 +14,7 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.selfdrive.car.mazda_torque_seed import seed_car_defaults_offroad
 
 E2E_ASSISTS_MIGRATED = "ExperimentalAssistsDefaultOn"
-E2E_ASSISTS = ("ExperimentalModeSetSpeed", "ExperimentalModeLeadGap")
+E2E_ASSISTS = ("ExperimentalModeSetSpeed",)
 
 
 def _migrate_e2e_assists_on(params: Params) -> None:

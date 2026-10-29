@@ -7,9 +7,13 @@ zoompilot vUNRELEASED
     distance button, long press on comma home, or in sunnylink.
   * Dynamic Experimental Control is removed.
   * Prefer coasting over braking in Alpha longitudinal. Curves and speed limits still brake.
-  * Speed Assist improvements to reach your set speed more often.
-  * Speed Assist and Lead Follow Assist are now on by default, existing installs too.
+  * Set Speed Assist drives as chill mode does whenever the driving model holds back: it reaches
+    your set speed and your following distance, and the model still makes every slowdown.
+    No more alternating gas and brake on an open road.
+  * Lead Follow Assist is folded into Set Speed Assist: one toggle.
+  * Set Speed Assist is now on by default, existing installs too.
   * The alpha longitudinal switch can be changed onroad while disengaged.
+  * If stock cruise could not be handed back, the next drive says so: restart the car.
   * Slow for Curves: Map holds its curve targets between GPS fixes and drops them
     when GPS is lost.
 * Experimental Mode is indicated in comma 4 confidence ball when enabled.
@@ -27,6 +31,7 @@ zoompilot vUNRELEASED
   * Flip Flop and Mountain Dew v3 are listed separately.
   * The Jetlink port draws less power at boot.
   * comma 3X: no forced reboot with a laptop plugged in.
+  * A picked big model is kept when the model list changes, instead of going back to the default.
 
 zoompilot v2026.10.16-16
 ========================

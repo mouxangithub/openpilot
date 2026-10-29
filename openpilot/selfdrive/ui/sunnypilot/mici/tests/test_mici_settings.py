@@ -1007,7 +1007,7 @@ class TestAlphaLongitudinalPanelMici:
 
     alpha = AlphaLongitudinalLayoutMici()
     assert [key for key, _ in alpha._refresh_toggles] == [
-      "AlphaLongitudinalEnabled", "ExperimentalMode", "ExperimentalModeSetSpeed", "ExperimentalModeLeadGap"]
+      "AlphaLongitudinalEnabled", "ExperimentalMode", "ExperimentalModeSetSpeed"]
 
   def test_settings_opens_the_sp_panels(self, params, monkeypatch):
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.developer import DeveloperLayoutMiciSP
@@ -1024,7 +1024,7 @@ class TestAlphaLongitudinalPanelMici:
       assert type(pushed[-1]) is cls
 
   @pytest.mark.parametrize(("has_long", "badges"), [
-    (True, ["exp.", "speed", "follow"]),
+    (True, ["exp.", "speed"]),
     (False, None),  # alpha off: a grey "disabled" pill
   ])
   def test_cruise_entry_shows_the_mode(self, params, monkeypatch, has_long, badges):
@@ -1084,20 +1084,18 @@ class TestOverriddenToggles:
 
     monkeypatch.setattr(ui_state, "CP", car.CarParams.new_message(openpilotLongitudinalControl=True))
     monkeypatch.setattr(ui_state, "has_longitudinal_control", True)
-    for key in ("ExperimentalModeSetSpeed", "ExperimentalModeLeadGap"):
-      params.put_bool(key, True, block=True)
+    params.put_bool("ExperimentalModeSetSpeed", True, block=True)
     params.put_bool("ExperimentalMode", experimental, block=True)
     try:
       layout = AlphaLongitudinalLayoutMici()
       layout._refresh()
       layout._update_state()
-      for toggle in (layout._set_speed_toggle, layout._lead_gap_toggle):
-        assert toggle.enabled == experimental
-      for toggle in (layout._set_speed_toggle, layout._lead_gap_toggle):
-        assert toggle._checked, "locking must keep the stored value"
-        assert toggle.superseded == (not experimental)
+      toggle = layout._set_speed_toggle
+      assert toggle.enabled == experimental
+      assert toggle._checked, "locking must keep the stored value"
+      assert toggle.superseded == (not experimental)
     finally:
-      for key in ("ExperimentalModeSetSpeed", "ExperimentalModeLeadGap", "ExperimentalMode"):
+      for key in ("ExperimentalModeSetSpeed", "ExperimentalMode"):
         params.remove(key)
 
   def test_onroad_lock_keeps_the_green_pill(self, params, monkeypatch):

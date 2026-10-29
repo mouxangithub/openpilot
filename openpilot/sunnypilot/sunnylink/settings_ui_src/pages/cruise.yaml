@@ -34,16 +34,8 @@ sections:
     - $ref: '#/macros/longitudinal'
   - key: ExperimentalModeSetSpeed
     widget: toggle
-    title: Experimental Mode Speed Assist
-    description: In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down.
-    visibility:
-    - $ref: '#/macros/longitudinal'
-    enablement:
-    - $ref: '#/macros/longitudinal'
-  - key: ExperimentalModeLeadGap
-    widget: toggle
-    title: Experimental Mode Lead Follow Assist
-    description: Closes the gap to your driving personality's following distance behind a steady car. Never closer than chill mode.
+    title: Set Speed Assist
+    description: In Experimental Mode, drive toward your set speed and following distance as chill mode does whenever the model holds back. The model still makes every slowdown.
     visibility:
     - $ref: '#/macros/longitudinal'
     enablement:

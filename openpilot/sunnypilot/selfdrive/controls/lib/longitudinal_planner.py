@@ -26,7 +26,6 @@ from openpilot.sunnypilot.selfdrive.controls.lib.cutin_predecel import get_cutin
 from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_preview import (
   apply_preview_target, clip_preview_offset, get_lead_preview_request, rate_limit_preview,
 )
-from openpilot.sunnypilot.selfdrive.controls.lib.e2e_lead_gap.controller import E2ELeadGapController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
 from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import LeadForecast
@@ -92,6 +91,7 @@ class LongitudinalPlannerSP:
   CP: structs.CarParams
   allow_throttle: bool
   fcw: bool
+  accel_boost: AccelBoost
   a_cruise: float
   v_desired_trajectory: np.ndarray
   a_desired_trajectory: np.ndarray
@@ -104,8 +104,6 @@ class LongitudinalPlannerSP:
     self.lead_one = None
     self.events_sp = EventsSP()
     self.e2e_set_speed = E2ESetSpeedController()
-    self.e2e_lead_gap = E2ELeadGapController()
-    self.a_e2e = 0.  # the e2e candidate both lifts produced, for the floor's count of added speed
     self.lead_forecast = LeadForecast()
     self.lead_forecast.install(mpc)
     self.scc = make_smart_cruise_control(CP)
@@ -188,6 +186,9 @@ class LongitudinalPlannerSP:
     self._signal_prepare_arbitrator = PrepareArbitrator()
     self._signal_prepare_time = None
     self._signal_prepare_previous = None
+    self.a_cruise = 0.
+    self.a_cruise_prev = 0.
+    self.v_ego = 0.
 
   def is_e2e(self, sm: messaging.SubMaster) -> bool:
     # DEC removed 2026-10: e2e is the model candidate behind the experimental/chill switch.
@@ -625,27 +626,25 @@ class LongitudinalPlannerSP:
       # keep the speed target consistent with the gentler deceleration
       self.output_v_target = min(self.output_v_target, max(0.0, cs.vEgo + self.output_a_target * self.dt))
 
-  def update_e2e_target(self, sm: messaging.SubMaster, a_model: float, reset_state: bool, accel_coast: float) -> float:
-    """The e2e candidate after the set-speed floor and the follow-distance assist. The host
-    planner min()s it against the MPC and cruise candidates; neither assist can raise it above
-    the MPC's behind a lead, so the plan never follows closer than long_mpc would."""
+  def update_e2e_target(self, sm: messaging.SubMaster, a_model: float, should_stop_model: bool,
+                        reset_state: bool) -> tuple[float, bool]:
+    """The e2e candidate and whether it asks to stop. The host planner takes the minimum over the
+    candidates; in chill it can never be the minimum (cruise, listed first, wins a tie) and it
+    never asks to stop, so the stop signal returned here is the model's own."""
     is_e2e = self.is_e2e(sm)
-    # lateral acceleration from the measured steering, as the host's cruise candidate computes it
-    CS = sm['carState']
-    steer_deg = CS.steeringAngleDeg - sm['vehicleParameters'].angleOffsetDeg
-    steer_lat_accel = CS.vEgo ** 2 * math.radians(steer_deg) / (self.CP.steerRatio * self.CP.wheelbase)
-    # output_v_target is this frame's cruise target after SCC and SLA
-    # DEC removed 2026-10: allow_throttle is False (the old DEC-disabled
-    # default), so e2e never adds positive accel beyond the coast cap.
-    a_e2e = self.e2e_set_speed.update(sm, a_model, self.output_v_target, is_e2e, reset_state, False,
-                                      self.fcw, accel_coast, steer_lat_accel)
-    # the MPC candidate as the host planner takes it from this frame's solution
+    # lateral acceleration from the measured steering: controlsd's curvature from the learned
+    # steer ratio, angle offset and roll
+    steer_lat_accel = sm['controlsState'].curvature * sm['carState'].vEgo ** 2
+    # chill mode's answer: the MPC candidate as the host takes it from this frame's solution (a
+    # lead, or its synthetic one far ahead), and last frame's cruise candidate (the host builds
+    # this frame's after the e2e candidate)
     a_mpc = get_accel_from_plan(self.v_desired_trajectory, self.a_desired_trajectory, CONTROL_N_T_IDX,
                                 action_t=self.CP.longitudinalActuatorDelay + DT_MDL)
-    # a_cruise is last frame's: the host builds this frame's after the e2e candidate
-    self.a_e2e = self.e2e_lead_gap.update(sm, a_e2e, float(a_mpc), is_e2e, reset_state, False,
-                                          self.fcw, self.a_cruise, steer_lat_accel)
-    return self.a_e2e
+    a_chill = min(float(a_mpc), self.a_cruise)
+    self.a_e2e = self.e2e_set_speed.update(sm, a_model, a_chill, is_e2e, reset_state, steer_lat_accel)
+    if not is_e2e:
+      return ACCEL_MAX, False
+    return self.a_e2e, should_stop_model
 
   def update(self, sm: messaging.SubMaster) -> None:
     self.accel_controller.update()
@@ -655,9 +654,6 @@ class LongitudinalPlannerSP:
     self.e2e_alerts_helper.update(sm, self.events_sp)
 
   def publish_longitudinal_plan_sp(self, sm: messaging.SubMaster, pm: messaging.PubMaster) -> None:
-    # the host has chosen: tell the set-speed floor how much of the lift reached the car
-    self.e2e_set_speed.delivered(float(self.output_a_target), float(self.a_e2e))
-
     plan_sp_send = messaging.new_message('longitudinalPlanSP')
 
     plan_sp_send.valid = sm.all_checks(service_list=['carState', 'controlsState'])
@@ -696,14 +692,6 @@ class LongitudinalPlannerSP:
     e2eSetSpeed.floor = float(self.e2e_set_speed.floor)
     e2eSetSpeed.boost = float(self.e2e_set_speed.boost)
     e2eSetSpeed.inhibit = self.e2e_set_speed.inhibit
-
-    e2eLeadGap = longitudinalPlanSP.e2eLeadGap
-    e2eLeadGap.authority = float(self.e2e_lead_gap.authority)
-    e2eLeadGap.gain = float(self.e2e_lead_gap.gain)
-    e2eLeadGap.weight = float(self.e2e_lead_gap.weight)
-    e2eLeadGap.gapExcess = float(self.e2e_lead_gap.gap_excess)
-    e2eLeadGap.boost = float(self.e2e_lead_gap.boost)
-    e2eLeadGap.inhibit = self.e2e_lead_gap.inhibit
 
     # Smart Cruise Control
     smartCruiseControl = longitudinalPlanSP.smartCruiseControl
@@ -770,10 +758,9 @@ class LongitudinalPlannerSP:
       tl.confidence = float(fused.confidence)
       tl.distance = float(fused.distance)
 
-    # zoompilot: experimental mode's set-speed floor and follow-distance assist, the model's lead forecast
+    # zoompilot: experimental mode's Set Speed Assist, the model's lead forecast
     zoompilot = longitudinalPlanSP.zoompilot
     self.e2e_set_speed.fill(zoompilot.e2eSetSpeed)
-    self.e2e_lead_gap.fill(zoompilot.e2eLeadGap)
     self.lead_forecast.fill(zoompilot.leadForecast)
     # zoompilot's vision planner only; 0 tells the ICBM servo there is no lookahead
     zoompilot.sccVAheadMin = float(getattr(self.scc.vision, 'v_ahead_min', 0.))

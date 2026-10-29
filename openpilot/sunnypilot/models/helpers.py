@@ -158,7 +158,7 @@ def resolve_bundle_by_ref(
   return None
 
 
-def _validate_active_bundle(params: Params, source: str, available_bundles: list[custom.ModelManagerSP.ModelBundle] | None = None) -> None:
+def _validate_active_bundle(params: Params, source: str, available_bundles: list[custom.ModelManagerSP.ModelBundle] | None = None) -> dict | None:
   global _LAST_VALIDATED_RAW
   # the big-model slot's missing files are fetched, not a reason to reset: an
   # accelerator runs the pick without them, and for a chestnut the manager
@@ -169,25 +169,30 @@ def _validate_active_bundle(params: Params, source: str, available_bundles: list
   key = ACTIVE_BUNDLE_KEYS[source]
   raw_bundle = params.get(key)
   if not raw_bundle:
-    return
+    return None
 
   if _LAST_VALIDATED_RAW.get(key) == raw_bundle:
-    return
+    return None
 
   active_bundle = _parse_active_bundle(raw_bundle)
   if active_bundle is None or _bundle_needs_reset(active_bundle, available_bundles, check_files):
     cloudlog.warning(f"Active model bundle invalid for {source}; resetting to default")
     params.remove(key)
     _LAST_VALIDATED_RAW[key] = None
-  else:
-    _LAST_VALIDATED_RAW[key] = raw_bundle
+    return raw_bundle
+  _LAST_VALIDATED_RAW[key] = raw_bundle
+  return None
 
 
-def validate_active_bundles(params: Params, source_bundles: dict[str, list[custom.ModelManagerSP.ModelBundle]]) -> None:
+def validate_active_bundles(params: Params, source_bundles: dict[str, list[custom.ModelManagerSP.ModelBundle]]) -> dict[str, dict]:
+  """Clears each slot whose pick no longer matches its catalog; returns the cleared picks by source."""
+  cleared = {}
   # an empty list means the fetch failed, not that the catalog dropped the bundle
   for source, bundles in source_bundles.items():
-    _validate_active_bundle(params, source, bundles or None)
+    if (raw := _validate_active_bundle(params, source, bundles or None)) is not None:
+      cleared[source] = raw
   get_active_model_runner(params, force_check=True)
+  return cleared
 
 
 def get_active_model_runner(params: Params | None = None, force_check: bool = False) -> int:

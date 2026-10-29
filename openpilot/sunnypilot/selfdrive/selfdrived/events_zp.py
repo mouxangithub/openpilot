@@ -67,9 +67,9 @@ def big_model_ready_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.Sub
 
 def stock_ecu_not_ready_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
   state = str(sm['carStateSP'].zoompilot.stockEcu)
-  title, line = STOCK_ECU_ALERT_TEXT.get(state, STOCK_ECU_ALERT_TEXT[StockEcuState.STARTING])
   if state == StockEcuState.STARTING and not CS.standstill:
-    line = "等待雷达接管"  # a moving takeover in flight; parking is not required
+    state = StockEcuState.PARK_TO_TAKE_OVER  # the takeover needs a stop either way
+  title, line = STOCK_ECU_ALERT_TEXT.get(state, STOCK_ECU_ALERT_TEXT[StockEcuState.STARTING])
   return NoEntryAlert(line, alert_text_1=title)
 
 
@@ -206,7 +206,7 @@ EVENTS_ZP: dict[int, dict[str, Alert | AlertCallbackType]] = {
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.prompt, .5),
   },
 
-  # The three stock ECU alerts are PERMANENT, not the *AlertOnly WARNING convention: WARNING
+  # The stock ECU alerts are PERMANENT, not the *AlertOnly WARNING convention: WARNING
   # shows only while cruise or MADS lateral is active, and these must reach a driver whose
   # lateral is off or paused (brake held at the stop where the takeover happens; route
   # 0000021b showed nothing for three minutes). Each press is one frame; the alert's own
@@ -215,14 +215,25 @@ EVENTS_ZP: dict[int, dict[str, Alert | AlertCallbackType]] = {
     ET.PERMANENT: stock_ecu_not_ready_alert,
   },
 
-  # Parked with the takeover still starting: unprompted, re-raised every frame it holds. MID so
+  # Stopped with the takeover still starting: unprompted, re-raised every frame it holds. MID so
   # the startup and big model banners (LOWER/LOW) cannot cover it while the driver waits.
   EventNameZP.stockEcuInitializing: {
     ET.PERMANENT: NormalPermanentAlert(*STOCK_ECU_ALERT_TEXT[StockEcuState.STARTING], priority=Priority.MID),
   },
 
+  # the takeover landed: the car's own emergency braking went with the radar
   EventNameZP.stockEcuReady: {
-    ET.PERMANENT: NormalPermanentAlert("Alpha 纵向已就绪", duration=2.),
+    ET.PERMANENT: NormalPermanentAlert("Alpha 纵向已就绪", "原厂 AEB 已关闭", duration=2.),
+  },
+
+  # The last session's hand-back failed and its stop went ahead anyway: the radar is left to
+  # recover on its own, which blocks stock cruise until the next ignition. Held the whole session.
+  EventNameZP.stockCruiseFailed: {
+    ET.PERMANENT: Alert(
+      "原厂巡航失败",
+      "请重启车辆",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.LOW, VisualAlert.none, AudibleAlert.prompt, .2),
   },
 
   # an accelerator ready while something is in control: it swaps in only when

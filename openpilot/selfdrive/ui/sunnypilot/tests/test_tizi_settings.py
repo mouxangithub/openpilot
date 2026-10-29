@@ -9,6 +9,7 @@ The tizi (comma three / 3X) settings: the top of Cruise owns the alpha switch
 Its own module: the big UI is chosen at import, so it cannot share a window with the mici
 tests.
 """
+import itertools
 import os
 
 import pytest
@@ -34,7 +35,7 @@ def test_moved_switches_appear_once(params):
 
   alpha = AlphaLongitudinalToggles()
   assert [key for key, _ in alpha._refresh_toggles] == [
-    "AlphaLongitudinalEnabled", "ExperimentalMode", "ExperimentalModeSetSpeed", "ExperimentalModeLeadGap"]
+    "AlphaLongitudinalEnabled", "ExperimentalMode", "ExperimentalModeSetSpeed"]
 
 
 def test_alpha_longitudinal_heads_cruise(params, monkeypatch):
@@ -70,18 +71,21 @@ def test_experimental_toggle_needs_no_confirm(params, monkeypatch):
   assert not pushed
 
 
-def test_assists_grey_out_without_long(params, monkeypatch):
+def test_assists_grey_out_without_long_or_experimental(params, monkeypatch):
   from opendbc.car.structs import car
   from openpilot.selfdrive.ui.sunnypilot.layouts.settings.alpha_longitudinal_toggles import AlphaLongitudinalToggles
   from openpilot.selfdrive.ui.ui_state import ui_state
 
   monkeypatch.setattr(ui_state, "CP", car.CarParams.new_message(alphaLongitudinalAvailable=True, openpilotLongitudinalControl=True))
+  params.put_bool("ExperimentalModeSetSpeed", True, block=True)
   layout = AlphaLongitudinalToggles()
-  for has_long in (True, False):
+  for has_long, experimental in itertools.product((True, False), repeat=2):
     monkeypatch.setattr(ui_state, "has_longitudinal_control", has_long)
+    layout._experimental_toggle.action_item.set_state(experimental)
     layout.update_state()
-    assert layout._set_speed_toggle.action_item.enabled == has_long
-    assert layout._lead_gap_toggle.action_item.enabled == has_long
+    assert layout._set_speed_toggle.action_item.enabled == (has_long and experimental)
+  assert params.get_bool("ExperimentalModeSetSpeed")  # locked, not cleared
+  params.remove("ExperimentalModeSetSpeed")
 
 
 def test_onroad_button_switches_experimental_mode(params, monkeypatch):

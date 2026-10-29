@@ -115,57 +115,73 @@ def fresh_process():
   default_bootstrap._carry_over_queued.clear()
 
 
+def cleared_by_validation(params, source="qcom"):
+  """What validate_active_bundles does to a slot it rejects: clears it and hands back the pick."""
+  key = QCOM if source == "qcom" else CHESTNUT
+  raw = params.get(key)
+  params.remove(key)
+  return {source: raw}
+
+
 class TestCarryOverPicks:
-  """A selector bump must not drop a device back to the stock model (validation clears the old slot)."""
+  """A selector bump or a rebuilt catalog entry must not drop a device back to the stock model."""
 
   def test_a_stale_pick_is_requeued_by_its_ref(self):
     params = FakeParams({QCOM: stored(FM_REF, "FM")})
-    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []}, cleared_by_validation(params))
     assert params.get("ModelManager_DownloadRef") == FM_REF
     assert params.get(CARRY_OVER_KEY) == {"qcom": {"ref": FM_REF, "internalName": "FM"}}
 
   def test_a_rebuilt_model_is_found_by_its_short_name(self):
     params = FakeParams({QCOM: stored("old-ref", "FM")})
-    carry_over_picks(params, {"qcom": [FakeBundle(28, "FM", "new"), FakeBundle(61, "FM", "newer")], "chestnut": []})
+    carry_over_picks(params, {"qcom": [FakeBundle(28, "FM", "new"), FakeBundle(61, "FM", "newer")], "chestnut": []},
+                     cleared_by_validation(params))
     assert params.get("ModelManager_DownloadRef") == "newer"
 
   def test_offline_keeps_the_pick_until_the_catalog_arrives(self):
     params = FakeParams({QCOM: stored(FM_REF, "FM")})
-    carry_over_picks(params, {"qcom": [], "chestnut": []})
-    params.remove(QCOM)  # what validation does to the stale slot
+    carry_over_picks(params, {"qcom": [], "chestnut": []}, cleared_by_validation(params))
     assert params.get("ModelManager_DownloadRef") is None
-    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []}, {})
     assert params.get("ModelManager_DownloadRef") == FM_REF
 
   def test_the_pick_is_dropped_once_the_slot_is_filled(self):
     params = FakeParams({QCOM: stored(FM_REF, "FM")})
-    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []}, cleared_by_validation(params))
     params.put(QCOM, stored(FM_REF, "FM", REQUIRED_JSON_VERSION))
-    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []}, {})
     assert params.get(CARRY_OVER_KEY) is None
 
   def test_a_model_the_new_catalog_lacks_falls_back_to_the_default(self):
     params = FakeParams({QCOM: stored("gone", "GONE")})
-    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []}, cleared_by_validation(params))
     assert params.get("ModelManager_DownloadRef") is None
     assert params.get(CARRY_OVER_KEY) is None
 
   def test_a_failed_download_is_not_requeued_in_the_same_process(self):
     params = FakeParams({QCOM: stored(FM_REF, "FM")})
-    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []}, cleared_by_validation(params))
     params.remove("ModelManager_DownloadRef")
-    params.remove(QCOM)
-    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []}, {})
     assert params.get("ModelManager_DownloadRef") is None
     assert params.get(CARRY_OVER_KEY) is not None  # retried after a restart
 
   def test_the_big_model_slot_is_carried_too(self):
     params = FakeParams({CHESTNUT: stored("big", "CTV3M")})
-    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": [FakeBundle(3, "CTV3M", "big")]})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": [FakeBundle(3, "CTV3M", "big")]},
+                     cleared_by_validation(params, "chestnut"))
     assert params.get("ModelManager_DownloadRef") == "big"
 
-  def test_a_current_pick_is_left_alone(self):
+  def test_a_current_pick_whose_catalog_entry_changed_is_carried(self):
+    # a big model first picked through jetlink's newer catalogs, then listed natively: the pick parses
+    # but no longer matches its entry, so validation clears it at the selector version it already had
+    params = FakeParams({CHESTNUT: stored("mdv3", "MDMV3", REQUIRED_JSON_VERSION)})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": [FakeBundle(16, "MDMV3", "mdv3")]},
+                     cleared_by_validation(params, "chestnut"))
+    assert params.get("ModelManager_DownloadRef") == "mdv3"
+
+  def test_nothing_cleared_is_left_alone(self):
     params = FakeParams({QCOM: stored(FM_REF, "FM", REQUIRED_JSON_VERSION)})
-    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []})
+    carry_over_picks(params, {"qcom": _available_with_fm(), "chestnut": []}, {})
     assert params.get("ModelManager_DownloadRef") is None
     assert params.get(CARRY_OVER_KEY) is None

@@ -25,7 +25,8 @@ withdrawn request (the record removed) is a fresh start for the vehicle.
 A stop that can be withdrawn (forced offroad, through its exit button) proceeds only on
 restored or notNeeded and stays open on failed: the vehicle keeps neutral replacement traffic
 going and a late recovery still completes it. A stop with no cancel (cycle, reboot, shutdown,
-uninstall) proceeds on any answer. Either proceeds after HANDBACK_WAIT_T with no answer at all,
+uninstall) proceeds on any answer, and on failed leaves FAILED_KEY for the next session's
+alert (only an onroad cycle keeps it: manager start and ignition clear it). Either proceeds after HANDBACK_WAIT_T with no answer at all,
 which means no card is alive to give one. Ignition off and power loss cannot be held.
 """
 import time
@@ -36,6 +37,8 @@ from openpilot.common.swaglog import cloudlog
 
 REQUEST_KEY = "StockEcuHandBackRequest"
 RESULT_KEY = "StockEcuHandBackResult"
+# a stop went ahead on a failed hand-back; the session after an onroad cycle tells the driver
+FAILED_KEY = "StockEcuHandBackFailed"
 
 # The producer's own budget is one UDS attempt (10 s) plus the restore window; past this with no
 # answer at all the processes are assumed dead, and the stop goes ahead regardless.
@@ -102,6 +105,7 @@ class StockEcuHandBackGate:
           cloudlog.error(f"stock ECU hand-back {self.request_id} failed")
         self.failed = True
         if not hold_on_failure:
+          self.params.put_bool(FAILED_KEY, True, block=True)
           self._close()
           return True
         return False  # held open; a late recovery or a withdrawal ends it
