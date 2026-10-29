@@ -116,7 +116,7 @@ class ModelsLayout(Widget):
 
     self._blendful_desc = tr("Adds a gentle nudge toward lane center on top of the model's own steering, stronger when lane lines are clear." +
                              " Yields around obstacles. Not available with the Default model.")
-    self.blendful_toggle = toggle_item_sp(tr("Blendful (Alpha)"), self._blendful_desc, param="Blendful")
+    self.blendful_toggle = toggle_item_sp(tr("Lane Center Assist (Alpha)"), self._blendful_desc, param="Blendful")
 
     self.camera_offset = option_item_sp(tr("Adjust Camera Offset"), "CameraOffset", -35, 35,
                                         tr("Virtually shift camera's perspective to move model's center to Left(+ values) or Right (- values)"),
@@ -395,7 +395,7 @@ class ModelsLayout(Widget):
       self.blendful_toggle.action_item.set_enabled(False)
 
     blendful_desc = self._blendful_desc if blendful_allowed else \
-      f"<b>{tr('Select a non-Default model to use Blendful.')}</b><br><br>{self._blendful_desc}"
+      f"<b>{tr('Select a non-Default model to use Lane Center Assist.')}</b><br><br>{self._blendful_desc}"
     if self.blendful_toggle.description != blendful_desc:
       self.blendful_toggle.set_description(blendful_desc)
       self.blendful_toggle.show_description(not blendful_allowed)

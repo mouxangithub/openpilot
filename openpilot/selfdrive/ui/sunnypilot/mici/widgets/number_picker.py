@@ -249,10 +249,9 @@ class NumberPickerScreen(Widget):
     super().show_event()  # propagates to _scroller via _child()
     current = self._read_value()
     self._last_center_value = current
-    for idx, item in enumerate(self._picker_items):
-      if item.raw_value == current:
-        self._scroll_to_index(idx)
-        break
+    # the nearest item: a value set elsewhere (tici, sunnylink, the other units) can sit off this grid
+    if self._picker_items:
+      self._scroll_to_index(min(range(len(self._picker_items)), key=lambda i: abs(self._picker_items[i].raw_value - current)))
 
   def _commit_value(self):
     """Write the current center item's value to params."""
