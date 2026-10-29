@@ -67,18 +67,35 @@ class ProbeResult:
     return self.url
 
 
-def build_candidates(upstream_url: str, use_proxies: bool = True) -> list[str]:
+def build_candidates(upstream_url: str, use_proxies: bool = True,
+                     extra_prefixes: tuple[str, ...] = ()) -> list[str]:
   """The official source first, then each proxy wrapping it.
 
   The official source stays first so it wins ties: when github answers in
   the same time as a proxy, the origin is the one that keeps working when
   the proxy is taken down.
+
+  `extra_prefixes` are the user's own additions; they are probed before the
+  built-in list because the user added them for a reason the built-in list
+  cannot know about.
   """
   candidates = [upstream_url]
   if use_proxies:
+    for prefix in extra_prefixes:
+      if prefix not in PROXY_PREFIXES:
+        candidates.append(f"{prefix}{upstream_url}")
     for prefix in PROXY_PREFIXES:
       candidates.append(f"{prefix}{upstream_url}")
   return candidates
+
+
+def prefix_for(url: str, upstream_url: str) -> str:
+  """The proxy prefix a candidate url was built with, empty for official."""
+  if url == upstream_url:
+    return ""
+  if url.endswith(upstream_url):
+    return url[: len(url) - len(upstream_url)]
+  return ""
 
 
 def proxy_url_for(upstream_url: str, prefix: str) -> str:
@@ -366,19 +383,22 @@ def restore_source(root: str, upstream_url: str) -> None:
     set_submodule_config_url(root, section, upstream)
 
 
-def measure_and_select(root: str, upstream_url: str, use_proxies: bool = True,
-                        budget_s: float = PROBE_BUDGET_S) -> tuple[ProbeResult | None, str]:
-  """Probe every candidate and return the winner plus the prefix to use.
+def measure_and_rank(root: str, upstream_url: str, use_proxies: bool = True,
+                     budget_s: float = PROBE_BUDGET_S,
+                     extra_prefixes: tuple[str, ...] = ()) -> list[tuple[ProbeResult, str]]:
+  """Probe every candidate and return the healthy ones, quickest first.
 
-  The prefix is empty for the official source, so the caller can tell an
-  origin that needs no rewriting apart from one that does.
+  Each entry is (probe result, prefix to apply); the prefix is empty for
+  the official source. The order is by measured latency, and ties keep
+  the candidate order so the official origin still comes first.
 
-  The candidates are probed concurrently: the sources are independent, and
-  probing them one after another made a dead source add its timeout to
-  every candidate behind it. In parallel the whole probe costs about as
-  much as the slowest single source.
+  The ranking exists because a source that measures well can still fail
+  mid-fetch: a proxy that rate-limits a large transfer looks healthy to
+  an ls-remote but cannot finish the download. The caller walks this list
+  and tries the next source when one dies under load.
   """
-  candidates = build_candidates(upstream_url, use_proxies=use_proxies)
+  candidates = build_candidates(upstream_url, use_proxies=use_proxies,
+                                extra_prefixes=extra_prefixes)
   deadline = time.monotonic() + budget_s
 
   results: list[ProbeResult] = []
@@ -396,18 +416,35 @@ def measure_and_select(root: str, upstream_url: str, use_proxies: bool = True,
         + (f" ({result.error})" if result.error else "")
       )
 
-  # The results come back in completion order; sort by the candidate order
-  # so a tie still goes to the official origin.
+  # A source slower than the ceiling is unusable, not merely slow.
+  healthy = [r for r in results if r.ok and r.median_ms <= MAX_ACCEPTABLE_MS]
+
+  # Sort by latency, ties keeping candidate order (the official origin is
+  # the first candidate, so an equal-time proxy never displaces it).
   order = {url: i for i, url in enumerate(candidates)}
-  results.sort(key=lambda r: order.get(r.url, len(order)))
+  healthy.sort(key=lambda r: (r.median_ms, order.get(r.url, len(order))))
 
-  best = select_best(results)
-  if best is None:
+  return [(r, prefix_for(r.url, upstream_url)) for r in healthy]
+
+
+def measure_and_select(root: str, upstream_url: str, use_proxies: bool = True,
+                        budget_s: float = PROBE_BUDGET_S,
+                        extra_prefixes: tuple[str, ...] = ()) -> tuple[ProbeResult | None, str]:
+  """Probe every candidate and return the winner plus the prefix to use.
+
+  The prefix is empty for the official source, so the caller can tell an
+  origin that needs no rewriting apart from one that does.
+
+  The candidates are probed concurrently: the sources are independent, and
+  probing them one after another made a dead source add its timeout to
+  every candidate behind it. In parallel the whole probe costs about as
+  much as the slowest single source.
+  """
+  ranked = measure_and_rank(root, upstream_url, use_proxies=use_proxies,
+                            budget_s=budget_s, extra_prefixes=extra_prefixes)
+  if not ranked:
     return None, ""
-
-  if best.url == upstream_url:
-    return best, ""
-  prefix = best.url[: len(best.url) - len(upstream_url)]
+  best, prefix = ranked[0]
   return best, prefix
 
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
-from openpilot.common.time_helpers import system_time_valid
+from openpilot.common.time_helpers import sync_system_time_http, system_time_valid
 from openpilot.common.markdown import parse_markdown
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
@@ -219,6 +219,9 @@ class Updater:
     self._proxy_prefix: str = ""
     # Whether a source has already been selected and applied this run.
     self._source_applied: bool = False
+    # Healthy sources from the last probe, quickest first; empty string is
+    # the official origin. A fetch walks down this list when one dies.
+    self._source_prefixes: list[str] = []
 
   @property
   def has_internet(self) -> bool:
@@ -380,7 +383,9 @@ class Updater:
     the main repo and every submodule. The official origin wins ties, so a
     working github is never displaced by a proxy.
 
-    Returns whether a usable source was found and applied.
+    The whole ranked list is kept: a source that measures well can still
+    fail mid-fetch, and the fetch then walks down the list instead of
+    having to re-probe. Returns whether a usable source was found.
     """
     if self._source_applied:
       return True
@@ -391,53 +396,97 @@ class Updater:
       return False
 
     try:
-      best, prefix = git_proxy.measure_and_select(OVERLAY_MERGED, upstream)
+      ranked = git_proxy.measure_and_rank(OVERLAY_MERGED, upstream,
+                                          extra_prefixes=self._extra_proxy_prefixes())
     except Exception as e:
       cloudlog.exception(f"git_proxy: probe failed: {e}")
       return False
 
-    if best is None:
+    if not ranked:
       cloudlog.warning("git_proxy: no source answered, keeping the current remotes")
       return False
 
-    if prefix:
-      cloudlog.info(f"git_proxy: using proxy {prefix} ({best.median_ms}ms)")
-      try:
-        changed = git_proxy.apply_source(OVERLAY_MERGED, upstream, prefix)
-        cloudlog.info(f"git_proxy: rewrote {changed} remotes to the proxy")
-      except Exception as e:
-        cloudlog.exception(f"git_proxy: failed to apply the proxy: {e}")
-        return False
-      self._proxy_prefix = prefix
+    self._source_prefixes = [prefix for _, prefix in ranked]
+    self._source_applied = True
+
+    best, best_prefix = ranked[0]
+    if best_prefix:
+      cloudlog.info(f"git_proxy: using proxy {best_prefix} ({best.median_ms}ms), "
+                    f"{len(ranked) - 1} more source(s) in reserve")
     else:
       cloudlog.info(f"git_proxy: using the official origin ({best.median_ms}ms)")
-      self._proxy_prefix = ""
 
-    self._source_applied = True
-    return True
+    return self._apply_prefix(best_prefix)
 
-  def fallback_to_official(self) -> bool:
-    """Drop the proxy and go back to the real github.
+  def _extra_proxy_prefixes(self) -> tuple[str, ...]:
+    """User-added proxies from the GitProxyPrefixes param.
 
-    Used when a proxy that measured well still fails mid-fetch. Returns
-    whether there was a proxy to drop.
+    The built-in list is frozen in the release; this lets the user add a
+    proxy that is reachable on their network without waiting for an
+    update. Comma separated, each an http(s) origin; a trailing slash is
+    added if missing since the prefix is prepended verbatim.
     """
-    if not self._proxy_prefix:
-      return False
+    raw = (self.params.get("GitProxyPrefixes") or "").strip()
+    if not raw:
+      return ()
+    prefixes = []
+    for part in raw.split(","):
+      prefix = part.strip()
+      if not prefix.startswith("http"):
+        continue
+      if not prefix.endswith("/"):
+        prefix += "/"
+      if prefix not in git_proxy.PROXY_PREFIXES:
+        prefixes.append(prefix)
+    return tuple(prefixes)
 
+  def _apply_prefix(self, prefix: str) -> bool:
+    """Point the repo and its submodules at the source this prefix wraps.
+
+    An empty prefix means the official origin: whatever remotes currently
+    say, they are restored to the real upstream. Returns whether the
+    rewrite succeeded.
+    """
     upstream = self._origin_url(OVERLAY_MERGED)
     if not upstream:
       return False
-
-    cloudlog.info("git_proxy: falling back to the official origin")
     try:
-      git_proxy.restore_source(OVERLAY_MERGED, upstream)
+      if prefix:
+        changed = git_proxy.apply_source(OVERLAY_MERGED, upstream, prefix)
+        cloudlog.info(f"git_proxy: rewrote {changed} remotes to {prefix}")
+      else:
+        git_proxy.restore_source(OVERLAY_MERGED, upstream)
+        cloudlog.info("git_proxy: remotes restored to the official origin")
     except Exception as e:
-      cloudlog.exception(f"git_proxy: failed to restore the official origin: {e}")
+      cloudlog.exception(f"git_proxy: failed to apply source: {e}")
       return False
-
-    self._proxy_prefix = ""
+    self._proxy_prefix = prefix
     return True
+
+  def fetch_update_with_retry(self) -> None:
+    """Fetch, trying each healthy source in latency order.
+
+    A source that measures well can still fail mid-fetch: a proxy that
+    rate-limits a large transfer looks fine to an ls-remote and then dies
+    under load, and the official origin can be unreachable outright. The
+    next source on the ranked list is tried before the attempt is given
+    up on; the last error is raised when nothing worked.
+    """
+    prefixes = self._source_prefixes or [""]
+    last_error: Exception | None = None
+    for prefix in prefixes:
+      if prefix:
+        cloudlog.info(f"git_proxy: fetching from {prefix}")
+      if not self._apply_prefix(prefix):
+        continue
+      try:
+        self.fetch_update()
+        return
+      except Exception as e:
+        last_error = e
+        cloudlog.warning(f"git_proxy: fetch failed from {prefix or 'the official origin'}: {e}")
+    if last_error is not None:
+      raise last_error
 
   def _origin_url(self, path: str) -> str:
     """The repo's origin url, without any proxy prefix already applied."""
@@ -592,6 +641,14 @@ def main() -> None:
         # ensure we have some params written soon after startup
         updater.set_params(False, update_failed_count, exception)
 
+        # A cold boot has no RTC battery and NTP can be unreachable on a
+        # walled network. Bootstrap the clock from HTTP Date headers so the
+        # gate below is not skipped and TLS against github works.
+        try:
+          sync_system_time_http()
+        except Exception:
+          cloudlog.exception("updated: http time sync failed")
+
         if not system_time_valid() or first_run:
           first_run = False
           wait_helper.sleep(60)
@@ -612,14 +669,7 @@ def main() -> None:
         elif wait_helper.user_request == UserRequest.CHECK:
           cloudlog.info("skipping fetch, only checking")
         else:
-          try:
-            updater.fetch_update()
-          except Exception:
-            # A proxy that measured well can still fail mid-fetch. Drop back
-            # to the real github and try once more before giving up.
-            if not updater.fallback_to_official():
-              raise
-            updater.fetch_update()
+          updater.fetch_update_with_retry()
           write_time_to_param(params, "UpdaterLastFetchTime")
         update_failed_count = 0
       except subprocess.CalledProcessError as e:
