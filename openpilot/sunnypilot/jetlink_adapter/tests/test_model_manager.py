@@ -130,6 +130,7 @@ class TestFetcherHook(OpenpilotTestCase):
     response.json.return_value = dict(PINNED)
     params = mock.MagicMock()
     with mock.patch('openpilot.sunnypilot.models.fetcher.requests.get', return_value=response), \
+         mock.patch('openpilot.sunnypilot.models.http_probe.requests.get', return_value=response), \
          mock.patch.object(jetlink_adapter, 'should_extend_catalog', return_value=extends) as asked, \
          mock.patch.object(jetlink_adapter, 'extend_catalog', side_effect=lambda c: c) as hook:
       ModelFetcherZP(params)._fetch_and_cache_models(source)

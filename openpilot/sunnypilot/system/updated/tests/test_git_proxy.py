@@ -26,6 +26,7 @@ except Exception:
 from openpilot.sunnypilot.system.updated.git_proxy import (
   MAX_ACCEPTABLE_MS,
   PROBE_TIMEOUT_S,
+  PROXY_PREFIXES,
   ProbeResult,
   build_candidates,
   probe_once,
@@ -56,6 +57,19 @@ class TestBuildCandidates(unittest.TestCase):
       proxy_url_for("https://github.com/x/y.git", "https://gh-proxy.com/"),
       "https://gh-proxy.com/https://github.com/x/y.git",
     )
+
+  def test_only_git_speaking_proxies_are_listed(self):
+    # a proxy can serve raw files over HTTP and still not speak git's
+    # smart-http ("info/refs not valid: is this a git repository?").
+    # Those are useless here, so they are kept out of the table.
+    for http_only in ("https://ghproxy.cc/", "https://git.yylx.win/",
+                      "https://cors.isteed.cc/", "https://mirror.houlang.cloud/"):
+      self.assertNotIn(http_only, PROXY_PREFIXES, f"{http_only} does not speak git")
+
+  def test_every_listed_proxy_is_a_read_through_prefix(self):
+    for prefix in PROXY_PREFIXES:
+      self.assertTrue(prefix.startswith("https://"), prefix)
+      self.assertTrue(prefix.endswith("/"), prefix)
 
 
 class TestSelectBest(unittest.TestCase):

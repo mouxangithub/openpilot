@@ -11,6 +11,7 @@ import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlsplit
 
 from pathlib import Path
 
@@ -26,7 +27,7 @@ from openpilot.sunnypilot.models.fetcher import ModelFetcher
 from openpilot.sunnypilot.models.fetcher_zp import ModelFetcherZP
 from openpilot.sunnypilot.models.helpers import (ACTIVE_BUNDLE_KEYS, _bundle_is_valid_locally, get_active_bundle, get_selected_bundle,
                                                   resolve_bundle_by_ref, validate_active_bundles, verify_file)
-from openpilot.sunnypilot.models.mirror import apply_hf_mirror, get_hf_mirror_base
+from openpilot.sunnypilot.models.mirror import hf_mirror_candidates
 
 # (connect, read) seconds. read is per-request inactivity, not a total cap
 DOWNLOAD_TIMEOUT = (30, 30)
@@ -285,11 +286,12 @@ class ModelManagerSP:
       os.remove(base_path)
     del self._download_start_times[artifact.fileName]
 
-  def _try_chunked_download(self, url: str, full_path: str, artifact) -> bool | None:
+  def _try_chunked_download(self, base_urls: list[str], full_path: str, artifact) -> bool | None:
     """Optional StarPilot-style chunked transfer for artifacts the catalog lists
-    without per-chunk hashes. Returns True (downloaded into chunk layout), False
-    (transfer failed or cancelled), or None when no .chunkmanifest is offered and
-    the plain single-file path should run exactly as before."""
+    without per-chunk hashes. base_urls are tried in order until one serves a
+    .chunkmanifest. Returns True (downloaded into chunk layout), False
+    (transfer failed or cancelled), or None when no source offers a
+    .chunkmanifest and the plain single-file path should run exactly as before."""
     from openpilot.sunnypilot.models.chunked_download import try_download_chunked
 
     def progress(percent: float) -> None:
@@ -299,7 +301,7 @@ class ModelManagerSP:
       self._sync_artifact_progress(artifact)
       self._report_status()
 
-    result = try_download_chunked(Path(full_path), [url], expected_sha256=artifact.downloadUri.sha256,
+    result = try_download_chunked(Path(full_path), base_urls, expected_sha256=artifact.downloadUri.sha256,
                                   progress_cb=progress, cancel_cb=self._download_interrupted)
     if result is False and self._download_interrupted():
       raise DownloadCancelled("Download cancelled")
@@ -318,15 +320,15 @@ class ModelManagerSP:
     status = custom.ModelManagerSP.DownloadStatus
     artifact.downloadProgress.canceling = False
 
-    # mirror support: read at download time, so a param change applies to the
-    # next download without refetching the catalog. Chunk URLs derive from
-    # this base, so rewriting it here covers the whole chunked transfer.
-    mirror_base = get_hf_mirror_base(self.params)
-    if mirror_base:
-      mirrored_url = apply_hf_mirror(url, mirror_base)
-      if mirrored_url != url:
-        cloudlog.info(f"Downloading {filename} via mirror {mirror_base}")
-        url = mirrored_url
+    # every candidate serves byte-identical files (the sha256 below is the
+    # referee), so the order only decides who carries the bytes. Empty param
+    # = automatic: a latency probe orders mirror-vs-direct by measurement,
+    # cached per host for an hour so a bundle probes each mirror once.
+    candidates = hf_mirror_candidates(url, self.params)
+    if len(candidates) > 1:
+      from openpilot.sunnypilot.models.http_probe import probe_sorted
+      candidates = probe_sorted(candidates, cache_keys=[urlsplit(c).netloc for c in candidates])
+      cloudlog.info(f"Downloading {filename} from {candidates[0]} ({len(candidates)} source(s) ranked)")
 
     try:
       # progress counts only valid chunks so a resumed download continues the
@@ -360,25 +362,50 @@ class ModelManagerSP:
         self._report_status()
         return
 
+      last_error: Exception | None = None
       if len(artifact.chunks) > 0:
-        await self._download_chunked(url, full_path, artifact, skip=valid_chunks)
-        from openpilot.common.file_chunker import get_chunk_name
-        for i, chunk in enumerate(artifact.chunks):
-          chunk_path = get_chunk_name(full_path, i, len(artifact.chunks))
-          if not await verify_file(chunk_path, chunk.sha256):
-            raise ValueError(f"Hash validation failed for chunk {i+1} of {filename}")
+        # per-chunk sha256 means a half-finished transfer from one mirror
+        # resumes on the next: only the failed chunks are fetched again
+        for attempt, source_url in enumerate(candidates):
+          if attempt:
+            cloudlog.warning(f"{filename}: source {attempt} failed ({last_error}); trying the next one")
+          try:
+            await self._download_chunked(source_url, full_path, artifact, skip=valid_chunks)
+            from openpilot.common.file_chunker import get_chunk_name
+            for i, chunk in enumerate(artifact.chunks):
+              chunk_path = get_chunk_name(full_path, i, len(artifact.chunks))
+              if not await verify_file(chunk_path, chunk.sha256):
+                raise ValueError(f"Hash validation failed for chunk {i+1} of {filename}")
+            last_error = None
+            break
+          except DownloadCancelled:
+            raise
+          except Exception as e:
+            last_error = e
       else:
         self._set_progress(artifact, status.downloading, 0)
-        # optional chunked path: when the remote offers this artifact in chunked
-        # layout (.chunkmanifest), pull it via chunked_download; None means no
-        # manifest exists anywhere and the plain piece-downloader path runs
-        chunked_result = self._try_chunked_download(url, full_path, artifact)
+        # one manifest check across every source: a chunked layout anywhere
+        # beats the plain piece downloader, and both verify the same sha256
+        chunked_result = self._try_chunked_download(candidates, full_path, artifact)
         if chunked_result is None:
-          await self._download_file(url, full_path, artifact)
-        self._set_progress(artifact, status.verifying, 99)
-        if not await verify_file(full_path, expected_hash):
-          raise ValueError(f"Hash validation failed for {filename}")
+          for source_url in candidates:
+            try:
+              await self._download_file(source_url, full_path, artifact)
+              last_error = None
+              break
+            except DownloadCancelled:
+              raise
+            except Exception as e:
+              last_error = e
+        elif chunked_result is False and not self._download_interrupted():
+          last_error = RuntimeError(f"Chunked download failed from every source for {filename}")
+        if last_error is None:
+          self._set_progress(artifact, status.verifying, 99)
+          if not await verify_file(full_path, expected_hash):
+            last_error = ValueError(f"Hash validation failed for {filename}")
 
+      if last_error is not None:
+        raise last_error
       self._set_progress(artifact, status.downloaded, 100)
 
     except DownloadCancelled:

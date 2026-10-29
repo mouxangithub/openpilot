@@ -324,7 +324,7 @@ _PAGE_TAIL = """</tbody>
 </form>
 <p><a href="/settings">返回设置索引</a> ·
 <a href="/nav_params">导航参数</a> · <a href="/actions">操作</a> ·
-<a href="/radar">雷达</a> · <a href="/models">模型镜像</a></p>
+<a href="/radar">雷达</a></p>
 </body>
 </html>
 """
@@ -349,7 +349,7 @@ ul { line-height: 1.9; padding-left: 20px; }
 """
 
 _INDEX_TAIL = """</ul>
-<p><a href="/actions">操作</a> · <a href="/nav_params">导航参数</a> · <a href="/radar">雷达</a> · <a href="/models">模型镜像</a></p>
+<p><a href="/actions">操作</a> · <a href="/nav_params">导航参数</a> · <a href="/radar">雷达</a></p>
 </body>
 </html>
 """
@@ -380,7 +380,7 @@ pre {{ background: #f6f6f6; border: 1px solid #ddd; padding: 8px; overflow: auto
 
 _ACTIONS_TAIL = """</tbody>
 </table>
-<p><a href="/settings">设置</a> · <a href="/nav_params">导航参数</a> · <a href="/radar">雷达</a> · <a href="/models">模型镜像</a></p>
+<p><a href="/settings">设置</a> · <a href="/nav_params">导航参数</a> · <a href="/radar">雷达</a></p>
 </body>
 </html>
 """

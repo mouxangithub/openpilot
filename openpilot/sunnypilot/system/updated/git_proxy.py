@@ -27,13 +27,23 @@ from openpilot.common.swaglog import cloudlog
 # Read-through proxies: <prefix><the original github url>. The prefix is
 # prepended to the upstream url, so a proxy that only forwards github.com
 # cannot serve these forks.
+#
+# The list was filtered by a real `git ls-remote`: a proxy can serve raw
+# files over HTTP and still not speak git's smart-http, which shows up as
+# "info/refs not valid: is this a git repository?". Measured out:
+# ghproxy.cc, git.yylx.win, cors.isteed.cc and mirror.houlang.cloud are
+# HTTP-only and are deliberately absent.
 PROXY_PREFIXES = (
   "https://gh-proxy.com/",
   "https://cdn.gh-proxy.org/",
   "https://ghfast.top/",
   "https://ghproxy.net/",
   "https://gh-proxy.net/",
-  "https://ghproxy.cc/",
+  "https://ghproxy.felicity.land/",
+  "https://github.chenc.dev/",
+  "https://ghm.078465.xyz/",
+  "https://xsadwsd.kdns.fr/",
+  "https://githubproxy.cc/",
 )
 
 # A source slower than this is treated as unusable rather than merely slow.
@@ -43,7 +53,10 @@ MAX_ACCEPTABLE_MS = 15000
 PROBE_SAMPLES = 3
 
 # A probe that has not answered in this long is a dead source.
-PROBE_TIMEOUT_S = 12
+# Kept short: a dead source is probed twice (the second chance saves a
+# flaky link), so the timeout is paid twice. At 12s a dead source held the
+# whole probe for 24s, which is most of the budget for one dud.
+PROBE_TIMEOUT_S = 8
 
 # The whole probe runs under this budget. Without it a dead source on a
 # slow link would stall the updater for the sum of every timeout.

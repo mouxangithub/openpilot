@@ -1,6 +1,6 @@
 # OTA 更新代理自动探测与源选择（git_proxy）
 
-> 2026-10-29 · 覆盖 `openpilot/sunnypilot/system/updated/git_proxy.py`、`openpilot/system/updated/updated.py`、`openpilot/common/time_helpers.py`
+> 2026-10-29 · 覆盖 `openpilot/sunnypilot/system/updated/git_proxy.py`、`openpilot/system/updated/updated.py`、`openpilot/common/time_helpers.py`；模型下载源选择见第 9 节（`sunnypilot/models/http_probe.py`）
 
 ## 1. 背景与问题
 
@@ -140,3 +140,113 @@ sudo systemctl restart comma    # 立即生效
 - 代理是第三方服务，理论上可注入恶意数据；git 的 commit SHA 校验（fetch 按目标 commit 核对）是最终防线。
 - 校时只向前拨：时钟被人为拨快超 1 天的情况不处理（避免破坏系统假设）。
 - 自定义代理格式错误会被静默丢弃，无 UI 提示（key 未注册的代价，换来零重编部署）。
+
+## 9. 模型下载的自动源选择（2026-10-29 追加）
+
+同一哲学推广到模型管理器（`sunnypilot/models/`），UI 层的直连/代理手动开关已彻底删除，全自动探测。
+
+### 9.1 两条链路、两张候选表
+
+| 链路 | 源 | 候选数（默认） |
+|---|---|---|
+| 模型目录 JSON（catalog） | raw.githubusercontent.com + jsDelivr CDN 族 + read-through 代理族 | **19**（1 官源 + 4 CDN + 14 代理） |
+| 模型文件（artifact） | huggingface.co + hf-mirror 镜像站 | **3**（hf-mirror.com / hf-mirror.net / 直连） |
+
+gh-proxy 类前缀代理不了 huggingface.co、hf-mirror 只服务 HF——两类源各自独立探测排序，不能混一张表。
+
+**两种 URL 形状，混用必 404**：
+
+- **路径式**（jsDelivr 家族专用）：`https://<cdn>/gh/<owner>/<repo>@<branch>/<path>`
+- **前缀式**（read-through 代理专用）：`<prefix>https://raw.githubusercontent.com/...`
+
+实测：`gh-proxy.com/gh/...` → 404；`jsdelivr.net/https://raw...` → 404。
+
+### 9.2 探测器（http_probe.py）
+
+与 git_proxy 的差异与复用：
+
+- **协议**：纯 HTTP，用 **Range GET 读前 4KB 即断开**（`Range: bytes=0-4095`）。不用 HEAD（实测 HEAD 301 但 TLS 失败的教训），不用完整 GET（目录几百 KB、模型几百 MB）。
+- **判活**：复用 git_proxy 哲学——至少成功 1 次即健康、中位数只取成功样本、2 成功提前收敛、总预算 14s、并发 8 路、平局保持原序（直连/官源排第一即平局赢家）。
+- **失败即止**：一个源探测失败就判死，不再重试。模型源失败多为超时/不通，重试只是让每个死源多耗一个 timeout。**真正的重试在下载层**（失败换下一候选）。
+- **测量上限 6 个**（`DEFAULT_MAX_PROBE`）：catalog 有 19 个候选，全测的成本高于它优化的那次 fetch（JSON 很小，任何能答的源都一样快）。只测**可信层**（官源 + 4 个 CDN + 首个代理），社区代理作兜底梯队按原序保留，被测的排在前面。
+- **缓存**：host 级内存缓存 TTL 1h（`probe_sorted` 的 `cache_keys` 传 host）。一个 bundle 下 5 个 artifact 只探测每个镜像一次；catalog 刷新周期也是 1h，两者对齐。
+- **全灭回退**：探测全部失败时返回原候选顺序——顺序本身就是合理兜底，第一次真实 fetch 会学到真相。
+
+**实测耗时**：catalog 19 候选 0.5-1.1s；artifact 3 候选 3.3s；OTA git 11 候选 20.4s（git 慢是因为 ls-remote 要走完整 smart-http 握手）。
+
+### 9.2.1 源表实测（2026-10-29，国内网络）
+
+**catalog 源（Range GET 实测）**：
+
+| 源 | 延迟 | 状态 |
+|---|---|---|
+| ghproxy.felicity.land | 169ms | ✅ 用户提供 |
+| mirror.houlang.cloud | 195ms | ✅ |
+| gh-proxy.com | 212ms | ✅ |
+| xsadwsd.kdns.fr | 217ms | ✅ 用户提供 |
+| ghm.078465.xyz | 228ms | ✅ 用户提供 |
+| cors.isteed.cc | 237ms | ✅ |
+| githubproxy.cc | 285ms | ✅ |
+| gh-proxy.at9.net | 311ms | ✅ |
+| raw.githubusercontent.com | 558ms | ✅ 官源 |
+| fastly.jsdelivr.net | 559ms | ✅ 用户提供 |
+| testingcf.jsdelivr.net | 576ms | ✅ 用户提供 |
+| cdn.jsdelivr.net | 611ms | ✅ 用户提供 |
+| gcore.jsdelivr.net | 675ms | ✅ |
+| git.yylx.win | 684ms | ✅ 用户提供 |
+| github.chenc.dev | 778ms | ✅ 用户提供（双斜杠被折叠成单斜杠，靠 301 跟随） |
+| ghfast.top | 853ms | ✅ |
+| ghproxy.net | 3075ms | ✅ 慢 |
+| gh.llkk.cc | 超时 | ❌ |
+| mirror.ghproxy.com | 超时 | ❌ |
+| moeyy.cn/gh-proxy/ | 404 | ❌ |
+| github.akams.cn | 404 | ❌ |
+| hub.gitmirror.com | 502 | ❌ |
+| jsdelivr.000081.xyz | 502 | ❌ |
+| jsdelivr.b-cdn.net | SSL 失败 | ❌ |
+
+**HF 镜像（artifact）**：hf-mirror.net 2158ms ✅（用户补充，最快）· hf-mirror.com 2423ms ✅ · 直连 2429ms ✅ · hf-mirror.cc 502 ❌ · hf-mirror.us 502 ❌
+
+### 9.2.2 「HTTP 能通」≠「git 能通」（OTA 侧的额外筛选）
+
+模型侧只要能取到 raw 文件即可，但 **OTA 更新要 git smart-http**（`/info/refs?service=git-upload-pack`）。实测筛掉 4 个：
+
+| 代理 | HTTP 取 raw | git ls-remote |
+|---|---|---|
+| ghproxy.cc | ✅ | ❌ SSL 证书失败 |
+| git.yylx.win | ✅ | ❌ info/refs not valid |
+| cors.isteed.cc | ✅ | ❌ 无法访问 |
+| mirror.houlang.cloud | ✅ | ❌ info/refs not valid |
+
+所以 `git_proxy.PROXY_PREFIXES` 只收 git 实测通过的 10 个（模型侧 14 个全收）。这正是 git_proxy 用真实 `git ls-remote` 而非 HTTP HEAD 探测的价值——HTTP 探测会把这些"假健康"源选进来。
+
+### 9.3 时机与安全
+
+- catalog：探测挂在 `_fetch_and_cache_models`（每 1h 刷新时）。
+- artifact：探测挂在 `_process_artifact`（每次下载前，host 缓存命中则零开销）。
+- **安全底座不变**：catalog ed25519 签名（`signing.py`）+ artifact 分块 sha256——任何镜像/代理伪造不了内容，这是敢全自动的根基。
+
+### 9.4 artifact 多源兜底（本次修的真缺口）
+
+此前 `_process_artifact` 改写单一 URL 后失败即抛，hf-mirror 一限流整个下载失败清盘。现在：
+
+- 候选按序尝试，**失败换下一源**（`DownloadCancelled` 不换）；
+- catalog 带 chunks 的路径：已验证块（sha256 通过）跨源复用（`skip=valid_chunks` 断点续传），只重下坏块；
+- 无 chunks 的路径：先跨**全部**源探测 `.chunkmanifest`（任一源有 chunked 布局就不走单文件），单文件路径再逐源试；
+- `ModelManager_MirrorUrl` 语义升级：`""`=自动（镜像+直连由探测排序）、`off`=仅直连（用户明示）、自定义=自定义镜像优先+直连兜底（尊重用户指定，不重排）。
+
+### 9.5 UI 删除
+
+- 车机 Qt 模型面板：`Model Download Mirror`（Mirror/Direct/Custom）、`Model List Source`（Auto/Direct/Proxy）两组按钮及回调全删。
+- carrot webui：`/models`、`/models_save` 页面/路由/表单/导航链接全删（`web_interface.py`、`web_settings.py`）。
+- 设置目录：两个参数从 `carrot_settings_sp.json` 移除（经 `build_settings_catalog.py` 再生成；`MODEL_MIRROR_PARAMS` 置空）。
+- **参数保留注册**（params_keys.h 不动）作为离 UI 高级覆盖：老用户设置的值继续生效（自定义值排候选最前），私有镜像/内网镜像场景留后门。
+- po 翻译文件中的死 msgid 无害保留，下次 xgettext 再生自动清除。
+
+### 9.6 测试
+
+- `test_http_probe.py`（16 个，mock requests，PC 可跑）：判活/空 body 防 captive portal/排序/平局原序/host 缓存/缓存过期/**失败即止**/**测量上限 6**/未测源不冒充快。
+- `test_mirror.py` 增 `TestHfMirrorCandidates`（5 个）+ catalog 候选表重构（4 个）：auto/off/自定义/去重/非 HF 直通、19 个候选的完整性与唯一性、用户代理替换代理族但保留 CDN 族。
+- `test_git_proxy.py` 增 2 个：OTA 表只收 git 实测通过的代理、每个前缀都是 https + 尾斜杠。
+- `test_manager_download.py`：状态序列兼容已核对（失败路径不多报 verifying）；本地服务器 URL 非 HF host → 单候选直通，测试不触网。该文件及 `test_default_bootstrap.py` 因 fcntl/libparams/msgq 原生库限制只能在设备跑。
+- PC 全套 100 个测试通过（test_git_proxy 30 + test_mirror 16 + test_http_probe 16 + test_chunked_download + test_time_helpers 14）。

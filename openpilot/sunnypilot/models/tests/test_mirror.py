@@ -5,9 +5,11 @@ Unit tests for the model download mirror helpers (openpilot.sunnypilot.models.mi
 """
 import unittest
 
-from openpilot.sunnypilot.models.mirror import (DEFAULT_HF_MIRROR, apply_hf_mirror, catalog_fetch_candidates,
+from openpilot.sunnypilot.models.mirror import (DEFAULT_HF_MIRROR, GITHUB_PROXY_PREFIXES, HF_MIRROR_BASES,
+                                                JSDELIVR_HOSTS, apply_hf_mirror, catalog_fetch_candidates,
                                                 describe_github_proxy, describe_hf_mirror, get_github_proxy,
-                                                get_hf_mirror_base, github_raw_to_jsdelivr, normalize_base_url)
+                                                get_hf_mirror_base, github_raw_to_jsdelivr, hf_mirror_candidates,
+                                                normalize_base_url)
 
 # short aliases keep the param dicts below readable
 HF = "ModelManager_MirrorUrl"
@@ -81,6 +83,39 @@ class TestHfMirror(unittest.TestCase):
     self.assertEqual(describe_hf_mirror(FakeParams({HF: "off"})), "huggingface.co")
 
 
+class TestHfMirrorCandidates(unittest.TestCase):
+  """hf_mirror_candidates: the ordered artifact sources one download may use."""
+
+  def test_auto_offers_every_mirror_and_the_direct_url(self):
+    # empty param is automatic: both mirrors and the direct URL are offered,
+    # and the probe decides which goes first
+    candidates = hf_mirror_candidates(HF_FILE_URL, FakeParams())
+    self.assertEqual(len(candidates), len(HF_MIRROR_BASES) + 1)
+    for base in HF_MIRROR_BASES:
+      self.assertIn(base + HF_FILE_URL[len("https://huggingface.co"):], candidates)
+    self.assertEqual(candidates[-1], HF_FILE_URL, "the direct URL is the last resort")
+
+  def test_off_pins_direct_only(self):
+    self.assertEqual(hf_mirror_candidates(HF_FILE_URL, FakeParams({HF: "off"})), [HF_FILE_URL])
+
+  def test_custom_mirror_first_direct_fallback(self):
+    candidates = hf_mirror_candidates(HF_FILE_URL, FakeParams({HF: "https://my.mirror.cn"}))
+    self.assertEqual(candidates[0], "https://my.mirror.cn" + HF_FILE_URL[len("https://huggingface.co"):])
+    self.assertEqual(candidates[1], HF_FILE_URL)
+    self.assertEqual(len(candidates), 2, "a custom mirror replaces the built-in list")
+
+  def test_custom_mirror_dedupes_when_it_is_a_known_one(self):
+    # a known base does not duplicate itself
+    candidates = hf_mirror_candidates(HF_FILE_URL, FakeParams({HF: "https://hf-mirror.com"}))
+    self.assertEqual(len(candidates), len(HF_MIRROR_BASES) + 1)
+    self.assertEqual(len(set(candidates)), len(candidates))
+
+  def test_non_hf_url_passes_through(self):
+    url = "https://example.com/models/x.pkl"
+    self.assertEqual(hf_mirror_candidates(url, FakeParams()), [url])
+    self.assertEqual(hf_mirror_candidates("", FakeParams()), [])
+
+
 class TestGithubProxy(unittest.TestCase):
   def test_unset_is_auto(self):
     self.assertEqual(get_github_proxy(FakeParams()), "")
@@ -109,20 +144,47 @@ class TestGithubProxy(unittest.TestCase):
     self.assertIsNone(github_raw_to_jsdelivr("https://example.com/a/b/c/d"))
     self.assertIsNone(github_raw_to_jsdelivr("https://raw.githubusercontent.com/owner/repo"))
 
-  def test_candidates_auto_direct_then_fallback(self):
-    self.assertEqual(catalog_fetch_candidates(CATALOG_URL, FakeParams()), [CATALOG_URL, github_raw_to_jsdelivr(CATALOG_URL)])
+  def test_jsdelivr_mapping_takes_a_host(self):
+    # the CDN family shares the path form, only the host differs
+    self.assertEqual(
+      github_raw_to_jsdelivr(CATALOG_URL, "https://fastly.jsdelivr.net"),
+      "https://fastly.jsdelivr.net/gh/sunnypilot/sunnypilot-models@gh-pages/docs/driving_models_v22.json")
 
-  def test_candidates_proxy_first_then_fallback(self):
+  def test_candidates_offer_every_source(self):
+    # automatic: the direct URL, the CDN family and the proxy family
+    candidates = catalog_fetch_candidates(CATALOG_URL, FakeParams())
+    self.assertEqual(candidates[0], CATALOG_URL, "the official source comes first: it wins a tie")
+    for host in JSDELIVR_HOSTS:
+      self.assertIn(github_raw_to_jsdelivr(CATALOG_URL, host), candidates)
+    for prefix in GITHUB_PROXY_PREFIXES:
+      self.assertIn(prefix + CATALOG_URL, candidates)
+    self.assertEqual(len(candidates), 1 + len(JSDELIVR_HOSTS) + len(GITHUB_PROXY_PREFIXES))
+
+  def test_candidates_are_unique(self):
+    candidates = catalog_fetch_candidates(CATALOG_URL, FakeParams())
+    self.assertEqual(len(set(candidates)), len(candidates))
+
+  def test_candidates_proxy_first_then_the_rest(self):
     proxy = FakeParams({GH: "https://gh-proxy.com"})
-    self.assertEqual(catalog_fetch_candidates(CATALOG_URL, proxy),
-                     ["https://gh-proxy.com/" + CATALOG_URL, github_raw_to_jsdelivr(CATALOG_URL)])
+    candidates = catalog_fetch_candidates(CATALOG_URL, proxy)
+    self.assertEqual(candidates[0], "https://gh-proxy.com/" + CATALOG_URL)
+    self.assertIn(CATALOG_URL, candidates)
+    self.assertIn(github_raw_to_jsdelivr(CATALOG_URL), candidates)
+    for prefix in GITHUB_PROXY_PREFIXES:
+      if prefix != "https://gh-proxy.com/":
+        self.assertNotIn(prefix + CATALOG_URL, candidates, "a user prefix replaces the built-in proxy family")
 
   def test_candidates_direct_only(self):
     self.assertEqual(catalog_fetch_candidates(CATALOG_URL, FakeParams({GH: "direct"})), [CATALOG_URL])
 
-  def test_candidates_non_raw_url_gets_no_fallback(self):
+  def test_candidates_non_raw_url_gets_no_cdn_fallback(self):
+    # not a raw.githubusercontent.com URL: no CDN mapping exists, but the
+    # proxies still forward any URL
     url = "https://example.com/catalog.json"
-    self.assertEqual(catalog_fetch_candidates(url, FakeParams()), [url])
+    candidates = catalog_fetch_candidates(url, FakeParams())
+    self.assertEqual(candidates[0], url)
+    self.assertNotIn(github_raw_to_jsdelivr(url), candidates)
+    self.assertIn("https://gh-proxy.com/" + url, candidates)
 
   def test_describe(self):
     self.assertEqual(describe_github_proxy(FakeParams()), "auto")

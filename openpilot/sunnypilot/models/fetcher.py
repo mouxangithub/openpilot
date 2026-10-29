@@ -199,14 +199,19 @@ class ModelFetcher:
   def _fetch_and_cache_models(self, source: str) -> list[custom.ModelManagerSP.ModelBundle] | None:
     """Fetches fresh model data from remote and updates cache.
 
-    Tries each mirror candidate (direct / user proxy prefix / jsDelivr fallback,
-    see mirror.catalog_fetch_candidates) until one serves a verifiable catalog.
-    Returns None on transport errors. 404 and other fatal HTTP errors move on
-    to the next candidate instead of aborting the whole refresh.
+    The mirror candidates (direct / user proxy prefix / jsDelivr fallback, see
+    mirror.catalog_fetch_candidates) are latency-probed first, then tried in
+    measured order until one serves a verifiable catalog. Returns None on
+    transport errors. 404 and other fatal HTTP errors move on to the next
+    candidate instead of aborting the whole refresh.
     """
     model_url, _ = self.MODEL_SOURCES[source]
+    candidates = catalog_fetch_candidates(model_url, self.params)
+    if len(candidates) > 1:
+      from openpilot.sunnypilot.models.http_probe import probe_sorted
+      candidates = probe_sorted(candidates)
     last_error: Exception | None = None
-    for candidate_url in catalog_fetch_candidates(model_url, self.params):
+    for candidate_url in candidates:
       try:
         response = requests.get(candidate_url, timeout=10)
 

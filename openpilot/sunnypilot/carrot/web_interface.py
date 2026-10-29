@@ -37,9 +37,6 @@ from openpilot.sunnypilot.carrot.config import UnifiedParams
 from openpilot.sunnypilot.carrot import web_settings as ws
 from openpilot.sunnypilot.carrot.server.services.params_typed import _USB_PORT_KEYS, _enforce_usb_port
 from openpilot.common.params import Params
-from openpilot.sunnypilot.models.mirror import (DEFAULT_HF_MIRROR, DIRECT_VALUE, GITHUB_PROXY_PARAM, HF_MIRROR_PARAM,
-                                                PROXY_DIRECT_VALUE, describe_github_proxy, describe_hf_mirror,
-                                                get_hf_mirror_base, normalize_base_url)
 
 _LOG = logging.getLogger("sunnypilot.carrot.web")
 
@@ -81,7 +78,7 @@ _HTML_NAVPARAMS_TAIL = """</tbody>
 </table>
 <p><input type="submit" value="保存"></p>
 </form>
-<p><a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/models">模型下载镜像设置</a> · <a href="/radar">雷达视图</a></p>
+<p><a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/radar">雷达视图</a></p>
 </body>
 </html>
 """
@@ -109,47 +106,6 @@ body { font-family: -apple-system, system-ui, sans-serif; margin: 16px; }
 
 _HTML_RADAR_TAIL = """</div>
 <p><a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/nav_params">导航参数</a></p>
-</body>
-</html>
-"""
-
-
-_HTML_MODELS_HEAD = """<!doctype html>
-<html lang="zh">
-<head>
-<meta charset="utf-8">
-<title>sunnypilot · 模型下载镜像</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-body { font-family: -apple-system, system-ui, sans-serif; margin: 16px; max-width: 720px; }
-h1 { font-size: 18px; }
-p, li { font-size: 14px; line-height: 1.6; }
-label { display: block; margin-top: 14px; font-weight: 600; }
-input[type=text] { width: 100%; box-sizing: border-box; padding: 8px; margin-top: 4px; }
-.hint { color: #666; font-weight: 400; font-size: 13px; }
-.eff { background: #f6f6f6; border: 1px solid #ddd; border-radius: 6px; padding: 8px 10px; font-size: 13px; }
-.ok { color: #2c7; } .err { color: #d33; }
-input[type=submit] { padding: 8px 14px; margin-top: 14px; }
-</style>
-</head>
-<body>
-<h1>模型下载镜像设置</h1>
-__MESSAGE__
-<div class="eff">当前生效：模型文件走 <b>__MIRROR_EFF__</b>；模型列表走 <b>__CATALOG_EFF__</b></div>
-<form method="post" action="/models_save">
-<label>模型文件镜像站（huggingface.co 替换前缀）
-  <input type="text" name="mirror_url" value="__MIRROR_VALUE__" placeholder="留空 = 默认 __DEFAULT_MIRROR__；填 off = 直连">
-</label>
-<p class="hint">大模型与小模型的文件都托管在 huggingface.co。此处填一个镜像站基础地址（如 https://hf-mirror.com），下载时会替换
-https://huggingface.co 前缀；填 <b>off</b> 表示直连。文件带 sha256 校验，镜像不会破坏完整性。更改对下一次下载生效。</p>
-<label>模型列表来源（raw.githubusercontent.com）
-  <input type="text" name="github_proxy" value="__PROXY_VALUE__" placeholder="留空 = 自动（直连失败后自动切换 CDN）；填 direct = 仅直连；或填代理前缀">
-</label>
-<p class="hint">模型目录 JSON 托管在 raw.githubusercontent.com。「自动」会在直连失败后改用 jsDelivr CDN 同一文件（目录带 ed25519 签名校验）。
-也可填 ghproxy 类代理前缀（如 https://gh-proxy.com），将始终以 前缀 + 完整URL 的形式请求。改完请回车机「Refresh Model List」。</p>
-<p><input type="submit" value="保存"></p>
-</form>
-<p><a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/nav_params">返回导航参数</a></p>
 </body>
 </html>
 """
@@ -208,8 +164,6 @@ class _CarrotWebHandler(BaseHTTPRequestHandler):
     elif path == "/nav_params_data":
       body = json.dumps(self.server.interface.snapshot_nav_params()).encode("utf-8")
       self._write(body, content_type="application/json; charset=utf-8")
-    elif path == "/models":
-      self._write(self.server.interface.render_models_page(parse_qs(parsed.query)))
     elif path == "/settings":
       self._write(self.server.interface.render_settings_page(parse_qs(parsed.query)))
     elif path == "/actions":
@@ -226,12 +180,6 @@ class _CarrotWebHandler(BaseHTTPRequestHandler):
       body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
       self.server.interface.apply_form_update(parse_qs(body))
       self._redirect("/nav_params")
-      return
-    if parsed.path == "/models_save":
-      length = int(self.headers.get("Content-Length", "0") or "0")
-      body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
-      ok, message = self.server.interface.apply_models_form(parse_qs(body))
-      self._redirect(f"/models?saved={'1' if ok else '0'}&msg={message}")
       return
     if parsed.path == "/settings_save":
       length = int(self.headers.get("Content-Length", "0") or "0")
@@ -268,7 +216,6 @@ class WebInterface:
                radar_source: Callable[[], dict[str, Any]] | None = None) -> None:
     self._amap_navi = amap_navi
     self._params = params or UnifiedParams()
-    self._models_params: Params | None = None
     self._port = port
     self._radar_source = radar_source
     self._server: ThreadingHTTPServer | None = None
@@ -487,52 +434,3 @@ class WebInterface:
     except OSError as exc:
       return False, f"读取失败：{exc}"
     return True, text[-20000:]
-
-  # ---- model download mirror ------------------------------------------- #
-
-  def render_models_page(self, query: dict[str, list[str]] | None = None) -> bytes:
-    self._init_models_params()
-    params = self._models_params
-    mirror_raw = params.get(HF_MIRROR_PARAM) or ""
-    proxy_raw = params.get(GITHUB_PROXY_PARAM) or ""
-    message = ""
-    if query:
-      if query.get("saved", [""])[0] == "1":
-        from urllib.parse import unquote_plus
-        message = f'<p class="ok">已保存：{html_escape(unquote_plus(query.get("msg", [""])[0]))}</p>'
-      elif query.get("saved", [""])[0] == "0":
-        from urllib.parse import unquote_plus
-        message = f'<p class="err">保存失败：{html_escape(unquote_plus(query.get("msg", [""])[0]))}</p>'
-    html = (_HTML_MODELS_HEAD
-            .replace("__MESSAGE__", message)
-            .replace("__MIRROR_EFF__", html_escape(describe_hf_mirror(params)))
-            .replace("__CATALOG_EFF__", html_escape(describe_github_proxy(params)))
-            .replace("__MIRROR_VALUE__", html_escape(mirror_raw, attribute=True))
-            .replace("__PROXY_VALUE__", html_escape(proxy_raw, attribute=True))
-            .replace("__DEFAULT_MIRROR__", DEFAULT_HF_MIRROR))
-    return html.encode("utf-8")
-
-  def apply_models_form(self, form: dict[str, list[str]]) -> tuple[bool, str]:
-    """Validates and stores the two mirror settings. Returns (ok, urlencoded_message)."""
-    from urllib.parse import quote_plus
-
-    self._init_models_params()
-    params = self._models_params
-    mirror_raw = (form.get("mirror_url", [""])[0] or "").strip()
-    proxy_raw = (form.get("github_proxy", [""])[0] or "").strip()
-
-    if mirror_raw and mirror_raw.lower() != DIRECT_VALUE:
-      if normalize_base_url(mirror_raw) is None:
-        return False, quote_plus("模型镜像站必须是 http(s) 地址（或 off / 留空）")
-    if proxy_raw and proxy_raw.lower() != PROXY_DIRECT_VALUE:
-      if normalize_base_url(proxy_raw) is None:
-        return False, quote_plus("模型列表代理必须是 http(s) 地址（或 direct / 留空）")
-
-    params.put(HF_MIRROR_PARAM, mirror_raw)
-    params.put(GITHUB_PROXY_PARAM, proxy_raw)
-    mirror_effective = get_hf_mirror_base(params) or "huggingface.co（直连）"
-    return True, quote_plus(f"模型文件走 {mirror_effective}，模型列表走 {describe_github_proxy(params)}")
-
-  def _init_models_params(self) -> None:
-    if self._models_params is None:
-      self._models_params = Params()

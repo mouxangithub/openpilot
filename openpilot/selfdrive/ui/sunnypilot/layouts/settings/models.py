@@ -10,8 +10,6 @@ import pyray as rl
 
 from openpilot.cereal import custom
 from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS, get_selected_bundle, resolve_bundle_by_ref
-from openpilot.sunnypilot.models.mirror import (GITHUB_PROXY_PARAM, HF_MIRROR_PARAM, describe_github_proxy,
-                                                describe_hf_mirror, normalize_base_url)
 from openpilot.common.constants import CV
 from openpilot.selfdrive.ui.ui_state import device, ui_state
 from openpilot.selfdrive.ui.sunnypilot.accelerator_link import LINK_MODE_TITLES, big_model_note, link_mode, link_status, \
@@ -31,7 +29,6 @@ from openpilot.system.ui.sunnypilot.lib.styles import style
 from openpilot.system.ui.sunnypilot.lib.utils import NoElideButtonAction, ScrollingButtonAction
 from openpilot.system.ui.sunnypilot.widgets.list_view import ListItemSP, toggle_item_sp, option_item_sp, multiple_button_item_sp
 from openpilot.system.ui.sunnypilot.widgets.download_status import download_status_item
-from openpilot.system.ui.sunnypilot.widgets.input_dialog import InputDialogSP
 from openpilot.system.ui.sunnypilot.widgets.tree_dialog import TreeOptionDialog, TreeNode, TreeFolder
 
 if gui_app.sunnypilot_ui():
@@ -50,8 +47,6 @@ class ModelsLayout(Widget):
     self._refreshing = False
     self._refresh_start: float | None = None
     self._last_note = None
-    self._last_mirror_desc = None
-    self._last_catalog_desc = None
     self.last_cache_calc_time = 0
     self._link_status: str | None = None
 
@@ -91,18 +86,6 @@ class ModelsLayout(Widget):
                                     lambda: tr("FETCHING...") if self._refreshing else tr("REFRESH"), "",
                                     self._refresh_models)
 
-    self.hf_mirror_item = multiple_button_item_sp(
-      tr("Model Download Mirror"),
-      tr("huggingface.co is unreachable on many networks. Mirror sends model downloads to a mirror site instead; ") +
-      tr("Direct uses huggingface.co as-is; Custom lets you enter your own mirror. Applies to the next download."),
-      [tr("Mirror"), tr("Direct"), tr("Custom")], callback=self._on_hf_mirror_mode, button_width=245)
-
-    self.catalog_source_item = multiple_button_item_sp(
-      tr("Model List Source"),
-      tr("The model list lives on GitHub raw. Auto tries direct first and falls back to a CDN mirror when it fails; ") +
-      tr("Direct never falls back; Proxy always fetches through your own prefix. Press Refresh Model List to apply."),
-      [tr("Auto"), tr("Direct"), tr("Proxy")], callback=self._on_catalog_source_mode, button_width=245)
-
     self.clear_cache_item = ListItemSP(
       title=tr("Clear Model Cache"),
       description="",
@@ -138,7 +121,7 @@ class ModelsLayout(Widget):
                                         lambda v: f"{v / 100:.2f} m")
 
     self.items = [self.small_model_item, self.big_model_item, self.accelerator_link_item, self.cancel_download_item, self.download_item, self.refresh_item,
-                  self.hf_mirror_item, self.catalog_source_item, self.clear_cache_item,
+                  self.clear_cache_item,
                   self.lane_turn_desire_toggle, self.lane_turn_value_control, self.lagd_toggle, self.delay_control, self.camera_offset]
     self._refresh_accelerator_items()
 
@@ -187,88 +170,10 @@ class ModelsLayout(Widget):
     self._refresh_start = time.monotonic()
 
   # ---- download mirror ------------------------------------------------- #
-
-  @staticmethod
-  def _mirror_button_index() -> int:
-    raw = (ui_state.params.get(HF_MIRROR_PARAM) or "").strip()
-    if raw == "off":
-      return 1
-    if normalize_base_url(raw):
-      return 2
-    return 0  # unset -> built-in default mirror
-
-  @staticmethod
-  def _catalog_button_index() -> int:
-    raw = (ui_state.params.get(GITHUB_PROXY_PARAM) or "").strip()
-    if raw == "direct":
-      return 1
-    if normalize_base_url(raw):
-      return 2
-    return 0  # unset -> auto (direct first, CDN fallback)
-
-  def _on_hf_mirror_mode(self, index: int):
-    if index == 0:
-      ui_state.params.put(HF_MIRROR_PARAM, "")
-    elif index == 1:
-      ui_state.params.put(HF_MIRROR_PARAM, "off")
-    else:
-      current = ui_state.params.get(HF_MIRROR_PARAM) or ""
-      dialog = InputDialogSP(
-        tr("Custom Mirror"),
-        tr("Base URL replacing https://huggingface.co, e.g. https://hf-mirror.com"),
-        current_text="" if current == "off" else current,
-        callback=lambda result, text: self._on_custom_url_result(result, text, HF_MIRROR_PARAM,
-                                                                 tr("The mirror must be an http(s) URL without spaces, e.g. https://hf-mirror.com")))
-      dialog.show()
-
-  def _on_catalog_source_mode(self, index: int):
-    if index == 0:
-      ui_state.params.put(GITHUB_PROXY_PARAM, "")
-    elif index == 1:
-      ui_state.params.put(GITHUB_PROXY_PARAM, "direct")
-    else:
-      current = ui_state.params.get(GITHUB_PROXY_PARAM) or ""
-      dialog = InputDialogSP(
-        tr("Catalog Proxy Prefix"),
-        tr("Prefix prepended to the catalog URL, e.g. https://gh-proxy.com"),
-        current_text="" if current == "direct" else current,
-        callback=lambda result, text: self._on_custom_url_result(result, text, GITHUB_PROXY_PARAM,
-                                                                 tr("The proxy must be an http(s) URL without spaces, e.g. https://gh-proxy.com")))
-      dialog.show()
-
-  def _on_custom_url_result(self, result, text: str, param: str, error_message: str):
-    if result != DialogResult.CONFIRM:
-      return
-    base = normalize_base_url(text)
-    if base is None:
-      gui_app.push_widget(alert_dialog(error_message))
-      return
-    ui_state.params.put(param, base)
-
-  def _refresh_mirror_items(self):
-    for item, index in ((self.hf_mirror_item, self._mirror_button_index()), (self.catalog_source_item, self._catalog_button_index())):
-      if item.action_item.selected_button != index:
-        item.action_item.set_selected_button(index)
-
-    descs = (
-      (self.hf_mirror_item,
-       tr("huggingface.co is unreachable on many networks. Mirror sends model downloads to a mirror site instead; ") +
-       tr("Direct uses huggingface.co as-is; Custom lets you enter your own mirror. Applies to the next download."),
-       describe_hf_mirror(ui_state.params), self._last_mirror_desc),
-      (self.catalog_source_item,
-       tr("The model list lives on GitHub raw. Auto tries direct first and falls back to a CDN mirror when it fails; ") +
-       tr("Direct never falls back; Proxy always fetches through your own prefix. Press Refresh Model List to apply."),
-       describe_github_proxy(ui_state.params), self._last_catalog_desc),
-    )
-    for item, base_desc, effective, last in descs:
-      desc = f"{base_desc}<br>{tr('Current')}: {effective}"
-      if desc != last:
-        item.set_description(desc)
-      # return the newest cache value for each row
-      if item is self.hf_mirror_item:
-        self._last_mirror_desc = desc
-      else:
-        self._last_catalog_desc = desc
+  # removed: mirror/catalog source selection is automatic now. The sources
+  # (hf-mirror vs direct, raw vs jsDelivr vs proxies) are latency-probed at
+  # download/fetch time (sunnypilot/models/http_probe.py); the params remain
+  # as an off-UI override for private mirrors.
 
   def _handle_bundle_download_progress(self):
     self.cancel_download_item.set_visible(False)
@@ -489,8 +394,6 @@ class ModelsLayout(Widget):
     if self.lane_turn_value_control.action_item is not None and self.lane_turn_value_control.action_item.value_change_step != new_step:
       self.lane_turn_value_control.action_item.value_change_step = new_step
     self.camera_offset.set_visible(camera_offset)
-
-    self._refresh_mirror_items()
 
     self._update_lagd_description(live_delay)
     self.model_manager = ui_state.sm["modelManagerSP"]

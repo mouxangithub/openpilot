@@ -154,7 +154,8 @@
         "LatMpcSteeringRateCost",
         "LatMpcInputOffset",
         "UseLaneLineSpeed",
-        "UseLaneLineCurveSpeed"
+        "UseLaneLineCurveSpeed",
+        "AdjustLaneOffset"
        ]
       },
       {
@@ -298,7 +299,8 @@
        "en": "Stop & Resume",
        "zh": "停车与再起步",
        "params": [
-        "StopDistanceCarrot"
+        "StopDistanceCarrot",
+        "StoppingAccel"
        ]
       },
       {
@@ -358,7 +360,17 @@
      "en": "Hyundai·Kia",
      "zh": "现代·起亚",
      "params": [
+      "HyundaiCameraSCC",
       "HapticFeedbackWhenSpeedCamera"
+     ]
+    },
+    {
+     "id": "VEH_CANFD",
+     "ko": "CANFD·HDA",
+     "en": "CANFD·HDA",
+     "zh": "CANFD·HDA",
+     "params": [
+      "CanfdHDA2"
      ]
     },
     {
@@ -378,6 +390,8 @@
      "en": "Driver Monitor",
      "zh": "驾驶员监控",
      "params": [
+      "DriverMonitoringEnabled",
+      "DriverMonitoringMode",
       "CarrotVisionEnabled",
       "MuteDoor",
       "MuteSeatbelt"
@@ -649,7 +663,9 @@
         "SideRadarMinDist",
         "SideRelDistTime",
         "SidevRelDistTime",
-        "StockBlinkerCtrl"
+        "StockBlinkerCtrl",
+        "VehicleNaviSectionAvgControl",
+        "VehicleNaviSectionAvgMargin"
        ]
       },
       {
@@ -700,6 +716,10 @@
         "IntelligentCruiseButtonManagement",
         "SmartCruiseControlVision",
         "SmartCruiseControlMap",
+        "ConditionalExperimental",
+        "CECurves",
+        "CECurvesLead",
+        "CELead",
         "CustomAccIncrementsEnabled",
         "CustomAccShortPressIncrement",
         "CustomAccLongPressIncrement",
@@ -716,7 +736,8 @@
         "SpeedLimitPolicy",
         "SpeedLimitMode",
         "SpeedLimitOffsetType",
-        "SpeedLimitValueOffset"
+        "SpeedLimitValueOffset",
+        "SpeedLimitConfirmOnChange"
        ]
       },
       {
@@ -747,8 +768,7 @@
         "IsOnroadPreview",
         "OnroadUploads",
         "DongleId",
-        "HardwareSerial",
-        "OffroadMode"
+        "HardwareSerial"
        ]
       },
       {
@@ -762,8 +782,27 @@
         "OnroadScreenOffTimer",
         "InteractivityTimeout",
         "HideFirehosePrompt",
+        "HomeShowActiveModel",
         "ScreenSaverEnabled",
         "ScreenSaverTimeout"
+       ]
+      },
+      {
+       "id": "CARROT_SP_UI_FOLLOWING_PROFILE_TOGGLES",
+       "ko": "following_profile_toggles",
+       "en": "following_profile_toggles",
+       "zh": "following_profile_toggles",
+       "params": [
+        "LongitudinalFollowingProfileEnabled"
+       ]
+      },
+      {
+       "id": "CARROT_SP_UI_INITIAL_CRUISE_SPEED",
+       "ko": "initial_cruise_speed",
+       "en": "initial_cruise_speed",
+       "zh": "initial_cruise_speed",
+       "params": [
+        "InitialCruiseSpeedKph"
        ]
       },
       {
@@ -780,9 +819,7 @@
         "LagdToggle",
         "ModelManager_ClearCache",
         "ModelManager_Favs",
-        "ShowAdvancedControls",
-        "ModelManager_MirrorUrl",
-        "ModelManager_GithubProxy"
+        "ShowAdvancedControls"
        ]
       },
       {
@@ -844,13 +881,17 @@
         "BlinkerLateralReengageDelay",
         "EnforceTorqueControl",
         "NeuralNetworkLateralControl",
+        "SteerRatioRate",
+        "CustomSR",
         "LateralJerkTorqueController",
         "AutoLaneChangeTimer",
         "AutoLaneChangeBsmDelay",
+        "LaneChangeSmoothing",
         "RoadEdgeLaneChangeEnabled",
         "MadsMainCruiseAllowed",
         "MadsUnifiedEngagementMode",
         "MadsSteeringMode",
+        "MazdaTjaButton",
         "CarPlatformBundle",
         "TeslaMadsScreenButton",
         "LiveTorqueParamsToggle",
@@ -858,8 +899,7 @@
         "CustomTorqueParams",
         "TorqueParamsOverrideEnabled",
         "TorqueParamsOverrideLatAccelFactor",
-        "TorqueParamsOverrideFriction",
-        "TorqueControlTune"
+        "TorqueParamsOverrideFriction"
        ]
       },
       {
@@ -874,15 +914,6 @@
         "BackupManager_CreateBackup",
         "BackupManager_RestoreVersion",
         "CompletedSunnylinkConsentVersion"
-       ]
-      },
-      {
-       "id": "CARROT_SP_UI_TOGGLES",
-       "ko": "토글",
-       "en": "Toggles",
-       "zh": "开关",
-       "params": [
-        "ExperimentalMode"
        ]
       },
       {
@@ -914,6 +945,7 @@
         "ToyotaEnhancedBsm",
         "ToyotaTSS2Long",
         "ToyotaDriveMode",
+        "ToyotaTSS2Smooth",
         "AlphaLongitudinalEnabled",
         "OnroadCycleRequested"
        ]
@@ -936,6 +968,8 @@
         "HideVEgoUI",
         "ShowTurnSignals",
         "RocketFuel",
+        "CarrotSignalHudEnabled",
+        "ShowRadarInfo",
         "ChevronInfo",
         "DevUIInfo"
        ]
@@ -2000,6 +2034,57 @@
   },
   {
    "group": "시작",
+   "name": "DriverMonitoringEnabled",
+   "title": "운전자 감시 사용 (예외 설정)",
+   "descr": "기본값은 켜짐이며 그대로 두는 것을 권장합니다. 이 예외 옵션은 DM 카메라가 없거나 고장 나서 정상 운전자 감시를 사용할 수 없는 장치를 위한 것입니다. 끄면 일반 주행의 DM 모델과 경고, 감시로 인한 강제 감속 및 재사용 제한이 비활성화됩니다. 운전자 감시 없이 운행하면 지역 법규, 차량 요건 또는 사용 조건을 위반할 수 있으므로 적용 요건과 안전 책임을 확인한 경우에만 끄세요.",
+   "egroup": "START",
+   "etitle": "Enable Driver Monitoring (Exception)",
+   "edescr": "Enabled by default, and leaving it enabled is recommended. This exception is intended only for devices without a DM camera or with a failed DM camera that cannot provide normal driver monitoring. Turning it off disables the normal-driving DM model and alerts, monitoring-triggered force deceleration, and lockout. Driving without driver monitoring may violate applicable laws, vehicle requirements, or terms of use; turn it off only after checking the requirements and accepting the safety responsibility.",
+   "cgroup": "启动设置",
+   "ctitle": "启用驾驶员监控（例外设置）",
+   "cdescr": "默认开启，建议保持开启。此例外选项仅供未安装 DM 摄像头，或 DM 摄像头故障而无法正常进行驾驶员监控的设备使用。关闭后，正常行驶时的 DM 模型与警告、监控触发的强制减速及锁定都会停用。未启用驾驶员监控时驾驶，可能违反所在地法律、车辆要求或使用条件；请仅在确认适用要求并承担安全责任后关闭。",
+   "min": 0,
+   "max": 1,
+   "default": 1,
+   "unit": 1,
+   "control": "toggle",
+   "risk": "high",
+   "search_only": true
+  },
+  {
+   "group": "시작",
+   "name": "DriverMonitoringMode",
+   "title": "운전자 감시 모드",
+   "descr": "0: 기본, 1: 실험 모드. 실험 모드는 법규에 위배될 수 있으므로 통제된 시험 환경에서만 사용하세요. 카메라 없는 기본 감시는 15/30/45초이며, 실험 모드는 관측 가능한 빈 직선도로에서 30/60/90초로 늘립니다. 주변 이동 차량이 없다가 처음 확인될 때만 20초간 기본 모드 기준으로 감시합니다. 차량 추가나 지속 관측으로 연장하지 않으며 이후 실험 감시로 복귀합니다. 이 구간에는 카메라 조작 유예·전방주시 강제 초기화·검출 완화를 적용하지 않고 이전 유예도 종료합니다. 카메라 있는 0은 콤마 순정입니다. 카메라 있는 1은 10/16/26초, 빈 도로에서는 20/32/52초이며 고개 방향 허용 폭을 20% 늘립니다. 운전자·BT 조작은 감시시간을 초기화하고 카메라 경고를 45초 또는 90초 유예한 뒤 카메라 감시를 시작합니다. 유예는 졸음·눈 감김·휴대전화 경고도 지연합니다. 뚜렷한 전방주시가 2초 유지되면 카메라 감시시간을 초기화합니다. 최고 경고·재사용 제한은 조작으로 해제하지 않습니다. 카메라 고장은 자동으로 조작 감시로 전환합니다. 0도 법적 인증을 보장하지 않습니다. 모드 변경은 재부팅 없이 약 0.5초 주기로 적용됩니다. 전환해도 누적 감시시간·경고 횟수·재사용 제한은 초기화되지 않으며, 이전 조작 유예와 전방주시 연속 판정은 종료됩니다. 현대·기아·제네시스 CAN-FD에서 차종명 제한 없이 수신 형식·체크섬·카운터·최신성이 검증된 원본 STEER_TOUCH_2AF 터치는 카메라 불가 시 접촉 중 감시시간을 초기화하며, 카메라 정상·1번은 새 접촉만 조작으로 인정합니다. 카메라 정상·0번은 그대로입니다. 공통 예외: 카메라 유무와 0·1번 모두 P단·완전 정차·인게이지 해제가 유효한 신호로 1초간 확인되면 누적 경고와 재사용 제한을 초기화합니다. 속도 0이나 OFF/ON만으로는 해제하지 않으며 재인게이지는 수동입니다.",
+   "egroup": "START",
+   "etitle": "Driver Monitoring Mode",
+   "edescr": "0: Standard; 1: Experimental. Experimental mode may violate law; use only in controlled tests. Without a camera, base alerts are 15/30/45 seconds; experimental mode uses 30/60/90 on a verified empty straight road. Only the transition from no moving traffic to confirmed moving traffic starts 20 seconds of standard monitoring. Additional or continuously observed vehicles do not extend it; experimental monitoring resumes afterwards. During the hold, camera interaction grace, special forward-attention resets and detection relaxation are suspended, and previous grace ends. Camera mode 0 retains comma behavior. Camera mode 1 uses 10/16/26 seconds, or 20/32/52 on an empty road, with 20% wider head-pose tolerance. Driver/BT input resets monitoring and defers camera warnings for 45 or 90 seconds before camera monitoring starts. This also delays sleep, eye-closure and phone warnings. Two seconds of confident forward attention resets camera monitoring. Input cannot clear terminal alerts or lockout. Camera faults automatically select interaction monitoring. Mode 0 is not legal certification. Mode changes apply live at roughly half-second intervals without rebooting. Switching preserves accumulated monitoring time, warning counts and lockout, and ends the previous interaction grace and forward-attention streak. Original STEER_TOUCH_2AF input on Hyundai/Kia/Genesis CAN-FD, validated for layout, checksum, counter and freshness without a vehicle-name whitelist, resets interaction timing while held when camera monitoring is unavailable; healthy-camera mode 1 counts only a new contact. Healthy-camera mode 0 stays stock. Shared exception: in both modes with or without a camera, one continuous second of valid Park, standstill and disengaged status resets accumulated warnings and lockout. Zero speed or engagement OFF/ON alone cannot release it; re-engagement is manual.",
+   "cgroup": "启动设置",
+   "ctitle": "驾驶员监控模式",
+   "cdescr": "0：标准；1：实验。实验模式可能违反法规，仅限受控测试。无摄像头时基础警告为15/30/45秒；实验模式在确认的空旷直道上为30/60/90秒。周围从无移动车辆变为首次确认有移动车辆时，才启用20秒标准监测。持续观测或新增车辆不会延长，之后恢复实验监测。此期间停止摄像头操作宽限、特殊前方注视重置和检测放宽，并结束此前宽限。有摄像头的0模式保留comma行为；1模式为10/16/26秒，空旷道路为20/32/52秒，头部姿态容差增加20%。驾驶员或蓝牙按键操作重置计时，推迟摄像头警告45或90秒后开始摄像头监控；这也会延迟困倦、闭眼和手机警告。连续2秒明确注视前方可重置摄像头计时。操作不能解除最高警告或锁定。摄像头故障自动切换为操作监控。标准模式不保证合法认证。模式更改无需重启，约每0.5秒实时应用。切换保留累计监控时间、警告次数和锁定，并结束此前的操作宽限及连续前方注视判定。 现代/起亚/捷尼赛思CAN-FD中不按车型名称限制、通过格式、校验和、计数器及新鲜度验证的原始STEER_TOUCH_2AF触摸在摄像头不可用时持续重置操作计时；摄像头正常的1模式仅将新接触视为操作，0模式保持原样。 共同例外：无论摄像头是否可用，两种模式均在有效信号持续确认P挡、完全静止及辅助驾驶解除1秒后重置累计警告和锁定。仅零速或关闭再开启不能解除，必须手动重新启用。",
+   "min": 0,
+   "max": 1,
+   "default": 0,
+   "unit": 1,
+   "control": "select",
+   "options": {
+    "ko": [
+     "기본",
+     "실험 모드 (시험 전용)"
+    ],
+    "en": [
+     "Standard",
+     "Experimental (testing only)"
+    ],
+    "zh": [
+     "标准",
+     "实验（仅供测试）"
+    ]
+   },
+   "risk": "high"
+  },
+  {
+   "group": "시작",
    "name": "CarrotVisionEnabled",
    "title": "Carrot Vision 사용",
    "descr": "웹 도로 영상 스트리밍을 활성화합니다. 운전자 감시와 독립적으로 동작하며 외부 HUD와 함께 사용할 수 있습니다. 동시 영상 사용 시 기기 부하가 증가할 수 있습니다.",
@@ -2394,6 +2479,23 @@
    "display_unit": "speedKph"
   },
   {
+   "group": "레인모드",
+   "name": "AdjustLaneOffset",
+   "title": "레인모드: 차선조절옵셋 (0)cm",
+   "descr": "도로경계쪽/커브안쪽으로 보정합니다.",
+   "egroup": "LANE",
+   "etitle": "LaneLine: AdjustLaneOffset (0)cm",
+   "edescr": "Corrects toward the road edge/inside of the curve",
+   "cgroup": "转向",
+   "ctitle": "车道线: 车道偏移调整 (0)cm",
+   "cdescr": "向路缘/弯道内侧修正",
+   "min": 0,
+   "max": 500,
+   "default": 0,
+   "unit": 10,
+   "display_unit": "distanceCm"
+  },
+  {
    "group": "조향일반",
    "name": "LaneChangeNeedTorque",
    "title": "차선변경 조향토크 사용",
@@ -2572,6 +2674,38 @@
    "cdescr": "0: 禁用, 1: 振动, 2: 仪表盘, 3: HUD 显示",
    "min": 0,
    "max": 3,
+   "default": 0,
+   "unit": 1
+  },
+  {
+   "group": "시작",
+   "name": "HyundaiCameraSCC",
+   "title": "HYUNDAI: CAMERA SCC",
+   "descr": "1:롱컨차량\n 2:크루즈 상태 동기화\n 3:순정크루즈(CANFD롱컨배선)\n꺼짐 상태에서 카메라 버스 SCC가 감지되면 CAN 오류 시 설정 활성화를 안내합니다. 이미 카메라 SCC가 적용된 차종은 제외합니다.",
+   "egroup": "START",
+   "etitle": "HYUNDAI: CAMERA SCC(0)",
+   "edescr": "1: Long-con Vehicle, 2: Cruise State Sync (CAN-FD Vehicle), 3: Stock Cruise (CANFD Long harness)\nWhen off, SCC detected on the camera bus prompts you to enable this setting during a CAN error. Vehicles already configured for camera SCC are excluded.",
+   "cgroup": "启动设置",
+   "ctitle": "现代: 摄像头 SCC (0)",
+   "cdescr": "1: 纵向控制车辆, 2: 巡航状态同步 (CAN-FD 车辆), 3: 原厂巡航 (CANFD 纵向线束)\n关闭时，若在摄像头总线上检测到 SCC，发生 CAN 错误时会提示启用此设置。已配置摄像头 SCC 的车型除外。",
+   "min": 0,
+   "max": 3,
+   "default": 0,
+   "unit": 1
+  },
+  {
+   "group": "시작",
+   "name": "CanfdHDA2",
+   "title": "CANFD HDA2지원(0)",
+   "descr": "1: HDA2 차량",
+   "egroup": "START",
+   "etitle": "CANFD HDA2(0)",
+   "edescr": "0:HDA1, 1: HDA2",
+   "cgroup": "启动设置",
+   "ctitle": "CANFD HDA2 (0)",
+   "cdescr": "0: HDA1, 1: HDA2",
+   "min": 0,
+   "max": 1,
    "default": 0,
    "unit": 1
   },
@@ -3094,6 +3228,22 @@
    "default": 30,
    "unit": 10,
    "display_unit": "speedKph"
+  },
+  {
+   "group": "주행튜닝",
+   "name": "StoppingAccel",
+   "title": "정지시작가속도x0.01(-50)",
+   "descr": "정지 제어 진입 가속도와 정지 감속 목표를 조정합니다. -100~-50만 설정할 수 있으며 -50은 -0.50m/s²입니다. 더 음수일수록 감속 목표가 강해집니다. 이미 더 강한 감속은 유지하며, 소프트홀드는 차종별 정지 유지 가속도를 사용합니다. 변경은 주행 중에도 약 1초 안에 반영됩니다. 현대·기아 CANFD 오픈파일럿 종방향 제어에서는 StopReq를 켜는 첫 프레임부터 aReqRaw·aReqValue를 0으로 보내므로, 이 설정은 StopReq 유지 중 송신 가속도를 바꾸지 않습니다. 자동 해제·재시도는 제거되었습니다.",
+   "egroup": "LONG",
+   "etitle": "StoppingStartAccelx0.01(-50)",
+   "edescr": "Adjust the stop-entry acceleration threshold and stopping target. Only -100 to -50 is allowed; -50 means -0.50 m/s². More negative values request stronger deceleration. Existing stronger braking is retained, and soft hold uses the vehicle-specific hold acceleration. Changes apply within about one second, including while driving. For Hyundai/Kia CANFD openpilot longitudinal control, aReqRaw and aReqValue become zero in the first StopReq frame, so this setting does not change transmitted acceleration while StopReq remains active. Automatic release/retry is removed.",
+   "cgroup": "纵向控制",
+   "ctitle": "停止起步加速度 x0.01(-50)",
+   "cdescr": "调整停止控制的加速度进入阈值和减速目标。仅可设置-100至-50；-50代表-0.50m/s²。数值越负，减速目标越强。已有更强的制动请求保持不变，软保持使用车型的停车保持加速度。修改约一秒内生效，行驶中也适用。 现代/起亚 CANFD 的 openpilot 纵向控制从 StopReq 首帧起将 aReqRaw 和 aReqValue 置零，因此保持 StopReq 时本设置不改变发送的加速度。已移除自动释放和重试。",
+   "min": -100,
+   "max": -50,
+   "default": -50,
+   "unit": 10
   },
   {
    "group": "가속설정",
@@ -4540,6 +4690,34 @@
    "type": "int"
   },
   {
+   "group": "sunnypilot",
+   "name": "VehicleNaviSectionAvgControl",
+   "title": "Vehicle Navi Section Avg Control",
+   "descr": "sunnypilot",
+   "egroup": "MISC",
+   "etitle": "Vehicle Navi Section Avg Control",
+   "edescr": "sunnypilot",
+   "cgroup": "sunnypilot",
+   "ctitle": "Vehicle Navi Section Avg Control",
+   "cdescr": "sunnypilot",
+   "default": 0,
+   "type": "bool"
+  },
+  {
+   "group": "sunnypilot",
+   "name": "VehicleNaviSectionAvgMargin",
+   "title": "Vehicle Navi Section Avg Margin",
+   "descr": "sunnypilot",
+   "egroup": "MISC",
+   "etitle": "Vehicle Navi Section Avg Margin",
+   "edescr": "sunnypilot",
+   "cgroup": "sunnypilot",
+   "ctitle": "Vehicle Navi Section Avg Margin",
+   "cdescr": "sunnypilot",
+   "default": 0,
+   "type": "int"
+  },
+  {
    "group": "alpha_longitudinal_toggles",
    "name": "ExperimentalModeSetSpeed",
    "title": "Experimental Mode Set Speed",
@@ -4550,7 +4728,7 @@
    "cgroup": "Alpha 纵向控制",
    "ctitle": "实验模式速度条件",
    "cdescr": "低于设定速度时自动进入实验模式。",
-   "default": false,
+   "default": true,
    "type": "bool"
   },
   {
@@ -4564,7 +4742,7 @@
    "cgroup": "Alpha 纵向控制",
    "ctitle": "实验模式跟车条件",
    "cdescr": "近距跟车时自动进入实验模式。",
-   "default": false,
+   "default": true,
    "type": "bool"
   },
   {
@@ -4592,7 +4770,7 @@
    "cgroup": "Alpha 纵向控制",
    "ctitle": "实验模式",
    "cdescr": "启用实验（端到端）驾驶模式。",
-   "default": false,
+   "default": true,
    "type": "bool"
   },
   {
@@ -4663,6 +4841,62 @@
    "ctitle": "地图智能巡航",
    "cdescr": "结合地图限速与曲率修正巡航目标（SCC-M）。",
    "default": false,
+   "type": "bool"
+  },
+  {
+   "group": "cruise",
+   "name": "ConditionalExperimental",
+   "title": "Conditional Experimental",
+   "descr": "sunnypilot",
+   "egroup": "CRUISE",
+   "etitle": "Conditional Experimental",
+   "edescr": "sunnypilot",
+   "cgroup": "巡航",
+   "ctitle": "Conditional Experimental",
+   "cdescr": "sunnypilot",
+   "default": false,
+   "type": "bool"
+  },
+  {
+   "group": "cruise",
+   "name": "CECurves",
+   "title": "CECurves",
+   "descr": "sunnypilot",
+   "egroup": "CRUISE",
+   "etitle": "CECurves",
+   "edescr": "sunnypilot",
+   "cgroup": "巡航",
+   "ctitle": "CECurves",
+   "cdescr": "sunnypilot",
+   "default": true,
+   "type": "bool"
+  },
+  {
+   "group": "cruise",
+   "name": "CECurvesLead",
+   "title": "CECurves Lead",
+   "descr": "sunnypilot",
+   "egroup": "CRUISE",
+   "etitle": "CECurves Lead",
+   "edescr": "sunnypilot",
+   "cgroup": "巡航",
+   "ctitle": "CECurves Lead",
+   "cdescr": "sunnypilot",
+   "default": true,
+   "type": "bool"
+  },
+  {
+   "group": "cruise",
+   "name": "CELead",
+   "title": "CELead",
+   "descr": "sunnypilot",
+   "egroup": "CRUISE",
+   "etitle": "CELead",
+   "edescr": "sunnypilot",
+   "cgroup": "巡航",
+   "ctitle": "CELead",
+   "cdescr": "sunnypilot",
+   "default": true,
    "type": "bool"
   },
   {
@@ -4904,6 +5138,20 @@
    "type": "int"
   },
   {
+   "group": "cruise",
+   "name": "SpeedLimitConfirmOnChange",
+   "title": "Speed Limit Confirm On Change",
+   "descr": "sunnypilot",
+   "egroup": "CRUISE",
+   "etitle": "Speed Limit Confirm On Change",
+   "edescr": "sunnypilot",
+   "cgroup": "巡航",
+   "ctitle": "Speed Limit Confirm On Change",
+   "cdescr": "sunnypilot",
+   "default": 0,
+   "type": "int"
+  },
+  {
    "group": "developer",
    "name": "IsReleaseSpBranch",
    "title": "Is Release Sp Branch",
@@ -5114,20 +5362,6 @@
    "type": "str"
   },
   {
-   "group": "device",
-   "name": "OffroadMode",
-   "title": "Offroad Mode",
-   "descr": "Force the device to stay offroad (screen off, no onroad).",
-   "egroup": "DEVICE",
-   "etitle": "Offroad mode",
-   "edescr": "Force the device to stay offroad (screen off, no onroad).",
-   "cgroup": "设备",
-   "ctitle": "离路模式",
-   "cdescr": "强制设备保持离路（熄屏、不进入行车）。",
-   "default": false,
-   "type": "bool"
-  },
-  {
    "group": "display",
    "name": "Brightness",
    "title": "Brightness",
@@ -5199,6 +5433,20 @@
   },
   {
    "group": "display",
+   "name": "HomeShowActiveModel",
+   "title": "Home Show Active Model",
+   "descr": "sunnypilot",
+   "egroup": "DISPLAY",
+   "etitle": "Home Show Active Model",
+   "edescr": "sunnypilot",
+   "cgroup": "显示",
+   "ctitle": "Home Show Active Model",
+   "cdescr": "sunnypilot",
+   "default": false,
+   "type": "bool"
+  },
+  {
+   "group": "display",
    "name": "ScreenSaverEnabled",
    "title": "Screen Saver Enabled",
    "descr": "Enable the offroad screen saver.",
@@ -5223,6 +5471,34 @@
    "ctitle": "屏保超时",
    "cdescr": "离路多少秒后启动屏保。",
    "default": 300,
+   "type": "int"
+  },
+  {
+   "group": "following_profile_toggles",
+   "name": "LongitudinalFollowingProfileEnabled",
+   "title": "Longitudinal Following Profile Enabled",
+   "descr": "sunnypilot",
+   "egroup": "FOLLOWING_PROFILE_TOGGLES",
+   "etitle": "Longitudinal Following Profile Enabled",
+   "edescr": "sunnypilot",
+   "cgroup": "following_profile_toggles",
+   "ctitle": "Longitudinal Following Profile Enabled",
+   "cdescr": "sunnypilot",
+   "default": false,
+   "type": "bool"
+  },
+  {
+   "group": "initial_cruise_speed",
+   "name": "InitialCruiseSpeedKph",
+   "title": "Initial Cruise Speed Kph",
+   "descr": "sunnypilot",
+   "egroup": "INITIAL_CRUISE_SPEED",
+   "etitle": "Initial Cruise Speed Kph",
+   "edescr": "sunnypilot",
+   "cgroup": "initial_cruise_speed",
+   "ctitle": "Initial Cruise Speed Kph",
+   "cdescr": "sunnypilot",
+   "default": 40,
    "type": "int"
   },
   {
@@ -5418,7 +5694,7 @@
    "cgroup": "导航",
    "ctitle": "导航联动巡航速度",
    "cdescr": "允许导航修改巡航目标速度。",
-   "default": true,
+   "default": false,
    "type": "bool"
   },
   {
@@ -5745,6 +6021,20 @@
   },
   {
    "group": "steering",
+   "name": "LaneChangeSmoothing",
+   "title": "Lane Change Smoothing",
+   "descr": "sunnypilot",
+   "egroup": "STEERING",
+   "etitle": "Lane Change Smoothing",
+   "edescr": "sunnypilot",
+   "cgroup": "转向",
+   "ctitle": "Lane Change Smoothing",
+   "cdescr": "sunnypilot",
+   "default": 0,
+   "type": "int"
+  },
+  {
+   "group": "steering",
    "name": "RoadEdgeLaneChangeEnabled",
    "title": "Road Edge Lane Change Enabled",
    "descr": "Block lane changes that would cross a detected road edge.",
@@ -5754,8 +6044,8 @@
    "cgroup": "转向",
    "ctitle": "路缘变道检测",
    "cdescr": "检测到路缘时阻止越界变道。",
-   "default": false,
-   "type": "bool"
+   "default": 0,
+   "type": "int"
   },
   {
    "group": "steering",
@@ -5798,6 +6088,20 @@
    "cdescr": "MADS 使用的转向接管模式。",
    "default": 0,
    "type": "int"
+  },
+  {
+   "group": "steering",
+   "name": "MazdaTjaButton",
+   "title": "Mazda Tja Button",
+   "descr": "sunnypilot",
+   "egroup": "STEERING",
+   "etitle": "Mazda Tja Button",
+   "edescr": "sunnypilot",
+   "cgroup": "转向",
+   "ctitle": "Mazda Tja Button",
+   "cdescr": "sunnypilot",
+   "default": false,
+   "type": "bool"
   },
   {
    "group": "steering",
@@ -5909,20 +6213,6 @@
    "ctitle": "扭矩摩擦系数",
    "cdescr": "扭矩模型的手动摩擦系数。",
    "default": 0.1,
-   "type": "float"
-  },
-  {
-   "group": "steering",
-   "name": "TorqueControlTune",
-   "title": "Torque Control Tune",
-   "descr": "Fine adjustment applied to torque control output.",
-   "egroup": "STEERING",
-   "etitle": "Torque control tune",
-   "edescr": "Fine adjustment applied to torque control output.",
-   "cgroup": "转向",
-   "ctitle": "扭矩控制微调",
-   "cdescr": "对扭矩控制输出的精细调整。",
-   "default": 0.0,
    "type": "float"
   },
   {
@@ -6193,6 +6483,20 @@
   },
   {
    "group": "vehicle",
+   "name": "ToyotaTSS2Smooth",
+   "title": "Toyota TSS2 Smooth",
+   "descr": "sunnypilot",
+   "egroup": "VEHICLE",
+   "etitle": "Toyota TSS2 Smooth",
+   "edescr": "sunnypilot",
+   "cgroup": "车辆",
+   "ctitle": "Toyota TSS2 Smooth",
+   "cdescr": "sunnypilot",
+   "default": false,
+   "type": "bool"
+  },
+  {
+   "group": "vehicle",
    "name": "OnroadCycleRequested",
    "title": "Onroad Cycle Requested",
    "descr": "Request the onroad processes to cycle (action).",
@@ -6278,10 +6582,10 @@
   {
    "group": "visuals",
    "name": "E2EAlertsWhenEngaged",
-   "title": "E2E Alerts When Engaged",
+   "title": "E2 EAlerts When Engaged",
    "descr": "Play the green light and lead depart alerts even while cruise is engaged at a standstill.",
    "egroup": "VISUALS",
-   "etitle": "E2E alerts when engaged",
+   "etitle": "Alerts while engaged",
    "edescr": "Play the green light and lead depart alerts even while cruise is engaged at a standstill.",
    "cgroup": "视觉",
    "ctitle": "接管时也提醒",
@@ -6370,6 +6674,20 @@
    "cgroup": "视觉",
    "ctitle": "火箭加速特效",
    "cdescr": "急加速时显示火箭推进动画。",
+   "default": false,
+   "type": "bool"
+  },
+  {
+   "group": "visuals",
+   "name": "CarrotSignalHudEnabled",
+   "title": "Carrot Signal Hud Enabled",
+   "descr": "Advisory HUD ring: the outer ring is the light evidence the neural model sees, the centre dot is what the planner actually applies (mode 2 only). Never a green departure indication for mixed evidence.",
+   "egroup": "VISUALS",
+   "etitle": "Neural signal indicator",
+   "edescr": "Advisory HUD ring: the outer ring is the light evidence the neural model sees, the centre dot is what the planner actually applies (mode 2 only). Never a green departure indication for mixed evidence.",
+   "cgroup": "视觉",
+   "ctitle": "神经信号灯指示",
+   "cdescr": "提示性 HUD 圆环：外圈为神经模型看到的灯色证据，中心点为规划器实际执行的动作（仅模式 2）。证据混杂时不会给出绿灯放行暗示。",
    "default": false,
    "type": "bool"
   },
@@ -6470,45 +6788,15 @@
    "cdescr": "利用地图数据对前方弯道/路口提前减速。",
    "default": false,
    "type": "bool"
-  },
-  {
-   "group": "models",
-   "name": "ModelManager_MirrorUrl",
-   "title": "Model Manager Mirror Url",
-   "descr": "Prefix for big/small model artifact downloads (hf-mirror.com default; off = direct).",
-   "egroup": "MODELS",
-   "etitle": "Model download mirror",
-   "edescr": "Prefix for big/small model artifact downloads (hf-mirror.com default; off = direct).",
-   "cgroup": "模型选择",
-   "ctitle": "模型下载镜像",
-   "cdescr": "大/小模型 artifact 下载前缀（默认 hf-mirror.com；off = 直连）。",
-   "default": "",
-   "type": "str"
-  },
-  {
-   "group": "models",
-   "name": "ModelManager_GithubProxy",
-   "title": "Model Manager Github Proxy",
-   "descr": "How the model list JSON is fetched: direct, jsDelivr fallback, or a proxy prefix.",
-   "egroup": "MODELS",
-   "etitle": "Model list source",
-   "edescr": "How the model list JSON is fetched: direct, jsDelivr fallback, or a proxy prefix.",
-   "cgroup": "模型选择",
-   "ctitle": "模型列表源",
-   "cdescr": "模型目录 JSON 的获取方式：直连 / jsDelivr 兜底 / 代理前缀。",
-   "default": "",
-   "type": "str"
   }
  ],
  "_generated": {
   "note": "Generated by openpilot/sunnypilot/carrot/tools/build_settings_catalog.py - do not edit by hand.",
   "upstream_params": 184,
-  "kept": 154,
+  "kept": 160,
   "dropped_undeclared": [
    "AChangeCostStarting",
-   "AdjustLaneOffset",
    "CanfdDebug",
-   "CanfdHDA2",
    "CarrotCruiseAtcDecel",
    "CarrotCruiseDecel",
    "CarrotTireTrajectory",
@@ -6522,18 +6810,14 @@
    "CustomSteerDeltaUpLC",
    "CustomSteerMax",
    "DisableMinSteerSpeed",
-   "DriverMonitoringEnabled",
-   "DriverMonitoringMode",
    "HDPuse",
    "HardwareC3xLite",
-   "HyundaiCameraSCC",
    "HyundaiCanfdClusterDirectTx",
    "IsLdwsCar",
    "LaneChangeBsd",
    "MaxAngleFrames",
    "MaxTimeOffroadMin",
    "SpeedTFFactor",
-   "StoppingAccel",
    "VEgoStopping"
   ],
   "added_from_this_fork": [
@@ -6582,7 +6866,9 @@
    "SideRadarMinDist",
    "SideRelDistTime",
    "SidevRelDistTime",
-   "StockBlinkerCtrl"
+   "StockBlinkerCtrl",
+   "VehicleNaviSectionAvgControl",
+   "VehicleNaviSectionAvgMargin"
   ],
   "added_from_on_device_pages": [
    "AlphaLongitudinalEnabled",
@@ -6596,6 +6882,9 @@
    "BlinkerMinLateralControlSpeed",
    "BlinkerPauseLateralControl",
    "Brightness",
+   "CECurves",
+   "CECurvesLead",
+   "CELead",
    "CameraOffset",
    "CarPlatformBundle",
    "CarPlatformBundle",
@@ -6605,9 +6894,11 @@
    "CarrotNavCruiseSpeedEnabled",
    "CarrotNaviDebug",
    "CarrotNaviV2Enabled",
+   "CarrotSignalHudEnabled",
    "CarrotWebEnabled",
    "ChevronInfo",
    "CompletedSunnylinkConsentVersion",
+   "ConditionalExperimental",
    "CustomAccIncrementsEnabled",
    "CustomAccLongPressIncrement",
    "CustomAccShortPressIncrement",
@@ -6624,7 +6915,6 @@
    "EnableSunnylinkUploader",
    "EnforceTorqueControl",
    "ExperimentalMode",
-   "ExperimentalMode",
    "ExperimentalModeConfirmed",
    "ExperimentalModeLeadGap",
    "ExperimentalModeSetSpeed",
@@ -6632,7 +6922,9 @@
    "HardwareSerial",
    "HideFirehosePrompt",
    "HideVEgoUI",
+   "HomeShowActiveModel",
    "HyundaiLongitudinalTuning",
+   "InitialCruiseSpeedKph",
    "IntelligentCruiseButtonManagement",
    "InteractivityTimeout",
    "IsDevelopmentBranch",
@@ -6642,6 +6934,7 @@
    "IsTestedBranch",
    "LagdToggle",
    "LagdToggleDelay",
+   "LaneChangeSmoothing",
    "LaneTurnDesire",
    "LaneTurnValue",
    "LateralJerkTorqueController",
@@ -6649,6 +6942,7 @@
    "LiveTorqueParamsRelaxedToggle",
    "LiveTorqueParamsToggle",
    "LocalDriveStats",
+   "LongitudinalFollowingProfileEnabled",
    "LongitudinalMpcTuningAChangeCost",
    "LongitudinalMpcTuningComfortBrake",
    "LongitudinalMpcTuningDangerZoneCost",
@@ -6666,6 +6960,7 @@
    "MapdVersion",
    "Mapd_ClearCache",
    "MaxTimeOffroad",
+   "MazdaTjaButton",
    "ModelManager_ClearCache",
    "ModelManager_DownloadRef",
    "ModelManager_Favs",
@@ -6673,7 +6968,6 @@
    "OSMDownloadBounds",
    "OSMDownloadLocations",
    "OSMDownloadProgress",
-   "OffroadMode",
    "OnroadCycleRequested",
    "OnroadScreenOffBrightness",
    "OnroadScreenOffTimer",
@@ -6700,6 +6994,7 @@
    "ShowTurnSignals",
    "SmartCruiseControlMap",
    "SmartCruiseControlVision",
+   "SpeedLimitConfirmOnChange",
    "SpeedLimitMode",
    "SpeedLimitOffsetType",
    "SpeedLimitPolicy",
@@ -6713,7 +7008,6 @@
    "TeslaMadsScreenButton",
    "TeslaMadsScreenButton",
    "TorqueBar",
-   "TorqueControlTune",
    "TorqueParamsOverrideEnabled",
    "TorqueParamsOverrideFriction",
    "TorqueParamsOverrideLatAccelFactor",
@@ -6723,6 +7017,7 @@
    "ToyotaEnhancedBsm",
    "ToyotaStopAndGoHack",
    "ToyotaTSS2Long",
+   "ToyotaTSS2Smooth",
    "TripsDataSource",
    "TrueVEgoUI"
   ],
@@ -6739,17 +7034,18 @@
    "developer",
    "device",
    "display",
+   "following_profile_toggles",
+   "initial_cruise_speed",
    "models",
    "navigation",
    "osm",
    "software",
    "steering",
    "sunnylink",
-   "toggles",
    "trips",
    "vehicle",
    "visuals"
   ],
-  "labelled_by_sp_param_labels": 194
+  "labelled_by_sp_param_labels": 202
  }
 }

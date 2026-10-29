@@ -37,7 +37,7 @@ OUTPUT_JSON = ROOT / "openpilot" / "sunnypilot" / "carrot_settings_sp.json"
 PARAMS_KEYS_H = ROOT / "openpilot" / "common" / "params_keys.h"
 
 from openpilot.sunnypilot.carrot.tools.sp_param_labels import (
-  FAMILY_LABELS, IMU_PARAMS, MAPS_PARAMS, MODEL_MIRROR_PARAMS, PAGE_LABELS, apply_param_labels,
+  FAMILY_LABELS, IMU_PARAMS, MAPS_PARAMS, PAGE_LABELS, apply_param_labels,
 )
 
 # The menu node the fork-only params live under.
@@ -233,14 +233,13 @@ def build() -> dict:
     imu_params.append(entry)
   extra_params.extend(imu_params)
 
-  # 1d) map-section params the panel tree references but no upstream entry carries, plus
-  #     the model-mirror keys (declared, but neither in cp's catalog nor _DEFAULT_NAV_PARAMS).
+  # 1d) map-section params the panel tree references but no upstream entry carries.
   catalog_names = kept_names | {p["name"] for p in extra_params}
-  for name in tuple(MAPS_PARAMS) + MODEL_MIRROR_PARAMS:
+  for name in tuple(MAPS_PARAMS):
     if name in catalog_names:
       continue
     kind, value = declared_map.get(name, ("str", ""))
-    entry = labelled_entry(name, value, "maps" if name in MAPS_PARAMS else "models")
+    entry = labelled_entry(name, value, "maps")
     entry["default"], entry["type"] = value, kind
     extra_params.append(entry)
     catalog_names.add(name)
@@ -301,8 +300,6 @@ def build() -> dict:
     for page, keys in sorted(pages.items()):
       ko, en, zh = PAGE_LABELS.get(page, (page, page, page))
       refs = [k for k in keys if k in declared_set]
-      if page == "models":
-        refs += [k for k in MODEL_MIRROR_PARAMS if k in catalog_names and k not in refs]
       if refs:
         ui_groups.append({"id": f"{SP_GROUP_ID}_UI_{page.upper()}", "ko": ko, "en": en, "zh": zh,
                           "params": refs})
