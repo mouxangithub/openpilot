@@ -7265,3 +7265,310 @@ msgstr "已订阅"
 msgid "🚀 sunnylink 🚀"
 msgstr "🚀 SunnyLink 🚀"
 
+#: auto (merge fill)
+msgid "Adds a gentle nudge toward lane center on top of the model's own steering, stronger when lane lines are clear. Yields around obstacles. Not available with the Default model."
+msgstr "在模型自身转向的基础上，轻柔地把车辆推回车道中央；车道线越清晰修正越强。遇到障碍会自动避让。默认模型不可用。"
+
+#: auto (merge fill)
+msgid "Blendful (Alpha)"
+msgstr "融合车道（测试版）"
+
+#: auto (merge fill)
+msgid "blendful (alpha)"
+msgstr "融合车道（测试版）"
+
+#: auto (merge fill)
+msgid "Select a non-Default model to use Blendful."
+msgstr "选择非默认模型以使用融合车道。"
+
+#: auto (merge fill)
+msgid "custom model only"
+msgstr "仅限自定义模型"
+
+#: auto (merge fill)
+msgid "Choose the driving model. Small models run on the comma.\nBig models run on a Chestnut or over Jetlink."
+msgstr "选择驾驶模型。小模型在 comma 上运行。\n大模型在 Chestnut 上或通过 Jetlink 运行。"
+
+#: auto (merge fill)
+msgid "Runs big models on a computer or phone plugged into the comma.\nUSB for a Mac, Jetson, Linux PC or Android. iOS for an iPhone or iPad.\nTurns off ADB. The small model drives until the big model is ready."
+msgstr "在接入 comma 的电脑或手机上运行大模型。\nMac、Jetson、Linux 电脑或安卓用 USB；iPhone 或 iPad 用 iOS。\n会关闭 ADB。大模型就绪前由小模型驾驶。"
+
+#: auto (merge fill)
+msgid "Deletes downloaded models to free up space.\nYour selected small and big models are kept."
+msgstr "删除已下载的模型以释放空间。\n会保留你选中的小模型和大模型。"
+
+#: auto (merge fill)
+msgid "Neural Network Lateral Control.\nSteers with a neural network instead of the torque controller."
+msgstr "神经网络横向控制。\n用神经网络而非扭矩控制器转向。"
+
+#: auto (merge fill)
+msgid "How much steering friction the controller pushes through first.\nHigher values add more torque for small corrections."
+msgstr "控制器首先克服的转向摩擦力大小。\n数值越大，小幅修正施加的扭矩越大。"
+
+#: auto (merge fill)
+msgid "Lateral acceleration factor: how much the car turns per unit of torque.\nHigher values steer with less torque."
+msgstr "横向加速度系数：每单位扭矩让车辆转多少。\n数值越大，所需转向扭矩越小。"
+
+#: auto (merge fill)
+msgid "Learns how your car steers as you drive and tunes to match.\nIt learns each speed range separately."
+msgstr "驾驶过程中学习你车辆的转向特性并自动调校。\n每个速度区间分别学习。"
+
+#: auto (merge fill)
+msgid "Use your own lateral acceleration and friction as the starting tune.\nSelf-tune still learns from there unless manual realtime is on."
+msgstr "以你自定义的横向加速度和摩擦力作为初始调校。\n除非开启手动实时，自学习仍会在此基础上继续学习。"
+
+#: auto (merge fill)
+msgid "Self-tune learns from fewer samples.\nIt accepts values further from the car's defaults."
+msgstr "自学习用更少样本即可学习。\n允许偏离车辆默认值更远的取值。"
+
+#: auto (merge fill)
+msgid "Looks ahead at planned steering to reduce sudden corrections.\nThe wheel moves more smoothly through turns."
+msgstr "前瞻规划的转向动作，减少突然修正。\n过弯时方向盘动作更平顺。"
+
+#: auto (merge fill)
+msgid "Fixed steering ratio in 0.1 units (e.g. 130 = 13.0). Overrides the live learned ratio."
+msgstr "固定转向比，单位 0.1（如 130 = 13.0）。覆盖实时学习到的转向比。"
+
+#: auto (merge fill)
+msgid "Steers with torque control, using zoompilot's tunes.\nThe tune version, self tune and custom tune settings need it."
+msgstr "用扭矩控制转向，采用 zoompilot 的调校。\n调校版本、自学习和自定义调校设置都需要它。"
+
+#: auto (merge fill)
+msgid "Steers with your values at every speed, ignoring self-tune.\nChanges apply within a few seconds, even while driving."
+msgstr "在所有速度下都用你的数值，忽略自学习。\n即使行驶中，改动也会在几秒内生效。"
+
+#: auto (merge fill)
+msgid "Makes lane changes slower and smoother.\nOff is stock. Every other pace is slower."
+msgstr "让变道更慢更平顺。\n关为原厂；其他每一档都更慢。"
+
+#: auto (merge fill)
+msgid "Nudge: signal, then nudge the wheel to change lanes.\nNudgeless changes lanes as soon as you signal. A time waits that long first.\nOff: zoompilot never changes lanes."
+msgstr "轻推：打灯后轻推方向盘变道。\n免轻推在打灯后立即变道；定时则先等待相应时长。\n关：zoompilot 永不自动变道。"
+
+#: auto (merge fill)
+msgid "Blocks a lane change toward a road edge the model sees.\nSilent shows the alert without the chime."
+msgstr "模型检测到前方道路边缘时阻止向该方向变道。\n静音只显示提示而不响铃。"
+
+#: auto (merge fill)
+msgid "Engaging cruise also turns steering on.\nSteering then stays on until you switch it off or turn off the car."
+msgstr "挂入巡航时同时开启转向。\n此后转向保持开启，直到你手动关闭或熄火。"
+
+#: auto (merge fill)
+msgid "Turning cruise main on also turns steering on.\nCars without a lane keep button need this on to steer."
+msgstr "打开巡航主开关时同时开启转向。\n没有车道保持按钮的车辆需要开启此项才能转向。"
+
+#: auto (merge fill)
+msgid "Lets zoompilot steer while cruise control is off.\nWhen off, steering and cruise engage and disengage together."
+msgstr "允许在巡航关闭时由 zoompilot 转向。\n关闭时转向与巡航同时挂入、同时退出。"
+
+#: auto (merge fill)
+msgid "The wheel's TJA button becomes the only steering switch.\nThe MRCC main button then only controls cruise.\nTurn on only if your car has the button."
+msgstr "方向盘的 TJA 按钮成为唯一的转向开关。\nMRCC 主按钮此时只控制巡航。\n仅在你的车有该按钮时开启。"
+
+#: auto (merge fill)
+msgid "What steering does when you press the brake.\nRemain keeps steering. Pause resumes it when you let go.\nDisengage turns steering off."
+msgstr "踩刹车时转向的行为。\n保持：继续转向；暂停：松开刹车后恢复；退出：关闭转向。"
+
+#: auto (merge fill)
+msgid "Set Speed Assist"
+msgstr "设定速度辅助"
+
+#: auto (merge fill)
+msgid "set speed assist"
+msgstr "设定速度辅助"
+
+#: auto (merge fill)
+msgid "In Experimental Mode, drive toward your set speed and following distance as chill mode does whenever the model holds back. The model still makes every slowdown."
+msgstr "在实验模式下，当模型保守时，像轻松模式那样向你设定的速度和跟车距离行驶。所有减速仍由模型决定。"
+
+#: auto (merge fill)
+msgid "Experimental Mode often cruises below your set speed and follows farther back.\nThis drives as chill mode does whenever the model holds back.\nThe model still makes every slowdown."
+msgstr "实验模式常以低于设定速度巡航且跟车更远。\n当模型保守时，此项让它像轻松模式那样行驶。\n所有减速仍由模型决定。"
+
+#: auto (merge fill)
+msgid "Adds an offset to the speed limit.\nFixed adds a set amount of speed. % adds a percentage of the limit."
+msgstr "对限速增加一个偏移量。\n固定：增加设定的速度值；%：按限速的百分比增加。"
+
+#: auto (merge fill)
+msgid "Assist: when the limit changes, press - or + to set your speed to match.\nInfo and warn show the sign on a comma 3X only."
+msgstr "辅助：限速变化时按 - 或 + 把车速设为该限速。\n提示和警告仅在 comma 3X 上显示路标。"
+
+#: auto (merge fill)
+msgid "Car uses the signs your car reads. Map uses downloaded maps.\nCar-first and map-first use the other when the first has none.\nCombined uses the lower of the two.\nOn a Mazda, car needs a nav SD card."
+msgstr "车辆：用车载识别的路标；地图：用下载的地图。\n车辆优先/地图优先：首选缺失时用另一个。\n合并：取两者中较低的限速。\n马自达车型的车辆识别需要导航 SD 卡。"
+
+#: auto (merge fill)
+msgid "Slows for curves in map data, then resumes your set speed.\nDownload maps in sunnylink first."
+msgstr "根据地图数据在弯道前减速，过后恢复设定速度。\n需先在 sunnylink 下载地图。"
+
+#: auto (merge fill)
+msgid "Slows for curves the camera sees, then resumes your set speed.\nWorks alone or with slow for curves: map."
+msgstr "根据摄像头看到的弯道减速，过后恢复设定速度。\n可单独使用，也可与地图弯道减速配合。"
+
+#: auto (merge fill)
+msgid "Lets zoompilot control the gas and brakes instead of stock cruise.\nThis may turn off Automatic Emergency Braking (AEB)."
+msgstr "由 zoompilot 而非原厂巡航控制油门和刹车。\n这可能会关闭自动紧急制动（AEB）。"
+
+#: auto (merge fill)
+msgid "Let the driving model control gas and brakes.\nIncludes stopping for red lights and stop signs.\nSet speed is a maximum, not a target.\nThese are alpha features. Expect mistakes.\nThe path colors show acceleration and braking."
+msgstr "让驾驶模型控制油门和刹车。\n包括红灯和停止标志前停车。\n设定速度是上限而非目标。\n这些是测试功能，可能出现失误。\n路径颜色表示加速和制动。"
+
+#: auto (merge fill)
+msgid "Draws the driving path as a rainbow.\nIt does not change how the car drives."
+msgstr "把驾驶路径画成彩虹色。\n不影响车辆的驾驶方式。"
+
+#: auto (merge fill)
+msgid "A beautiful rainbow effect on the path the model wants to take. "
+msgstr "在模型规划的路径上呈现漂亮的彩虹效果。"
+
+#: auto (merge fill)
+msgid "Chimes when the light you're stopped at turns green with no car ahead.\nOnly while cruise is not engaged. Check the road before you go."
+msgstr "在你等的灯变绿且前方无车时响铃提示。\n仅在巡航未挂入时。起步前请注意观察路况。"
+
+#: auto (merge fill)
+msgid "Chimes when you're stopped and the car ahead pulls away.\nOnly while cruise is not engaged. Check the road before you go."
+msgstr "你停着且前车驶离时响铃提示。\n仅在巡航未挂入时。起步前请注意观察路况。"
+
+#: auto (merge fill)
+msgid "Play the green light and lead depart chimes even while cruise is engaged\nand holding at a standstill. Without it they only chime while cruise\nis off. Check the road before you go."
+msgstr "即使巡航已挂入且在静止等待时，也播放绿灯和前车起步提示音。\n不开启则仅在巡航关闭时响铃。\n起步前请注意观察路况。"
+
+#: auto (merge fill)
+msgid "A chime and on-screen alert will play when the traffic light you are waiting for turns green. "
+msgstr "当你等待的交通灯变绿时，会响铃并在屏幕上提示。"
+
+#: auto (merge fill)
+msgid "A chime and on-screen alert will play when you are stopped, and the vehicle in front of you pulls away. "
+msgstr "当你停着且前方车辆驶离时，会响铃并在屏幕上提示。"
+
+#: auto (merge fill)
+msgid "Draw a ring on the HUD with the traffic light evidence the neural model currently sees."
+msgstr "在 HUD 上画一个环，显示神经模型当前看到的红绿灯证据。"
+
+#: auto (merge fill)
+msgid "Label what the front radar tracks on the road view."
+msgstr "在道路视图上标注前雷达追踪到的目标。"
+
+#: auto (merge fill)
+msgid "Displays the name of the road the car is traveling on."
+msgstr "显示车辆当前行驶的道路名称。"
+
+#: auto (merge fill)
+msgid "Show an indicator on the left side of the screen to display real-time vehicle acceleration"
+msgstr "在屏幕左侧显示实时车辆加速度指示器"
+
+#: auto (merge fill)
+msgid "GREEN\nLIGHT"
+msgstr "绿灯\n可通行"
+
+#: auto (merge fill)
+msgid "LEAD VEHICLE\nDEPARTING"
+msgstr "前车\n已起步"
+
+#: auto (merge fill)
+msgid "How long settings stay open without a touch.\nOffroad, the screen then turns off, or the screen saver starts.\nDefault keeps the stock timing."
+msgstr "无触摸时设置页面保持打开的时长。\n离车状态下到时会熄屏或启动屏保。\n默认沿用原厂计时。"
+
+#: auto (merge fill)
+msgid "Apply a custom timeout for settings UI."
+msgstr "为设置界面设置自定义超时时间。"
+
+#: auto (merge fill)
+msgid "Screen brightness while driving, after the brightness delay.\nAuto (dark) lets auto brightness go dimmer.\nAlerts brighten the screen again."
+msgstr "行驶中、亮度延迟过后的屏幕亮度。\n自动（偏暗）允许自动亮度调得更暗。\n有提示时屏幕会重新变亮。"
+
+#: auto (merge fill)
+msgid "Device will automatically shutdown after set time once the engine is turned off.\n(30h is the default)"
+msgstr "熄火后经过设定时间设备会自动关机。\n（默认 30 小时）"
+
+#: auto (merge fill)
+msgid "Enable to use sunnypilot driver assistance.\nDisable to use your car's stock driver assistance."
+msgstr "开启使用 sunnypilot 驾驶辅助。\n关闭则使用车辆原厂驾驶辅助。"
+
+#: auto (merge fill)
+msgid "Warn when you drift across a detected lane line.\nOnly above 31 mph (50 km/h), with no turn signal."
+msgstr "压线偏离车道时发出警告。\n仅在时速 50 公里以上且未打转向灯时。"
+
+#: auto (merge fill)
+msgid "Standard is recommended.\nAggressive follows closer, with firmer gas and braking.\nRelaxed leaves more space.\nUse the steering wheel distance button on supported cars."
+msgstr "推荐使用标准。\n激进：跟车更近，油门和刹车更果断。\n放松：保留更大间距。\n支持的车型可用方向盘距离按钮切换。"
+
+#: auto (merge fill)
+msgid "Record microphone audio while driving.\nAudio is included in dashcam videos in sunnylink."
+msgstr "驾驶时录制麦克风音频。\n音频会包含在 sunnylink 的行车记录仪视频中。"
+
+#: auto (merge fill)
+msgid "enable\nexperimental mode"
+msgstr "启用\n实验模式"
+
+#: auto (merge fill)
+msgid "enabling\nexperimental mode"
+msgstr "正在启用\n实验模式"
+
+#: auto (merge fill)
+msgid "Connects to sunnylink for backups, map downloads and remote settings.\nOff stops all sunnylink requests."
+msgstr "连接 sunnylink 以备份、下载地图和远程设置。\n关闭会停止所有 sunnylink 请求。"
+
+#: auto (merge fill)
+msgid "Restores your settings from your last sunnylink backup.\nRestart to apply them."
+msgstr "从最近一次 sunnylink 备份恢复设置。\n需重启生效。"
+
+#: auto (merge fill)
+msgid "Uploads your driving data to sunnylink servers.\nA test for the highest sponsor tiers. It does nothing for you yet."
+msgstr "把你的驾驶数据上传到 sunnylink 服务器。\n面向最高赞助等级的测试，目前对你没有实际作用。"
+
+#: auto (merge fill)
+msgid "Shows a QR code to sponsor sunnypilot, the project behind sunnylink.\nSponsors get early access to new sunnylink features."
+msgstr "显示二维码以赞助 sunnylink（sunnypilot 背后的项目）。\n赞助者可抢先体验 sunnylink 新功能。"
+
+#: auto (merge fill)
+msgid "This will delete ALL downloaded maps\n\nAre you sure you want to delete all maps?"
+msgstr "这将删除所有已下载的地图\n\n确定要删除全部地图吗？"
+
+#: auto (merge fill)
+msgid "Keeps the device offroad while the car is on, so zoompilot won't engage.\nSettings that need the car off can be changed."
+msgstr "车辆通电时让设备保持离车状态，zoompilot 不会挂入。\n可在此修改需要熄火才能更改的设置。"
+
+#: auto (merge fill)
+msgid "accept\nterms"
+msgstr "同意\n条款"
+
+#: auto (merge fill)
+msgid "decline &\nuninstall"
+msgstr "拒绝并\n卸载"
+
+#: auto (merge fill)
+msgid "disable\nsunnylink"
+msgstr "关闭\nsunnylink"
+
+#: auto (merge fill)
+msgid "driver monitoring\ncheck"
+msgstr "驾驶员监测\n检查"
+
+#: auto (merge fill)
+msgid "enable\nsunnylink"
+msgstr "启用\nsunnylink"
+
+#: auto (merge fill)
+msgid "make sure comma\nfour can see your face"
+msgstr "请确保 comma\nfour 能看到你的脸"
+
+#: auto (merge fill)
+msgid "terms of\nservice"
+msgstr "服务\n条款"
+
+#: auto (merge fill)
+msgid "openpilot can't start\ncheck alerts"
+msgstr "openpilot 无法启动\n请检查提示"
+
+#: auto (merge fill)
+msgid "start the car to\nuse sunnypilot"
+msgstr "启动车辆以\n使用 sunnypilot"
+
+#: auto (merge fill)
+msgid "enable alpha\nlongitudinal"
+msgstr "启用纵向\n测试功能"
+
+#: auto (merge fill)
+msgid "joystick debug\nmode"
+msgstr "摇杆调试\n模式"

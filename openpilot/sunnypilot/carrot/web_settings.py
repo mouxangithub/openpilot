@@ -12,9 +12,10 @@ uses each page's own param keys as the section, so the two cannot drift. Every c
 rendered from the type the params binary declares for the key, and nothing here writes a key
 the binary does not declare.
 
-The on-device pages' *labels* are not reproduced - the panel shows the key, the declared type
-and the live value, which is what a browser session needs to change a setting remotely. Pages
-whose work is not a param write (pairing a phone, viewing a log) are listed under Actions.
+Where a fork param has a Chinese title/description (carrot/tools/sp_param_labels.py), the panel
+shows it above the raw key, so a remote session reads the same label as the on-device UI; keys
+without a label still show the raw name. Pages whose work is not a param write (pairing a phone,
+viewing a log) are listed under Actions.
 
 The scanning and rendering helpers are pure so they can be tested without a Params handle.
 """
@@ -136,10 +137,47 @@ def type_name(kind: int) -> str:
   return _TYPE_NAMES.get(kind, "?")
 
 
-def render_control(key: str, kind: int, value: Any) -> str:
-  """One row: the key, a control sized to the declared type, and the type's name."""
+_LABELS: dict[str, tuple[str, str]] | None = None
+
+
+def param_labels() -> dict[str, tuple[str, str]]:
+  """key -> (Chinese title, Chinese description) for the fork's labelled params.
+
+  Loaded lazily from the same catalog the on-device UI's labels are generated from, so the
+  web panel cannot drift from it. A module that fails to import leaves every key unlabelled
+  rather than failing the page.
+  """
+  global _LABELS
+  if _LABELS is None:
+    try:
+      from openpilot.sunnypilot.carrot.tools.sp_param_labels import PARAM_LABELS
+      # (en_title, en_descr, zh_title, zh_descr) -> prefer the Chinese pair
+      _LABELS = {key: (zh_title or en_title, zh_descr or en_descr)
+                 for key, (en_title, en_descr, zh_title, zh_descr) in PARAM_LABELS.items()}
+    except Exception:
+      _LABELS = {}
+  return _LABELS
+
+
+def _label_html(key: str, labels: dict[str, tuple[str, str]]) -> str:
+  """The Chinese title (bold) with the raw key underneath; just the key when unlabelled."""
+  entry = labels.get(key)
+  safe_key = html.escape(key)
+  if not entry:
+    return safe_key
+  title, descr = html.escape(entry[0] or key, quote=True), html.escape(entry[1] or "", quote=True)
+  label = f'<span class="t">{title}</span><br><span class="k">{safe_key}</span>'
+  if descr:
+    label += f'<br><span class="d2">{descr}</span>'
+  return label
+
+
+def render_control(key: str, kind: int, value: Any, labels: dict[str, tuple[str, str]] | None = None) -> str:
+  """One row: the Chinese label (falling back to the raw key), a control sized to the declared
+  type, and the type's name."""
+  labels = labels if labels is not None else {}
   name = html.escape(f"p[{key}]", quote=True)
-  label = html.escape(key)
+  label = _label_html(key, labels)
   kind_name = type_name(kind)
   open_cell = f'<tr><td>{label}</td>'
   tail = f'<td>{kind_name}</td></tr>'
@@ -181,8 +219,10 @@ def parse_form_updates(form: dict[str, list[str]], kinds: dict[str, int]) -> dic
 
 
 def render_page(page: str, keys: list[str], kinds: dict[str, int], values: dict[str, Any],
-                *, index_href: str = "/settings", saved: int | None = None) -> str:
-  rows = "\n".join(render_control(k, kinds.get(k, T_STRING), values.get(k)) for k in keys)
+                *, index_href: str = "/settings", saved: int | None = None,
+                labels: dict[str, tuple[str, str]] | None = None) -> str:
+  labels = labels if labels is not None else {}
+  rows = "\n".join(render_control(k, kinds.get(k, T_STRING), values.get(k), labels) for k in keys)
   message = ""
   if saved == 1:
     message = '<p class="ok">已保存</p>'
@@ -303,7 +343,10 @@ body {{ font-family: -apple-system, system-ui, sans-serif; margin: 16px; }}
 h1 {{ font-size: 18px; }}
 table {{ border-collapse: collapse; width: 100%; }}
 th, td {{ border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }}
-td:first-child {{ font-family: ui-monospace, monospace; font-size: 13px; }}
+td:first-child {{ font-size: 14px; }}
+.t {{ font-weight: 600; }}
+.k {{ font-family: ui-monospace, monospace; font-size: 12px; color: #888; }}
+.d2 {{ display: block; color: #666; font-size: 12px; font-weight: normal; margin-top: 2px; }}
 input[type=number], input[type=text], textarea {{ width: 100%; box-sizing: border-box; }}
 .ok {{ color: #2c7; }} .err {{ color: #d33; }}
 </style>

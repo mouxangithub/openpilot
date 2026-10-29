@@ -155,6 +155,7 @@ PARAM_LABELS: dict[str, tuple[str, str, str, str]] = {
   "ScreenSaverTimeout": ("Screen saver timeout", "Seconds offroad before the screen saver starts.", "屏保超时", "离路多少秒后启动屏保。"),
 
   # ---- on-device pages: models --------------------------------------------
+  "Blendful": ("Blendful (Alpha)", "Adds a gentle nudge toward lane center on top of the model's own steering, stronger when lane lines are clear. Yields around obstacles. Not available with the Default model.", "融合车道（测试版）", "在模型自身转向的基础上，轻柔地把车辆推回车道中央；车道线越清晰修正越强。遇到障碍会自动避让。默认模型不可用。"),
   "CameraOffset": ("Camera offset", "Lateral offset applied to the model's lane center.", "相机偏移", "对模型车道中心施加的横向偏移。"),
   "LagdToggle": ("LaGD", "Enable the lane-line guided decoder model output.", "LaGD 开关", "启用车道线引导解码（LaGD）的模型输出。"),
   "LagdToggleDelay": ("LaGD delay", "Blend time when switching into the LaGD output (s).", "LaGD 延迟", "切入 LaGD 输出时的混合过渡时间（秒）。"),

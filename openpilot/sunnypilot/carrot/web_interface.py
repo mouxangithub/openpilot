@@ -378,7 +378,7 @@ class WebInterface:
       return ws.render_index(grouped).encode("utf-8")
     saved_raw = (query or {}).get("saved", [""])[0]
     saved = 1 if saved_raw == "1" else (0 if saved_raw == "0" else None)
-    return ws.render_page(page, grouped[page], kinds, values, saved=saved).encode("utf-8")
+    return ws.render_page(page, grouped[page], kinds, values, saved=saved, labels=ws.param_labels()).encode("utf-8")
 
   def apply_settings_form(self, form: dict[str, list[str]]) -> bool:
     """Writes the keys the page carries, through the setter for each declared type."""
