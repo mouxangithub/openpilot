@@ -91,7 +91,6 @@ class LongitudinalPlannerSP:
   CP: structs.CarParams
   allow_throttle: bool
   fcw: bool
-  accel_boost: AccelBoost
   a_cruise: float
   v_desired_trajectory: np.ndarray
   a_desired_trajectory: np.ndarray
