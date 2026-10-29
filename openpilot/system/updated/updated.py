@@ -12,7 +12,6 @@ from pathlib import Path
 
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
-from openpilot.sunnypilot.common.param_read import read_str
 from openpilot.common.time_helpers import sync_system_time_http, system_time_valid
 from openpilot.common.markdown import parse_markdown
 from openpilot.common.swaglog import cloudlog
@@ -427,13 +426,17 @@ class Updater:
     update. Comma separated, each an http(s) origin; a trailing slash is
     added if missing since the prefix is prepended verbatim.
 
-    The key is deliberately not registered in params_keys.h: registering
-    it would tie this read to a rebuilt libparams_c.so, and a device that
-    has not been rebuilt must simply see no extra proxies rather than
-    have the whole source selection fail on UnknownKeyName.
+    The key is deliberately not registered in params_keys.h and is read
+    straight from the params directory: an unregistered key makes both
+    Params.get and Params.put raise UnknownKeyName, and tying this read
+    to a rebuilt libparams_c.so would leave devices that have not been
+    rebuilt with the whole source selection failing on the exception.
+    Set it with `echo "https://.../" | sudo tee /data/params/d/GitProxyPrefixes`.
     """
-    raw = read_str(self.params, "GitProxyPrefixes")
-    if not raw:
+    path = Path("/data/params/d") / "GitProxyPrefixes"
+    try:
+      raw = path.read_text(encoding="utf-8").strip()
+    except OSError:
       return ()
     prefixes = []
     for part in raw.split(","):
