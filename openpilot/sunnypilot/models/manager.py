@@ -584,7 +584,8 @@ class ModelManagerSP:
           if model.artifact.fileName:
             active_files.append(model.artifact.fileName)
 
-    # Remove all files except active ones (including their chunk files)    model_dir = Paths.model_root()
+    # Remove all files except active ones (including their chunk files)
+    model_dir = Paths.model_root()
     try:
       for filename in os.listdir(model_dir):
         base = filename.split('.chunk')[0] if '.chunk' in filename else filename

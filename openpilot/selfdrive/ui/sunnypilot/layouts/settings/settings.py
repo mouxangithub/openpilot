@@ -23,6 +23,7 @@ from openpilot.selfdrive.ui.sunnypilot.layouts.settings.navigation import Naviga
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.network import NetworkUISP
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.osm import OSMLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.software import SoftwareLayoutSP
+from openpilot.selfdrive.ui.sunnypilot.layouts.settings.storage import StorageLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.steering import SteeringLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.sunnylink import SunnylinkLayout
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.trips import TripsLayout
@@ -44,6 +45,7 @@ OP.PanelType = IntEnum(  # type: ignore[assignment] # ty: ignore[invalid-assignm
   [es.name for es in OP.PanelType] + [
     "SUNNYLINK",
     "MODELS",
+    "STORAGE",
     "STEERING",
     "CRUISE",
     "VISUALS",
@@ -120,6 +122,7 @@ class SettingsLayoutSP(OP.SettingsLayout):
       OP.PanelType.TOGGLES: PanelInfo(tr_noop("Toggles"), TogglesLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_toggle.png"),
       OP.PanelType.SOFTWARE: PanelInfo(tr_noop("Software"), SoftwareLayoutSP(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_software.png"),
       OP.PanelType.MODELS: PanelInfo(tr_noop("Models"), ModelsLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_models.png"),
+      OP.PanelType.STORAGE: PanelInfo(tr_noop("Storage"), StorageLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_models.png"),
       OP.PanelType.STEERING: PanelInfo(tr_noop("Steering"), SteeringLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_lateral.png"),
       OP.PanelType.CRUISE: PanelInfo(tr_noop("Cruise"), CruiseLayout(), icon="icons/speed_limit.png"),
       OP.PanelType.VISUALS: PanelInfo(tr_noop("Visuals"), VisualsLayout(), icon="../../sunnypilot/selfdrive/assets/offroad/icon_visuals.png"),

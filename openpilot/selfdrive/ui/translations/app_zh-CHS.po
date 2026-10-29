@@ -7572,3 +7572,39 @@ msgstr "启用纵向\n测试功能"
 #: auto (merge fill)
 msgid "joystick debug\nmode"
 msgstr "摇杆调试\n模式"
+
+#: auto (storage panel)
+msgid "Storage"
+msgstr "存储"
+
+#: auto (storage panel)
+msgid "Storage Used"
+msgstr "存储占用"
+
+#: auto (storage panel)
+msgid "Used Space"
+msgstr "已用空间"
+
+#: auto (storage panel)
+msgid "Device Storage"
+msgstr "设备存储"
+
+#: auto (storage panel)
+msgid "Downloaded Data"
+msgstr "已下载数据"
+
+#: auto (storage panel)
+msgid "Driving Model Cache"
+msgstr "驾驶模型缓存"
+
+#: auto (storage panel)
+msgid "Calculating..."
+msgstr "计算中…"
+
+#: auto (storage panel)
+msgid "Unavailable"
+msgstr "不可用"
+
+#: auto (storage panel)
+msgid "{} free"
+msgstr "可用 {}"

@@ -33,6 +33,29 @@ from openpilot.sunnypilot.mapd.china_provinces import CHINA_NATION_REF, CHINA_AL
 
 MAP_PATH = Path(Paths.mapd_root()) / "offline"
 
+# Params the downloader keys off; wiping the maps without removing these would
+# leave a half-finished region marked as present (or auto-resume on next boot).
+_OSM_DOWNLOAD_PARAMS = ("OsmDownloadedDate", "OsmLocal", "OsmLocationName", "OsmLocationTitle",
+                        "OsmStateName", "OsmStateTitle", "OSMDownloadProgress")
+_OSM_MEM_PARAMS = ("OSMDownloadLocations", "OSMDownloadBounds")
+
+
+def delete_downloaded_maps(params, mem_params) -> None:
+  """Remove every downloaded map and the params that describe it.
+
+  Shared by the OSM page and the Storage page so both clear exactly the same
+  thing. The mem_params half lives in /dev/shm and records an in-flight region:
+  clearing it stops a half-finished download from a prior session auto-resuming
+  after the user explicitly asked to wipe everything.
+  """
+  if MAP_PATH.exists():
+    shutil.rmtree(MAP_PATH)
+  for param in _OSM_DOWNLOAD_PARAMS:
+    params.remove(param)
+  for mem_param in _OSM_MEM_PARAMS:
+    mem_params.remove(mem_param)
+  params.put_bool("OsmDbUpdatesCheck", False)
+
 
 class OSMLayout(Widget):
   def __init__(self):
@@ -87,16 +110,7 @@ class OSMLayout(Widget):
     threading.Thread(target=self.calculate_size, daemon=True).start()
 
   def _do_delete_maps(self):
-    if MAP_PATH.exists():
-      shutil.rmtree(MAP_PATH)
-
-    for param in ("OsmDownloadedDate", "OsmLocal", "OsmLocationName", "OsmLocationTitle", "OsmStateName", "OsmStateTitle", "OSMDownloadProgress"):
-      ui_state.params.remove(param)
-    # Also clear mem_params so a half-finished download from a prior session does not
-    # auto-resume after the user explicitly asked to wipe everything.
-    self._mem_params.remove("OSMDownloadLocations")
-    self._mem_params.remove("OSMDownloadBounds")
-    ui_state.params.put_bool("OsmDbUpdatesCheck", False)
+    delete_downloaded_maps(ui_state.params, self._mem_params)
     self._delete_maps_btn.action_item.set_enabled(True)
     self._delete_maps_btn.action_item.set_text(tr("DELETE"))
     self._update_map_size()

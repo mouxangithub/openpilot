@@ -244,6 +244,46 @@ def render_index(grouped: dict[str, list[str]], *, href_fmt: str = "/settings?pa
 OTHER = "other"
 OTHER_LABEL = "内部参数（车机设置页未暴露，谨慎修改）"
 
+# Keys the browser never sees, whatever page they land in (the carrot server's
+# counterpart of the upstream web app's `hidden` field flags). Everything here
+# is either a documented off-UI override, a downloader state machine the
+# manager owns, or jetlink's internal state: editing the raw value from a
+# browser would desync the thing that actually manages it. The ones a driver
+# legitimately controls from a browser get real controls on the dedicated
+# /models page instead.
+HIDDEN_KEYS: frozenset[str] = frozenset({
+  # documented off-UI overrides (see docs/git-proxy-auto-source.md): the
+  # on-device UI was deliberately removed from these
+  "ModelManager_MirrorUrl",
+  "ModelManager_GithubProxy",
+  # jetlink's own state: the link setting is a four-way choice the /models
+  # page drives; the rest are its runtime snapshots
+  "JetlinkLink",
+  "JetlinkSpec",
+  "JetlinkModelPointers",
+  "JetlinkChargePhone",
+  "AcceleratorProgress",
+  # the model manager's state machine: slots are switched by selecting a
+  # model on /models (DownloadRef), never by pasting a bundle JSON
+  "ModelManager_ActiveBundle",
+  "ModelManager_ActiveBundleChestnut",
+  "ModelManager_ModelsCache",
+  "ModelManager_ModelsCache_Chestnut",
+  "ModelManager_LastSyncTime",
+  "ModelManager_LastSyncTime_Chestnut",
+  "ModelManager_DownloadRef",
+})
+
+
+def filter_hidden(grouped: dict[str, list[str]]) -> dict[str, list[str]]:
+  """Drop the hidden keys from every group; groups that lose everything go too."""
+  kept: dict[str, list[str]] = {}
+  for page, keys in grouped.items():
+    visible = [k for k in keys if k not in HIDDEN_KEYS]
+    if visible:
+      kept[page] = visible
+  return kept
+
 
 # ---- live state (needs a params handle) ------------------------------------ #
 
@@ -271,7 +311,7 @@ def collect(params) -> tuple[dict[str, list[str]], dict[str, int], dict[str, Any
     except Exception:
       values[key] = None
   grouped = group_keys(scan_ui_pages(ui_settings_dir()), declared)
-  return grouped, kinds, values
+  return filter_hidden(grouped), kinds, values
 
 
 def apply_updates(params, updates: dict[str, str], kinds: dict[str, int]) -> tuple[int, int]:
@@ -283,6 +323,9 @@ def apply_updates(params, updates: dict[str, str], kinds: dict[str, int]) -> tup
   """
   written = skipped = 0
   for key, raw in updates.items():
+    if key in HIDDEN_KEYS:
+      skipped += 1
+      continue
     kind = kinds.get(key, T_STRING)
     try:
       if kind == T_BOOL:
@@ -365,8 +408,8 @@ _PAGE_TAIL = """</tbody>
 </table>
 <p><input type="submit" value="保存"></p>
 </form>
-<p><a href="/settings">返回设置索引</a> ·
-<a href="/nav_params">导航参数</a> · <a href="/actions">操作</a> ·
+<p><a href="/models">模型</a> · <a href="/settings">返回设置索引</a> ·
+<a href="/actions">操作</a> ·
 <a href="/radar">雷达</a></p>
 </body>
 </html>
@@ -423,7 +466,347 @@ pre {{ background: #f6f6f6; border: 1px solid #ddd; padding: 8px; overflow: auto
 
 _ACTIONS_TAIL = """</tbody>
 </table>
-<p><a href="/settings">设置</a> · <a href="/nav_params">导航参数</a> · <a href="/radar">雷达</a></p>
+<p><a href="/models">模型</a> · <a href="/settings">设置</a> · <a href="/nav_params">导航参数</a> · <a href="/radar">雷达</a></p>
 </body>
 </html>
 """
+
+
+# ---- the models page: the on-device Models panel, in a browser ------------ #
+
+# The on-device Models panel is a hand-built feature page (selectors, the
+# Jetlink four-way switch, live download status, confirm dialogs), not a table
+# of params, so the auto-scan cannot reproduce it. This section mirrors it
+# 1:1 - same slots, same four Jetlink modes, same confirm wording, same
+# Chinese labels - over browser-native controls, reading and writing exactly
+# the keys and values the on-device page does.
+
+_SOURCES = ("qcom", "chestnut")
+_ACTIVE_KEYS = {"qcom": "ModelManager_ActiveBundle", "chestnut": "ModelManager_ActiveBundleChestnut"}
+_CACHE_KEYS = {"qcom": "ModelManager_ModelsCache", "chestnut": "ModelManager_ModelsCache_Chestnut"}
+_SYNC_KEYS = ("ModelManager_LastSyncTime", "ModelManager_LastSyncTime_Chestnut")
+_DOWNLOAD_KEY = "ModelManager_DownloadRef"
+_JETLINK_KEY = "JetlinkLink"
+_JETLINK_MODES = ("off", "usb", "ios", "wifi")
+# titles as the on-device multiple-button renders them (tr of LINK_MODE_TITLES)
+_JETLINK_TITLES = {"off": "关", "usb": "USB", "ios": "iOS", "wifi": "Wi-Fi"}
+
+_JETLINK_DESC = "在接入 comma 的电脑或手机上运行大模型。会关闭 ADB。大模型就绪前由小模型驾驶。"
+
+
+def _bundle_folder(bundle) -> str:
+  for override in getattr(bundle, "overrides", []) or []:
+    if getattr(override, "key", "") == "folder":
+      return getattr(override, "value", "")
+  return ""
+
+
+def collect_models(params) -> dict[str, Any]:
+  """The models panel's live state from params only - no UI imports, no
+  cereal messages. Bundle lists come from the manager's cached catalogs; when
+  the manager has never fetched one the slot simply offers Default."""
+  from openpilot.sunnypilot.models.helpers import get_selected_bundle
+  from openpilot.sunnypilot.models.fetcher import get_cached_bundles
+  from openpilot.sunnypilot.models.model_sizes import bundle_download_fraction
+  from openpilot.common.hardware.hw import Paths
+  from openpilot.selfdrive.ui.sunnypilot.storage_info import directory_size, format_size
+
+  state: dict[str, Any] = {}
+
+  def bundle_entry(bundle) -> dict[str, str]:
+    return {"ref": bundle.ref, "name": bundle.displayName, "folder": _bundle_folder(bundle)}
+
+  for source in _SOURCES:
+    active = None
+    try:
+      active = get_selected_bundle(params, source)
+    except Exception:
+      pass
+    bundles: list[dict[str, str]] = []
+    try:
+      bundles = [bundle_entry(b) for b in get_cached_bundles(params, source)]
+    except Exception:
+      pass
+    state[f"{source}_active_name"] = active.displayName if active is not None else "Default"
+    state[f"{source}_bundles"] = bundles
+
+  # the in-flight download: which pick, and how much of it is on disk
+  download_ref = params.get(_DOWNLOAD_KEY)
+  if isinstance(download_ref, bytes):
+    download_ref = download_ref.decode("utf-8", "replace")
+  state["download_ref"] = download_ref or ""
+  state["download_name"] = ""
+  state["download_fraction"] = None
+  if download_ref:
+    for source in _SOURCES:
+      for bundle in state[f"{source}_bundles"]:
+        if bundle["ref"] == download_ref:
+          state["download_name"] = bundle["name"]
+          try:
+            state["download_fraction"] = bundle_download_fraction(
+              next(b for b in get_cached_bundles(params, source) if b.ref == download_ref),
+              Paths.model_root())
+          except Exception:
+            pass
+          break
+
+  # the Jetlink switch: the stored index, and what its status line says.
+  # The on-device line reads the params-pass snapshot; the browser reads the
+  # same facts out of JetlinkSpec, the JSON jetlink persists for exactly that.
+  index = params.get(_JETLINK_KEY, return_default=True)
+  mode = _JETLINK_MODES[index] if isinstance(index, int) and 0 <= index < len(_JETLINK_MODES) else "off"
+  state["jetlink_mode"] = mode
+  state["jetlink_status"] = _jetlink_status(params)
+  state["offroad"] = _truthy(params.get("IsOffroad")) or _truthy(params.get("OffroadMode"))
+
+  state["cache_size"] = format_size(directory_size(Paths.model_root()))
+
+  # the panel's toggles and sliders, as the on-device widgets hold them
+  state["blendful"] = params.get_bool("Blendful")
+  state["lane_turn_desire"] = params.get_bool("LaneTurnDesire")
+  state["lagd"] = params.get_bool("LagdToggle")
+  state["lane_turn_value"] = int(params.get("LaneTurnValue", return_default=True) or 0)
+  state["lagd_delay"] = int(params.get("LagdToggleDelay", return_default=True) or 0)
+  state["camera_offset"] = int(params.get("CameraOffset", return_default=True) or 0)
+  return state
+
+
+def _jetlink_status(params) -> str:
+  """The one-line port status under the switch, the on-device wording.
+
+  Read from JetlinkSpec (jetlink's persisted snapshot): Wi-Fi points at the
+  hotspot, a connected host names its transport, and the CC pin says whether
+  anything is plugged in.
+  """
+  spec_raw = params.get("JetlinkSpec")
+  if isinstance(spec_raw, bytes):
+    spec_raw = spec_raw.decode("utf-8", "replace")
+  try:
+    spec = json.loads(spec_raw) if isinstance(spec_raw, str) and spec_raw else {}
+  except ValueError:
+    spec = {}
+  mode = spec.get("mode")
+  if mode == "wifi":
+    return "请接入手机热点，并在手机上打开 Jetlink。"
+  port_state = spec.get("port_state") or ("connected" if spec.get("present") else None)
+  if port_state is None and spec.get("port") is not None:
+    port_state = "empty" if spec.get("port") == "empty" else "device"
+  if port_state == "connected":
+    transport = spec.get("transport") or ""
+    return f"Jetlink 已连接：{transport}。"
+  if port_state == "empty":
+    return "USB 端口上没有设备。"
+  if port_state == "device":
+    return "USB 端口上有设备。"
+  return ""
+
+
+def _options_html(state: dict[str, Any], source: str) -> str:
+  """A select's options: Default first, then the catalog grouped by folder."""
+  groups: dict[str, list[dict[str, str]]] = {}
+  for bundle in state[f"{source}_bundles"]:
+    groups.setdefault(bundle["folder"], []).append(bundle)
+  parts = [f'<option value="Default">{"Default"}</option>']
+  for folder in sorted(groups):
+    label = html.escape(folder or "其他")
+    parts.append(f'<optgroup label="{label}">')
+    for bundle in groups[folder]:
+      selected = " selected" if state[f"{source}_active_name"] == bundle["name"] else ""
+      parts.append(f'<option value="{html.escape(bundle["ref"], quote=True)}"{selected}>{html.escape(bundle["name"])}</option>')
+    parts.append("</optgroup>")
+  return "".join(parts)
+
+
+def render_models_page(state: dict[str, Any], *, saved: int | None = None) -> str:
+  """The Models panel as feature cards, in the on-device panel's own wording."""
+  message = ""
+  if saved == 1:
+    message = '<p class="ok">已保存</p>'
+  elif saved == 0:
+    message = '<p class="err">保存失败</p>'
+
+  def slot(source: str, title: str) -> str:
+    active = html.escape(state[f"{source}_active_name"])
+    options = _options_html(state, source)
+    return (f'<div class="card"><div class="t">{title}</div>'
+            f'<div class="cur">当前：{active}</div>'
+            f'<form method="post" action="/models_save">'
+            f'<input type="hidden" name="action" value="select_{source}">'
+            f'<select name="ref">{options}</select>'
+            f'<input type="submit" value="选择模型"></form></div>')
+
+  jetlink_buttons = []
+  for i, mode in enumerate(_JETLINK_MODES):
+    checked = " checked" if state["jetlink_mode"] == mode else ""
+    disabled = "" if state["offroad"] else " disabled"
+    jetlink_buttons.append(
+      f'<label class="rb"><input type="radio" name="jetlink" value="{i}"{checked}{disabled}> {_JETLINK_TITLES[mode]}</label>')
+  jetlink_status = html.escape(state["jetlink_status"])
+  jetlink_note = "" if state["offroad"] else '<div class="d2">熄火状态下才能切换（gadget 重绑会断开已连接的设备）。</div>'
+
+  download = state["download_ref"]
+  if download:
+    frac = state["download_fraction"]
+    percent = f"{frac * 100:.0f}%" if isinstance(frac, (int, float)) else "--"
+    download_html = (
+      f'<div class="card"><div class="t">下载中</div>'
+      f'<div class="cur">{html.escape(state["download_name"] or download)} · {percent}（磁盘占用估算）</div>'
+      f'<form method="post" action="/models_save"><input type="hidden" name="action" value="cancel_download">'
+      f'<input type="submit" value="取消下载"></form></div>')
+  else:
+    download_html = (
+      f'<div class="card"><div class="t">模型状态</div>'
+      f'<div class="cur">没有正在进行的下载</div></div>')
+
+  def checkbox(name: str, title: str, checked: bool, descr: str = "") -> str:
+    d = f'<div class="d2">{html.escape(descr)}</div>' if descr else ""
+    mark = " checked" if checked else ""
+    return (f'<div class="row"><label><input type="checkbox" name="{name}" value="1"{mark}> '
+            f'<span class="t">{title}</span></label>{d}</div>')
+
+  def number(name: str, title: str, value: int, shown: str, descr: str) -> str:
+    return (f'<div class="row"><form method="post" action="/models_save">'
+            f'<input type="hidden" name="action" value="values">'
+            f'<span class="t">{title}</span> '
+            f'<input type="number" step="1" name="{name}" value="{value}"> '
+            f'<span class="d2">{html.escape(shown)} · {html.escape(descr)}</span> '
+            f'<input type="submit" value="保存"></form></div>')
+
+  cache_size = html.escape(state["cache_size"])
+  confirm = ("return confirm('这将从缓存中删除除当前活跃模型外的所有已下载模型，确定吗？');")
+  models_page = f"""<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>sunnypilot · 模型</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body {{ font-family: -apple-system, system-ui, sans-serif; margin: 16px; max-width: 720px; }}
+h1 {{ font-size: 18px; }}
+h2 {{ font-size: 15px; margin: 18px 0 6px; color: #555; }}
+.card, .row {{ border: 1px solid #ddd; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }}
+.row {{ border-radius: 6px; }}
+.t {{ font-weight: 600; }}
+.cur {{ margin: 6px 0; color: #444; }}
+.d2 {{ color: #666; font-size: 12px; margin-top: 2px; }}
+select, input[type=number] {{ padding: 4px 6px; }}
+input[type=submit] {{ padding: 5px 12px; }}
+.rb {{ margin-right: 14px; }}
+.ok {{ color: #2c7; }} .err {{ color: #d33; }}
+form {{ margin: 4px 0; }}
+</style>
+</head>
+<body>
+<h1>模型</h1>
+{message}
+<h2>模型选择</h2>
+{slot("qcom", "小模型")}
+{slot("chestnut", "大模型")}
+{download_html}
+<h2>外接算力连接</h2>
+<div class="card">
+  <div class="t">Jetlink</div>
+  <div class="cur">{_JETLINK_DESC} {jetlink_status}</div>
+  <form method="post" action="/models_save">
+    <input type="hidden" name="action" value="jetlink">
+    {''.join(jetlink_buttons)}
+    <input type="submit" value="保存">
+  </form>
+  {jetlink_note}
+</div>
+<h2>操作</h2>
+<div class="row">
+  <form method="post" action="/models_save" onsubmit="{confirm}">
+    <input type="hidden" name="action" value="clear_cache">
+    <span class="t">清除模型缓存</span> <span class="d2">当前占用 {cache_size}</span>
+    <input type="submit" value="清除">
+  </form>
+  <form method="post" action="/models_save">
+    <input type="hidden" name="action" value="refresh">
+    <span class="t">刷新模型列表</span>
+    <input type="submit" value="刷新">
+  </form>
+</div>
+<h2>转向与显示</h2>
+<div class="card">
+{checkbox("blendful", "融合车道（测试版）", state["blendful"],
+          "在模型自身转向的基础上，轻柔地把车辆推回车道中央；车道线越清晰修正越强。遇到障碍会自动避让。默认模型不可用。")}
+{checkbox("lane_turn_desire", "使用变道转向意图", state["lane_turn_desire"],
+          "如果你以 32 km/h 或更低的速度行驶并打开转向灯，车辆将在最近的可行驶路径上规划该方向的转弯。")}
+{checkbox("lagd", "自学习转向延迟", state["lagd"],
+          "开启后车辆会学习并自适应转向响应时间。关闭则使用固定的转向响应时间。保持开启即原厂 openpilot 体验。")}
+</div>
+<div class="card">
+{number("LaneTurnValue", "调整变道转向速度", state["lane_turn_value"],
+        f"{round(state['lane_turn_value'] / 100 * 1.609344)} km/h", "变道转向意图的最大速度，默认 19 mph。")}
+{number("LagdToggleDelay", "调整软件延迟", state["lagd_delay"],
+        f"{state['lagd_delay'] / 100:.2f} s", "关闭自学习转向延迟时使用的软件延迟，默认 0.20s。")}
+{number("CameraOffset", "调整相机偏移", state["camera_offset"],
+        f"{state['camera_offset'] / 100:.2f} m", "虚拟移动相机视角，正值模型中心偏左，负值偏右。")}
+</div>
+<p><a href="/models">模型</a> · <a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/nav_params">导航参数</a> · <a href="/radar">雷达</a></p>
+</body>
+</html>
+"""
+  return models_page
+
+
+def apply_models_form(params, form: dict[str, list[str]]) -> tuple[bool, str]:
+  """Run one models-page action. Every path goes through the same key the
+  on-device widget writes, and every model ref is checked against the cached
+  catalog before it is trusted."""
+  action = (form.get("action", [""])[0] or "").strip()
+  if action == "clear_cache":
+    params.put_bool("ModelManager_ClearCache", True)
+    return True, "已写入 ModelManager_ClearCache，车机随后清除（保留活跃模型）"
+  if action == "cancel_download":
+    params.remove(_DOWNLOAD_KEY)
+    return True, "已取消下载"
+  if action == "refresh":
+    for key in _SYNC_KEYS:
+      params.put(key, 0)
+    return True, "已请求重新拉取模型目录"
+  if action == "jetlink":
+    raw = form.get("jetlink", ["0"])[0]
+    try:
+      index = int(raw)
+    except ValueError:
+      return False, "无效的模式"
+    if not 0 <= index < len(_JETLINK_MODES):
+      return False, "无效的模式"
+    if not (_truthy(params.get("IsOffroad")) or _truthy(params.get("OffroadMode"))):
+      return False, "车辆通电时不能切换外接算力（gadget 重绑会断开已连接的设备）"
+    params.put(_JETLINK_KEY, index, block=True)
+    return True, f"外接算力已切换为 {_JETLINK_TITLES[_JETLINK_MODES[index]]}"
+  if action in ("select_qcom", "select_chestnut"):
+    # imported here so the parameter-only actions never pull the cereal stack
+    from openpilot.sunnypilot.models.helpers import ACTIVE_BUNDLE_KEYS
+    from openpilot.sunnypilot.models.fetcher import get_cached_bundles
+    source = action.removeprefix("select_")
+    ref = (form.get("ref", [""])[0] or "").strip()
+    if ref == "Default":
+      params.remove(_ACTIVE_KEYS[source])
+      return True, "已恢复默认模型"
+    if not ref:
+      return False, "未选择模型"
+    valid = {b.ref for b in get_cached_bundles(params, source)}
+    if ref not in valid:
+      return False, "所选模型不在目录中（请先刷新模型列表）"
+    params.put(_DOWNLOAD_KEY, ref)
+    return True, "已开始下载所选模型"
+  if action == "values":
+    written = []
+    for key in ("Blendful", "LaneTurnDesire", "LagdToggle"):
+      params.put_bool(key, _truthy(form.get(key, ["0"])[0] or "0"))
+      written.append(key)
+    for key in ("LaneTurnValue", "LagdToggleDelay", "CameraOffset"):
+      raw = (form.get(key, [""])[0] or "").strip()
+      if not raw:
+        continue
+      try:
+        params.put(key, int(raw), block=True)
+        written.append(key)
+      except (ValueError, TypeError, OverflowError):
+        return False, f"{key} 的值无效"
+    return True, "已保存 " + ", ".join(written)
+  return False, "未知操作"

@@ -78,7 +78,7 @@ _HTML_NAVPARAMS_TAIL = """</tbody>
 </table>
 <p><input type="submit" value="保存"></p>
 </form>
-<p><a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/radar">雷达视图</a></p>
+<p><a href="/models">模型</a> · <a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/radar">雷达视图</a> · <a href="/nav_params">导航参数</a></p>
 </body>
 </html>
 """
@@ -105,7 +105,7 @@ body { font-family: -apple-system, system-ui, sans-serif; margin: 16px; }
 
 
 _HTML_RADAR_TAIL = """</div>
-<p><a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/nav_params">导航参数</a></p>
+<p><a href="/models">模型</a> · <a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/nav_params">导航参数</a></p>
 </body>
 </html>
 """
@@ -154,7 +154,12 @@ class _CarrotWebHandler(BaseHTTPRequestHandler):
     parsed = urlparse(self.path)
     path = parsed.path
 
-    if path == "/" or path == "/nav_params":
+    if path == "/" :
+      self._redirect("/models")
+      return
+    elif path == "/models":
+      self._write(self.server.interface.render_models_page(parse_qs(parsed.query)))
+    elif path == "/nav_params":
       self._write(self.server.interface.render_nav_params_page())
     elif path == "/radar":
       self._write(self.server.interface.render_radar_page())
@@ -175,6 +180,12 @@ class _CarrotWebHandler(BaseHTTPRequestHandler):
 
   def do_POST(self) -> None:
     parsed = urlparse(self.path)
+    if parsed.path == "/models_save":
+      length = int(self.headers.get("Content-Length", "0") or "0")
+      body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
+      ok = self.server.interface.apply_models_form(parse_qs(body))
+      self._redirect(f"/models?saved={'1' if ok else '0'}")
+      return
     if parsed.path == "/nav_params_save":
       length = int(self.headers.get("Content-Length", "0") or "0")
       body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
@@ -366,6 +377,17 @@ class WebInterface:
 
     if touched_usb_port:
       _enforce_usb_port()
+
+  # ---- models (the on-device Models panel, in a browser) ----------------- #
+
+  def render_models_page(self, query: dict[str, list[str]] | None = None) -> bytes:
+    saved_raw = (query or {}).get("saved", [""])[0]
+    saved = 1 if saved_raw == "1" else (0 if saved_raw == "0" else None)
+    return ws.render_models_page(ws.collect_models(Params()), saved=saved).encode("utf-8")
+
+  def apply_models_form(self, form: dict[str, list[str]]) -> bool:
+    ok, _detail = ws.apply_models_form(Params(), form)
+    return ok
 
   # ---- settings (the on-device pages, in a browser) --------------------- #
 

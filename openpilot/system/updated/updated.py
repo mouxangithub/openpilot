@@ -32,6 +32,7 @@ OVERLAY_INIT = Path(os.path.join(BASEDIR, ".overlay_init"))
 from openpilot.sunnypilot.system.updated.connectivity import HOURS_NO_CONNECTIVITY_MAX, ROUTES_NO_CONNECTIVITY_MAX
 from openpilot.sunnypilot.system.updated.connectivity import HOURS_NO_CONNECTIVITY_PROMPT, ROUTES_NO_CONNECTIVITY_PROMPT
 from openpilot.sunnypilot.system.updated import git_proxy
+from openpilot.sunnypilot.system.updated import lfs_source
 
 
 class UserRequest:
@@ -222,6 +223,9 @@ class Updater:
     # Healthy sources from the last probe, quickest first; empty string is
     # the official origin. A fetch walks down this list when one dies.
     self._source_prefixes: list[str] = []
+    # LFS endpoint selection is independent of the github proxies and only
+    # needs to run once per update attempt, not on each source retry.
+    self._lfs_endpoint_applied: bool = False
 
   @property
   def has_internet(self) -> bool:
@@ -472,6 +476,57 @@ class Updater:
     self._proxy_prefix = prefix
     return True
 
+  def _configured_lfs_url(self) -> str:
+    """The tracked LFS endpoint from .lfsconfig, ignoring a local override.
+
+    Probing must always compare against the shipped default, not the mirror a
+    previous run wrote into local config - otherwise the direct endpoint drops
+    out of the candidate list and the device can never move back to it.
+    """
+    try:
+      return run(["git", "config", "-f", ".lfsconfig", "--get", "lfs.url"], OVERLAY_MERGED).strip()
+    except subprocess.CalledProcessError:
+      return ""
+
+  def _apply_lfs_endpoint(self) -> None:
+    """Point git-lfs at the fastest endpoint that serves the model objects.
+
+    Independent of the github proxies: LFS objects come from huggingface, not
+    github. The batch API is measured; a mirror that wins is written to local
+    lfs.url, which overrides .lfsconfig without touching the tracked file (its
+    fetchexclude and locksverify still apply).
+
+    A previous run's local override is cleared first so the probe always
+    compares against the shipped direct endpoint: otherwise a mirror that was
+    fastest once and then went down would stay pinned, with no way back. When
+    the probe fails or the direct endpoint wins, no override is set and
+    .lfsconfig's default applies.
+    """
+    configured = self._configured_lfs_url()
+    if not configured:
+      return
+    # Drop any earlier local selection, ignoring "key not present".
+    try:
+      run(["git", "config", "--unset", "lfs.url"], OVERLAY_MERGED)
+    except subprocess.CalledProcessError:
+      pass
+    try:
+      best = lfs_source.select_endpoint(configured)
+    except Exception as e:
+      cloudlog.warning(f"lfs_source: probe failed, keeping direct endpoint: {e}")
+      return
+    if not best:
+      cloudlog.warning("lfs_source: no endpoint answered, keeping direct endpoint")
+      return
+    if best.rstrip("/") == configured.rstrip("/"):
+      cloudlog.info("lfs_source: direct endpoint is fastest")
+      return
+    try:
+      run(["git", "config", "lfs.url", best], OVERLAY_MERGED)
+      cloudlog.info(f"lfs_source: using mirror {best}")
+    except subprocess.CalledProcessError as e:
+      cloudlog.warning(f"lfs_source: failed to set lfs.url: {e}")
+
   def fetch_update_with_retry(self) -> None:
     """Fetch, trying each healthy source in latency order.
 
@@ -483,6 +538,11 @@ class Updater:
     """
     prefixes = self._source_prefixes or [""]
     last_error: Exception | None = None
+    if not self._lfs_endpoint_applied:
+      # LFS objects come from huggingface, independent of the github proxies;
+      # choose that endpoint once before the first fetch smudges any objects.
+      self._apply_lfs_endpoint()
+      self._lfs_endpoint_applied = True
     for prefix in prefixes:
       if prefix:
         cloudlog.info(f"git_proxy: fetching from {prefix}")
