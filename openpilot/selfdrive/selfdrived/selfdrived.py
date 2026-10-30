@@ -835,14 +835,21 @@ class SelfdriveD:
 
   def step(self):
     CS = self.data_sample()
+    self.update_impact_dashcam(CS)
     self.update_events(CS)
+    # cp impact dashcam: a pending countdown raises the silent notice the UI
+    # renders as a cancellable countdown; a committed countdown immediately
+    # disables openpilot (impactDashcamReboot carries ET.IMMEDIATE_DISABLE).
+    if self.impact_dashcam.pending:
+      self.events.add(EventName.impactDetected)
+    if self.impact_dashcam.committed:
+      self.events.add(EventName.impactDashcamReboot)
     if not self.CP.passive and self.initialized:
       self.enabled, self.active = self.state_machine.update(self.events)
     if not self.CP.notCar:
       self.mads.update(CS)
     self.update_alerts(CS)
     self.update_nnff_alert(CS)
-    self.update_impact_dashcam(CS)
 
     self.button_state_tracker.update(CS)
     self.publish_selfdriveState(CS)
