@@ -86,6 +86,18 @@ MIN_LANE_INTERVAL_MS = 600
 # loops that drag each other (and the rest of the process) down.
 INFERENCE_BACKPRESSURE_FACTOR = 1.15
 
+# Circuit breaker: the driving model must stay alive while the vision heads run.
+# If modelV2 stalls (camerad/modeld wedge) while the heads were previously
+# running, all xiaoge inference stops immediately so this subscriber can neither
+# be implicated in nor worsen a camera-pipeline wedge; the heads re-arm only
+# after modelV2 has been healthy again for a full window, and give up for the
+# session after too many trips. modelV2 staleness also trips commIssue NO_ENTRYs
+# downstream, so keeping it alive is the contract this service must honour.
+PIPELINE_STALE_SECONDS = 1.5
+PIPELINE_RECOVERY_SECONDS = 10.0
+MAX_PIPELINE_FAULTS = 3
+PIPELINE_CHECK_INTERVAL_SECONDS = 0.5
+
 
 DEFAULT_POLYGONS = {
   "width": 1928,
@@ -238,6 +250,14 @@ class VASMService:
     self.lane_interval_seconds = 1.0
     self.lane_camera_error = "waiting for road camera"
     self.last_road_jpeg: bytes | None = None
+    # Pipeline circuit-breaker state (see PIPELINE_* constants). All reads and
+    # writes happen on the wide-camera thread only; camera threads read the
+    # fault flag under self.lock.
+    self.pipeline_fault = False
+    self.pipeline_faults = 0
+    self.pipeline_model_alive = False
+    self.pipeline_recovery_at = 0.0
+    self._pipeline_next_check = 0.0
     self.last_road_frame_at = 0.0
     self.last_lane_inference_at = 0.0
     self.last_lane_inference_ms = 0.0
@@ -580,6 +600,62 @@ class VASMService:
       self.vasm_gate = gate
     return eligible_sides
 
+  def _check_pipeline_health(self, now: float) -> None:
+    """Circuit breaker (wide-camera thread only). Trips when modelV2 — the
+    driving model this service must not disturb — goes stale while the heads
+    were running: all xiaoge inference stops immediately and the results clear,
+    so a camerad/modeld wedge can neither be worsened by nor pinned on this
+    subscriber. Heads re-arm after modelV2 stays healthy for a full recovery
+    window, up to MAX_PIPELINE_FAULTS trips per session."""
+    if now < self._pipeline_next_check:
+      return
+    self._pipeline_next_check = now + PIPELINE_CHECK_INTERVAL_SECONDS
+    try:
+      self.sm.update(0)
+      model_age = now - self.sm.recv_time.get('modelV2', 0.0)
+    except Exception:
+      return
+    model_alive = model_age < PIPELINE_STALE_SECONDS
+    was_alive = self.pipeline_model_alive
+    self.pipeline_model_alive = model_alive
+
+    if self.pipeline_fault:
+      if not model_alive:
+        self.pipeline_recovery_at = 0.0
+        return
+      if self.pipeline_recovery_at == 0.0:
+        self.pipeline_recovery_at = now
+        return
+      if now - self.pipeline_recovery_at < PIPELINE_RECOVERY_SECONDS:
+        return
+      self.pipeline_recovery_at = 0.0
+      if self.pipeline_faults < MAX_PIPELINE_FAULTS:
+        self.pipeline_fault = False
+        self._log_pipeline('xiaogeVisionPipelineRecovered')
+      else:
+        self._log_pipeline('xiaogeVisionPipelineDisabled')
+      return
+
+    if was_alive and not model_alive:
+      self.pipeline_fault = True
+      self.pipeline_faults += 1
+      with self.lock:
+        self.vasm_result = {
+          "left": False, "right": False, "side": "", "updatedMonoTimeNanos": 0,
+          "updatedMonoTimeNanosBySide": {"left": 0, "right": 0},
+        }
+        self.yolo_result = None
+        self.lane_result = {**self.lane_result, "valid": False}
+      self._log_pipeline('xiaogeVisionPipelineFault', model_age_s=round(model_age, 2))
+      self.publish_vision_result()
+
+  def _log_pipeline(self, event: str, **extra) -> None:
+    try:
+      from openpilot.common.swaglog import cloudlog
+      cloudlog.event(event, faults=self.pipeline_faults, **extra)
+    except Exception:
+      pass
+
   def publish_vision_result(self) -> None:
     status = self.status()
     lane = status["lane"]["result"]
@@ -660,6 +736,7 @@ class VASMService:
           continue
         now = time.monotonic()
         self._refresh_settings_from_params()
+        self._check_pipeline_health(now)
         publish_clear = False
         with self.lock:
           bsd_enabled = self.bsd_enabled
@@ -690,6 +767,12 @@ class VASMService:
           with self.vasm_inference_lock:
             self.inference.reset()
         if not bsd_enabled:
+          if publish_clear:
+            self.publish_vision_result()
+          continue
+        # Circuit breaker open: publish the cleared results once, then stand
+        # down from all BSD inference until it closes again.
+        if self.pipeline_fault:
           if publish_clear:
             self.publish_vision_result()
           continue
@@ -800,12 +883,12 @@ class VASMService:
         # cadence can starve the other. Reserving the slot before inferring
         # keeps one slow frame from double-firing its own head.
         with self.lock:
-          lane_due = self.lane_inference.valid and \
+          lane_due = self.lane_inference.valid and not self.pipeline_fault and \
             now - self.last_lane_inference_at >= self._lane_interval_for(now)
           lane_threshold = self.lane_threshold
           if lane_due:
             self.last_lane_inference_at = now
-          yolo_due = self.yolo_enabled and self.yolo.valid and \
+          yolo_due = self.yolo_enabled and self.yolo.valid and not self.pipeline_fault and \
             now - self.last_yolo_inference_at >= self._yolo_interval_for(now)
           if yolo_due:
             self.last_yolo_inference_at = now

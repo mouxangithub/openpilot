@@ -56,12 +56,38 @@ TARGET_HZ = 2.0
 TARGET_CPU_DUTY = .25
 
 
-def requested(directory=DIRECTORY):
-  """Opt-in state. Absent file means off; nothing enables this by default."""
+_param_enabled_cache: tuple[float, bool] = (0., False)
+
+
+def _param_enabled():
+  """Settings-toggle state (SignalYoloEnabled), cached 0.5 s against param reads."""
+  global _param_enabled_cache
+  now = time.monotonic()
+  cached_at, cached = _param_enabled_cache
+  if now - cached_at < .5:
+    return cached
+  try:
+    from openpilot.common.params import Params
+    value = Params().get_bool('SignalYoloEnabled')
+  except Exception:
+    value = False
+  _param_enabled_cache = (now, value)
+  return value
+
+
+def file_requested(directory=DIRECTORY):
+  """Legacy CLI opt-in: /data/signal-yolo-shadow/enabled == '1'. Uncached."""
   try:
     return (Path(directory) / 'enabled').read_text().strip() == '1'
   except OSError:
     return False
+
+
+def requested(directory=DIRECTORY):
+  """Opt-in state. The SignalYoloEnabled settings toggle OR the legacy CLI file
+  means on; absent both means off. The file read stays uncached so a CLI
+  toggle-off takes effect immediately; only the param read is cached."""
+  return file_requested(directory) or _param_enabled()
 
 
 def control_requested(directory=DIRECTORY):

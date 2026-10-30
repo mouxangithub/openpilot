@@ -690,6 +690,10 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // a navigation intent becoming a vehicle actuation, so it has to be an explicit
     // choice rather than the default.
     {"CarrotAtcBlinkerEnabled", {PERSISTENT | BACKUP, BOOL, "0", std::nullopt, 1, SETTINGS_SIMPLE}},
+    // Traffic-light YOLO observer (signalyolod): display-only road-scene reading
+    // drawn as boxes + labels on the driving view. Never feeds control; the
+    // file-based /data/signal-yolo-shadow opt-in still ORs in for CLI users.
+    {"SignalYoloEnabled", {PERSISTENT | BACKUP, BOOL, "0", std::nullopt, 1, SETTINGS_SIMPLE}},
     {"CarrotSourceTimeoutMs", {PERSISTENT | BACKUP, INT, "2000", std::nullopt, 3, SETTINGS_ADVANCED}},          // carrot packet timeout [ms]
     {"CarrotTrafficCongestionEnabled", {PERSISTENT | BACKUP, BOOL, "0", std::nullopt, 1, SETTINGS_SIMPLE}},   // fold phone TMC congestion into SmartCruiseControlMap (only lowers the target)
     // Carrot navigation deceleration for a point ahead: ATC turn speed, the curve

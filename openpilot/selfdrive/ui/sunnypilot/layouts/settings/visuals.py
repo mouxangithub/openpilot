@@ -110,6 +110,15 @@ class VisualsLayout(Widget):
            "on your behalf. Always check the light yourself."),
         None,
       ),
+      "SignalYoloEnabled": (
+        lambda: tr("Traffic Light Vision Boxes (YOLO)"),
+        tr("Run the YOLOv8 traffic-light detector on the road camera and draw a box around each " +
+           "detected signal housing on the driving view, with the observed signal (red light, green " +
+           "light, turn arrows) written under the box." +
+           "<br>Runs at most 2 Hz on the little cores and is display only: it never feeds the planner " +
+           "and never lets openpilot act on a traffic light on your behalf. Always check the light yourself."),
+        None,
+      ),
     }
     self._toggles = {}
     for param, (title, desc, callback) in self._toggle_defs.items():

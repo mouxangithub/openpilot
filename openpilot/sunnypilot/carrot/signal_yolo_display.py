@@ -26,16 +26,27 @@ _observer_requested_cache: tuple[float, bool] = (0., False)
 
 
 def observer_requested(now: float | None = None, path: Path | None = None) -> bool:
-  """The observer's own opt-in, read at most twice a second."""
+  """The observer's own opt-in, read at most twice a second. Mirrors the
+  producer's gate: the SignalYoloEnabled settings toggle OR the legacy CLI file.
+  The file check stays uncached so a CLI toggle-off shows up immediately; only
+  the param read is cached."""
   global _observer_requested_cache
   now = time.monotonic() if now is None else now
   cached_at, cached = _observer_requested_cache
   if now < cached_at:
     return cached
   try:
-    value = Path(path or ENABLE_PATH).read_text().strip() == '1'
+    file_value = Path(path or ENABLE_PATH).read_text().strip() == '1'
   except OSError:
-    value = False
+    file_value = False
+  if file_value:
+    value = True
+  else:
+    try:
+      from openpilot.common.params import Params
+      value = Params().get_bool('SignalYoloEnabled')
+    except Exception:
+      value = False
   _observer_requested_cache = (now + .5, value)
   return value
 
