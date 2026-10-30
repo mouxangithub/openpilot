@@ -15,7 +15,11 @@ import openpilot.cereal.messaging as messaging
 
 
 def main():
-  config_realtime_process(5, Priority.CTRL_LOW)
+  # Core 7 (with modeld, RT 54): core 5 is shared with card (RT 53, ~58% CPU on
+  # CAN-heavy cars), which starved this RT-51 planner - longitudinalPlan sagged
+  # to 6-15 Hz mid-drive and tripped commIssue/commIssueAvgFreq NO_ENTRYs
+  # (2026-10-30 evening route 49 seg16-17). Core 7 is isolcpus with ~25% load.
+  config_realtime_process(7, Priority.CTRL_LOW)
 
   cloudlog.info("plannerd is waiting for CarParams")
   params = Params()
