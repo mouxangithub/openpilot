@@ -397,6 +397,15 @@ class Car:
       self.params.put_bool("ControlsReady", True)
 
     if self.sm.all_alive(['carControl']):
+      # cp impact dashcam: while a dashcam reboot is pending, neutralize the final
+      # CAN output at the last application boundary, no matter what was queued.
+      if self.params.get_bool("ImpactDashcamReboot"):
+        CC = CC.as_builder()
+        CC.enabled = CC.latActive = CC.longActive = False
+        CC.actuators = car.CarControl.Actuators.new_message()
+        CC.cruiseControl.resume = CC.cruiseControl.override = False
+        CC.cruiseControl.cancel = CS.cruiseState.enabled
+        CC = CC.as_reader()
       # send car controls over can
       now_nanos = self.can_log_mono_time if REPLAY else int(time.monotonic() * 1e9)
       self.last_actuators_output, can_sends = self.CI.apply(CC, self.card_ext.controls_update(CS, CC, convert_carControlSP(CC_SP)), now_nanos)

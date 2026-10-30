@@ -226,6 +226,11 @@ class Controls(ControlsExt):
     CC.longActive = CC.enabled and not any(e.overrideLongitudinal for e in self.sm['onroadEvents']) and \
                     (self.CP.openpilotLongitudinalControl or not self.pcm_cruise_speed)
 
+    # cp impact dashcam: while manager drains workers for the dashcam reboot, no
+    # actuator output may leave controlsd regardless of any enable state above.
+    if self.params.get_bool("ImpactDashcamReboot"):
+      CC.enabled = CC.latActive = CC.longActive = False
+
     actuators = CC.actuators
     actuators.longControlState = self.LoC.long_control_state
 
