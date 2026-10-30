@@ -51,7 +51,13 @@ except Exception:
         return value
 
     def put(self, key, value, **kwargs):
-      self._store[key] = str(value)
+      if value is True or value == "1":
+        value = "1"
+      elif value is False or value == "0":
+        value = "0"
+      else:
+        value = str(value)
+      self._store[key] = value
 
   # The real module raises during its own import (CDLL at module level), so it is
   # not left in sys.modules: install the stub module wholesale.
@@ -93,12 +99,30 @@ def frames(dh, n, carstate=None, carrot_man=None, radar_state=None, **kwargs):
   return desire
 
 
+def reset_params():
+  """Reset only the keys this suite touches.
+
+  PC stub: in-memory dict reset. Device (real libparams): remove() the keys so
+  other vehicle settings stored in /data/params are left untouched.
+  """
+  if hasattr(Params, "_reset"):
+    Params._reset()
+  else:
+    p = Params()
+    for key in ("CarrotAtcBlinkerEnabled", "AutoLaneChangeTimer", "LaneChangeNeedTorque"):
+      try:
+        p.remove(key)
+      except Exception:
+        pass
+
+
 class TestCarrotAtc(unittest.TestCase):
   def setUp(self):
-    Params._reset()
+    reset_params()
 
   def _atc_dh(self):
-    Params().put("CarrotAtcBlinkerEnabled", "1")
+    # real Params type-checks: BOOL keys must be written as bool, INT as int
+    Params().put("CarrotAtcBlinkerEnabled", True)
     dh = DesireHelper()
     dh.alc.lane_change_set_timer = AutoLaneChangeMode.NUDGE  # default: ATC lamp may act alone
     return dh
