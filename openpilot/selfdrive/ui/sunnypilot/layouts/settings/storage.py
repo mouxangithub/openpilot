@@ -84,12 +84,12 @@ class StorageLayout(Widget):
 
     usage = disk_usage(_DISK_PROBE_PATH)
     if usage is not None:
-      self._disk_item.action_item.set_value(
+      self._disk_item.action_item.set_text(
         f"{format_size(usage.used)} / {format_size(usage.total)}  ·  {tr('{} free').format(format_size(usage.free))}")
       percent = usage.used_fraction * 100.0
       self._disk_bar.action_item.update(percent, f"{percent:.0f}%", show_progress=True)
     else:
-      self._disk_item.action_item.set_value(tr("Unavailable"))
+      self._disk_item.action_item.set_text(tr("Unavailable"))
 
   def _refresh_sizes(self):
     threading.Thread(target=self._compute_sizes, daemon=True).start()

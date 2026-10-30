@@ -13,6 +13,10 @@ UI_TIMEOUT = 0.5
 def read_object(params, key):
   try:
     value = params.get(key)
+  except Exception:
+    # unregistered/unknown key must never take the UI thread down
+    return {}
+  try:
     if isinstance(value, dict):
       return value
     value = json.loads(value or "{}")
