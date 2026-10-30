@@ -1003,6 +1003,10 @@ EVENTS: dict[int, dict[str, Alert | AlertCallbackType]] = {
   EventName.userBookmark: {
     ET.PERMANENT: NormalPermanentAlert("书签已保存", duration=1.5),
   },
+
+  EventName.userBookmarkNotPaired: {
+    ET.PERMANENT: NormalPermanentAlert("未配对设备", "书签需要先配对设备", duration=2.0),
+  },
 }
 
 

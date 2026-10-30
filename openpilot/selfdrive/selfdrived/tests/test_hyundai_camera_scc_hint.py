@@ -74,16 +74,39 @@ def alert(brand: str, flags: int = _HYUNDAI_FLAGS_WITHOUT_CAMERA_SCC):
   return can_error_alert(CP, None, None, False, 0, None)
 
 
+_TOUCHED_KEYS = ("HyundaiCameraSCC", "HyundaiCameraSccHint")
+
+
 def set_params(**values):
-  # the dict backing the PC Params stub above; on-device tests write real params instead
+  # the dict backing the PC Params stub; on a real device write the actual
+  # Params instead (must be cleaned up afterwards so nothing leaks to the car)
   store = sys.modules['openpilot.common.params']._PARAM_STORE if hasattr(sys.modules['openpilot.common.params'], '_PARAM_STORE') else None
-  if store is None:
-    return  # real Params available: nothing to fake
-  store.clear()
-  store.update(values)
+  if store is not None:
+    store.clear()
+    store.update(values)
+    return
+  from openpilot.common.params import Params
+  params = Params()
+  for key in _TOUCHED_KEYS:
+    params.remove(key)
+  for key, value in values.items():
+    if key == "HyundaiCameraSccHint":
+      params.put_bool(key, value)
+    else:
+      params.put_int(key, value)
 
 
 class TestCanErrorAlert:
+  def tearDown(self):
+    # remove residue from real-device params so nothing persists on the car
+    store = sys.modules['openpilot.common.params']._PARAM_STORE if hasattr(sys.modules['openpilot.common.params'], '_PARAM_STORE') else None
+    if store is None:
+      from openpilot.common.params import Params
+      params = Params()
+      for key in _TOUCHED_KEYS:
+        params.remove(key)
+
+
   def test_can_error_event_uses_the_callback(self):
     # the port replaces the static PERMANENT alert with the hint-aware callback
     entry = EVENTS[log.OnroadEvent.EventName.canError]
