@@ -11,6 +11,13 @@ from cluster_models import GitBranchStatus
 
 GIT_STATUS_REFRESH_SECONDS = 60.0
 GIT_COMMAND_TIMEOUT_SECONDS = 4.0
+# Bare git dir that absorbs the periodic behind-count fetch (FETCH_HEAD, remote
+# tracking refs, packs), with alternates pointing at the real checkout's object
+# store. The launcher installs a downloaded overlay update at boot only when
+# nothing under /data/openpilot/.git is newer than .overlay_init; fetching into
+# the real repo would keep that guard permanently tripped and silently skip
+# every update (same root cause as services/git_status.py).
+GIT_STATUS_MIRROR_DIR = Path("/data/.git_status_cluster")
 
 
 def drop_git_worker_realtime_priority() -> None:
@@ -175,25 +182,80 @@ class GitBranchStatusProvider:
     return None
 
   def _behind_count(self, remote_name: str, remote_branch: str) -> int | None:
+    url_result = self._git("config", "--get", f"remote.{remote_name}.url", timeout_s=1.0)
+    if url_result.returncode != 0 or not url_result.stdout.strip():
+      return None
+    if not self._ensure_mirror():
+      return None
+
     tracking_ref = f"refs/remotes/{remote_name}/{remote_branch}"
-    fetch_result = self._git(
+    fetch_result = self._git_mirror(
       "fetch",
       "--quiet",
-      "--prune",
-      remote_name,
+      url_result.stdout.strip(),
       f"+refs/heads/{remote_branch}:{tracking_ref}",
       timeout_s=self.command_timeout_s,
     )
     if fetch_result.returncode != 0:
       return None
 
-    result = self._git("rev-list", "--count", f"HEAD..{tracking_ref}", timeout_s=1.0)
+    # The mirror has no HEAD of its own; compare the real checkout's HEAD sha.
+    head_result = self._git("rev-parse", "HEAD", timeout_s=1.0)
+    if head_result.returncode != 0:
+      return None
+    result = self._git_mirror("rev-list", "--count", f"{head_result.stdout.strip()}..{tracking_ref}", timeout_s=1.0)
     if result.returncode != 0:
       return None
     try:
       return max(0, int(result.stdout.strip()))
     except ValueError:
       return None
+
+  def _ensure_mirror(self) -> bool:
+    """Create the fetch mirror once; it only fails on systems without /data."""
+    alternates = GIT_STATUS_MIRROR_DIR / "objects" / "info" / "alternates"
+    if alternates.is_file():
+      return True
+    try:
+      GIT_STATUS_MIRROR_DIR.mkdir(parents=True, exist_ok=True)
+      # No --git-dir here: init is special-cased by git and must not inherit one.
+      init = subprocess.run(
+        ("git", "init", "--bare", str(GIT_STATUS_MIRROR_DIR)),
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False,
+        timeout=self.command_timeout_s,
+      )
+      if init.returncode != 0:
+        return False
+      git_dir = self._git("rev-parse", "--absolute-git-dir", timeout_s=1.0)
+      # Forward slashes only: git rejects a malformed alternates entry and
+      # warns on stderr, which some callers merge into stdout.
+      objects = f"{git_dir.stdout.strip().rstrip('/\\')}/objects" if git_dir.returncode == 0 and git_dir.stdout.strip() \
+        else str(self.repo_path / ".git" / "objects").replace("\\", "/")
+      alternates.parent.mkdir(parents=True, exist_ok=True)
+      # newline="": text mode would translate \n to \r\n on Windows and git
+      # would read the object directory path with a trailing carriage return.
+      alternates.write_text(objects + "\n", encoding="utf-8", newline="")
+      return True
+    except OSError:
+      return False
+
+  def _git_mirror(self, *args: str, timeout_s: float) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    try:
+      return subprocess.run(
+        ("git", f"--git-dir={GIT_STATUS_MIRROR_DIR}", *args),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        timeout=timeout_s,
+        check=False,
+      )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+      return subprocess.CompletedProcess(args, returncode=124, stdout="", stderr=str(exc))
 
   def _git(self, *args: str, timeout_s: float) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()

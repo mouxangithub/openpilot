@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import shutil
 import time
 from typing import Any
 
@@ -13,6 +15,10 @@ GIT_STATUS_TTL = 600.0
 GIT_STATUS_POLL_INTERVAL = 60.0
 FETCH_TIMEOUT = 25.0
 GIT_TIMEOUT = 8.0
+# Bare git dir that absorbs every write of the periodic status fetch
+# (FETCH_HEAD, remote-tracking refs, fetched packs). Its objects/info/alternates
+# points at the real checkout's object store, so rev-list sees all local objects.
+STATUS_GIT_DIR = "/data/.git_status"
 
 _cache: dict[str, Any] | None = None
 _lock: asyncio.Lock | None = None
@@ -55,6 +61,66 @@ async def _git(args: list[str], timeout: float = GIT_TIMEOUT) -> tuple[int, str]
 async def _git_text(args: list[str], timeout: float = GIT_TIMEOUT) -> str:
   rc, out = await _git(args, timeout=timeout)
   return out if rc == 0 else ""
+
+
+async def _mirror_git(args: list[str], timeout: float = GIT_TIMEOUT) -> tuple[int, str]:
+  # "--git-dir=" must use the = form: git.c handles this global option by
+  # prefix match, not parse-options, so the space-separated form is not accepted.
+  return await run_process(["git", f"--git-dir={STATUS_GIT_DIR}", *args], timeout=timeout)
+
+
+async def _mirror_git_text(args: list[str], timeout: float = GIT_TIMEOUT) -> str:
+  rc, out = await _mirror_git(args, timeout=timeout)
+  return out if rc == 0 else ""
+
+
+async def _ensure_status_mirror() -> bool:
+  """Create the status mirror once.
+
+  The launcher (launch_chffrplus.sh) installs a downloaded overlay update at
+  boot only when nothing under /data/openpilot/.git is newer than
+  .overlay_init. Fetching into the real repo writes FETCH_HEAD, remote-tracking
+  refs and packs - with a 60 s poll that guard could never pass, so downloaded
+  updates were silently skipped on every reboot. All status writes go to the
+  mirror instead; the real checkout stays byte-for-byte untouched.
+  """
+  alternates = os.path.join(STATUS_GIT_DIR, "objects", "info", "alternates")
+  if await asyncio.to_thread(os.path.isfile, alternates):
+    return True
+  rc, out = await run_process(["git", "init", "--bare", STATUS_GIT_DIR], timeout=GIT_TIMEOUT)
+  if rc != 0:
+    print(f"[git_status] cannot create status mirror {STATUS_GIT_DIR}: {out}")
+    return False
+  rc, git_dir = await _git(["rev-parse", "--absolute-git-dir"])
+  # Forward slashes only: run_process merges stderr into stdout, and git warns
+  # on a malformed alternates entry - that warning would corrupt the rev-list
+  # output parsed by the caller.
+  objects = git_dir.rstrip("/\\") + "/objects" if rc == 0 and git_dir else \
+    os.path.join(REPO_DIR, ".git", "objects").replace("\\", "/")
+
+  def _write_alternates() -> None:
+    os.makedirs(os.path.dirname(alternates), exist_ok=True)
+    # newline="": text mode would otherwise translate \n to \r\n on Windows
+    # and git would read the object directory path with a trailing \r.
+    with open(alternates, "w", encoding="utf-8", newline="") as f:
+      f.write(objects + "\n")
+
+  await asyncio.to_thread(_write_alternates)
+  return True
+
+
+async def _fetch_status_mirror(url: str, refspec: str) -> tuple[int, str]:
+  """Fetch into the mirror; rebuild it once if a fetch fails on a damaged one."""
+  if not await _ensure_status_mirror():
+    return 1, "status mirror unavailable"
+  rc, out = await _mirror_git(["fetch", "--quiet", url, refspec], timeout=FETCH_TIMEOUT)
+  if rc == 0:
+    return 0, ""
+  shutil.rmtree(STATUS_GIT_DIR, ignore_errors=True)
+  if not await _ensure_status_mirror():
+    return 1, "status mirror rebuild failed"
+  rc, out = await _mirror_git(["fetch", "--quiet", url, refspec], timeout=FETCH_TIMEOUT)
+  return rc, "" if rc == 0 else out
 
 
 async def _resolve_tracking(branch: str) -> dict[str, str]:
@@ -110,7 +176,11 @@ async def _read_status() -> dict[str, Any]:
   fetch_out = ""
   if remote and remote_branch:
     refspec = f"+refs/heads/{remote_branch}:refs/remotes/{remote}/{remote_branch}"
-    fetch_rc, fetch_out = await _git(["fetch", "--quiet", remote, refspec], timeout=FETCH_TIMEOUT)
+    url = await _git_text(["config", "--get", f"remote.{remote}.url"])
+    if url:
+      fetch_rc, fetch_out = await _fetch_status_mirror(url, refspec)
+    else:
+      fetch_rc, fetch_out = 1, f"no url configured for remote {remote}"
 
   if not upstream:
     return {
@@ -129,14 +199,22 @@ async def _read_status() -> dict[str, Any]:
       "fetch_error": fetch_out if fetch_rc != 0 else "",
     }
 
-  rc, counts = await _git(["rev-list", "--left-right", "--count", f"HEAD...{upstream}"])
+  upstream_ref = f"refs/remotes/{remote}/{remote_branch}"
+  # Compare inside the mirror: the real checkout's tracking ref is not
+  # refreshed anymore, and rev-list sees every local object via alternates.
+  rc, counts = await _mirror_git(["rev-list", "--left-right", "--count", f"{head}...{upstream_ref}"])
+  if rc != 0:
+    # First-ever fetch failure: the mirror has no tracking ref yet. Fall back
+    # to the real checkout's (possibly stale) one - rev-list is read-only, so
+    # this keeps the old semantics without writing anything.
+    rc, counts = await _git(["rev-list", "--left-right", "--count", f"HEAD...{upstream}"])
   if rc != 0:
     return _error_state(counts or "failed to compare git refs", branch=branch, upstream=upstream)
 
   parts = counts.split()
   ahead = int(parts[0]) if len(parts) > 0 and parts[0].isdigit() else 0
   behind = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
-  target_head = await _git_text(["rev-parse", upstream])
+  target_head = await _mirror_git_text(["rev-parse", upstream_ref])
 
   return {
     "available": fetch_rc == 0,

@@ -166,7 +166,11 @@ def clear_rollback_target(path: str | None = None) -> bool:
 
 
 def _git_runner(args: list[str], cwd: str = "/data/openpilot", timeout: float = 30.0) -> tuple[int, str, str]:
-  proc = subprocess.run(args, cwd=cwd, timeout=timeout, capture_output=True, text=True)
+  # --no-optional-locks: `git status` refreshes .git/index when the stat cache
+  # is stale. That write makes .git newer than .overlay_init, and the launcher
+  # then skips installing a downloaded overlay update at boot - the same trap
+  # the status-mirror fix in services/git_status.py addresses.
+  proc = subprocess.run(["git", "--no-optional-locks", *args[1:]], cwd=cwd, timeout=timeout, capture_output=True, text=True)
   return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
 
 
