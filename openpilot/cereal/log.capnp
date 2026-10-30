@@ -139,8 +139,8 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     # once per onroad session by selfdrived.
     torqueNNLoad @105;
     # cp impact dashcam chain: measured impact notice + dashcam-mode reboot gate.
-    impactDetected @128;
-    impactDashcamReboot @129;
+    impactDetected @108;
+    impactDashcamReboot @109;
     # Moderate model frame drops (clustered one-frame resyncs, controller not
     # starved). Informational permanent alert only - never soft-disable.
     modeldLaggingMild @106;
