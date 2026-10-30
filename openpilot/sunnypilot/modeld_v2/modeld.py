@@ -399,7 +399,7 @@ def main(demo=False):
   pm = PubMaster(pub_socks)
   sm = SubMaster(["deviceState", "carState", "narrowRoadCameraState", "extrinsicsCalibration",
                   "driverMonitoringState", "carControl", "carControlSP", "controlsState",
-                  "lateralDelay", "carStateSP", "carrotManSP"])
+                  "lateralDelay", "carStateSP", "carrotManSP", "radarState"])
 
   publish_state = PublishState()
   chestnut_state = None
@@ -624,7 +624,7 @@ def main(demo=False):
       DH.update(sm['carState'], sm['carControl'].latActive, lane_change_prob, left_edge, right_edge,
                 left_lane_line_blocked=left_lane_line_blocked,
                 right_lane_line_blocked=right_lane_line_blocked,
-                carrot_man=carrot_man)
+                carrot_man=carrot_man, radar_state=sm['radarState'])
       modelv2_send.modelV2.meta.laneChangeState = DH.lane_change_state
       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
       # carrot: adjacent-lane widths for the xiaoge BSD gate (cp parity)
