@@ -61,7 +61,7 @@ class SignalPrepareRuntime(SignalAssistRuntime):
       return obs, context
     if self.extra is None:
       from openpilot.cereal import messaging
-      self.extra = messaging.SubMaster(['liveCalibration', 'roadCameraState', 'deviceState'])
+      self.extra = messaging.SubMaster(['extrinsicsCalibration', 'roadCameraState', 'deviceState'])
     try:
       from openpilot.common.transformations.camera import DEVICE_CAMERAS
       from openpilot.common.transformations.orientation import rot_from_euler
@@ -77,8 +77,8 @@ class SignalPrepareRuntime(SignalAssistRuntime):
       now = context['now']; extra = self.extra
       ok = all(extra.seen[k] and extra.valid[k] and extra.alive[k]
                and 0 <= now-extra.recv_time[k] <= age
-               for k, age in [('liveCalibration', 2.), ('roadCameraState', .25), ('deviceState', 2.)])
-      calib = extra['liveCalibration']
+               for k, age in [('extrinsicsCalibration', 2.), ('roadCameraState', .25), ('deviceState', 2.)])
+      calib = extra['extrinsicsCalibration']
       config = DEVICE_CAMERAS.get((str(extra['deviceState'].deviceType), str(extra['roadCameraState'].sensor)))
       # Observations arrive already mapped into the reference road-camera
       # frame (1344x760), so any known narrow-road camera is admissible. The
@@ -88,10 +88,10 @@ class SignalPrepareRuntime(SignalAssistRuntime):
       road = getattr(config, 'narrow_road', None) if config is not None else None
       ok = ok and road is not None and geometry_for_camera(config) is not None and str(calib.calStatus) == 'calibrated'
       rpy = list(calib.rpyCalib)
-      pose = sm['livePose']
+      pose = sm['deviceMotion']
       ok = (ok and len(rpy) == 3 and np.isfinite(rpy).all()
-            and sm.seen['livePose'] and sm.valid['livePose'] and sm.alive['livePose']
-            and 0 <= now-sm.recv_time['livePose'] <= .2 and 0 <= now-pose.timestamp/1e9 <= .2
+            and sm.seen['deviceMotion'] and sm.valid['deviceMotion'] and sm.alive['deviceMotion']
+            and 0 <= now-sm.recv_time['deviceMotion'] <= .2 and 0 <= now-pose.timestamp/1e9 <= .2
             and pose.inputsOK and pose.posenetOK and pose.sensorsOK
             and pose.angularVelocityDevice.valid and pose.orientationNED.valid)
       if not ok:

@@ -92,12 +92,12 @@ LIVE_SERVICES_BASE = (
   "deviceState",
   "roadCameraState",
   "cameraOdometry",
-  "liveCalibration",
-  "livePose",
+  "extrinsicsCalibration",
+  "deviceMotion",
   "drivingModelData",
-  "liveDelay",
-  "liveParameters",
-  "liveTorqueParameters",
+  "lateralDelay",
+  "vehicleParameters",
+  "lateralTorqueParameters",
   "navInstruction",
   "navInstructionCarrot",
   "navRoute",
@@ -209,7 +209,7 @@ class OpenpilotLiveSource:
       if calibration_bytes:
         event = self.messaging.log_from_bytes(calibration_bytes, self.log.Event)
         self.parser._update_live_calibration(
-          event.liveCalibration,
+          event.extrinsicsCalibration,
           bool(safe_get(event, "valid", True)),
         )
     except Exception:
@@ -379,7 +379,7 @@ class OpenpilotLiveSource:
         v_ego = max(0.0, safe_optional_float(car_state, "vEgo") or 0.0)
         curvature = safe_optional_float(controls_state, "curvature") or 0.0
         desired_curvature = safe_optional_float(controls_state, "desiredCurvature") or curvature
-        live_parameters = self._service_data("liveParameters")
+        live_parameters = self._service_data("vehicleParameters")
         roll = safe_optional_float(live_parameters, "roll") or 0.0
         roll_weight = clamp((v_ego - 5.0) / 10.0, 0.0, 1.0)
         desired_lateral_accel = desired_curvature * v_ego * v_ego
@@ -629,9 +629,9 @@ class OpenpilotLiveSource:
       self.parser._update_road_camera_state(data)
     elif service == "cameraOdometry":
       self.parser._update_camera_odometry(data, self._service_valid(service))
-    elif service == "liveCalibration":
+    elif service == "extrinsicsCalibration":
       self.parser._update_live_calibration(data, self._service_valid(service))
-    elif service == "livePose":
+    elif service == "deviceMotion":
       self.parser._update_live_pose(data, event_t)
     elif service == "carParams":
       self.parser._update_car_params(data)
@@ -692,8 +692,8 @@ class OpenpilotLiveSource:
 
     live_delay_calibration_percent = cached.live_delay_calibration_percent if cached is not None else None
     live_delay_lateral_s = cached.live_delay_lateral_s if cached is not None else None
-    if self._service_alive("liveDelay"):
-      live_delay = self.sm["liveDelay"]
+    if self._service_alive("lateralDelay"):
+      live_delay = self.sm["lateralDelay"]
       live_delay_calibration_percent = self._first_present(
         safe_optional_float(live_delay, "calPerc"),
         live_delay_calibration_percent,
@@ -708,8 +708,8 @@ class OpenpilotLiveSource:
     live_torque_valid = cached.live_torque_valid if cached is not None else None
     live_torque_lat_accel_factor = cached.live_torque_lat_accel_factor if cached is not None else None
     live_torque_friction = cached.live_torque_friction if cached is not None else None
-    if self._service_alive("liveTorqueParameters"):
-      live_torque = self.sm["liveTorqueParameters"]
+    if self._service_alive("lateralTorqueParameters"):
+      live_torque = self.sm["lateralTorqueParameters"]
       live_torque_calibration_percent = self._first_present(
         safe_optional_float(live_torque, "calPerc"),
         live_torque_calibration_percent,
@@ -730,9 +730,9 @@ class OpenpilotLiveSource:
         live_torque_friction = safe_optional_float(live_torque, "frictionCoefficient")
 
     live_steer_ratio = cached.live_steer_ratio if cached is not None else None
-    if self._service_alive("liveParameters"):
+    if self._service_alive("vehicleParameters"):
       live_steer_ratio = self._first_present(
-        safe_optional_float(self.sm["liveParameters"], "steerRatio"),
+        safe_optional_float(self.sm["vehicleParameters"], "steerRatio"),
         live_steer_ratio,
       )
 
@@ -789,7 +789,7 @@ class OpenpilotLiveSource:
     controls_state = self._service_data("controlsState")
     model = self._service_data("modelV2")
     radar = self._service_data("radarState")
-    live_params = self._service_data("liveParameters")
+    live_params = self._service_data("vehicleParameters")
 
     a_ego = self._finite_attr(car_state, "aEgo")
     v_ego = self._finite_attr(car_state, "vEgo")
@@ -1121,9 +1121,9 @@ class OpenpilotLiveSource:
     if self.params is None:
       return None
 
-    live_delay = self._event_service_from_param("LiveDelay", "liveDelay")
-    live_torque = self._event_service_from_param("LiveTorqueParameters", "liveTorqueParameters")
-    live_parameters = self._event_service_from_param("LiveParametersV2", "liveParameters")
+    live_delay = self._event_service_from_param("LiveDelay", "lateralDelay")
+    live_torque = self._event_service_from_param("LiveTorqueParameters", "lateralTorqueParameters")
+    live_parameters = self._event_service_from_param("LiveParametersV2", "vehicleParameters")
     live_steer_ratio = None
     if live_parameters is not None:
       live_steer_ratio = safe_optional_float(live_parameters, "steerRatio")

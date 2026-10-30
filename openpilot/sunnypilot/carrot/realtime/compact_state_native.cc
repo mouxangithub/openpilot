@@ -767,17 +767,17 @@ uint8_t service_id(const std::string &service) {
   if (service == "gpsLocationExternal") return 7;
   if (service == "longitudinalPlan") return 8;
   if (service == "modelV2") return 9;
-  if (service == "liveCalibration") return 10;
+  if (service == "extrinsicsCalibration") return 10;
   if (service == "roadCameraState") return 11;
   if (service == "lateralPlan") return 12;
   if (service == "radarState") return 13;
   if (service == "carControl") return 14;
-  if (service == "liveDelay") return 15;
-  if (service == "liveTorqueParameters") return 16;
-  if (service == "liveParameters") return 17;
+  if (service == "lateralDelay") return 15;
+  if (service == "lateralTorqueParameters") return 16;
+  if (service == "vehicleParameters") return 17;
   if (service == "liveTracks") return 18;
   if (service == "cameraOdometry") return 19;
-  if (service == "livePose") return 20;
+  if (service == "deviceMotion") return 20;
   if (service == "carrotNavi") return 21;
   throw std::invalid_argument("unsupported compact state service");
 }
@@ -792,7 +792,7 @@ void encode_service(std::string &out, const std::string &service, const DynamicR
   else if (service == "gpsLocationExternal") encode_gps(out, value);
   else if (service == "longitudinalPlan") encode_longitudinal_plan(out, value);
   else if (service == "modelV2") encode_model_v2(out, value);
-  else if (service == "liveCalibration") encode_live_calibration(out, value);
+  else if (service == "extrinsicsCalibration") encode_live_calibration(out, value);
   else if (service == "roadCameraState") {
     append_u32(out, value, "frameId");
     append_enum(out, value, "sensor");
@@ -800,20 +800,20 @@ void encode_service(std::string &out, const std::string &service, const DynamicR
   } else if (service == "lateralPlan") encode_lateral_plan(out, value);
   else if (service == "radarState") encode_radar_state(out, value);
   else if (service == "carControl") encode_car_control(out, value);
-  else if (service == "liveDelay") {
+  else if (service == "lateralDelay") {
     append_f32(out, value, "lateralDelay");
     append_i8(out, value, "calPerc");
-  } else if (service == "liveTorqueParameters") {
+  } else if (service == "lateralTorqueParameters") {
     append_bool(out, value, "liveValid");
     append_f32(out, value, "latAccelFactorFiltered");
     append_f32(out, value, "frictionCoefficientFiltered");
     append_i8(out, value, "calPerc");
-  } else if (service == "liveParameters") {
+  } else if (service == "vehicleParameters") {
     append_f32(out, value, "angleOffsetDeg");
     append_f32(out, value, "steerRatio");
   } else if (service == "liveTracks") append_radar_points(out, value);
   else if (service == "cameraOdometry") encode_camera_odometry(out, value);
-  else if (service == "livePose") encode_live_pose(out, value);
+  else if (service == "deviceMotion") encode_live_pose(out, value);
   else if (service == "carrotNavi") encode_carrot_navi(out, value);
 }
 

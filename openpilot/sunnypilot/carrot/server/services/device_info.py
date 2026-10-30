@@ -29,11 +29,11 @@ def get_calibration_status() -> dict[str, Any]:
 
     import openpilot.cereal.messaging as messaging
     from openpilot.cereal import log
-    calib = messaging.log_from_bytes(calib_bytes, log.Event).liveCalibration
+    calib = messaging.log_from_bytes(calib_bytes, log.Event).extrinsicsCalibration
 
     uncal = 0  # cereal::LiveCalibrationData::Status::UNCALIBRATED
     try:
-      uncal = log.LiveCalibrationData.Status.uncalibrated
+      uncal = log.ExtrinsicsCalibration.Status.uncalibrated
     except Exception:
       pass
 

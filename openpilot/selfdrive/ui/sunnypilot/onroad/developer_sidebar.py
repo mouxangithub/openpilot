@@ -9,7 +9,7 @@ Adaptations for sunnypilot:
 - StarPilot's remote toggle bridge (``ui_state.starpilot_toggles``) does not
   exist here; all gating comes from params only, read through a 1 s cache.
 - Torque estimation lives in ``lateralTorqueParameters`` (sunnypilot's service
-  name) instead of ``liveTorqueParameters``.
+  name) instead of ``lateralTorqueParameters``.
 - Metrics backed by StarPilot-only plan fields (ACCEL JERK / DANGER JERK /
   SPEED JERK / DANGER %) read the equivalent LongitudinalPlanSP fields when
   present and otherwise report "N/A" instead of crashing.
@@ -195,12 +195,12 @@ class DeveloperSidebar(Widget):
     sm = ui_state.sm
     car_state = sm["carState"] if sm.valid.get("carState", False) else None
     car_control = sm["carControl"] if sm.valid.get("carControl", False) else None
-    live_delay = sm["liveDelay"] if sm.valid.get("liveDelay", False) else None
-    # liveParameters is not in the UI SubMaster's service list; fall back to the
+    live_delay = sm["lateralDelay"] if sm.valid.get("lateralDelay", False) else None
+    # vehicleParameters is not in the UI SubMaster's service list; fall back to the
     # subscribed carParams snapshot (same steerRatio / stiffnessFactor fields).
     live_parameters = None
     try:
-      live_parameters = sm["liveParameters"] if sm.valid.get("liveParameters", False) else None
+      live_parameters = sm["vehicleParameters"] if sm.valid.get("vehicleParameters", False) else None
     except KeyError:
       live_parameters = None
     live_torque_parameters = sm["lateralTorqueParameters"] if sm.valid.get("lateralTorqueParameters", False) else None

@@ -263,7 +263,7 @@ class _FakeSM:
     self._data = data
     self.valid = dict.fromkeys(data, True)
     self.alive = dict.fromkeys(data, True)
-    self.logMonoTime = {"modelV2": 0, "radarState": 0, "livePose": 0, "carState": 0}
+    self.logMonoTime = {"modelV2": 0, "radarState": 0, "deviceMotion": 0, "carState": 0}
 
   def __getitem__(self, key):
     return self._data[key]

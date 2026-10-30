@@ -162,7 +162,7 @@ def _service(sm: Any, name: str) -> Any:
 # alive, so the snapshot contract / serviceAlive map are unchanged.
 _LIVE_PUSH_ONLY_SERVICES = frozenset({
   "modelV2",
-  "liveCalibration",
+  "extrinsicsCalibration",
   "wideRoadCameraState",
 })
 
@@ -589,7 +589,7 @@ _SERVICE_BUILDERS: dict[str, Any] = {
   "carState": _build_car_state,
   "controlsState": _build_controls_state,
   "longitudinalPlan": _build_longitudinal_plan,
-  "liveCalibration": _build_live_calibration,
+  "extrinsicsCalibration": _build_live_calibration,
   "modelV2": _build_model_v2,
   "roadCameraState": _build_camera_state,
   "wideRoadCameraState": _build_camera_state,

@@ -7,7 +7,7 @@ See the LICENSE.md file in the root directory for more details.
 
 """Regression guard for the vision speed-limit daemon's cereal subscriptions.
 
-The daemon was ported from a fork that publishes ``mapdOut`` and ``livePose``
+The daemon was ported from a fork that publishes ``mapdOut`` and ``deviceMotion``
 services; this fork does not. Subscribing to a service absent from
 ``SERVICE_LIST`` raises KeyError inside ``SubMaster.__init__``, which kills the
 process the moment a user enables the feature - before any try/except around
@@ -50,13 +50,13 @@ class TestSubMasterServices(unittest.TestCase):
   def test_unported_services_are_not_subscribed(self):
     subscribed = _subscribed_services()
     assert "mapdOut" not in subscribed
-    assert "livePose" not in subscribed
+    assert "deviceMotion" not in subscribed
 
   def test_no_direct_service_reads_of_unported_services(self):
     # per-field reads are all try/except-wrapped, which would silently degrade
     # instead of crashing - guard against them reappearing at all.
     source = _DAEMON.read_text(encoding="utf-8")
-    for service in ("mapdOut", "livePose"):
+    for service in ("mapdOut", "deviceMotion"):
       assert f'sm["{service}"]' not in source and f"sm['{service}']" not in source, (
         f"direct read of unported service {service} found"
       )

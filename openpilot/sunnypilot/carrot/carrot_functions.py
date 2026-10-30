@@ -917,7 +917,7 @@ class CarrotPlanner:
     """Feed live pose / radar leads into the lane-change gap tracker.
 
     Mirrors CarrotPilot's wiring: reads carState, modelV2, radarState and
-    livePose from the SubMaster, derives the change direction from the blinker
+    deviceMotion from the SubMaster, derives the change direction from the blinker
     state, and updates the tracker. A fast radar feed must not double-count the
     same model/pose frame, so identical model logMonoTime is skipped.
     """
@@ -939,12 +939,12 @@ class CarrotPlanner:
     if now_ns == self._lane_change_model_ns:
       return  # fast radar must not count the same model/pose twice
     self._lane_change_model_ns = now_ns
-    pose = sm["livePose"]
+    pose = sm["deviceMotion"]
     angular = pose.angularVelocityDevice
     pose_valid = (
-      sm.valid["livePose"] and sm.alive["livePose"]
+      sm.valid["deviceMotion"] and sm.alive["deviceMotion"]
       and pose.inputsOK and pose.sensorsOK and angular.valid
-      and abs(now_ns - int(sm.logMonoTime["livePose"])) <= 150_000_000
+      and abs(now_ns - int(sm.logMonoTime["deviceMotion"])) <= 150_000_000
     )
     self.lane_change_gap = self._lane_change_tracker.update(
       now=now_ns * 1e-9,

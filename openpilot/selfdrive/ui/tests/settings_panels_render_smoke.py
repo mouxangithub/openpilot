@@ -81,7 +81,7 @@ class _FakeSM:
       "carState": types.SimpleNamespace(vEgo=0.0, gearShifter=None, gasPressed=False, brakePressed=False, standstill=True),
       "carParams": types.SimpleNamespace(openpilotLongitudinalControl=True),
       "controlsState": types.SimpleNamespace(longControlState=0, curvature=0.0, vCruise=0.0),
-      "liveCalibration": types.SimpleNamespace(rpyCalib=[0.0, 0.0, 0.0], calStatus=1),
+      "extrinsicsCalibration": types.SimpleNamespace(rpyCalib=[0.0, 0.0, 0.0], calStatus=1),
       "driverMonitoringState": types.SimpleNamespace(events=[], isActiveMode=False),
     }
 

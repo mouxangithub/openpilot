@@ -1659,10 +1659,10 @@ class RouteLogParser:
         self._update_road_camera_state(event.roadCameraState)
       elif event_type == "cameraOdometry":
         self._update_camera_odometry(event.cameraOdometry, bool(safe_get(event, "valid", True)))
-      elif event_type == "livePose":
-        self._update_live_pose(event.livePose, event_t)
-      elif event_type == "liveCalibration":
-        self._update_live_calibration(event.liveCalibration, bool(safe_get(event, "valid", True)))
+      elif event_type == "deviceMotion":
+        self._update_live_pose(event.deviceMotion, event_t)
+      elif event_type == "extrinsicsCalibration":
+        self._update_live_calibration(event.extrinsicsCalibration, bool(safe_get(event, "valid", True)))
       elif event_type == "carParams":
         self._update_car_params(event.carParams)
       elif event_type == "radarState":
@@ -2100,7 +2100,7 @@ class RouteLogParser:
     if wide_from_device_euler is not None and self.wide_camera_from_device_euler is None:
       self.wide_camera_from_device_euler = wide_from_device_euler
     # cameraOdometry's road height is a noisy per-frame vision estimate. Use
-    # it only as an initial fallback; liveCalibration supplies the stable
+    # it only as an initial fallback; extrinsicsCalibration supplies the stable
     # installation height and must not be overwritten every model frame.
     if self.road_transform_trans is None:
       self.road_transform_trans = three_float_tuple(safe_get(camera_odometry, "roadTransformTrans"))

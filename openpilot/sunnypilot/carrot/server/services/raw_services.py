@@ -45,7 +45,7 @@ _RAW_STOCK_SERVICES = (
   "controlsState",
   "longitudinalPlan",
   "longitudinalPlanSP",
-  "liveCalibration",
+  "extrinsicsCalibration",
   "modelV2",
   "drivingModelData",
   "deviceState",
@@ -57,11 +57,11 @@ _RAW_STOCK_SERVICES = (
   "driverMonitoringState",
   "wideRoadCameraState",
   "narrowRoadCameraState",
-  "liveParameters",
-  "liveDelay",
-  "liveTorqueParameters",
+  "vehicleParameters",
+  "lateralDelay",
+  "lateralTorqueParameters",
   "liveTracks",
-  "livePose",
+  "deviceMotion",
 )
 
 RAW_CORE_SERVICES: tuple = (
@@ -69,7 +69,7 @@ RAW_CORE_SERVICES: tuple = (
   "carState",
   "controlsState",
   "longitudinalPlan",
-  "liveCalibration",
+  "extrinsicsCalibration",
   "modelV2",
   "narrowRoadCameraState",
   "deviceState",

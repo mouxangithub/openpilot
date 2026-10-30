@@ -138,18 +138,18 @@ class BrakeRuntime:
         import openpilot.cereal.messaging as messaging
         from openpilot.common.repo_tools import load
         LeadBrakeDetector = load('signal_analysis/lead_brake_detector.py').LeadBrakeDetector
-        self.sm = messaging.SubMaster(['radarState', 'modelV2', 'carState', 'liveCalibration'])
+        self.sm = messaging.SubMaster(['radarState', 'modelV2', 'carState', 'extrinsicsCalibration'])
         self.detector = LeadBrakeDetector()
       self.sm.update(0)
-      topics = ('radarState', 'modelV2', 'carState', 'liveCalibration')
+      topics = ('radarState', 'modelV2', 'carState', 'extrinsicsCalibration')
       # Calibration is published slower; require a bounded, valid sample too.
       fresh = all(self.sm.seen[k] and self.sm.valid[k]
-                  and 0 <= now-self.sm.logMonoTime[k]/1e9 <= (2. if k == 'liveCalibration' else .25)
+                  and 0 <= now-self.sm.logMonoTime[k]/1e9 <= (2. if k == 'extrinsicsCalibration' else .25)
                   for k in topics)
       if fresh:
         result = self.detector.process(rgb, stamp, self.sm['radarState'].leadOne.to_dict(),
                                        self.sm['modelV2'].leadsV3[0].to_dict() if self.sm['modelV2'].leadsV3 else {},
-                                       self.sm['carState'].to_dict(), self.sm['liveCalibration'].to_dict())
+                                       self.sm['carState'].to_dict(), self.sm['extrinsicsCalibration'].to_dict())
       else:
         self.detector.reset()
         result['reason'] = 'stale_context'

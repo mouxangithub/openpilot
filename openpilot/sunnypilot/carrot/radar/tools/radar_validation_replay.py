@@ -3001,7 +3001,7 @@ def _yaw_metadata(
   ):
     value = _finite(getattr(angular_velocity, "z", math.nan), math.nan)
     if math.isfinite(value):
-      return device_yaw_to_radar(value), False, "livePose"
+      return device_yaw_to_radar(value), False, "deviceMotion"
   ratio = max(abs(_finite(steer_ratio, 14.0)), 1.0)
   base = max(abs(_finite(wheelbase, 2.8)), 1.5)
   road_wheel_angle = math.radians(_finite(steering_angle_deg) / ratio)
@@ -3219,15 +3219,15 @@ def load_frames(log_path: Path, *, radar_track_flip: bool | None = None) -> list
       latest_left_blindspot, latest_right_blindspot = bool(event.carState.leftBlindspot), bool(event.carState.rightBlindspot)
       latest_steering_angle_deg = _finite(event.carState.steeringAngleDeg)
       latest_steering_rate_deg_s = _finite(event.carState.steeringRateDeg)
-    elif which == "livePose":
-      angular_velocity = event.livePose.angularVelocityDevice
+    elif which == "deviceMotion":
+      angular_velocity = event.deviceMotion.angularVelocityDevice
       latest_live_pose = SimpleNamespace(
         angularVelocityDevice=SimpleNamespace(
           valid=bool(angular_velocity.valid),
           z=_finite(angular_velocity.z, math.nan),
         ),
-        inputsOK=bool(event.livePose.inputsOK),
-        sensorsOK=bool(event.livePose.sensorsOK),
+        inputsOK=bool(event.deviceMotion.inputsOK),
+        sensorsOK=bool(event.deviceMotion.sensorsOK),
       )
       latest_live_pose_ns = event_ns
     elif which == "longitudinalPlan":

@@ -114,12 +114,12 @@ class _FakeSM:
       "carState": car_state,
       "modelV2": model,
       "radarState": radar,
-      "livePose": pose if pose is not None else _FakePose(),
+      "deviceMotion": pose if pose is not None else _FakePose(),
     }
     self.logMonoTime = {
       "modelV2": now_ns,
       "radarState": now_ns,
-      "livePose": now_ns,
+      "deviceMotion": now_ns,
     }
     self.valid = dict.fromkeys(self._data, valid)
     self.alive = dict.fromkeys(self._data, alive)

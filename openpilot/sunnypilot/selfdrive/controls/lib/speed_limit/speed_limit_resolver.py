@@ -404,11 +404,11 @@ class SpeedLimitResolver:
       }
       gps_valid = bool(gps_data.hasFix) and (position["latitude"] != 0. or position["longitude"] != 0.)
 
-      # plannerd does not subscribe to liveParameters; without it the steering
+      # plannerd does not subscribe to vehicleParameters; without it the steering
       # sanity check compares against a 0 offset, which is close enough to the
       # true value for its 45 deg window at the speeds this filler runs at.
       try:
-        angle_offset = float(sm['liveParameters'].angleOffsetDeg)
+        angle_offset = float(sm['vehicleParameters'].angleOffsetDeg)
       except Exception:
         angle_offset = 0.0
 

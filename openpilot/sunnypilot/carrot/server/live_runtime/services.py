@@ -18,7 +18,7 @@ COMMON_SERVICES: tuple[str, ...] = (
   "carState",          # Vehicle speed, gear, brake, steering.
   "controlsState",     # Enabled state, alerts, actuator-related HUD state.
   "longitudinalPlan",  # Cruise and longitudinal helper state.
-  "liveCalibration",   # Projection / camera calibration basis.
+  "extrinsicsCalibration",   # Projection / camera calibration basis.
   "modelV2",           # Lane, path, road edge, lead graphics source.
   "roadCameraState",   # Road frameId / timestamp / sync basis.
   "deviceState",       # Device health and metric state.

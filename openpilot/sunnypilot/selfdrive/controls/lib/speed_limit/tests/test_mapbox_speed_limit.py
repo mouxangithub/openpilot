@@ -356,7 +356,7 @@ def mapbox_sm(mocker, map_limit: float = 0.):
     'carStateSP': car_state_sp,
     'liveMapDataSP': live_map_data,
     'gpsLocation': gps_data,
-    'liveParameters': mocker.MagicMock(angleOffsetDeg=0.0),
+    'vehicleParameters': mocker.MagicMock(angleOffsetDeg=0.0),
   }[key]
   return sm
 
