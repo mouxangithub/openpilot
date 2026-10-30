@@ -19,6 +19,7 @@ from opendbc.car.car_helpers import get_car, interfaces
 from opendbc.car.interfaces import CarInterfaceBase, RadarInterfaceBase
 from opendbc.safety import ALTERNATIVE_EXPERIENCE
 from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
+from openpilot.selfdrive.car.card_diagnostics import should_log_card_diagnostics
 from openpilot.selfdrive.car.cruise import VCruiseCarrot
 from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_capnp
 
@@ -87,6 +88,13 @@ class Car:
     self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'radarTracks'] + ['carParamsSP', 'carStateSP'])
 
     self.can_rcv_cum_timeout_counter = 0
+
+    # card diagnostics (cp parity): bounded summary every 100 frames, only when
+    # a CAN timeout or a severe loop stall makes it actionable.
+    self.card_diag_frames = 0
+    self.card_diag_loop_max_us = 0
+    self.card_diag_can_timeouts = 0
+    self.card_diag_prev_timeout_counter = 0
 
     self.CC_prev = car.CarControl.new_message()
     self.CS_prev = car.CarState.new_message()
@@ -435,7 +443,20 @@ class Car:
     try:
       t.start()
       while True:
+        loop_start = time.monotonic()
         self.step()
+        loop_us = int((time.monotonic() - loop_start) * 1e6)
+        self.card_diag_loop_max_us = max(self.card_diag_loop_max_us, loop_us)
+        self.card_diag_can_timeouts += max(0, self.can_rcv_cum_timeout_counter - self.card_diag_prev_timeout_counter)
+        self.card_diag_prev_timeout_counter = self.can_rcv_cum_timeout_counter
+        self.card_diag_frames += 1
+        if self.card_diag_frames >= 100:
+          if should_log_card_diagnostics(self.card_diag_loop_max_us, 0, self.card_diag_can_timeouts):
+            print(f"card_diag: can_timeouts={self.card_diag_can_timeouts}, "
+                  f"loop_max_us={self.card_diag_loop_max_us}")
+          self.card_diag_frames = 0
+          self.card_diag_loop_max_us = 0
+          self.card_diag_can_timeouts = 0
         self.rk.monitor_time()
     finally:
       e.set()

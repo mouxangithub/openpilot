@@ -35,14 +35,33 @@ def service_ready(sm, service):
   return sm.seen[service] and sm.all_checks([service])
 
 
+def vehicle_parameters_ready(sm):
+  vp = sm['vehicleParameters']
+  return (service_ready(sm, 'vehicleParameters') and vp.valid and vp.sensorValid and vp.posenetValid and
+          all(math.isfinite(x) for x in (vp.steerRatio, vp.stiffnessFactor, vp.angleOffsetDeg, vp.roll)) and
+          vp.steerRatio > 1.0 and vp.stiffnessFactor > 0.0)
+
+
+@dataclass(frozen=True)
+class NominalVehicleParameters:
+  steerRatio: float
+  stiffnessFactor: float = 1.0
+  angleOffsetDeg: float = 0.0
+  roll: float = 0.0
+
+
+def lateral_vehicle_parameters(sm, CP):
+  # Keep nominal geometry while live inputs are absent/invalid. This fallback
+  # is for inactive calculations; it does not grant permission to steer. (cp
+  # parity, adapted from liveParameters to the vehicleParameters service.)
+  return sm['vehicleParameters'] if vehicle_parameters_ready(sm) else NominalVehicleParameters(CP.steerRatio)
+
+
 def lateral_inputs_ready(sm, CS):
   if not all(service_ready(sm, s) for s in LATERAL_SERVICES):
     return False
 
-  vp = sm['vehicleParameters']
-  if not (vp.valid and vp.sensorValid and vp.posenetValid and
-          all(math.isfinite(x) for x in (vp.steerRatio, vp.stiffnessFactor, vp.angleOffsetDeg, vp.roll)) and
-          vp.steerRatio > 1.0 and vp.stiffnessFactor > 0.0):
+  if not vehicle_parameters_ready(sm):
     return False
 
   if not CS.canValid or CS.steerFaultTemporary or CS.steerFaultPermanent:

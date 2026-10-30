@@ -23,6 +23,7 @@ from openpilot.selfdrive.controls.lib.longcontrol import LongControl
 from openpilot.selfdrive.modeld.modeld import LAT_SMOOTH_SECONDS
 from openpilot.sunnypilot.selfdrive.controls.lib.stopping_controller import StoppingController
 from openpilot.sunnypilot.selfdrive.controls.lib.steer_ratio import resolve_vehicle_model_steer_ratio
+from openpilot.sunnypilot.selfdrive.controls.lib.lateral_readiness import lateral_vehicle_parameters
 from openpilot.sunnypilot.common.lateral_arbitration import (
   resolve_torque_control_params,
   resolve_vehicle_model_params,
@@ -145,7 +146,12 @@ class Controls(ControlsExt):
     CS = self.sm['carState']
 
     # Update VehicleModel
+    # cp parity: while the learned vehicleParameters are absent/invalid (startup,
+    # paramsd not settled) fall back to nominal geometry from CarParams instead
+    # of feeding a default message's steerRatio=0 into the vehicle model.
     lp = self.sm['vehicleParameters']
+    if not (self.lateral_startup_enabled and self.lateral_startup.ready):
+      lp = lateral_vehicle_parameters(self.sm, self.CP)
     # StarPilot arbitration: the learner in paramsd keeps refining the steering
     # ratio, but a user-set ratio (CustomSR / SteerRatio) wins over it, and
     # ForceAutoTuneOff pins the model to the user's numbers entirely.

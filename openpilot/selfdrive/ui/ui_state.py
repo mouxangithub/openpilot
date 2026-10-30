@@ -60,6 +60,9 @@ class UIState(UIStateSP):
   def _initialize(self):
     UIStateSP.__init__(self)
     self.params = Params()
+    # Volatile params used for the UI<->selfdrived impact dashcam handshake
+    # (cp parity): notices must never survive a reboot or manager restart.
+    self.params_memory = Params("/dev/shm/params")
     self.sm = messaging.SubMaster(
       [
         "modelV2",

@@ -23,6 +23,10 @@ from openpilot.common.hardware.hw import Paths
 from openpilot.sunnypilot.selfdrive.car.stock_ecu_handback import StockEcuHandBackGate
 from openpilot.sunnypilot.system.params_migration import run_migration
 from openpilot.sunnypilot.system.params_migration_zp import run_migration_zp
+from openpilot.common.basedir import BASEDIR
+from openpilot.system.manager.update_status import UpdateStatus
+from openpilot.system.manager.xiaoge_startup import XiaogeStartupGate
+from openpilot.system.manager.camera_config import configure_wide_camera
 
 
 def manager_init() -> None:
@@ -31,6 +35,9 @@ def manager_init() -> None:
   build_metadata = get_build_metadata()
 
   params = Params()
+  # Latch the wide-camera setting before camerad starts (cp parity): flipping
+  # UseWideCamera mid-session must not race the native camera configuration.
+  configure_wide_camera(params)
   params.clear_all(ParamKeyFlag.CLEAR_ON_MANAGER_START)
   params.clear_all(ParamKeyFlag.CLEAR_ON_ONROAD_TRANSITION)
   params.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
@@ -164,8 +171,16 @@ def manager_thread() -> None:
     ignore.append("pandad")
   ignore += [x for x in os.getenv("BLOCK", "").split(",") if len(x) > 0]
 
-  sm = messaging.SubMaster(['deviceState', 'carParams', 'pandaStates'], poll='deviceState')
+  # selfdriveState/modelV2/carState feed the XiaogeStartupGate (cp parity):
+  # optional xiaoge inference must not compete with onroad startup.
+  sm = messaging.SubMaster(['deviceState', 'carParams', 'pandaStates', 'selfdriveState', 'modelV2', 'carState'], poll='deviceState')
   pm = messaging.PubMaster(['managerState'])
+
+  # Detect a changed checkout (e.g. an update landed while driving) without
+  # replacing the manager's startup identity. surfaced as a cloudlog warning
+  # until a managerState.rebootRequired field is added to cereal.
+  update_status = UpdateStatus(BASEDIR)
+  xiaoge_startup = XiaogeStartupGate()
 
   params.put_bool("IsOffroad", True, block=True)
   ensure_running(managed_processes.values(), False, params=params, CP=sm['carParams'], not_run=ignore)
@@ -196,7 +211,16 @@ def manager_thread() -> None:
     started_prev = started
     ignition_prev = ignition
 
-    ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=ignore)
+    # XiaogeStartupGate (cp parity): hold xiaoge_data out of the process set
+    # until onroad services are fresh, safety matches and controls are ready.
+    now = time.monotonic()
+    xiaoge_ready = xiaoge_startup.update(started, sm, sm['carParams'], params.get_bool('ControlsReady'), now)
+    not_run = ignore if xiaoge_ready else [*ignore, 'xiaoge_data']
+
+    ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=not_run)
+
+    if update_status.update(now):
+      cloudlog.warning("Checkout changed since boot; reboot required to run the new code")
 
     running = ' '.join("{}{}\u001b[0m".format("\u001b[32m" if p.proc.is_alive() else "\u001b[31m", p.name)
                        for p in managed_processes.values() if p.proc)

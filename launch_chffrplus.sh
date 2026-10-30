@@ -656,6 +656,31 @@ ensure_params_build() {
   fi
 }
 
+# Params registry guard (cp parity): a prebuilt checkout can retain
+# libparams_c.so compiled from an older params_keys.h. Verify the loaded
+# native registry against the checkout header; on mismatch rebuild the
+# params library (stale scons-cache objects included) before manager starts.
+# Best-effort: if the rebuild fails we boot anyway, loudly, like the old flow.
+# Capture the bounded startup failure log around a launcher command (cp parity).
+# Passive tee only: never reboots, never changes exit semantics. The interactive
+# recovery display (system/ui/startup_recovery.py) and --repo auto-recovery stay
+# available for manual use but are not wired into the boot path yet.
+function run_startup_command {
+  "$@" 2>&1 | python3 -m openpilot.common.startup_recovery --capture-log /tmp/carrot_startup_failure.log
+  return "${PIPESTATUS[0]}"
+}
+
+function ensure_params_registry {
+  if ! PYTHONPATH="$PY_PATH" python3 "$DIR/openpilot/system/manager/params_check.py"; then
+    echo "[warn] Native Params do not match this checkout; rebuilding libparams_c.so"
+    rm -f "$DIR"/openpilot/common/params.*.os "$DIR"/openpilot/common/params_pyx.*.os \
+          "$DIR"/openpilot/common/libparams_c.so "$DIR"/openpilot/common/libparams_c.a
+    if ! (cd "$DIR" && PYTHONPATH="$PY_PATH" scons -j"$(grep -c '^processor' /proc/cpuinfo 2>/dev/null || echo 4)" openpilot/common/libparams_c.so >> /tmp/params_build.log 2>&1); then
+      echo "[warn] libparams_c.so rebuild failed; booting best-effort (see /tmp/params_build.log)"
+    fi
+  fi
+}
+
 # BlueZ is not shipped on C3, but the Carrot Bluetooth HID remote feature needs
 # the org.bluez D-Bus service. Install it once per boot if it is missing; the
 # actual work runs in the background so it does not block the boot sequence.
@@ -868,7 +893,8 @@ launch() {
       touch "$DIR/prebuilt"
     fi
   fi
-  ./manager.py
+  ensure_params_registry
+  run_startup_command ./manager.py
 
   while true; do sleep 1; done
 }

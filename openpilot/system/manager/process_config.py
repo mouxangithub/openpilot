@@ -205,6 +205,12 @@ def carrot_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   # carrot_man gates its own behaviour with the IsOnroad param
   return params.get_bool("CarrotEnabled")
 
+def enable_xiaoge_data(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # Keep the current CarrotEnabled gating (ShareData stays opt-in elsewhere);
+  # the manager additionally holds xiaoge_data until the onroad startup gate
+  # in manager.py (XiaogeStartupGate) reports a healthy onroad session.
+  return started and params.get_bool("CarrotEnabled")
+
 def carrot_recovery_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
   # The 6999 support terminal is an unauthenticated remote shell (plus git-recovery
   # actions), so it is opt-in and off by default. CarrotPilot runs it always; this fork
@@ -333,6 +339,7 @@ procs = [
   PythonProcess("ui", "openpilot.selfdrive.ui.ui", and_(always_run, builtin_display), restart_if_crash=True,
                 watchdog_max_dt=UI_WATCHDOG_MAX_DT),
   AudioProcess("soundd", "openpilot.selfdrive.ui.soundd", driverview, enabled=not LITE),
+  PythonProcess("feedbackd", "openpilot.selfdrive.ui.feedback.feedbackd", only_onroad, enabled=not LITE),
   PythonProcess("beepd", "openpilot.sunnypilot.selfdrive.ui.beepd", beep, enabled=LITE),
   PythonProcess("locationd", "openpilot.selfdrive.locationd.locationd", only_onroad),
   NativeProcess("_pandad", "openpilot/selfdrive/pandad", ["./pandad"], always_run, enabled=False),
@@ -447,7 +454,7 @@ procs += [
   # unavailable (e.g. camera stream not yet stable when entering the car). Without this
   # flag the manager waits for the next ensure_running cycle before restarting, causing a
   # spurious "进程未运行" alert to appear briefly.
-  PythonProcess("xiaoge_data", "openpilot.sunnypilot.carrot.xiaoge_data", carrot_enabled, restart_if_crash=True),
+  PythonProcess("xiaoge_data", "openpilot.sunnypilot.carrot.xiaoge_data", enable_xiaoge_data, restart_if_crash=True),
 
   # Bluetooth HID remote daemon
   # Reads evdev input events from paired Bluetooth HID remotes (e.g. Yiser J6).

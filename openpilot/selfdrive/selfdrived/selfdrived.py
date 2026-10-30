@@ -12,6 +12,7 @@ from msgq.visionipc import VisionIpcClient
 
 
 from openpilot.common.params import Params
+from openpilot.common.impact_dashcam import ImpactDashcam
 from openpilot.common.dm import is_dm_disabled
 from openpilot.common.realtime import config_realtime_process, Priority, Ratekeeper, DT_CTRL
 from openpilot.common.swaglog import cloudlog
@@ -22,6 +23,8 @@ from openpilot.selfdrive.locationd.helpers import PoseCalibrator, Pose
 from openpilot.selfdrive.selfdrived.events import Events, ET
 from openpilot.selfdrive.selfdrived.modeld_lag import ModeldLagMonitor
 from openpilot.selfdrive.selfdrived.helpers import ExcessiveActuationCheck
+from openpilot.selfdrive.selfdrived.impact_detector import ImpactDetector
+from openpilot.selfdrive.selfdrived.camera_config import get_camera_packets
 from openpilot.selfdrive.selfdrived.state import StateMachine
 from openpilot.selfdrive.selfdrived.alertmanager import AlertManager, set_offroad_alert
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EmptyAlert
@@ -74,6 +77,12 @@ class SelfdriveD:
   def __init__(self, CP=None, CP_SP=None):
     self.params = Params()
 
+    # Impact dashcam (cp parity): IMU-impact detected here, UI handshake runs
+    # through /dev/shm/params so a committed countdown disables openpilot and
+    # reboots the device. The UI prompt renders and can cancel the countdown.
+    self.impact_dashcam = ImpactDashcam(self.params, Params("/dev/shm/params"))
+    self.impact_detector = ImpactDetector()
+
     # Ensure the current branch is cached, otherwise the first cycle lags
     get_build_metadata()
 
@@ -109,7 +118,8 @@ class SelfdriveD:
     self.gps_location_service = get_gps_location_service(self.params)
     self.gps_packets = [self.gps_location_service]
     self.sensor_packets = ["accelerometer", "gyroscope"]
-    self.camera_packets = ["narrowRoadCameraState", "cabinCameraState", "wideRoadCameraState"]
+    self.use_wide_camera = bool(self.params.get("UseWideCamera", return_default=True))
+    self.camera_packets = get_camera_packets(self.use_wide_camera)
 
     # TODO: de-couple selfdrived with card/conflate on carState without introducing controls mismatches
     self.car_state_sock = messaging.sub_sock('carState', timeout=20)
@@ -129,6 +139,7 @@ class SelfdriveD:
                                    'managerState', 'vehicleParameters', 'radarState', 'lateralTorqueParameters',
                                    'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userBookmark',
                                    'lateralManeuverPlan', 'modelDataV2SP', 'longitudinalPlanSP', 'carStateSP',
+                                   'livePose', 'liveCalibration',
                                    'liveTracks'] + \
                                    self.camera_packets + self.sensor_packets + self.gps_packets,
                                   ignore_alive=ignore, ignore_avg_freq=ignore,
@@ -677,6 +688,49 @@ class SelfdriveD:
 
     return CS
 
+  def update_impact_dashcam(self, CS):
+    """Impact dashcam (cp parity, sp service names): accelerometer IMU impulse
+    detection with liveLocationKalman orientation and extrinsicsCalibration.
+    On a committed countdown the dashcam handshake disables openpilot and
+    reboots; the UI prompt can cancel within the 10s window."""
+    if REPLAY or SIMULATION or self.CP.notCar:
+      return
+    now = time.monotonic()
+    trigger, quiet, accel = False, None, None
+    if self.sm.updated['accelerometer']:
+      sample = self.sm['accelerometer']
+      pose = self.sm['liveLocationKalman']
+      calibration = self.sm['extrinsicsCalibration']
+      valid = (self.sm.valid['accelerometer'] and self.sm.alive['accelerometer']
+               and sample.which() == 'acceleration'
+               and sample.source in (log.SensorEventData.SensorSource.lsm6ds3,
+                                     log.SensorEventData.SensorSource.lsm6ds3trc)
+               and self.sm.all_checks(['liveLocationKalman', 'extrinsicsCalibration'])
+               and pose.orientationNED.valid and pose.inputsOK and pose.sensorsOK
+               and self.sm.alive['liveLocationKalman']
+               and 0 <= now - self.sm.logMonoTime['liveLocationKalman'] / 1e9 < 0.2
+               and calibration.calStatus == log.ExtrinsicsCalibration.Status.calibrated)
+      orientation = list(pose.orientationNED.value)[:3]
+      trigger, quiet, accel = self.impact_detector.update(
+        now=now, timestamp=sample.timestamp / 1e9,
+        sensor=list(sample.acceleration.v) if sample.which() == 'acceleration' else [],
+        orientation=orientation, calibration=list(calibration.rpyCalib), valid=valid)
+    elif not self.sm.alive['accelerometer']:
+      self.impact_detector.above = False
+      quiet = False
+    was_pending, was_committed = self.impact_dashcam.pending, self.impact_dashcam.committed
+    try:
+      self.impact_dashcam.update(now=now,
+        allowed=self.initialized and not self.CP.passive and self.sm['deviceState'].started,
+        trigger=trigger, quiet=quiet, details={'acceleration': accel, 'aEgo': CS.aEgo})
+    except OSError:
+      self.impact_dashcam.cancel()
+      cloudlog.exception("Impact dashcam parameter write failed")
+    if self.impact_dashcam.pending and not was_pending:
+      cloudlog.warning(f"Impact suspected: acceleration={accel}, aEgo={CS.aEgo}")
+    if self.impact_dashcam.committed and not was_committed:
+      cloudlog.warning("Impact dashcam countdown completed; openpilot disabled, reboot requested")
+
   def update_nnff_alert(self, CS):
     """Name the NNFF torque model once per onroad session, after startup alerts.
 
@@ -788,6 +842,7 @@ class SelfdriveD:
       self.mads.update(CS)
     self.update_alerts(CS)
     self.update_nnff_alert(CS)
+    self.update_impact_dashcam(CS)
 
     self.button_state_tracker.update(CS)
     self.publish_selfdriveState(CS)

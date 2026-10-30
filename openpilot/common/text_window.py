@@ -32,7 +32,9 @@ class TextWindow:
   def wait_for_exit(self):
     if self.text_proc is not None:
       while True:
-        if self.get_status() == 1:
+        # any terminal status (success, failure or signal) must release the
+        # caller; == 1 used to hang forever on crashes/signals
+        if self.get_status() is not None:
           return
         time.sleep(0.1)
 

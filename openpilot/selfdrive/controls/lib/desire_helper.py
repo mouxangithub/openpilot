@@ -44,6 +44,8 @@ class DesireHelper:
     self.lane_change_direction = LaneChangeDirection.none
     self.lane_change_timer = 0.0
     self.prev_one_blinker = False
+    self.prev_desire_enabled = False   # cp: combined (driver|ATC) desire edge, tracked even when lateral is off
+    self.prev_driver_enabled = False   # cp: driver lamp edge for fresh-intent rearm
     self.desire = log.Desire.none
     self.alc = AutoLaneChangeController(self)
     self.lane_turn_controller = LaneTurnController(self)
@@ -168,7 +170,8 @@ class DesireHelper:
 
     # Bluetooth HID remote lane commands (carrot_bluetooth daemon publishes to /dev/shm/carrot-bluetooth/lane.json).
     remote = self.bluetooth_commands.read(
-      allowed=(lateral_active and carstate.canValid and not below_lane_change_speed),
+      allowed=(lateral_active and carstate.canValid and not below_lane_change_speed and
+               not getattr(carstate, 'trailerConnected', False)),
     )
     if remote in ('laneLeft', 'laneRight') and self._bt_lane_count == 0:
       self._bt_lane_count = int(0.2 / DT_MDL)  # 200 ms window
@@ -235,8 +238,14 @@ class DesireHelper:
       self.lane_change_direction = LaneChangeDirection.none
       self.lane_change_timer = 0.0
     else:
-      if self.lane_change_state == LaneChangeState.off and one_blinker and not self.prev_one_blinker and \
-          not below_lane_change_speed and desire_enabled:
+      # cp semantics: the combined desire edge OR a fresh driver lamp request arms
+      # the FSM. A driver lamp while the ATC desire is already high is still fresh
+      # intent; a persisting ATC desire alone never re-arms.
+      driver_changed = driver_enabled and not self.prev_driver_enabled
+      driver_desire_started = driver_enabled and driver_changed
+      if self.lane_change_state == LaneChangeState.off and one_blinker and desire_enabled and \
+          (not self.prev_desire_enabled or driver_desire_started) and \
+          not below_lane_change_speed:
         self.lane_change_state = LaneChangeState.preLaneChange
         self.lane_change_timer = 0.0
         # Initialize lane change direction to prevent UI alert flicker
@@ -312,6 +321,10 @@ class DesireHelper:
         self.blinker_ignore = True
 
     self.prev_one_blinker = one_blinker and lateral_active and desire_enabled
+    # cp: desire edges are tracked regardless of lateral_active, so a persisting
+    # ATC desire is not re-armed when lateral control comes back on.
+    self.prev_desire_enabled = desire_enabled
+    self.prev_driver_enabled = driver_enabled
 
     # cp TURN mode: an ATC turn keeps the lane-change FSM off while the turn desire is live.
     if atc_turn_desire != TurnDirection.none:
