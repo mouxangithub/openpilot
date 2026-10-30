@@ -1,6 +1,7 @@
 import pytest
 import itertools
 from openpilot.common.parameterized import parameterized_class
+from openpilot.common.test import OpenpilotTestCase
 
 from openpilot.cereal import log
 
