@@ -98,6 +98,9 @@ DIR=/data/openpilot
 PY_PATH=/data/openpilot
 python3() {{ return {native_result}; echo checked; }}
 scons() {{ echo mocked-scons; }}
+# DIR points at the real checkout: neutralize every destructive/rebuilding
+# command the extracted function body may call.
+rm() {{ :; }}
 ensure_params_registry() {{{function}
 }}
 ensure_params_registry
