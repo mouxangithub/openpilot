@@ -71,3 +71,51 @@ def format_size(num_bytes: int) -> str:
   if num_bytes >= GB:
     return f"{num_bytes / GB:.2f} GB"
   return f"{num_bytes / MB:.2f} MB"
+
+
+def model_root_size(model_root: str) -> int:
+  """Bytes the driving-model cache occupies, recursively.
+
+  Both the web UI and the big UI must quote the same number: the small
+  (qcom) and big (chestnut) models share one flat model directory, so the
+  directory walk is the source of truth, not a catalog entry that may be
+  stale. This deliberately counts chunks (the .chunkNofM layout) too, so a
+  half-finished download shows the space it already took."""
+  return directory_size(model_root)
+
+
+def cached_bundle_sizes(model_root: str, bundles_by_source: dict[str, list]) -> dict[str, int]:
+  """Per-source on-disk bytes of the bundles a source's catalog lists.
+
+  The filesystem cannot tell which file feeds qcom versus chestnut (they
+  share the directory and differ only by catalog), so attribution follows
+  each source's cached bundle list. An artifact is summed from the chunks
+  that are actually on disk via the shared size ledger; a name listed by
+  both sources is attributed to both (it really does serve both), while the
+  row that matters - the directory total in model_root_size - never double
+  counts. Returns {source: bytes} for every source passed in, 0 when a
+  source has nothing local yet.
+  """
+  try:
+    from openpilot.sunnypilot.models.model_sizes import artifact_size
+  except Exception:
+    # Keep the storage layer importable on a PC without the model stack:
+    # fall back to a plain complete-file stat when the ledger is absent.
+    def artifact_size(path, declared=None):  # type: ignore[no-redef]
+      try:
+        return {"downloadedBytes": os.path.getsize(path) if os.path.isfile(path) else None}
+      except OSError:
+        return {"downloadedBytes": None}
+
+  sizes = dict.fromkeys(bundles_by_source, 0)
+  for source, bundles in bundles_by_source.items():
+    for bundle in bundles or []:
+      for artifact in getattr(bundle, "artifacts", []) or []:
+        file_name = getattr(artifact, "fileName", "") or ""
+        if not file_name:
+          continue
+        declared = getattr(artifact, "fileSizeBytes", None)
+        on_disk = artifact_size(os.path.join(model_root, file_name), declared).get("downloadedBytes")
+        if on_disk:
+          sizes[source] += int(on_disk)
+  return sizes

@@ -15,14 +15,14 @@ the kind of action that belongs nowhere near a settings list.
 """
 import platform
 import threading
-from pathlib import Path
 
 from openpilot.common.hardware.hw import Paths
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.sunnypilot.model_info import model_cache_size_mb
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.osm import MAP_PATH, delete_downloaded_maps
-from openpilot.selfdrive.ui.sunnypilot.storage_info import directory_size, disk_usage, format_size
+from openpilot.selfdrive.ui.sunnypilot.storage_info import (
+  cached_bundle_sizes, directory_size, disk_usage, format_size, model_root_size,
+)
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.widgets import DialogResult, Widget
@@ -57,6 +57,13 @@ class StorageLayout(Widget):
       action_item=NoElideButtonAction(tr("CLEAR")),
       callback=self._clear_model_cache,
     )
+    # Per-source breakdown under the total: small (qcom) and big (chestnut)
+    # models share one directory and differ only by catalog, so each is a
+    # read-only value row (clearing is the single action on the total above).
+    # TextAction resolves a callable every frame, so the row fills in when the
+    # off-UI-thread size walk lands.
+    self._small_model_item = text_item(tr("Small Model"), lambda: format_size(self._sizes.get("qcom", 0)))
+    self._big_model_item = text_item(tr("Big Model"), lambda: format_size(self._sizes.get("chestnut", 0)))
     self._maps_btn = ListItemSP(
       tr("Downloaded Maps"),
       action_item=NoElideButtonAction(tr("DELETE")),
@@ -69,18 +76,31 @@ class StorageLayout(Widget):
       self._disk_bar,
       section_heading_sp(tr("Downloaded Data")),
       self._model_cache_btn,
+      self._small_model_item,
+      self._big_model_item,
       self._maps_btn,
     ]
 
   # ---- sizing, computed off the UI thread (a walk over the model dir can hit hundreds of MB) ----
   def _compute_sizes(self):
-    sizes = {
-      "models": int(model_cache_size_mb() * 1024 ** 2),
-      "maps": directory_size(str(MAP_PATH)),
-    }
-    self._sizes = sizes
-    self._model_cache_btn.action_item.set_value(format_size(sizes["models"]))
-    self._maps_btn.action_item.set_value(format_size(sizes["maps"]))
+    model_root = Paths.model_root()
+    # The total walks the directory (recursive), the exact same number the web UI quotes.
+    models_total = model_root_size(model_root)
+    maps = directory_size(str(MAP_PATH))
+    self._sizes = {"models": models_total, "maps": maps}
+    self._model_cache_btn.action_item.set_value(format_size(models_total))
+    self._maps_btn.action_item.set_value(format_size(maps))
+
+    # Attribute bytes to each source from its cached bundle catalog; an
+    # unknown source or a panel on a PC without the fetcher just shows 0.
+    try:
+      from openpilot.sunnypilot.models.fetcher import get_cached_bundles
+
+      bundles = {source: get_cached_bundles(ui_state.params, source) for source in ("qcom", "chestnut")}
+      self._sizes.update(cached_bundle_sizes(model_root, bundles))
+    except Exception:
+      self._sizes.setdefault("qcom", 0)
+      self._sizes.setdefault("chestnut", 0)
 
     usage = disk_usage(_DISK_PROBE_PATH)
     if usage is not None:

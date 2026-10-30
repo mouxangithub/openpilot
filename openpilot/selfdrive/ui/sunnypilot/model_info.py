@@ -4,8 +4,6 @@ Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
 This file is part of sunnypilot and is licensed under the MIT License.
 See the LICENSE.md file in the root directory for more details.
 """
-import contextlib
-import os
 import time
 
 from openpilot.common.hardware.hw import Paths
@@ -19,14 +17,13 @@ from openpilot.system.ui.lib.multilang import tr
 
 
 def model_cache_size_mb() -> float:
-  """Bytes on disk under the model cache directory, in MB."""
-  model_root = Paths.model_root()
-  total = 0
-  if os.path.isdir(model_root):
-    for name in os.listdir(model_root):
-      with contextlib.suppress(OSError):
-        total += os.path.getsize(os.path.join(model_root, name))
-  return total / (1024 ** 2)
+  """Bytes on disk under the model cache directory, in MB.
+
+  Recursive (models may carry a chunk-manifest layout and the qcom/chestnut
+  sources share the directory), so every panel and the web UI quote the same
+  total - see storage_info.model_root_size."""
+  from openpilot.selfdrive.ui.sunnypilot.storage_info import model_root_size
+  return model_root_size(Paths.model_root()) / (1024 ** 2)
 
 
 def active_source() -> str:
