@@ -247,6 +247,8 @@ def test_selfdrive_step_disables_and_blocks_reentry():
   drive = SimpleNamespace(data_sample=lambda: object(), update_impact_dashcam=lambda cs: None,
     update_events=update_events, impact_dashcam=SimpleNamespace(pending=False, committed=True), events=events,
     CP=SimpleNamespace(passive=False, notCar=False), initialized=True, state_machine=state_machine,
+    mads=SimpleNamespace(update=lambda cs: None), button_state_tracker=SimpleNamespace(update=lambda cs: None),
+    CS_prev=None,
     update_alerts=lambda cs: None, update_system_ready_alert=lambda cs: None,
     update_nnff_alert=lambda cs: None, publish_selfdriveState=lambda cs: None)
   step = extract_function(Path(__file__).parents[1] / 'selfdrived.py', 'SelfdriveD', 'step', {'EventName': log.OnroadEvent.EventName})
