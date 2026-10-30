@@ -330,14 +330,14 @@ SERVICE_SCHEMAS: dict[str, tuple[int, tuple[tuple[Any, ...], ...]]] = {
     ("rpyCalib", "f32_list"),
     ("height", "f32_list"),
   )),
-  "roadCameraState": (11, (
+  "narrowRoadCameraState": (11, (
     ("frameId", "u32"),
     ("sensor", ("enum", ("unknown", "ar0231", "ox03c10", "os04c10"))),
     # AR 정합의 최우선 필드. 이게 없으면 표시 중인 영상 프레임과 model /
     # odometry 를 "시간" 기준으로 묶을 수 없다(frameId 만으로는 부족).
     ("timestampEof", "u64"),
   )),
-  "lateralPlan": (12, (
+  "lateralPlanDEPRECATED": (12, (
     ("useLaneLines", "bool"),
     ("latDebugText", "text"),
     ("position", ("struct", XYZ_SCHEMA)),
@@ -451,9 +451,9 @@ COMPACT_SERVICE_INTERVALS = {
   "deviceMotion": 0.05,
   # Navi 는 원래 2Hz 발행이라 그대로 따른다.
   "carrotNavi": 0.5,
-  "lateralPlan": 0.05,
+  "lateralPlanDEPRECATED": 0.05,
   "carrotMan": 0.1,
-  "roadCameraState": 0.25,
+  "narrowRoadCameraState": 0.25,
   "deviceState": 0.5,
   "peripheralState": 0.5,
   "gpsLocationExternal": 0.5,

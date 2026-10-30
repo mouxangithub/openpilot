@@ -9,7 +9,7 @@ import time
 def _summary(snapshot: dict, age_ms: int | None) -> dict:
   runtime = snapshot.get("runtime", {})
   services = snapshot.get("services", {})
-  road_camera = services.get("roadCameraState") or {}
+  road_camera = services.get("narrowRoadCameraState") or {}
   wide_camera = services.get("wideRoadCameraState") or {}
   model = services.get("modelV2") or {}
   car_state = services.get("carState") or {}

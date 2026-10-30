@@ -84,13 +84,12 @@ LIVE_SERVICES_BASE = (
   "radarState",
   "liveTracks",
   "longitudinalPlan",
-  "lateralPlan",
   "controlsState",
   "selfdriveState",
   "carControl",
   "carOutput",
   "deviceState",
-  "roadCameraState",
+  "narrowRoadCameraState",
   "cameraOdometry",
   "extrinsicsCalibration",
   "deviceMotion",
@@ -607,8 +606,6 @@ class OpenpilotLiveSource:
       self.parser._update_driving_model(data)
     elif service == "modelV2":
       self.parser._update_model_v2(data, event_t)
-    elif service == "lateralPlan":
-      self.parser._update_lateral_plan(data)
     elif service in ("navInstruction", "navInstructionCarrot"):
       self.parser._update_nav_instruction(data, event_t)
     elif service == "navRoute":
@@ -625,7 +622,7 @@ class OpenpilotLiveSource:
       self.parser._update_car_control(data)
     elif service == "deviceState":
       self.parser._update_device_state(data)
-    elif service == "roadCameraState":
+    elif service == "narrowRoadCameraState":
       self.parser._update_road_camera_state(data)
     elif service == "cameraOdometry":
       self.parser._update_camera_odometry(data, self._service_valid(service))

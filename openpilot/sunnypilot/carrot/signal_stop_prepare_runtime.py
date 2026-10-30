@@ -61,7 +61,7 @@ class SignalPrepareRuntime(SignalAssistRuntime):
       return obs, context
     if self.extra is None:
       from openpilot.cereal import messaging
-      self.extra = messaging.SubMaster(['extrinsicsCalibration', 'roadCameraState', 'deviceState'])
+      self.extra = messaging.SubMaster(['extrinsicsCalibration', 'narrowRoadCameraState', 'deviceState'])
     try:
       from openpilot.common.transformations.camera import DEVICE_CAMERAS
       from openpilot.common.transformations.orientation import rot_from_euler
@@ -77,9 +77,9 @@ class SignalPrepareRuntime(SignalAssistRuntime):
       now = context['now']; extra = self.extra
       ok = all(extra.seen[k] and extra.valid[k] and extra.alive[k]
                and 0 <= now-extra.recv_time[k] <= age
-               for k, age in [('extrinsicsCalibration', 2.), ('roadCameraState', .25), ('deviceState', 2.)])
+               for k, age in [('extrinsicsCalibration', 2.), ('narrowRoadCameraState', .25), ('deviceState', 2.)])
       calib = extra['extrinsicsCalibration']
-      config = DEVICE_CAMERAS.get((str(extra['deviceState'].deviceType), str(extra['roadCameraState'].sensor)))
+      config = DEVICE_CAMERAS.get((str(extra['deviceState'].deviceType), str(extra['narrowRoadCameraState'].sensor)))
       # Observations arrive already mapped into the reference road-camera
       # frame (1344x760), so any known narrow-road camera is admissible. The
       # geometric ray maths below uses the reference focal length, not this

@@ -96,7 +96,7 @@ def main() -> None:
 
   parser = argparse.ArgumentParser(description=__doc__)
   parser.add_argument("--camera", type=Path, required=True)
-  parser.add_argument("--index", type=Path, required=True, help="JSON array of full-schema qRoadEncodeIdx messages")
+  parser.add_argument("--index", type=Path, required=True, help="JSON array of full-schema qNarrowRoadEncodeIdx messages")
   parser.add_argument("--start", type=float, required=True, help="Seconds since the first camera exposure EOF")
   parser.add_argument("--end", type=float, required=True, help="Seconds since the first camera exposure EOF")
   parser.add_argument("--output", type=Path, required=True)

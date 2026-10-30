@@ -58,7 +58,7 @@ class _Frame:
 class _Message:
   """Stand-in for a capnp `Event` reader: `which()` picks the payload."""
 
-  def __init__(self, frame, which="roadEncodeData"):
+  def __init__(self, frame, which="narrowRoadEncodeData"):
     self._frame = frame
     self._which = which
 
@@ -66,7 +66,7 @@ class _Message:
     return self._which
 
   @property
-  def roadEncodeData(self):
+  def narrowRoadEncodeData(self):
     return self._frame
 
   @property

@@ -768,8 +768,8 @@ uint8_t service_id(const std::string &service) {
   if (service == "longitudinalPlan") return 8;
   if (service == "modelV2") return 9;
   if (service == "extrinsicsCalibration") return 10;
-  if (service == "roadCameraState") return 11;
-  if (service == "lateralPlan") return 12;
+  if (service == "narrowRoadCameraState") return 11;
+  if (service == "lateralPlanDEPRECATED") return 12;
   if (service == "radarState") return 13;
   if (service == "carControl") return 14;
   if (service == "lateralDelay") return 15;
@@ -793,11 +793,11 @@ void encode_service(std::string &out, const std::string &service, const DynamicR
   else if (service == "longitudinalPlan") encode_longitudinal_plan(out, value);
   else if (service == "modelV2") encode_model_v2(out, value);
   else if (service == "extrinsicsCalibration") encode_live_calibration(out, value);
-  else if (service == "roadCameraState") {
+  else if (service == "narrowRoadCameraState") {
     append_u32(out, value, "frameId");
     append_enum(out, value, "sensor");
     append_u64(out, value, "timestampEof");
-  } else if (service == "lateralPlan") encode_lateral_plan(out, value);
+  } else if (service == "lateralPlanDEPRECATED") encode_lateral_plan(out, value);
   else if (service == "radarState") encode_radar_state(out, value);
   else if (service == "carControl") encode_car_control(out, value);
   else if (service == "lateralDelay") {

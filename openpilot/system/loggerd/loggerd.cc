@@ -234,11 +234,11 @@ void loggerd_thread() {
 
   const bool lite = getenv("LITE");
   static const std::set<std::string> ignore_names = {
-    "driverCameraState",
-    "driverEncodeIdx",
+    "cabinCameraState",
+    "cabinEncodeIdx",
     "driverStateV2",
     "driverMonitoringState",
-    "driverEncodeData",
+    "cabinEncodeData",
     "soundPressure",
     "rawAudioData",
     "audioFeedback",

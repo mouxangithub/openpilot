@@ -3102,8 +3102,8 @@ def load_frames(log_path: Path, *, radar_track_flip: bool | None = None) -> list
     except Exception:
       continue
     event_ns = int(event.logMonoTime)
-    if which == "qRoadEncodeIdx" and qcamera_start_eof_ns == 0:
-      qcamera_start_eof_ns = int(event.qRoadEncodeIdx.timestampEof)
+    if which == "qNarrowRoadEncodeIdx" and qcamera_start_eof_ns == 0:
+      qcamera_start_eof_ns = int(event.qNarrowRoadEncodeIdx.timestampEof)
     elif which == "liveTracks":
       event_t = event_ns / 1e9
       reconstructed = corner_tracker.live_tracks_at(

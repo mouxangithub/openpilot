@@ -20,7 +20,7 @@ COMMON_SERVICES: tuple[str, ...] = (
   "longitudinalPlan",  # Cruise and longitudinal helper state.
   "extrinsicsCalibration",   # Projection / camera calibration basis.
   "modelV2",           # Lane, path, road edge, lead graphics source.
-  "roadCameraState",   # Road frameId / timestamp / sync basis.
+  "narrowRoadCameraState",   # Road frameId / timestamp / sync basis.
   "deviceState",       # Device health and metric state.
 )
 
@@ -31,7 +31,6 @@ OPTIONAL_SERVICES: tuple[str, ...] = (
   "radarState",           # Radar badge / vector / lead state.
   "carrotMan",            # Carrot-specific HUD and state.
   "gpsLocationExternal",  # Time / location helpers.
-  "lateralPlan",          # Lane-less and lateral helper state.
   "navInstructionCarrot", # Nav instruction text / turn state.
   "navRoute",             # Full destination route coordinates.
   "peripheralState",      # Voltage and peripheral info.

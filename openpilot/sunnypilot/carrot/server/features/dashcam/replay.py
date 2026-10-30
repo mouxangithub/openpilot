@@ -86,14 +86,14 @@ def _compact_frame(event: Any, service: str, sequence: int) -> bytes:
 
 
 def _frame_id(event: Any, service: str) -> int | None:
-  if service not in ("modelV2", "roadCameraState"):
+  if service not in ("modelV2", "narrowRoadCameraState"):
     return None
   value = _safe_int(getattr(getattr(event, service), "frameId", -1), -1)
   return value if value >= 0 else None
 
 
 def _camera_index(event: Any) -> CameraIndex:
-  value = event.qRoadEncodeIdx
+  value = event.qNarrowRoadEncodeIdx
   return CameraIndex(
     log_mono_ns=_safe_int(getattr(event, "logMonoTime", 0)),
     timestamp_sof_ns=_safe_int(getattr(value, "timestampSof", 0)),
@@ -131,7 +131,7 @@ def build_replay_timeline(events: Iterable[Any], expected_segment: int) -> tuple
       continue
     scan_stats.observe(event, service)
     event_indexer.ingest(event, service)
-    if service == "qRoadEncodeIdx":
+    if service == "qNarrowRoadEncodeIdx":
       camera_indexes.append(_camera_index(event))
       continue
     if service not in selected_events:

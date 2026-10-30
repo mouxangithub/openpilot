@@ -1638,8 +1638,8 @@ class RouteLogParser:
         self._update_driving_model(event.drivingModelData)
       elif event_type == "modelV2":
         self._update_model_v2(event.modelV2, event_t)
-      elif event_type == "lateralPlan":
-        self._update_lateral_plan(event.lateralPlan)
+      elif event_type == "lateralPlanDEPRECATED":
+        self._update_lateral_plan(event.lateralPlanDEPRECATED)
       elif event_type in ("navInstructionCarrot", "navInstruction"):
         self._update_nav_instruction(getattr(event, event_type), event_t)
       elif event_type == "longitudinalPlan":
@@ -1655,8 +1655,8 @@ class RouteLogParser:
         self._update_car_control(event.carControl)
       elif event_type == "deviceState":
         self._update_device_state(event.deviceState)
-      elif event_type == "roadCameraState":
-        self._update_road_camera_state(event.roadCameraState)
+      elif event_type == "narrowRoadCameraState":
+        self._update_road_camera_state(event.narrowRoadCameraState)
       elif event_type == "cameraOdometry":
         self._update_camera_odometry(event.cameraOdometry, bool(safe_get(event, "valid", True)))
       elif event_type == "deviceMotion":
@@ -1995,11 +1995,11 @@ class RouteLogParser:
     if not self.model_lane_change_seen:
       self.lane_change_state = enum_text(safe_get(lateral_plan, "laneChangeState", "off"))
       self.lane_change_direction = enum_text(safe_get(lateral_plan, "laneChangeDirection", "none"))
-      self.lane_change_source = "lateralPlan"
+      self.lane_change_source = "lateralPlanDEPRECATED"
     curvature = first_list_value(safe_get(lateral_plan, "curvatures"))
     if curvature is not None and abs(curvature) < 0.05:
       self.model_curvature_m_inv = curvature
-      self.model_curvature_source = "lateralPlan"
+      self.model_curvature_source = "lateralPlanDEPRECATED"
     self.lateral_plan_valid = bool(safe_get(lateral_plan, "mpcSolutionValid", self.lateral_plan_valid))
     self.lateral_plan_use_lane_lines = bool(safe_get(lateral_plan, "useLaneLines", self.lateral_plan_use_lane_lines))
     solver_cost = safe_optional_float(lateral_plan, "solverCost")

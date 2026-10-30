@@ -443,6 +443,9 @@ class ReplayEventIndexer:
       "carrot", "driving_mode_changed",
     )
 
+  # old route logs decode with the renamed field name
+  _ingest_lateralPlanDEPRECATED = _ingest_lateralPlan
+
   def _ingest_lateralPlan(self, value: Any, log_mono_ns: int) -> None:
     lane_state = _text(value, "laneChangeState").lower()
     direction = _text(value, "laneChangeDirection").lower()
