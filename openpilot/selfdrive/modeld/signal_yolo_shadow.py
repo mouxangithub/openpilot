@@ -64,6 +64,50 @@ def requested(directory=DIRECTORY):
     return False
 
 
+def control_requested(directory=DIRECTORY):
+  """Separate opt-in for publishing to the control transports.
+
+  The shadow observation is display-only by default and always stays on.
+  Publishing to the planner's observation transports is a second, explicit
+  decision, because those transports feed the signal stop supervision. It
+  is only honoured while the observer itself is enabled.
+  """
+  if not requested(directory):
+    return False
+  try:
+    return (Path(directory) / 'control_enabled').read_text().strip() == '1'
+  except OSError:
+    return False
+
+
+def reference_control_record(record):
+  """Map one shadow record into the control transports' reference frame.
+
+  Control reasons about the 1344x760 reference road camera, so the boxes are
+  mapped angularly into that frame and the record is tagged with the
+  reference size plus the producer's own ``timestamp_eof`` field the
+  prepare/start publishers read. An unknown source frame size yields None
+  rather than a guessed mapping.
+  """
+  from openpilot.sunnypilot.carrot.signal_geometry import geometry_for_size, to_reference_tracks
+  width, height = int(record['size'][0]), int(record['size'][1])
+  geometry = geometry_for_size(width, height)
+  if geometry is None:
+    return None
+  mapped = dict(record)
+  mapped['tracks'] = to_reference_tracks(record['tracks'], geometry)
+  mapped['size'] = [1344, 760]
+  # Marks the observation as the slow YOLO producer so the control chain can
+  # select its audited slow-cadence freshness window. The classical tracker
+  # publishes no producer tag and keeps the fast window.
+  mapped['producer'] = 'yolo'
+  # The control publishers read timestamp_eof (nanoseconds) and frame_id.
+  mapped['timestamp_eof'] = record.get('timestamp_eof', int(float(record['timestamp']) * 1e9))
+  mapped['frame_gap'] = record.get('frame_gap')
+  mapped['session'] = record['session']
+  return mapped
+
+
 def validate_artifact(directory=DIRECTORY, model_path=MODEL_PATH):
   """Check the installed model against its manifest and checksum."""
   directory = Path(directory)
@@ -277,6 +321,31 @@ def run(directory=DIRECTORY, duration=None, model_path=MODEL_PATH, observation_p
         publish_observation(record, observation_path)
       except (OSError, ValueError):
         cloudlog.exception('signalYoloObservationPublishFailed')
+      # Optional Stage 3 path: feed the planner's *prepare* transport only.
+      # This is the gentle red-light pre-deceleration cap (-0.5 m/s^2); it can
+      # only ever lower accel and never holds the car stopped or releases it.
+      # The stronger stop-veto (hold) and green-release (start) transports are
+      # deliberately NOT written: they gate stop/go state on the fast tracker's
+      # strict windows, and a ~0.6 Hz observation must not be allowed to veto a
+      # departure.
+      #
+      # Single-producer rule: on the reference camera (1344x760, comma 3X) the
+      # classical tracking observer already publishes prepare at up to 20 Hz
+      # whenever SignalAssistMode > 0, so the slow YOLO producer must not race
+      # it on the same file. The YOLO path only fills the gap on a camera the
+      # classical observer cannot run on (the comma 3's 1928x1208 frame, which
+      # the tracker rejects as an unsupported geometry). Boxes are mapped into
+      # the reference frame once here so the downstream geometry is unchanged.
+      if control_requested(directory) and (width, height) != REFERENCE_SIZE:
+        try:
+          from openpilot.sunnypilot.carrot.signal_mode import signal_mode
+          if signal_mode() > 0:
+            control_record = reference_control_record(record)
+            if control_record is not None:
+              from openpilot.sunnypilot.carrot.signal_stop_prepare_runtime import publish_prepare_observation
+              publish_prepare_observation(control_record)
+        except (OSError, ValueError, KeyError, TypeError):
+          cloudlog.exception('signalYoloControlPublishFailed')
       cloudlog.event('signalYoloShadow', **record)
       time.sleep(next_delay(elapsed))
 
@@ -306,7 +375,7 @@ def main():
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description='Read-only traffic-light detector observation')
-  parser.add_argument('mode', choices=('install', 'on', 'off', 'status', 'run'))
+  parser.add_argument('mode', choices=('install', 'on', 'off', 'control-on', 'control-off', 'status', 'run'))
   parser.add_argument('--seconds', type=float)
   args = parser.parse_args()
   if args.mode == 'install':
@@ -318,8 +387,17 @@ if __name__ == '__main__':
     temp = DIRECTORY / 'enabled.tmp'
     temp.write_text('1' if args.mode == 'on' else '0')
     temp.replace(DIRECTORY / 'enabled')
+  if args.mode in ('control-on', 'control-off'):
+    # Separate opt-in for publishing to the planner's prepare transport. It
+    # only takes effect while the observer itself is enabled (control_requested
+    # requires both files), so this never starts the worker on its own.
+    DIRECTORY.mkdir(parents=True, exist_ok=True)
+    temp = DIRECTORY / 'control_enabled.tmp'
+    temp.write_text('1' if args.mode == 'control-on' else '0')
+    temp.replace(DIRECTORY / 'control_enabled')
   if args.mode == 'run':
     run(duration=args.seconds)
   elif args.mode != 'install':
-    print(json.dumps({'requested': requested(), 'control': 'original',
+    print(json.dumps({'requested': requested(), 'control_publish': control_requested(),
+                      'control': 'prepare_cap' if control_requested() else 'original',
                       'latest': json.loads((OBSERVATION_PATH).read_text()) if OBSERVATION_PATH.exists() else None}))

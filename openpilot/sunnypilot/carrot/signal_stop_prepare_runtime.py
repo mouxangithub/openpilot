@@ -8,6 +8,7 @@ import time
 import numpy as np
 
 from openpilot.sunnypilot.carrot.signal_assist_runtime import SignalAssistRuntime, MAX_BYTES
+from openpilot.sunnypilot.carrot.signal_geometry import REFERENCE_FOCAL, geometry_for_camera
 from openpilot.sunnypilot.carrot.signal_stop_prepare import SignalStopPrepare, housing_range, housing_alignment, night_lamp_support
 
 ENABLE_PATH = Path('/data/signal-color-shadow/stop_prepare_enabled')
@@ -23,6 +24,11 @@ def publish_prepare_observation(record, directory=ENABLE_PATH.parent, path=OBSER
   obj = dict(version=1, stream='road', size=[1344, 760], session=record['session'],
              frame_id=record['frame_id'], timestamp=record['timestamp_eof']/1e9,
              tracks=record['tracks'][:20])
+  # Carry the producer tag only for the one known slow producer; it selects the
+  # audited slow-cadence freshness window in SignalStopPrepare. Any other value
+  # is dropped so an external record cannot widen its own freshness window.
+  if record.get('producer') == 'yolo':
+    obj['producer'] = 'yolo'
   data = json.dumps(obj, allow_nan=False)
   if len(data.encode()) > MAX_BYTES:
     raise ValueError('prepare observation too large')
@@ -74,8 +80,13 @@ class SignalPrepareRuntime(SignalAssistRuntime):
                for k, age in [('liveCalibration', 2.), ('roadCameraState', .25), ('deviceState', 2.)])
       calib = extra['liveCalibration']
       config = DEVICE_CAMERAS.get((str(extra['deviceState'].deviceType), str(extra['roadCameraState'].sensor)))
-      # Current observer coordinates match OS04C10 road frames only.
-      ok = ok and config is not None and config.fcam.size == (1344, 760) and str(calib.calStatus) == 'calibrated'
+      # Observations arrive already mapped into the reference road-camera
+      # frame (1344x760), so any known narrow-road camera is admissible. The
+      # geometric ray maths below uses the reference focal length, not this
+      # device's own focal, because the boxes it is handed are reference
+      # pixels regardless of which camera produced them.
+      road = getattr(config, 'narrow_road', None) if config is not None else None
+      ok = ok and road is not None and geometry_for_camera(config) is not None and str(calib.calStatus) == 'calibrated'
       rpy = list(calib.rpyCalib)
       pose = sm['livePose']
       ok = (ok and len(rpy) == 3 and np.isfinite(rpy).all()
@@ -95,14 +106,15 @@ class SignalPrepareRuntime(SignalAssistRuntime):
       yaw = math.degrees((rot_from_euler(rpy).T @ omega)[2])
       context['turning'] = abs(yaw) > 1.5 or math.degrees(np.linalg.norm(std)) > 2.
       model = sm['modelV2']
+      focal = REFERENCE_FOCAL
       context['geometry'] = lambda box: housing_range(
-        box, config.fcam.focal_length, rpy, model.roadEdges, model.roadEdgeStds,
+        box, focal, rpy, model.roadEdges, model.roadEdgeStds,
         model.laneLines, model.laneLineProbs, model.laneLineStds)
       context['alignment'] = lambda box, distance: housing_alignment(
-        box, distance, config.fcam.focal_length, rpy, model.roadEdges, model.roadEdgeStds,
+        box, distance, focal, rpy, model.roadEdges, model.roadEdgeStds,
         model.laneLines, model.laneLineProbs, model.laneLineStds)
       context['night_geometry'] = lambda box: night_lamp_support(
-        box, config.fcam.focal_length, rpy, model.roadEdges, model.roadEdgeStds,
+        box, focal, rpy, model.roadEdges, model.roadEdgeStds,
         model.laneLines, model.laneLineProbs, model.laneLineStds)
     except (AttributeError, KeyError, TypeError, ValueError, IndexError):
       context['valid'] = False

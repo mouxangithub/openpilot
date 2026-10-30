@@ -21,8 +21,8 @@ except ImportError:
 
 from openpilot.selfdrive.modeld.signal_yolo_shadow import (
   MAX_OBSERVATION_BYTES, MODEL_CLASSES, MODEL_SHA256, REFERENCE_SIZE, SUPPORTED_SIZES,
-  TARGET_HZ, _overall_state, copy_nv12_rgb, install, next_delay, publish_observation, requested,
-  validate_artifact,
+  TARGET_HZ, _overall_state, control_requested, copy_nv12_rgb, install, next_delay,
+  publish_observation, reference_control_record, requested, validate_artifact,
 )
 from openpilot.sunnypilot.carrot.signal_yolo_detector import HousingObservation
 
@@ -231,6 +231,57 @@ class TestReferenceGeometry(unittest.TestCase):
 
   def test_reference_size_still_names_the_mici_road_camera(self):
     self.assertEqual(REFERENCE_SIZE, (1344, 760))
+
+
+class TestControlOptIn(unittest.TestCase):
+  def test_control_flag_requires_the_observer_to_be_enabled(self):
+    with tempfile.TemporaryDirectory() as directory:
+      directory = Path(directory)
+      (directory / 'control_enabled').write_text('1')
+      # The control flag alone never publishes.
+      self.assertFalse(control_requested(directory))
+      (directory / 'enabled').write_text('1')
+      self.assertTrue(control_requested(directory))
+
+  def test_control_flag_off_by_default_even_when_observer_runs(self):
+    with tempfile.TemporaryDirectory() as directory:
+      directory = Path(directory)
+      (directory / 'enabled').write_text('1')
+      self.assertFalse(control_requested(directory))
+      (directory / 'control_enabled').write_text('0')
+      self.assertFalse(control_requested(directory))
+
+
+class TestReferenceControlRecord(unittest.TestCase):
+  def _record(self, size, box):
+    return {'version': 1, 'stream': 'road', 'size': list(size), 'frame_id': 3,
+            'timestamp': 10.0, 'timestamp_eof': 10_000_000_000, 'session': 's',
+            'tracks': [{'id': 1, 'box': list(box), 'state': 'red',
+                        'evidence': {'raw': 'red'}}]}
+
+  def test_c3_frame_is_mapped_into_the_reference_frame(self):
+    box = [964. - 100., 604. - 50., 964. + 100., 604. + 50.]
+    result = reference_control_record(self._record((1928, 1208), box))
+    self.assertIsNotNone(result)
+    self.assertEqual(result['size'], [1344, 760])
+    self.assertEqual(result['producer'], 'yolo')
+    self.assertEqual(result['timestamp_eof'], 10_000_000_000)
+    mapped = result['tracks'][0]['box']
+    self.assertAlmostEqual((mapped[0] + mapped[2]) / 2., 672.)
+    self.assertAlmostEqual((mapped[1] + mapped[3]) / 2., 380.)
+    # The angular scale shrinks the C3 box into reference pixels.
+    self.assertLess(mapped[2] - mapped[0], 200.)
+
+  def test_reference_frame_is_passed_through_but_still_tagged(self):
+    box = [300., 200., 400., 260.]
+    result = reference_control_record(self._record((1344, 760), box))
+    self.assertIsNotNone(result)
+    self.assertEqual(result['size'], [1344, 760])
+    self.assertEqual(result['producer'], 'yolo')
+    self.assertEqual(result['tracks'][0]['box'], box)
+
+  def test_unknown_frame_size_is_refused_not_guessed(self):
+    self.assertIsNone(reference_control_record(self._record((800, 600), [0., 0., 10., 10.])))
 
 
 if __name__ == '__main__':

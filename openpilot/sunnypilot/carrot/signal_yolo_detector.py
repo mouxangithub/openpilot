@@ -255,6 +255,49 @@ def detect(rgb, net, *, conf_threshold=CONF_THRESHOLD, nms_threshold=NMS_THRESHO
   return group_housings(detections)
 
 
+def lamp_evidence(observation):
+  """Colour evidence for a housing, in the shape the control chain expects.
+
+  The classical observer published a per-track ``evidence`` dict carrying
+  ``raw`` plus a ``quality`` score, a ``source`` tag and the per-colour
+  scores. The control chain gates on all of them: a track is only usable
+  when ``source`` is ``detected`` and ``quality`` is in [0.5, 1.0], and a
+  red candidate additionally needs a red score in [0.4, 1.0] with the green
+  score below 0.08.
+
+  The YOLO detector reaches a colour by a different route - a per-class
+  detection rather than a pixel-colour read - so it must state the same
+  facts in the same fields for the chain to accept its evidence:
+
+  - ``raw`` is the housing's colour state (``red``/``green``/``unknown``).
+  - ``quality`` is the confidence of the lamp that produced that state. A
+    housing with no lamp has no colour evidence at all, so its quality is
+    0.0 and the chain will refuse it.
+  - ``source`` is ``detected`` for every YOLO track: the colour came from
+    the network's detection head, which is the same provenance the chain
+    means by "detected" (as opposed to the night's saturated-core or
+    template paths, which this detector never produces).
+  - ``red_score``/``green_score`` are the confidences of the red and green
+    lamps inside the housing. They are 0.0 when that colour is absent, so
+    the chain's "a red must not be a green" test reads the same way it does
+    for the classical producer.
+  """
+  state = observation.state
+  red_score = 0.0
+  green_score = 0.0
+  quality = 0.0
+  for lamp in observation.lamps:
+    if lamp.cls == RED:
+      red_score = max(red_score, float(lamp.conf))
+    elif lamp.cls == GREEN:
+      green_score = max(green_score, float(lamp.conf))
+  if state in ('red', 'green'):
+    # The colour read is only as good as the lamp that carried it.
+    quality = max(red_score, green_score)
+  return {'raw': state, 'quality': quality, 'source': 'detected',
+          'red_score': red_score, 'green_score': green_score}
+
+
 def observation_record(observations, frame_id, timestamp, session_id, *, width, height,
                        tracker: 'HousingTracker | None' = None):
   """Build the record shape the existing signal transport already speaks.
@@ -274,7 +317,7 @@ def observation_record(observations, frame_id, timestamp, session_id, *, width, 
     tracks = []
     for index, observation in enumerate(observations, start=1):
       tracks.append({'id': index, 'box': list(observation.box), 'state': observation.state, 'age': 0,
-                     'observations': 1, 'evidence': {'raw': observation.state},
+                     'observations': 1, 'evidence': lamp_evidence(observation),
                      'lamps': [{'cls': lamp.cls, 'conf': lamp.conf, 'box': list(lamp.box)}
                                for lamp in observation.lamps]})
   return {'version': 1, 'stream': 'road', 'size': [width, height], 'frame_id': frame_id,
@@ -358,7 +401,7 @@ class HousingTracker:
     for index, observation in enumerate(observations):
       track_id = index_to_track[index]
       tracks.append({'id': track_id, 'box': list(observation.box), 'state': observation.state, 'age': 0,
-                     'observations': self._observations[track_id], 'evidence': {'raw': observation.state},
+                     'observations': self._observations[track_id], 'evidence': lamp_evidence(observation),
                      'lamps': [{'cls': lamp.cls, 'conf': lamp.conf, 'box': list(lamp.box)}
                                for lamp in observation.lamps]})
     return tracks

@@ -70,5 +70,67 @@ class TestSignalStopPrepareGuards(unittest.TestCase):
     self.assertGreaterEqual(SignalStopPrepare.RAMP, 0.0)
 
 
+_YOLO_TRACK = {'id': 1, 'box': [600, 300, 660, 330], 'state': 'red', 'age': 0, 'observations': 5,
+               'evidence': {'raw': 'red', 'source': 'detected', 'quality': 1.0,
+                            'red_score': 1.0, 'green_score': 0.0}}
+
+
+def _prepare_observation(session, frame_id, stamp, *, producer=None):
+  obs = {'version': 1, 'stream': 'road', 'size': [1344, 760], 'session': session,
+         'frame_id': frame_id, 'timestamp': stamp, 'tracks': [dict(_YOLO_TRACK)]}
+  if producer is not None:
+    obs['producer'] = producer
+  return obs
+
+
+def _replay_prepare(producer, cadence, frames=6):
+  prepare = SignalStopPrepare()
+
+  def geometry(box):
+    return (50.0, 80.0)
+
+  decisions = []
+  for i in range(frames):
+    t = 10.0 + i * cadence
+    decision = prepare.update(
+      t, _prepare_observation('s', i + 1, t, producer=producer),
+      enabled=True, valid=True, drive=True, speed=20.0, gas=False, brake=False,
+      lead=False, turning=False, model_stopping=False, entry_allowed=True, geometry=geometry)
+    decisions.append(decision)
+  return decisions
+
+
+class TestYoloProducerCadence(unittest.TestCase):
+  """The YOLO observer publishes at ~0.6 Hz on a comma 3, far slower than the
+  classical tracker's 20 Hz. It carries producer='yolo' and selects a fixed,
+  audited slow-cadence freshness window; the fast path must stay strict."""
+
+  def test_slow_cadence_confirms_for_the_yolo_producer(self):
+    decisions = _replay_prepare('yolo', 1.7)
+    self.assertTrue(any(d.active for d in decisions),
+                    [d.reason for d in decisions])
+    self.assertEqual(decisions[-1].reason, 'red_prepare')
+
+  def test_slow_cadence_never_confirms_without_the_tag(self):
+    # A 1.7 s gap is a capture gap for the fast producer, so its confirmation
+    # history resets every frame and the cap must never engage.
+    decisions = _replay_prepare(None, 1.7)
+    self.assertFalse(any(d.active for d in decisions))
+    self.assertTrue(all(d.reason in ('confirming', 'capture_gap', 'awaiting_fresh')
+                        for d in decisions))
+
+  def test_unknown_producer_value_does_not_widen_the_window(self):
+    # Only the literal 'yolo' tag selects the slow window; any other string
+    # keeps the strict fast window even if an external record sets it.
+    decisions = _replay_prepare('something_else', 1.7)
+    self.assertFalse(any(d.active for d in decisions))
+
+  def test_fast_cadence_still_confirms_with_the_tag(self):
+    # The slow window must not break a device that runs YOLO at the 2 Hz cap.
+    decisions = _replay_prepare('yolo', 0.15, frames=8)
+    self.assertTrue(any(d.active for d in decisions),
+                    [d.reason for d in decisions])
+
+
 if __name__ == "__main__":
   unittest.main()

@@ -382,6 +382,20 @@ class SignalStopPrepare:
   TARGET_ACCEL = -.5
   RAMP = .25  # m/s^3; zero to -0.5 takes two seconds
 
+  # Cadence windows for the YOLO observation producer. The classical camera
+  # tracker publishes at up to 20 Hz and keeps the strict fast windows above.
+  # YOLO forwards are throttled by a CPU duty floor (~0.6 Hz / ~1.7 s on the
+  # comma 3, up to the 2 Hz cap on faster devices), so it needs freshness
+  # windows matched to that cadence or every frame is rejected as a capture
+  # gap and the decision can never confirm. These are fixed, audited code
+  # constants, never read from the observation. The path is doubly opt-in
+  # (the observer's control_enabled file plus SignalAssistMode == 2), and it
+  # feeds only the gentle prepare cap: the arbitrator still applies its own
+  # evidence-loss grace, and the stronger cap still needs radar
+  # corroboration plus the stop-distance envelope.
+  YOLO_MAX_AGE = 2.5
+  YOLO_MAX_GAP = 2.0
+
   def __init__(self):
     self.session = None
     self.last_frame = -1
@@ -427,7 +441,10 @@ class SignalStopPrepare:
                                                   and (t['evidence'].get('source') == 'night_lamp_core'
                                                        or int(t['id']) in self.night_anchors) for t in observation['tracks'])
                                              or self.priority_key == ('night_red_group', (), ()))
-      max_age = self.NIGHT_MAX_AGE if night else self.MAX_AGE
+      yolo_producer = observation.get('producer') == 'yolo'
+      max_gap = self.YOLO_MAX_GAP if yolo_producer else self.MAX_GAP
+      max_age = self.NIGHT_MAX_AGE if night else (
+        self.YOLO_MAX_AGE if yolo_producer else self.MAX_AGE)
       if (observation.get('version') != 1 or observation.get('stream') != 'road'
           or observation.get('size') != [1344, 760] or not isinstance(session, str) or not session
           or not math.isfinite(stamp) or now < stamp):
@@ -439,7 +456,7 @@ class SignalStopPrepare:
         # timely successor (capture gap + freshness); never actuate on it.
         # An unseen late frame/session, or a longer outage, still clears history.
         if (session == self.session and frame == self.last_frame and stamp == self.last_capture
-            and now-stamp <= self.MAX_GAP+self.MAX_AGE):
+            and now-stamp <= max_gap+max_age):
           self.active = False
           return PrepareDecision(reason='awaiting_fresh')
         return self.reset('stale')
@@ -453,7 +470,7 @@ class SignalStopPrepare:
       if not fresh and (frame != self.last_frame or stamp != self.last_capture):
         return self.reset('inconsistent_frame')
       if fresh:
-        if stamp-self.last_capture > self.MAX_GAP:
+        if stamp-self.last_capture > max_gap:
           self.reset('capture_gap')
         self.last_frame, self.last_capture = frame, stamp
       self.night_anchors = {tid: a for tid, a in self.night_anchors.items() if 0 <= stamp-a[0] <= .5}

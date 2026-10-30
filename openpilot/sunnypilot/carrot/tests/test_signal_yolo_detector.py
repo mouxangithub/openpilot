@@ -148,7 +148,8 @@ class TestObservationRecord(unittest.TestCase):
     self.assertEqual(track['box'], [10., 20., 30., 40.])
     self.assertEqual(track['state'], 'red')
     self.assertEqual(track['observations'], 1)
-    self.assertEqual(track['evidence'], {'raw': 'red'})
+    self.assertEqual(track['evidence'], {'raw': 'red', 'quality': .8, 'source': 'detected',
+                                         'red_score': .8, 'green_score': 0.0})
     self.assertEqual(track['lamps'][0]['cls'], RED)
 
   def test_record_is_json_serialisable(self):
@@ -195,7 +196,10 @@ class TestHousingTracker(unittest.TestCase):
     tracker.update([_obs((100., 50., 140., 110.), 'red')])
     row = tracker.update([_obs((100., 50., 140., 110.), 'green')])
     self.assertEqual(row[0]['state'], 'green')
-    self.assertEqual(row[0]['evidence'], {'raw': 'green'})
+    self.assertEqual(row[0]['evidence']['raw'], 'green')
+    self.assertEqual(row[0]['evidence']['source'], 'detected')
+    # A hand-built observation without lamps carries no colour confidence.
+    self.assertEqual(row[0]['evidence']['quality'], 0.0)
 
   def test_unseen_track_is_forgotten_after_max_age(self):
     tracker = HousingTracker(max_age=2)
