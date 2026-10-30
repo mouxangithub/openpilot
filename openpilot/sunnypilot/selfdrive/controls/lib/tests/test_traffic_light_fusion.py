@@ -114,6 +114,7 @@ class TestTrafficLightFusionUpdate(OpenpilotTestCase):
 
   def test_update_detects_vision_red(self) -> None:
     fusion = TrafficLightFusion()
+    fusion._refresh_params = lambda: None  # keep the directly-set flags below
     fusion._fusion_enabled = True
     fusion._nav_caution_only = False
     sm = self._fake_sm(traffic_state=0, model_stop=True)
@@ -124,6 +125,7 @@ class TestTrafficLightFusionUpdate(OpenpilotTestCase):
 
   def test_update_carrot_red_without_vision_is_caution(self) -> None:
     fusion = TrafficLightFusion()
+    fusion._refresh_params = lambda: None  # keep the directly-set flags below
     # Default caution-only behavior, independent of real params on the device.
     fusion._fusion_enabled = False
     fusion._nav_caution_only = True

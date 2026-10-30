@@ -481,6 +481,21 @@ CONFIGS = [
     init_callback=get_car_params_callback,
     should_recv_callback=MessageBasedRcvCallback("modelV2"),
   ),
+  # sp radarcan (CarrotPilot CAN radar): unlike cp it does not consume livePose/modelV2,
+  # only raw can + carState, and publishes liveTracks.
+  ProcessConfig(
+    proc_name="radarcan",
+    pubs=["can", "carState"],
+    subs=["liveTracks"],
+    ignore=["logMonoTime"],
+    init_callback=get_car_params_callback,
+    # The ego message closes its CAN batch, including the final input batch.
+    # Lock CAN because that is the worker's first receive on each iteration.
+    should_recv_callback=MessageBasedRcvCallback("carState"),
+    main_pub="can",
+    main_pub_drained=True,
+    tolerance=NUMPY_TOLERANCE,
+  ),
   ProcessConfig(
     proc_name="plannerd",
     pubs=["modelV2", "carControl", "carState", "controlsState", "radarState", "selfdriveState",

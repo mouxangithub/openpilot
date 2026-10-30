@@ -76,6 +76,8 @@ class Plant:
     ss = messaging.new_message('selfdriveState')
     ss_sp = messaging.new_message('selfdriveStateSP')
     car_state = messaging.new_message('carState')
+    # sp renamed LiveParameters -> vehicleParameters; the planner reads angleOffsetDeg from it
+    vp = messaging.new_message('vehicleParameters')
     model = messaging.new_message('modelV2')
     car_state_sp = messaging.new_message('carStateSP')
     live_map_data_sp = messaging.new_message('liveMapDataSP')
@@ -141,6 +143,7 @@ class Plant:
     # ******** get controlsState messages for plotting ***
     sm = PlannerSM(self.rk.frame, {'radarState': radar.radarState,
           'carState': car_state.carState,
+          'vehicleParameters': vp.vehicleParameters,
           'carControl': car_control.carControl,
           'controlsState': control.controlsState,
           'selfdriveState': ss.selfdriveState,
