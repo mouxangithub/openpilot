@@ -11,6 +11,7 @@ The fusion module avoids importing cereal, so these tests need no compiled
 capnp runtime. The core ``fuse`` method is exercised with primitive inputs and
 ``update`` is exercised with a dict-backed fake SubMaster.
 """
+import time
 from types import SimpleNamespace
 
 from openpilot.common.test import OpenpilotTestCase
@@ -19,6 +20,16 @@ from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode
 from openpilot.sunnypilot.selfdrive.controls.lib.traffic_light_fusion import (
   RawLight, FusedState, FusedSource, TrafficLightFusion,
 )
+
+
+class _FakeSM(dict):
+  """dict with the SubMaster attribute surface get_carrot_man touches."""
+  def __init__(self, data):
+    super().__init__(data)
+    self.seen = {}
+    self.alive = {}
+    self.valid = {}
+    self.recv_time = {}
 
 
 def _run(fusion: TrafficLightFusion, carrot: RawLight, vision_red: bool,
@@ -100,8 +111,9 @@ class TestTrafficLightFusionFuse(OpenpilotTestCase):
 
 class TestTrafficLightFusionUpdate(OpenpilotTestCase):
   def _fake_sm(self, traffic_state: int, model_stop: bool) -> dict:
-    # carrotManSP carries the phone red/green (0/1/2/3).
-    carrot = SimpleNamespace(trafficState=traffic_state, trafficCountdown=0)
+    # carrotManSP carries the phone red/green (0/1/2/3). desiredSpeed must be a
+    # plausible cruise value: get_carrot_man rejects caps outside (0, 250].
+    carrot = SimpleNamespace(trafficState=traffic_state, trafficCountdown=0, desiredSpeed=30.0)
     # modelV2 stop-line detection: a near, slow end-of-path point => red.
     if model_stop:
       x = [0.0] * 32 + [10.0]
@@ -110,7 +122,15 @@ class TestTrafficLightFusionUpdate(OpenpilotTestCase):
       x = [0.0] * 32 + [300.0]
       v = [0.0] * 32 + [20.0]
     model = SimpleNamespace(position=SimpleNamespace(x=x), velocity=SimpleNamespace(x=v))
-    return {"carrotManSP": carrot, "carrotNaviSP": None, "modelV2": model}
+    sm = _FakeSM({"carrotManSP": carrot, "carrotNaviSP": None, "modelV2": model})
+    # get_carrot_man reads the SubMaster freshness interface; emulate it so the
+    # carrot frame counts as fresh on both PC and a real device.
+    for svc in ("carrotManSP", "modelV2"):
+      sm.seen[svc] = True
+      sm.alive[svc] = True
+      sm.valid[svc] = True
+      sm.recv_time[svc] = time.monotonic()
+    return sm
 
   def test_update_detects_vision_red(self) -> None:
     fusion = TrafficLightFusion()
