@@ -7608,3 +7608,55 @@ msgstr "不可用"
 #: auto (storage panel)
 msgid "{} free"
 msgstr "可用 {}"
+
+#: auto (zp develop merge)
+msgid "Lane Center Assist (Alpha)"
+msgstr "车道居中辅助（测试版）"
+
+#: auto (zp develop merge)
+msgid "Choose the driving model. Small models run on the comma.\\n"
+msgstr "选择驾驶模型。小模型运行在车机上。\\n"
+
+#: auto (zp develop merge)
+msgid "Deletes downloaded models to free up space.\\n"
+msgstr "删除已下载的模型以释放空间。\\n"
+
+#: auto (zp develop merge)
+msgid "Runs big models on a computer or phone plugged into the comma.\\n"
+msgstr "在插入车机的电脑或手机上运行大模型。\\n"
+
+#: auto (zp develop merge)
+msgid "{} drives until the big model is ready."
+msgstr "大模型就绪前由 {} 驾驶。"
+
+#: auto (zp develop merge)
+msgid "{} is ready. Disengage fully, then re-engage to switch."
+msgstr "{} 已就绪。完全退出后再重新接管即可切换。"
+
+#: auto (zp develop merge)
+msgid "{} will drive when Jetlink is ready."
+msgstr "Jetlink 就绪后将由 {} 驾驶。"
+
+#: auto (zp develop merge)
+msgid "lane center assist"
+msgstr "车道居中辅助"
+
+#: auto (zp develop merge)
+msgid "lane turn desires"
+msgstr "变道转向意图"
+
+#: auto (zp develop merge)
+msgid "lane turn speed"
+msgstr "变道转向速度"
+
+#: auto (zp develop merge)
+msgid "live steer delay"
+msgstr "自学习转向延迟"
+
+#: auto (zp develop merge)
+msgid "manual steer delay"
+msgstr "手动转向延迟"
+
+#: auto (zp develop merge)
+msgid "camera offset"
+msgstr "相机偏移"

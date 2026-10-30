@@ -1,37 +1,42 @@
 zoompilot vUNRELEASED
 ========================
-* Synced with sunnypilot of 2026-10-25, through openpilot of 2026-10-16.
+* Synced with sunnypilot of 2026-10-29, through openpilot of 2026-10-16.
 * Cruise
-  * Experimental Mode is on by default for alpha longitudinal like openpilot 11.2
-  * Experimental Mode may still be toggled off, unlike upstream, by long-pressing the car's
-    distance button, long press on comma home, or in sunnylink.
+  * Experimental Mode is on by default with alpha longitudinal.
+  * Turn it off: hold the distance button, long press home, or in sunnylink.
   * Dynamic Experimental Control is removed.
-  * Prefer coasting over braking in Alpha longitudinal. Curves and speed limits still brake.
-  * Set Speed Assist drives as chill mode does whenever the driving model holds back: it reaches
-    your set speed and your following distance, and the model still makes every slowdown.
-    No more alternating gas and brake on an open road.
-  * Lead Follow Assist is folded into Set Speed Assist: one toggle.
-  * Set Speed Assist is now on by default, existing installs too.
-  * The alpha longitudinal switch can be changed onroad while disengaged.
-  * If stock cruise could not be handed back, the next drive says so: restart the car.
-  * Slow for Curves: Map holds its curve targets between GPS fixes and drops them
-    when GPS is lost.
-* Experimental Mode is indicated in comma 4 confidence ball when enabled.
-* Road edge lane change block can be off, audible or silent.
-* Home can show the driving model's name (Display settings).
+  * Alpha longitudinal coasts more. Curves and speed limits still brake.
+  * Set Speed Assist reaches your set speed and follow distance like chill.
+  * The model still makes every slowdown. No more gas-brake pumping.
+  * Lead Follow Assist is now part of Set Speed Assist.
+  * Set Speed Assist is on by default.
+  * Alpha longitudinal can be switched onroad while disengaged.
+  * If stock cruise can't be handed back, the next drive says to restart the car.
+  * Slow for Curves Map keeps its targets between GPS fixes.
+* Steering
+  * New Lane Center Assist (alpha) in Models. Custom models only.
+  * Road edge lane change block: off, audible or silent.
+* comma 4
+  * Experimental Mode shows in the confidence ball.
+  * Models adds lane turn desires, steer delay and camera offset.
+  * Home can show the driving model's name (Display).
+* Toyota TSS2: Smooth Longitudinal (alpha).
 * Mazda
-  * Steering tuning improvements from reverse engineering work.
+  * Steering tuning from reverse engineering work.
   * CX-5: steering delay learning starts at 0.25 s.
-  * Blind spot monitoring follows upstream's new BSM flag.
+  * Blind spot monitoring uses upstream's new BSM flag.
   * 2017 Mazda 3 2.5 L is recognized automatically.
   * 2026 CX-5 outside North America is recognized automatically.
   * A camera fault no longer shows as LKAS off.
 * jetlink
+  * A model picked in the jetlink app drives on the comma too.
+  * The Jetson downloads new models, not the comma.
   * Jetlink-only models can be picked in sunnylink.
   * Flip Flop and Mountain Dew v3 are listed separately.
-  * The Jetlink port draws less power at boot.
-  * comma 3X: no forced reboot with a laptop plugged in.
-  * A picked big model is kept when the model list changes, instead of going back to the default.
+  * Your big model pick is kept when the model list changes.
+  * The jetlink app no longer keeps a CPU core busy between drives.
+  * The jetlink port draws less power at boot.
+  * comma 3X: no reboot when a laptop is plugged in.
 
 zoompilot v2026.10.16-16
 ========================

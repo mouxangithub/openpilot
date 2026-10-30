@@ -307,7 +307,7 @@ class BigParamOption(BigButton):
   """A BigButton that shows a numeric param value; opens a picker screen on tap."""
 
   def __init__(self, text: str, param: str, min_value: int, max_value: int,
-               value_change_step: int = 1, label_callback: Callable | None = None,
+               value_change_step: int | Callable[[], int] = 1, label_callback: Callable | None = None,
                value_map: dict[int, int] | None = None, float_param: bool = False,
                picker_label_callback: Callable | None = None,
                picker_unit: str | Callable[[], str] = "", picker_item_width: int = 0, **kwargs):
@@ -353,7 +353,7 @@ class BigParamOption(BigButton):
     # The picker has enough width to render narrow-button labels on one line.
     return NumberPickerScreen(
       title=self.text.replace("\n", " "), param=self._param, min_value=self._min_value, max_value=self._max_value,
-      step=self._step, label_callback=self._picker_label_callback, value_map=self._value_map,
+      step=self._step() if callable(self._step) else self._step, label_callback=self._picker_label_callback, value_map=self._value_map,
       float_param=self._float_param, unit=self._picker_unit, **kwargs,
     )
 

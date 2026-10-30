@@ -807,14 +807,20 @@ struct ModelDataV2SP @0xa1680744031fdb2d {
   laneTurnDirection @0 :TurnDirection;
   leftLaneChangeEdgeBlock @1 :Bool;
   rightLaneChangeEdgeBlock @2 :Bool;
-  zoompilot @3 :ModelDataV2ZP;
+  blendfulCurvature @3 :Float32;
+  blendfulTrust @4 :Float32;
+  modelCurvature @5 :Float32;
+  blendfulGoingAround @6 :Bool;
+  blendfulLeftProb @7 :Float32;
+  blendfulRightProb @8 :Float32;
+  blendfulLaneWidth @9 :Float32;
+  zoompilot @10 :ModelDataV2ZP;
 
   # Runtime state of an off-board accelerator (sunnypilot/accelerators). Offroad
   # progress stays in the AcceleratorProgress param; telemetry waits for a customReserved slot.
   # NOTE: the fork's old bigModelAvailable @3 was dropped in the zp merge - it aliased
   # zoompilot @3; zoompilot.acceleratorState now carries the same information.
-  acceleratorState @4 :AcceleratorState;
-  acceleratorNameDEPRECATED @5 :Text;  # always jetlink; ordinal kept for old logs
+  acceleratorState @11 :AcceleratorState;
 
   enum AcceleratorState {
     none @0;
@@ -825,16 +831,7 @@ struct ModelDataV2SP @0xa1680744031fdb2d {
     ready @5;      # link up, engine loaded, waiting for a window to switch
   }
 
-  # Blendful lateral policy (sunnypilot). Renumbered off sunnypilot's @3-@9
-  # (which collide with zoompilot @3 / acceleratorState @4 / deprecated @5);
-  # these are our own log fields, read straight from modeld_v2.
-  blendfulCurvature @6 :Float32;
-  blendfulTrust @7 :Float32;
-  modelCurvature @8 :Float32;
-  blendfulGoingAround @9 :Bool;
-  blendfulLeftProb @10 :Float32;
-  blendfulRightProb @11 :Float32;
-  blendfulLaneWidth @12 :Float32;
+  acceleratorNameDEPRECATED @12 :Text;  # always jetlink; ordinal kept for old logs
 
   enum TurnDirection {
     none @0;

@@ -45,12 +45,15 @@ MODES = ('off', 'usb', 'ios', 'wifi')
 
 # the params jetlink reads and writes, all declared in params_keys.h. big_model
 # and catalog are the model manager's big-model slot and catalog
-# (models.helpers.ACTIVE_BUNDLE_KEYS['chestnut'] and ModelFetcher's cache): the
-# owner cannot import the model manager, so they are written out here
-_Keys = namedtuple('_Keys', 'link offroad progress spec pointers big_model catalog charge_phone')
+# (models.helpers.ACTIVE_BUNDLE_KEYS['chestnut'] and ModelFetcher's cache), and
+# select is where a pick is asked for by its ref, which jetlink writes for a
+# newer pick made on the server: the owner cannot import the model manager, so
+# they are written out here
+_Keys = namedtuple('_Keys', 'link offroad progress spec pointers big_model catalog charge_phone select')
 KEYS = _Keys(link='JetlinkLink', offroad='IsOffroad', progress='AcceleratorProgress', spec='JetlinkSpec',
              pointers='JetlinkModelPointers', big_model='ModelManager_ActiveBundleChestnut',
-             catalog='ModelManager_ModelsCache_Chestnut', charge_phone='JetlinkChargePhone')
+             catalog='ModelManager_ModelsCache_Chestnut', charge_phone='JetlinkChargePhone',
+             select='ModelManager_DownloadRef')
 
 _AGNOS = os.path.isfile('/AGNOS')
 
@@ -113,6 +116,21 @@ def _adapter_class():
       # modeld_tinygrad reads modeld_v2's off the model
       from openpilot.sunnypilot.modeld_v2.constants import ModelConstants
       return ModelConstants
+
+    def action_function(self):
+      # modeld_v2 passes Blendful's correction as a callback on the raw curvature;
+      # stock modeld passes none. Stock's lateral smoothing is off (LAT_SMOOTH_SECONDS
+      # 0), so the correction added to its answer is the one modeld_v2 adds before smoothing
+      from openpilot.selfdrive.modeld.modeld import MIN_LAT_CONTROL_SPEED, get_action_from_model
+
+      def action(model_output, prev_action, lat_action_t, long_action_t, v_ego, blendful=None):
+        action = get_action_from_model(model_output, prev_action, lat_action_t, long_action_t, v_ego)
+        if blendful is not None:
+          correction = blendful(action.desiredCurvature)
+          if v_ego > MIN_LAT_CONTROL_SPEED:
+            action.desiredCurvature += correction
+        return action
+      return action
 
     def engaged(self, sm) -> bool:
       # selfdrived's enabled or mads.enabled, as controlsd republishes them.

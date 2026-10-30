@@ -157,8 +157,10 @@ class UIStateSP(UIStateZP):
     if _ui_state.sm.valid["selfdriveStateSP"]:
       mads = _ui_state.sm["selfdriveStateSP"].mads
       if mads.available:
-        # held by the car's own lane keep (update_stock_lkas) reads as lateral off
-        return mads.enabled and mads.state != MADSState.paused and not getattr(mads, "lateralHeld", False)
+        # held by the car's own lane keep (update_stock_lkas) reads as lateral off.
+        # Read the zoompilot nest, not the top-level mads.lateralHeld: selfdrived
+        # writes both, but the status contract (and its test) is on the nest.
+        return mads.enabled and mads.state != MADSState.paused and not _ui_state.sm["selfdriveStateSP"].zoompilot.madsLateralHeld
     return _ui_state.status.value in ("engaged", "lat_only")
 
   @staticmethod

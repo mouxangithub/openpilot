@@ -211,6 +211,11 @@ class FakeGuiApp:
   def texture(self, path, w=0, h=0, keep_aspect_ratio=False):
     return Texture()
 
+  def grayscale_texture(self, path, w=0, h=0):
+    # The pill controls tint their asset gray; the fake returns the same
+    # stand-in texture.
+    return Texture()
+
   def big_ui(self):
     return False
 
@@ -294,7 +299,7 @@ def build_fake_params() -> types.ModuleType:
     def get(self, key, return_default=False):
       return store.get(key, 0 if return_default else None)
 
-    def get_bool(self, key):
+    def get_bool(self, key, block=False):
       return bool(store.get(key, False))
 
     def put(self, key, value, block=False):

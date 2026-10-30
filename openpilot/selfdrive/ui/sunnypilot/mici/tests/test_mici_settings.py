@@ -1192,3 +1192,62 @@ class TestOnroadOverlays:
     assert bsm.left_detected
     monkeypatch.setattr(ui_state, "blindspot", False)
     assert not bsm.left_detected
+
+
+class TestModelsPanelMici:
+  """The models panel: the tici panel's driving options, in the order the user set."""
+
+  @staticmethod
+  def _options():
+    from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models_zp import ModelOptions
+    return ModelOptions()
+
+  def test_order(self, params):
+    from openpilot.selfdrive.ui.mici.widgets.button import BigButton
+    from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models import ModelsLayoutMici
+    layout = ModelsLayoutMici()
+    items = [item for item in layout.main_items[1:] if item is not layout.cancel_download_btn]
+    assert [item.text for item in items] == ["select model", "lane center assist", "jetlink",
+                                             "lane turn desires", "lane turn speed", "live steer delay", "manual steer delay",
+                                             "camera offset", "refresh models", "clear cache"]
+    assert {item._get_label_font_size() for item in items} == {BigButton("t")._get_label_font_size()}, "a long title shrinks its font"
+
+  def test_the_default_model_locks_model_options_showing_their_value(self, params, monkeypatch):
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    params.put_bool("Blendful", True, block=True)
+    options = self._options()
+    assert options.lane_center._checked
+    for runner_tinygrad in (False, True):
+      monkeypatch.setattr(ui_state, "active_runner_tinygrad", runner_tinygrad)
+      assert options.lane_center.superseded is not runner_tinygrad
+      assert options.camera_offset.enabled is runner_tinygrad
+
+  def test_dependent_options_follow_their_toggles(self, params):
+    params.put_bool("LaneTurnDesire", False, block=True)
+    params.put_bool("LagdToggle", True, block=True)
+    options = self._options()
+    assert not options.lane_turn_speed.enabled and not options.steer_delay.enabled
+    params.put_bool("LaneTurnDesire", True, block=True)
+    params.put_bool("LagdToggle", False, block=True)
+    options.refresh()
+    assert options.lane_turn_speed.enabled and options.steer_delay.enabled
+
+  @pytest.mark.parametrize(("metric", "label", "centered"), [(False, "19 mph", "19"), (True, "31 km/h", "31")])
+  def test_lane_turn_speed_reads_mph_in_either_unit(self, params, monkeypatch, metric, label, centered):
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    monkeypatch.setattr(ui_state, "is_metric", metric)
+    params.put("LaneTurnValue", 19.0, block=True)
+    speed = self._options().lane_turn_speed
+    assert speed.value == label
+    picker = speed.create_picker_screen()
+    picker.show_event()
+    # 19 mph is off the whole-km/h grid: the picker opens on the nearest
+    idx = round(-picker._scroll_panel.get_offset() / picker._item_width)
+    assert picker._picker_items[idx].display_label == centered
+
+  def test_steer_delay_and_camera_offset_labels(self, params):
+    params.put("LagdToggleDelay", 0.2, block=True)
+    params.put("CameraOffset", -0.05, block=True)
+    options = self._options()
+    assert options.steer_delay.value == "0.20 s"
+    assert options.camera_offset.value == "-0.05 m"
