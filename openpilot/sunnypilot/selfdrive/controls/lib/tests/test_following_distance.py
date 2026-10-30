@@ -31,8 +31,16 @@ def run_following_distance_simulation(v_lead, t_end=100.0, e2e=False, personalit
   return output[-1,2] - output[-1,1]
 
 
-class TestFollowingDistanceBase:
+class TestFollowingDistanceBase(OpenpilotTestCase):
+  # pytest 9 collects un-parametrised bases regardless of __unittest_skip__;
+  # self-guard instead of relying on collector behaviour
+  e2e = None
+  personality = None
+  speed = None
+
   def test_following_distance(self):
+    if self.speed is None:
+      self.skipTest("un-parametrised base class")
     v_lead = float(self.speed)
     simulation_steady_state = run_following_distance_simulation(v_lead, e2e=self.e2e, personality=self.personality)
     correct_steady_state = desired_follow_distance(v_lead, v_lead, get_T_FOLLOW(self.personality))
