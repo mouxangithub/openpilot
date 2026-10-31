@@ -55,7 +55,7 @@ def main():
   pm = messaging.PubMaster(['longitudinalPlan', 'driverAssistance', 'longitudinalPlanSP'])
   sm = messaging.SubMaster(['carControl', 'carState', 'controlsState', 'vehicleParameters', 'radarState', 'modelV2', 'selfdriveState',
                             'liveMapDataSP', 'carStateSP', 'selfdriveStateSP', 'carrotManSP', 'carrotNaviSP',
-                            'navInstructionCarrotSP', gps_location_service] + live_tracks_services,
+                            'navInstructionCarrotSP', 'deviceMotion', gps_location_service] + live_tracks_services,
                            poll='modelV2', ignore_alive=ignore_services + live_tracks_services,
                            ignore_avg_freq=ignore_services + live_tracks_services,
                            ignore_valid=ignore_services + live_tracks_services)
