@@ -27,12 +27,24 @@ def _rebuild_radar_interface(radar_interface, CP, CP_SP, previous=None):
 
 
 def main():
-  # Core 7 (with modeld, RT 54): core 4 is shared with the UI (RT 53, up to
-  # ~40% CPU, bursts during alerts/ATC popups), which starved this RT-51
-  # process - its input-aging watchdog then published liveTracks
+  # Core 7 (with modeld RT 54 and plannerd RT 51): core 4 is shared with the UI
+  # (RT 53, up to ~40% CPU, bursts during alerts/ATC popups), which starved this
+  # RT-51 process - its input-aging watchdog then published liveTracks
   # errors.canError and selfdrived raised the "CAN bus error" NO_ENTRY at the
-  # end of 2026-10-30 evening route 48 seg59. Core 7 is isolcpus with headroom.
-  config_realtime_process(7, Priority.CTRL_LOW)
+  # end of 2026-10-30 evening route 48 seg59.
+  #
+  # Priority is TRACKING_LOW (50), strictly below plannerd's CTRL_LOW (51), and
+  # that ordering is the load-bearing part of living on this core. SCHED_FIFO
+  # tasks of equal priority do not round-robin, so at CTRL_LOW this process's
+  # CAN batch bursts could postpone plannerd indefinitely - and during lane
+  # changes the CAN stream swells (blinker / blind-spot frames), which is
+  # exactly when plannerd's longitudinalPlan + driverAssistance sagged below
+  # their frequency floor and selfdrived soft-disabled with commIssueAvgFreq
+  # (2026-10-31 route 55, "进程间通信速率低" for seconds at a time mid lane
+  # change, core 7 only ~53% busy). Below plannerd, this process only ever
+  # consumes core-7 idle time; its input-aging watchdog is the backstop when
+  # even that is not enough.
+  config_realtime_process(7, Priority.TRACKING_LOW)
   poller = messaging.Poller()
   can_sock = messaging.sub_sock('can', poller=poller, conflate=False)
   state_sock = messaging.sub_sock('carState', poller=poller, conflate=False)

@@ -23,6 +23,13 @@ class Priority:
   # - camerad = 54
   CTRL_LOW = 51 # plannerd & radard
 
+  # Below CTRL_LOW. SCHED_FIFO tasks of the same priority never preempt each
+  # other (no round-robin), so two same-priority producers pinned to one core
+  # can starve one another for the length of a burst. Everything that shares
+  # an isolated core with a CTRL_LOW control publisher must sit strictly
+  # below it - see radarcan (CAN -> liveTracks bridge, core 7).
+  TRACKING_LOW = 50
+
   # CORE 3
   # - pandad = 55
   CTRL_HIGH = 53
