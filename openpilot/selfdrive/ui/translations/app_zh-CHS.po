@@ -7323,3 +7323,132 @@ msgstr "已订阅"
 msgid "🚀 sunnylink 🚀"
 msgstr "🚀 SunnyLink 🚀"
 
+
+msgid "About {size} can be freed"
+msgstr "约可释放 {size}"
+
+msgid "Build cache"
+msgstr "编译缓存"
+
+msgid "Cleanup"
+msgstr "清理"
+
+msgid "Cleanup is only available while offroad."
+msgstr "仅在离路时可执行清理。"
+
+msgid "Clear"
+msgstr "清理"
+
+msgid "Clear build cache"
+msgstr "清理编译缓存"
+
+msgid "Clear download cache"
+msgstr "清理下载缓存"
+
+msgid "Clear logs"
+msgstr "清理日志"
+
+msgid "Clear map cache"
+msgstr "清理地图缓存"
+
+msgid "Clear model cache"
+msgstr "清理模型缓存"
+
+msgid "Clear route recordings"
+msgstr "清理路线录像"
+
+msgid "Clear starred routes"
+msgstr "清理收藏路线"
+
+msgid "Clearing the build cache frees space, but the next compile will take significantly longer. Continue?"
+msgstr "清理编译缓存可释放空间，但下次重新编译将耗时明显更长。是否继续？"
+
+msgid "Deletes non-preserved driving segments. Starred and recent routes are kept."
+msgstr "删除未收藏的旧行程片段，收藏和最近路线会保留。"
+
+msgid "Deletes route recordings you bookmarked while driving. Other routes are not affected."
+msgstr "删除行驶中收藏的路线录像，不会影响其他未收藏路线。"
+
+msgid "External SSD"
+msgstr "外接 SSD"
+
+msgid "Free"
+msgstr "可用"
+
+msgid "Free up storage (less than 2% space remaining)"
+msgstr "请释放存储空间（剩余可用不足 2%）"
+
+msgid "Freed {size}"
+msgstr "已释放 {size}"
+
+msgid "Includes {size} on external SSD."
+msgstr "其中外接 SSD 约 {size}。"
+
+msgid "Internal storage"
+msgstr "本机存储"
+
+msgid "Last Cleanup"
+msgstr "上次清理"
+
+msgid "Logs"
+msgstr "日志"
+
+msgid "Maps"
+msgstr "地图"
+
+msgid "Nothing cleared yet"
+msgstr "尚未清理"
+
+msgid "OTA Staging"
+msgstr "更新暂存"
+
+msgid "OTA staging"
+msgstr "更新暂存"
+
+msgid "OTA update workspace used by the system updater. Usually released after an update is applied."
+msgstr "系统 OTA 更新工作区，用于下载和准备新版本；应用更新后通常会释放。"
+
+msgid "Other"
+msgstr "其他"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Removes downloaded OSM map data. Maps can be downloaded again from OSM settings."
+msgstr "删除已下载的 OSM 地图，可在 OSM 设置中重新下载。"
+
+msgid "Removes downloaded models except the one currently in use."
+msgstr "删除已下载模型，当前使用中的模型会保留。"
+
+msgid "Removes system logs and crash dumps."
+msgstr "删除系统日志和崩溃转储。"
+
+msgid "Removes temporary download files. Safe to clear."
+msgstr "删除临时下载文件，可安全清理。"
+
+msgid "Removes the scons build cache. The next compile will take significantly longer."
+msgstr "删除 scons 编译缓存。清理后下次重新编译将耗时明显更长。"
+
+msgid "Rescan the storage usage now. The scan walks every directory and can take a moment."
+msgstr "立即重新扫描存储占用。扫描会遍历所有目录，可能需要一点时间。"
+
+msgid "Routes"
+msgstr "路线"
+
+msgid "Routes auto-delete when free space is below 10% or 5 GB (oldest first). Upload is not required. Starred routes are kept."
+msgstr "可用空间低于 10% 或 5 GB 时，系统会自动删除最旧路线（与是否上传无关），收藏路线会保留。"
+
+msgid "Storage is running low (less than 10% free)."
+msgstr "存储空间不足（可用低于 10%）。"
+
+msgid "This will free about {size}. Continue?"
+msgstr "将释放约 {size}，是否继续？"
+
+msgid "This will permanently delete {count} starred routes ({size}). Continue?"
+msgstr "将永久删除 {count} 条收藏路线（约 {size}），是否继续？"
+
+msgid "and {count} more…"
+msgstr "另有 {count} 条…"
+
+msgid "{count} starred routes on device."
+msgstr "设备上共有 {count} 条收藏路线。"
