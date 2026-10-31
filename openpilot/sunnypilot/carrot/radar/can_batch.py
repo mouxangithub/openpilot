@@ -8,6 +8,21 @@ MAX_INPUT_AGE_NS = 100_000_000
 MAX_CAN_PACKETS = 512
 MAX_STATE_PACKETS = 32
 
+# The join watchdog's first seconds of a drive see ignition CAN floods, card's
+# first radarInput batches and scheduler jitter from every process warming up;
+# those transient stateOverflow / staleEgoState / processingTimeout trips are
+# normal and self-heal. Publishing them as errors.canError made selfdrived
+# raise a SOFT_DISABLE "CAN bus error" at every drive start (2026-10-31 route
+# 58 seg 0: 407 alert frames within ~20 s of drive start). radarcan holds the
+# fault publication for this long after process start; trips inside the window
+# still rebuild the interface but feed radard healthy-empty liveTracks frames.
+MAX_STARTUP_GRACE_NS = 20_000_000_000
+
+
+def in_startup_grace(start_ns: int, now_ns: int, grace_ns: int) -> bool:
+  """True while now is inside the startup window; grace_ns <= 0 disables."""
+  return grace_ns > 0 and 0 <= now_ns - start_ns < grace_ns
+
 
 @dataclass(frozen=True)
 class RadarEgoSample:

@@ -10,7 +10,9 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import Priority, config_realtime_process
 from openpilot.common.runtime_diagnostics import RuntimeDiagnostics
 from openpilot.common.swaglog import cloudlog
-from openpilot.sunnypilot.carrot.radar.can_batch import MAX_INPUT_AGE_NS, RadarCanBatches, RadarEgoSample
+from openpilot.sunnypilot.carrot.radar.can_batch import (MAX_INPUT_AGE_NS, MAX_STARTUP_GRACE_NS,
+                                                         RadarCanBatches, RadarEgoSample,
+                                                         in_startup_grace)
 from openpilot.sunnypilot.carrot.radar.lateral import set_radar_track_flip
 from openpilot.selfdrive.pandad import can_capnp_to_list
 from opendbc.car.car_helpers import interfaces
@@ -67,18 +69,35 @@ def main():
   def now():
     return replay_ns if replay else time.monotonic_ns()
 
+  # Startup grace (live only): ignition CAN floods and card warm-up trip the
+  # join watchdog for the first seconds of a drive; publishing those as
+  # errors.canError raised a SOFT_DISABLE "CAN bus error" at every drive start.
+  # A trip inside the window still rebuilds the interface but feeds radard a
+  # healthy-empty liveTracks frame so its all_checks() stays green; genuine
+  # faults persist past the window and alert exactly as before.
+  start_ns = now()
+  grace_ns = 0 if replay else MAX_STARTUP_GRACE_NS
+
   def publish_error(reason, now_ns):
     nonlocal needs_reset, last_error_publish_ns
+    in_grace = in_startup_grace(start_ns, now_ns, grace_ns)
     if not needs_reset:
-      cloudlog.error(f'radarcan input invalid: {reason}')
+      log = cloudlog.warning if in_grace else cloudlog.error
+      log(f'radarcan input invalid: {reason}')
     needs_reset = True
-    if now_ns - last_error_publish_ns >= 50_000_000:
-      msg = messaging.new_message('liveTracks')
+    if now_ns - last_error_publish_ns < 50_000_000:
+      return
+    last_error_publish_ns = now_ns
+    msg = messaging.new_message('liveTracks')
+    if in_grace:
+      # Healthy-empty frame: radard keeps consuming, no CAN-fault flag.
+      msg.valid = True
+    else:
       msg.valid = False
       msg.liveTracks.errors.canError = True
-      msg.liveTracks.radarTrackFlipped = radar_track_flip
-      pm.send('liveTracks', msg)
-      last_error_publish_ns = now_ns
+    msg.liveTracks.radarTrackFlipped = radar_track_flip
+    pm.send('liveTracks', msg)
+    last_error_publish_ns = now_ns
 
   while True:
     poller.poll(20)
