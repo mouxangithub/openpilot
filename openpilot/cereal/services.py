@@ -100,14 +100,19 @@ _services: dict[str, tuple] = {
   "imuCalibrationSP": (True, 4., 4),
 
   # carrot (phone projection & navigation)
-  "carrotManSP": (False, 10., 1),
-  "navInstructionCarrotSP": (False, 1., 10),
+  # carrotManSP/navInstructionCarrotSP must be logged: ATC diagnostics
+  # (xDistToTurn/atcType) are only reconstructable from rlogs, and the
+  # 2026-10-31 "no auto fork exit" investigation was blocked by their absence.
+  # cp logs the equivalents (carrotMan/navInstructionCarrot = True).
+  "carrotManSP": (True, 10., 1),
+  "navInstructionCarrotSP": (True, 1., 10),
   "carrotNaviSP": (True, 2.),
   "carrotNaviMediaSP": (False, 20., None, QueueSize.BIG),
 
-  # stock navigation (navd) - consumed by carrot_man as fallback for navInstructionCarrotSP
-  "navInstruction": (False, 1., 10),
-  "navRoute": (True, 0.),
+  # stock navigation (navd) - consumed by carrot_man as fallback for navInstructionCarrotSP.
+  # Both services are already declared above with should_log=True; the duplicate
+  # entries that used to shadow them here (navInstruction=(False, ...)) were an
+  # accidental dict redefinition and never had the intended effect.
 
   # debug
   "uiDebug": (True, 0., 1),
