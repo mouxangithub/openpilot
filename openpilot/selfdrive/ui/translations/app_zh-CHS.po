@@ -7452,3 +7452,15 @@ msgstr "另有 {count} 条…"
 
 msgid "{count} starred routes on device."
 msgstr "设备上共有 {count} 条收藏路线。"
+
+msgid "Downloaded files from the big-model catalog, except the one in use. Files the other slot shares are kept."
+msgstr "大模型目录中已下载的文件（使用中的除外）。与其他槽位共享的文件会保留。"
+
+msgid "Downloaded files from the small-model catalog, except the one in use. Files the other slot shares are kept."
+msgstr "小模型目录中已下载的文件（使用中的除外）。与其他槽位共享的文件会保留。"
+
+msgid "This will delete downloaded big-model files except the one in use (about {size}). Continue?"
+msgstr "将删除大模型已下载文件（使用中的除外，约 {size}），是否继续？"
+
+msgid "This will delete downloaded small-model files except the one in use (about {size}). Continue?"
+msgstr "将删除小模型已下载文件（使用中的除外，约 {size}），是否继续？"

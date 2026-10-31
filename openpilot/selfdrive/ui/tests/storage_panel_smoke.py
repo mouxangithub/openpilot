@@ -168,6 +168,75 @@ class StoragePanelSmoke(unittest.TestCase):
     p._apply_data(_snapshot())
     self.assertFalse(p._offroad_hint.is_visible)
 
+  # ------------------------------------------------------- model split rows
+  def test_model_rows_show_sizes_and_gate(self):
+    p = self._panel()
+    GB, MB = 1024 ** 3, 1024 ** 2
+    p._sizes = {"models": 5 * GB, "qcom": 2 * GB, "chestnut": 3 * GB}
+    p._model_clearable = {"qcom": 500 * MB, "chestnut": 0}
+    p._update_model_rows()
+    self.assertIn("2.00 GB", p._model_rows["qcom"].action_item.value)
+    self.assertIn("3.00 GB", p._model_rows["chestnut"].action_item.value)
+    # clearable source clears; a source with nothing deletable does not
+    self.assertTrue(p._model_rows["qcom"].action_item.enabled)
+    self.assertFalse(p._model_rows["chestnut"].action_item.enabled)
+    # the live description carries the estimate
+    self.assertIn("About 500.00 MB can be freed", p._model_desc("qcom")())
+    self.assertNotIn("can be freed", p._model_desc("chestnut")())
+
+  def test_cached_bundle_sizes_reads_model_artifacts(self):
+    """Regression: artifacts hang off bundle.models[], not bundle.artifacts -
+    reading the wrong field made both size rows show 0 forever."""
+    import os
+    import tempfile
+    from types import SimpleNamespace
+    from openpilot.selfdrive.ui.sunnypilot.storage_info import cached_bundle_sizes
+
+    with tempfile.TemporaryDirectory() as root:
+      for name in ("small.bin", "big.bin"):
+        with open(os.path.join(root, name), "wb") as f:
+          f.write(b"x" * 1024)
+      def make_bundle(name):
+        return SimpleNamespace(models=[SimpleNamespace(
+          artifact=SimpleNamespace(fileName=name, fileSizeBytes=1024), metadata=None)])
+
+      sizes = cached_bundle_sizes(root, {"qcom": [make_bundle("small.bin")], "chestnut": [make_bundle("big.bin")]})
+    self.assertEqual(sizes["qcom"], 1024)
+    self.assertEqual(sizes["chestnut"], 1024)
+
+  def test_model_clearable_skips_selected_and_shared(self):
+    """Per-source clear keeps both slots' selected bundles and files the other
+    catalog also lists; only exclusive, not-in-use files are deletable."""
+    import os
+    import tempfile
+    from types import SimpleNamespace
+    from unittest import mock
+
+    from openpilot.selfdrive.ui.sunnypilot.layouts.settings import storage as st
+
+    def make_bundle(*names):
+      return SimpleNamespace(models=[SimpleNamespace(
+        artifact=SimpleNamespace(fileName=n, fileSizeBytes=100), metadata=None) for n in names])
+
+    selected = {"qcom": make_bundle("active_small.bin"), "chestnut": make_bundle("active_big.bin")}
+    catalogs = {
+      "qcom": [make_bundle("active_small.bin", "old_small.bin", "shared.bin")],
+      "chestnut": [make_bundle("active_big.bin", "old_big.bin", "shared.bin")],
+    }
+    with tempfile.TemporaryDirectory() as root:
+      for name in ("active_small.bin", "old_small.bin", "shared.bin", "active_big.bin", "old_big.bin"):
+        with open(os.path.join(root, name), "wb") as f:
+          f.write(b"x" * 100)
+      with mock.patch("openpilot.sunnypilot.models.helpers.get_selected_bundle",
+                      side_effect=lambda params, s: selected[s]), \
+           mock.patch("openpilot.sunnypilot.models.model_sizes.artifact_size",
+                      side_effect=lambda path, declared=None: {"downloadedBytes": 100}):
+        clearable_qcom = st.StorageLayout._model_clearable_bytes(None, root, "qcom", catalogs)
+        clearable_chestnut = st.StorageLayout._model_clearable_bytes(None, root, "chestnut", catalogs)
+    # qcom side: old_small.bin only (active protected, shared serves chestnut too)
+    self.assertEqual(clearable_qcom, 100)
+    self.assertEqual(clearable_chestnut, 100)
+
 
 if __name__ == "__main__":
   unittest.main()

@@ -26,6 +26,7 @@ Route recordings deliberately honour the uploader's own rules here - starred
 (preserve xattr), preserved and locked segments are never touched - because
 the deletion code is the webui's, not a re-implementation.
 """
+import os
 import platform
 import threading
 
@@ -35,7 +36,7 @@ from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.osm import MAP_PATH, delete_downloaded_maps
 from openpilot.selfdrive.ui.sunnypilot.storage_info import (
-  cached_bundle_sizes, directory_size, disk_usage, format_size, model_root_size,
+  cached_bundle_sizes, directory_size, disk_usage, format_size, model_file_names, model_root_size,
 )
 from openpilot.system.ui.lib.application import gui_app, FontWeight, font_fallback
 from openpilot.system.ui.lib.text_measure import measure_text_cached
@@ -192,7 +193,8 @@ class StorageLayout(Widget):
   def __init__(self):
     super().__init__()
     self._mem_params = Params("/dev/shm/params") if platform.system() != "Darwin" else ui_state.params
-    self._sizes: dict[str, int] = {}
+    self._sizes: dict[str, int] = {"qcom": 0, "chestnut": 0}
+    self._model_clearable: dict[str, int] = {"qcom": 0, "chestnut": 0}
     self._data: dict | None = None
     self._busy: set[str] = set()
     self._scanning = False
@@ -256,9 +258,18 @@ class StorageLayout(Widget):
       row.action_item.set_value("")
       self._action_rows[category] = row
 
-    # sp-specific split of the model cache (small = qcom, big = chestnut)
-    self._small_model_item = text_item(tr("Small Model"), lambda: format_size(self._sizes.get("qcom", 0)))
-    self._big_model_item = text_item(tr("Big Model"), lambda: format_size(self._sizes.get("chestnut", 0)))
+    # sp-specific split of the model cache (small = qcom, big = chestnut):
+    # per-source sizes plus a per-source clear that keeps the bundle in use
+    self._model_rows: dict[str, ListItemSP] = {}
+    for source, title in (("qcom", tr("Small Model")), ("chestnut", tr("Big Model"))):
+      row = ListItemSP(
+        title,
+        description=self._model_desc(source),
+        action_item=NoElideButtonAction(tr("CLEAR"), enabled=lambda s=source: self._can_clear_model(s)),
+        callback=lambda s=source: self._clear_model_source(s),
+      )
+      row.action_item.set_value("")
+      self._model_rows[source] = row
 
     # starred routes list under the routes_starred action (webui: up to 6 + more)
     self._starred_rows = [ListItemSP("", action_item=TextAction("")) for _ in range(STARRED_LIST_MAX)]
@@ -288,8 +299,8 @@ class StorageLayout(Widget):
       self._starred_more,
       self._action_rows["maps"],
       self._action_rows["models_cache"],
-      self._small_model_item,
-      self._big_model_item,
+      self._model_rows["qcom"],
+      self._model_rows["chestnut"],
       self._action_rows["logs"],
       self._action_rows["scons_cache"],
       self._action_rows["download_cache"],
@@ -478,9 +489,147 @@ class StorageLayout(Widget):
 
       bundles = {source: get_cached_bundles(ui_state.params, source) for source in ("qcom", "chestnut")}
       self._sizes.update(cached_bundle_sizes(model_root, bundles))
+      self._model_clearable = {source: self._model_clearable_bytes(model_root, source, bundles) for source in bundles}
     except Exception:
       self._sizes.setdefault("qcom", 0)
       self._sizes.setdefault("chestnut", 0)
+      self._model_clearable = {"qcom": 0, "chestnut": 0}
+    self._update_model_rows()
+
+  def _model_clearable_bytes(self, model_root: str, source: str, bundles: dict[str, list]) -> int:
+    """Bytes a per-source clear would actually free for `source`.
+
+    A file qualifies when the source's catalog lists it and the other source's
+    does not (shared names serve both slots, so only the full model-cache clear
+    may take them), and when neither source's selected bundle needs it - the
+    slots currently in use are untouchable, matching clear_model_cache."""
+    try:
+      from openpilot.common.params import Params
+      from openpilot.sunnypilot.models.helpers import get_selected_bundle
+      from openpilot.sunnypilot.models.model_sizes import artifact_size
+
+      params = ui_state.params if ui_state.params is not None else Params()
+      protected: set[str] = set()
+      for s in bundles:
+        if selected := get_selected_bundle(params, s):
+          for model in getattr(selected, "models", []) or []:
+            for artifact in (getattr(model, "artifact", None), getattr(model, "metadata", None)):
+              name = getattr(artifact, "fileName", "") or ""
+              if name:
+                protected.add(name)
+
+      other = next(s for s in bundles if s != source)
+      other_files: set[str] = set()
+      for bundle in bundles.get(other, []) or []:
+        other_files |= model_file_names(bundle)
+
+      total = 0
+      for bundle in bundles.get(source, []) or []:
+        for name in model_file_names(bundle):
+          if name in protected or name in other_files:
+            continue
+          artifact = next((a for m in getattr(bundle, "models", []) or []
+                           for a in (getattr(m, "artifact", None), getattr(m, "metadata", None))
+                           if (getattr(a, "fileName", "") or "") == name), None)
+          declared = getattr(artifact, "fileSizeBytes", None) if artifact is not None else None
+          on_disk = artifact_size(os.path.join(model_root, name), declared).get("downloadedBytes")
+          if on_disk:
+            total += int(on_disk)
+      return total
+    except Exception:
+      return 0
+
+  def _update_model_rows(self):
+    for source, row in self._model_rows.items():
+      size = self._sizes.get(source, 0)
+      row.action_item.set_value(format_size(size) if size else "")
+      row.action_item.set_enabled(self._can_clear_model(source))
+
+  def _model_desc(self, source: str):
+    def _desc() -> str:
+      base = (tr("Downloaded files from the small-model catalog, except the one in use. Files the other slot shares are kept.")
+              if source == "qcom" else
+              tr("Downloaded files from the big-model catalog, except the one in use. Files the other slot shares are kept."))
+      est = self._model_clearable.get(source, 0)
+      if est:
+        base += " " + tr("About {size} can be freed").format(size=format_size(est))
+      return base
+    return _desc
+
+  def _can_clear_model(self, source: str) -> bool:
+    return self._offroad and f"model:{source}" not in self._busy and bool(self._model_clearable.get(source))
+
+  def _clear_model_source(self, source: str):
+    if not self._can_clear_model(source):
+      return
+    size_text = format_size(self._model_clearable.get(source, 0))
+    message = (tr("This will delete downloaded small-model files except the one in use (about {size}). Continue?")
+               if source == "qcom" else
+               tr("This will delete downloaded big-model files except the one in use (about {size}). Continue?")).format(size=size_text)
+
+    def _on_confirm(response):
+      if response != DialogResult.CONFIRM:
+        return
+      self._busy.add(f"model:{source}")
+      self._model_rows[source].action_item.set_enabled(False)
+
+      def _run():
+        try:
+          freed = self._clear_model_files(source)
+          self._status_item.action_item.set_text(tr("Freed {size}").format(size=_fmt_bytes(freed)))
+        except Exception as exc:
+          self._status_item.action_item.set_text(str(exc))
+        finally:
+          self._busy.discard(f"model:{source}")
+          self._compute_model_split()
+          self._refresh()
+
+      threading.Thread(target=_run, daemon=True).start()
+
+    gui_app.push_widget(ConfirmDialog(message, tr("Clear"), callback=_on_confirm))
+
+  def _clear_model_files(self, source: str) -> int:
+    """Delete the per-source candidates _model_clearable_bytes identified,
+    together with their chunk files (the same base.split('.chunk') rule
+    clear_model_cache applies)."""
+    import os
+
+    model_root = str(Paths.model_root())
+    from openpilot.sunnypilot.models.fetcher import get_cached_bundles
+    from openpilot.sunnypilot.models.helpers import get_selected_bundle
+
+    bundles = {s: get_cached_bundles(ui_state.params, s) for s in ("qcom", "chestnut")}
+    protected: set[str] = set()
+    for s in bundles:
+      if selected := get_selected_bundle(ui_state.params, s):
+        for model in getattr(selected, "models", []) or []:
+          for artifact in (getattr(model, "artifact", None), getattr(model, "metadata", None)):
+            name = getattr(artifact, "fileName", "") or ""
+            if name:
+              protected.add(name)
+
+    other = next(s for s in bundles if s != source)
+    other_files: set[str] = set()
+    for bundle in bundles.get(other, []) or []:
+      other_files |= model_file_names(bundle)
+
+    freed = 0
+    for bundle in bundles.get(source, []) or []:
+      for name in model_file_names(bundle):
+        if name in protected or name in other_files:
+          continue
+        base = os.path.join(model_root, name)
+        directory = os.path.dirname(base) or model_root
+        for filename in ([name] if os.path.isfile(base) else []) + \
+                        [f for f in os.listdir(directory) if f.startswith(name + ".chunk")]:
+          fp = os.path.join(directory, filename)
+          try:
+            freed += os.path.getsize(fp)
+            os.remove(fp)
+          except OSError:
+            pass
+    self._sizes[source] = max(0, self._sizes.get(source, 0) - freed)
+    return freed
 
   # ---------------------------------------------------------------- actions
   def _confirm_and_clear(self, category: str, message: str):
@@ -528,7 +677,6 @@ class StorageLayout(Widget):
 
   def _legacy_clear(self, category: str) -> dict:
     """Fallback without the webui package: the two old actions only."""
-    import os
     import shutil
     freed = 0
     if category == "models_cache":

@@ -84,6 +84,19 @@ def model_root_size(model_root: str) -> int:
   return directory_size(model_root)
 
 
+def model_file_names(bundle) -> set[str]:
+  """File names a bundle places in the model root: every model's artifact and
+  metadata. Artifacts hang off bundle.models[] - ModelBundle itself has no
+  artifacts field (custom.capnp), which once made the size rows read 0."""
+  names: set[str] = set()
+  for model in getattr(bundle, "models", []) or []:
+    for artifact in (getattr(model, "artifact", None), getattr(model, "metadata", None)):
+      name = getattr(artifact, "fileName", "") or ""
+      if name:
+        names.add(name)
+  return names
+
+
 def cached_bundle_sizes(model_root: str, bundles_by_source: dict[str, list]) -> dict[str, int]:
   """Per-source on-disk bytes of the bundles a source's catalog lists.
 
@@ -110,12 +123,15 @@ def cached_bundle_sizes(model_root: str, bundles_by_source: dict[str, list]) -> 
   sizes = dict.fromkeys(bundles_by_source, 0)
   for source, bundles in bundles_by_source.items():
     for bundle in bundles or []:
-      for artifact in getattr(bundle, "artifacts", []) or []:
-        file_name = getattr(artifact, "fileName", "") or ""
-        if not file_name:
-          continue
-        declared = getattr(artifact, "fileSizeBytes", None)
-        on_disk = artifact_size(os.path.join(model_root, file_name), declared).get("downloadedBytes")
-        if on_disk:
-          sizes[source] += int(on_disk)
+      for model in getattr(bundle, "models", []) or []:
+        # artifacts hang off each model (Model.artifact / Model.metadata in
+        # custom.capnp); ModelBundle itself has no artifacts field
+        for artifact in (getattr(model, "artifact", None), getattr(model, "metadata", None)):
+          file_name = getattr(artifact, "fileName", "") or ""
+          if not file_name:
+            continue
+          declared = getattr(artifact, "fileSizeBytes", None)
+          on_disk = artifact_size(os.path.join(model_root, file_name), declared).get("downloadedBytes")
+          if on_disk:
+            sizes[source] += int(on_disk)
   return sizes
