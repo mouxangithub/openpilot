@@ -39,6 +39,9 @@ PARAMS_KEYS_H = ROOT / "openpilot" / "common" / "params_keys.h"
 from openpilot.sunnypilot.carrot.tools.sp_param_labels import (
   FAMILY_LABELS, IMU_PARAMS, MAPS_PARAMS, PAGE_LABELS, apply_param_labels,
 )
+from openpilot.sunnypilot.carrot.tools.ui_control_extractor import extract_page_controls, po_translations
+
+TRANSLATIONS_DIR = ROOT / "openpilot" / "selfdrive" / "ui" / "translations"
 
 # The menu node the fork-only params live under.
 SP_NODE_ID = "SUNNYPILOT"
@@ -164,6 +167,49 @@ def _type_of(value) -> str:
   return "str"
 
 
+def _apply_page_control(entry: dict, ctrl: dict, zh_map: dict[str, str], ko_map: dict[str, str]) -> None:
+  """Overwrite the entry with what the on-device page shows for this param.
+
+  The page is the 1:1 truth: its tr() strings are what the driver reads, and the
+  .po files translate exactly those strings for the other locales. The po msgids
+  keep the pages' <br> markup, so look the raw text up and clean the translation.
+  """
+  def _localized(text: str, raw: str | None, mapping: dict[str, str]) -> str:
+    for candidate in filter(None, (raw, text)):
+      hit = mapping.get(candidate)
+      if hit:
+        return re.sub(r"<br\s*/?>", "\n", hit).strip()
+    return text
+
+  en_title = ctrl.get("title")
+  en_descr = ctrl.get("descr")
+  raw_title = ctrl.get("_raw_title")
+  raw_descr = ctrl.get("_raw_descr")
+  if en_title:
+    entry["etitle"] = en_title
+    entry["title"] = _localized(en_title, raw_title, ko_map)
+    entry["ctitle"] = _localized(en_title, raw_title, zh_map)
+  if en_descr:
+    entry["edescr"] = en_descr
+    entry["descr"] = _localized(en_descr, raw_descr, ko_map)
+    entry["cdescr"] = _localized(en_descr, raw_descr, zh_map)
+  if ctrl.get("min") is not None:
+    entry["min"] = ctrl["min"]
+  buttons = ctrl.get("buttons")
+  if buttons:
+    entry["options"] = {
+      "ko": [ko_map.get(b, b) for b in buttons],
+      "en": list(buttons),
+      "zh": [zh_map.get(b, b) for b in buttons],
+    }
+    entry.setdefault("min", 0)
+    entry["max"] = len(buttons) - 1
+  elif ctrl.get("max") is not None:
+    entry["max"] = ctrl["max"]
+  if ctrl.get("step") not in (None, 1):
+    entry["step"] = ctrl["step"]
+
+
 def build() -> dict:
   upstream = json.loads(UPSTREAM_JSON.read_text(encoding="utf-8"))
   declared_map = declared()
@@ -253,6 +299,21 @@ def build() -> dict:
     seen.add(p["name"])
     deduped_params.append(p)
   all_params = deduped_params
+
+  # 1e) 1:1 pass: the on-device page sources are the truth for what a control
+  #     looks like (title, description, range, button labels), and the UI's own
+  #     .po files translate exactly those strings. Anything the pages define
+  #     overwrites the generated/curated label.
+  zh_map = po_translations(TRANSLATIONS_DIR / "app_zh-CHS.po")
+  ko_map = po_translations(TRANSLATIONS_DIR / "app_ko.po")
+  settings_dir = ROOT / "openpilot" / "selfdrive" / "ui" / "sunnypilot" / "layouts" / "settings"
+  controls = extract_page_controls(settings_dir, declared_set)
+  labelled_from_pages = 0
+  for p in all_params:
+    ctrl = controls.get(p["name"])
+    if ctrl:
+      _apply_page_control(p, ctrl, zh_map, ko_map)
+      labelled_from_pages += 1
 
   # 2) the menu keeps CarrotPilot's tree, with the dropped names removed from its leaves.
   def prune(nodes):
@@ -351,6 +412,7 @@ def build() -> dict:
       "added_imu": [p["name"] for p in imu_params],
       "on_device_pages": sorted(pages),
       "labelled_by_sp_param_labels": len(extra_params),
+      "labelled_from_on_device_pages": labelled_from_pages,
     },
   }
 

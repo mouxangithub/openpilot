@@ -2,6 +2,26 @@ msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
+#: openpilot\selfdrive\ui\impact_dashcam.py
+msgid "Impact suspected"
+msgstr ""
+
+#: openpilot\selfdrive\ui\impact_dashcam.py
+msgid "Touch anywhere to cancel"
+msgstr ""
+
+#: openpilot\selfdrive\ui\impact_dashcam.py
+msgid "Dashcam mode: reboot in {seconds}s"
+msgstr ""
+
+#: openpilot\selfdrive\ui\impact_dashcam.py
+msgid "Rebooting into Dashcam Mode"
+msgstr ""
+
+#: openpilot\selfdrive\ui\impact_dashcam.py
+msgid "openpilot disabled"
+msgstr ""
+
 #: openpilot\selfdrive\ui\layouts\home.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\home.py
 msgid "UPDATE"
@@ -1766,19 +1786,11 @@ msgid "Experimental Mode"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "Experimental Mode Speed Assist"
+msgid "Set Speed Assist"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "In Experimental Mode, gently raise speed toward the set speed when nothing calls for slowing down."
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "Experimental Mode Lead Follow Assist"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\alpha_longitudinal_toggles.py
-msgid "Closes the gap to your driving personality's following distance behind a steady car. Never closer than chill mode."
+msgid "In Experimental Mode, drive toward your set speed and following distance as chill mode does whenever the model holds back. The model still makes every slowdown."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\bluetooth_settings.py
@@ -3070,7 +3082,6 @@ msgid "Time between lane inferences. Values below 600 ms are raised by the serve
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\carrot_tuning_items.py
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 msgid "Auto"
 msgstr ""
 
@@ -3772,6 +3783,10 @@ msgid "Custom Following Profiles"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Adds a gentle nudge toward lane center on top of the model's own steering, stronger when lane lines are clear. Yields around obstacles. Not available with the Default model."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 msgid "Run big models over a connected device running Jetlink. Turns off ADB."
 msgstr ""
 
@@ -3785,14 +3800,6 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 msgid "Refresh Model List"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Model Download Mirror"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Model List Source"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
@@ -3824,6 +3831,10 @@ msgid "Live Learning Steer Delay"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Lane Center Assist (Alpha)"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 msgid "Adjust Camera Offset"
 msgstr ""
 
@@ -3832,10 +3843,12 @@ msgid "Virtually shift camera's perspective to move model's center to Left(+ val
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
 msgid "This will delete ALL downloaded models from the cache except the currently active model. Are you sure?"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
 msgid "Clear Cache"
 msgstr ""
 
@@ -3852,43 +3865,13 @@ msgid "Select a Model"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
 msgid "Small Model"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
 msgid "Big Model"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "huggingface.co is unreachable on many networks. Mirror sends model downloads to a mirror site instead; "
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Direct uses huggingface.co as-is; Custom lets you enter your own mirror. Applies to the next download."
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Mirror"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Direct"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Custom"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "The model list lives on GitHub raw. Auto tries direct first and falls back to a CDN mirror when it fails; "
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Direct never falls back; Proxy always fetches through your own prefix. Press Refresh Model List to apply."
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Proxy"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
@@ -3957,26 +3940,6 @@ msgid "Live Steer Delay:"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Custom Mirror"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Base URL replacing https://huggingface.co, e.g. https://hf-mirror.com"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Catalog Proxy Prefix"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Prefix prepended to the catalog URL, e.g. https://gh-proxy.com"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "Current"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
 msgid "queued"
 msgstr ""
@@ -4004,6 +3967,10 @@ msgstr ""
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
 msgid "No models are available for this hardware yet. Connect to the internet and refresh the model list."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+msgid "Select a non-Default model to use Lane Center Assist."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
@@ -4035,20 +4002,13 @@ msgid "CLEARING..."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
 msgid "CLEAR"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
 msgid "MB"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "The mirror must be an http(s) URL without spaces, e.g. https://hf-mirror.com"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\models.py
-msgid "The proxy must be an http(s) URL without spaces, e.g. https://gh-proxy.com"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\navigation.py
@@ -4124,6 +4084,7 @@ msgid "Mapd Version"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
 msgid "Downloaded Maps"
 msgstr ""
 
@@ -4140,10 +4101,12 @@ msgid "Country"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
 msgid "DELETE"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
 msgid ""
 "This will delete ALL downloaded maps\n"
 "\n"
@@ -4151,6 +4114,7 @@ msgid ""
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\osm.py
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
 msgid "Yes, delete all maps"
 msgstr ""
 
@@ -4216,6 +4180,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
 msgid "Models"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
+msgid "Storage"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\settings.py
@@ -4555,6 +4523,38 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\torque_settings.py
 msgid "Friction"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
+msgid "Storage Used"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
+msgid "Calculating..."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
+msgid "Used Space"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
+msgid "Driving Model Cache"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
+msgid "Device Storage"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
+msgid "Downloaded Data"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
+msgid "Unavailable"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\storage.py
+msgid "{} free"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\sunnylink.py
@@ -5069,6 +5069,10 @@ msgid "Draw a ring on the HUD with the traffic light evidence the neural model c
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Run the YOLOv8 traffic-light detector on the road camera and draw a box around each detected signal housing on the driving view, with the observed signal (red light, green light, turn arrows) written under the box.<br>Runs at most 2 Hz on the little cores and is display only: it never feeds the planner and never lets openpilot act on a traffic light on your behalf. Always check the light yourself."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
 msgid "Show Blind Spot Warnings"
 msgstr ""
 
@@ -5118,6 +5122,10 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
 msgid "Neural Signal Assist Indicator (Experimental)"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
+msgid "Traffic Light Vision Boxes (YOLO)"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\layouts\settings\visuals.py
@@ -5205,11 +5213,7 @@ msgid "experimental"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
-msgid "speed assist"
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
-msgid "lead follow assist"
+msgid "set speed assist"
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
@@ -5220,14 +5224,9 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
 msgid ""
-"Experimental Mode often cruises below your set speed.\n"
-"It gently raises your speed toward it when the road ahead is clear."
-msgstr ""
-
-#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\alpha_longitudinal.py
-msgid ""
-"Experimental Mode often follows farther back than your following distance.\n"
-"It closes the gap behind a steady car, never closer than chill mode."
+"Experimental Mode often cruises below your set speed and follows farther back.\n"
+"This drives as chill mode does whenever the model holds back.\n"
+"The model still makes every slowdown."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\cruise.py
@@ -5575,6 +5574,64 @@ msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models.py
 msgid "progress"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid "lane center assist"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid "lane turn desires"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid "lane turn speed"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid "live steer delay"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid "manual steer delay"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid "camera offset"
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid ""
+"Alpha. Nudges the car toward the middle of the lane, more when the lines are clear.\n"
+"Yields around obstacles. Not with the Default model."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid ""
+"With the blinker on below the lane turn speed, plans the turn that way.\n"
+"Stops the car picking the wrong turn at a red light."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid "Lane turn desires work at or below this speed."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid ""
+"Learns how long your car takes to respond to steering as you drive.\n"
+"On is stock openpilot."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid ""
+"The software delay used while live steer delay is off.\n"
+"Default is 0.20 s."
+msgstr ""
+
+#: openpilot\selfdrive\ui\sunnypilot\mici\layouts\models_zp.py
+msgid ""
+"Shifts where the model thinks the camera sits.\n"
+"Positive moves the car left, negative right. Not with the Default model."
 msgstr ""
 
 #: openpilot\selfdrive\ui\sunnypilot\mici\layouts\onboarding.py
