@@ -24,6 +24,11 @@
 
 // ************** low level camera helpers ****************
 
+// Transient I2C bus errors (e.g. errno 19, sensor briefly not ACKing) recover
+// on a later frame's write. Disable the camera only after this many
+// consecutive failed sensor transactions (~5 s at 20 fps), not on the first.
+static constexpr uint32_t I2C_FAIL_MAX_CONSECUTIVE = 100;
+
 int do_cam_control(int fd, int op_code, void *handle, int size) {
   struct cam_control camcontrol = {0};
   camcontrol.op_code = op_code;
@@ -320,10 +325,14 @@ void SpectraCamera::sensors_poke(int request_id) {
 
   int ret = device_config(sensor_fd, session_handle, sensor_dev_handle, cam_packet_handle);
   if (ret != 0) {
-    LOGE("** sensor %d FAILED poke, disabling", cc.camera_num);
-    enabled = false;
+    if (++i2c_fail_count > I2C_FAIL_MAX_CONSECUTIVE) {
+      LOGE("** sensor %d FAILED poke %u consecutive times, disabling", cc.camera_num, i2c_fail_count);
+      enabled = false;
+      disabled_at_ns = nanos_since_boot();
+    }
     return;
   }
+  i2c_fail_count = 0;
 }
 
 void SpectraCamera::sensors_i2c(const struct i2c_random_wr_payload* dat, int len, int op_code, bool data_word) {
@@ -350,10 +359,14 @@ void SpectraCamera::sensors_i2c(const struct i2c_random_wr_payload* dat, int len
 
   int ret = device_config(sensor_fd, session_handle, sensor_dev_handle, cam_packet_handle);
   if (ret != 0) {
-    LOGE("** sensor %d FAILED i2c, disabling", cc.camera_num);
-    enabled = false;
+    if (++i2c_fail_count > I2C_FAIL_MAX_CONSECUTIVE) {
+      LOGE("** sensor %d FAILED i2c %u consecutive times, disabling", cc.camera_num, i2c_fail_count);
+      enabled = false;
+      disabled_at_ns = nanos_since_boot();
+    }
     return;
   }
+  i2c_fail_count = 0;
 }
 
 int SpectraCamera::sensors_init() {
@@ -1054,6 +1067,7 @@ bool SpectraCamera::openSensor() {
       !init_sensor_lambda(new OS04C10)) {
     LOGE("** sensor %d FAILED bringup, disabling", cc.camera_num);
     enabled = false;
+    disabled_at_ns = nanos_since_boot();
     return false;
   }
   LOGD("-- Probing sensor %d success", cc.camera_num);
@@ -1408,6 +1422,7 @@ bool SpectraCamera::handle_camera_event(const cam_req_mgr_message *event_data) {
   uint64_t request_id = event_data->u.frame_msg.request_id;  // ID from the camera request manager
   uint64_t ife_frame_id = event_data->u.frame_msg.frame_id;  // kernel counter incremented on each IFE SOF event
   uint64_t timestamp = event_data->u.frame_msg.timestamp;    // timestamped in the kernel's SOF IRQ callback
+  last_sof_ns = nanos_since_boot();
   //LOGD("handle cam %d ts %lu req id %lu frame id %lu", cc.camera_num, timestamp, request_id, ife_frame_id);
 
   // if there's a lag, some more frames could have already come in before

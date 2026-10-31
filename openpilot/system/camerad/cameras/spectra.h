@@ -163,6 +163,12 @@ public:
   int ife_buf_depth = -1;
   bool open = false;
   bool enabled = true;
+  // Transient sensor I2C error tracking. A single bus error (errno 19 etc.)
+  // recovers on a later frame; only a sustained failure run disables the
+  // camera, and the main loop then restarts the process to retry bringup.
+  uint32_t i2c_fail_count = 0;
+  uint64_t disabled_at_ns = 0;  // boot time when the camera got disabled, 0 = never
+  uint64_t last_sof_ns = 0;     // boot time of the last SOF event, 0 = none yet
   CameraConfig cc;
   std::unique_ptr<const SensorInfo> sensor;
 

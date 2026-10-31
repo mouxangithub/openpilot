@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cerrno>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -15,8 +16,10 @@
 #include "common/params.h"
 #include "common/swaglog.h"
 #include "common/timing.h"
+#include "common/util.h"
 #include "common/watchdog.h"
 
+#include <unistd.h>
 
 ExitHandler do_exit;
 
@@ -24,6 +27,23 @@ ExitHandler do_exit;
 const bool env_debug_frames = getenv("DEBUG_FRAMES") != nullptr;
 const bool env_log_raw_frames = getenv("LOG_RAW_FRAMES") != nullptr;
 const bool env_ctrl_exp_from_params = getenv("CTRL_EXP_FROM_PARAMS") != nullptr;
+
+// *** camera fault recovery ***
+// When a camera dies at runtime (sustained I2C failure, sensor going silent),
+// exiting lets the manager restart the process and rerun the full sensor
+// bringup, which usually recovers a transient bus fault. The restart budget
+// below bounds the flapping when the sensor is genuinely dead; the budget
+// refills on the first boot in which every configured camera comes up.
+static constexpr int MAX_DISABLE_RESTARTS = 3;
+static constexpr int DISABLE_RESTART_DELAY_S = 5;
+static constexpr uint64_t DISABLE_RESTART_DELAY_NS = DISABLE_RESTART_DELAY_S * 1000000000ULL;
+static constexpr uint64_t SOF_STALL_RESTART_NS = 5 * 1000000000ULL;  // sensor went silent
+static const char *DISABLE_RESTARTS_FN = "/tmp/camerad_disable_restarts";
+
+static int read_disable_restart_count() {
+  std::string s = util::read_file(DISABLE_RESTARTS_FN);
+  return s.empty() ? 0 : atoi(s.c_str());
+}
 
 
 class CameraState {
@@ -265,6 +285,18 @@ void camerad_thread() {
 
   v.start_listener();
 
+  // Restart budget: a boot in which every configured camera came up clears
+  // the counter, so only consecutive dead-sensor boots exhaust it.
+  int disable_restarts = read_disable_restart_count();
+  bool all_cams_up = true;
+  for (size_t i = 0; i < cams.size(); ++i) {
+    if (ALL_CAMERA_CONFIGS[i].enabled && !cams[i]->camera.enabled) all_cams_up = false;
+  }
+  if (all_cams_up) {
+    unlink(DISABLE_RESTARTS_FN);
+    disable_restarts = 0;
+  }
+
   // start devices
   LOG("-- Starting devices");
   for (auto &cam : cams) cam->camera.sensors_start();
@@ -304,6 +336,29 @@ void camerad_thread() {
               cam->sendState();
             }
             break;
+          }
+        }
+
+        // Fault recovery: a camera disabled by sustained I2C failures, or an
+        // enabled camera whose sensor went silent, is worth one more full
+        // bringup instead of staying dark until the next reboot.
+        if (disable_restarts < MAX_DISABLE_RESTARTS) {
+          for (auto &cam : cams) {
+            const auto &camera = cam->camera;
+            bool stalled = camera.enabled && camera.last_sof_ns != 0 &&
+                           nanos_since_boot() - camera.last_sof_ns > SOF_STALL_RESTART_NS;
+            bool disabled_too_long = !camera.enabled && camera.disabled_at_ns != 0 &&
+                                     nanos_since_boot() - camera.disabled_at_ns > DISABLE_RESTART_DELAY_NS;
+            if (stalled || disabled_too_long) {
+              std::string n = std::to_string(disable_restarts + 1);
+              util::write_file(DISABLE_RESTARTS_FN, n.data(), n.size());
+              LOGE("camera %d %s, restarting camerad (attempt %d/%d)",
+                   camera.cc.camera_num,
+                   stalled ? "sensor stalled" : "disabled by I2C failures",
+                   disable_restarts + 1, MAX_DISABLE_RESTARTS);
+              do_exit = true;
+              break;
+            }
           }
         }
       } else {
