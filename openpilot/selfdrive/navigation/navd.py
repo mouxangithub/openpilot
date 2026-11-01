@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import os
 
 import numpy as np
@@ -9,6 +10,7 @@ from openpilot.common.api import API_HOST, Api
 from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper
 from openpilot.common.swaglog import cloudlog
+from openpilot.selfdrive.navigation.destination_store import RECENT_DESTINATIONS_KEY, update_recent_destinations
 from openpilot.selfdrive.navigation.helpers import latest_gps_source
 from openpilot.selfdrive.navigation.route import along_path, local_meters
 
@@ -43,6 +45,7 @@ class RouteEngine:
     self.last_bearing = None
 
     self.nav_destination = None
+    self.last_recorded_destination = None  # (longitude, latitude) of the last destination recorded into recents
     self.step_idx = None
     self.route = None
     self.route_geometry = None  # an (n, 2) array of (longitude, latitude) per step
@@ -77,10 +80,15 @@ class RouteEngine:
 
     destination = self.params.get("NavDestination")
     if destination is None:
+      self.last_recorded_destination = None
       self.clear_route()
       self.recompute_hold = 0
       return
     new_destination = (destination['longitude'], destination['latitude'])
+
+    # A newly set destination: record it into the recents list. Must never break routing.
+    if new_destination != self.nav_destination:
+      self.record_recent_destination(destination)
 
     # Don't recompute when GPS drifts in tunnels
     if not gps_ok and self.step_idx is not None:
@@ -91,6 +99,21 @@ class RouteEngine:
       self.recompute_hold = RECOMPUTE_HOLD
       self.calculate_route(new_destination)
       self.reroute_counter = 0
+
+  def record_recent_destination(self, destination: dict):
+    """Record a newly set destination into ApiCache_NavDestinations, tolerating store failures."""
+    try:
+      position = (destination['longitude'], destination['latitude'])
+      if position == self.last_recorded_destination:
+        return
+      self.last_recorded_destination = position
+      raw_recent_destinations = self.params.get(RECENT_DESTINATIONS_KEY)
+      if isinstance(raw_recent_destinations, (list, dict)):
+        raw_recent_destinations = json.dumps(raw_recent_destinations)
+      self.params.put(RECENT_DESTINATIONS_KEY, json.dumps(update_recent_destinations(raw_recent_destinations, destination)))
+      cloudlog.info(f"navd.recorded_recent_destination {position}")
+    except Exception:
+      cloudlog.exception("navd.failed_to_record_recent_destination")
 
   def calculate_route(self, destination):
     assert self.last_position is not None
