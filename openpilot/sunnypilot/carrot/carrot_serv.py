@@ -204,8 +204,10 @@ class CarrotServ:
   def __init__(self, params: UnifiedParams | None = None) -> None:
     self._params = params or UnifiedParams()
 
-    # Cached navi state.
-    self._raw: dict[str, object] = {}
+    # Cached navi state. GPS keys start at explicit zeros so consumers reading
+    # raw before any accepted fix see "no position", not a missing key (the
+    # reported gps_source='none' must agree with the data path).
+    self._raw: dict[str, object] = {"vpPosPointLat": 0.0, "vpPosPointLon": 0.0, "nPosAngle": 0.0}
     self._last_packet_mono: float = 0.0
     self._last_seq: int | None = None
     self._remote_addr: str = ""

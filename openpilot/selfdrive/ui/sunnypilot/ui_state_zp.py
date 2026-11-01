@@ -18,8 +18,8 @@ def lane_center_mode(params) -> int:
   return params.get_bool("BlendfulReadout") + 1 if params.get_bool("Blendful") else 0
 
 
-def set_lane_center_mode(params, mode: int) -> None:
-  params.put_bool("Blendful", mode > 0, block=True)
+def set_lane_center_mode(params, mode: int, key: str = "Blendful") -> None:
+  params.put_bool(key, mode > 0, block=True)
   params.put_bool("BlendfulReadout", mode == 2, block=True)
 
 

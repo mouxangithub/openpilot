@@ -116,7 +116,7 @@ class ModelsLayout(Widget):
                              " correction. Debug UI shows the exact adjustment in cm. Not available with the Default model.")
     self.blendful_toggle = multiple_button_item_sp(tr("Lane Center Assist (Alpha)"), self._blendful_desc,
                                                    buttons=[tr("Off"), tr("On"), tr("Debug UI")], button_width=300,
-                                                   callback=lambda i: set_lane_center_mode(ui_state.params, i), inline=False)
+                                                   callback=lambda i: set_lane_center_mode(ui_state.params, i, key="Blendful"), inline=False)
 
     # stored in m/s, stepped by whole display units
     self.small_steering_control = option_item_sp(tr("Small Model Steering"), "SmallModelSteering", 0, 900,
