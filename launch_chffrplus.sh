@@ -519,6 +519,25 @@ ensure_updater_deps() {
     return 0
   fi
 
+  # The updater's wifi_manager also imports jeepney at module scope, and on the
+  # same frozen-boot scenario the network path cannot provide it (the updater
+  # loop blocks the network stage). Same bundled-wheel treatment as pyserial.
+  if ! PYTHONPATH="$py_path" "$py" -c "import jeepney" >/dev/null 2>&1; then
+    local jwheel=""
+    for w in "$WHEEL_DIR"/jeepney-*.whl; do
+      [ -f "$w" ] && jwheel="$w" && break
+    done
+    if [ -n "$jwheel" ]; then
+      mkdir -p "$pydeps" 2>/dev/null || true
+      local jtmp=$(pip_scratch_dir)
+      if TMPDIR="$jtmp" "$py" -m pip install --no-cache-dir --no-index --no-deps \
+           --disable-pip-version-check --target "$pydeps" "$jwheel" >> /tmp/bootstrap.log 2>&1; then
+        echo "[ensure_updater_deps] installed jeepney from bundled wheel" >> /tmp/bootstrap.log
+      fi
+      rm -rf "$jtmp"/pip-* 2>/dev/null || true
+    fi
+  fi
+
   echo "[ensure_updater_deps] pyserial missing; installing for the AGNOS updater" >> /tmp/bootstrap.log
   mkdir -p "$pydeps" 2>/dev/null || true
 
@@ -597,6 +616,15 @@ bootstrap_deps() {
   ensure_wheel_package "shapely" "shapely==2.1.2"
   ensure_wheel_package "psutil" "psutil==7.2.2"
   ensure_wheel_package "qrcode" "qrcode==8.2"
+  # jeepney rides the wheel bundle too, and for a harder reason than the others:
+  # the AGNOS updater's wifi_manager imports it at module scope, and this
+  # function runs before agnos_init - the network pip path below cannot save a
+  # boot that crashes in the updater loop (it never reaches the network stage).
+  # Learned the hard way on 2026-11-01: a device with a pending OS update sat
+  # on the splash screen forever because jeepney only existed on the network
+  # path. Every new dependency that anything in the early boot chain imports
+  # must ship as a wheel here.
+  ensure_wheel_package "jeepney" "jeepney==0.9.0"
 
   # Network group: needed by ai/aid.py and webui/webuid.py (and carrot_man /
   # carrot_navi). Installed together so a single overlay update does not leave either
