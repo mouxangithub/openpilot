@@ -1,0 +1,48 @@
+# Ported from carrotpilot .github/workflows/startup-recovery.yaml, trimmed to
+# dependencies that exist in this fork. Dropped (missing here, re-add when ported):
+#   - scripts/ensure_params_build.sh (bash -n syntax check)
+#   - openpilot/system/manager/process_crash.py + manager/test/test_process_crash.py
+#   - openpilot/system/tests/test_build_cache.py / test_rebuild_cleanup.py /
+#     test_reboot_sound.py / test_bootstrap_ui.py
+#   - openpilot/selfdrive/carrot/server/tests/test_git_config.py (no selfdrive/carrot here)
+name: Startup recovery checks
+on:
+  push:
+    branches: [test]
+    paths:
+      - 'launch_chffrplus.sh'
+      - 'SConstruct'
+      - 'openpilot/common/*rebuild*'
+      - 'openpilot/common/*cache*lock*'
+      - 'openpilot/common/startup*'
+      - 'openpilot/system/manager/build.py'
+      - 'openpilot/system/manager/process.py'
+      - 'openpilot/system/manager/process_config.py'
+      - 'openpilot/system/tombstoned.py'
+      - 'openpilot/system/manager/test/test_python_process_spawn.py'
+      - 'openpilot/system/ui/startup_recovery.py'
+      - 'openpilot/system/tests/**'
+      - '.github/workflows/startup-recovery-sp.yaml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install pytest==8.3.5 aiohttp requests numpy raylib==5.5.0.4
+      - run: sudo apt-get update && sudo apt-get install -y tmux
+      - name: Recovery and real process-lock regression checks
+        env:
+          PYTHONPATH: .:opendbc_repo
+        run: |
+          bash -n launch_chffrplus.sh
+          python -m pytest --noconftest -o addopts= -q \
+            openpilot/system/manager/test/test_python_process_spawn.py \
+            openpilot/system/tests/test_startup_recovery.py \
+            openpilot/system/tests/test_startup_touch_log.py

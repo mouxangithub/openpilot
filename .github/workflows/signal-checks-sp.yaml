@@ -1,0 +1,45 @@
+# Ported from carrotpilot .github/workflows/signal-checks.yaml, trimmed to
+# dependencies that exist in this fork. Dropped (missing here, re-add when ported):
+#   - tools/native_cpu/SConstruct (native CAN kernel build)
+#   - tools/signal_validation/* (run.py, test_trial_integration.py, test_lane_line_time.py)
+#   - tools/jetlink/test_blinker*.py
+#   - SPAS tests (opendbc hyundai test_spas.py, safety test_hyundai_spas.py,
+#     selfdrive car test_hyundai_spas.py / test_spas_interface.py)
+#   - Tesla turn-signal tests (opendbc safety test_tesla_turn_signals.py,
+#     selfdrive car test_tesla_turn_signals.py / test_tesla_signal_card.py)
+#   - openpilot/selfdrive/carrot/tests/test_xiaoge_data.py (no selfdrive/carrot here)
+#   - controls tests test_tesla_auto_signal_intent.py / test_desire_helper_stalk.py /
+#     test_lever_forced_turn.py (owned by the parallel desire_helper port)
+name: Signal integration checks
+on:
+  push:
+    branches: [test]
+    paths:
+      - 'opendbc_repo/**'
+      - '.github/workflows/signal-checks-sp.yaml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: .:opendbc_repo
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install Cython==3.2.9 setuptools scons pytest pytest-subtests numpy pycapnp cffi setproctitle requests pycryptodome zstandard pyserial parameterized
+      - name: Build dbc generated code and libsafety
+        run: |
+          python opendbc_repo/opendbc/dbc/generator/generator.py
+          cd opendbc_repo/opendbc/safety
+          gcc -shared -fPIC -Wall -Werror -nostdlib -fno-builtin -std=gnu11 -Wfatal-errors -Wno-pointer-to-int-cast \
+            -I. -Iboard tests/libsafety/safety.c -o tests/libsafety/libsafety.so
+      - name: Tesla car interface and safety regression checks
+        run: |
+          python -m pytest -q --noconftest \
+            opendbc_repo/opendbc/car/tesla/tests/test_tesla.py \
+            opendbc_repo/opendbc/safety/tests/test_tesla.py
