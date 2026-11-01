@@ -81,6 +81,11 @@ class TestUiObservation(unittest.TestCase):
 
 class TestObserverRequested(unittest.TestCase):
   def setUp(self):
+    # The param fallback must not leak the device's real SignalYoloEnabled
+    # into these file-behavior tests (devices may have it set to 1).
+    patcher = mock.patch.object(display, '_param_enabled', return_value=False)
+    patcher.start()
+    self.addCleanup(patcher.stop)
     display._observer_requested_cache = (0., False)
 
   def tearDown(self):
@@ -114,6 +119,9 @@ class TestObserverRequested(unittest.TestCase):
 
 class TestYoloObservationReader(unittest.TestCase):
   def setUp(self):
+    patcher = mock.patch.object(display, '_param_enabled', return_value=False)
+    patcher.start()
+    self.addCleanup(patcher.stop)
     display._observer_requested_cache = (0., False)
 
   def tearDown(self):

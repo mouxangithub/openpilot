@@ -25,6 +25,16 @@ UI_STATES = ('red', 'green')
 _observer_requested_cache: tuple[float, bool] = (0., False)
 
 
+def _param_enabled() -> bool:
+  """The settings-toggle half of the gate, behind a seam so file-behavior tests
+  can isolate it without importing the params backend (PC has no libparams)."""
+  try:
+    from openpilot.common.params import Params
+    return Params().get_bool('SignalYoloEnabled')
+  except Exception:
+    return False
+
+
 def observer_requested(now: float | None = None, path: Path | None = None) -> bool:
   """The observer's own opt-in, read at most twice a second. Mirrors the
   producer's gate: the SignalYoloEnabled settings toggle OR the legacy CLI file.
@@ -39,14 +49,7 @@ def observer_requested(now: float | None = None, path: Path | None = None) -> bo
     file_value = Path(path or ENABLE_PATH).read_text().strip() == '1'
   except OSError:
     file_value = False
-  if file_value:
-    value = True
-  else:
-    try:
-      from openpilot.common.params import Params
-      value = Params().get_bool('SignalYoloEnabled')
-    except Exception:
-      value = False
+  value = True if file_value else _param_enabled()
   _observer_requested_cache = (now + .5, value)
   return value
 

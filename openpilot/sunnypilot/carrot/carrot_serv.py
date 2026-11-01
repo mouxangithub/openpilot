@@ -201,13 +201,18 @@ class CarrotServ:
     that the planner should respect.
   """
 
+  # Explicit zeros (not absent keys) for the GPS fallback fields: a reported
+  # gps_source='none' must agree with the data path consumers read.
+  _RAW_GPS_DEFAULTS = {"vpPosPointLat": 0.0, "vpPosPointLon": 0.0, "nPosAngle": 0.0}
+
+
   def __init__(self, params: UnifiedParams | None = None) -> None:
     self._params = params or UnifiedParams()
 
     # Cached navi state. GPS keys start at explicit zeros so consumers reading
     # raw before any accepted fix see "no position", not a missing key (the
     # reported gps_source='none' must agree with the data path).
-    self._raw: dict[str, object] = {"vpPosPointLat": 0.0, "vpPosPointLon": 0.0, "nPosAngle": 0.0}
+    self._raw: dict[str, object] = dict(self._RAW_GPS_DEFAULTS)
     self._last_packet_mono: float = 0.0
     self._last_seq: int | None = None
     self._remote_addr: str = ""
@@ -787,7 +792,7 @@ class CarrotServ:
 
   def reset(self) -> None:
     """Reset all cached + derived state (e.g. after a packet timeout)."""
-    self._raw = {}
+    self._raw = dict(self._RAW_GPS_DEFAULTS)
     self._last_packet_mono = 0.0
     self._last_seq = None
     self._last_navi_block_mono = 0.0
