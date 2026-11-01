@@ -7464,3 +7464,79 @@ msgstr "将删除大模型已下载文件（使用中的除外，约 {size}）�
 
 msgid "This will delete downloaded small-model files except the one in use (about {size}). Continue?"
 msgstr "将删除小模型已下载文件（使用中的除外，约 {size}），是否继续？"
+
+#: auto (chill merge)
+msgid "Debug UI"
+msgstr "调试界面"
+
+#: auto (chill merge)
+msgid "debug ui"
+msgstr "调试界面"
+
+#: auto (chill merge)
+msgid "Lane Turn Desires"
+msgstr "变道转向意图"
+
+#: auto (chill merge)
+msgid "Legacy Chill Mode"
+msgstr "传统 Chill 模式"
+
+#: auto (chill merge)
+msgid "legacy chill"
+msgstr "传统 Chill"
+
+#: auto (chill merge)
+msgid "legacy chill mode"
+msgstr "传统 Chill 模式"
+
+#: auto (chill merge)
+msgid "Live"
+msgstr "自学习"
+
+#: auto (chill merge)
+msgid "live"
+msgstr "自学习"
+
+#: auto (chill merge)
+msgid "On"
+msgstr "开"
+
+#: auto (chill merge)
+msgid "on"
+msgstr "开"
+
+#: auto (chill merge)
+msgid "Small Model Steering"
+msgstr "小模型转向"
+
+#: auto (chill merge)
+msgid "small model steer"
+msgstr "小模型转向"
+
+#: auto (chill merge)
+msgid "Steer Delay"
+msgstr "转向延迟"
+
+#: auto (chill merge)
+msgid "steer delay"
+msgstr "转向延迟"
+
+#: auto (chill merge)
+msgid "Pauses steering while you signal below this speed, so you can turn by hand."
+msgstr "低于此速度打转向灯时暂停转向，方便手动转弯。"
+
+#: auto (chill merge)
+msgid "blinker pauses steering"
+msgstr "转向灯暂停转向"
+
+#: auto (chill merge)
+msgid "under {} {}"
+msgstr "低于 {} {}"
+
+#: auto (chill merge)
+msgid "<b>WARNING: zoompilot longitudinal control is in alpha for this car and may disable Automatic Emergency Braking (AEB).</b><br><br>On this car, zoompilot defaults to the car's built-in ACC instead of zoompilot's longitudinal control. Enable this to switch to zoompilot longitudinal control. Changing this setting will restart zoompilot if the car is powered on."
+msgstr "<b>警告：zoompilot 纵向控制在当前车型上为 Alpha 版，可能导致自动紧急制动（AEB）失效。</b><br><br>当前车型默认使用车辆自带 ACC 而非 zoompilot 纵向控制。开启此项以切换到 zoompilot 纵向控制。车辆上电状态下更改此设置将重启 zoompilot。"
+
+#: auto (chill merge)
+msgid "The older way to drive the gas and brakes: hold your set speed and follow the car ahead. It won't stop for red lights or stop signs.<br><br>Off, the default, lets the driving model drive the gas and brakes as it thinks a human would, including stopping for red lights and stop signs. The set speed is then a maximum."
+msgstr "传统的油门刹车控制方式：保持设定车速并跟随前车。它不会在红灯或停车标志前停车。<br><br>关闭（默认）时，由驾驶模型自主控制油门和刹车，包括在红灯和停车标志前停车，设定车速此时为上限。"
