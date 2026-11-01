@@ -166,6 +166,7 @@ class Controls(ControlsExt):
     steer_ratio, stiffness = resolve_vehicle_model_params(learned_sr, lp.stiffnessFactor, arbitration)
     x = max(stiffness, 0.1)
     sr = steer_ratio
+    self.VM.update_geometry(getattr(lp, "centerToFrontRatio", 0.0))
     self.VM.update_params(x, sr)
 
     steer_angle_without_offset = math.radians(CS.steeringAngleDeg - lp.angleOffsetDeg)

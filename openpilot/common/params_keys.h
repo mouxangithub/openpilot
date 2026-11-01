@@ -762,6 +762,12 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AutoCurveSpeedFactor", {PERSISTENT | BACKUP, INT, "100"}},
     {"AutoCurveSpeedAggressiveness", {PERSISTENT | BACKUP, INT, "100"}},
     {"AutoTurnControl", {PERSISTENT | BACKUP, INT, "0"}},
+    {"AutoTurnControlRightLaneChange", {PERSISTENT | BACKUP, BOOL, "0"}},  // cp 32ed45b2e: independent right-fork TBT physical-indicator admission
+    {"ManualLaneChangeIndicator", {PERSISTENT | BACKUP, BOOL, "0"}},  // cp boundary_indicator add-on: manual lamp feedback isolation
+    {"AutoBlinkerControl", {PERSISTENT | BACKUP, INT, "0"}},
+    {"CanfdBlinkerControl", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"LaneChangeBsd", {PERSISTENT | BACKUP, INT, "0"}},
+    {"LaneChangeLeverWait", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"AutoTurnControlSpeedTurn", {PERSISTENT | BACKUP, INT, "20"}},
     {"AutoTurnControlTurnEnd", {PERSISTENT | BACKUP, INT, "6"}},
     {"AutoTurnMapChange", {PERSISTENT | BACKUP, BOOL, "0"}},
@@ -909,6 +915,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LateralTorqueKiV", {PERSISTENT | BACKUP, INT, "10"}},
     {"LateralTorqueKpV", {PERSISTENT | BACKUP, INT, "100"}},
     {"PathOffset", {PERSISTENT | BACKUP, INT, "0"}},
+    {"CenterToFrontRatio", {PERSISTENT | BACKUP, INT, "0"}},  // CG ratio percent; 0 = vehicle default
     {"SteerActuatorDelay", {PERSISTENT | BACKUP, INT, "30"}},
     {"SteerDelay", {PERSISTENT | BACKUP, FLOAT, "0.0"}},  // FLM advanced lateral knobs
     {"SteerFriction", {PERSISTENT | BACKUP, FLOAT, "0.0"}},

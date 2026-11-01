@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 import os
+import math
+import time
+
 import numpy as np
 import capnp
 
 import openpilot.cereal.messaging as messaging
 from openpilot.cereal import log
 from opendbc.car.structs import car
+from opendbc.car.lateral_geometry import LateralGeometry, requested_center_to_front_ratio
 from openpilot.common.params import Params
 from openpilot.common.realtime import config_realtime_process, DT_MDL
 from openpilot.selfdrive.locationd.models.car_kf import CarKalman, ObservationKind, States
@@ -26,7 +30,8 @@ LOW_ACTIVE_SPEED = 10.0
 
 
 class VehicleParamsLearner:
-  def __init__(self, CP: car.CarParams, steer_ratio: float, stiffness_factor: float, angle_offset: float, P_initial: np.ndarray | None = None):
+  def __init__(self, CP: car.CarParams, steer_ratio: float, stiffness_factor: float, angle_offset: float,
+               P_initial: np.ndarray | None = None, geometry_ratio: float | None = None):
     self.kf = CarKalman(GENERATED_DIR)
 
     self.x_initial = CarKalman.initial_x.copy()
@@ -35,13 +40,11 @@ class VehicleParamsLearner:
     self.x_initial[States.ANGLE_OFFSET] = angle_offset
     self.P_initial = P_initial if P_initial is not None else CarKalman.P_initial
 
-    self.kf.set_globals(
-      rotational_inertia=CP.rotationalInertiaPerMass,
-      center_to_front=CP.centerToFront,
-      center_to_rear=CP.wheelbase - CP.centerToFront,
-      stiffness_front=CP.tireStiffnessFrontPerMass,
-      stiffness_rear=CP.tireStiffnessRearPerMass
-    )
+    self.geometry = LateralGeometry(CP)
+    self.rotational_inertia = CP.rotationalInertiaPerMass
+    if geometry_ratio is not None:
+      self.geometry.update(geometry_ratio)
+    self.apply_geometry()
 
     self.min_sr, self.max_sr = 0.5 * CP.steerRatio, 2.0 * CP.steerRatio
 
@@ -56,6 +59,21 @@ class VehicleParamsLearner:
     self.roll_valid = True
 
     self.reset(None)
+
+  def apply_geometry(self):
+    self.kf.set_globals(
+      rotational_inertia=self.rotational_inertia,
+      center_to_front=self.geometry.center_to_front,
+      center_to_rear=self.geometry.wheelbase - self.geometry.center_to_front,
+      stiffness_front=self.geometry.stiffness_front,
+      stiffness_rear=self.geometry.stiffness_rear,
+    )
+
+  def update_geometry(self, target: float, dt: float):
+    if self.geometry.step(target, dt):
+      self.apply_geometry()
+      # Keep learned state/covariance; old rewind history used a different model.
+      self.kf.filter.reset_rewind()
 
   def reset(self, t: float | None):
     self.kf.init_state(self.x_initial, covs=self.P_initial, filter_time=t)
@@ -169,6 +187,7 @@ class VehicleParamsLearner:
     vehicleParameters = msg.vehicleParameters
     vehicleParameters.posenetValid = True
     vehicleParameters.sensorValid = sensors_valid
+    vehicleParameters.centerToFrontRatio = float(self.geometry.ratio)
     vehicleParameters.steerRatio = float(x[States.STEER_RATIO].item())
     vehicleParameters.stiffnessFactor = float(x[States.STIFFNESS].item())
     vehicleParameters.roll = float(self.roll)
@@ -206,7 +225,7 @@ def check_valid_with_hysteresis(current_valid: bool, val: float, threshold: floa
   return current_valid
 
 
-def retrieve_initial_vehicle_params(params: Params, CP: car.CarParams, replay: bool, debug: bool):
+def retrieve_initial_vehicle_params(params: Params, CP: car.CarParams, replay: bool, debug: bool, geometry_ratio: float | None = None):
   last_parameters_data = params.get("LiveParametersV2")
   last_carparams_data = params.get("CarParamsPrevRoute")
 
@@ -220,6 +239,14 @@ def retrieve_initial_vehicle_params(params: Params, CP: car.CarParams, replay: b
         # Check if car model matches
         if last_CP.carFingerprint != CP.carFingerprint:
           raise Exception("Car model mismatch")
+
+        # Reject the cache when the vehicle geometry no longer matches, so a
+        # changed center-of-gravity ratio restarts learning from defaults.
+        previous_ratio = lp.centerToFrontRatio or last_CP.centerToFront / last_CP.wheelbase
+        expected_ratio = geometry_ratio if geometry_ratio is not None else CP.centerToFront / CP.wheelbase
+        if (not math.isclose(last_CP.wheelbase, CP.wheelbase, rel_tol=1e-6) or
+            not math.isclose(previous_ratio, expected_ratio, rel_tol=1e-6)):
+          raise Exception("Vehicle geometry changed")
 
         # Check if starting values are sane
         min_sr, max_sr = 0.5 * CP.steerRatio, 2.0 * CP.steerRatio
@@ -260,11 +287,17 @@ def main():
   params = Params()
   CP = messaging.log_from_bytes(params.get("CarParams", block=True), car.CarParams)
 
-  steer_ratio, stiffness_factor, angle_offset_deg, pInitial = retrieve_initial_vehicle_params(params, CP, REPLAY, DEBUG)
-  learner = VehicleParamsLearner(CP, steer_ratio, stiffness_factor, np.radians(angle_offset_deg), pInitial)
+  geometry_ratio = CP.centerToFront / CP.wheelbase if REPLAY else requested_center_to_front_ratio(params, CP)
+  steer_ratio, stiffness_factor, angle_offset_deg, pInitial = retrieve_initial_vehicle_params(params, CP, REPLAY, DEBUG, geometry_ratio)
+  learner = VehicleParamsLearner(CP, steer_ratio, stiffness_factor, np.radians(angle_offset_deg), pInitial, geometry_ratio)
+  last_geometry_time = time.monotonic()
 
   while True:
     sm.update()
+    geometry_time = time.monotonic()
+    if not REPLAY:
+      learner.update_geometry(requested_center_to_front_ratio(params, CP), geometry_time - last_geometry_time)
+    last_geometry_time = geometry_time
     if sm.all_checks():
       for which in sorted(sm.updated.keys(), key=lambda x: sm.logMonoTime[x]):
         if sm.updated[which]:
