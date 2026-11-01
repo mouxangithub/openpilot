@@ -1,20 +1,18 @@
-# Page: software
-# Edit this file. Run compile_settings_ui.py to emit settings_ui.json.
 id: software
-label: Software
+label: 软件
 icon: software
 order: 7
 remote_configurable: true
-description: Software update preferences
+description: 软件更新偏好
 sections:
 - id: updates
-  title: Updates
-  description: Control software updates
+  title: 更新
+  description: 控制软件更新
   items:
   - key: DisableUpdates
     widget: toggle
-    title: Disable Updates
-    description: When enabled, software updates will be off. This requires a reboot to take effect.
+    title: 禁用更新
+    description: 开启后关闭软件更新。需要重启生效。
     enablement:
     - $ref: '#/macros/offroad'
     - $ref: '#/macros/advanced_only'

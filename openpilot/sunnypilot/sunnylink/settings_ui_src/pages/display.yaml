@@ -1,33 +1,31 @@
-# Page: display
-# Edit this file. Run compile_settings_ui.py to emit settings_ui.json.
 id: display
-label: Display
+label: 显示
 icon: display
 order: 3
 remote_configurable: true
-description: Screen brightness, timeout, and interactivity settings
+description: 屏幕亮度、超时与交互设置
 sections:
 - id: brightness_timeout
-  title: Brightness & Timeout
-  description: Screen dimming and sleep behavior while driving
+  title: 亮度与超时
+  description: 驾驶中的屏幕调暗与休眠行为
   items:
   - key: Brightness
     widget: option
-    title: Screen Brightness
-    description: Screen brightness when offroad (not driving). 0 uses the device default.
+    title: 屏幕亮度
+    description: 驻车（非驾驶）时的屏幕亮度。0 使用设备默认值。
     min: 0
     max: 100
     step: 5
   - key: OnroadScreenOffBrightness
     widget: multiple_button
-    title: Onroad Brightness
+    title: 行车亮度
     options:
     - value: 0
-      label: Auto (Default)
+      label: 自动（默认）
     - value: 1
-      label: Auto (Dark)
+      label: 自动（深色）
     - value: 2
-      label: Screen Off
+      label: 关闭屏幕
     - value: 3
       label: 5 %
     - value: 4
@@ -70,7 +68,7 @@ sections:
       label: 100 %
   - key: OnroadScreenOffTimer
     widget: multiple_button
-    title: Onroad Brightness Delay
+    title: 行车亮度延迟
     options:
     - value: 0
       label: 0s
@@ -105,12 +103,11 @@ sections:
           equals: 1
   - key: InteractivityTimeout
     widget: multiple_button
-    title: Interactivity Timeout
-    description: Apply a custom timeout for settings UI. This is the time after which settings UI closes automatically if
-      user is not interacting with the screen.
+    title: 交互超时
+    description: 设置界面自定义超时。用户无屏幕交互达到该时长后，设置界面自动关闭。
     options:
     - value: 0
-      label: Default
+      label: 默认
     - value: 10
       label: 10 s
     - value: 20
@@ -137,16 +134,16 @@ sections:
       label: 2 m
   - key: HomeShowActiveModel
     widget: toggle
-    title: Show Driving Model on Home Screen
-    description: Name the active driving model on the offroad home screen.
+    title: 主屏显示驾驶模型
+    description: 在驻车主屏上显示当前驾驶模型名称。
   - key: ScreenSaverEnabled
     widget: toggle
-    title: Screen Saver
-    description: Show a screen saver when the device is offroad and idle, instead of turning the screen off.
+    title: 屏保
+    description: 设备驻车闲置时显示屏保而不是关闭屏幕。
   - key: ScreenSaverTimeout
     widget: multiple_button
-    title: Screen Saver Duration
-    description: How long the screen saver runs before the screen turns off.
+    title: 屏保时长
+    description: 屏保运行多久后关闭屏幕。
     options:
     - value: 60
       label: 1 m

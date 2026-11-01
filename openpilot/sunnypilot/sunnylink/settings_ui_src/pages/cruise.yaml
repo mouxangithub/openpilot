@@ -1,24 +1,20 @@
-# Page: cruise
-# Edit this file. Run compile_settings_ui.py to emit settings_ui.json.
 id: cruise
-label: Cruise
+label: 巡航
 icon: cruise_control
 order: 2
 remote_configurable: true
-description: Longitudinal control, speed limits, and cruise behavior
+description: 纵向控制、限速与巡航行为
 sections:
 - id: alpha_longitudinal
-  title: Alpha Longitudinal
+  title: Alpha 纵向控制
   description: ''
   items:
   - key: AlphaLongitudinalEnabled
     widget: toggle
     needs_onroad_cycle: true
     blocked: true
-    title: zoompilot Longitudinal Control (Alpha)
-    description: 'WARNING: zoompilot longitudinal control is in alpha for this car and may disable Automatic Emergency Braking
-      (AEB). On this car, zoompilot defaults to the car''s built-in ACC instead of zoompilot''s longitudinal control. Enable
-      this to switch to zoompilot longitudinal control. Changing this setting will restart zoompilot if the car is powered on.'
+    title: zoompilot 纵向控制（Alpha）
+    description: 警告：zoompilot 纵向控制在当前车型上为 Alpha 版，可能导致自动紧急制动（AEB）失效。当前车型默认使用车辆自带 ACC 而非 zoompilot 纵向控制。开启此项以切换到 zoompilot 纵向控制。车辆上电状态下更改此设置将重启 zoompilot。
     visibility:
     - type: capability
       field: alpha_long_available
@@ -27,17 +23,16 @@ sections:
     - $ref: '#/macros/not_engaged'
   - key: ExperimentalModeSetSpeed
     widget: toggle
-    title: Set Speed Assist
-    description: Drive toward your set speed and following distance as legacy chill mode does whenever the driving model holds back. The model still makes every slowdown.
+    title: 设定车速辅助
+    description: 当驾驶模型减速时，按传统 Chill 模式的方式驶向设定车速和跟车距离。模型仍会执行每一次减速。
     visibility:
     - $ref: '#/macros/longitudinal'
     enablement:
     - $ref: '#/macros/longitudinal'
-  # the device shows this inverted, as Legacy Chill Mode; sunnylink toggles cannot invert a param
   - key: ExperimentalMode
     widget: toggle
-    title: Driving Model Gas and Brakes
-    description: On by default. The driving model drives the gas and brakes as it thinks a human would, including stopping for red lights and stop signs. Off is legacy chill mode, which holds your set speed and follows the car ahead.
+    title: 驾驶模型控制油门刹车
+    description: 默认开启。由驾驶模型像人类一样自主控制油门和刹车，包括在红灯和停车标志前停车。关闭即传统 Chill 模式：保持设定车速并跟随前车。
     enablement:
     - $ref: '#/macros/longitudinal'
 - id: core_cruise_features
@@ -46,48 +41,45 @@ sections:
   items:
   - key: DisengageOnAccelerator
     widget: toggle
-    title: Disengage Cruise on Accelerator Pedal
-    description: When enabled, pressing the accelerator pedal will disengage longitudinal control.
+    title: 踩油门退出巡航
+    description: 开启后踩油门踏板将退出纵向控制。
   - key: LongitudinalPersonality
     widget: multiple_button
-    title: Driving Personality
-    description: Standard is recommended. In aggressive mode, sunnypilot will follow lead cars closer and be more aggressive
-      with the gas and brake. In relaxed mode sunnypilot will stay further away from lead cars. On supported cars, you can
-      cycle through these personalities with your steering wheel distance button.
+    title: 驾驶个性
+    description: 推荐标准模式。激进模式下 sunnypilot 油门刹车都更贴近前车、跟车更激进。放松模式下会与前车保持更远距离。支持的车型上可用方向盘车距键循环切换这些个性。
     options:
     - value: 0
-      label: Aggressive
+      label: 激进
     - value: 1
-      label: Standard
+      label: 标准
     - value: 2
-      label: Relaxed
+      label: 放松
     enablement:
     - $ref: '#/macros/longitudinal'
   - key: AccelPersonalityEnabled
     widget: toggle
-    title: Enable Accel Controller
-    description: Lets you choose how sunnypilot starts, catches up, and settles at the cruise speed. Emergency braking and stopping are
-      unchanged.
+    title: 启用油门控制器
+    description: 选择 sunnypilot 起步、追赶与稳定到巡航车速的方式。紧急制动与停车行为不变。
     visibility:
     - $ref: '#/macros/longitudinal'
     enablement:
     - $ref: '#/macros/longitudinal'
   - key: AccelPersonality
     widget: multiple_button
-    title: Acceleration Profile
-    description: Eco is gentlest, Normal balances a prompt start with smooth catch-up, and Sport is more responsive.
+    title: 加速风格
+    description: 经济最柔和；标准在快速起步与平顺追赶间平衡；运动更积极响应。
     options:
     - value: 0
-      label: Eco
+      label: 经济
     - value: 1
-      label: Normal
+      label: 标准
     - value: 2
-      label: Sport
+      label: 运动
     enablement:
     - $ref: '#/macros/longitudinal'
   - key: IntelligentCruiseButtonManagement
     widget: toggle
-    title: Intelligent Cruise Button Management (ICBM) (Alpha)
+    title: 智能巡航按键管理（ICBM）（Alpha）
     visibility:
     - type: capability
       field: icbm_available
@@ -100,7 +92,7 @@ sections:
         field: has_longitudinal_control
         equals: true
 - id: custom_acc_increments
-  title: Custom ACC Speed Intervals
+  title: 自定义 ACC 速度档位
   description: ''
   enablement:
   - type: any
@@ -121,7 +113,7 @@ sections:
   items:
   - key: CustomAccIncrementsEnabled
     widget: toggle
-    title: Enable Custom ACC Speed Intervals
+    title: 启用自定义 ACC 速度档位
     enablement:
     - type: any
       conditions:
@@ -141,7 +133,7 @@ sections:
     - $ref: '#/macros/icbm_feature_not_engaged'
   sub_panels:
   - id: custom_acc_intervals
-    label: Custom ACC Speed Intervals Settings
+    label: 自定义 ACC 速度档位设置
     trigger_key: CustomAccIncrementsEnabled
     trigger_condition:
       type: param
@@ -150,7 +142,7 @@ sections:
     items:
     - key: CustomAccShortPressIncrement
       widget: option
-      title: Short Press Increment
+      title: 短按步进
       min: 1
       max: 10
       step: 1
@@ -160,7 +152,7 @@ sections:
         equals: true
     - key: CustomAccLongPressIncrement
       widget: option
-      title: Long Press Increment
+      title: 长按步进
       min: 1
       max: 10
       step: 1
@@ -169,26 +161,26 @@ sections:
         key: CustomAccIncrementsEnabled
         equals: true
 - id: speed_limits
-  title: Speed Limits
-  description: Speed limit detection and offset behavior
+  title: 限速
+  description: 限速识别与偏移行为
   items: []
   sub_panels:
   - id: speed_limit_settings
-    label: Speed Limit Settings
+    label: 限速设置
     trigger_key: SpeedLimitMode
     items:
     - key: SpeedLimitMode
       widget: multiple_button
-      title: Speed Limit Assist Mode
+      title: 限速辅助模式
       options:
       - value: 0
-        label: 'Off'
+        label: 关
       - value: 1
-        label: Information
+        label: 信息
       - value: 2
-        label: Warning
+        label: 警告
       - value: 3
-        label: Assist
+        label: 辅助
         enablement:
         - type: any
           conditions:
@@ -224,31 +216,31 @@ sections:
               equals: true
     - key: SpeedLimitPolicy
       widget: multiple_button
-      title: Speed Limit Source
+      title: 限速来源
       options:
       - value: 0
-        label: Car State Only
+        label: 仅车辆信号
       - value: 1
-        label: Map Data Only
+        label: 仅地图数据
       - value: 2
-        label: Car State Priority
+        label: 车辆信号优先
       - value: 3
-        label: Map Data Priority
+        label: 地图数据优先
       - value: 4
-        label: Combined
+        label: 组合
     - key: SpeedLimitOffsetType
       widget: multiple_button
-      title: Speed Limit Offset Type
+      title: 限速偏移类型
       options:
       - value: 0
-        label: 'Off'
+        label: 关
       - value: 1
-        label: Fixed
+        label: 固定
       - value: 2
-        label: Percentage
+        label: 百分比
     - key: SpeedLimitValueOffset
       widget: option
-      title: Speed Limit Offset Value
+      title: 限速偏移值
       min: -30
       max: 30
       step: 1
@@ -261,7 +253,7 @@ sections:
         op: '>'
         value: 0
 - id: smart_cruise
-  title: Smart Cruise Control
+  title: 智能巡航控制
   description: ''
   enablement:
   - type: any
@@ -275,8 +267,8 @@ sections:
   items:
   - key: SmartCruiseControlVision
     widget: toggle
-    title: Vision
-    description: Use vision path predictions to estimate the appropriate speed to drive through turns ahead.
+    title: 视觉
+    description: 用视觉路径预测估算前方弯道的合适车速。
     visibility:
     - type: any
       conditions:
@@ -298,8 +290,8 @@ sections:
     - $ref: '#/macros/icbm_scc_not_engaged'
   - key: SmartCruiseControlMap
     widget: toggle
-    title: Map
-    description: Use map data to estimate the appropriate speed to drive through turns ahead.
+    title: 地图
+    description: 用地图数据估算前方弯道的合适车速。
     visibility:
     - type: any
       conditions:
@@ -320,65 +312,65 @@ sections:
         equals: true
     - $ref: '#/macros/icbm_scc_not_engaged'
 - id: carrot_navigation
-  title: OSM / Carrot Navigation
-  description: Phone projection, navigation data, and dynamic cruise tuning
+  title: OSM / Carrot 导航
+  description: 手机互联、导航数据与动态巡航调校
   enablement:
   - $ref: '#/macros/offroad'
   items:
   - key: OsmMapDataEnabled
     widget: toggle
-    title: Enable OSM Map Data
-    description: Use offline OSM map data for speed limits and road names. Turn off to ignore the offline map entirely - the offline data can be years out of date.
+    title: 启用 OSM 地图数据
+    description: 使用离线 OSM 地图数据提供限速与道路名。关闭则完全忽略离线地图——离线数据可能已过时多年。
   - key: CarrotAmapBlindSpotEnabled
     widget: toggle
-    title: Enable Carrot Blind Spot Data
-    description: Parse blind-spot / LiDAR / extBlinker fields from the 7706 UDP stream.
+    title: 启用 Carrot 盲区数据
+    description: 解析 7706 UDP 流中的盲区 / 激光雷达 / 扩展转向灯字段。
   - key: CarrotEnabled
     widget: toggle
-    title: Enable Carrot Planner
-    description: Enable dynamic following distance, driving modes, traffic light handling, and navigation cruise speed.
+    title: 启用 Carrot 规划器
+    description: 启用动态跟车距离、驾驶模式、红绿灯处理与导航巡航车速。
   - key: MyDrivingMode
     widget: multiple_button
-    title: Driving Mode
-    description: Carrot driving style preset.
+    title: 驾驶模式
+    description: Carrot 驾驶风格预设。
     options:
     - value: 1
-      label: Eco
+      label: 经济
     - value: 2
-      label: Safe
+      label: 安全
     - value: 3
-      label: Normal
+      label: 标准
     - value: 4
-      label: High
+      label: 高
     visibility:
     - type: param
       key: CarrotEnabled
       equals: true
   - key: TrafficLightDetectMode
     widget: multiple_button
-    title: Traffic Light Assist
-    description: Stop at red lights and optionally resume on green when using model-based stop line detection.
+    title: 红绿灯辅助
+    description: 使用模型停止线检测时，红灯停车并可在绿灯时恢复行驶。
     options:
     - value: 0
-      label: 'Off'
+      label: 关
     - value: 1
-      label: Red Stop
+      label: 红灯停车
     - value: 2
-      label: Red Stop + Green Go
+      label: 红灯停 绿灯行
     visibility:
     - type: param
       key: CarrotEnabled
       equals: true
   - key: CarrotNavCruiseSpeedEnabled
     widget: toggle
-    title: Navigation Cruise Speed
-    description: Use navigation desired speed to limit cruise set speed.
+    title: 导航巡航车速
+    description: 用导航期望车速限制巡航设定速度。
     visibility:
     - type: param
       key: CarrotEnabled
       equals: true
   - id: carrot_tuning
-    label: Carrot Tuning
+    label: Carrot 调校
     trigger_key: CarrotEnabled
     trigger_condition:
       type: param
@@ -387,32 +379,32 @@ sections:
     items:
     - key: CruiseGapLevels
       widget: option
-      title: Cruise Gap Levels
-      description: How many follow-gap levels the distance button cycles (2-4). Below the vehicle maximum shortens the cycle.
+      title: 巡航跟车档位
+      description: 车距按键循环的跟车档位数（2-4 档）。低于车型上限会缩短循环。
       min: 2
       max: 4
       step: 1
     - key: TFollowGap1
       widget: option
-      title: Follow Gap 1
+      title: 跟车档 1
       min: 0.5
       max: 3.0
       step: 0.05
     - key: TFollowGap2
       widget: option
-      title: Follow Gap 2
+      title: 跟车档 2
       min: 0.5
       max: 3.0
       step: 0.05
     - key: TFollowGap3
       widget: option
-      title: Follow Gap 3
+      title: 跟车档 3
       min: 0.5
       max: 3.0
       step: 0.05
     - key: TFollowGap4
       widget: option
-      title: Follow Gap 4
+      title: 跟车档 4
       min: 0.5
       max: 3.0
       step: 0.05

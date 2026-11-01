@@ -1,11 +1,9 @@
-# Page: toggles
-# Edit this file. Run compile_settings_ui.py to emit settings_ui.json.
 id: toggles
-label: Toggles
+label: 功能开关
 icon: toggles
 order: 5
 remote_configurable: true
-description: Core openpilot feature toggles
+description: openpilot 核心功能开关
 sections:
 - id: core_toggles
   title: ''
@@ -14,59 +12,55 @@ sections:
   - key: OpenpilotEnabledToggle
     widget: toggle
     needs_onroad_cycle: true
-    title: Enable sunnypilot
-    description: Use the sunnypilot system for adaptive cruise control and lane keep driver assistance. Your attention is
-      required at all times to use this feature.
+    title: 启用 sunnypilot
+    description: 使用 sunnypilot 系统提供自适应巡航与车道保持辅助。使用该功能期间必须始终保持注意力。
     enablement:
     - $ref: '#/macros/offroad'
   - key: IsLdwEnabled
     widget: toggle
-    title: Enable Lane Departure Warnings
-    description: Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line without a turn
-      signal activated while driving over 31 mph (50 km/h).
+    title: 启用车道偏离警告
+    description: 车速超过 31 mph（50 km/h）时，未打转向灯而偏离检测到的车道线会提醒驶回车道。
   - key: AlwaysOnDM
     widget: toggle
-    title: Always-On Driver Monitoring
-    description: The driver monitoring system can be toggled on/off, but long-term activation is recommended.
+    title: 常开驾驶员监测
+    description: 驾驶员监测系统可开关，但建议长期开启。
   - key: DistractionDetectionLevel
     widget: multiple_button
-    title: Distraction Detection Level
-    description: Set how sensitive the driver distraction detection should be. Strict warns on minor distractions; Moderate is balanced; Lenient only alerts on clear distractions.
+    title: 分神检测等级
+    description: 设置驾驶员分神检测的灵敏度。严格对轻微分神也警告；适中平衡；宽松仅在明显分神时提醒。
     options:
     - value: 0
-      label: Strict
+      label: 严格
     - value: 1
-      label: Moderate
+      label: 适中
     - value: 2
-      label: Lenient
+      label: 宽松
     visibility:
     - type: param
       key: AlwaysOnDM
       equals: true
   - key: IsMetric
     widget: toggle
-    title: Use Metric System
-    description: Display speed in km/h instead of mph.
+    title: 使用公制单位
+    description: 以 km/h 而非 mph 显示速度。
   - key: SunnypilotStoppingController
     widget: toggle
     needs_onroad_cycle: true
-    title: Stopping Controller
-    description: Take over the end of a stop. The request follows the speed down to the wheel stop, then holds the car at a
-      standstill.
+    title: 停车控制器
+    description: 接管停车的收尾。请求随车速降到车轮停转，然后把车保持在静止。
     enablement:
     - $ref: '#/macros/offroad'
 - id: recording
-  title: Recording
-  description: Camera and audio recording during drives
+  title: 录制
+  description: 行驶中的相机与录音
   items:
   - key: RecordFront
     widget: toggle
     needs_onroad_cycle: true
-    title: Record and Upload Driver Camera
-    description: Upload data from the driver facing camera and help improve the driver monitoring algorithm.
+    title: 录制并上传驾驶员相机
+    description: 上传驾驶员相机数据，帮助改进驾驶员监测算法。
   - key: RecordAudio
     widget: toggle
     needs_onroad_cycle: true
-    title: Record and Upload Microphone Audio
-    description: Record and store microphone audio while driving. The audio will be included in the dashcam video in comma
-      connect.
+    title: 录制并上传麦克风音频
+    description: 行驶时录制并存储麦克风音频。音频将包含在 comma connect 的行车记录视频里。

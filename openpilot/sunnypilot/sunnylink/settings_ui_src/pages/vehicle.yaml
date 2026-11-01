@@ -1,25 +1,23 @@
-# Page: vehicle (per-brand settings)
-# Compiles to settings_ui.json#vehicle_settings (brand = section id).
 id: vehicle
-label: Vehicle
+label: 车辆
 icon: vehicle
 order: 99
 kind: vehicle
 sections:
 - id: hyundai
-  title: Hyundai / Kia / Genesis Settings
+  title: 现代 / 起亚 / 捷尼赛思设置
   description: ''
   items:
   - key: HyundaiLongitudinalTuning
     widget: multiple_button
-    title: Custom Longitudinal Tuning
+    title: 自定义纵向调校
     options:
     - value: 0
-      label: 'Off'
+      label: 关
     - value: 1
-      label: Dynamic
+      label: 动态
     - value: 2
-      label: Predictive
+      label: 预测
     visibility:
     - type: capability
       field: hyundai_alpha_long_available
@@ -28,12 +26,12 @@ sections:
     - $ref: '#/macros/offroad'
     - $ref: '#/macros/longitudinal'
 - id: subaru
-  title: Subaru Settings
+  title: 斯巴鲁设置
   description: ''
   items:
   - key: SubaruStopAndGo
     widget: toggle
-    title: Stop and Go (Beta)
+    title: 走走停停（Beta）
     enablement:
     - $ref: '#/macros/offroad'
     - type: capability
@@ -41,37 +39,34 @@ sections:
       equals: true
   - key: SubaruStopAndGoManualParkingBrake
     widget: toggle
-    title: Stop and Go for Manual Parking Brake (Beta)
+    title: 手刹车型走走停停（Beta）
     enablement:
     - $ref: '#/macros/offroad'
     - type: capability
       field: has_stop_and_go
       equals: true
 - id: tesla
-  title: Tesla Settings
+  title: 特斯拉设置
   description: ''
   items:
   - key: TeslaCoopSteering
     widget: toggle
-    title: Cooperative Steering (Beta)
+    title: 协作转向（Beta）
     enablement:
     - $ref: '#/macros/offroad'
   - key: TeslaMadsScreenButton
     widget: multiple_button
-    title: MADS Screen Activation
-    description: 'Use a multi-finger press on the infotainment screen to toggle MADS.
-      This allows the use of full MADS functionality when enabled. Selecting a higher
-      finger count may reduce accidental activations. Note: Setting this to Off will
-      reset your MADS settings to default.'
+    title: MADS 屏幕激活
+    description: 在车机屏幕上多指按压以切换 MADS。开启后可使用完整 MADS 功能。指数越多越不容易误触。注意：设为关闭会将 MADS 设置重置为默认。
     options:
     - value: 0
-      label: 'Off'
+      label: 关
     - value: 1
-      label: 3-Finger
+      label: 三指
     - value: 2
-      label: 4-Finger
+      label: 四指
     - value: 3
-      label: 5-Finger
+      label: 五指
     visibility:
     - type: capability
       field: tesla_has_vehicle_bus
@@ -79,52 +74,51 @@ sections:
     enablement:
     - $ref: '#/macros/offroad'
 - id: toyota
-  title: Toyota / Lexus Settings
+  title: 丰田 / 雷克萨斯设置
   description: ''
   items:
   - key: ToyotaAutoHold
     widget: toggle
     needs_onroad_cycle: true
-    title: 'Toyota: Auto Brake Hold FOR TSS2 HYBRID CARS'
+    title: 丰田：自动电子手刹（仅 TSS2 混动车型）
     enablement:
     - $ref: '#/macros/not_engaged'
   - key: ToyotaBrakeOnset
     widget: toggle
     needs_onroad_cycle: true
-    title: 'Toyota: soft brake onset, overshoot limit and regen hand-over'
+    title: 丰田：柔和制动起步、过冲限制与动能回收交接
     enablement:
     - $ref: '#/macros/not_engaged'
   - key: ToyotaEnhancedBsm
     widget: toggle
     needs_onroad_cycle: true
-    title: 'Toyota: Prius TSS2 BSM and some tssp'
+    title: 丰田：普锐斯 TSS2 BSM 及部分 tssp
     enablement:
     - $ref: '#/macros/not_engaged'
   - key: ToyotaTSS2Long
     widget: toggle
     needs_onroad_cycle: true
-    title: 'Toyota: custom longitudinal for TSS2'
+    title: 丰田：TSS2 自定义纵向控制
     enablement:
     - $ref: '#/macros/not_engaged'
   - key: ToyotaDriveMode
     widget: toggle
     needs_onroad_cycle: true
-    title: Enable drive mode btn link
+    title: 启用驾驶模式按键联动
     enablement:
     - $ref: '#/macros/not_engaged'
   - key: ToyotaEnforceStockLongitudinal
     widget: toggle
     needs_onroad_cycle: true
-    title: Enforce Factory Longitudinal Control
-    description: sunnypilot will not take over control of gas and brakes. Factory Toyota longitudinal control will be used.
+    title: 强制原厂纵向控制
+    description: sunnypilot 不接管油门刹车，使用丰田原厂纵向控制。
     enablement:
     - $ref: '#/macros/not_engaged'
   - key: ToyotaStopAndGoHack
     widget: toggle
     needs_onroad_cycle: true
-    title: Stop and Go Hack (Alpha)
-    description: sunnypilot will allow some Toyota/Lexus cars to auto resume during stop and go traffic. This feature is only
-      applicable to certain models that are able to use longitudinal control. This is an alpha feature. Use at your own risk.
+    title: 走走停停增强（Alpha）
+    description: sunnypilot 允许部分丰田/雷克萨斯车型在拥堵走走停停中自动恢复。仅适用于能够使用纵向控制的特定车型。这是 Alpha 功能，使用风险自负。
     enablement:
     - $ref: '#/macros/not_engaged'
     - $ref: '#/macros/longitudinal'
@@ -134,9 +128,8 @@ sections:
   - key: ToyotaTSS2Smooth
     widget: toggle
     needs_onroad_cycle: true
-    title: TSS2 Smooth Longitudinal (Alpha)
-    description: Enable smoother longitudinal control for TSS2 vehicles. Uses a custom speed-dependent integral gain curve
-      for smoother traffic driving.
+    title: TSS2 平顺纵向控制（Alpha）
+    description: 为 TSS2 车型启用更平顺的纵向控制。使用随速度变化的自定义积分增益曲线，让拥堵行驶更平顺。
     enablement:
     - $ref: '#/macros/not_engaged'
     - $ref: '#/macros/longitudinal'

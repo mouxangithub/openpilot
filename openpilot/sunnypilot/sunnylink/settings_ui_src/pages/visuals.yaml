@@ -1,121 +1,110 @@
-# Page: visuals
-# Edit this file. Run compile_settings_ui.py to emit settings_ui.json.
 id: visuals
-label: Visuals
+label: 视觉
 icon: visuals
 order: 4
 remote_configurable: true
-description: HUD overlays, alerts, and on-screen display elements
+description: HUD 叠加层、提醒与屏幕显示元素
 sections:
 - id: hud_elements
-  title: HUD Elements
-  description: Overlays shown on the driving screen
+  title: HUD 元素
+  description: 驾驶画面上的叠加显示
   items:
   - key: BlindSpot
     widget: toggle
-    title: Show Blind Spot Warnings
-    description: Enabling this will display warnings when a vehicle is detected in your blind spot as long as your car has
-      BSM supported.
+    title: 显示盲区警告
+    description: 开启后，只要车辆支持 BSM，检测到盲区有车即显示警告。
   - key: TorqueBar
     widget: toggle
-    title: Steering Arc
-    description: Display steering arc on the driving screen when lateral control is enabled.
+    title: 转向弧线
+    description: 横向控制启用时在驾驶画面显示转向弧线。
     visibility:
     - $ref: '#/macros/hide_on_mici'
   - key: ShowTurnSignals
     widget: toggle
-    title: Display Turn Signals
-    description: When enabled, visual turn indicators are drawn on the HUD.
+    title: 显示转向灯
+    description: 开启后在 HUD 上绘制转向指示。
     visibility:
     - $ref: '#/macros/hide_on_mici'
   - key: RoadNameToggle
     widget: toggle
-    title: Display Road Name
-    description: Displays the name of the road the car is traveling on. The OpenStreetMap database of the location must be
-      downloaded to fetch the road name.
+    title: 显示道路名
+    description: 显示车辆当前行驶道路的名称。需要已下载所在位置的 OpenStreetMap 数据才能获取道路名。
     visibility:
     - $ref: '#/macros/hide_on_mici'
   - key: StandstillTimer
     widget: toggle
-    title: Standstill Timer
-    description: Show a timer on the HUD when the car is at a standstill.
+    title: 静止计时器
+    description: 车辆静止时在 HUD 上显示计时。
     visibility:
     - $ref: '#/macros/hide_on_mici'
   - key: RocketFuel
     widget: toggle
-    title: Real-time Acceleration Bar
-    description: Show an indicator on the left side of the screen to display real-time vehicle acceleration and deceleration.
-      This displays what the car is currently doing, not what the planner is requesting.
+    title: 实时加速度条
+    description: 在屏幕左侧显示车辆实时加减速指示。显示的是车辆当前实际动作，而非规划器的请求。
     visibility:
     - $ref: '#/macros/hide_on_mici'
   - key: ChevronInfo
     widget: option
-    title: Display Metrics Below Chevron
+    title: 路径箭头下方显示指标
     options:
     - value: 0
-      label: 'Off'
+      label: 关
     - value: 1
-      label: Distance
+      label: 距离
     - value: 2
-      label: Speed
+      label: 速度
     - value: 3
-      label: Time
+      label: 时间
     - value: 4
-      label: All
+      label: 全部
     visibility:
     - $ref: '#/macros/hide_on_mici'
     enablement:
     - $ref: '#/macros/longitudinal'
 - id: developer_ui
-  title: Developer UI Info
-  description: Speedometer and debug display options
+  title: 开发者界面信息
+  description: 速度表与调试显示选项
   visibility:
   - $ref: '#/macros/hide_on_mici'
   items:
   - key: DevUIInfo
     widget: option
-    title: Developer UI
-    description: Display real-time parameters and metrics from various sources.
+    title: 开发者界面
+    description: 显示来自各种来源的实时参数与指标。
     options:
     - value: 0
-      label: 'Off'
+      label: 关
     - value: 1
-      label: Bottom
+      label: 底部
     - value: 2
-      label: Right
+      label: 右侧
     - value: 3
-      label: Right & Bottom
+      label: 右侧和底部
   - key: TrueVEgoUI
     widget: toggle
-    title: 'Speedometer: Always Display True Speed'
-    description: For applicable vehicles, always display the true vehicle current speed from wheel speed sensors.
+    title: 速度表：始终显示真实车速
+    description: 适用车型上始终显示轮速传感器给出的真实车速。
   - key: HideVEgoUI
     widget: toggle
-    title: 'Speedometer: Hide from Onroad Screen'
-    description: When enabled, the speedometer on the onroad screen is not displayed.
+    title: 速度表：行车画面隐藏
+    description: 开启后行车画面不显示速度表。
 - id: alerts_extras
-  title: Alerts & Extras
-  description: Traffic light alerts and visual flair
+  title: 提醒与附加
+  description: 红绿灯提醒与视觉效果
   items:
   - key: GreenLightAlert
     widget: toggle
-    title: Green Traffic Light Alert (Beta)
-    description: 'A chime and on-screen alert will play when the traffic light you are waiting for turns green and you have
-      no vehicle in front of you. On-screen visual alert is only available on comma 3X. Note: This chime is only designed
-      as a notification. It is the driver''s responsibility to observe their environment and make decisions accordingly.'
+    title: 绿灯提醒（Beta）
+    description: 等待的红灯变绿且前方无车时，播放提示音并弹出屏幕提醒。屏幕视觉提醒仅限 comma 3X。注意：此提示音仅作通知用途，观察环境并做出决策仍是驾驶员的责任。
   - key: LeadDepartAlert
     widget: toggle
-    title: Lead Departure Alert (Beta)
-    description: 'A chime and on-screen alert will play when you are stopped, and the vehicle in front of you start moving.
-      On-screen visual alert is only available on comma 3X. Note: This chime is only designed as a notification. It is the
-      driver''s responsibility to observe their environment and make decisions accordingly.'
+    title: 前车起步提醒（Beta）
+    description: 本车停止且前车起步时，播放提示音并弹出屏幕提醒。屏幕视觉提醒仅限 comma 3X。注意：此提示音仅作通知用途，观察环境并做出决策仍是驾驶员的责任。
   - key: E2EAlertsWhenEngaged
     widget: toggle
-    title: Alerts While Engaged (Beta)
-    description: 'Play the green traffic light and lead departure alerts even while cruise is engaged and holding the car
-      at a standstill. Without it, those alerts only chime while cruise is not engaged. Note: This chime is only designed
-      as a notification. It is the driver''s responsibility to observe their environment and make decisions accordingly.'
+    title: 巡航中提醒（Beta）
+    description: 即使巡航已接管并停在原地，也播放绿灯提醒和前车起步提醒。不开启时这些提醒只在巡航未接管时响铃。注意：此提示音仅作通知用途，观察环境并做出决策仍是驾驶员的责任。
   - key: RainbowMode
     widget: toggle
-    title: Tesla Rainbow Mode
-    description: Display a rainbow effect on the path the model wants to take. It does not affect driving in any way.
+    title: 特斯拉彩虹模式
+    description: 在模型期望路径上显示彩虹效果。不影响任何驾驶行为。
