@@ -799,20 +799,21 @@ class SelfdriveD:
 
     # 转向灯观测层字段（cp modeld.py 594-608 的 SelfdriveState 对应物）。
     # 纯灯效遥测，不参与任何 desire/actuation/转向准入；参数全关时全部为缺省值。
-    ind = self.indicator_layer
-    ss.manualLaneIndicator = ind.manual_lane_indicator
-    ss.manualLaneIndicatorMonoTime = ind.manual_lane_indicator_monotime
-    ss.observedIndicator = ind.observed_indicator
-    ss.observedIndicatorMonoTime = ind.observed_indicator_monotime
-    ss.observedIndicatorSource = ind.observed_indicator_source
-    ss.indicatorIsolationMask = ind.indicator_isolation_mask
-    ss.indicatorJournalMonoTime = ind.indicator_journal_monotime
-    ss.indicatorPrepareDirection = ind.indicator_prepare_direction
-    ss.indicatorPrepareSource = ind.indicator_prepare_source
-    ss.autoTurnSignal = ind.auto_turn_signal
-    ss.autoTurnSignalLaneChange = ind.auto_turn_signal_lane_change
-    ss.autoTurnSignalDirection = ind.auto_signal_direction
-    ss.autoTurnSignalRequestId = ind.auto_signal_request_id
+    ind = getattr(self, 'indicator_layer', None)  # SimpleNamespace test mocks bypass __init__
+    if ind is not None:
+      ss.manualLaneIndicator = ind.manual_lane_indicator
+      ss.manualLaneIndicatorMonoTime = ind.manual_lane_indicator_monotime
+      ss.observedIndicator = ind.observed_indicator
+      ss.observedIndicatorMonoTime = ind.observed_indicator_monotime
+      ss.observedIndicatorSource = ind.observed_indicator_source
+      ss.indicatorIsolationMask = ind.indicator_isolation_mask
+      ss.indicatorJournalMonoTime = ind.indicator_journal_monotime
+      ss.indicatorPrepareDirection = ind.indicator_prepare_direction
+      ss.indicatorPrepareSource = ind.indicator_prepare_source
+      ss.autoTurnSignal = ind.auto_turn_signal
+      ss.autoTurnSignalLaneChange = ind.auto_turn_signal_lane_change
+      ss.autoTurnSignalDirection = ind.auto_signal_direction
+      ss.autoTurnSignalRequestId = ind.auto_signal_request_id
 
     self.pm.send('selfdriveState', ss_msg)
 
@@ -876,7 +877,8 @@ class SelfdriveD:
 
     self.button_state_tracker.update(CS)
     # 灯效观测层：按模型帧节奏推进，结果随 selfdriveState 发布（publish_selfdriveState 读取）。
-    self.indicator_layer.update(self.sm, CS)
+    if (layer := getattr(self, 'indicator_layer', None)) is not None:  # SimpleNamespace mocks bypass __init__
+      layer.update(self.sm, CS)
     self.publish_selfdriveState(CS)
 
     self.CS_prev = CS
