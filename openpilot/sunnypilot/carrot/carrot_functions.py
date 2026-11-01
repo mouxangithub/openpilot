@@ -925,8 +925,9 @@ class CarrotPlanner:
     signal = bool(state.leftBlinker) != bool(state.rightBlinker)
     direction = ((-1 if state.leftBlinker else 1) if signal else self._lane_change_tracker.direction) \
         if self.lane_change_active else 0
-    now_ns = int(sm.logMonoTime["modelV2"])
-    valid = all(sm.valid[key] and sm.alive[key] for key in ("carState", "modelV2", "radarState"))
+    now_ns = int(sm.logMonoTime["modelV2"]) if "modelV2" in sm.logMonoTime else 0
+    valid = all(key in sm.valid and sm.alive[key] and sm.valid[key]
+                for key in ("carState", "modelV2", "radarState"))
     valid = valid and abs(now_ns - int(sm.logMonoTime["radarState"])) <= 200_000_000
     if not valid or direction == 0:
       self._lane_change_tracker.reset()
