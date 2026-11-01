@@ -625,6 +625,18 @@ bootstrap_deps() {
   # path. Every new dependency that anything in the early boot chain imports
   # must ship as a wheel here.
   ensure_wheel_package "jeepney" "jeepney==0.9.0"
+  # The early-boot tier, ranked by what dies without them (2026-11-01 jeepney
+  # incident follow-up). manager's process.py imports setproctitle at module
+  # scope - no manager, no boot. common/swaglog.py imports zmq at module scope
+  # - cloudlog backs every daemon, so nothing starts without it either. tqdm
+  # is a module-scope import in opendbc's fw_versions, so the fingerprinting
+  # card dies before it can cache anything on a fresh .pydeps. PyJWT rides
+  # along as pure-python insurance for athena/sunnylink, which import it at
+  # module scope but only crash their own daemon if it is missing.
+  ensure_wheel_package "setproctitle" "setproctitle==1.3.8"
+  ensure_wheel_package "zmq" "pyzmq==26.4.0"
+  ensure_wheel_package "tqdm" "tqdm==4.70.1"
+  ensure_wheel_package "jwt" "PyJWT==2.15.1"
 
   # Network group: needed by ai/aid.py and webui/webuid.py (and carrot_man /
   # carrot_navi). Installed together so a single overlay update does not leave either
