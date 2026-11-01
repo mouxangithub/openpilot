@@ -90,6 +90,7 @@ NOTES = {
   'CarrotSourceTimeoutMs': 'carrot 包的新鲜度上界，超过就判该源失效',
   'CarrotStoppingLeadEnabled': '停住的前车要有距离证据才算起步',
   'CarrotTrafficCongestionEnabled': '拥堵报告折进地图巡航，只降不升',
+  'CarrotTrafficStopProfileEnabled': '红绿灯停点外面再包一层闭式刹停包络（延迟+jerk 受限），只提前/加强刹车，永不抬速',
   'CarrotTrafficLightFusionEnabled': '红绿灯状态融合进纵向计划',
   'CarrotTurnAccelEnabled': '弯道内限制纵向加速度',
 }

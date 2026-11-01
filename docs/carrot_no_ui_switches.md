@@ -9,7 +9,7 @@
 或 webui 的 `panel_catalog.py` 里出现过。8088 网页面板靠扫描车机设置页生成控件，不额外增加可达性。
 `carrot_tuning_api.py` 的白名单不算入口，那是通用编辑器。
 
-共 19 个：**5 个有 UI 入口，14 个没有**。
+共 20 个：**5 个有 UI 入口，15 个没有**。
 
 没有入口的那些，仍然可以通过 carrot_server 写参数（`params_keys.h` 注册即允许，不走白名单）：
 
@@ -35,7 +35,7 @@ curl "http://<device>:7000/api/params_bulk?names=CarrotMapDecelEnabled,CarrotTur
 | `CarrotNavCruiseSpeedEnabled` | `1` | 1 | `openpilot/sunnypilot/selfdrive/controls/lib/speed_limit/speed_limit_resolver.py` | 导航目标速度限制巡航速度 |
 | `CarrotTrafficCongestionEnabled` | `0` | 1 | `openpilot/sunnypilot/selfdrive/controls/lib/smart_cruise_control/map_controller.py` | 拥堵报告折进地图巡航，只降不升 |
 
-## 没有 UI 入口（14），只能走 7000 的 `POST /api/param_set`
+## 没有 UI 入口（15），只能走 7000 的 `POST /api/param_set`
 
 | 参数 | 默认 | 层级 | 读点 | 作用 |
 | --- | --- | --- | --- | --- |
@@ -52,4 +52,5 @@ curl "http://<device>:7000/api/params_bulk?names=CarrotMapDecelEnabled,CarrotTur
 | `CarrotSourceTimeoutMs` | `2000` | 3 | `openpilot/sunnypilot/selfdrive/controls/lib/carrot_longitudinal_source.py` | carrot 包的新鲜度上界，超过就判该源失效 |
 | `CarrotStoppingLeadEnabled` | `0` | 2 | `openpilot/selfdrive/controls/plannerd.py` | 停住的前车要有距离证据才算起步 |
 | `CarrotTrafficLightFusionEnabled` | `0` | 2 | `openpilot/sunnypilot/selfdrive/controls/lib/longitudinal_planner.py`, `openpilot/sunnypilot/selfdrive/controls/lib/traffic_light_fusion.py` | 红绿灯状态融合进纵向计划 |
+| `CarrotTrafficStopProfileEnabled` | `0` | - | `openpilot/selfdrive/controls/lib/longitudinal_planner.py` | 红绿灯停点外面再包一层闭式刹停包络（延迟+jerk 受限），只提前/加强刹车，永不抬速 |
 | `CarrotTurnAccelEnabled` | `0` | 2 | `openpilot/sunnypilot/selfdrive/controls/lib/longitudinal_planner.py` | 弯道内限制纵向加速度 |
