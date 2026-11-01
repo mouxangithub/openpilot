@@ -184,6 +184,13 @@ class HudRendererSP(HudRenderer):
     self.rocket_fuel.render(rect, ui_state.sm)
     self.signal_hud.render(rect, ui_state.sm)
 
+    # 自动转向灯观测角标（cp ui/onroad/hud_renderer.py 的只读消费移植）。
+    # sp 的车速 cluster 居中，角标改放左上角避开；读取 /dev/shm/carrot-indicator-display.json。
+    from openpilot.common.indicator_display import draw as draw_indicator
+    badge_width = min(500, rect.width * .62)
+    draw_indicator(rect.x + UI_BORDER_SIZE, rect.y + UI_BORDER_SIZE,
+                   badge_width, self._font_semi_bold, 26 if rect.width > 1200 else 19)
+
     # --- StarPilot widget ports (part 2) ----------------------------------
     # StarPilot arc torque bar (param ShowTorqueBar, default off). Shrink the
     # rect when the bottom dev UI is shown, same as the stock torque bar above.

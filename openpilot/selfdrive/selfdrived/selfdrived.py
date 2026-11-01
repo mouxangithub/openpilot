@@ -25,6 +25,7 @@ from openpilot.selfdrive.selfdrived.modeld_lag import ModeldLagMonitor
 from openpilot.selfdrive.selfdrived.helpers import ExcessiveActuationCheck
 from openpilot.selfdrive.selfdrived.impact_detector import ImpactDetector
 from openpilot.selfdrive.selfdrived.camera_config import get_camera_packets
+from openpilot.selfdrive.selfdrived.indicator_layer import IndicatorLayer
 from openpilot.selfdrive.selfdrived.state import StateMachine
 from openpilot.selfdrive.selfdrived.alertmanager import AlertManager, set_offroad_alert
 from openpilot.sunnypilot.selfdrive.selfdrived.events_base import EmptyAlert
@@ -140,6 +141,8 @@ class SelfdriveD:
                                    'managerState', 'vehicleParameters', 'radarState', 'lateralTorqueParameters',
                                    'controlsState', 'carControl', 'driverAssistance', 'alertDebug', 'userBookmark',
                                    'lateralManeuverPlan', 'modelDataV2SP', 'longitudinalPlanSP', 'carStateSP',
+                                   # 灯效观测层（selfdrived/indicator_layer.py）的输入：模型帧 + 导航帽。
+                                   'carState', 'carrotManSP',
                                    'liveTracks'] + \
                                    self.camera_packets + self.sensor_packets + self.gps_packets,
                                   ignore_alive=ignore, ignore_avg_freq=ignore,
@@ -157,6 +160,9 @@ class SelfdriveD:
       self.params.remove("AlphaLongitudinalEnabled")
 
     self.CS_prev = car.CarState.new_message()
+
+    # 转向灯观测层（cp 四件套移植）：SelfdriveState 新字段的填充源，默认全关时零旁路输出。
+    self.indicator_layer = IndicatorLayer(self.params, tesla_brand=self.CP.brand == 'tesla')
     self.AM = AlertManager()
     self.events = Events()
 
@@ -791,6 +797,23 @@ class SelfdriveD:
     ss.alertSound = self.AM.current_alert.audible_alert
     ss.alertHudVisual = self.AM.current_alert.visual_alert
 
+    # 转向灯观测层字段（cp modeld.py 594-608 的 SelfdriveState 对应物）。
+    # 纯灯效遥测，不参与任何 desire/actuation/转向准入；参数全关时全部为缺省值。
+    ind = self.indicator_layer
+    ss.manualLaneIndicator = ind.manual_lane_indicator
+    ss.manualLaneIndicatorMonoTime = ind.manual_lane_indicator_monotime
+    ss.observedIndicator = ind.observed_indicator
+    ss.observedIndicatorMonoTime = ind.observed_indicator_monotime
+    ss.observedIndicatorSource = ind.observed_indicator_source
+    ss.indicatorIsolationMask = ind.indicator_isolation_mask
+    ss.indicatorJournalMonoTime = ind.indicator_journal_monotime
+    ss.indicatorPrepareDirection = ind.indicator_prepare_direction
+    ss.indicatorPrepareSource = ind.indicator_prepare_source
+    ss.autoTurnSignal = ind.auto_turn_signal
+    ss.autoTurnSignalLaneChange = ind.auto_turn_signal_lane_change
+    ss.autoTurnSignalDirection = ind.auto_signal_direction
+    ss.autoTurnSignalRequestId = ind.auto_signal_request_id
+
     self.pm.send('selfdriveState', ss_msg)
 
     # onroadEvents - logged every second or on change
@@ -852,6 +875,8 @@ class SelfdriveD:
     self.update_nnff_alert(CS)
 
     self.button_state_tracker.update(CS)
+    # 灯效观测层：按模型帧节奏推进，结果随 selfdriveState 发布（publish_selfdriveState 读取）。
+    self.indicator_layer.update(self.sm, CS)
     self.publish_selfdriveState(CS)
 
     self.CS_prev = CS
