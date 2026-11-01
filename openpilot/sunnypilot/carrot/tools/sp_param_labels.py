@@ -96,7 +96,6 @@ PARAM_LABELS: dict[str, tuple[str, str, str, str]] = {
   "AlphaLongitudinalEnabled": ("Alpha longitudinal", "End-to-end longitudinal control for supported vehicles.", "Alpha 纵向控制", "受支持车型启用端到端纵向控制。"),
   "ExperimentalMode": ("Experimental mode", "Enable the experimental (end-to-end) driving profile.", "实验模式", "启用实验（端到端）驾驶模式。"),
   "ExperimentalModeConfirmed": ("Experimental mode confirmed", "Set once the experimental-mode risk notice has been acknowledged.", "实验模式已确认", "实验模式风险提示已确认过的标记。"),
-  "ExperimentalModeLeadGap": ("Experimental mode lead gap", "Activate experimental mode when following closely.", "实验模式跟车条件", "近距跟车时自动进入实验模式。"),
   "ExperimentalModeSetSpeed": ("Experimental mode set speed", "Activate experimental mode below a set speed.", "实验模式速度条件", "低于设定速度时自动进入实验模式。"),
 
   # ---- on-device pages: carrot_tuning -------------------------------------

@@ -68,13 +68,13 @@ class CruiseLayout(Widget):
     # The sub-toggles map one-to-one onto the CEM conditions (curves / lead); the signal
     # trigger stays param-only (CESignalSpeed, 0 = off) until someone asks for a dial.
     self.cem_toggle = toggle_item_sp(
-      title=tr("Conditional Experimental Mode"),
-      description=tr("Automatically switch experimental mode on demanding curves, slow leads and low-speed turns. A manual switch keeps priority for a minute."),
+      title=tr("Conditional Chill Exit"),
+      description=tr("While legacy chill is on, temporarily switch to model driving on demanding curves, slow leads and low-speed turns. A manual switch keeps priority for a minute."),
       param="ConditionalExperimental")
 
     self.cem_curves_toggle = toggle_item_sp(
       title=tr("  CEM: Curves"),
-      description=tr("Experimental mode follows lateral acceleration while cornering."),
+      description=tr("Model driving follows lateral acceleration while cornering."),
       param="CECurves")
 
     self.cem_curves_lead_toggle = toggle_item_sp(
@@ -84,7 +84,7 @@ class CruiseLayout(Widget):
 
     self.cem_lead_toggle = toggle_item_sp(
       title=tr("  CEM: Slow Leads"),
-      description=tr("Experimental mode follows when closing on a slower lead."),
+      description=tr("Model driving engages when closing on a slower lead."),
       param="CELead")
 
     self.custom_acc_toggle = toggle_item_sp(

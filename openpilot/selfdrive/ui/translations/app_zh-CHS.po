@@ -7540,3 +7540,19 @@ msgstr "<b>警告：zoompilot 纵向控制在当前车型上为 Alpha 版，可�
 #: auto (chill merge)
 msgid "The older way to drive the gas and brakes: hold your set speed and follow the car ahead. It won't stop for red lights or stop signs.<br><br>Off, the default, lets the driving model drive the gas and brakes as it thinks a human would, including stopping for red lights and stop signs. The set speed is then a maximum."
 msgstr "传统的油门刹车控制方式：保持设定车速并跟随前车。它不会在红灯或停车标志前停车。<br><br>关闭（默认）时，由驾驶模型自主控制油门和刹车，包括在红灯和停车标志前停车，设定车速此时为上限。"
+
+#: auto (conditional chill rewording)
+msgid "Conditional Chill Exit"
+msgstr "条件性退出 Chill"
+
+#: auto (conditional chill rewording)
+msgid "While legacy chill is on, temporarily switch to model driving on demanding curves, slow leads and low-speed turns. A manual switch keeps priority for a minute."
+msgstr "传统 Chill 模式开启时，遇到高难度弯道、低速前车或低速转弯自动临时切回模型驾驶。手动切换后一分钟内条件不生效。"
+
+#: auto (conditional chill rewording)
+msgid "Model driving follows lateral acceleration while cornering."
+msgstr "过弯时按横向加速度切回模型驾驶。"
+
+#: auto (conditional chill rewording)
+msgid "Model driving engages when closing on a slower lead."
+msgstr "接近较慢前车时切回模型驾驶。"
