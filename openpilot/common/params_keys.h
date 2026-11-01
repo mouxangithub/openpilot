@@ -765,6 +765,13 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AutoTurnControl", {PERSISTENT | BACKUP, INT, "0"}},
     {"AutoTurnControlRightLaneChange", {PERSISTENT | BACKUP, BOOL, "0"}},  // cp 32ed45b2e: independent right-fork TBT physical-indicator admission
     {"ManualLaneChangeIndicator", {PERSISTENT | BACKUP, BOOL, "0"}},  // cp boundary_indicator add-on: manual lamp feedback isolation
+    {"ModelDesireIndicator", {PERSISTENT | BACKUP, BOOL, "0"}},  // cp indicator_observer: lamp-only model desire intent observation
+    {"ModelPathIndicator", {PERSISTENT | BACKUP, BOOL, "0"}},  // cp indicator_observer: lamp-only model path/curve intent observation
+    {"CarrotTrafficStopProfileEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // SunnyPilot StopProfileGenerator: closed-form jerk-limited stop envelope for traffic-light stop&go
+    {"ExternalBeepEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},  // SunnyPilot beepd: GPIO buzzer on engage/disengage (no-op when gpio absent)
+    {"FavoriteDestinations", {PERSISTENT | BACKUP, STRING, "[]"}},  // StarPilot destination_store: saved navigation favorites (JSON list)
+    {"ApiCache_NavDestinations", {PERSISTENT, STRING, "[]"}},  // StarPilot destination_store: recent destinations cache, max 10 (JSON list)
+    {"SLCForceCruiseSpeed", {CLEAR_ON_MANAGER_START, FLOAT, "0.0"}},  // StarPilot wheel_controlsd SetSpeed action: forced cruise speed (m/s)
     {"AutoBlinkerControl", {PERSISTENT | BACKUP, INT, "0"}},
     {"CanfdBlinkerControl", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"LaneChangeBsd", {PERSISTENT | BACKUP, INT, "0"}},

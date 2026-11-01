@@ -891,6 +891,25 @@ struct SelfdriveState {
     full @3;
   }
 
+  # carrot turn-signal observability (ported from cp; this fork's SelfdriveState
+  # ended at @13, so ordinals are renumbered contiguously from @14 — capnp
+  # forbids ordinal holes and cp's @20-@34 could not be copied verbatim).
+  laneChangeBlinkerHold @14 :LaneChangeDirection;  # carrot: hold this turn signal while a lever-requested change waits or is queued
+  leverTurn @15 :Bool;  # carrot: the turn desire comes from a latched lever (BlinkerLatchedTurn)
+  autoTurnSignal @16 :LaneChangeDirection;  # ATC-originated maneuver only; no steering request
+  autoTurnSignalLaneChange @17 :Bool;
+  autoTurnSignalDirection @18 :LaneChangeDirection;
+  autoTurnSignalRequestId @19 :UInt64;
+  manualLaneIndicator @20 :LaneChangeDirection;  # Lamp only; its feedback is excluded from driver lane requests.
+  manualLaneIndicatorMonoTime @21 :UInt64;
+  observedIndicator @22 :LaneChangeDirection; # Lamp-only observation; never steering admission.
+  observedIndicatorMonoTime @23 :UInt64;
+  observedIndicatorSource @24 :Text;
+  indicatorIsolationMask @25 :UInt8;
+  indicatorJournalMonoTime @26 :UInt64;
+  indicatorPrepareDirection @27 :LaneChangeDirection; # Display only; never an actuation request.
+  indicatorPrepareSource @28 :Text;
+
   deprecated :group {
     alertSound @8 :Car.CarControl.HUDControl.AudibleAlert;
     experimentalMode @10 :Bool;
