@@ -943,9 +943,9 @@ class CarrotPlanner:
     pose = sm["deviceMotion"]
     angular = pose.angularVelocityDevice
     pose_valid = (
-      sm.valid["deviceMotion"] and sm.alive["deviceMotion"]
+      sm.valid.get("deviceMotion", False) and sm.alive.get("deviceMotion", False)
       and pose.inputsOK and pose.sensorsOK and angular.valid
-      and abs(now_ns - int(sm.logMonoTime["deviceMotion"])) <= 150_000_000
+      and abs(now_ns - int(sm.logMonoTime.get("deviceMotion", 0))) <= 150_000_000
     )
     self.lane_change_gap = self._lane_change_tracker.update(
       now=now_ns * 1e-9,
@@ -1174,7 +1174,8 @@ class CarrotPlanner:
     """
     self.carrot_curve_speed_params()
 
-    if not sm.alive['carState'] or not sm.alive['modelV2']:
+    alive = getattr(sm, 'alive', None)
+    if not alive or not alive.get('carState') or not alive.get('modelV2'):
       return self._vision_curve_speed.update(None, time.monotonic())
 
     model_data = sm['modelV2']
