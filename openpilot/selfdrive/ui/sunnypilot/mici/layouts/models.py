@@ -118,7 +118,7 @@ class ModelsLayoutMici(NavScroller):
     # the small display exposes only USB/iOS (no Wi-Fi), and a tap cycles off -> USB -> iOS -> off.
     mici_modes = [m for m in MODES if m != "wifi"]
     self.link_toggle = BigMultiParamToggleSP(tr("jetlink"), KEYS.link, [tr(LINK_MODE_LABELS[m]) for m in mici_modes],
-                                             values=[MODES.index(m) for m in mici_modes],
+                                             values=[MODES.index(m) for m in mici_modes], off_index=0,
                                              description=tr("Runs big models on a computer or phone plugged into the comma.\n" +
                                                             "USB for a Mac, Jetson, Linux PC or Android. iOS for an iPhone or iPad.\n" +
                                                             "Turns off ADB. The small model drives until the big model is ready."))
@@ -134,8 +134,8 @@ class ModelsLayoutMici(NavScroller):
     self._options = ModelOptions()
     self.blendful_toggle = self._options.lane_center
 
-    self.main_items = [self.current_model_info, self.select_model_btn, self.cancel_download_btn, self.blendful_toggle, self.link_toggle,
-                       *self._options.items, self.refresh_btn, self.clear_cache_btn]
+    self.main_items = [self.current_model_info, self.select_model_btn, self.cancel_download_btn, self.blendful_toggle,
+                       *self._options.items, self.link_toggle, self._options.small_steering, self.refresh_btn, self.clear_cache_btn]
     self._scroller.add_widgets(self.main_items)
 
   @property

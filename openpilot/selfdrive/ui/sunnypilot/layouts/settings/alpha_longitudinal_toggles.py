@@ -8,7 +8,8 @@ The alpha switch and the modes that run on openpilot longitudinal control, at th
 Cruise panel. Toggles and Developer drop their copies of the first two (TogglesLayoutSP,
 DeveloperLayoutSP) so each switch appears once.
 """
-from openpilot.selfdrive.ui.layouts.settings.developer import DESCRIPTIONS as DEVELOPER_DESCRIPTIONS
+import types
+
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import gui_app
 from openpilot.system.ui.lib.multilang import tr, tr_noop
@@ -16,17 +17,21 @@ from openpilot.system.ui.sunnypilot.widgets.list_view import toggle_item_sp
 from openpilot.system.ui.widgets import DialogResult
 from openpilot.system.ui.widgets.confirm_dialog import ConfirmDialog, alert_dialog
 
-# upstream's Toggles text (layouts/settings/toggles.py) with our name, shown again in the confirm dialog
-EXPERIMENTAL_MODE_DESCRIPTION = tr_noop(
-  "sunnypilot defaults to driving in chill mode. Experimental mode enables alpha-level features that aren't ready for chill mode. " +
-  "Experimental features are listed below:<br>" +
-  "<h4>End-to-End Longitudinal Control</h4><br>" +
-  "Let the driving model control the gas and brakes. zoompilot will drive as it thinks a human would, including stopping for red lights and stop signs. " +
-  "Since the driving model decides the speed to drive, the set speed will only act as an upper bound. This is an alpha quality feature; " +
-  "mistakes should be expected.<br>" +
-  "<h4>New Driving Visualization</h4><br>" +
-  "The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. " +
-  "The Experimental mode logo will also be shown in the top right corner."
+# upstream's warning (developer.py), with our name; its advice to turn on experimental mode is moot
+# now the driving model drives the gas and brakes by default
+ALPHA_LONGITUDINAL_DESCRIPTION = tr_noop(
+  "<b>WARNING: zoompilot longitudinal control is in alpha for this car and may disable Automatic Emergency Braking (AEB).</b><br><br>" +
+  "On this car, zoompilot defaults to the car's built-in ACC instead of zoompilot's longitudinal control. " +
+  "Enable this to switch to zoompilot longitudinal control. " +
+  "Changing this setting will restart zoompilot if the car is powered on."
+)
+
+# the opt-out from the driving model (UIStateZP.legacy_chill)
+LEGACY_CHILL_DESCRIPTION = tr_noop(
+  "The older way to drive the gas and brakes: hold your set speed and follow the car ahead. " +
+  "It won't stop for red lights or stop signs.<br><br>" +
+  "Off, the default, lets the driving model drive the gas and brakes as it thinks a human would, " +
+  "including stopping for red lights and stop signs. The set speed is then a maximum."
 )
 
 
@@ -35,27 +40,26 @@ class AlphaLongitudinalToggles:
   def __init__(self):
     self._alpha_long_toggle = toggle_item_sp(
       title=lambda: tr("Alpha Longitudinal"),
-      description=lambda: tr(DEVELOPER_DESCRIPTIONS["alpha_longitudinal"]),
+      description=lambda: tr(ALPHA_LONGITUDINAL_DESCRIPTION),
       callback=self._on_alpha_long,
       enabled=lambda: not ui_state.engaged)
 
-    self._experimental_toggle = toggle_item_sp(
-      title=lambda: tr("Experimental Mode"),
-      description=lambda: tr(EXPERIMENTAL_MODE_DESCRIPTION),
-      callback=self._on_experimental_mode)
-
     self._set_speed_toggle = toggle_item_sp(
       title=lambda: tr("Set Speed Assist"),
-      description=lambda: tr("In Experimental Mode, drive toward your set speed and following distance as chill mode does " +
-                             "whenever the model holds back. The model still makes every slowdown."),
+      description=lambda: tr("Drive toward your set speed and following distance as legacy chill mode does " +
+                             "whenever the driving model holds back. The model still makes every slowdown."),
       param="ExperimentalModeSetSpeed")
+
+    self._chill_toggle = toggle_item_sp(
+      title=lambda: tr("Legacy Chill Mode"),
+      description=lambda: tr(LEGACY_CHILL_DESCRIPTION),
+      callback=ui_state.set_legacy_chill)
 
     self._refresh_toggles = (
       ("AlphaLongitudinalEnabled", self._alpha_long_toggle),
-      ("ExperimentalMode", self._experimental_toggle),
       ("ExperimentalModeSetSpeed", self._set_speed_toggle),
     )
-    self.items = [item for _, item in self._refresh_toggles]
+    self.items = [item for _, item in self._refresh_toggles] + [self._chill_toggle]
 
     ui_state.add_offroad_transition_callback(self.refresh)
     ui_state.add_engaged_transition_callback(self.refresh)
@@ -64,13 +68,14 @@ class AlphaLongitudinalToggles:
     CP = ui_state.CP
     has_long = CP is not None and ui_state.has_longitudinal_control
     self._alpha_long_toggle.set_visible(CP is not None and CP.alphaLongitudinalAvailable)
-    self._experimental_toggle.action_item.set_enabled(CP is None or has_long)
-    # only acts in experimental mode: locked without it, keeping its value
-    self._set_speed_toggle.action_item.set_enabled(has_long and self._experimental_toggle.action_item.get_state())
+    self._chill_toggle.action_item.set_enabled(CP is None or has_long)
+    # only acts on the driving model's gas and brakes: locked in chill, keeping its value
+    self._set_speed_toggle.action_item.set_enabled(has_long and not self._chill_toggle.action_item.get_state())
 
   def refresh(self):
     for key, item in self._refresh_toggles:
       item.action_item.set_state(ui_state.params.get_bool(key))
+    self._chill_toggle.action_item.set_state(ui_state.legacy_chill)
 
   @staticmethod
   def _confirm(item, callback) -> None:
@@ -91,6 +96,10 @@ class AlphaLongitudinalToggles:
     self._confirm(self._alpha_long_toggle, on_result)
 
   def _on_experimental_mode(self, state: bool):
+    # No toggle row in the panel since the zp chill rework: the entry points are
+    # the wheel buttons, carrot_server and the mici panel, which run the same
+    # mode-state machine. The confirm flow and the Safe Mode refusal dialog
+    # still live here for those callers and the click-flow smoke test.
     if not state or ui_state.params.get_bool("ExperimentalModeConfirmed"):
       self._apply_experimental_mode(state)
       return
@@ -98,21 +107,20 @@ class AlphaLongitudinalToggles:
     def on_result(result: DialogResult):
       if result == DialogResult.CONFIRM:
         self._apply_experimental_mode(True, acknowledged=True)
-      else:
-        self._experimental_toggle.action_item.set_state(False)
 
-    self._confirm(self._experimental_toggle, on_result)
+    # no toggle row since the chill rework - a stand-in carries the dialog's
+    # title and description (turning the model on is what confirmation means)
+    stand_in = types.SimpleNamespace(title=tr("Experimental Mode"), description=tr(LEGACY_CHILL_DESCRIPTION))
+    self._confirm(stand_in, on_result)
 
   def _apply_experimental_mode(self, enabled: bool, *, acknowledged: bool = False):
     """Write through the mode state machine, like the wheel buttons and
-    carrot_server: Safe Mode lock, road-state prerequisite, read-back check.
-    A refusal restores the drawn switch."""
+    carrot_server: Safe Mode lock, road-state prerequisite, read-back check."""
     from openpilot.sunnypilot.common.mode_state_runtime import ModeStateError, set_experimental_mode
 
     try:
       set_experimental_mode(ui_state.params, enabled, acknowledged=acknowledged)
     except ModeStateError as exc:
-      self._experimental_toggle.action_item.set_state(not enabled)
       gui_app.push_widget(alert_dialog(str(exc)))
       return
     ui_state.set_experimental_mode(enabled)  # syncs the offroad cache

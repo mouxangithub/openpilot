@@ -17,6 +17,7 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import FontWeight, gui_app
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.lib.text_measure import measure_text_cached
+from openpilot.system.ui.sunnypilot.lib.switch import SWITCH_VALUE, Switch
 from openpilot.system.ui.widgets.scroller import NavScroller
 
 BADGE_GREEN = (rl.Color(100, 180, 120, 88), rl.Color(130, 200, 145, 230))   # (border, text)
@@ -185,7 +186,7 @@ class SubPanelSP(NavScroller):
 
 class SupersededPill:
   """BigToggle mixin: another setting overrides this one. Locked, and an on pill draws grey.
-  A lock from set_enabled, like onroad, keeps it green."""
+  A lock from set_enabled, like onroad, keeps it green. A multi toggle's off option also draws grey (off_index)."""
   _superseded: bool | Callable[[], bool] = False
 
   def _load_images(self):
@@ -206,9 +207,12 @@ class SupersededPill:
 
   def _draw_pill(self, x: float, y: float, checked: bool):
     if checked and self.superseded:
-      rl.draw_texture_ex(self._txt_inactive_toggle, (x, y), 0, 1.0, rl.Color(255, 255, 255, int(255 * 0.6)))
+      self._draw_grey_pill(x, y)
     else:
       super()._draw_pill(x, y, checked)
+
+  def _draw_grey_pill(self, x: float, y: float):
+    rl.draw_texture_ex(self._txt_inactive_toggle, (x, y), 0, 1.0, rl.Color(255, 255, 255, int(255 * 0.6)))
 
 
 class BigParamControlSP(SupersededPill, BigParamControl):
@@ -229,11 +233,13 @@ class BigMultiParamToggleSP(SupersededPill, BigMultiParamToggle):
   """BigMultiParamToggle with bounded reads, refresh, and dynamic pill spacing.
 
   When supplied, `values` maps each option to its stored value instead of its list index.
+  `off_index` names the option that leaves the feature off; its pill draws grey when selected.
   """
 
-  def __init__(self, text: str, param: str, options: list[str], values: list | None = None, **kwargs):
+  def __init__(self, text: str, param: str, options: list[str], values: list | None = None, off_index: int | None = None, **kwargs):
     assert values is None or len(values) == len(options)
     self._values = values  # BigMultiParamToggle.__init__ calls _load_value
+    self._off_index = off_index
     super().__init__(text, param, options, **kwargs)
     self._blocked_options: Callable[[], set[int]] | None = None
 
@@ -250,7 +256,10 @@ class BigMultiParamToggleSP(SupersededPill, BigMultiParamToggle):
     x = self._rect.x + self._rect.width - self._txt_enabled_toggle.width
     y = btn_y
     for i in range(n):
-      self._draw_pill(x, y, checked_idx == i)
+      if checked_idx == i == self._off_index:
+        self._draw_grey_pill(x, y)
+      else:
+        self._draw_pill(x, y, checked_idx == i)
       y += step
 
   def _get_param_index(self) -> int:
@@ -284,7 +293,9 @@ class BigMultiParamToggleSP(SupersededPill, BigMultiParamToggle):
     # Cycle the label; the base class's own write is not synchronous.
     BigMultiToggle._handle_mouse_release(self, mouse_pos)
     # refresh reads this value every frame, so commit it synchronously.
-    idx = self._options.index(self.value)
+    self._store(self._options.index(self.value))
+
+  def _store(self, idx: int):
     self._params.put(self._param, self._values[idx] if self._values is not None else idx, block=True)
 
   def _select_skipping(self, mouse_pos, blocked: set[int]):
@@ -295,7 +306,7 @@ class BigMultiParamToggleSP(SupersededPill, BigMultiParamToggle):
     self.set_value(self._options[new])
     if self._select_callback:
       self._select_callback(self.value)
-    self._params.put(self._param, self._values[new] if self._values is not None else new, block=True)
+    self._store(new)
 
   def refresh(self):
     new_value = self._options[self._get_param_index()]
@@ -310,7 +321,7 @@ class BigParamOption(BigButton):
                value_change_step: int | Callable[[], int] = 1, label_callback: Callable | None = None,
                value_map: dict[int, int] | None = None, float_param: bool = False,
                picker_label_callback: Callable | None = None,
-               picker_unit: str | Callable[[], str] = "", picker_item_width: int = 0, **kwargs):
+               picker_unit: str | Callable[[], str] = "", picker_item_width: int = 0, switch: Switch | None = None, **kwargs):
     super().__init__(text, "", **kwargs)
     self._param = param
     self._min_value = min_value
@@ -322,15 +333,24 @@ class BigParamOption(BigButton):
     self._picker_label_callback = picker_label_callback
     self._picker_unit = picker_unit
     self._picker_item_width = picker_item_width
+    self._switch = switch  # a bool param as the picker's first item
     self._current = self._read_value()
     self._update_display()
     self.set_click_callback(self._open_picker)
 
   def _read_value(self) -> int:
     from openpilot.selfdrive.ui.sunnypilot.mici.widgets.number_picker import read_scaled_param
-    return read_scaled_param(ui_state.params, self._param, self._float_param, self._min_value)
+    return read_scaled_param(ui_state.params, self._param, self._float_param, self._min_value, self._switch)
+
+  @property
+  def switched(self) -> bool:
+    """On the switch item: the feature is off (or live)."""
+    return self._switch is not None and self._current == SWITCH_VALUE
 
   def _update_display(self):
+    if self.switched:
+      self.set_value(self._switch.label)
+      return
     display_val = self._value_map[self._current] if self._value_map and self._current in self._value_map else self._current
     if self._label_callback:
       self.set_value(self._label_callback(display_val))
@@ -354,7 +374,7 @@ class BigParamOption(BigButton):
     return NumberPickerScreen(
       title=self.text.replace("\n", " "), param=self._param, min_value=self._min_value, max_value=self._max_value,
       step=self._step() if callable(self._step) else self._step, label_callback=self._picker_label_callback, value_map=self._value_map,
-      float_param=self._float_param, unit=self._picker_unit, **kwargs,
+      float_param=self._float_param, unit=self._picker_unit, switch=self._switch, **kwargs,
     )
 
   def _open_picker(self):

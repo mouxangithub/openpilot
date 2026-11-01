@@ -17,7 +17,7 @@ from opendbc.car.mazda.values import MazdaFlags
 os.environ["BIG"] = "0"
 os.environ.setdefault("SCALE", "1")
 
-from openpilot.selfdrive.ui.sunnypilot.tests.helpers import jetlink_status, render
+from openpilot.selfdrive.ui.sunnypilot.tests.helpers import jetlink_status, render, wait_until
 
 
 def wait_for_param(params, key, timeout=2.0):
@@ -252,6 +252,22 @@ class TestSteeringLayoutBadges:
       shown = "bsm-delay" in (layout._lane_change_btn._badge_labels or [])
       assert shown is expected, f"mode {mode}: badge shown={shown}"
       assert params.get_bool("AutoLaneChangeBsmDelay"), "badge suppression must not clear the param"
+
+
+class TestBlinkerPauseMici:
+  def test_blinker_pauses_steering_is_off_in_its_picker(self, params, monkeypatch):
+    from openpilot.selfdrive.ui.sunnypilot.mici.layouts.steering import SteeringLayoutMici
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    monkeypatch.setattr(ui_state, "is_metric", False)
+    params.put_bool("BlinkerPauseLateralControl", False, block=True)
+    params.put("BlinkerMinLateralControlSpeed", 20, block=True)
+    layout = SteeringLayoutMici()
+    speed, delay = layout._blinker_speed, layout._blinker_delay
+    assert speed.value == "off" and not delay.enabled
+    params.put_bool("BlinkerPauseLateralControl", True, block=True)
+    speed.refresh()
+    assert speed.value == "under 20 mph" and delay.enabled
+    assert [item.display_label for item in speed.create_picker_screen()._picker_items[:3]] == ["off", "5", "10"]
 
 
 class TestRoadEdgeLaneChange:
@@ -996,7 +1012,7 @@ class TestAlphaLongSwitchMici:
 
 
 class TestAlphaLongitudinalPanelMici:
-  """The alpha switch, experimental mode and the e2e assists live under Cruise, once."""
+  """The alpha switch, the e2e assists and legacy chill mode live under Cruise, once."""
 
   def test_moved_switches_appear_once(self, params):
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.alpha_longitudinal import AlphaLongitudinalLayoutMici
@@ -1006,8 +1022,8 @@ class TestAlphaLongitudinalPanelMici:
     assert developer._alpha_long_toggle not in developer._scroller.items
 
     alpha = AlphaLongitudinalLayoutMici()
-    assert [key for key, _ in alpha._refresh_toggles] == [
-      "AlphaLongitudinalEnabled", "ExperimentalMode", "ExperimentalModeSetSpeed"]
+    assert [key for key, _ in alpha._refresh_toggles] == ["AlphaLongitudinalEnabled", "ExperimentalModeSetSpeed"]
+    assert alpha._scroller.items[-1] is alpha._chill_toggle
 
   def test_settings_opens_the_sp_panels(self, params, monkeypatch):
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.developer import DeveloperLayoutMiciSP
@@ -1023,11 +1039,12 @@ class TestAlphaLongitudinalPanelMici:
       buttons[label]._click_callback()
       assert type(pushed[-1]) is cls
 
-  @pytest.mark.parametrize(("has_long", "badges"), [
-    (True, ["exp.", "speed"]),
-    (False, None),  # alpha off: a grey "disabled" pill
+  @pytest.mark.parametrize(("has_long", "experimental", "badges"), [
+    (True, True, ["speed assist"]),
+    (True, False, ["legacy chill"]),
+    (False, True, None),  # alpha off: a grey "disabled" pill
   ])
-  def test_cruise_entry_shows_the_mode(self, params, monkeypatch, has_long, badges):
+  def test_cruise_entry_shows_the_mode(self, params, monkeypatch, has_long, experimental, badges):
     from opendbc.car.structs import car
     from openpilot.cereal import custom
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.alpha_longitudinal import AlphaLongitudinalLayoutMici
@@ -1040,7 +1057,7 @@ class TestAlphaLongitudinalPanelMici:
     monkeypatch.setattr(ui_state, "CP", car.CarParams.new_message(alphaLongitudinalAvailable=True, openpilotLongitudinalControl=has_long))
     monkeypatch.setattr(ui_state, "CP_SP", custom.CarParamsSP.new_message())
     monkeypatch.setattr(ui_state, "has_longitudinal_control", has_long)
-    monkeypatch.setattr(ui_state, "experimental_mode", True)
+    monkeypatch.setattr(ui_state, "experimental_mode", experimental)
     for param, _ in E2E_ASSISTS:
       params.put_bool(param, True, block=True)
     try:
@@ -1060,16 +1077,16 @@ class TestAlphaLongitudinalPanelMici:
       for param, _ in E2E_ASSISTS:
         params.remove(param)
 
-  def test_experimental_mode_needs_no_confirm(self, params, monkeypatch):
+  def test_legacy_chill_mode_needs_no_confirm(self, params, monkeypatch):
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts import alpha_longitudinal
     from openpilot.system.ui.lib.application import gui_app
 
     pushed = []
     monkeypatch.setattr(gui_app, "push_widget", pushed.append)
     layout = alpha_longitudinal.AlphaLongitudinalLayoutMici()
-    for state in (False, True):
-      layout._experimental_toggle._toggle_callback(state)
-      assert params.get_bool("ExperimentalMode") is state
+    for chill in (False, True):
+      layout._chill_toggle._toggle_callback(chill)
+      assert params.get_bool("ExperimentalMode") is not chill  # chill is the param's off
     assert not pushed
 
 
@@ -1077,7 +1094,7 @@ class TestOverriddenToggles:
   """A toggle another setting overrides draws a grey pill; one only locked onroad keeps its green one."""
 
   @pytest.mark.parametrize("experimental", [False, True])
-  def test_e2e_toggles_lock_without_experimental(self, params, monkeypatch, experimental):
+  def test_e2e_toggles_lock_in_legacy_chill(self, params, monkeypatch, experimental):
     from opendbc.car.structs import car
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.alpha_longitudinal import AlphaLongitudinalLayoutMici
     from openpilot.selfdrive.ui.ui_state import ui_state
@@ -1086,6 +1103,7 @@ class TestOverriddenToggles:
     monkeypatch.setattr(ui_state, "has_longitudinal_control", True)
     params.put_bool("ExperimentalModeSetSpeed", True, block=True)
     params.put_bool("ExperimentalMode", experimental, block=True)
+    ui_state.update_params()  # the UI's params tick, which legacy_chill reads
     try:
       layout = AlphaLongitudinalLayoutMici()
       layout._refresh()
@@ -1202,50 +1220,95 @@ class TestModelsPanelMici:
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models_zp import ModelOptions
     return ModelOptions()
 
+  @staticmethod
+  def _centered(picker) -> str:
+    """The label the picker opens on."""
+    picker.show_event()
+    return picker._picker_items[round(-picker._scroll_panel.get_offset() / picker._item_width)].display_label
+
   def test_order(self, params):
     from openpilot.selfdrive.ui.mici.widgets.button import BigButton
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.models import ModelsLayoutMici
     layout = ModelsLayoutMici()
     items = [item for item in layout.main_items[1:] if item is not layout.cancel_download_btn]
-    assert [item.text for item in items] == ["select model", "lane center assist", "jetlink",
-                                             "lane turn desires", "lane turn speed", "live steer delay", "manual steer delay",
-                                             "camera offset", "refresh models", "clear cache"]
+    assert [item.text for item in items] == ["select model", "lane center assist",
+                                             "lane turn desires", "steer delay",
+                                             "camera offset", "jetlink", "small model steer", "refresh models", "clear cache"]
     assert {item._get_label_font_size() for item in items} == {BigButton("t")._get_label_font_size()}, "a long title shrinks its font"
 
   def test_the_default_model_locks_model_options_showing_their_value(self, params, monkeypatch):
     from openpilot.selfdrive.ui.ui_state import ui_state
     params.put_bool("Blendful", True, block=True)
     options = self._options()
-    assert options.lane_center._checked
+    assert options.lane_center.value == "on"
     for runner_tinygrad in (False, True):
       monkeypatch.setattr(ui_state, "active_runner_tinygrad", runner_tinygrad)
       assert options.lane_center.superseded is not runner_tinygrad
       assert options.camera_offset.enabled is runner_tinygrad
+      assert options.small_steering.enabled is runner_tinygrad
 
-  def test_dependent_options_follow_their_toggles(self, params):
-    params.put_bool("LaneTurnDesire", False, block=True)
+  def test_lane_center_cycles_off_on_debug(self, params):
+    params.put_bool("Blendful", False, block=True)
+    params.put_bool("BlendfulReadout", True, block=True)  # stale readout reads as off while Blendful is off
+    lane_center = self._options().lane_center
+    assert lane_center.value == "off"
+    for _ in range(3):
+      lane_center._store((lane_center._get_param_index() + 1) % 3)
+      lane_center.refresh()
+      state = (params.get_bool("Blendful"), params.get_bool("BlendfulReadout"))
+      assert state == {"on": (True, False), "debug ui": (True, True), "off": (False, False)}[lane_center.value]
+
+  def test_live_steer_delay_is_live_in_its_picker(self, params):
     params.put_bool("LagdToggle", True, block=True)
-    options = self._options()
-    assert not options.lane_turn_speed.enabled and not options.steer_delay.enabled
-    params.put_bool("LaneTurnDesire", True, block=True)
-    params.put_bool("LagdToggle", False, block=True)
-    options.refresh()
-    assert options.lane_turn_speed.enabled and options.steer_delay.enabled
+    steer_delay = self._options().steer_delay
+    assert steer_delay.value == "live"
+    picker = steer_delay.create_picker_screen()
+    assert self._centered(picker) == "live"
+    assert [item.display_label for item in picker._picker_items[:2]] == ["live", "0.05"]
+
+  def test_lane_turn_desires_is_off_in_its_picker(self, params):
+    params.put_bool("LaneTurnDesire", False, block=True)
+    params.put("LaneTurnValue", 19.0, block=True)
+    lane_turn = self._options().lane_turn
+    assert lane_turn.value == "off"
+    picker = lane_turn.create_picker_screen()
+    assert self._centered(picker) == "off"
+    assert [item.display_label for item in picker._picker_items[:3]] == ["off", "5", "6"]
+    # picking a speed turns the desires on; picking off keeps the speed
+    for idx, desire, speed in ((15, True, 19.0), (0, False, 19.0)):
+      picker._scroll_to_index(idx)
+      render(picker)  # the centre item is read off the laid-out positions
+      picker._commit_value()
+      wait_until(lambda want=(desire, speed): (params.get_bool("LaneTurnDesire"), params.get("LaneTurnValue")) == want)
+      lane_turn.refresh()
+      assert lane_turn.value == ("19 mph" if desire else "off")
 
   @pytest.mark.parametrize(("metric", "label", "centered"), [(False, "19 mph", "19"), (True, "31 km/h", "31")])
   def test_lane_turn_speed_reads_mph_in_either_unit(self, params, monkeypatch, metric, label, centered):
     from openpilot.selfdrive.ui.ui_state import ui_state
     monkeypatch.setattr(ui_state, "is_metric", metric)
+    params.put_bool("LaneTurnDesire", True, block=True)
     params.put("LaneTurnValue", 19.0, block=True)
-    speed = self._options().lane_turn_speed
+    speed = self._options().lane_turn
     assert speed.value == label
-    picker = speed.create_picker_screen()
-    picker.show_event()
     # 19 mph is off the whole-km/h grid: the picker opens on the nearest
-    idx = round(-picker._scroll_panel.get_offset() / picker._item_width)
-    assert picker._picker_items[idx].display_label == centered
+    assert self._centered(speed.create_picker_screen()) == centered
+
+  @pytest.mark.parametrize(("metric", "speed", "label", "centered"), [(False, 5.0, "under 11 mph", "11"),
+                                                                      (True, 5.0, "under 18 km/h", "18"),
+                                                                      (False, 0.0, "off", "off")])
+  def test_small_model_steer_reads_ms_in_either_unit(self, params, monkeypatch, metric, speed, label, centered):
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    monkeypatch.setattr(ui_state, "is_metric", metric)
+    params.put("SmallModelSteering", speed, block=True)
+    steer = self._options().small_steering
+    assert steer.value == label
+    picker = steer.create_picker_screen()
+    assert self._centered(picker) == centered
+    assert picker._picker_items[-1].display_label == ("32" if metric else "20")
 
   def test_steer_delay_and_camera_offset_labels(self, params):
+    params.put_bool("LagdToggle", False, block=True)
     params.put("LagdToggleDelay", 0.2, block=True)
     params.put("CameraOffset", -0.05, block=True)
     options = self._options()

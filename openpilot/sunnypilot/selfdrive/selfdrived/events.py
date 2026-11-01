@@ -38,7 +38,8 @@ def _set_speed_ms(CS: car.CarState, sm: messaging.SubMaster) -> float:
 
 
 def experimental_mode_switched_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
-  return NormalPermanentAlert(f"实验模式已{'开启' if SelfdrivedZP.switched_to else '关闭'}", duration=1.5)
+  # switched_to is the driving model's state; the switch is named for legacy chill, its opposite
+  return NormalPermanentAlert(f"Chill 模式已{'关闭' if SelfdrivedZP.switched_to else '开启'}", duration=1.5)
 
 
 def speed_limit_adjust_alert(CP: car.CarParams, CS: car.CarState, sm: messaging.SubMaster, metric: bool, soft_disable_time: int, personality) -> Alert:
