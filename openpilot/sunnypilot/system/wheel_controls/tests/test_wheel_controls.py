@@ -259,5 +259,100 @@ class TestDaemonExecution(_TempDirTestCase):
     self.assertFalse(status["learning"])
 
 
+class FakeMemoryParams:
+  """Minimal stand-in for the tmpfs Params store the SetSpeed / screen-wake writes go to."""
+
+  def __init__(self):
+    self.values = {}
+
+  def put_float(self, key, value):
+    self.values[key] = float(value)
+
+  def put_int(self, key, value):
+    self.values[key] = int(value)
+
+
+class TestSetSpeedAction(_TempDirTestCase):
+  def test_engaged_onroad_metric_writes_mps(self):
+    params = FakeParams(IsOnroad=True, IsEngaged=True, IsMetric=True)
+    memory = FakeMemoryParams()
+    self.assertTrue(wheel_controlsd.set_controller_cruise_speed(60, params, memory))
+    from openpilot.common.constants import CV
+    self.assertAlmostEqual(memory.values["SLCForceCruiseSpeed"], 60 * CV.KPH_TO_MS)
+
+  def test_engaged_onroad_imperial_writes_mps(self):
+    params = FakeParams(IsOnroad=True, IsEngaged=True, IsMetric=False)
+    memory = FakeMemoryParams()
+    self.assertTrue(wheel_controlsd.set_controller_cruise_speed(30, params, memory))
+    from openpilot.common.constants import CV
+    self.assertAlmostEqual(memory.values["SLCForceCruiseSpeed"], 30 * CV.MPH_TO_MS)
+
+  def test_refused_when_not_engaged_or_offroad(self):
+    memory = FakeMemoryParams()
+    self.assertFalse(wheel_controlsd.set_controller_cruise_speed(60, FakeParams(IsOnroad=True, IsEngaged=False, IsMetric=True), memory))
+    self.assertFalse(wheel_controlsd.set_controller_cruise_speed(60, FakeParams(IsOnroad=False, IsEngaged=True, IsMetric=True), memory))
+    self.assertNotIn("SLCForceCruiseSpeed", memory.values)
+
+  def test_refused_outside_unit_bounds_or_non_finite(self):
+    params = FakeParams(IsOnroad=True, IsEngaged=True, IsMetric=True)
+    memory = FakeMemoryParams()
+    self.assertFalse(wheel_controlsd.set_controller_cruise_speed(7, params, memory))    # below 8 km/h
+    self.assertFalse(wheel_controlsd.set_controller_cruise_speed(146, params, memory))  # above 145 km/h
+    self.assertFalse(wheel_controlsd.set_controller_cruise_speed(float("nan"), params, memory))
+    self.assertFalse(wheel_controlsd.set_controller_cruise_speed("abc", params, memory))
+    self.assertNotIn("SLCForceCruiseSpeed", memory.values)
+
+  def test_normalize_action_slots_set_speed_value(self):
+    slots = store.normalize_action_slots([
+      {"enabled": True, "key": "setSpeed", "label": "60", "value": 60},
+      {"enabled": True, "key": "setSpeed", "label": "bad", "value": "abc"},
+      {"enabled": True, "key": "setSpeed", "label": "neg", "value": -5},
+    ])
+    self.assertTrue(slots[0]["enabled"])
+    self.assertEqual(60.0, slots[0]["value"])
+    self.assertFalse(slots[1]["enabled"])  # unparseable value disables the slot
+    self.assertFalse(slots[2]["enabled"])  # non-positive value disables the slot
+
+  def test_daemon_set_speed_dispatch_passes_slot_value(self):
+    action_slots = store.default_action_slots()
+    action_slots[0] = {"enabled": True, "key": "setSpeed", "label": "60", "value": 60.0}
+    store.write_config({
+      "mappings": [{"device_id": "abc123", "device_name": "Pad", "event_code": 42, "slot": 3}],
+      "action_slots": action_slots, "enabled": True, "joystick_device": "",
+    }, self.config_path)
+    params = FakeParams(IsOnroad=True, IsEngaged=True, IsMetric=True)
+    memory = FakeMemoryParams()
+    self.daemon = WheelControlsDaemon(config_path=self.config_path, control_path=self.control_path,
+                                      status_path=self.status_path, params=params, params_memory=memory)
+    self.daemon._handle_key(FakeSource.make(), 42)
+    from openpilot.common.constants import CV
+    self.assertAlmostEqual(memory.values["SLCForceCruiseSpeed"], 60 * CV.KPH_TO_MS)
+
+
+class TestStandbyWakeBroadcast(_TempDirTestCase):
+  def _daemon(self, params):
+    return WheelControlsDaemon(config_path=self.config_path, control_path=self.control_path,
+                               status_path=self.status_path, params=params, params_memory=FakeMemoryParams())
+
+  def test_broadcast_writes_memory_param_when_gated_on(self):
+    params = FakeParams(ScreenManagement=True, StandbyMode=True, StandbyWakeButton=True)
+    daemon = self._daemon(params)
+    daemon._publish_button_press(12345)
+    self.assertEqual(12345, daemon.params_memory.values["StandbyButtonPressTime"])
+
+  def test_broadcast_inert_until_screen_params_registered(self):
+    daemon = self._daemon(FakeParams())  # default: no screen-management keys
+    daemon._publish_button_press(12345)
+    self.assertNotIn("StandbyButtonPressTime", daemon.params_memory.values)
+
+  def test_broadcast_never_raises(self):
+    class ExplodingParams(FakeParams):
+      def get_bool(self, key):
+        raise RuntimeError("params backend down")
+    daemon = self._daemon(ExplodingParams())
+    daemon._publish_button_press(12345)  # must not raise
+    self.assertNotIn("StandbyButtonPressTime", daemon.params_memory.values)
+
+
 if __name__ == "__main__":
   unittest.main()

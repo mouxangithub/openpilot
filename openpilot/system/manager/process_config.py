@@ -341,6 +341,9 @@ procs = [
   AudioProcess("soundd", "openpilot.selfdrive.ui.soundd", driverview, enabled=not LITE),
   PythonProcess("feedbackd", "openpilot.selfdrive.ui.feedback.feedbackd", only_onroad, enabled=not LITE),
   PythonProcess("beepd", "openpilot.sunnypilot.selfdrive.ui.beepd", beep, enabled=LITE),
+  # External GPIO42 beeper (self-gated on ExternalBeepEnabled; idle no-op when off).
+  # Named "external_beepd" because the LITE UI beeper above already owns "beepd".
+  PythonProcess("external_beepd", "openpilot.selfdrive.selfdrived.beep", always_run),
   PythonProcess("locationd", "openpilot.selfdrive.locationd.locationd", only_onroad),
   NativeProcess("_pandad", "openpilot/selfdrive/pandad", ["./pandad"], always_run, enabled=False),
   PythonProcess("calibrationd", "openpilot.selfdrive.locationd.calibrationd", and_(only_onroad, imu_calibration_disabled)),

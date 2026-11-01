@@ -31,6 +31,7 @@ This module is stdlib-only and PC-importable: no Params, no cereal, no hardware.
 """
 import hashlib
 import json
+import math
 import os
 import re
 import struct
@@ -47,15 +48,22 @@ ACTION_SLOT_COUNT = 10
 MAPPING_SLOT_COUNT = FAVORITE_SLOT_COUNT + ACTION_SLOT_COUNT
 
 ACTION_CYCLE_PERSONALITY = "cyclePersonality"
+# Direct-write cruise speed action (ported from StarPilot's wheel_controls):
+# the mapped button writes the SLCForceCruiseSpeed memory param instead of
+# publishing a cruise-button pass-through. The favorite-slot HTTP path is
+# untouched; this is a separate action key with its own per-slot speed value.
+ACTION_SET_SPEED = "setSpeed"
 # Pass-through actions: the exact vocabulary the existing consumers accept
 # (openpilot/selfdrive/car/cruise.py CommandReader('cruise') and
 # openpilot/selfdrive/controls/lib/desire_helper.py CommandReader('lane')).
 PASSTHROUGH_ACTIONS = tuple(action for action in ACTIONS if action != "none")
-CONTROLLER_ACTION_KEYS = {ACTION_CYCLE_PERSONALITY, *PASSTHROUGH_ACTIONS}
+CONTROLLER_ACTION_KEYS = {ACTION_CYCLE_PERSONALITY, ACTION_SET_SPEED, *PASSTHROUGH_ACTIONS}
 
 CONTROLLER_ACTION_OPTIONS = (
   {"key": ACTION_CYCLE_PERSONALITY, "label": "Cycle Driving Personality",
    "description": "Cycles aggressive -> standard -> relaxed. Requires longitudinal control; refused in Safe Mode."},
+  {"key": ACTION_SET_SPEED, "label": "Set Cruise Speed",
+   "description": "Writes the slot's speed (km/h or mph by unit) into SLCForceCruiseSpeed; only while engaged onroad."},
   *[{"key": action, "label": action, "description": "Published to the carrot cruise/lane command channel"}
     for action in PASSTHROUGH_ACTIONS],
 )
@@ -182,7 +190,7 @@ def normalize_mappings(value: Any) -> list[dict[str, Any]]:
 
 
 def default_action_slots() -> list[dict[str, Any]]:
-  return [{"enabled": False, "key": None, "label": ""} for _ in range(ACTION_SLOT_COUNT)]
+  return [{"enabled": False, "key": None, "label": "", "value": None} for _ in range(ACTION_SLOT_COUNT)]
 
 
 def normalize_action_slots(value: Any) -> list[dict[str, Any]]:
@@ -204,7 +212,17 @@ def normalize_action_slots(value: Any) -> list[dict[str, Any]]:
     if key is not None and key not in CONTROLLER_ACTION_KEYS:
       key = None
     label = str(raw.get("label") or "").strip()[:64] if key else ""
-    slots[index] = {"enabled": key is not None, "key": key, "label": label}
+    # Only the direct-write speed action carries a value; it must be a finite
+    # positive number to keep the slot assignable at all.
+    slot_value = None
+    if key == ACTION_SET_SPEED:
+      try:
+        candidate = float(raw.get("value"))
+        slot_value = candidate if math.isfinite(candidate) and candidate > 0 else None
+      except (TypeError, ValueError):
+        slot_value = None
+    enabled = key is not None and (key != ACTION_SET_SPEED or slot_value is not None)
+    slots[index] = {"enabled": enabled, "key": key, "label": label, "value": slot_value}
   return slots
 
 

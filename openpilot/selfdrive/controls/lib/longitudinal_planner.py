@@ -32,6 +32,7 @@ from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_planner import Lon
 from openpilot.sunnypilot.carrot.traffic_stop import (
   get_traffic_stop_distance_adjust, get_traffic_stop_obstacle_distance,
 )
+from openpilot.sunnypilot.selfdrive.controls.lib.traffic_stop_profile import StopProfileGenerator
 
 A_CRUISE_MAX_VALS = [1.6, 1.2, 0.8, 0.6]
 A_CRUISE_MAX_BP = [0., 10.0, 25., 40.]
@@ -103,6 +104,12 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     self._stop_depart_frame = 0
     self.lead_stop_depart_enabled = self._params.get_bool("LeadStopDepartPolicyEnabled")
     self._stop_depart_policy = None  # lazy: stateful stop/depart shaper
+    # SunnyPilot StopProfileGenerator graft (default off). When enabled and the
+    # CarrotPlanner commands a traffic-light stop, the MPC's hard stop point is
+    # enveloped with a closed-form delayed, jerk-limited braking profile; the
+    # flag is re-read on the same slow cadence as the other switches.
+    self.traffic_stop_profile_enabled = self._params.get_bool("CarrotTrafficStopProfileEnabled")
+    self._stop_profile = StopProfileGenerator(actuator_delay=self.CP.longitudinalActuatorDelay)
     # StarPilot uncertainty/panic gate + duplicate guard + model trajectory
     # (all default off; refreshed from params every 20 frames like the above)
     self._uncert_frame = 0
@@ -217,6 +224,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     # among them: it is baked into the solver at codegen, so the planned stop is
     # injected as a virtual obstacle instead (see stop_obstacle_distance below).
     mpc_carrot_kwargs: dict = {}
+    stop_profile_distance = None
     if self.carrot_source_active:
       mpc_carrot_kwargs['comfort_brake'] = self.carrot_comfort_brake
 
@@ -230,6 +238,9 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
         stop_obstacle = get_traffic_stop_obstacle_distance(self.carrot_source.stop_dist, cruise_obstacle, adjust)
         if 0.0 < stop_obstacle < 1e5:
           mpc_carrot_kwargs['stop_obstacle_distance'] = float(stop_obstacle)
+          # Opt-in smooth braking envelope over the hard stop point (default off).
+          if self.traffic_stop_profile_enabled:
+            stop_profile_distance = float(stop_obstacle)
 
       # Lane-change gap credit: permit a bounded ACC departure once the gap is
       # clear. The tracker's own guards gate on confidence / clearance / speed.
@@ -283,6 +294,15 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
                     panic_bypass=panic_bypass,
                     v_ego=v_ego,
                     **mpc_carrot_kwargs)
+
+    # SunnyPilot StopProfileGenerator graft: envelope the MPC solution with the
+    # closed-form stop profile wherever it demands an earlier/stronger brake.
+    # Only runs while the CarrotPlanner owns a traffic-light stop and the user
+    # opted in; every other frame this just resets the generator state.
+    if stop_profile_distance is not None:
+      self._apply_stop_profile_envelope(v_ego, float(sm['carState'].aEgo), stop_profile_distance)
+    else:
+      self._stop_profile.reset()
 
     self.v_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.v_solution)
     self.a_desired_trajectory = np.interp(CONTROL_N_T_IDX, T_IDXS_MPC, self.mpc.a_solution)
@@ -347,6 +367,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     if self._policy_frame % 20 == 0:
       self.lead_follow_policy_enabled = self._params.get_bool("LeadFollowPolicyEnabled")
       self.lane_change_close_gap_enabled = read_bool(self._params, "LaneChangeCloseGapEnabled")
+      self.traffic_stop_profile_enabled = self._params.get_bool("CarrotTrafficStopProfileEnabled")
     if self.lead_follow_policy_enabled and self.mpc.source in (LongitudinalPlanSource.lead0, LongitudinalPlanSource.lead1):
       follow_result = apply_follow_policy(
         sm['radarState'].leadOne, sm['radarState'].leadTwo,
@@ -396,6 +417,25 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     self.accel_controller_active = self.is_accel_controller_active(force_decel)
 
     self.v_desired_filter.x = self.v_desired_filter.x + self.dt * (self.output_a_target + a_prev) / 2.0
+
+  def _apply_stop_profile_envelope(self, v_ego: float, a_ego: float, remaining_distance: float) -> None:
+    """Envelope the MPC solution with the SunnyPilot stop profile.
+
+    Mirrors sunnypilot's final_plan_arbitrator: speeds and accels take the
+    element-wise minimum against the profile, jerks are recomputed from the
+    final accel sequence. The envelope only ever brakes earlier or harder; it
+    can never raise a speed or an accel above what the MPC planned.
+    """
+    times = T_IDXS_MPC
+    if len(times) != len(self.mpc.v_solution) or len(times) < 2:
+      return
+    comfort_brake = self.carrot_comfort_brake if self.carrot_comfort_brake > 0.0 else None
+    stop_speeds, stop_accels, _ = self._stop_profile.build_stop(
+      v_ego=v_ego, a_ego=a_ego, remaining_distance=remaining_distance, times=times,
+      comfort_brake=comfort_brake)
+    self.mpc.v_solution = np.minimum(self.mpc.v_solution, stop_speeds)
+    self.mpc.a_solution = np.minimum(self.mpc.a_solution, stop_accels)
+    self.mpc.j_solution = np.diff(self.mpc.a_solution) / np.maximum(np.diff(times), 1e-3)
 
   def publish(self, sm, pm):
     plan_send = messaging.new_message('longitudinalPlan')

@@ -20,6 +20,7 @@ should not be mapped in the other - both daemons receive every event of a node.
 """
 import json
 import logging
+import math
 import os
 import selectors
 import time
@@ -29,6 +30,7 @@ from pathlib import Path
 from openpilot.sunnypilot.system.wheel_controls import store
 from openpilot.sunnypilot.system.wheel_controls.store import (
   ACTION_CYCLE_PERSONALITY,
+  ACTION_SET_SPEED,
   CONTROL_POLL_SECONDS,
   DEVICE_SCAN_INTERVAL_SECONDS,
   EV_ABS,
@@ -43,8 +45,22 @@ from openpilot.sunnypilot.system.wheel_controls.store import (
   normalize_mappings,
   peer_address,
 )
+from openpilot.sunnypilot.common.safe_mode import SAFE_MODE_PARAM
 
 logger = logging.getLogger("openpilot.sunnypilot.system.wheel_controls")
+
+# Screen-wake broadcast (ported from StarPilot's wheel_controls): a recognised
+# external button press bumps this memory param so the standby screen manager
+# can bring the display back. The gate params belong to the screen-management
+# feature; while they are not registered in this fork the gate reads False and
+# the broadcast is a no-op.
+STANDBY_BUTTON_PRESS_PARAM = "StandbyButtonPressTime"
+STANDBY_WAKE_GATE_PARAMS = ("ScreenManagement", "StandbyMode", "StandbyWakeButton")
+
+# Cruise-speed bounds for the direct-write SetSpeed action, matching StarPilot's
+# controller_speed_bounds: km/h (metric) / mph (imperial).
+SPEED_BOUNDS_METRIC = (8, 145)
+SPEED_BOUNDS_IMPERIAL = (5, 90)
 
 
 def cycle_driving_personality(params) -> bool:
@@ -52,7 +68,7 @@ def cycle_driving_personality(params) -> bool:
   refused in Safe Mode and without longitudinal control; the key is registered and
   designed for live (onroad) changes, so no restart or offroad gate is needed."""
   try:
-    if params.get_bool("SafeMode"):
+    if params.get_bool(SAFE_MODE_PARAM):
       return False
     from cereal import car, log  # pylint: disable=import-outside-toplevel  # device-only
 
@@ -70,7 +86,7 @@ def cycle_driving_personality(params) -> bool:
     current = params.get_int("LongitudinalPersonality")
     if current not in profiles:
       return False
-    if params.get_bool("SafeMode"):  # re-checked after the slow reads
+    if params.get_bool(SAFE_MODE_PARAM):  # re-checked after the slow reads
       return False
     params.put_int("LongitudinalPersonality", profiles[(profiles.index(current) + 1) % len(profiles)])
     return True
@@ -79,16 +95,39 @@ def cycle_driving_personality(params) -> bool:
     return False
 
 
+def set_controller_cruise_speed(value, params, params_memory) -> bool:
+  """Direct-write the forced cruise speed (StarPilot's SetSpeed action).
+
+  Only while engaged onroad; the slot value is unit-native (km/h or mph) and is
+  stored in SLCForceCruiseSpeed as m/s on the memory param store. The carrot
+  server favorite-slot path is not involved here.
+  """
+  try:
+    if not params.get_bool("IsOnroad") or not params.get_bool("IsEngaged"):
+      return False
+    native_speed = float(value)
+  except (TypeError, ValueError):
+    return False
+  minimum, maximum = SPEED_BOUNDS_METRIC if params.get_bool("IsMetric") else SPEED_BOUNDS_IMPERIAL
+  if not math.isfinite(native_speed) or not minimum <= native_speed <= maximum:
+    return False
+  from openpilot.common.constants import CV  # pylint: disable=import-outside-toplevel
+  conversion = CV.KPH_TO_MS if params.get_bool("IsMetric") else CV.MPH_TO_MS
+  params_memory.put_float("SLCForceCruiseSpeed", native_speed * conversion)
+  return True
+
+
 class WheelControlsDaemon:
   def __init__(self, input_root="/dev/input", sysfs_root="/sys/class/input", *,
                config_path=None, control_path=None, status_path=None,
-               params=None, clock=time.monotonic, publisher=None, apply_favorite=None):
+               params=None, params_memory=None, clock=time.monotonic, publisher=None, apply_favorite=None):
     self.input_root = Path(input_root)
     self.sysfs_root = sysfs_root
     self.config_path = config_path or store.default_config_path()
     self.control_path = control_path
     self.status_path = status_path
     self._params = params
+    self._params_memory = params_memory
     self.clock = clock
     self.publisher = publisher
     self.apply_favorite = apply_favorite
@@ -120,6 +159,13 @@ class WheelControlsDaemon:
       self._params = Params()
     return self._params
 
+  @property
+  def params_memory(self):
+    if self._params_memory is None:
+      from openpilot.common.params import Params  # pylint: disable=import-outside-toplevel
+      self._params_memory = Params(memory=True)
+    return self._params_memory
+
   def _publisher(self):
     if self.publisher is None:
       self.publisher = store.MergingCommandWriter()
@@ -138,7 +184,7 @@ class WheelControlsDaemon:
     request = urllib.request.Request(
       f"http://127.0.0.1:{port}/api/setting_favorites/apply",
       data=json.dumps({"slot": slot}).encode(), headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(request, timeout=10.0) as response:  # noqa: S310 - localhost
+    with urllib.request.urlopen(request, timeout=10.0) as response:
       payload = json.load(response)
     if not payload.get("ok", False):
       raise RuntimeError(payload.get("error") or "favorite slot apply refused")
@@ -237,9 +283,13 @@ class WheelControlsDaemon:
   def _record_action(self, description: dict) -> None:
     self.last_action = {**description, "at": self.clock()}
 
-  def _execute_action(self, key: str, source: InputSource) -> bool:
+  def _execute_action(self, key: str, source: InputSource, value=None) -> bool:
     if key == ACTION_CYCLE_PERSONALITY:
       applied = cycle_driving_personality(self.params)
+      self._record_action({"key": key, "applied": applied})
+      return applied
+    if key == ACTION_SET_SPEED:
+      applied = set_controller_cruise_speed(value, self.params, self.params_memory)
       self._record_action({"key": key, "applied": applied})
       return applied
     if key in store.PASSTHROUGH_ACTIONS:
@@ -268,7 +318,7 @@ class WheelControlsDaemon:
     if not config.get("enabled"):
       return
     key = str(slot_config["key"])
-    if not self._execute_action(key, source):
+    if not self._execute_action(key, source, slot_config.get("value")):
       self.last_error = f"action {key} not applied"
 
   def _capture_mapping(self, source: InputSource, code: int) -> None:
@@ -324,6 +374,21 @@ class WheelControlsDaemon:
 
   # ------------------------------- event pump ---------------------------------
 
+  def _publish_button_press(self, timestamp: int) -> None:
+    """Screen-wake broadcast on any recognised external button press.
+
+    Ported from StarPilot's wheel_controls: fires before mapping lookup, so a
+    button without an assigned action still wakes the screen. Inert until the
+    screen-management params are registered in this fork.
+    """
+    try:
+      if not all(self.params.get_bool(key) for key in STANDBY_WAKE_GATE_PARAMS):
+        return
+      self.params_memory.put_int(STANDBY_BUTTON_PRESS_PARAM, timestamp)
+    except Exception:
+      # A display notification must not interrupt existing controller actions.
+      logger.exception("wheel controls: screen wake notification failed")
+
   def _read_events(self, fd: int) -> None:
     try:
       chunk = os.read(fd, store.INPUT_EVENT.size * 32)
@@ -352,11 +417,13 @@ class WheelControlsDaemon:
         elif value == KEY_DOWN:
           if key not in self.pressed_keys:
             self.pressed_keys.add(key)
+            self._publish_button_press(time.monotonic_ns())
             self._handle_key(source, code)
       elif event_type == EV_ABS and store.ABS_HAT0X <= code <= store.ABS_HAT3Y:
         previous = self.hat_values.get((fd, code), 0)
         self.hat_values[(fd, code)] = value
         if value and value != previous:
+          self._publish_button_press(time.monotonic_ns())
           self._handle_key(source, hat_event_code(code, value))
 
   def _publish_status(self, now: float) -> None:
