@@ -968,6 +968,7 @@
        "params": [
         "BlindSpot",
         "TorqueBar",
+        "ConfidenceBall",
         "RainbowMode",
         "StandstillTimer",
         "RoadNameToggle",
@@ -4880,13 +4881,13 @@
    "group": "alpha_longitudinal_toggles",
    "name": "ExperimentalModeSetSpeed",
    "title": "Set Speed Assist",
-   "descr": "Drive toward your set speed and following distance as legacy chill mode does whenever the driving model holds back. The model still makes every slowdown.",
+   "descr": "Drive toward your set speed and following distance whenever the driving model holds back. The model still makes every slowdown. The onroad button and a long press of the distance button switch it too.",
    "egroup": "ALPHA_LONGITUDINAL_TOGGLES",
    "etitle": "Set Speed Assist",
-   "edescr": "Drive toward your set speed and following distance as legacy chill mode does whenever the driving model holds back. The model still makes every slowdown.",
+   "edescr": "Drive toward your set speed and following distance whenever the driving model holds back. The model still makes every slowdown. The onroad button and a long press of the distance button switch it too.",
    "cgroup": "Alpha 纵向控制",
    "ctitle": "设定速度辅助",
-   "cdescr": "Drive toward your set speed and following distance as legacy chill mode does whenever the driving model holds back. The model still makes every slowdown.",
+   "cdescr": "Drive toward your set speed and following distance whenever the driving model holds back. The model still makes every slowdown. The onroad button and a long press of the distance button switch it too.",
    "default": true,
    "type": "bool"
   },
@@ -6834,6 +6835,20 @@
   },
   {
    "group": "visuals",
+   "name": "ConfidenceBall",
+   "title": "Confidence Ball",
+   "descr": "Shows the model's confidence as a ball on your side of the screen, as on the comma 4: higher is more confident, and while engaged it is green, then yellow, then red as confidence drops.",
+   "egroup": "VISUALS",
+   "etitle": "Confidence Ball",
+   "edescr": "Shows the model's confidence as a ball on your side of the screen, as on the comma 4: higher is more confident, and while engaged it is green, then yellow, then red as confidence drops.",
+   "cgroup": "视觉",
+   "ctitle": "Confidence Ball",
+   "cdescr": "Shows the model's confidence as a ball on your side of the screen, as on the comma 4: higher is more confident, and while engaged it is green, then yellow, then red as confidence drops.",
+   "default": false,
+   "type": "bool"
+  },
+  {
+   "group": "visuals",
    "name": "RainbowMode",
    "title": "Tesla 레인보우 모드 활성화",
    "descr": "A beautiful rainbow effect on the path the model wants to take. It does not affect driving in any way.",
@@ -7255,6 +7270,7 @@
    "ChevronInfo",
    "CompletedSunnylinkConsentVersion",
    "ConditionalExperimental",
+   "ConfidenceBall",
    "CustomAccIncrementsEnabled",
    "CustomAccLongPressIncrement",
    "CustomAccShortPressIncrement",
@@ -7404,7 +7420,7 @@
    "vehicle",
    "visuals"
   ],
-  "labelled_by_sp_param_labels": 204,
-  "labelled_from_on_device_pages": 212
+  "labelled_by_sp_param_labels": 205,
+  "labelled_from_on_device_pages": 213
  }
 }

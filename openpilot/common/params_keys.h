@@ -162,6 +162,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"StockEcuHandBackFailed", {CLEAR_ON_IGNITION_ON, BOOL}},  // an onroad cycle went ahead on a failed hand-back: stock cruise is down until ignition
     {"TermsVersion", {PERSISTENT, STRING}},
     {"TorqueBar", {PERSISTENT | BACKUP, BOOL, "0"}},
+    {"ConfidenceBall", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"TrainingVersion", {PERSISTENT, STRING}},
     {"UbloxAvailable", {PERSISTENT, BOOL}},
     {"UpdateAvailable", {CLEAR_ON_MANAGER_START | CLEAR_ON_ONROAD_TRANSITION, BOOL}},
@@ -901,6 +902,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // Carrot lane change / blinker / lane-line tuning surface.
     {"LaneChangeDelay", {PERSISTENT | BACKUP, INT, "0"}},
     {"LaneChangeNeedTorque", {PERSISTENT | BACKUP, INT, "0"}},
+    // --- zoompilot params --- //
+    {"ExperimentalModeSetSpeed", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"LaneChangeSmoothing", {PERSISTENT | BACKUP, INT, "0"}},
     {"LaneLineCheck", {PERSISTENT | BACKUP, INT, "0"}},
     {"OnnxBsdEnabled", {PERSISTENT | BACKUP, INT, "0"}},

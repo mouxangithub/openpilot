@@ -26,7 +26,7 @@ from openpilot.sunnypilot.selfdrive.controls.lib.cutin_predecel import get_cutin
 from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_preview import (
   apply_preview_target, clip_preview_offset, get_lead_preview_request, rate_limit_preview,
 )
-from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
+from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController, approach_accel
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
 from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import LeadForecast
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot import make_smart_cruise_control
@@ -193,7 +193,7 @@ class LongitudinalPlannerSP:
     # DEC removed 2026-10: e2e is the model candidate behind the experimental/chill switch.
     # Upstream (zp) deprecated selfdriveState.experimentalMode; the live value lives in the
     # SP extension (selfdriveStateSP.zoompilot.experimentalMode, fed from the ExperimentalMode param).
-    return bool(self.CP.openpilotLongitudinalControl and sm['selfdriveStateSP'].zoompilot.experimentalMode)
+    return bool(self.CP.openpilotLongitudinalControl and sm['selfdriveStateSP'].zoompilot.experimentalModeDEPRECATED)
 
   def refresh_weather_offsets(self) -> None:
     """Re-read the weather offsets from Params.
@@ -627,20 +627,25 @@ class LongitudinalPlannerSP:
 
   def update_e2e_target(self, sm: messaging.SubMaster, a_model: float, should_stop_model: bool,
                         reset_state: bool) -> tuple[float, bool]:
-    """The e2e candidate and whether it asks to stop. The host planner takes the minimum over the
-    candidates; in chill it can never be the minimum (cruise, listed first, wins a tie) and it
-    never asks to stop, so the stop signal returned here is the model's own."""
+    """The e2e candidate the host planner takes the minimum over. In chill it can never be the
+    minimum (cruise, listed first, wins a tie) and it never asks to stop, so the stop signal
+    returned here is the model's own."""
     is_e2e = self.is_e2e(sm)
-    # lateral acceleration from the measured steering: controlsd's curvature from the learned
-    # steer ratio, angle offset and roll
+    # lateral acceleration from the measured steering: controlsd's curvature from the learned steer
+    # ratio, angle offset and roll
     steer_lat_accel = sm['controlsState'].curvature * sm['carState'].vEgo ** 2
-    # chill mode's answer: the MPC candidate as the host takes it from this frame's solution (a
-    # lead, or its synthetic one far ahead), and last frame's cruise candidate (the host builds
-    # this frame's after the e2e candidate)
+    # chill mode's answer: the MPC candidate as the host takes it from this frame's solution (a lead,
+    # or its synthetic one far ahead), and last frame's cruise candidate (the host builds this
+    # frame's after the e2e candidate), closing on this frame's target speed at a production ACC's pace
     a_mpc = get_accel_from_plan(self.v_desired_trajectory, self.a_desired_trajectory, CONTROL_N_T_IDX,
                                 action_t=self.CP.longitudinalActuatorDelay + DT_MDL)
-    a_chill = min(float(a_mpc), self.a_cruise)
+    a_chill = min(float(a_mpc), self.a_cruise, approach_accel(self.v_ego, self.output_v_target))
     self.a_e2e = self.e2e_set_speed.update(sm, a_model, a_chill, is_e2e, reset_state, steer_lat_accel)
+    # upstream's gas boost learns past the model from gas presses; the set-speed floor already lifts
+    # it, so the boost only runs with the floor off
+    if self.e2e_set_speed.enabled:
+      self.accel_boost.total_boost = 0.
+      self.accel_boost.boost_eligible = False
     if not is_e2e:
       return ACCEL_MAX, False
     return self.a_e2e, should_stop_model

@@ -9,20 +9,7 @@ from types import SimpleNamespace
 import pytest
 from opendbc.car.structs import car
 
-from openpilot.selfdrive.ui.sunnypilot.longitudinal_mode import alpha_longitudinal_reachable, longitudinal_mode_labels
-from openpilot.sunnypilot.selfdrive.car.tests.fakes import FakeParams
-
-
-@pytest.mark.parametrize(("has_long", "experimental", "speed", "labels"), [
-  (False, True, True, []),
-  (True, False, True, ["legacy chill"]),
-  (True, True, False, ["default"]),
-  (True, True, True, ["speed assist"]),
-])
-def test_cruise_shows_the_mode_that_drives(has_long, experimental, speed, labels):
-  ui_state = SimpleNamespace(has_longitudinal_control=has_long, experimental_mode=experimental,
-                             params=FakeParams(ExperimentalModeSetSpeed=speed))
-  assert longitudinal_mode_labels(ui_state) == labels
+from openpilot.selfdrive.ui.sunnypilot.longitudinal_mode import longitudinal_reachable
 
 
 @pytest.mark.parametrize(("cp", "has_long", "reachable"), [
@@ -31,5 +18,5 @@ def test_cruise_shows_the_mode_that_drives(has_long, experimental, speed, labels
   (car.CarParams.new_message(), True, True),
   (car.CarParams.new_message(), False, False),
 ])
-def test_greyed_only_without_any_longitudinal(cp, has_long, reachable):
-  assert alpha_longitudinal_reachable(SimpleNamespace(CP=cp, has_longitudinal_control=has_long)) == reachable
+def test_hidden_only_without_any_longitudinal(cp, has_long, reachable):
+  assert longitudinal_reachable(SimpleNamespace(CP=cp, has_longitudinal_control=has_long)) == reachable

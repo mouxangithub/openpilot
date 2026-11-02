@@ -837,7 +837,6 @@ class SelfdriveD:
     mads.lateralHeld = self.mads.lateral_held
     ss_sp.zoompilot.madsLateralHeld = self.mads.lateral_held
     ss_sp.zoompilot.icbmHold = self.icbm.fast_active
-    self.selfdrived_zp.publish(ss_sp)
 
     icbm = ss_sp.intelligentCruiseButtonManagement
     icbm.state = self.icbm.state
@@ -845,6 +844,10 @@ class SelfdriveD:
     icbm.vTarget = self.icbm.v_target
 
     self.button_state_tracker.publish(ss_sp)
+    # sp keeps the ExperimentalMode pipe alive: the wheel long press (selfdrived_zp)
+    # still toggles it and the planner/plannerd gate e2e on it. Upstream renamed the
+    # capnp member with a DEPRECATED suffix (chill removal); ordinal is unchanged.
+    self.selfdrived_zp.publish(ss_sp)
 
     self.pm.send('selfdriveStateSP', ss_sp_msg)
 

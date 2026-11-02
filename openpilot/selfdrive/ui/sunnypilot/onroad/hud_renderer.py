@@ -10,7 +10,9 @@ from openpilot.common.constants import CV
 from openpilot.selfdrive.ui import UI_BORDER_SIZE
 from openpilot.selfdrive.ui.sunnypilot.onroad.blendful_zp import TorqueBarZP
 from openpilot.selfdrive.ui.sunnypilot.onroad.developer_ui import DeveloperUiRenderer, DeveloperUiState, get_bottom_dev_ui_offset
-from openpilot.selfdrive.ui.sunnypilot.onroad.exp_button import ExpButton
+from openpilot.selfdrive.ui.sunnypilot.onroad.confidence_ball import ConfidenceBallTizi
+from openpilot.selfdrive.ui.sunnypilot.onroad.long_indicator import LongIndicatorTizi
+from openpilot.selfdrive.ui.sunnypilot.onroad.speed_assist_button import SpeedAssistButton
 from openpilot.selfdrive.ui.sunnypilot.onroad.navigation_card import NavigationCardRenderer
 from openpilot.selfdrive.ui.sunnypilot.onroad.road_name import RoadNameRenderer
 from openpilot.selfdrive.ui.sunnypilot.onroad.rocket_fuel import RocketFuel
@@ -36,7 +38,6 @@ SLA_ACTIVE_COLOR = rl.Color(0x91, 0x9b, 0x95, 0xff)
 
 # the experimental mode button's place, as upstream drew it before retiring chill mode
 EXP_BUTTON_SIZE = 192
-EXP_BUTTON_ICON_SIZE = 144
 
 
 class HudRendererSP(HudRenderer):
@@ -53,7 +54,6 @@ class HudRendererSP(HudRenderer):
     self.speed_renderer = SpeedRenderer()
     self.signal_hud = SignalHudRenderer()
     self._torque_bar = TorqueBarZP(scale=3.0, always=True, show_bar=lambda: ui_state.torque_bar)
-    self._exp_button = ExpButton(EXP_BUTTON_SIZE, EXP_BUTTON_ICON_SIZE)
     # StarPilot widget ports - each one reads its own gating params (throttled,
     # code-side defaults; none of the keys are registered in params_keys.h).
     self.stopping_point_renderer = StoppingPointRenderer()
@@ -62,6 +62,9 @@ class HudRendererSP(HudRenderer):
     self.pip_sidecam = PipSideCamera()
     self.developer_sidebar = DeveloperSidebar()
     self.speed_source_drawer = SpeedSourceDrawerRenderer()
+    self._speed_assist_button = SpeedAssistButton(EXP_BUTTON_SIZE)
+    self._long_indicator = LongIndicatorTizi()
+    self._confidence_ball = ConfidenceBallTizi()
 
     self.pcm_cruise_speed: bool = True
     self.show_icbm_status: bool = False
@@ -159,7 +162,10 @@ class HudRendererSP(HudRenderer):
     if ui_state.has_longitudinal_control:
       button_x = rect.x + rect.width - UI_BORDER_SIZE - EXP_BUTTON_SIZE
       button_y = rect.y + UI_BORDER_SIZE
-      self._exp_button.render(rl.Rectangle(button_x, button_y, EXP_BUTTON_SIZE, EXP_BUTTON_SIZE))
+      self._speed_assist_button.render(rl.Rectangle(button_x, button_y, EXP_BUTTON_SIZE, EXP_BUTTON_SIZE))
+    self._long_indicator.render(rect)
+    if ui_state.confidence_ball:
+      self._confidence_ball.render(rect)
 
     # always rendered: lane center's gauge shows under it even with the bar itself off
     torque_rect = rect
@@ -220,8 +226,6 @@ class HudRendererSP(HudRenderer):
     # pip_sidecam.py); inert until such a camera is fitted.
     self.pip_sidecam.render(rect)
 
-  def user_interacting(self, mouse_pos=None) -> bool:
-    interacting = self._exp_button.is_pressed or self.navigation_card.is_pressed or self.personality_button.is_pressed
-    if mouse_pos is not None and self.speed_source_drawer.is_pressed_in(mouse_pos):
-      interacting = True
+  def user_interacting(self) -> bool:
+    interacting = self._speed_assist_button.is_pressed or self.navigation_card.is_pressed or self.personality_button.is_pressed
     return interacting
