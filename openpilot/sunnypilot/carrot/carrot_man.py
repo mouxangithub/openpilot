@@ -59,6 +59,10 @@ class _NaviVehicleControl(_NaviControlBase):
     self.heading_deg = _navi_float(item, "headingDeg", 0.0) % 360.0 if present else 0.0
     self.speed_kph = max(0.0, _navi_float(item, "speedKph", 0.0)) if present else 0.0
     self.road_name = _navi_text(item, "roadName") if present else ""
+    # Local receipt time of the original fix (cp semantics): a cereal
+    # heartbeat re-sends the same fix, and dead reckoning / map freshness
+    # must not restart on it. Zero when the sender predates the field.
+    self.received_mono_time_ns = _navi_int(_navi_get(item, "meta"), "receivedMonoTimeNanos")
 
 
 class _NaviGuidanceControl(_NaviControlBase):
@@ -2344,15 +2348,16 @@ class CarrotManager:
       self._carrot_serv.raw_update("nSdiPlusBlockDist", 0)
 
   def _apply_carrot_navi_vehicle(self, vehicle: _NaviVehicleControl) -> None:
-    self._carrot_navi_vehicle_sequence = vehicle.sequence
     if not vehicle.present:
+      # cp semantics: no vehicle fix at all expires the external_navi source
+      # (freshness stamp zeroed) and drops the road name; sequence tracking
+      # is kept so a late re-appear is still deduplicated.
+      self._carrot_serv.navi_vehicle_disconnected()
       return
-    self._carrot_serv.raw_update("vpPosPointLat", vehicle.latitude)
-    self._carrot_serv.raw_update("vpPosPointLon", vehicle.longitude)
-    self._carrot_serv.raw_update("nPosAngle", vehicle.heading_deg)
-    self._carrot_serv.raw_update("nPosSpeed", vehicle.speed_kph)
-    if vehicle.road_name:
-      self._carrot_serv.raw_update("szPosRoadName", vehicle.road_name)
+    self._carrot_serv.update_navi_vehicle_position(
+      vehicle.latitude, vehicle.longitude, vehicle.heading_deg,
+      vehicle.speed_kph, vehicle.road_name,
+      vehicle.received_mono_time_ns, vehicle.sequence)
 
   def _apply_carrot_navi_traffic(self, traffic: _NaviTrafficControl) -> None:
     if not traffic.present or not traffic.visible or not traffic.lamp or traffic.remain_sec <= 0:

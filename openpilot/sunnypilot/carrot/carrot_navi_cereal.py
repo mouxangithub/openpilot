@@ -135,6 +135,11 @@ def _lane(record: dict[str, Any], value: Any) -> dict[str, Any]:
     "available": _int16_list(lane.get("available")),
     "guideLineColor": _integer(lane.get("guide_line_color"), minimum=-32768, maximum=32767),
     "roadCategory": _integer(lane.get("road_category"), minimum=-32768, maximum=32767),
+    # cp semantics: an explicit source-validity flag. Without it the motorway
+    # suppression in signal_road_policy can never fire (roadCategoryValid
+    # stays at its default False and "unset" becomes indistinguishable from
+    # "highway").
+    "roadCategoryValid": type(lane.get("road_category")) is int and 0 <= lane["road_category"] <= 12,
     "voiceCode": _integer(lane.get("voice_code"), minimum=-32768, maximum=32767),
   }
 

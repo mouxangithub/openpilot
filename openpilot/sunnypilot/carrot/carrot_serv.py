@@ -294,6 +294,10 @@ class CarrotServ:
     self._phone_gps_frame: int = 0
     self._last_update_gps_time_navi: float = 0.0
     self._last_update_gps_time_phone: float = 0.0
+    # Sequence of the last 7714 v2 vehicle fix applied to the external_navi
+    # source (cp semantics: a repeated sequence is a cereal heartbeat, not a
+    # new GPS fix). -1 = nothing seen yet.
+    self._navi_vehicle_sequence: int = -1
     # Heading of the phone/navi GPS, in degrees. Written by update_raw from the
     # 7706 packet and refreshed from the cached raw packet in derive(), so the
     # 7714 v2 vehicle stream feeds it too. Read by carrot_navi_route() to rotate
@@ -597,6 +601,48 @@ class CarrotServ:
       self._maybe_sync_system_time(_safe_int(msg.get("epochTime"), 0),
                                    _safe_str(msg.get("timezone"), "Asia/Seoul"))
 
+  def update_navi_vehicle_position(self, latitude: float, longitude: float, heading_deg: float,
+                                   speed_kph: float, road_name: str,
+                                   received_mono_time_ns: int, sequence: int) -> None:
+    """Feed one 7714 v2 vehicle fix into the external_navi GPS source.
+
+    cp semantics (carrot_serv._apply_carrot_navi_vehicle): a repeated sequence
+    is a cereal heartbeat, not a GPS fix — skip it entirely so dead reckoning
+    and map freshness cannot restart on repeated data. The original local
+    receipt time is retained; senders without receipt metadata fall back to
+    their first observation here.
+    """
+    if sequence == self._navi_vehicle_sequence:
+      return
+    now = time.monotonic()
+    received = received_mono_time_ns / 1e9 if received_mono_time_ns else now
+    if received > now:
+      # Clock misbehaviour: refuse to stamp the future.
+      return
+    self._navi_vehicle_sequence = sequence
+    self._navi_gps_lat = latitude
+    self._navi_gps_lon = longitude
+    self._navi_gps_angle = heading_deg % 360.0
+    self._last_update_gps_time_navi = received
+    # Keep the cached raw packet in sync so the UI / road-name consumers and
+    # the derive()-time heading refresh see the same fix.
+    self._raw["vpPosPointLat"] = latitude
+    self._raw["vpPosPointLon"] = longitude
+    self._raw["nPosAngle"] = self._navi_gps_angle
+    self._raw["nPosSpeed"] = speed_kph
+    if road_name:
+      self._raw["szPosRoadName"] = road_name
+
+  def navi_vehicle_disconnected(self) -> None:
+    """Expire the 7714 vehicle contribution to external_navi (cp semantics).
+
+    Zeroing the freshness stamp makes select() reject the source after its
+    window lapses; the 7706 UDP path can still re-arm it at any time. The
+    sequence tracking is kept so a late re-appear is still deduplicated.
+    """
+    self._last_update_gps_time_navi = 0.0
+    self._raw["szPosRoadName"] = ""
+
   def _apply_road_limit_filter(self, raw_limit: int) -> int:
     """5-packet confirmation filter to avoid jitter in road limit speed.
 
@@ -850,6 +896,7 @@ class CarrotServ:
     self._last_update_gps_time_navi = 0.0
     self._last_update_gps_time_phone = 0.0
     self._navi_gps_angle = 0.0
+    self._navi_vehicle_sequence = -1
 
   # ---- derived state ----------------------------------------------------- #
 
