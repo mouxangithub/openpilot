@@ -513,14 +513,12 @@ ensure_updater_deps() {
   local py=$(find_python python3.12) || py=python3
   local py_path=$(setup_python_path "$DIR")
 
-  # Fast path: already importable with the same path the updater will use.
-  if PYTHONPATH="$py_path" "$py" -c "import serial" >/dev/null 2>&1; then
-    return 0
-  fi
-
-  # The updater's wifi_manager also imports jeepney at module scope, and on the
-  # same frozen-boot scenario the network path cannot provide it (the updater
-  # loop blocks the network stage). Same bundled-wheel treatment as pyserial.
+  # Jeepney check MUST come before the pyserial fast path below. The updater's
+  # wifi_manager imports jeepney at module scope, and the fast path returns as
+  # soon as pyserial is importable - which it is on every image that ships it
+  # in the venv. That early return used to skip this block entirely, leaving
+  # jeepney uninstalled and the updater crash-looping on ModuleNotFoundError
+  # (observed on a freshly imaged 12.8 device, 2026-11-02).
   if ! PYTHONPATH="$py_path" "$py" -c "import jeepney" >/dev/null 2>&1; then
     local jwheel=""
     for w in "$WHEEL_DIR"/jeepney-*.whl; do
@@ -535,6 +533,12 @@ ensure_updater_deps() {
       fi
       rm -rf "$jtmp"/pip-* 2>/dev/null || true
     fi
+  fi
+
+  # Fast path: pyserial already importable with the same path the updater will
+  # use (it ships in the AGNOS venv on many images).
+  if PYTHONPATH="$py_path" "$py" -c "import serial" >/dev/null 2>&1; then
+    return 0
   fi
 
   echo "[ensure_updater_deps] pyserial missing; installing for the AGNOS updater" >> /tmp/bootstrap.log
