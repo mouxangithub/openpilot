@@ -213,6 +213,21 @@ python_package_ok() {
   PYTHONPATH="$py_path" "$py" -c "import ${probe}" >/dev/null 2>&1
 }
 
+# Last-resort wheel install: unpack the wheel (it is a zip archive) straight
+# into the target dir with the stdlib zipfile module - no pip involved. What
+# this skips vs pip is only .dist-info metadata and entry-point scripts, which
+# imports do not need; binary payloads (.so files) sit at the wheel root and
+# land in place. Proven on-device 2026-11-02 when a crash-looping updater
+# blocked pip's normal preconditions and zipfile extraction of jeepney revived
+# it immediately.
+install_wheel_unpacked() {
+  local wheel="$1"   # absolute path to a .whl
+  local pydeps="$2"  # target dir
+  local py=$(find_python python3.12) || py=python3
+  mkdir -p "$pydeps" 2>/dev/null || return 1
+  "$py" -m zipfile -e "$wheel" "$pydeps/" >> /tmp/bootstrap.log 2>&1
+}
+
 # Installs one dependency from $WHEEL_DIR, preferring the bundled wheel over the
 # network. Returns non-zero when the probe still fails afterwards, so callers can
 # decide whether the package was required.
@@ -239,8 +254,28 @@ ensure_wheel_package() {
     echo "[wheels] installed $req" >> /tmp/bootstrap.log
     return 0
   fi
-
   rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+
+  # pip failed (missing/corrupt pip, TMPDIR trouble, fresh image): unpack the
+  # wheel directly. A wrong-but-present package can still pass afterwards, so
+  # the probe below stays the arbiter either way. Wheel filenames are lowercase
+  # (PEP 427) while req spelling is not (PyJWT), so normalize to lowercase -
+  # the device glob is case-sensitive and PyJWT-* would silently miss pyjwt-*.
+  local pkg="${req%%==*}" ver="${req##*==}"
+  pkg=$(echo "${pkg//-/_}" | tr 'A-Z' 'a-z')
+  local fallback
+  for fallback in "$WHEEL_DIR"/${pkg}-*"${ver}"*.whl; do
+    [ -f "$fallback" ] || continue
+    install_wheel_unpacked "$fallback" "$pydeps" && \
+      echo "[wheels] $req: pip path failed, unpacked $(basename "$fallback") directly" >> /tmp/bootstrap.log
+    break
+  done
+
+  if python_package_ok "$probe"; then
+    echo "[wheels] installed $req (after fallback)" >> /tmp/bootstrap.log
+    return 0
+  fi
+
   echo "[wheels] $req unavailable from $WHEEL_DIR; treated as optional" >> /tmp/bootstrap.log
   return 1
 }
@@ -530,8 +565,23 @@ ensure_updater_deps() {
       if TMPDIR="$jtmp" "$py" -m pip install --no-cache-dir --no-index --no-deps \
            --disable-pip-version-check --target "$pydeps" "$jwheel" >> /tmp/bootstrap.log 2>&1; then
         echo "[ensure_updater_deps] installed jeepney from bundled wheel" >> /tmp/bootstrap.log
+      else
+        # pip itself failed (fresh image, broken pip): unpack directly. The
+        # updater crash-loops without jeepney, so this fallback is required,
+        # not optional - same technique used to hand-rescue the 2026-11-02
+        # freshly-imaged device over serial.
+        if install_wheel_unpacked "$jwheel" "$pydeps"; then
+          echo "[ensure_updater_deps] jeepney: pip failed, unpacked $(basename "$jwheel") directly" >> /tmp/bootstrap.log
+        fi
       fi
       rm -rf "$jtmp"/pip-* 2>/dev/null || true
+      # Re-probe with the exact PYTHONPATH the updater will use; a silent
+      # failed install here reproduced as an infinite updater crash-loop.
+      if ! PYTHONPATH="$py_path" "$py" -c "import jeepney" >/dev/null 2>&1; then
+        echo "[ensure_updater_deps] WARNING: jeepney still missing after install attempts; updater will crash-loop" >> /tmp/bootstrap.log
+      fi
+    else
+      echo "[ensure_updater_deps] WARNING: jeepney missing and no bundled wheel found" >> /tmp/bootstrap.log
     fi
   fi
 
