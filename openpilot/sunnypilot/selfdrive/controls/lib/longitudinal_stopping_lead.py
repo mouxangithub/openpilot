@@ -128,6 +128,12 @@ class StoppingLeadFilter:
       if self.held_mask & mask:
         lead = getattr(output, role)
         lead.vLead = lead.vLeadK = 0.0
-        lead.aLead = lead.aLeadK = 0.0
+        # aLead lives inside the deprecated group in this schema lineage; the
+        # group accessor is the only portable way to reach it (a direct
+        # setattr raises "no such member" under pycapnp).
+        group = getattr(lead, "deprecated", None)
+        if group is not None and hasattr(group, "aLead"):
+          group.aLead = 0.0
+        lead.aLeadK = 0.0
         lead.jLead = 0.0
     return output

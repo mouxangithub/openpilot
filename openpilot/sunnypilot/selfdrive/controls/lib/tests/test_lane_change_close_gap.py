@@ -1,7 +1,7 @@
 import unittest
 
 from openpilot.sunnypilot.selfdrive.controls.lib.lane_change_close_gap import (
-  DIRECTION_LEFT, DIRECTION_RIGHT, LC_STATE_FINISHING, LC_STATE_PRE, LC_STATE_STARTING,
+  DIRECTION_LEFT, DIRECTION_RIGHT, LC_STATE_FINISHING, LC_STATE_STARTING,
   LaneChangeCloseGap)
 
 LC_STATE_OFF = 0  # cereal LaneChangeState.off

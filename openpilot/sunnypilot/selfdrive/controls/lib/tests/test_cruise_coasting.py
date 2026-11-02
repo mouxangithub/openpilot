@@ -1,17 +1,12 @@
-import ast
-import json
-from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from openpilot.common.pid import PIDController
 from openpilot.sunnypilot.selfdrive.controls.lib.cruise_coasting import (
-  BRAKE_RELEASE_JERK, CruiseCoastingPlan, coasting_percent, coasting_relief, no_coasting_lead,
+  CruiseCoastingPlan, coasting_percent, coasting_relief,
 )
 # This existing fixture also supplies Windows-only Params/hardware import shims.
-import openpilot.selfdrive.controls.lib.longcontrol as lc
 
 
 @pytest.mark.parametrize('value, expected', [(0, 0), (5, 5), (10, 10), (30, 10), (-2, 0),

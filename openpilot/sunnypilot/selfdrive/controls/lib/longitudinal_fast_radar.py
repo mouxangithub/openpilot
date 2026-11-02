@@ -210,8 +210,15 @@ class FastRadarOverlay:
       lead.aRel = float(point.aRel)
     lead.vLead = float(v_ego) + float(point.vRel)
     lead.vLeadK = lead.vLead
-    lead.aLead = float(point.aLead)
-    lead.aLeadK = lead.aLead
+    # aLead lives inside the deprecated group in this schema lineage; the
+    # group accessor is the only portable way to reach it (a direct setattr
+    # raises "no such member" under pycapnp).
+    group = getattr(lead, "deprecated", None)
+    if group is not None and hasattr(group, "aLead"):
+      group.aLead = float(point.aLead)
+    else:
+      lead.aLead = float(point.aLead)
+    lead.aLeadK = float(point.aLead)
     lead.jLead = float(point.jLead)
     lead.aLeadTau = self._update_a_lead_tau(lead, point, track_id, sample_time_s)
     return True, "active"

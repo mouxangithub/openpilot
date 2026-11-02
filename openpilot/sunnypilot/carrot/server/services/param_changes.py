@@ -115,7 +115,8 @@ def note_known_value(name: str, value: Any) -> None:
     _known_values[str(name)] = value
 
 
-def append_param_change(name: str, prev: Any, next_value: Any, source: str = "web_ui", engaged: bool = False) -> dict[str, Any] | None:
+def append_param_change(name: str, prev: Any, next_value: Any, source: str = "web_ui", engaged: bool = False,
+                        ts: int | None = None) -> dict[str, Any] | None:
   """Append one record. Never raises: a failed log must not fail the write that caused it."""
   key = str(name or "").strip()
   if not key:
@@ -129,7 +130,7 @@ def append_param_change(name: str, prev: Any, next_value: Any, source: str = "we
     with _write_lock:
       previous = last_record()
       record = {
-        "ts": int(time.monotonic()),
+        "ts": int(ts) if ts is not None else int(time.monotonic()),
         "name": key,
         "prev": prev,
         "next": next_value,

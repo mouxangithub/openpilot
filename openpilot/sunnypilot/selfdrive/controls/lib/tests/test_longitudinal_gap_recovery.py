@@ -9,7 +9,6 @@ import pytest
 from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_gap_recovery import (
   LeadGapState, advance_headroom, distance_recovery_weight, gap_reference, displayed_follow_distance,
 )
-from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_braking_gap import LeadComfortState, braking_gap_reference, comfort_path_has_reserve
 
 
 def step(state, **kwargs):

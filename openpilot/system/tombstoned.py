@@ -136,6 +136,11 @@ def main() -> NoReturn:
   should_report = comma_remote and is_registered_device() and not PC
   should_report = should_report or not PC  # zoompilot: keep native crash tombstones on every origin, as sentry did
 
+  # Manager daemon crash capture/upload runs here, independent of the manager
+  # itself (cp parity): capture and HTTP never run inside manager.
+  from openpilot.system.manager.process_crash import start_crash_reporting
+  start_crash_reporting()
+
   # Clear apport folder on start, otherwise duplicate crashes won't register
   clear_apport_folder()
   initial_tombstones = set(get_tombstones())

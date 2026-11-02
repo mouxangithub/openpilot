@@ -25,7 +25,6 @@ Params (registered in ``common/params_keys.h``):
     JSON-cast it.
 """
 import calendar
-import json
 import math
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any

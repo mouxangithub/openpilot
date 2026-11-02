@@ -23,8 +23,6 @@ except ImportError:  # local host without the opendbc checkout
 class TestProcIdentity(unittest.TestCase):
   def setUp(self):
     proclogd._proc_cache.clear()
-    proclogd._smaps_cache.clear()
-    proclogd._smaps_identity.clear()
     self.pid = proclogd.os.getpid()
     self.start = next(r['starttime'] for r in proclogd._procs() if r['pid'] == self.pid)
 
@@ -56,32 +54,9 @@ class TestProcIdentity(unittest.TestCase):
     proclogd._prune_proc_cache({self.pid: self.start + 5})
     self.assertNotIn(self.pid, proclogd._proc_cache)
 
-  def test_prune_also_bounds_the_smaps_cache(self):
-    proclogd._smaps_cache[999999] = {'pss': 1, 'pss_anon': 1, 'pss_shmem': 0}
-    proclogd._smaps_identity[999999] = 1
-    proclogd._prune_proc_cache({})
-    self.assertNotIn(999999, proclogd._smaps_cache)
-    self.assertNotIn(999999, proclogd._smaps_identity)
-
-  def test_smaps_cache_is_invalidated_by_a_new_starttime(self):
-    calls = []
-    original = proclogd._read_smaps
-
-    def counting(pid):
-      calls.append(pid)
-      return original(pid)
-
-    proclogd._read_smaps = counting
-    proclogd._smaps_cycle = 1  # an active cycle: only identity can force a re-read
-    try:
-      proclogd._get_smaps_cached(self.pid, self.start)
-      proclogd._get_smaps_cached(self.pid, self.start)
-      self.assertEqual(len(calls), 1)  # identity unchanged: cache hit
-      proclogd._get_smaps_cached(self.pid, self.start + 1)
-      self.assertEqual(len(calls), 2)  # reused PID: must re-read
-    finally:
-      proclogd._read_smaps = original
-      proclogd._smaps_cycle = 0
+  # smaps sampling (per-process PSS with PID-reuse protection) moved to
+  # proclog_smaps.SmapsSampler; its invariants are covered by
+  # test_proclog_smaps.py.
 
 
 @unittest.skipUnless(HAVE_PROCLOGD, 'proclogd needs cereal and the opendbc checkout')

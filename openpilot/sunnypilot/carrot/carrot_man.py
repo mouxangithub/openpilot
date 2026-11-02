@@ -1859,14 +1859,25 @@ class CarrotManager:
               self.make_tmux_data()
 
             if self._is_onroad_count > 500 and not self._is_tmux_sent and network_connected:
-              self.send_tmux("Ekdrmsvkdlffjt7710", "onroad", send_settings=True)
-              self._is_tmux_sent = True
+              web_response = self.send_tmux_web("onroad", send_settings = True)
+              web_ok = web_response is not None and getattr(web_response, "ok", False)
+              carrot_logs_response = self.send_tmux_carrot_logs("onroad", send_settings = True)
+              carrot_logs_ok = carrot_logs_response is not None and getattr(carrot_logs_response, "ok", False)
+              if web_ok or carrot_logs_ok:
+                self._is_tmux_sent = True
 
             # Send exception if CarrotException is set
             if self.params.get_bool("CarrotException") and network_connected:
-              self.params.put_bool("CarrotException", False)
+              pending_tmux_reason = "exception"
               self.make_tmux_data()
-              self.send_tmux("Ekdrmsvkdlffjt7710", "exception")
+              web_response = self.send_tmux_web(pending_tmux_reason, send_settings = False)
+              web_ok = web_response is not None and getattr(web_response, "ok", False)
+              carrot_logs_response = self.send_tmux_carrot_logs(pending_tmux_reason, send_settings = False)
+              carrot_logs_ok = carrot_logs_response is not None and getattr(carrot_logs_response, "ok", False)
+              # Only clear the flag once one destination accepted the upload,
+              # so a failed send retries on the next loop (cp semantics).
+              if web_ok or carrot_logs_ok:
+                self.params.put_bool("CarrotException", False)
 
           elif 'echo_cmd' in json_obj:
             # Execute remote command
@@ -1905,10 +1916,16 @@ class CarrotManager:
           elif 'tmux_send' in json_obj:
             # Send tmux data
             self.make_tmux_data()
-            self.send_tmux(json_obj['tmux_send'], "tmux_send")
+            web_response = self.send_tmux_web("tmux_send")
+            web_ok = web_response is not None and getattr(web_response, "ok", False)
+            carrot_logs_response = self.send_tmux_carrot_logs("tmux_send")
+            carrot_logs_ok = carrot_logs_response is not None and getattr(carrot_logs_response, "ok", False)
+            result = "success" if web_ok or carrot_logs_ok else "failed"
             echo = json.dumps({
               "tmux_send": json_obj['tmux_send'],
-              "result": "success",
+              "result": result,
+              "web_ok": web_ok,
+              "carrot_logs_ok": carrot_logs_ok,
             }, ensure_ascii=False)
             socket.send(echo.encode())
 
@@ -3229,70 +3246,92 @@ class CarrotManager:
     except Exception as e:
       cloudlog.error(f"carrot_man: make_tmux_data error: {e}")
 
-  def send_tmux(self, ftp_password: str, tmux_why: str, send_settings: bool = False) -> None:
-    """Send tmux data via FTP."""
-    from datetime import datetime
-    from ftplib import FTP
+  def _tmux_upload_payload(self, tmux_why: str) -> dict:
+    """Device metadata posted alongside the tmux capture (cp parity)."""
+    import ipaddress
 
-    ftp_server = "shind0.synology.me"
-    ftp_port = 8021
-    ftp_username = "carrotpilot"
+    def get_private_ip_by_iface(name="wlan0"):
+      import psutil
+      addrs = psutil.net_if_addrs().get(name, [])
+      for addr in addrs:
+        if addr.family == socket.AF_INET:
+          try:
+            ip_obj = ipaddress.ip_address(addr.address)
+            if ip_obj.is_private:
+              return addr.address
+          except ValueError:
+            continue
+      return None
+
+    def _pstr(key):
+      v = self.params.get(key) or ""
+      return v.decode("utf-8", errors="ignore") if isinstance(v, bytes) else v
+
+    return {
+      "tmux_why": tmux_why,
+      "car_name": _pstr("CarName"),
+      "git_branch": _pstr("GitBranch"),
+      "github_id": _pstr("GithubUsername"),
+      "git_remote": _pstr("GitRemote"),
+      "git_commit": _pstr("GitCommit"),
+      "git_commit_date": _pstr("GitCommitDate"),
+      "dongle_id": _pstr("DongleId"),
+      "device_serial": _pstr("HardwareSerial"),
+      "local_ip": get_private_ip_by_iface("wlan0"),
+    }
+
+  def _post_tmux_target(self, label: str, url: str, headers: dict, payload: dict, send_settings: bool = False):
+    import requests
+    from openpilot.sunnypilot.carrot.web_upload import post_tmux_web
+
+    settings_path = None
+    if send_settings:
+      self.save_toggle_values()
+      settings_path = "/data/toggle_values.json"
+
+    response = post_tmux_web(url, headers, payload, "/data/media/tmux.log", settings_path, requests.post)
+    print(f"[carrot_man] {label}: status={response.status_code} {response.text}")
+    return response
+
+  def send_tmux_web(self, tmux_why: str, send_settings: bool = False):
+    """Send the tmux capture to the operator's configured web destination (cp parity).
+
+    Replaces the retired hardcoded-FTP uploader: destinations come from the
+    web settings / CARROT_* env, nothing is sent when none is configured.
+    """
+    import requests
+    from openpilot.sunnypilot.carrot.web_upload import create_web_upload_session_sync, tmux_web_target, web_upload_settings
+    from openpilot.sunnypilot.carrot.server.services.web_settings import read_web_settings
 
     try:
-      ftp = FTP()
-      ftp.connect(ftp_server, ftp_port, timeout=30)
-      ftp.login(ftp_username, ftp_password)
-
-      # Get car name: identified fingerprint preferred, CarName param as fallback
-      car_selected = self.params.get("CarName")
-      if isinstance(car_selected, bytes):
-        car_selected = car_selected.decode('utf-8')
-      if not car_selected and self.sm.alive.get('carParams', False):
-        car_selected = self.sm['carParams'].carFingerprint or ""
-      if not car_selected:
-        car_selected = "none"
-
-      # Get git branch
-      git_branch = self.params.get("GitBranch") or ''
-      if isinstance(git_branch, bytes):
-        git_branch = git_branch.decode('utf-8')
-
-      # Get dongle ID
-      dongle_id = self.params.get("DongleId") or ''
-      if isinstance(dongle_id, bytes):
-        dongle_id = dongle_id.decode('utf-8')
-
-      # Build directory and filename
-      directory = f"{git_branch} {car_selected} {dongle_id}"
-      current_time = datetime.now().strftime("%Y%m%d-%H%M%S")
-      filename = f"{tmux_why}-{current_time}-{git_branch}.txt"
-
       try:
-        ftp.mkd(directory)
-      except Exception as e:
-        cloudlog.debug(f"carrot_man: directory creation failed: {e}")
-      ftp.cwd(directory)
-
-      # Send tmux log
-      try:
-        with open("/data/media/tmux.log", "rb") as file:
-          ftp.storbinary(f'STOR {filename}', file)
-          cloudlog.info(f"carrot_man: tmux data sent: {filename}")
-      except Exception as e:
-        cloudlog.error(f"carrot_man: ftp sending error: {e}")
-
-      # Send toggle values if requested
-      if send_settings:
-        self.save_toggle_values()
-        try:
-          with open("/data/toggle_values.json", "rb") as file:
-            ftp.storbinary(f'STOR toggles-{current_time}.json', file)
-        except Exception as e:
-          cloudlog.error(f"carrot_man: ftp params sending error: {e}")
-
-      ftp.quit()
+        upload_settings = read_web_settings()
+      except Exception:
+        upload_settings = {}
+      payload = self._tmux_upload_payload(tmux_why)
+      base_url, configured_token = web_upload_settings(upload_settings)
+      session_token = configured_token or create_web_upload_session_sync(base_url, payload, requests.post, "tmux")
+      url, headers = tmux_web_target(upload_settings, session_token)
+      return self._post_tmux_target("DSM tmux upload", url, headers, payload, send_settings)
     except Exception as e:
-      cloudlog.error(f"carrot_man: send_tmux error: {e}")
+      print(f"web tmux sending error...: {e}")
+      import traceback
+      traceback.print_exc()
+      return None
+
+  def send_tmux_carrot_logs(self, tmux_why: str, send_settings: bool = False):
+    """Send the independent copy consumed by the Discord carrot_logs forum."""
+    from openpilot.sunnypilot.carrot.web_upload import carrot_logs_web_target
+
+    try:
+      payload = self._tmux_upload_payload(tmux_why)
+      url, headers = carrot_logs_web_target()
+      return self._post_tmux_target("carrot_logs upload", url, headers, payload, send_settings)
+    except Exception as e:
+      print(f"carrot_logs tmux sending error...: {e}")
+      import traceback
+      traceback.print_exc()
+      return None
 
 
 def _thread_excepthook(args):

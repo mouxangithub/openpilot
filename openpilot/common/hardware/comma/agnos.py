@@ -12,6 +12,8 @@ import requests
 
 SPARSE_CHUNK_FMT = struct.Struct('H2xI4x')
 
+CAIBX_URL = "https://commadist.azureedge.net/agnosupdate/"
+
 _COMMA_HW_DIR = os.path.dirname(os.path.abspath(__file__))
 AGNOS_MANIFEST_FILE = os.path.join("openpilot", "common", "hardware", "comma", "agnos.json")
 
@@ -218,6 +220,54 @@ def extract_compressed_image(target_slot_number: int, partition: dict, cloudlog)
     os.sync()
 
 
+def extract_casync_image(target_slot_number: int, partition: dict, cloudlog):
+  # The standalone updater does not use casync. Import it only for this path
+  # so recovery/standalone flashing does not require pycryptodome.
+  import openpilot.system.updated.casync.casync as casync
+
+  path = get_partition_path(target_slot_number, partition)
+  seed_path = path[:-1] + ('b' if path[-1] == 'a' else 'a')
+
+  target = casync.parse_caibx(partition['casync_caibx'])
+
+  sources: list[tuple[str, casync.ChunkReader, casync.ChunkDict]] = []
+
+  # First source is the current partition.
+  try:
+    raw_hash = get_raw_hash(seed_path, partition['size'])
+    caibx_url = f"{CAIBX_URL}{partition['name']}-{raw_hash}.caibx"
+
+    try:
+      cloudlog.info(f"casync fetching {caibx_url}")
+      sources += [('seed', casync.FileChunkReader(seed_path), casync.build_chunk_dict(casync.parse_caibx(caibx_url)))]
+    except requests.RequestException:
+      cloudlog.error(f"casync failed to load {caibx_url}")
+  except Exception:
+    cloudlog.exception("casync failed to hash seed partition")
+
+  # Second source is the target partition, this allows for resuming
+  sources += [('target', casync.FileChunkReader(path), casync.build_chunk_dict(target))]
+
+  # Finally we add the remote source to download any missing chunks
+  sources += [('remote', casync.RemoteChunkReader(partition['casync_store']), casync.build_chunk_dict(target))]
+
+  last_p = 0
+
+  def progress(cur):
+    nonlocal last_p
+    p = int(cur / partition['size'] * 100)
+    if p != last_p:
+      last_p = p
+      print(f"Installing {partition['name']}: {p}", flush=True)
+
+  stats = casync.extract(target, sources, path, progress)
+  cloudlog.error(f'casync done {json.dumps(stats)}')
+
+  os.sync()
+  if not verify_partition(target_slot_number, partition, force_full_check=True):
+    raise Exception(f"Raw hash mismatch '{partition['hash_raw'].lower()}'")
+
+
 def flash_partition(target_slot_number: int, partition: dict, cloudlog, standalone=False):
   cloudlog.info(f"Downloading and writing {partition['name']}")
 
@@ -232,7 +282,10 @@ def flash_partition(target_slot_number: int, partition: dict, cloudlog, standalo
 
   path = get_partition_path(target_slot_number, partition)
 
-  extract_compressed_image(target_slot_number, partition, cloudlog)
+  if ('casync_caibx' in partition) and not standalone:
+    extract_casync_image(target_slot_number, partition, cloudlog)
+  else:
+    extract_compressed_image(target_slot_number, partition, cloudlog)
 
   # Write hash after successful flash
   if not full_check:

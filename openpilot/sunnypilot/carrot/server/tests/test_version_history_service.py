@@ -1,8 +1,6 @@
-import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 from openpilot.sunnypilot.carrot.server.services import version_history as vh
 
@@ -137,7 +135,7 @@ class TestInstallHistory(_TempDirTestCase):
     history = vh.install_history(path)
     self.assertEqual(vh.HISTORY_MAX, len(history))
     self.assertEqual(f"v{vh.HISTORY_MAX + 4}", history[0]["ref"])  # newest first
-    self.assertEqual(f"v5", history[-1]["ref"])  # oldest surviving after the cap
+    self.assertEqual("v5", history[-1]["ref"])  # oldest surviving after the cap
 
   def test_corrupt_history_is_empty(self):
     path = Path(self.tmp) / "hist.json"

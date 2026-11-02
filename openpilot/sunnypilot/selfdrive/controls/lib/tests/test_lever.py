@@ -32,7 +32,6 @@ except (OSError, FileNotFoundError):
   _params_mod.Params = _ParamsStub
   sys.modules['openpilot.common.params'] = _params_mod
 
-from types import SimpleNamespace
 
 from openpilot.cereal import custom
 from openpilot.common.constants import CV

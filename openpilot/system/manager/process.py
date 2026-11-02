@@ -16,9 +16,11 @@ from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.watchdog import clear_watchdog, read_watchdog_time, watchdog_timed_out
+from openpilot.system.manager.process_crash import enable_fault_handler, flush_crash_reports, report_process_exit
 
 
 def launcher(proc: str, name: str) -> None:
+  enable_fault_handler()
   try:
     # import the process
     mod = importlib.import_module(proc)
@@ -132,6 +134,8 @@ class ManagerProcess(ABC):
         self.proc.join()
 
     ret = self.proc.exitcode
+    if ret not in (None, 0) and not self.shutting_down:
+      report_process_exit(self.name, self.proc.pid, ret)
     cloudlog.info(f"{self.name} is dead with {ret}")
 
     if self.proc.exitcode is not None:
@@ -270,6 +274,7 @@ class DaemonProcess(ManagerProcess):
 
 def ensure_running(procs: ValuesView[ManagerProcess], started: bool, params: Params, CP: car.CarParams,
                    not_run: list[str] | None=None) -> list[ManagerProcess]:
+  flush_crash_reports()
   if not_run is None:
     not_run = []
 

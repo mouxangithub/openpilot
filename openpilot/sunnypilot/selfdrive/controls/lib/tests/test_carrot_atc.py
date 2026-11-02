@@ -18,9 +18,9 @@ if 'fcntl' not in sys.modules or not hasattr(sys.modules.get('fcntl'), 'flock'):
   sys.modules['fcntl'] = _fcntl
 
 try:
-  from openpilot.common.params import Params  # noqa: F401  (probe the native backend)
+  from openpilot.common.params import Params
 except Exception:
-  class Params:  # noqa: E704  (PC fallback: no libparams_c.so)
+  class Params:
     _store: dict[str, str] = {}
 
     def __init__(self, *args, **kwargs):
@@ -65,12 +65,12 @@ except Exception:
   _params_mod.Params = Params
   sys.modules['openpilot.common.params'] = _params_mod
 
-from openpilot.cereal import log, custom  # noqa: E402
+from openpilot.cereal import log, custom
 
-from openpilot.selfdrive.controls.lib.desire_helper import (  # noqa: E402
+from openpilot.selfdrive.controls.lib.desire_helper import (
   DesireHelper, BLINKER_LEFT, BLINKER_RIGHT,
 )
-from openpilot.sunnypilot.selfdrive.controls.lib.auto_lane_change import AutoLaneChangeMode  # noqa: E402
+from openpilot.sunnypilot.selfdrive.controls.lib.auto_lane_change import AutoLaneChangeMode
 
 TurnDirection = custom.ModelDataV2SP.TurnDirection
 

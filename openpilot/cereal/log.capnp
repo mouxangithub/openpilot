@@ -1528,6 +1528,7 @@ struct ProcLog {
     memPss @17 :UInt64;        # Pss — shared pages split by mapper count
     memPssAnon @18 :UInt64;    # Pss_Anon — private anonymous (heap, stack)
     memPssShmem @19 :UInt64;   # Pss_Shmem — proportional MSGQ/tmpfs share
+    memPssMonoTime @20 :UInt64; # scan start in monotonic ns; 0 means unavailable (also older logs)
   }
 
   struct CPUTimes {
@@ -2324,6 +2325,17 @@ struct DriverMonitoringState {
     alertCountLockoutPercent @1 :Int8;
     alertTimeLockoutPercent @2 :Int8;
   }
+
+  dm2Experimental @16 :Bool;
+  dm2StrictTimeRemaining @17 :Float32;
+  dm2WheelTimeoutFactor @18 :Float32 = 1;
+  dm2ForwardAttentionScore @19 :Float32;
+  dm2ForwardRecovery @20 :Bool;
+  dm2InteractionCredit @21 :Float32;
+  dm2VisionTimeoutFactor @22 :Float32 = 1;
+  dm2InteractionGraceRemaining @23 :Float32;
+  dm2Disabled @24 :Bool;
+  cameraUnavailable @25 :Bool;  # sp uses @15 for lockoutCount (zp lineage); cp's cameraUnavailable lands here
 }
 
 struct Boot {

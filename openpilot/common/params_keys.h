@@ -802,6 +802,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"HyundaiCameraSCC", {PERSISTENT, INT, "0"}},   // cp: force HyundaiFlags.CAMERA_SCC
     {"CanfdHDA2", {PERSISTENT, INT, "0"}},          // cp: HDA1/HDA2 step (HKG only)
     {"DriverMonitoringMode", {PERSISTENT, INT, "0"}},        // cp: 1 = experimental DM
+    {"DriverMonitoringSessionDisabled", {PERSISTENT, BOOL, "0"}},  // cp dm2d: disable gesture latch (consecutive CANCELs)
+    {"Dm2EngineEnabled", {PERSISTENT, BOOL, "0"}},           // sp gate: 0 = legacy dmonitoringd engine (default), 1 = cp DM2 engine
     {"DriverMonitoringEnabled", {PERSISTENT, BOOL, "1"}},    // cp: master DM switch
     {"VehicleSpeedCameraDistanceTime", {PERSISTENT | BACKUP, INT, "60"}},
     {"AutoRoadSpeedLimitOffset", {PERSISTENT | BACKUP, INT, "-1"}},
