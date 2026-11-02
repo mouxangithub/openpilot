@@ -87,9 +87,6 @@ YOLO_SIGNAL_LABELS = {
   'left_light': '左转灯',
   'right_light': '右转灯',
 }
-# Lamp classes the detector reports inside a housing; used when the housing's
-# own state is unknown but a lamp still says what the signal is showing.
-YOLO_LAMP_LABEL_KEYS = ('yellow_light', 'left_light', 'right_light')
 
 
 class SignalHudRenderer:
@@ -222,7 +219,11 @@ class SignalHudRenderer:
 
     Purely advisory: boxes come from the observer's own tmpfs record (stale
     records are already dropped by the reader), and the colour is what the
-    detector read, never what the planner applied.
+    detector read, never what the planner applied. Only a housing carrying an
+    explicit red/green colour claim is drawn: an unknown housing is suppressed
+    here rather than rendered as a grey box. That keeps the dominant false
+    positive - vehicle tail lamps that the detector's geometry gate demotes
+    to unknown - off the driver's display entirely.
     """
     frame_w, frame_h = self._yolo_frame_size
     for track in self._yolo_tracks:
@@ -230,19 +231,11 @@ class SignalHudRenderer:
       if x2 <= x1 or y2 <= y1:
         continue
       state = track.get('state')
-      cls = 'traffic_light'
-      lamps = track.get('lamps') or []
-      if lamps and isinstance(lamps[0], dict):
-        cls = lamps[0].get('cls') or cls
-      if state not in YOLO_BOX_COLORS:
-        state = 'unknown'
-      # Prefer the state label; fall back through lamp classes to the housing.
-      if state in ('red', 'green', 'yellow'):
-        label = YOLO_SIGNAL_LABELS[state]
-      else:
-        lamp_cls = next((l.get('cls') for l in lamps
-                         if isinstance(l, dict) and l.get('cls') in YOLO_LAMP_LABEL_KEYS), None)
-        label = YOLO_SIGNAL_LABELS.get(lamp_cls or cls, YOLO_SIGNAL_LABELS['traffic_light'])
+      # Red/green only: yellow and arrow heads never reach the control chain,
+      # and a colourless housing must never be labelled as a signal.
+      if state not in ('red', 'green'):
+        continue
+      label = YOLO_SIGNAL_LABELS[state]
 
       srect = self._yolo_box_screen_rect((x1, y1, x2, y2), rect, frame_w, frame_h)
       color = YOLO_BOX_COLORS[state]

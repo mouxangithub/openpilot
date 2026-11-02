@@ -69,6 +69,30 @@ MIN_LAMP_INSIDE = 0.55
 # transitional or multi-lamp signal, not a colour read.
 MAX_LAMPS_PER_HOUSING = 3
 
+# Geometric plausibility of a *coloured* lamp, applied before a lamp colour is
+# promoted. Vehicle tail/brake lamps are the dominant false positive in road
+# footage: they ride on a car's rear, well below the horizon in the lower
+# frame, whereas a real signal head is mounted on an arm/gantry above the road.
+# These gates only reject a lamp's *colour claim* - an implausible lamp leaves
+# its housing tracked and displayed as 'unknown', it simply cannot cry "red".
+#
+# The vertical position is the high-precision discriminator (on-vehicle vs
+# mounted), so that gate alone is the defence. A small floor on size rejects
+# sub-pixel red noise/reflections; distant real heads that small are too far
+# to act on. Lamp *aspect ratio* is intentionally not gated: an individual
+# coloured head is roughly square, unlike the wide horizontal fixture the
+# control-side housing_range() measures, and bounding it here without model
+# data would reject genuine near heads.
+LAMP_BOX_MIN_W = 4.
+LAMP_BOX_MIN_H = 4.
+LAMP_BOX_MAX_W = 240.
+LAMP_BOX_MAX_H = 100.
+# A coloured signal belongs to a head mounted above the road, not on a
+# vehicle. The centre must be in the upper 72% of the road frame. This rejects
+# tail lamps (lower third) while keeping overhead gantry, pole-arm and
+# far-corner heads; the bottom margin tolerates a low arm near the stop line.
+LAMP_MAX_CENTER_Y_RATIO = 0.72
+
 
 @dataclass
 class Detection:
@@ -91,6 +115,9 @@ class HousingObservation:
   box: tuple[float, float, float, float] = (0., 0., 0., 0.)
   state: str = 'unknown'
   lamps: list = field(default_factory=list)
+  # Source frame height; gates the mounted-head geometry test so a vehicle
+  # tail lamp can never supply a red colour score.
+  frame_h: float = 0.0
 
   def as_detection(self):
     return Detection(HOUSING, self.conf, self.box)
@@ -194,7 +221,7 @@ def _nms(boxes, scores, threshold):
   return picked
 
 
-def group_housings(detections):
+def group_housings(detections, frame_h=0):
   """Attach lamp evidence to housings.
 
   A lamp belongs to the housing that contains it. Housings without a lamp stay
@@ -202,6 +229,9 @@ def group_housings(detections):
   the consumer may want to track it. Lamps that no housing contains are
   dropped: without a housing there is no unit to track, and a floating lamp
   box is exactly the kind of loose evidence this pipeline must not promote.
+
+  ``frame_h`` gates the mounted-head geometry test that rejects vehicle tail
+  lamps; 0 disables only the vertical check (size/aspect still apply).
   """
   housings = [d for d in detections if d.cls == HOUSING]
   lamps = [d for d in detections if d.cls != HOUSING]
@@ -215,21 +245,47 @@ def group_housings(detections):
     contained.sort(key=lambda item: -item[1].conf)
     contained = contained[:MAX_LAMPS_PER_HOUSING]
     observation = HousingObservation(conf=housing.conf, box=housing.box,
-                                     lamps=[lamp for _, lamp in contained])
-    observation.state = _lamp_state(observation.lamps)
+                                     lamps=[lamp for _, lamp in contained],
+                                     frame_h=float(frame_h) if frame_h else 0.0)
+    observation.state = _lamp_state(observation.lamps, frame_h)
     observations.append(observation)
   return observations
 
 
-def _lamp_state(lamps):
+def _lamp_geometry_plausible(lamp, frame_h):
+  """Whether a coloured lamp looks like a mounted signal head, not a tail lamp.
+
+  Tail/brake lamps are the main false positive: a red patch in the lower frame
+  on a vehicle's rear. A real signal head is mounted above the road, so its
+  centre must sit above the lower-frame band. Only the *colour claim* is gated
+  - a failing lamp contributes no red/green, but its housing stays tracked as
+  unknown. Frame height drives the vertical check; without it (unknown
+  geometry) only the size floor applies.
+  """
+  x1, y1, x2, y2 = lamp.box
+  w, h = x2 - x1, y2 - y1
+  if w <= 0 or h <= 0:
+    return False
+  if not (LAMP_BOX_MIN_W <= w <= LAMP_BOX_MAX_W and LAMP_BOX_MIN_H <= h <= LAMP_BOX_MAX_H):
+    return False
+  if frame_h and frame_h > 0:
+    center_y = (y1 + y2) / 2.0
+    if center_y > LAMP_MAX_CENTER_Y_RATIO * float(frame_h):
+      return False
+  return True
+
+
+def _lamp_state(lamps, frame_h=0):
   """Colour evidence of a housing, or 'unknown'.
 
   One red and one green lamp in the same housing is a transition or a
   multi-lamp signal, not a colour read, so it stays unknown. Yellow and arrows
   are not colours the consumer can act on: a housing whose only lamp is yellow
-  is unknown, and an arrow never contributes a colour.
+  is unknown, and an arrow never contributes a colour. A lamp that fails the
+  mounted-head geometry test (vehicle tail lamp) is likewise not evidence.
   """
-  states = {LAMP_STATES[lamp.cls] for lamp in lamps if lamp.cls in LAMP_STATES}
+  states = {LAMP_STATES[lamp.cls] for lamp in lamps
+            if lamp.cls in LAMP_STATES and _lamp_geometry_plausible(lamp, frame_h)}
   if len(states) == 1:
     return states.pop()
   return 'unknown'
@@ -252,7 +308,7 @@ def detect(rgb, net, *, conf_threshold=CONF_THRESHOLD, nms_threshold=NMS_THRESHO
   detections = decode_output(output, left=left, top=top, net_w=net_w, net_h=net_h,
                              source_w=width, source_h=height,
                              conf_threshold=conf_threshold, nms_threshold=nms_threshold)
-  return group_housings(detections)
+  return group_housings(detections, frame_h=height)
 
 
 def lamp_evidence(observation):
@@ -286,7 +342,13 @@ def lamp_evidence(observation):
   red_score = 0.0
   green_score = 0.0
   quality = 0.0
+  frame_h = float(getattr(observation, 'frame_h', 0.0) or 0.0)
   for lamp in observation.lamps:
+    # The same mounted-head gate that decided the state: a tail lamp that was
+    # demoted to unknown must not keep supplying a high red score, or a
+    # consumer reading only red_score could still act on it.
+    if not _lamp_geometry_plausible(lamp, frame_h):
+      continue
     if lamp.cls == RED:
       red_score = max(red_score, float(lamp.conf))
     elif lamp.cls == GREEN:

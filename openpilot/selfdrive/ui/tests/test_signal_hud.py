@@ -43,6 +43,9 @@ class _FakeRL:
   def draw_rectangle_rounded(self, *_args):
     self.calls.append('box')
 
+  def draw_rectangle_rounded_lines_ex(self, *_args):
+    self.calls.append('boxline')
+
   def draw_text_ex(self, *_args):
     self.calls.append('text')
 
@@ -152,6 +155,50 @@ class TestYoloDot(unittest.TestCase):
     self.renderer._yolo_next_read = 0.
     self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})
     self.assertIsNone(self.renderer._yolo_state)
+
+
+class TestYoloBoxes(unittest.TestCase):
+  """Only a red/green housing is boxed; colourless (tail-lamp demoted) tracks
+  must never be drawn or labelled."""
+
+  def setUp(self):
+    self._orig_rl = signal_hud.rl
+    self._orig_measure = signal_hud.measure_text_cached
+    self._fake = _FakeRL()
+    signal_hud.rl = self._fake
+    signal_hud.measure_text_cached = lambda font, text, size, spacing=0: NS(x=10.0, y=10.0)
+    self.renderer = signal_hud.SignalHudRenderer.__new__(signal_hud.SignalHudRenderer)
+    self.renderer._font = None
+    self.renderer._brake_next_read = float('inf')
+    self.renderer._brake_candidate = False
+    self.renderer._yolo_next_read = float('inf')
+    self.renderer._yolo_reader = None
+    self.renderer._yolo_state = None
+    self.renderer._yolo_frame_size = (1344, 760)
+
+  def tearDown(self):
+    signal_hud.rl = self._orig_rl
+    signal_hud.measure_text_cached = self._orig_measure
+
+  def _render_tracks(self, tracks):
+    self.renderer._yolo_tracks = tracks
+    self.renderer.render(_rect(), {'longitudinalPlanSP': _plan(action=0)})
+
+  def test_unknown_track_draws_no_box(self):
+    # The tail-lamp case: a housing with a red lamp demoted to unknown.
+    self._render_tracks([{'box': [500., 560., 620., 600.], 'state': 'unknown', 'lamps': []}])
+    self.assertNotIn('boxline', self._fake.calls)
+    self.assertNotIn('text', self._fake.calls)
+
+  def test_red_track_draws_a_box_and_label(self):
+    self._render_tracks([{'box': [500., 180., 620., 220.], 'state': 'red', 'lamps': []}])
+    self.assertIn('boxline', self._fake.calls)
+    self.assertIn('text', self._fake.calls)
+
+  def test_yellow_track_draws_no_box(self):
+    # Yellow never reaches the control chain, so it is not boxed either.
+    self._render_tracks([{'box': [500., 180., 620., 220.], 'state': 'yellow', 'lamps': []}])
+    self.assertNotIn('boxline', self._fake.calls)
 
 
 class TestBrakeCaption(unittest.TestCase):

@@ -12,7 +12,7 @@ import numpy as np
 from openpilot.sunnypilot.carrot.signal_yolo_detector import (
   CLASSES, GREEN, HOUSING, INPUT_SIZE, LEFT, RED, RIGHT, YELLOW,
   Detection, HousingObservation, HousingTracker, decode_output, detect, group_housings,
-  resize_params, observation_record, valid_box,
+  lamp_evidence, resize_params, observation_record, valid_box,
 )
 
 
@@ -130,6 +130,64 @@ class TestGroupHousings(unittest.TestCase):
   def test_lamp_without_housing_is_dropped(self):
     dets = [Detection(RED, .8, (120., 120., 160., 160.))]
     self.assertEqual(group_housings(dets), [])
+
+
+class TestTailLampRejection(unittest.TestCase):
+  """Vehicle tail/brake lamps must never become a red signal claim.
+
+  The false positive in the field was a black car's rear lamp: a red patch low
+  in the frame that the network boxed as a red_light inside a housing. A real
+  head is mounted above the road (upper frame), so with the source frame
+  height supplied the colour claim is demoted to unknown while the housing
+  itself is retained for tracking/display.
+  """
+
+  FRAME_H = 760
+
+  def _housing_with_red(self, lamp_box, frame_h=FRAME_H):
+    x1, y1, x2, y2 = lamp_box
+    # A housing comfortably enclosing the lamp.
+    housing = (x1 - 8., y1 - 8., x2 + 8., y2 + 8.)
+    dets = [Detection(HOUSING, .9, housing), Detection(RED, .9, lamp_box)]
+    return group_housings(dets, frame_h=frame_h)[0]
+
+  def test_low_red_patch_is_demoted_to_unknown(self):
+    # Centred near y=600, deep in the lower third of a 760-tall frame.
+    obs = self._housing_with_red((560., 590., 640., 610.))
+    self.assertEqual(obs.state, 'unknown')
+    ev = lamp_evidence(obs)
+    self.assertEqual(ev['raw'], 'unknown')
+    self.assertEqual(ev['quality'], 0.0)
+    self.assertEqual(ev['red_score'], 0.0)
+
+  def test_high_red_head_is_accepted(self):
+    # Same lamp size/shape, but up on a gantry in the upper frame.
+    obs = self._housing_with_red((560., 180., 640., 200.))
+    self.assertEqual(obs.state, 'red')
+    ev = lamp_evidence(obs)
+    self.assertEqual(ev['raw'], 'red')
+    self.assertGreaterEqual(ev['quality'], 0.5)
+    self.assertEqual(ev['red_score'], .9)
+
+  def test_housing_survives_when_its_colour_is_rejected(self):
+    # The tail-lamp housing is still a tracked object, just colourless.
+    obs = self._housing_with_red((560., 590., 640., 610.))
+    self.assertEqual(len(obs.lamps), 1)
+    self.assertEqual(obs.lamps[0].cls, RED)
+
+  def test_vertical_gate_off_without_frame_height(self):
+    # Unknown geometry (frame_h=0) must not silently drop a colour; only the
+    # size floor applies, matching the pre-frame-height behaviour.
+    obs = self._housing_with_red((560., 590., 640., 610.), frame_h=0)
+    self.assertEqual(obs.state, 'red')
+
+  def test_near_stop_line_head_still_above_cutoff_passes(self):
+    # A low arm near the stop line can sit fairly low; 0.72 of the frame is the
+    # chosen boundary, so a centre exactly there is still admissible.
+    cy = 0.70 * self.FRAME_H
+    obs = self._housing_with_red((560., cy - 10., 640., cy + 10.))
+    self.assertEqual(obs.state, 'red')
+
 
 
 class TestObservationRecord(unittest.TestCase):
