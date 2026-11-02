@@ -10,7 +10,11 @@ import asyncio
 import subprocess
 from pathlib import Path
 
-import pytest
+try:
+  import pytest
+except ImportError:  # device has no pytest; skip instead of erroring the suite
+  import unittest
+  raise unittest.SkipTest('pytest is not available on this device')
 
 from openpilot.sunnypilot.carrot.server.services import git_status
 from openpilot.common import repo_update

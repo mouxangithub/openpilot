@@ -47,7 +47,7 @@ SHARED_WITH_CARROT = {
 # ended at @74 (a copy-pasted @95 actually broke the device build once — capnpc
 # aborts with "Skipped ordinal @75"). Lesson: cp's CarState ordinal space is
 # NOT ours; append from our own tail and never copy cp ordinals.
-CAR_STATE_LAST_ORDINAL = 90  # Wave 13: cp turn-signal fields @80-90 appended
+CAR_STATE_LAST_ORDINAL = 91  # Wave 13: cp turn-signal fields @80-90 + DM2 steeringTouch @91
 
 # The carrot-ported appends, pinned so a later edit cannot renumber them onto an
 # existing field (which would read as a wrong value rather than fail).

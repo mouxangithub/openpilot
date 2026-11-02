@@ -3,7 +3,11 @@ a single write does, so a not-yet-registered key is not flagged as an error.
 
 This was the cause of the "오류 3" that appeared on every profile apply.
 """
-import pytest
+try:
+  import pytest
+except ImportError:  # device has no pytest; skip instead of erroring the suite
+  import unittest
+  raise unittest.SkipTest('pytest is not available on this device')
 
 from openpilot.sunnypilot.carrot.server.services import params as params_service
 

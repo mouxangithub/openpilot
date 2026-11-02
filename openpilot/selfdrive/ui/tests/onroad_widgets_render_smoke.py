@@ -93,12 +93,17 @@ sys.modules['openpilot.system.ui.lib.shader_polygon'] = types.SimpleNamespace(
 # cereal: the real capnp modules import fine on a PC; only msgq is missing, and
 # that is stubbed below for pip_sidecam.
 
-# common.hardware pulls fcntl (POSIX-only); the HUD only needs get_device_type
+# common.hardware pulls fcntl (POSIX-only); the HUD only needs get_device_type.
+# models.helpers additionally imports openpilot.common.hardware.hw.Paths
+# (only model_root is consumed), so expose it as a submodule of the fake.
 _hw_mod = _harness._FakeModule('openpilot.common.hardware')
 _hw_mod.HARDWARE = SimpleNamespace(get_device_type=lambda: 'pc')
 _hw_mod.COMMA_HARDWARE = SimpleNamespace()
 _hw_mod.PC = True
+_hw_hw = _harness._FakeModule('openpilot.common.hardware.hw')
+_hw_hw.Paths = SimpleNamespace(model_root=lambda: str(REPO_ROOT / '.smoke_models'))
 sys.modules['openpilot.common.hardware'] = _hw_mod
+sys.modules['openpilot.common.hardware.hw'] = _hw_hw
 
 # msgq visionipc: pip_sidecam's transport; the fake client never connects
 # (faithful to Lite hardware, which has no driver camera to publish it).

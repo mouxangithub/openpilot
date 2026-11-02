@@ -4,7 +4,11 @@ int(float(v)) turns 14.999 into 14, which would surface as a setting that
 reads one lower than the one that was saved -- the exact symptom this work
 started from.
 """
-import pytest
+try:
+  import pytest
+except ImportError:  # device has no pytest; skip instead of erroring the suite
+  import unittest
+  raise unittest.SkipTest('pytest is not available on this device')
 
 from openpilot.sunnypilot.carrot.server.services.params import _to_int
 

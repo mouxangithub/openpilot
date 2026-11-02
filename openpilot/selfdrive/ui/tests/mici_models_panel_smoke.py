@@ -71,9 +71,9 @@ def main() -> int:
   def options_present():
     layout = ModelsLayoutMici()
     opts = layout._options
-    for name in ("lane_center", "lane_turn", "lane_turn_speed", "live_delay", "steer_delay", "camera_offset"):
+    for name in ("lane_center", "lane_turn", "small_steering", "steer_delay", "camera_offset"):
       assert hasattr(opts, name), f"ModelOptions has no {name}"
-    assert len(opts.items) == 5, f"expected five option rows, got {len(opts.items)}"
+    assert len(opts.items) == 3, f"expected three option rows, got {len(opts.items)}"
 
   check("ModelOptions carries every option", options_present)
 
