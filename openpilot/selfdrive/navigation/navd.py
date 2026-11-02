@@ -11,7 +11,7 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper
 from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.navigation.destination_store import RECENT_DESTINATIONS_KEY, update_recent_destinations
-from openpilot.selfdrive.navigation.helpers import latest_gps_source
+from openpilot.selfdrive.navigation.helpers import latest_gps_source, parse_destination_coordinate
 from openpilot.selfdrive.navigation.route import along_path, local_meters
 
 REROUTE_DISTANCE = 25
@@ -79,12 +79,13 @@ class RouteEngine:
       return
 
     destination = self.params.get("NavDestination")
-    if destination is None:
+    parsed = parse_destination_coordinate(destination)
+    if destination is None or parsed is None:
       self.last_recorded_destination = None
       self.clear_route()
       self.recompute_hold = 0
       return
-    new_destination = (destination['longitude'], destination['latitude'])
+    new_destination = parsed
 
     # A newly set destination: record it into the recents list. Must never break routing.
     if new_destination != self.nav_destination:

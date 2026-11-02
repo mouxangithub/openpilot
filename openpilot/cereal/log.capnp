@@ -1293,6 +1293,13 @@ struct LongitudinalPlan @0xe00b5b3eba12876c {
   allowBrake @39: Bool;
   accelBoost @40 :Float32;
 
+  # Carrot planner state mirror (cp parity, renumbered): lets side processes
+  # (dmonitoringd stationary-pause, UI) see the stop reasoning without a
+  # second channel. xState follows carrot XState, trafficState follows carrot
+  # TrafficState; vTargetNow is the planner's current commanded target speed.
+  xState @41 :Int32;
+  trafficState @42 :Int32;
+  vTargetNow @43 :Float32;
 
   solverExecutionTime @35 :Float32;
 

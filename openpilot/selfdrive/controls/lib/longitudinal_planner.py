@@ -87,6 +87,7 @@ def get_cruise_accel(e2e, v_cruise, v_ego, a_cruise_prev, angle_steers, CP, dt, 
 
 from openpilot.sunnypilot.common.param_read import read_bool
 from openpilot.sunnypilot.selfdrive.controls.lib.lane_change_close_gap import LaneChangeCloseGap
+from openpilot.sunnypilot.selfdrive.controls.lib.lane_change_merge_floor import get_lane_change_merge_accel_floor
 
 
 class LongitudinalPlanner(LongitudinalPlannerSP):
@@ -120,6 +121,9 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     # Absolute lane-change headway (default off until the key is registered;
     # read fault-tolerantly so an unregistered key cannot kill the planner).
     self.lane_change_close_gap_enabled = read_bool(self._params, "LaneChangeCloseGapEnabled")
+    # StarPilot lane-change merge assist (default off until the key is
+    # registered; read fault-tolerantly like close_gap).
+    self.lane_change_merge_assist_enabled = read_bool(self._params, "LaneChangeMergeAssistEnabled")
     self._lc_close_gap = LaneChangeCloseGap(dt=dt)
 
     self.v_desired_filter = FirstOrderFilter(init_v, 2.0, self.dt)
@@ -367,6 +371,7 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     if self._policy_frame % 20 == 0:
       self.lead_follow_policy_enabled = self._params.get_bool("LeadFollowPolicyEnabled")
       self.lane_change_close_gap_enabled = read_bool(self._params, "LaneChangeCloseGapEnabled")
+      self.lane_change_merge_assist_enabled = read_bool(self._params, "LaneChangeMergeAssistEnabled")
       self.traffic_stop_profile_enabled = self._params.get_bool("CarrotTrafficStopProfileEnabled")
     if self.lead_follow_policy_enabled and self.mpc.source in (LongitudinalPlanSource.lead0, LongitudinalPlanSource.lead1):
       follow_result = apply_follow_policy(
@@ -408,6 +413,26 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
       stop_result = self._stop_depart_policy.apply(stop_ctx)
       self.output_a_target = float(np.clip(stop_result.a_target, ACCEL_MIN, ACCEL_MAX))
       self.output_should_stop = stop_result.should_stop
+
+    # StarPilot lane-change merge assist (default off): while merging around a
+    # lead we are about to leave, cap braking for that lead and optionally add
+    # a mild acceleration bias. Never applied when a stop is commanded or
+    # force decel is active, so stops keep full authority.
+    if self.lane_change_merge_assist_enabled and not (force_decel or self.output_should_stop):
+      lead_one = sm['radarState'].leadOne
+      merge_floor = get_lane_change_merge_accel_floor(
+        v_ego=v_ego, standstill=bool(sm['carState'].standstill),
+        brake_pressed=bool(sm['carState'].brakePressed),
+        blindspot_left=bool(sm['carState'].leftBlindspot),
+        blindspot_right=bool(sm['carState'].rightBlindspot),
+        lane_change_state=int(sm['modelV2'].meta.laneChangeState),
+        direction=int(sm['modelV2'].meta.laneChangeDirection),
+        lead_status=bool(lead_one.status), lead_d_rel=float(lead_one.dRel),
+        lead_v_lead=float(lead_one.vLead),
+        allow_throttle=bool(self.allow_throttle), v_cruise=float(v_cruise),
+        action_t=float(action_t), dt=float(self.dt))
+      if merge_floor is not None:
+        self.output_a_target = float(np.clip(max(self.output_a_target, merge_floor), ACCEL_MIN, ACCEL_MAX))
 
     # sunnypilot: geometric red-light pre-deceleration runs after the final
     # arbitration so its gentle cap cannot be overwritten. A no-op unless the
@@ -460,6 +485,19 @@ class LongitudinalPlanner(LongitudinalPlannerSP):
     longitudinalPlan.shouldStop = bool(self.output_should_stop)
     longitudinalPlan.allowBrake = True
     longitudinalPlan.allowThrottle = bool(self.allow_throttle)
+
+    # Carrot state mirror (getattr-tolerant so minimal test stand-ins that
+    # bypass __init__ keep publishing). xState/trafficState follow carrot's
+    # XState/TrafficState ordinals; vTargetNow is the commanded target speed.
+    carrot_planner = getattr(getattr(self, 'carrot_source', None), 'carrot', None)
+    x_state = getattr(carrot_planner, 'x_state', 0)
+    x_state = int(getattr(x_state, 'value', x_state) or 0)
+    traffic_state = getattr(carrot_planner, 'traffic_state', 0)
+    traffic_state = int(getattr(traffic_state, 'value', traffic_state) or 0)
+    longitudinalPlan.xState = x_state
+    longitudinalPlan.trafficState = traffic_state
+    v_trajectory = getattr(self, 'v_desired_trajectory', None)
+    longitudinalPlan.vTargetNow = float(v_trajectory[0]) if v_trajectory is not None and len(v_trajectory) else 0.0
 
     pm.send('longitudinalPlan', plan_send)
 

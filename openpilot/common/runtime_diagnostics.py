@@ -7,8 +7,12 @@ import time
 
 
 class RuntimeDiagnostics:
-  def __init__(self, component, emit, interval=1.0):
+  def __init__(self, component, emit, interval=1.0, *, peak_metric=None):
     self.component, self.emit, self.interval = component, emit, interval
+    # When set, the full record() call with the highest value of this metric
+    # is carried to the emit as peak_sample: one owned, correlated frame
+    # instead of independently selected per-metric maxima (cp parity).
+    self.peak_metric, self.peak_sample = peak_metric, None
     self.started = time.monotonic()
     self.samples = {}
     self.frames = 0
@@ -34,6 +38,12 @@ class RuntimeDiagnostics:
         total, maximum, count = self.samples.get(name, (0.0, float('-inf'), 0))
         self.samples[name] = (total + value, max(maximum, value), count + 1)
     now = time.monotonic()
+    if self.peak_metric is not None:
+      value = values.get(self.peak_metric, float('nan'))
+      if math.isfinite(value) and (self.peak_sample is None or value > self.peak_sample['metrics'][self.peak_metric]):
+        # One owned, correlated frame, not independently selected phase maxima.
+        self.peak_sample = {'mono_time': now, 'context': dict(context or {}),
+                            'metrics': {k: v for k, v in values.items() if math.isfinite(v)}}
     if now - self.started < self.interval:
       return
     metrics = {k: {'mean': round(s / n, 3), 'max': round(mx, 3), 'count': n}
@@ -46,11 +56,13 @@ class RuntimeDiagnostics:
                    'timeslices': sched[2] - self.sched_prev[2]}
     self.sched_prev = sched
     seconds, frames = now - self.started, self.frames
+    peak = {'peak_sample': self.peak_sample} if self.peak_sample is not None else {}
+    self.peak_sample = None
     self.started, self.frames, self.samples = now, 0, {}
     try:
       self.emit('runtimeTiming', component=self.component, pid=os.getpid(), mono_time=now,
                 seconds=round(seconds, 3), frames=frames, metrics=metrics, scheduler=scheduler,
-                schedstats_enabled=self.schedstats_enabled, **(context or {}))
+                schedstats_enabled=self.schedstats_enabled, **(context or {}), **peak)
     except Exception:
       # A logging failure must not interrupt model inference or control planning.
       pass

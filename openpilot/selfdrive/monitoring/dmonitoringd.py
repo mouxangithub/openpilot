@@ -40,6 +40,68 @@ def soft_hold_pause_eligible(sm, now, demo=False):
   )
 
 
+def stationary_pause_eligible(sm, now, demo=False):
+  """Pause assessment while the car is held stopped by openpilot itself.
+
+  Ported from cp dm2d.py::stationary_pause_eligible. A soft hold (the
+  vehicle's own standstill brake) qualifies first; otherwise two confirmed
+  stops do: (a) an E2E red-light stop the planner has settled into, and
+  (b) a stationary lead ahead the planner is stopping behind. Assessment
+  pauses, not the camera; every uncertain or stale input fails closed.
+  """
+  if soft_hold_pause_eligible(sm, now, demo):
+    return True
+  services = ['carState', 'selfdriveState', 'carControl', 'longitudinalPlan']
+  if demo:
+    return False
+  if not sm.all_checks(services):
+    return False
+  if not all(0 <= now - sm.recv_time[s] <= SOFT_HOLD_MAX_AGE_S for s in services):
+    return False
+  cs = sm['carState']
+  state = sm['selfdriveState']
+  cc = sm['carControl']
+  plan = sm['longitudinalPlan']
+
+  v_ego, v_ego_raw = float(cs.vEgo), float(cs.vEgoRaw)
+  stopped = (cs.canValid and cs.standstill and not cs.gasPressed and
+             cs.gearShifter in (car.CarState.GearShifter.drive, car.CarState.GearShifter.low) and
+             math.isfinite(v_ego) and math.isfinite(v_ego_raw) and
+             abs(v_ego) < SOFT_HOLD_SPEED_MPS and abs(v_ego_raw) < SOFT_HOLD_SPEED_MPS)
+  if not stopped:
+    return False
+
+  long_stopping = getattr(cc.actuators, 'longControlState', None)
+  v_target_now = getattr(plan, 'vTargetNow', float('nan'))
+  try:
+    v_target_now = float(v_target_now)
+  except (TypeError, ValueError):
+    return False
+  if not (state.enabled and state.active and cc.longActive and
+          long_stopping == car.CarControl.Actuators.LongControlState.stopping and
+          math.isfinite(v_target_now) and 0 <= v_target_now < SOFT_HOLD_SPEED_MPS):
+    return False
+
+  # Planner mirror ordinals: XState.e2eStopped == 5, TrafficState.red == 1.
+  x_state = int(getattr(plan, 'xState', 0) or 0)
+  traffic_state = int(getattr(plan, 'trafficState', 0) or 0)
+  if x_state == 5 and traffic_state == 1:
+    return True
+  # Stationary lead: XState.lead == 0 and a radar lead present.
+  if x_state != 0 or not bool(getattr(plan, 'hasLead', False)):
+    return False
+  if not sm.all_checks(['radarState']) or not (0 <= now - sm.recv_time['radarState'] <= SOFT_HOLD_MAX_AGE_S):
+    return False
+  radar = sm['radarState']
+  radar_errors = radar.radarErrors.to_dict() if hasattr(radar.radarErrors, 'to_dict') else {}
+  if any(radar_errors.values()):
+    return False
+  lead = radar.leadOne
+  lead_d_rel, lead_v_lead = float(lead.dRel), float(lead.vLead)
+  return (bool(lead.status) and math.isfinite(lead_d_rel) and 0 < lead_d_rel <= 40 and
+          math.isfinite(lead_v_lead) and abs(lead_v_lead) < SOFT_HOLD_SPEED_MPS)
+
+
 def soft_hold_state_packet(monitor, valid=True):
   """Publish a normal-cadence packet that carries no DM penalty.
 
@@ -74,7 +136,7 @@ def dmonitoringd_thread():
   params = Params()
   pm = messaging.PubMaster(['driverMonitoringState'])
   sm = messaging.SubMaster(['driverStateV2', 'extrinsicsCalibration', 'carState', 'selfdriveState', 'modelV2',
-                            'carControl'], poll='driverStateV2')
+                            'carControl', 'longitudinalPlan', 'radarState'], poll='driverStateV2')
 
   DM = DriverMonitoring(
     rhd_saved=params.get_bool("IsRhdDetected"),
@@ -91,7 +153,7 @@ def dmonitoringd_thread():
       continue
 
     valid = sm.all_checks()
-    if soft_hold_pause_eligible(sm, time.monotonic(), demo_mode):
+    if stationary_pause_eligible(sm, time.monotonic(), demo_mode):
       # Normal cadence, no run_step(): awareness and the alert/lockout counters
       # stay frozen. Neither enable Param is written and the parked state is
       # not reset, so leaving the hold resumes exactly where it stopped.
