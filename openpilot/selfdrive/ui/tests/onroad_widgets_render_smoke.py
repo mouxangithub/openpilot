@@ -100,10 +100,22 @@ _hw_mod = _harness._FakeModule('openpilot.common.hardware')
 _hw_mod.HARDWARE = SimpleNamespace(get_device_type=lambda: 'pc')
 _hw_mod.COMMA_HARDWARE = SimpleNamespace()
 _hw_mod.PC = True
+class _StubPaths:
+  """Any Paths.<x>() resolves to a scratch path under REPO_ROOT."""
+  def __getattr__(self, name):
+    target = REPO_ROOT / '.smoke_paths' / name
+    return lambda: target
+
 _hw_hw = _harness._FakeModule('openpilot.common.hardware.hw')
-_hw_hw.Paths = SimpleNamespace(model_root=lambda: str(REPO_ROOT / '.smoke_models'))
+_hw_hw.Paths = _StubPaths()
+# modeld.helpers also imports the chestnut usb probe; stub it off (no chestnut on PC)
+_hw_usb = _harness._FakeModule('openpilot.common.hardware.usb')
+_hw_usb.CHESTNUT_USB_PRODUCT = 'custom stub-CLEAN'
+_hw_usb.USB_DEVICES_PATH = REPO_ROOT / '.smoke_no_usb'
+_hw_usb.is_chestnut_usb_id = lambda *vendor_product, include_bootloader=False: False
 sys.modules['openpilot.common.hardware'] = _hw_mod
 sys.modules['openpilot.common.hardware.hw'] = _hw_hw
+sys.modules['openpilot.common.hardware.usb'] = _hw_usb
 
 # msgq visionipc: pip_sidecam's transport; the fake client never connects
 # (faithful to Lite hardware, which has no driver camera to publish it).
