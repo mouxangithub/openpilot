@@ -166,7 +166,7 @@ class DPathRadarD:
       v_ego=float(sm["carState"].vEgo),
       radar_points=rr.points,
       model=sm["modelV2"],
-      yaw_rate_rad_s=_yaw_rate(sm["deviceMotion"]),
+      yaw_rate_rad_s=_yaw_rate(sm["deviceMotion"] if sm.seen.get("deviceMotion") else None),
       radar_to_model_time_s=model_time_s - radar_time_s,
     )
     _assign_lead(self.radar_state.leadOne, output.lead_one)
@@ -229,6 +229,12 @@ def main() -> None:
   while True:
     sm.update()
     if sm.updated["modelV2"]:
+      # liveTracks is published by radarcan and is not on the modelV2 poll, so
+      # on a cold boot its first frame can lag. Indexing it unguarded raised
+      # KeyError and crashed radard_dpath, dropping radarState into a comm
+      # issue. Skip the tick until radarcan has published at least once.
+      if not sm.seen.get("liveTracks"):
+        continue
       start, cpu_start = time.monotonic(), time.thread_time()
       radar.update(sm, sm["liveTracks"])
       radar.publish(pm)

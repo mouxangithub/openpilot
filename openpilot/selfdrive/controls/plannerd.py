@@ -62,7 +62,12 @@ def main():
 
   while True:
     sm.update()
-    longitudinal_planner.sla.update_buttons(sm['selfdriveStateSP'].buttonsReleaseToggle)
+    # selfdriveStateSP is not on the modelV2 poll, so on a cold boot its first
+    # frame can lag. Indexing it unguarded raised KeyError and crashed
+    # plannerd before its first tick; there is simply no button state to relay
+    # until it has published once.
+    if sm.seen.get('selfdriveStateSP'):
+      longitudinal_planner.sla.update_buttons(sm['selfdriveStateSP'].buttonsReleaseToggle)
     if fast_radar_enabled and sm.updated.get('radarState'):
       fast_radar.observe_radar_state(
         sm['radarState'], sm.logMonoTime['radarState'],
