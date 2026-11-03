@@ -48,7 +48,12 @@ rm -f panda/board/obj/panda.bin.signed
 rm -f panda/board/obj/panda_h7.bin.signed
 
 # Release branch must not contain LFS pointers; strip LFS tracking and commit files as regular content.
-sed -i '/filter=lfs/d' .gitattributes
+# release_files.py deliberately excludes .gitattributes from the stripped tree, so it is
+# normally absent here; only edit it when a previous step (e.g. setup_lfs with
+# INCLUDE_BIG_MODEL) actually created one. A bare `sed` on a missing file aborts under `set -e`.
+if [ -f .gitattributes ]; then
+  sed -i '/filter=lfs/d' .gitattributes
+fi
 
 source "$SOURCE_DIR/tools/release/setup_lfs.sh"
 

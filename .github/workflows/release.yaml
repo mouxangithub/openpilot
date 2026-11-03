@@ -2,14 +2,14 @@ name: 打包预编译分支
 
 on:
   push:
-    branches: [ master-c3, tn-c3 ]
+    branches: [ master-c3, test ]
   workflow_dispatch:
     inputs:
       source_branch:
         description: Source branch to strip and publish
         required: true
         type: choice
-        options: [ master-c3, tn-c3 ]
+        options: [ master-c3, test ]
 
 permissions:
   contents: write
@@ -36,7 +36,7 @@ jobs:
           fi
           case "$SRC" in
             master-c3) TGT=master-c3-prebuild ;;
-            tn-c3) TGT=tn-c3-prebuild ;;
+            test) TGT=test-prebuild ;;
             *)
               echo "Unsupported branch: $SRC"
               exit 1

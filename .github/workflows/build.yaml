@@ -11,7 +11,7 @@ env:
 
 on:
   push:
-    branches: [ master-c3-prebuild, tn-c3-prebuild ]
+    branches: [ master-c3-prebuild, test-prebuild ]
     tags: [ 'release/*' ]
   workflow_run:
     workflows: ["打包预编译分支"]
