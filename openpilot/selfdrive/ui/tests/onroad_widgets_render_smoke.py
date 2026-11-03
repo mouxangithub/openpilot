@@ -242,10 +242,10 @@ SM_VALUES = {
 class FakeSubMaster:
   def __init__(self):
     self._values = dict(SM_VALUES)
-    self.valid = {k: True for k in self._values}
-    self.recv_frame = {k: 10 for k in self._values}
-    self.updated = {k: False for k in self._values}
-    self.alive = {k: True for k in self._values}
+    self.valid = dict.fromkeys(self._values, True)
+    self.recv_frame = dict.fromkeys(self._values, 10)
+    self.updated = dict.fromkeys(self._values, False)
+    self.alive = dict.fromkeys(self._values, True)
     self.seen = {}
     self.frame = 100
 
@@ -308,14 +308,14 @@ sys.modules['openpilot.selfdrive.ui.ui_state'] = _ui_mod
 # Imports under test (after stubbing)
 # ---------------------------------------------------------------------------
 
-from openpilot.selfdrive.ui.sunnypilot.onroad import (  # noqa: E402
+from openpilot.selfdrive.ui.sunnypilot.onroad import (
   developer_sidebar, personality_button, pip_sidecam, source_bubble_layout,
   speed_source_drawer, stopping_point, torque_bar,
 )
-from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import (  # noqa: E402
-  EXP_BUTTON_SIZE, HudRendererSP,
+from openpilot.selfdrive.ui.sunnypilot.onroad.hud_renderer import (
+  HudRendererSP,
 )
-from openpilot.selfdrive.ui.ui_state import ui_state  # noqa: E402  (the fake)
+from openpilot.selfdrive.ui.ui_state import ui_state
 
 PANEL = _harness.Rect(0, 0, 2160, 1080)
 
