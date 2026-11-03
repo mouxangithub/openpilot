@@ -8,4 +8,4 @@ import os
 from openpilot.common.hardware import AGNOS, COMMA_HARDWARE, PC, HARDWARE  # noqa: F401
 
 # Legacy carrot flag: only true on tici/tizi boards, never on AGNOS devices.
-TICI = os.path.isfile('/TICI')  # noqa: F401
+TICI = os.path.isfile('/TICI')
