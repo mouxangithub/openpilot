@@ -89,6 +89,7 @@ class _FakeSM:
                v_ego: float = 15.0, left_blindspot: bool = False, right_blindspot: bool = False,
                lane_change_state: int = 0, lead_one: Any = None, lead_two: Any = None,
                pose: _FakePose | None = None, valid: bool = True, alive: bool = True,
+               pose_present: bool = True,
                now_ns: int = 1_000_000_000) -> None:
     self._now_ns = now_ns
     car_state = SimpleNamespace(
@@ -114,13 +115,16 @@ class _FakeSM:
       "carState": car_state,
       "modelV2": model,
       "radarState": radar,
-      "deviceMotion": pose if pose is not None else _FakePose(),
     }
     self.logMonoTime = {
       "modelV2": now_ns,
       "radarState": now_ns,
-      "deviceMotion": now_ns,
     }
+    # deviceMotion is subscribed but not on plannerd's poll list, so its first
+    # frame can lag the others during startup; pose_present=False reproduces it.
+    if pose_present:
+      self._data["deviceMotion"] = pose if pose is not None else _FakePose()
+      self.logMonoTime["deviceMotion"] = now_ns
     self.valid = dict.fromkeys(self._data, valid)
     self.alive = dict.fromkeys(self._data, alive)
 
@@ -275,6 +279,28 @@ class TestCarrotPlannerLaneChangeGap(unittest.TestCase):
     planner._update_lane_change_gap(sm)
     assert planner.lane_change_active is True
     assert planner.lane_change_gap.active is True
+    assert planner.lane_change_gap.reason == "invalid-input"
+
+  def test_missing_pose_does_not_crash_plannerd(self) -> None:
+    # Regression: deviceMotion is subscribed but not polled, so on a fresh
+    # boot its first frame can lag modelV2/carState. sm["deviceMotion"] raised
+    # KeyError and took plannerd down (longitudinalPlan comm issue). It must
+    # degrade to an inactive/invalid plan instead.
+    planner = self._planner()
+    planner.lane_change_active = True
+    sm = _FakeSM(left_blinker=True, right_blinker=False, lane_change_state=1,
+                 pose_present=False)
+    planner._update_lane_change_gap(sm)  # must not raise
+    assert planner.lane_change_gap.active is True
+    assert planner.lane_change_gap.reason == "invalid-input"
+
+  def test_model_desire_missing_pose_does_not_crash(self) -> None:
+    # Same race reached through the normal entry point, _update_model_desire.
+    planner = self._planner()
+    sm = _FakeSM(left_blinker=True, right_blinker=False, lane_change_state=1,
+                 pose_present=False)
+    planner._update_model_desire(sm)  # must not raise
+    assert planner.lane_change_active is True
     assert planner.lane_change_gap.reason == "invalid-input"
 
   def test_desire_wiring_in_model_desire(self) -> None:

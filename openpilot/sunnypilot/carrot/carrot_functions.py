@@ -929,7 +929,13 @@ class CarrotPlanner:
     valid = all(key in sm.valid and sm.alive[key] and sm.valid[key]
                 for key in ("carState", "modelV2", "radarState"))
     valid = valid and abs(now_ns - int(sm.logMonoTime["radarState"])) <= 200_000_000
-    if not valid or direction == 0:
+    # deviceMotion is subscribed but not on the poll list, so its first frame
+    # can lag modelV2/carState during startup (notably a fresh first install).
+    # Gate on the alive/valid dicts (safe for a not-yet-seen service, unlike a
+    # direct sm["deviceMotion"] which raised KeyError and took plannerd down,
+    # dropping longitudinalPlan into a comm issue).
+    have_pose = bool(sm.alive.get("deviceMotion")) and bool(sm.valid.get("deviceMotion"))
+    if not valid or direction == 0 or not have_pose:
       self._lane_change_tracker.reset()
       self.lane_change_gap = LaneChangeGapPlan(
         active=self.lane_change_active,
