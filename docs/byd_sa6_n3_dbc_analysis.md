@@ -84,3 +84,18 @@ DBC 只写"校验和"注释（GBK 乱码），无算法描述。Counter@52/Check
 1. **验证**了现有角度控制/ACC/HUD 指令契约在 BYD 新平台上是延续的（同 ID、核心布局同源）——现有端口架构方向正确。
 2. **预警**了 0x32E ACC_Mode 位移这一实质差异（N3 车型若混入现有平台组，这是第一排查点）。
 3. **铺好**了 N3 平台接入的完整信号地图（车速/转向/踏板/挡位/IMU/雷达全部有干净来源），待实车日志即可开工。
+
+## 6. 实现状态（2026-11-03 更新：v1 已落地）
+
+opendbc 侧 N3 平台 v1 已实现并推送（opendbc 仓 `0f8ee3b9f`）：
+
+- `opendbc/dbc/byd_n3_pt.dbc`：19 报文子集（原文提取，VAL_ 枚举保留）
+- `values.py`：`BYD_SA6_N3` 平台 + `PLATFORM_N3` + `BydSafetyFlags.N3=0x800`（wheelbase/steerRatio 占位）
+- `carstate.py`：`_update_n3`（真实轮速免 dashspeed 修正 / EPS 物理扭矩 / VCU 踏板+挡位枚举 / SWS 按键 / ACC_Mode_Display 状态）
+- `bydcan.py`+`carcontroller.py`：`n3_angle_control`（0x1E2，AngleReq_St 2bit）+ `n3_acc_cmd`（0x32E 新布局）
+- `radar_interface.py`：MRR 0x640-0x647 目标簇列表解析（8 目标/帧，0x66E 计数）
+- `interface.py`：N3 分支（角度控制 / pcmCruise / MRR 雷达）
+- `safety/modes/byd.h`：N3 平台（rx 位精确提取 / tx 角度校验 / fwd 接管超时 / counter 校验：0x1E2+0x32D @52、0x32E @48；checksum 校验暂关待实车验证 0xAF 算法）
+
+**PC 已验证**：cantools strict 解析、CANParser 构造、carstate 空数据 update、控制器构造、0x1E2/0x32E 字节级 packer round-trip（角度/扭矩限幅/ACC offset -7/Counter/Checksum 逐位核对）。
+**待实车**：scons 编译 + safety 测试 + test_car_interfaces（依赖 libparams/safety 原生库）、0xAF checksum 算法确认、真实指纹（fingerprints.py 暂无条目）、wheelbase/steerRatio 实测、CAN FD 总线拓扑确认（当前假设 bus0=车控/底盘、bus2=ADAS 域）。
