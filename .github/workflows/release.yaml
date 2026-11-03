@@ -67,4 +67,26 @@ jobs:
       - name: 推送精简源码分支
         env:
           BRANCH: ${{ needs.plan.outputs.target }}
+          # 固定 TARGET_DIR（脚本未设置时会 mktemp 随机目录），供下一步 CNB 发布复用精简树。
+          # 必须放在 runner.temp（repo 工作区外）：脚本里的 git clean -xdff 会清掉 repo 内的未跟踪目录。
+          TARGET_DIR: ${{ runner.temp }}/stripped
         run: ./tools/release/build_stripped.sh
+
+      - name: 同步发布到 CNB 镜像仓库
+        env:
+          BRANCH: ${{ needs.plan.outputs.target }}
+          TARGET_DIR: ${{ runner.temp }}/stripped
+          CNB_REPO: cnb.cool/mouxancnb/openpilot.git
+          CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+        run: |
+          if [ -z "${CNB_TOKEN:-}" ]; then
+            echo "::warning::CNB_TOKEN secret 未配置，跳过 CNB 镜像发布"
+            exit 0
+          fi
+          cd "$TARGET_DIR"
+          # CNB https 推送认证：用户名固定为 cnb，token 作为密码
+          git remote add cnb "https://cnb:${CNB_TOKEN}@${CNB_REPO}"
+          # 与 build_stripped.sh 推 GitHub 的参数一致：精简树无 LFS 对象，跳过 LFS 钩子并关闭压缩
+          GIT_LFS_SKIP_PUSH=1 git -c pack.window=0 -c pack.depth=0 -c pack.compression=0 \
+            push -f cnb "tmp:${BRANCH}" --no-verify
+          echo "CNB 镜像已更新: https://${CNB_REPO%.git}/-/tree/${BRANCH}"
