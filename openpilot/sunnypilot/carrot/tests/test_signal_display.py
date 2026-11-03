@@ -3,14 +3,14 @@ try:
   import pytest
 except ImportError:  # device has no pytest; skip instead of erroring the suite
   import unittest
-  raise unittest.SkipTest('pytest is not available on this device')
+  raise unittest.SkipTest('pytest is not available on this device') from None
 
 from openpilot.sunnypilot.carrot.signal_display import SignalDisplayReader, publish_display, visible_tracks, project_box
 
 
 def record():
-  return dict(version=1, stream='road', size=[1344, 760], frame_id=20, timestamp=10., session='worker',
-              tracks=[dict(id=3, box=[600, 200, 640, 215], state='red', raw='red', age=0.)])
+  return {'version': 1, 'stream': 'road', 'size': [1344, 760], 'frame_id': 20, 'timestamp': 10., 'session': 'worker',
+              'tracks': [{'id': 3, 'box': [600, 200, 640, 215], 'state': 'red', 'raw': 'red', 'age': 0.}]}
 
 
 CAMERA = (22, 10.1, 1344, 760, False)
@@ -45,11 +45,12 @@ def test_remembered_green_does_not_override_missing_or_red_current_evidence():
   assert track['state'] == 'red' and not track['confirmed']
 
 
-@pytest.mark.parametrize('change', [dict(timestamp=9.8), dict(timestamp=11), dict(timestamp=float('nan')),
-                                  dict(stream='wide'), dict(size=[1928, 1208]), dict(frame_id=5),
-                                  dict(version=2), dict(tracks=None), dict(session=None)])
+@pytest.mark.parametrize('change', [{'timestamp': 9.8}, {'timestamp': 11}, {'timestamp': float('nan')},
+                                  {'stream': 'wide'}, {'size': [1928, 1208]}, {'frame_id': 5},
+                                  {'version': 2}, {'tracks': None}, {'session': None}])
 def test_stale_wrong_camera_or_invalid_records_are_hidden(change):
-  r = record(); r.update(change)
+  r = record()
+  r.update(change)
   assert visible_tracks(r, 10.2, CAMERA) == ()
 
 
@@ -59,10 +60,11 @@ def test_wrong_or_stale_displayed_image_hides_boxes(camera):
   assert visible_tracks(record(), 10.2, camera) == ()
 
 
-@pytest.mark.parametrize('change', [dict(age=.05), dict(box=[-1, 0, 30, 10]), dict(box=[0, 0, 10, 800]),
-                                  dict(box=[2, 0, 1, 10]), dict(box=[0, 0, float('nan'), 10]), dict(id='oops')])
+@pytest.mark.parametrize('change', [{'age': .05}, {'box': [-1, 0, 30, 10]}, {'box': [0, 0, 10, 800]},
+                                  {'box': [2, 0, 1, 10]}, {'box': [0, 0, float('nan'), 10]}, {'id': 'oops'}])
 def test_lost_invalid_or_out_of_frame_boxes_are_hidden(change):
-  r = record(); r['tracks'][0].update(change)
+  r = record()
+  r['tracks'][0].update(change)
   assert visible_tracks(r, 10.2, CAMERA) == ()
 
 
@@ -89,9 +91,10 @@ def test_reader_expires_even_when_file_does_not_change_and_handles_invalid_data(
 
 
 def test_display_has_separate_endpoint_and_no_control_fields(tmp_path):
-  r = record(); t = r['tracks'][0]
-  source = dict(tracks=[dict(t, evidence={'raw':'red'})], frame_id=20, timestamp_eof=10_000_000_000,
-                session='worker', revalidated=True, daytime_comparison=True)
+  r = record()
+  t = r['tracks'][0]
+  source = {'tracks': [dict(t, evidence={'raw':'red'})], 'frame_id': 20, 'timestamp_eof': 10_000_000_000,
+                'session': 'worker', 'revalidated': True, 'daytime_comparison': True}
   path = tmp_path/'display.json'
   publish_display(source, path=path)
   out = json.loads(path.read_text())
@@ -105,7 +108,8 @@ def test_renderer_status_is_bounded_and_display_only(tmp_path):
   path = tmp_path/'status'
   reader.record_draw(CAMERA, 2, path=path, now=10.)
   assert not path.exists()
-  reader.enabled = True; reader.record = record()
+  reader.enabled = True
+  reader.record = record()
   reader.record_draw(CAMERA, 2, path=path, now=10.)
   before = path.read_bytes()
   reader.record_draw(CAMERA, 0, path=path, now=10.1)

@@ -11,7 +11,7 @@ try:
   import pytest
 except ImportError:  # device has no pytest; skip instead of erroring the suite
   import unittest
-  raise unittest.SkipTest('pytest is not available on this device')
+  raise unittest.SkipTest('pytest is not available on this device') from None
 
 pytestmark = pytest.mark.skip(
   reason="drives real git remotes, worktrees and index locks; it needs a full checkout on a "

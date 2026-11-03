@@ -2,19 +2,19 @@ try:
   import pytest
 except ImportError:  # device has no pytest; skip instead of erroring the suite
   import unittest
-  raise unittest.SkipTest('pytest is not available on this device')
+  raise unittest.SkipTest('pytest is not available on this device') from None
 
 from openpilot.sunnypilot.carrot.signal_assist import SignalAssist
 
 
 def observation(t, state='red', ident=1, session='worker1', box=(640, 250, 680, 270)):
-  return dict(timestamp=t, frame_id=round(t * 20), session=session, tracks=[
-    dict(id=ident, box=box, state=state, age=0., observations=10, evidence={'raw': state})])
+  return {'timestamp': t, 'frame_id': round(t * 20), 'session': session, 'tracks': [
+    {'id': ident, 'box': box, 'state': state, 'age': 0., 'observations': 10, 'evidence': {'raw': state}}]}
 
 
 def step(a, t, o=None, **kw):
-  context = dict(enabled=True, valid=True, drive=True, gas=False, speed=0., model_distance=3.,
-                 model_y=0., comfort_brake=2.4, lead=False, entry_allowed=True)
+  context = {'enabled': True, 'valid': True, 'drive': True, 'gas': False, 'speed': 0., 'model_distance': 3.,
+                 'model_y': 0., 'comfort_brake': 2.4, 'lead': False, 'entry_allowed': True}
   context.update(kw)
   return a.update(t, o, **context)
 
@@ -86,10 +86,10 @@ def test_fresh_same_track_producer_history_avoids_second_confirmation_streak():
 
 
 @pytest.mark.parametrize('changes', [
-  dict(id=2), dict(seen_red=False), dict(support_state='red'),
-  dict(support_count=2), dict(support_count=11), dict(support_since=float('nan')),
-  dict(support_since=1.2), dict(support_since=0.), dict(age=.05),
-  dict(state='unknown'), dict(evidence={'raw': 'red'}),
+  {'id': 2}, {'seen_red': False}, {'support_state': 'red'},
+  {'support_count': 2}, {'support_count': 11}, {'support_since': float('nan')},
+  {'support_since': 1.2}, {'support_since': 0.}, {'age': .05},
+  {'state': 'unknown'}, {'evidence': {'raw': 'red'}},
 ])
 def test_bad_producer_history_cannot_bypass_green_confirmation(changes):
   a = SignalAssist()
@@ -106,7 +106,7 @@ def test_producer_history_does_not_extend_freshness_or_survive_restart():
   assert step(a, 1.99, obs).hold
 
 
-@pytest.mark.parametrize('override', [dict(enabled=False), dict(valid=False), dict(drive=False), dict(gas=True)])
+@pytest.mark.parametrize('override', [{'enabled': False}, {'valid': False}, {'drive': False}, {'gas': True}])
 def test_explicit_exit_overrides_hold(override):
   a = SignalAssist()
   confirm(a)
@@ -130,13 +130,13 @@ def test_moving_red_uses_existing_plausible_distance():
 
 
 @pytest.mark.parametrize('context', [
-  dict(model_distance=1.), dict(model_distance=500.), dict(model_distance=float('nan')),
-  dict(lead=True), dict(entry_allowed=False), dict(turning=True), dict(model_y=10.),
-  dict(speed=30.), dict(comfort_brake=0.),
+  {'model_distance': 1.}, {'model_distance': 500.}, {'model_distance': float('nan')},
+  {'lead': True}, {'entry_allowed': False}, {'turning': True}, {'model_y': 10.},
+  {'speed': 30.}, {'comfort_brake': 0.},
 ])
 def test_no_new_moving_red_for_ineligible_context(context):
   a = SignalAssist()
-  args = dict(speed=10., model_distance=40.)
+  args = {'speed': 10., 'model_distance': 40.}
   args.update(context)
   assert not confirm(a, **args).red_sign
 

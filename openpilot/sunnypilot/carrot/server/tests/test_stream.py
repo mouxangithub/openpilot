@@ -10,7 +10,7 @@ try:
   import pytest
 except ImportError:  # device has no pytest; skip instead of erroring the suite
   import unittest
-  raise unittest.SkipTest('pytest is not available on this device')
+  raise unittest.SkipTest('pytest is not available on this device') from None
 
 @pytest.fixture
 def stream(monkeypatch):

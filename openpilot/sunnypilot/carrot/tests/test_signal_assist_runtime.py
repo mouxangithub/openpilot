@@ -5,7 +5,7 @@ try:
   import pytest
 except ImportError:  # device has no pytest; skip instead of erroring the suite
   import unittest
-  raise unittest.SkipTest('pytest is not available on this device')
+  raise unittest.SkipTest('pytest is not available on this device') from None
 
 from openpilot.common.repo_tools import load
 from openpilot.sunnypilot.carrot.signal_assist_runtime import SignalAssistRuntime, publish_observation
@@ -28,7 +28,8 @@ def test_default_does_not_enable_control(tmp_path):
 
 @pytest.mark.parametrize('assist,trial', [(False, False), (False, True), (True, False), (True, True)])
 def test_revalidation_requires_both_explicit_flags(tmp_path, assist, trial):
-  flag = tmp_path / 'assist_enabled'
+  # assist_enabled is retired (requested() forces False); use a plain flag file
+  flag = tmp_path / 'enable'
   flag.write_text('1' if assist else '0')
   (tmp_path / 'revalidated_enabled').write_text('1' if trial else '0')
   runtime = SignalAssistRuntime(flag, tmp_path / 'obs')

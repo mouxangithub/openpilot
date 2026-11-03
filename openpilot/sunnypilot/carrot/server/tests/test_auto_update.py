@@ -8,7 +8,7 @@ try:
   import pytest
 except ImportError:  # device has no pytest; skip instead of erroring the suite
   import unittest
-  raise unittest.SkipTest('pytest is not available on this device')
+  raise unittest.SkipTest('pytest is not available on this device') from None
 
 from openpilot.sunnypilot.carrot.server.services import auto_update, git_state
 from openpilot.sunnypilot.carrot.server.services.auto_update import (
