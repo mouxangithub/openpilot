@@ -10,8 +10,7 @@ void PandaSafety::configureSafetyMode(bool is_onroad) {
     if (!car_params.empty()) {
       LOGW("got %lu bytes CarParams", car_params[0].size());
       LOGW("got %lu bytes CarParamsSP", car_params[1].size());
-      setSafetyMode(car_params);
-      safety_configured_ = true;
+      safety_configured_ = setSafetyMode(car_params);
     }
   } else if (!is_onroad) {
     initialized_ = false;
@@ -56,7 +55,7 @@ std::vector<std::string> PandaSafety::fetchCarParams() {
 }
 
 // TODO-SP: Use structs instead of vector
-void PandaSafety::setSafetyMode(const std::vector<std::string> &params_string) {
+bool PandaSafety::setSafetyMode(const std::vector<std::string> &params_string) {
   AlignedBuffer aligned_buf;
   AlignedBuffer aligned_buf_sp;
 
@@ -70,12 +69,19 @@ void PandaSafety::setSafetyMode(const std::vector<std::string> &params_string) {
   uint16_t alternative_experience = car_params.getAlternativeExperience();
   uint16_t safety_param_sp = car_params_sp.getSafetyParam();
 
-  cereal::CarParams::SafetyModel safety_model = safety_configs[0].getSafetyModel();
-  uint16_t safety_param = safety_configs[0].getSafetyParam();
+  if (config_index_ >= (int)safety_configs.size()) {
+    LOGE("no safetyConfigs[%d] in CarParams, keeping ELM327", config_index_);
+    return false;
+  }
 
-  LOGW("setting safety model: %d, param: %d, alternative experience: %d, param_sp: %d", (int)safety_model, safety_param, alternative_experience, safety_param_sp);
+  cereal::CarParams::SafetyModel safety_model = safety_configs[config_index_].getSafetyModel();
+  uint16_t safety_param = safety_configs[config_index_].getSafetyParam();
+
+  LOGW("setting safety model (panda %d): %d, param: %d, alternative experience: %d, param_sp: %d",
+       config_index_, (int)safety_model, safety_param, alternative_experience, safety_param_sp);
   panda_->set_alternative_experience(alternative_experience, safety_param_sp);
   panda_->set_safety_model(safety_model, safety_param);
+  return true;
 }
 
 bool PandaSafety::getOffroadMode() {

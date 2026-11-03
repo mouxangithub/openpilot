@@ -184,14 +184,14 @@ static uint8_t len_to_dlc(uint8_t len) {
 }
 
 void Panda::pack_can_buffer(const capnp::List<cereal::CanData>::Reader &can_data_list,
-                            std::function<void(uint8_t *, size_t)> write_func) {
+                            std::function<void(uint8_t *, size_t)> write_func, uint8_t bus_offset) {
   int32_t pos = 0;
   uint8_t send_buf[2 * USB_TX_SOFT_LIMIT];
 
   for (const auto &cmsg : can_data_list) {
-    // check if the message is intended for this panda
-    uint8_t bus = cmsg.getSrc();
-    if (bus >= PANDA_BUS_OFFSET) {
+    // check if the message is intended for this panda (logical bus block)
+    const int bus = (int)cmsg.getSrc() - (int)bus_offset;
+    if (bus < 0 || bus >= PANDA_BUS_OFFSET) {
       continue;
     }
     auto can_data = cmsg.getDat();
@@ -203,7 +203,7 @@ void Panda::pack_can_buffer(const capnp::List<cereal::CanData>::Reader &can_data
     header.addr = cmsg.getAddress();
     header.extended = (cmsg.getAddress() >= 0x800) ? 1 : 0;
     header.data_len_code = data_len_code;
-    header.bus = bus;
+    header.bus = (uint8_t)bus;
     header.checksum = 0;
 
     memcpy(&send_buf[pos], (uint8_t *)&header, sizeof(can_header));
@@ -225,10 +225,10 @@ void Panda::pack_can_buffer(const capnp::List<cereal::CanData>::Reader &can_data
   if (pos > 0) write_func(send_buf, pos);
 }
 
-void Panda::can_send(const capnp::List<cereal::CanData>::Reader &can_data_list) {
+void Panda::can_send(const capnp::List<cereal::CanData>::Reader &can_data_list, uint8_t bus_offset) {
   pack_can_buffer(can_data_list, [=](uint8_t* data, size_t size) {
     handle->bulk_write(3, data, size, 5);
-  });
+  }, bus_offset);
 }
 
 bool Panda::can_receive(std::vector<can_frame>& out_vec) {

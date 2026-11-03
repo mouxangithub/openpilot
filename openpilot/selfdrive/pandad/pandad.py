@@ -108,7 +108,9 @@ def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -
       return [serial], None, red_panda_present
 
   # 2. UseRedPanda: the external Red Panda is the active CAN panda; the
-  #    internal dos stays on fan/peripheral duty via the aux slot
+  #    internal dos stays on fan/peripheral duty via the aux slot - and with
+  #    the DualPanda param it additionally serves as a secondary CAN panda
+  #    (logical buses 4-6, e.g. the OBD/powertrain segment)
   if use_red_panda and red_serial is not None:
     return [red_serial], internal_serial, red_panda_present
 

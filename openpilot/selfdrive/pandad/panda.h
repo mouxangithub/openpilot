@@ -81,7 +81,10 @@ public:
   void set_can_fd_auto(uint16_t bus, bool enabled);
   void set_data_speed_kbps(uint16_t bus, uint16_t speed);
   void set_canfd_non_iso(uint16_t bus, bool non_iso);
-  void can_send(const capnp::List<cereal::CanData>::Reader &can_data_list);
+  // bus_offset: which logical bus block this panda serves (0 = buses 0-2, 4 = buses 4-6 in
+  // dual-panda mode). Frames with src outside [bus_offset, bus_offset + PANDA_BUS_OFFSET) are
+  // skipped, the rest are sent with src - bus_offset (i.e. the panda's local bus numbering).
+  void can_send(const capnp::List<cereal::CanData>::Reader &can_data_list, uint8_t bus_offset = 0U);
   bool can_receive(std::vector<can_frame>& out_vec);
   void can_reset_communications();
 
@@ -92,7 +95,7 @@ protected:
 
   Panda() {}
   void pack_can_buffer(const capnp::List<cereal::CanData>::Reader &can_data_list,
-                         std::function<void(uint8_t *, size_t)> write_func);
+                       std::function<void(uint8_t *, size_t)> write_func, uint8_t bus_offset = 0U);
   bool unpack_can_buffer(uint8_t *data, uint32_t &size, std::vector<can_frame> &out_vec);
   uint8_t calculate_checksum(uint8_t *data, uint32_t len);
 };

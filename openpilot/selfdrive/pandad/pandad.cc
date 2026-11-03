@@ -1,6 +1,7 @@
 #include "selfdrive/pandad/pandad.h"
 
 #include <array>
+#include <atomic>
 #include <bitset>
 #include <cassert>
 #include <cerrno>
@@ -22,6 +23,12 @@
 #define SATURATE_IL 1000
 
 ExitHandler do_exit;
+
+// dual-panda mode: while the secondary (aux) panda is still in the ELM327
+// fingerprinting phase, its send thread mirrors the primary panda's buses 0-2
+// so UDS/fw queries reach powertrain ECUs that are only wired to the aux;
+// once safety is configured it switches to segment routing (buses 4-6).
+std::atomic<bool> aux_elm327_mirror{false};
 
 bool check_connected(Panda *panda) {
   if (!panda->connected()) {
@@ -68,7 +75,7 @@ Panda *connect(std::string serial) {
   return panda.release();
 }
 
-void can_send_thread(Panda *panda, bool fake_send) {
+void can_send_thread(Panda *panda, Panda *aux_panda, bool dual_can, bool fake_send) {
   util::set_thread_name("pandad_can_send");
 
   AlignedBuffer aligned_buf;
@@ -90,7 +97,19 @@ void can_send_thread(Panda *panda, bool fake_send) {
     // Don't send if older than 1 second
     if ((nanos_since_boot() - event.getLogMonoTime() < 1e9) && !fake_send) {
       LOGT("sending sendcan to panda: %s", (panda->hw_serial()).c_str());
+      // primary panda: buses 0-2 (frames with src >= PANDA_BUS_OFFSET are skipped)
       panda->can_send(event.getSendcan());
+
+      // secondary panda in dual mode: either mirror the primary's buses 0-2
+      // during fingerprinting, or serve its own bus block 4-6 (sent with the
+      // offset subtracted, i.e. the panda's local bus numbering)
+      if (dual_can && aux_panda != nullptr && aux_panda->connected()) {
+        if (aux_elm327_mirror) {
+          aux_panda->can_send(event.getSendcan());
+        } else {
+          aux_panda->can_send(event.getSendcan(), PANDA_BUS_OFFSET);
+        }
+      }
       LOGT("sendcan sent to panda: %s", (panda->hw_serial()).c_str());
     } else {
       LOGE("sendcan too old to send: %" PRIu64 ", %" PRIu64, nanos_since_boot(), event.getLogMonoTime());
@@ -98,10 +117,9 @@ void can_send_thread(Panda *panda, bool fake_send) {
   }
 }
 
-void can_recv(Panda *panda, PubMaster *pm) {
-  static std::vector<can_frame> raw_can_data;
+void can_recv(Panda *panda, PubMaster *pm, uint8_t src_offset = 0U) {
+  std::vector<can_frame> raw_can_data;
   {
-    raw_can_data.clear();
     bool comms_healthy = panda->can_receive(raw_can_data);
 
     MessageBuilder msg;
@@ -111,9 +129,31 @@ void can_recv(Panda *panda, PubMaster *pm) {
     for (size_t i = 0; i < raw_can_data.size(); ++i) {
       canData[i].setAddress(raw_can_data[i].address);
       canData[i].setDat(kj::arrayPtr((uint8_t*)raw_can_data[i].dat.data(), raw_can_data[i].dat.size()));
-      canData[i].setSrc(raw_can_data[i].src);
+      // logical bus: the secondary panda's local buses are offset by
+      // PANDA_BUS_OFFSET (rejected/returned markers 128/192 pass through)
+      uint8_t src = (uint8_t)raw_can_data[i].src;
+      if (src < PANDA_BUS_OFFSET) {
+        src += src_offset;
+      }
+      canData[i].setSrc(src);
     }
     pm->send("can", msg);
+  }
+}
+
+// receive thread for the secondary (aux) CAN panda in dual-panda mode; unlike
+// the primary, a disconnect here must not bring the whole daemon down.
+// During the fingerprinting mirror phase its frames are published with the
+// local bus numbers as-is (0-2) so UDS responses match the bus the queries
+// were sent on; after safety is configured they are offset to 4-6.
+void can_recv_thread_aux(Panda *panda, PubMaster *pm) {
+  util::set_thread_name("pandad_can_recv_aux");
+  while (!do_exit) {
+    if (!panda->connected() || !panda->comms_healthy()) {
+      LOGE("aux CAN panda disconnected, aux receive thread exiting");
+      return;
+    }
+    can_recv(panda, pm, aux_elm327_mirror ? 0U : (uint8_t)PANDA_BUS_OFFSET);
   }
 }
 
@@ -177,87 +217,96 @@ void fill_panda_can_state(cereal::PandaState::PandaCanState::Builder &cs, const 
   cs.setCanCoreResetCnt(can_health.can_core_reset_cnt);
 }
 
-std::optional<bool> send_panda_states(PubMaster *pm, Panda *panda, bool is_onroad, bool spoofing_started, bool always_offroad) {
+std::optional<bool> send_panda_states(PubMaster *pm, Panda *panda, Panda *aux_panda, bool dual_can, bool is_onroad, bool spoofing_started, bool always_offroad) {
   // build msg
   MessageBuilder msg;
   auto evt = msg.initEvent();
-  auto pss = evt.initPandaStates(1);
+  const int num_states = (dual_can && aux_panda != nullptr && aux_panda->connected()) ? 2 : 1;
+  auto pss = evt.initPandaStates(num_states);
 
-  auto health_opt = panda->get_state();
-  if (!health_opt) {
-    return std::nullopt;
-  }
+  std::optional<bool> ignition;
+  for (int i = 0; i < num_states; i++) {
+    Panda *p = (i == 0) ? panda : aux_panda;
 
-  health_t health = *health_opt;
-
-  std::array<can_health_t, PANDA_CAN_CNT> can_health{};
-  for (uint32_t i = 0; i < PANDA_CAN_CNT; i++) {
-    auto can_health_opt = panda->get_can_state(i);
-    if (!can_health_opt) {
+    auto health_opt = p->get_state();
+    if (!health_opt) {
       return std::nullopt;
     }
-    can_health[i] = *can_health_opt;
-  }
 
-  if (spoofing_started) {
-    health.flags_pkt |= HEALTH_FLAG_IGNITION_LINE;
-  }
+    health_t health = *health_opt;
 
-  // on comma three setups with an external Red Panda, the dos can get false
-  // positive ignitions due to the harness box without a harness connector, so
-  // ignore its ignition line (ported from master-c3's red_panda_comma_three;
-  // pandad.py exports PANDAD_MASK_DOS_IGNITION when it sees a Red Panda
-  // alongside the internal dos)
-  static const bool mask_dos_ignition = getenv("PANDAD_MASK_DOS_IGNITION") != nullptr;
-  if (mask_dos_ignition && (panda->hw_type == cereal::PandaState::PandaType::DOS)) {
-    health.flags_pkt &= ~HEALTH_FLAG_IGNITION_LINE;
-  }
+    std::array<can_health_t, PANDA_CAN_CNT> can_health{};
+    for (uint32_t k = 0; k < PANDA_CAN_CNT; k++) {
+      auto can_health_opt = p->get_can_state(k);
+      if (!can_health_opt) {
+        return std::nullopt;
+      }
+      can_health[k] = *can_health_opt;
+    }
 
-  bool ignition_local = ((health.flags_pkt & (HEALTH_FLAG_IGNITION_LINE | HEALTH_FLAG_IGNITION_CAN)) != 0U) && !always_offroad;
+    if (spoofing_started) {
+      health.flags_pkt |= HEALTH_FLAG_IGNITION_LINE;
+    }
 
-  // Make sure CAN buses are live: safety_setter_thread does not work if Panda CAN are silent and there is only one other CAN node
-  if (health.safety_mode_pkt == (uint8_t)(cereal::CarParams::SafetyModel::SILENT)) {
-    panda->set_safety_model(cereal::CarParams::SafetyModel::NO_OUTPUT);
-  }
+    // on comma three setups with an external Red Panda, the dos can get false
+    // positive ignitions due to the harness box without a harness connector, so
+    // ignore its ignition line (ported from master-c3's red_panda_comma_three;
+    // pandad.py exports PANDAD_MASK_DOS_IGNITION when it sees a Red Panda
+    // alongside the internal dos)
+    static const bool mask_dos_ignition = getenv("PANDAD_MASK_DOS_IGNITION") != nullptr;
+    if (mask_dos_ignition && (p->hw_type == cereal::PandaState::PandaType::DOS)) {
+      health.flags_pkt &= ~HEALTH_FLAG_IGNITION_LINE;
+    }
 
-  bool power_save_desired = !ignition_local;
-  if (((health.flags_pkt & HEALTH_FLAG_POWER_SAVE_ENABLED) != 0U) != power_save_desired) {
-    panda->set_power_saving(power_save_desired);
-  }
+    bool ignition_local = ((health.flags_pkt & (HEALTH_FLAG_IGNITION_LINE | HEALTH_FLAG_IGNITION_CAN)) != 0U) && !always_offroad;
 
-  // set safety mode to NO_OUTPUT when car is off or we're not onroad. ELM327 is an alternative if we want to leverage athenad/connect
-  bool should_close_relay = !ignition_local || !is_onroad;
-  if (should_close_relay && (health.safety_mode_pkt != (uint8_t)(cereal::CarParams::SafetyModel::NO_OUTPUT))) {
-    panda->set_safety_model(cereal::CarParams::SafetyModel::NO_OUTPUT);
-  }
+    // Make sure CAN buses are live: safety_setter_thread does not work if Panda CAN are silent and there is only one other CAN node
+    if (health.safety_mode_pkt == (uint8_t)(cereal::CarParams::SafetyModel::SILENT)) {
+      p->set_safety_model(cereal::CarParams::SafetyModel::NO_OUTPUT);
+    }
 
-  if (!panda->comms_healthy()) {
-    evt.setValid(false);
-  }
+    bool power_save_desired = !ignition_local;
+    if (((health.flags_pkt & HEALTH_FLAG_POWER_SAVE_ENABLED) != 0U) != power_save_desired) {
+      p->set_power_saving(power_save_desired);
+    }
 
-  auto ps = pss[0];
-  fill_panda_state(ps, panda->hw_type, health);
+    // set safety mode to NO_OUTPUT when car is off or we're not onroad. ELM327 is an alternative if we want to leverage athenad/connect
+    bool should_close_relay = !ignition_local || !is_onroad;
+    if (should_close_relay && (health.safety_mode_pkt != (uint8_t)(cereal::CarParams::SafetyModel::NO_OUTPUT))) {
+      p->set_safety_model(cereal::CarParams::SafetyModel::NO_OUTPUT);
+    }
 
-  auto cs = std::array{ps.initCanState0(), ps.initCanState1(), ps.initCanState2()};
-  for (uint32_t j = 0; j < PANDA_CAN_CNT; j++) {
-    fill_panda_can_state(cs[j], can_health[j]);
-  }
+    if (i == 0) {
+      if (!p->comms_healthy()) {
+        evt.setValid(false);
+      }
+      ignition = ignition_local;
+    }
 
-  // Convert faults bitset to capnp list
-  std::bitset<sizeof(health.faults_pkt) * 8> fault_bits(health.faults_pkt);
-  auto faults = ps.initFaults(fault_bits.count());
+    auto ps = pss[i];
+    fill_panda_state(ps, p->hw_type, health);
 
-  size_t j = 0;
-  for (size_t f = size_t(cereal::PandaState::FaultType::RELAY_MALFUNCTION);
-       f <= size_t(cereal::PandaState::FaultType::HEARTBEAT_LOOP_WATCHDOG); f++) {
-    if (fault_bits.test(f)) {
-      faults.set(j, cereal::PandaState::FaultType(f));
-      j++;
+    auto cs = std::array{ps.initCanState0(), ps.initCanState1(), ps.initCanState2()};
+    for (uint32_t j = 0; j < PANDA_CAN_CNT; j++) {
+      fill_panda_can_state(cs[j], can_health[j]);
+    }
+
+    // Convert faults bitset to capnp list
+    std::bitset<sizeof(health.faults_pkt) * 8> fault_bits(health.faults_pkt);
+    auto faults = ps.initFaults(fault_bits.count());
+
+    size_t j = 0;
+    for (size_t f = size_t(cereal::PandaState::FaultType::RELAY_MALFUNCTION);
+         f <= size_t(cereal::PandaState::FaultType::HEARTBEAT_LOOP_WATCHDOG); f++) {
+      if (fault_bits.test(f)) {
+        faults.set(j, cereal::PandaState::FaultType(f));
+        j++;
+      }
     }
   }
 
   pm->send("pandaStates", msg);
-  return ignition_local;
+  return ignition;
 }
 
 void send_peripheral_state(Panda *panda, PubMaster *pm) {
@@ -284,8 +333,8 @@ void send_peripheral_state(Panda *panda, PubMaster *pm) {
   pm->send("peripheralState", msg);
 }
 
-void process_panda_state(Panda *panda, Panda *peripheral_panda, PubMaster *pm, bool engaged, bool engaged_mads, bool is_onroad, bool spoofing_started, bool always_offroad) {
-  auto ignition_opt = send_panda_states(pm, panda, is_onroad, spoofing_started, always_offroad);
+void process_panda_state(Panda *panda, Panda *peripheral_panda, PubMaster *pm, bool engaged, bool engaged_mads, bool is_onroad, bool spoofing_started, bool always_offroad, bool dual_can) {
+  auto ignition_opt = send_panda_states(pm, panda, peripheral_panda, dual_can, is_onroad, spoofing_started, always_offroad);
   if (!ignition_opt) {
     LOGE("Failed to get ignition_opt");
     return;
@@ -389,18 +438,36 @@ void process_peripheral_state(Panda *panda, PubMaster *pm, bool no_fan_control, 
   }
 }
 
-void pandad_run(Panda *panda, Panda *peripheral_panda) {
+void pandad_run(Panda *panda, Panda *peripheral_panda, bool dual_can) {
   const bool no_fan_control = getenv("NO_FAN_CONTROL") != nullptr;
   const bool spoofing_started = getenv("STARTED") != nullptr;
   const bool fake_send = getenv("FAKESEND") != nullptr;
 
-  // Start helper thread for event-driven sendcan.
-  std::thread send_thread(can_send_thread, panda, fake_send);
+  Panda *aux_can_panda = (dual_can && peripheral_panda != nullptr && peripheral_panda != panda) ? peripheral_panda : nullptr;
 
+  // dual-panda: the secondary CAN panda starts in the fingerprinting mirror
+  // phase; it flips to segment routing (buses 4-6) once its safety is configured
+  if (aux_can_panda != nullptr) {
+    aux_elm327_mirror = true;
+  }
+
+  // Start helper thread for event-driven sendcan.
   RateKeeper rk("pandad", 100);
   SubMaster sm({"selfdriveState", "deviceState", "selfdriveStateSP"});
   PubMaster pm({"can", "pandaStates", "peripheralState"});
+  std::thread send_thread(can_send_thread, panda, aux_can_panda, dual_can, fake_send);
+
+  // secondary CAN panda receive thread (publishes buses 4-6)
+  std::thread aux_recv_thread;
+  if (aux_can_panda != nullptr) {
+    aux_recv_thread = std::thread(can_recv_thread_aux, aux_can_panda, &pm);
+  }
+
   PandaSafety panda_safety(panda);
+  std::unique_ptr<PandaSafety> aux_safety;
+  if (aux_can_panda != nullptr) {
+    aux_safety = std::make_unique<PandaSafety>(aux_can_panda, 1);
+  }
   bool engaged = false;
   bool engaged_mads = false;
   bool is_onroad = false;
@@ -424,8 +491,13 @@ void pandad_run(Panda *panda, Panda *peripheral_panda) {
       }
       engaged_mads = process_mads_heartbeat(&sm);
       always_offroad = panda_safety.getOffroadMode();
-      process_panda_state(panda, peripheral_panda, &pm, engaged, engaged_mads, is_onroad, spoofing_started, always_offroad);
+      process_panda_state(panda, peripheral_panda, &pm, engaged, engaged_mads, is_onroad, spoofing_started, always_offroad, dual_can);
       panda_safety.configureSafetyMode(is_onroad);
+      if (aux_safety) {
+        aux_safety->configureSafetyMode(is_onroad);
+        // mirror while the aux is still in the ELM327/fingerprinting phase
+        aux_elm327_mirror = !aux_safety->safetyConfigured();
+      }
     }
 
     // Send out peripheralState at 2Hz
@@ -452,9 +524,16 @@ void pandad_run(Panda *panda, Panda *peripheral_panda) {
     if (panda->connected()) {
       panda->set_safety_model(cereal::CarParams::SafetyModel::NO_OUTPUT);
     }
+    if (aux_can_panda != nullptr && aux_can_panda->connected()) {
+      aux_can_panda->set_safety_model(cereal::CarParams::SafetyModel::NO_OUTPUT);
+    }
   }
 
+  do_exit = true;
   send_thread.join();
+  if (aux_recv_thread.joinable()) {
+    aux_recv_thread.join();
+  }
 }
 
 void pandad_main_thread(std::string serial, std::string aux_serial) {
@@ -484,6 +563,7 @@ void pandad_main_thread(std::string serial, std::string aux_serial) {
   // peripheral_panda. Non-fatal: without it the fan falls back to the
   // firmware's own thermal default.
   Panda *aux_panda = nullptr;
+  bool dual_can = false;
   if (!aux_serial.empty() && aux_serial != serial) {
     try {
       aux_panda = connect(aux_serial);
@@ -491,16 +571,24 @@ void pandad_main_thread(std::string serial, std::string aux_serial) {
       aux_panda = nullptr;
     }
     if (aux_panda) {
-      // The aux panda's CAN pins sit on the vehicle harness (the internal dos
-      // is wired to the OBD port), and a panda nobody configures does not come
-      // up silent: it keeps whatever state it was last left in - typically the
-      // elm327 passthrough from fingerprinting, which bridges every CAN
-      // channel it has. Its spare channels are unwired, so frames sent there
-      // never see an ACK and the controller retries them forever, flooding the
-      // vehicle bus with errors until a camera ECU cries fault. Force it
-      // silent: it drives the fan and reports health, it never talks CAN.
-      aux_panda->set_safety_model(cereal::CarParams::SafetyModel::NO_OUTPUT);
-      LOGW("connected aux peripheral panda: %s (safety forced to NO_OUTPUT)", aux_serial.c_str());
+      // Dual-panda CAN mode (DualPanda param): the aux (internal dos, wired to
+      // the OBD/powertrain segment) becomes a secondary CAN panda serving
+      // logical buses 4-6, while the active panda (e.g. external Red Panda on
+      // the camera segment) keeps buses 0-2. safetyConfigs[1] applies to it.
+      // Without the param, the aux is forced silent: a panda nobody configures
+      // does not come up silent - it keeps whatever state it was last left in -
+      // typically the elm327 passthrough from fingerprinting, which bridges
+      // every CAN channel it has. Its spare channels are unwired, so frames
+      // sent there never see an ACK and the controller retries them forever,
+      // flooding the vehicle bus with errors until a camera ECU cries fault.
+      static Params params;
+      dual_can = params.getBool("DualPanda");
+      if (dual_can) {
+        LOGW("connected aux CAN panda: %s (dual-panda mode, buses 4-6)", aux_serial.c_str());
+      } else {
+        aux_panda->set_safety_model(cereal::CarParams::SafetyModel::NO_OUTPUT);
+        LOGW("connected aux peripheral panda: %s (safety forced to NO_OUTPUT)", aux_serial.c_str());
+      }
     } else {
       LOGW("failed to connect aux peripheral panda %s, fan control unavailable", aux_serial.c_str());
     }
@@ -508,7 +596,7 @@ void pandad_main_thread(std::string serial, std::string aux_serial) {
 
   if (!do_exit) {
     LOGW("connected to panda");
-    pandad_run(panda, aux_panda ? aux_panda : panda);
+    pandad_run(panda, aux_panda ? aux_panda : panda, dual_can);
   }
 
   delete panda;

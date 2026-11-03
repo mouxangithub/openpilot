@@ -744,6 +744,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"BydMpcTsr", {PERSISTENT, BOOL, "0"}},
     {"EnableExtRadar", {PERSISTENT, BOOL, "0"}},
     {"UseRedPanda", {PERSISTENT, BOOL, "0"}},
+    {"DualPanda", {PERSISTENT, BOOL, "0"}},
     {"LateralAngleSpdBp1", {PERSISTENT, INT, "0"}},
     {"LateralAngleSpdBp2", {PERSISTENT, INT, "0"}},
     {"LateralAngleSpdDn0", {PERSISTENT, INT, "0"}},
