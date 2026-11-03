@@ -55,6 +55,8 @@ class _Sm:
                                     inputsOK=True, sensorsOK=True)
     model = SimpleNamespace(timestampEof=1_000_000_000)
     self._messages = {'carState': car_state, 'deviceMotion': device_motion, 'modelV2': model}
+    # SubMaster marks a service seen after its first frame; the stub provides all of them.
+    self.seen = dict.fromkeys(self._messages, True)
 
   def __getitem__(self, key):
     return self._messages[key]
