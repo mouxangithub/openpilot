@@ -29,7 +29,9 @@ env.Command(
   action=f"python3 {generator}",
 )
 
-if GetOption('extras') and arch == "comma_arm64":
+# extras builds the installers on dev PCs; INSTALLER_TEMPLATE=1 allows building just
+# the fork installer template on-device (scons INSTALLER_TEMPLATE=1 <target>)
+if (GetOption('extras') or ARGUMENTS.get('INSTALLER_TEMPLATE')) and arch == "comma_arm64":
   # build installers
   raylib_dir = Path(importlib.util.find_spec("raylib").submodule_search_locations[0]) / "install"
   raylib_env = env.Clone()
