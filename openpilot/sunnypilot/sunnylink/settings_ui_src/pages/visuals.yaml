@@ -21,8 +21,8 @@ sections:
     - $ref: '#/macros/hide_on_mici'
   - key: ConfidenceBall
     widget: toggle
-    title: Confidence Ball
-    description: "Shows the model's confidence as a ball on your side of the screen, as on the comma 4: higher is more confident, and while engaged it is green, then yellow, then red as confidence drops."
+    title: 置信球
+    description: "在屏幕上你所在的一侧以球体显示模型的置信度，与 comma 4 相同：位置越高越有信心，接管状态下置信度从高到低依次为绿色、黄色、红色。"
     visibility:
     - $ref: '#/macros/hide_on_mici'
   - key: ShowTurnSignals

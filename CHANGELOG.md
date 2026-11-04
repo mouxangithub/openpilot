@@ -1,37 +1,37 @@
 zoompilot v2026.11.02-18
 ========================
-* Synced with sunnypilot of 2026-10-29, through openpilot of 2026-10-16.
-* Cruise
-  * Alpha longitudinal is Experimental only; chill and Dynamic Experimental Control removed (openpilot).
-  * New Set Speed Assist feature: assist alpha longitudinal to reach your set speed and follow distance (on by default).
-  * Toggle Set Speed Assist: hold the distance button, long press home or tap the onroad button.
-  * Alpha longitudinal coasts more, and can be toggled onroad while disengaged.
-* Steering
-  * New Lane Center Assist feature in Models, helps keep car in lane center.
-  * MADS settings renamed to When to Steer, more intuitive naming.
-  * Road edge lane change block: new silent option.
+* 与 2026-10-29 的 sunnypilot 同步，基于 2026-10-16 的 openpilot。
+* 巡航
+  * Alpha 纵向控制仅保留实验模式；Chill 模式与动态实验控制已移除（openpilot 上游变更）。
+  * 新增「设定车速辅助」功能：辅助 Alpha 纵向控制达到你的设定车速和跟车距离（默认开启）。
+  * 切换设定车速辅助：按住车距键、长按主屏键或点按道路按钮。
+  * Alpha 纵向控制滑行更多，脱离状态下也可在行驶中切换。
+* 转向
+  * 「模型」菜单新增车道居中辅助功能，帮助车辆保持在车道中央。
+  * MADS 设置更名为「转向时机」，命名更直观。
+  * 路沿变道拦截：新增静默选项。
 * comma 4
-  * Alpha longitudinal and Set Speed Assist now live in the Cruise menu.
-  * Home shows alpha longitudinal and Set Speed Assist icons, and can show the active model (Display).
-  * Models menu adds lane turn desires, steer delay and camera offset toggles
-  * On/off toggles were folded into their value pickers, shows grey pill when off.
+  * Alpha 纵向控制和设定车速辅助移入「巡航」菜单。
+  * 主屏显示 Alpha 纵向控制和设定车速辅助图标，并可显示当前使用的模型（显示设置）。
+  * 「模型」菜单新增转向意图、转向延迟和摄像头偏移开关。
+  * 开/关开关合并进对应的取值选择器，关闭时显示灰色标记。
 * comma 3X
-  * comma 4 driver monitor and follow distance indicator.
-  * Optional confidence ball from comma 4 UI(Visuals).
-  * Lane Center Assist offset shown in the developer UI.
-* Mazda
-  * Steering tuning from reverse engineering work. thx @braind84
-  * Alpha longitudinal: smoother acceleration, earlier braking, fewer downshifts, faster launch from stop.
-  * Alpha longitudinal: initializes faster after ignition.
-  * Easier to override steering, same resistance at all speeds.
-  * 2017 Mazda 3 2.5 L and non-US 2026 CX-5 recognized automatically.
-* Toyota TSS2: Smooth Longitudinal (alpha).
+  * comma 4 的驾驶员监测和跟车距离指示。
+  * 可选的置信球（来自 comma 4 界面，位于「视觉」设置）。
+  * 开发者界面显示车道居中辅助的偏移量。
+* 马自达
+  * 基于逆向工程的转向调校。感谢 @braind84
+  * Alpha 纵向控制：加速更平顺、刹车更提前、降挡更少、起步更快。
+  * 点火后初始化更快。
+  * 更容易接管方向盘，各车速下阻尼一致。
+  * 自动识别 2017 款马自达 3 2.5L 和非美规 2026 款 CX-5。
+* 丰田 TSS2：平顺纵向控制（Alpha）。
 * jetlink
-  * Pick big model on the comma, jetlink or sunnylink.
-  * The comma no longer downloads models jetlink already has.
-  * A big model picked on the comma stays picked after updating.
-  * comma 3X: no reboot when a laptop is plugged in.
-  * Use small model lateral below 11 mph (Models).
+  * 可在 comma、jetlink 或 sunnylink 上选择大模型。
+  * comma 不再重复下载 jetlink 已有的模型。
+  * 在 comma 上选好的大模型，更新后依然保留。
+  * comma 3X：插上笔记本供电不再重启。
+  * 低于 11 mph（约 18 km/h）时使用小模型转向（「模型」设置）。
 
 zoompilot v2026.10.16-16
 ========================

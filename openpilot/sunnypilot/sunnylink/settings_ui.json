@@ -823,8 +823,8 @@
             {
               "key": "AccelBoostSP",
               "widget": "toggle",
-              "title": "Acceleration Boost",
-              "description": "Adds a small push on top of sunnypilot's own acceleration, stronger in Aggressive and gentler in Relaxed. Eases off in curves and when sunnypilot slows or stops. Never goes past your set speed, and lead-car following still comes first.",
+              "title": "\u52a0\u901f\u52a9\u529b",
+              "description": "\u5728 sunnypilot \u81ea\u8eab\u52a0\u901f\u5ea6\u4e4b\u4e0a\u53e0\u52a0\u5c0f\u5e45\u52a9\u63a8\uff0c\u6fc0\u8fdb\u4e2a\u6027\u4e0b\u66f4\u5f3a\u3001\u653e\u677e\u4e2a\u6027\u4e0b\u66f4\u67d4\u548c\u3002\u8fc7\u5f2f\u4ee5\u53ca\u51cf\u901f\u3001\u505c\u8f66\u65f6\u4f1a\u81ea\u52a8\u6536\u529b\u3002\u6c38\u8fdc\u4e0d\u4f1a\u8d85\u8fc7\u4f60\u7684\u8bbe\u5b9a\u8f66\u901f\uff0c\u8ddf\u8f66\u907f\u649e\u4ecd\u7136\u4f18\u5148\u3002",
               "enablement": [
                 {
                   "type": "capability",
@@ -1807,8 +1807,8 @@
             {
               "key": "ConfidenceBall",
               "widget": "toggle",
-              "title": "Confidence Ball",
-              "description": "Shows the model's confidence as a ball on your side of the screen, as on the comma 4: higher is more confident, and while engaged it is green, then yellow, then red as confidence drops.",
+              "title": "\u7f6e\u4fe1\u7403",
+              "description": "\u5728\u5c4f\u5e55\u4e0a\u4f60\u6240\u5728\u7684\u4e00\u4fa7\u4ee5\u7403\u4f53\u663e\u793a\u6a21\u578b\u7684\u7f6e\u4fe1\u5ea6\uff0c\u4e0e comma 4 \u76f8\u540c\uff1a\u4f4d\u7f6e\u8d8a\u9ad8\u8d8a\u6709\u4fe1\u5fc3\uff0c\u63a5\u7ba1\u72b6\u6001\u4e0b\u7f6e\u4fe1\u5ea6\u4ece\u9ad8\u5230\u4f4e\u4f9d\u6b21\u4e3a\u7eff\u8272\u3001\u9ec4\u8272\u3001\u7ea2\u8272\u3002",
               "visibility": [
                 {
                   "type": "not",

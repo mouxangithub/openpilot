@@ -79,8 +79,8 @@ sections:
     - $ref: '#/macros/longitudinal'
   - key: AccelBoostSP
     widget: toggle
-    title: Acceleration Boost
-    description: "Adds a small push on top of sunnypilot's own acceleration, stronger in Aggressive and gentler in Relaxed. Eases off in curves and when sunnypilot slows or stops. Never goes past your set speed, and lead-car following still comes first."
+    title: 加速助力
+    description: "在 sunnypilot 自身加速度之上叠加小幅助推，激进个性下更强、放松个性下更柔和。过弯以及减速、停车时会自动收力。永远不会超过你的设定车速，跟车避撞仍然优先。"
     enablement:
     - $ref: '#/macros/longitudinal'
   - key: IntelligentCruiseButtonManagement
