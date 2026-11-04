@@ -1067,6 +1067,11 @@ bool SpectraCamera::openSensor() {
       !init_sensor_lambda(new OS04C10)) {
     LOGE("** sensor %d FAILED bringup, disabling", cc.camera_num);
     enabled = false;
+    // This camera will never deliver a frame: exclude it from the first-frame
+    // sync instead of waiting for it forever, and don't let the main loop
+    // restart camerad for a sensor that is simply not fitted.
+    sensor_missing = true;
+    disabled_cameras.insert(cc.camera_num);
     disabled_at_ns = nanos_since_boot();
     return false;
   }
@@ -1572,10 +1577,13 @@ bool SpectraCamera::syncFirstFrame(int camera_id, uint64_t request_id, uint64_t 
   // Store the frame data for this camera
   camera_sync_data[camera_id] = SyncData{timestamp, ife_frame_id + 1, staggered};
 
-  // Ensure all cameras are up
+  // Ensure all cameras are up. Cameras whose sensor failed bringup never
+  // deliver a frame, so they must not be counted: on hardware without that
+  // camera the sync would otherwise wait for it forever.
   int enabled_camera_count = std::count_if(std::begin(ALL_CAMERA_CONFIGS), std::end(ALL_CAMERA_CONFIGS),
                                            [](const auto &config) { return config.enabled; });
-  bool all_cams_up = camera_sync_data.size() == enabled_camera_count;
+  enabled_camera_count -= static_cast<int>(disabled_cameras.size());
+  bool all_cams_up = camera_sync_data.size() == static_cast<size_t>(enabled_camera_count);
 
   // Check that camera timestamps are properly aligned:
   // - non-staggered cameras should be within 0.2ms of each other

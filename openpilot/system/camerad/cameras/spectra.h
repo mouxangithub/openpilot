@@ -5,6 +5,7 @@
 #include <memory>
 #include <queue>
 #include <optional>
+#include <set>
 #include <utility>
 
 #include "media/cam_req_mgr.h"
@@ -169,6 +170,10 @@ public:
   uint32_t i2c_fail_count = 0;
   uint64_t disabled_at_ns = 0;  // boot time when the camera got disabled, 0 = never
   uint64_t last_sof_ns = 0;     // boot time of the last SOF event, 0 = none yet
+  // The sensor itself is not present on this hardware (bringup probe found no
+  // device). Retrying a bringup cannot make it appear, so the main loop must
+  // not keep restarting camerad for it.
+  bool sensor_missing = false;
   CameraConfig cc;
   std::unique_ptr<const SensorInfo> sensor;
 
@@ -234,6 +239,9 @@ private:
   };
   inline static std::map<int, SyncData> camera_sync_data;
   inline static bool first_frame_synced = false;
+  // cameras whose sensor failed bringup (missing on this hardware, or dead).
+  // They never produce a frame, so they must not hold up the first-frame sync.
+  inline static std::set<int> disabled_cameras;
 
   // a mode for stressing edge cases: realignment, sync failures, etc.
   inline bool stress_test(std::string log) {

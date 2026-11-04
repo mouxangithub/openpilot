@@ -290,6 +290,9 @@ void camerad_thread() {
   int disable_restarts = read_disable_restart_count();
   bool all_cams_up = true;
   for (size_t i = 0; i < cams.size(); ++i) {
+    // A sensor that is not fitted is expected, not a failure: it must not
+    // eat into the restart budget of the cameras that are present.
+    if (cams[i]->camera.sensor_missing) continue;
     if (ALL_CAMERA_CONFIGS[i].enabled && !cams[i]->camera.enabled) all_cams_up = false;
   }
   if (all_cams_up) {
@@ -345,6 +348,8 @@ void camerad_thread() {
         if (disable_restarts < MAX_DISABLE_RESTARTS) {
           for (auto &cam : cams) {
             const auto &camera = cam->camera;
+            // A sensor that is not fitted cannot be recovered by a retry.
+            if (camera.sensor_missing) continue;
             bool stalled = camera.enabled && camera.last_sof_ns != 0 &&
                            nanos_since_boot() - camera.last_sof_ns > SOF_STALL_RESTART_NS;
             bool disabled_too_long = !camera.enabled && camera.disabled_at_ns != 0 &&
