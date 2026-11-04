@@ -821,6 +821,19 @@
               ]
             },
             {
+              "key": "AccelBoostSP",
+              "widget": "toggle",
+              "title": "Acceleration Boost",
+              "description": "Adds a small push on top of sunnypilot's own acceleration, stronger in Aggressive and gentler in Relaxed. Eases off in curves and when sunnypilot slows or stops. Never goes past your set speed, and lead-car following still comes first.",
+              "enablement": [
+                {
+                  "type": "capability",
+                  "field": "has_longitudinal_control",
+                  "equals": true
+                }
+              ]
+            },
+            {
               "key": "IntelligentCruiseButtonManagement",
               "widget": "toggle",
               "title": "\u667a\u80fd\u5de1\u822a\u6309\u952e\u7ba1\u7406\uff08ICBM\uff09\uff08Alpha\uff09",

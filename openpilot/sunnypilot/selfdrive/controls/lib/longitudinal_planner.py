@@ -14,9 +14,11 @@ from openpilot.cereal import messaging, custom, log
 from opendbc.car import structs
 from opendbc.car.interfaces import ACCEL_MAX, ACCEL_MIN
 from openpilot.common.constants import CV
+from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
+from openpilot.selfdrive.controls.lib.accel_boost import AccelBoost
+from openpilot.sunnypilot.selfdrive.controls.lib.accel_boost import AccelBoostSP
 from openpilot.common.realtime import DT_MDL
 from openpilot.common.swaglog import cloudlog
-from openpilot.selfdrive.car.cruise import V_CRUISE_MAX, V_CRUISE_UNSET
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, get_accel_from_plan
 from openpilot.selfdrive.controls.lib.weather_offsets import WeatherOffsets
 from openpilot.selfdrive.modeld.constants import ModelConstants
@@ -126,6 +128,9 @@ class LongitudinalPlannerSP:
     self.generation = int(model_bundle.generation) if (model_bundle := get_active_bundle()) else None
     self.source = LongitudinalPlanSource.cruise
     self.e2e_alerts_helper = E2EAlertsHelper()
+    self.accel_boost_sp = AccelBoostSP()
+    self.accel_boost = AccelBoost()  # replaced in update() once params sync; also guards the e2e path
+    self.openpilot_longitudinal = CP.openpilotLongitudinalControl
 
     self.output_v_target = 0.
     self.output_a_target = 0.
@@ -653,6 +658,9 @@ class LongitudinalPlannerSP:
   def update(self, sm: messaging.SubMaster) -> None:
     self.accel_controller.update()
     self.lead_one = sm['radarState'].leadOne
+    if self.accel_boost_sp.update_params():
+      self.accel_boost = self.accel_boost_sp if self.accel_boost_sp.enabled and self.openpilot_longitudinal else AccelBoost()
+
     self.events_sp.clear()
     self.lead_forecast.update(sm)
     self.e2e_alerts_helper.update(sm, self.events_sp)
