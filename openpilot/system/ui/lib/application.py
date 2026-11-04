@@ -52,6 +52,19 @@ def gui_set_style(control, prop, value) -> None:
   if fn is not None:
     fn(control, prop, value)
 
+
+# Some drawing call sites still reference raygui's text-alignment enums
+# (rl.GuiTextAlignment / rl.GuiTextAlignmentVertical). Inject the fixed raygui
+# enum values into the pyray module when raygui is absent so those call sites
+# work unchanged on new AGNOS images. Values are the raygui ABI constants.
+if not all(hasattr(rl, name) for name in ("GuiTextAlignment", "GuiTextAlignmentVertical")):
+  for _name, _members in (
+    ("GuiTextAlignment", (("TEXT_ALIGN_LEFT", 0), ("TEXT_ALIGN_CENTER", 1), ("TEXT_ALIGN_RIGHT", 2))),
+    ("GuiTextAlignmentVertical", (("TEXT_ALIGN_TOP", 0), ("TEXT_ALIGN_MIDDLE", 1), ("TEXT_ALIGN_BOTTOM", 2))),
+  ):
+    if not hasattr(rl, _name):
+      setattr(rl, _name, IntEnum(_name, _members))
+
 _DEFAULT_FPS = int(os.getenv("FPS", {'tici': 20, 'tizi': 20}.get(HARDWARE.get_device_type(), 60)))
 FPS_LOG_INTERVAL = 5  # Seconds between logging FPS drops
 FPS_DROP_THRESHOLD = 0.9  # FPS drop threshold for triggering a warning
