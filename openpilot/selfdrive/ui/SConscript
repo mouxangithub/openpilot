@@ -49,14 +49,17 @@ if (GetOption('extras') or ARGUMENTS.get('INSTALLER_TEMPLATE')) and arch == "com
     ("openpilot_internal", "nightly-dev"),
   ]
 
+  # ld -r -b binary derives the ELF symbol names from the given source path:
+  # installer.cc expects _binary_selfdrive_... so the paths must be relative to
+  # the openpilot/ package dir (scons otherwise runs commands from the repo root).
   cont = raylib_env.Command("installer/continue_openpilot.o", "installer/continue_openpilot.sh",
-                            "ld -r -b binary -o $TARGET $SOURCE")
+                            "cd openpilot && ld -r -b binary -o selfdrive/ui/installer/continue_openpilot.o selfdrive/ui/installer/continue_openpilot.sh")
   inter = raylib_env.Command("installer/inter_ttf.o", "installer/inter-ascii.ttf",
-                             "ld -r -b binary -o $TARGET $SOURCE")
+                             "cd openpilot && ld -r -b binary -o selfdrive/ui/installer/inter_ttf.o selfdrive/ui/installer/inter-ascii.ttf")
   inter_bold = raylib_env.Command("installer/inter_bold.o", "../assets/fonts/Inter-Bold.ttf",
-                              "ld -r -b binary -o $TARGET $SOURCE")
+                              "cd openpilot && ld -r -b binary -o selfdrive/ui/installer/inter_bold.o selfdrive/assets/fonts/Inter-Bold.ttf")
   inter_light = raylib_env.Command("installer/inter_light.o", "../assets/fonts/Inter-Light.ttf",
-                              "ld -r -b binary -o $TARGET $SOURCE")
+                              "cd openpilot && ld -r -b binary -o selfdrive/ui/installer/inter_light.o selfdrive/assets/fonts/Inter-Light.ttf")
   for name, branch in installers:
     d = {'BRANCH': f"'\"{branch}\"'"}
     if "internal" in name:
