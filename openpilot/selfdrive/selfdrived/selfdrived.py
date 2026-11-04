@@ -659,7 +659,11 @@ class SelfdriveD:
 
     if not self.initialized:
       all_valid = CS.canValid and self.sm.all_checks()
-      timed_out = self.sm.frame * DT_CTRL > 6.
+      # On a cold boot (notably a fresh first install on a 3X) model load and
+      # camera bring-up can exceed the old 6 s budget. Match upstream cp
+      # (26c6fa54b): healthy services still finish immediately; this only
+      # widens the finite escape before missing camera streams are ignored.
+      timed_out = self.sm.frame * DT_CTRL > 10.
       if all_valid or timed_out or (SIMULATION and not REPLAY):
         available_streams = VisionIpcClient.available_streams("camerad", block=False)
         if VisionStreamType.VISION_STREAM_NARROW_ROAD not in available_streams:
