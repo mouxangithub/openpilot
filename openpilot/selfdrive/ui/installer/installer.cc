@@ -15,8 +15,13 @@ int cachedFetch(const std::string &cache);
 int executeGitCommand(const std::string &cmd);
 
 // Fork installer generator (openpilot-installer-generator) patches these fixed slots in the ELF.
+// GIT_URL holds a FULL git URL (any host: github.com, cnb.cool, gitee.com, gitea.com,
+// gitcode.com or self-hosted http(s)://ip:port). SSL_VERIFY_SLOT = "1" disables TLS
+// verification (self-signed certs on self-hosted servers).
+// Slots MUST stay in sync with fork/installer_config.php.
 #ifdef INSTALLER_USE_PLACEHOLDERS
-#define GIT_URL "https://github.com/27182818284590452353602874713526624977572470936999595"
+#define GIT_URL "7182818284590452353602874713526624977572470936999595749669676277240766303535475945713821785251664274274663919320030599218174135966290435729003342952605956307381"
+#define SSL_VERIFY_SLOT "4142135623730950488016887242096980785696"
 #define BRANCH_SLOT "161803398874989484820458683436563811772030917980576286213544862270526046281890244970720720418939113748475408807538689175212663386222353693179318006076672635443338908659593958290563832266131992829026788067520876689250171169620703222104321626954862629631361"
 #define LOADING_MSG_SLOT "314159265358979323846264338327950288419"
 #else
@@ -92,6 +97,41 @@ std::string loading_msg() {
 #endif
 }
 
+bool ssl_verify_disabled() {
+#ifdef INSTALLER_USE_PLACEHOLDERS
+  return trim_slot(SSL_VERIFY_SLOT) == "1";
+#else
+  return false;
+#endif
+}
+
+// The patched slots end up unquoted in `std::system` commands: restrict the
+// charset so neither the URL nor the branch can inject shell metacharacters.
+bool is_safe_url(const std::string &url) {
+  if (url.size() < 10 || url.size() > 160) return false;
+  if (url.rfind("https://", 0) != 0 && url.rfind("http://", 0) != 0) return false;
+  const std::string extra = "._~:/@%+-";
+  for (const char c : url) {
+    const bool alnum = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+    if (!alnum && extra.find(c) == std::string::npos) return false;
+  }
+  return true;
+}
+
+bool is_safe_branch(const std::string &branch) {
+  if (branch.size() > 255) return false;
+  const std::string extra = "._/-";
+  for (const char c : branch) {
+    const bool alnum = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+    if (!alnum && extra.find(c) == std::string::npos) return false;
+  }
+  return true;
+}
+
+std::string git_cmd_prefix() {
+  return ssl_verify_disabled() ? "git -c http.sslVerify=false " : "git ";
+}
+
 void run(const char* cmd) {
   int err = std::system(cmd);
   assert(err == 0);
@@ -153,13 +193,14 @@ int freshClone() {
   LOGD("Doing fresh clone");
   const auto url = git_url();
   const auto branch = branch_name();
+  const auto prefix = git_cmd_prefix();
   std::string cmd;
   if (branch.empty()) {
-    cmd = util::string_format("git clone --progress %s --depth=1 --recurse-submodules %s 2>&1",
-                              url.c_str(), TMP_INSTALL_PATH);
+    cmd = util::string_format("%s clone --progress %s --depth=1 --recurse-submodules %s 2>&1",
+                              prefix.c_str(), url.c_str(), TMP_INSTALL_PATH);
   } else {
-    cmd = util::string_format("git clone --progress %s -b %s --depth=1 --recurse-submodules %s 2>&1",
-                              url.c_str(), branch.c_str(), TMP_INSTALL_PATH);
+    cmd = util::string_format("%s clone --progress %s -b %s --depth=1 --recurse-submodules %s 2>&1",
+                              prefix.c_str(), url.c_str(), branch.c_str(), TMP_INSTALL_PATH);
   }
   return executeGitCommand(cmd);
 }
@@ -169,6 +210,7 @@ int cachedFetch(const std::string &cache) {
 
   const auto url = git_url();
   const auto branch = branch_name();
+  const auto prefix = git_cmd_prefix();
 
   run(util::string_format("cp -rp %s %s", cache.c_str(), TMP_INSTALL_PATH).c_str());
   run(util::string_format("cd %s && git remote set-url origin %s", TMP_INSTALL_PATH, url.c_str()).c_str());
@@ -179,9 +221,9 @@ int cachedFetch(const std::string &cache) {
   renderProgress(10);
 
   if (branch.empty()) {
-    return executeGitCommand(util::string_format("cd %s && git fetch --progress origin 2>&1", TMP_INSTALL_PATH));
+    return executeGitCommand(util::string_format("cd %s && %s fetch --progress origin 2>&1", TMP_INSTALL_PATH, prefix.c_str()));
   }
-  return executeGitCommand(util::string_format("cd %s && git fetch --progress origin %s 2>&1", TMP_INSTALL_PATH, branch.c_str()));
+  return executeGitCommand(util::string_format("cd %s && %s fetch --progress origin %s 2>&1", TMP_INSTALL_PATH, prefix.c_str(), branch.c_str()));
 }
 
 int executeGitCommand(const std::string &cmd) {
@@ -268,6 +310,18 @@ void cloneFinished(int exitCode) {
   finishInstall();
 }
 
+void renderError(const std::string &msg) {
+  BeginDrawing();
+    ClearBackground(BLACK);
+    const std::string title = "Install error: " + msg;
+    if (tici_device) {
+      DrawTextEx(font_display, title.c_str(), (Vector2){150, (float)(GetScreenHeight() - FONT_SIZE)/2}, 90, 0, (Color){255, 80, 80, 255});
+    } else {
+      DrawTextEx(font_display, title.c_str(), (Vector2){12, (float)(GetScreenHeight() - 154)/2}, 40, 0, (Color){255, 80, 80, 255});
+    }
+  EndDrawing();
+}
+
 int main(int argc, char *argv[]) {
   if (tici_device) {
     InitWindow(2160, 1080, "Installer");
@@ -284,6 +338,11 @@ int main(int argc, char *argv[]) {
 
   if (util::file_exists(CONTINUE_PATH)) {
     finishInstall();
+  } else if (!is_safe_url(git_url()) || !is_safe_branch(branch_name())) {
+    // reject early: the patched slots reach std::system unquoted
+    LOGE("installer slots failed safety validation (url len %zu, branch len %zu)", git_url().size(), branch_name().size());
+    renderError("invalid install URL");
+    util::sleep_for(120 * 1000);
   } else {
     renderProgress(0);
     int result = doInstall();
