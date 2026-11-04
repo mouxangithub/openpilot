@@ -212,6 +212,11 @@ class IndicatorLayer:
     self._last_model_frame = md.frameId
     valid = md.valid and all(sm.valid[k] and sm.alive[k] and 0 <= now - sm.recv_time[k] < .35
                              for k in ('carState', 'carControl'))
+    # carrotManSP is an optional observational feed (ignored by the comm-issue
+    # check); its first frame can lag or it may never run. Skip the ATC mirror
+    # rather than index a missing service and take selfdrived down.
+    if not sm.seen.get('carrotManSP'):
+      return
     cm = sm['carrotManSP']
     lamps = (int(CS.leftBlinker), int(CS.rightBlinker))
     driver_st = BLINKER_LEFT if lamps == (1, 0) else BLINKER_RIGHT if lamps == (0, 1) else BLINKER_NONE
