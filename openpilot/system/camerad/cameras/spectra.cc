@@ -281,11 +281,19 @@ int SpectraCamera::clear_req_queue() {
 }
 
 void SpectraCamera::camera_open(VisionIpcServer *v) {
-  if (!openSensor()) {
+  // A camera that is disabled by configuration (e.g. DISABLE_DRIVER on comma 3,
+  // which has no cabin camera) must not be probed at all: bringup would fail on
+  // the missing sensor and the first-frame sync would then wait for a camera
+  // that is never going to produce a frame.
+  if (!enabled) {
+    disabled_cameras.insert(cc.camera_num);
+    sensor_missing = true;
     return;
   }
 
-  if (!enabled) return;
+  if (!openSensor()) {
+    return;
+  }
 
   buf.out_img_width = sensor->frame_width / sensor->out_scale;
   buf.out_img_height = (sensor->hdr_offset > 0 ? (sensor->frame_height - sensor->hdr_offset) / 2 : sensor->frame_height) / sensor->out_scale;
