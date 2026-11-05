@@ -286,7 +286,26 @@ def run(directory=DIRECTORY, duration=None, model_path=MODEL_PATH, observation_p
     from openpilot.common.swaglog import cloudlog
     from openpilot.sunnypilot.carrot.signal_yolo_detector import (HousingTracker, detect,
                                                                   observation_record, valid_box)
-    path, manifest = validate_artifact(directory, model_path)
+    # The settings toggle can be on before the model artifact is staged, and a
+    # manifest can go stale after an update. Stage (or re-stage) it from the
+    # checksum-verified repo copy instead of crash-looping: the manager would
+    # otherwise relaunch this process forever on a missing or unusable
+    # artifact. If the repo copy is unusable too, hold the idle slot while
+    # still requested and re-check periodically, so a later install is picked
+    # up without an ignition cycle.
+    path, manifest = None, None
+    while requested(directory) and path is None:
+      try:
+        path, manifest = validate_artifact(directory, model_path)
+      except (FileNotFoundError, ValueError):
+        try:
+          install(directory, model_path)
+          path, manifest = validate_artifact(directory, model_path)
+        except Exception:
+          cloudlog.warning('signalYoloShadow: model artifact unavailable; idling while requested')
+          time.sleep(5)
+    if path is None:
+      return
     net = build_net(path)
     tracker = HousingTracker()
     client = VisionIpcClient('camerad', VisionStreamType.VISION_STREAM_NARROW_ROAD, True)
