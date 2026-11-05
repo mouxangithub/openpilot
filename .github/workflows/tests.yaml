@@ -118,6 +118,15 @@ jobs:
     - name: Static analysis
       timeout-minutes: 1
       run: scripts/lint/lint.sh
+    - name: Workflow sanity gate (actionlint + referenced-file existence)
+      timeout-minutes: 2
+      run: python3 scripts/lint/check_workflows.py
+    - name: Validation-artifacts gate (docs/*_validation.json schema)
+      timeout-minutes: 1
+      run: python3 tools/ci/check_validation_artifacts.py
+    - name: Dependency provenance gate (upstream-sync.json vs submodules)
+      timeout-minutes: 1
+      run: python3 tools/ci/check_upstream_sync_json.py
 
   unit_tests:
     name: unit tests
@@ -145,7 +154,16 @@ jobs:
       timeout-minutes: ${{ contains(runner.name, 'nsc') && 2 || 999 }}
       env:
         RAYLIB_BACKEND: headless
-      run: tools/op.sh test
+      run: tools/op.sh test --json-output ${{ runner.temp }}/test_records.json
+    - name: Upload unit test records
+      # evidence retention: a failed run keeps per-test records, not just a
+      # truncated console log (rejected overwrites via unique artifact name)
+      uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: unit-test-records-${{ github.run_id }}-${{ github.run_attempt }}
+        path: ${{ runner.temp }}/test_records.json
+        if-no-files-found: error
 
   process_replay:
     name: process replay

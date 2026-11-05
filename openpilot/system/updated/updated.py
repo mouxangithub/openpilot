@@ -557,6 +557,29 @@ class Updater:
     if last_error is not None:
       raise last_error
 
+  def _validate_gitlink_layout(self, repo: str) -> None:
+    """The staged tree's gitlink set must match .gitmodules exactly."""
+    expected: set[str] = set()
+    for line in run(["git", "config", "-f", ".gitmodules", "--get-regexp", r"submodule\..*\.path"], repo).splitlines():
+      value = line.split("=", 1)[1] if "=" in line else line.split(None, 1)[1]
+      expected.add(value.strip())
+
+    staged: dict[str, str] = {}
+    for entry in run(["git", "ls-files", "--stage", "-z"], repo).split("\0"):
+      if not entry:
+        continue
+      metadata, tracked_file = entry.split("\t", 1)
+      mode, _, _stage = metadata.split()
+      if mode == "160000":
+        staged[tracked_file] = mode
+
+    missing = expected - set(staged)
+    if missing:
+      raise RuntimeError(f"update dropped gitlink(s) for registered submodule(s): {sorted(missing)}; refusing to stage")
+    extra = set(staged) - expected
+    if extra:
+      raise RuntimeError(f"update injected unregistered gitlink(s): {sorted(extra)}; refusing to stage")
+
   def _origin_url(self, path: str) -> str:
     """The repo's origin url, without any proxy prefix already applied."""
     try:
@@ -634,6 +657,13 @@ class Updater:
     ]
     r = [run(cmd, OVERLAY_MERGED) for cmd in cmds]
     cloudlog.info("git reset success: %s", '\n'.join(r))
+
+    # The staged tree must keep the dependency layout this fork ships: every
+    # submodule registered in .gitmodules still a gitlink pointer, and no
+    # unregistered gitlink injected. A layout mutation means the branch was
+    # rewritten (vendored, pointer dropped, or a dependency swapped) and must
+    # not be activated silently.
+    self._validate_gitlink_layout(OVERLAY_MERGED)
 
     # `git submodule sync` copies the .gitmodules urls into
     # submodule.<name>.url, so the proxy has to be written after it or the

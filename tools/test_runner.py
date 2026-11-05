@@ -3,6 +3,7 @@ import argparse
 from collections import Counter
 from concurrent.futures import as_completed, ProcessPoolExecutor
 from itertools import batched
+import json
 import math
 import os
 from pathlib import Path
@@ -266,6 +267,9 @@ def main():
   parser.add_argument("-v", "--verbose", action="store_true", help="show every test")
   parser.add_argument("--durations", type=int, default=10, metavar="N", help="show N slowest tests; 0 shows all")
   parser.add_argument("-W", "--warnings", choices=("error", "default", "always", "ignore"), default="error")
+  parser.add_argument("--json-output", metavar="PATH",
+                      help="write every test record (id, status, time, detail) to PATH as JSON; "
+                           "intended for CI artifact retention so a failed run keeps its evidence")
   args = parser.parse_args()
 
   capture_output = not args.no_capture
@@ -302,6 +306,18 @@ def main():
     return 2
   if column:
     print()
+  if args.json_output:
+    payload = {
+      "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(started)),
+      "duration_sec": time.monotonic() - started,
+      "count": len(records),
+      "records": records,
+      "collection_errors": errors,
+    }
+    output_path = Path(args.json_output)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(f"test records written to {output_path}")
   return report(records, errors, args.durations, time.monotonic() - started)
 
 

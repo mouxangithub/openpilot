@@ -32,8 +32,12 @@ jobs:
         with:
           sparse-checkout: |
             openpilot/cereal
+            tools/ci
             uv.lock
           submodules: false
+
+      - name: Reserved-slot contract gate (generated baseline)
+        run: python3 tools/ci/check_capnp_schema.py
 
       - name: Init sunnypilot opendbc submodule
         run: git submodule update --init --depth 1 opendbc_repo
