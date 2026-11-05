@@ -315,13 +315,11 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     {"BlindSpot", {PERSISTENT | BACKUP, BOOL, "0"}},
     // the model's lead forecast as the long MPC's obstacle; on by default, a hidden off switch
-    {"LeadForecast", {PERSISTENT | BACKUP, BOOL, "1"}},
     // zoompilot keeps the experimental mode switch (upstream removed it with chill);
     // ExperimentalModeConfirmed is the explicit-acknowledgement bit used by the
     // mode_state runtime (write_plan) and both settings UIs.
     {"ExperimentalMode", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"ExperimentalModeConfirmed", {PERSISTENT | BACKUP, BOOL, "0"}},
-    {"ExperimentalModeSetSpeed", {PERSISTENT | BACKUP, BOOL, "1"}},
 
     // Accel Controller profiles (Eco / Normal / Sport)
     {"AccelPersonalityEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
@@ -474,7 +472,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LiveTorqueParamsToggle", {PERSISTENT | BACKUP , BOOL}},
     {"LiveTorqueParamsRelaxedToggle", {PERSISTENT | BACKUP , BOOL}},
     {"TorqueControlTune", {PERSISTENT | BACKUP, FLOAT, "0.0"}},
-    {"TorqueControlTuneBig", {PERSISTENT | BACKUP, FLOAT, "1.0"}},  // big-model tune
     {"TorqueParamsOverrideEnabled", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"TorqueParamsOverrideFriction", {PERSISTENT | BACKUP, FLOAT, "0.1"}},
     {"TorqueParamsOverrideLatAccelFactor", {PERSISTENT | BACKUP, FLOAT, "2.5"}},
@@ -909,6 +906,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // --- zoompilot params --- //
     {"ExperimentalModeSetSpeed", {PERSISTENT | BACKUP, BOOL, "1"}},
     {"LaneChangeSmoothing", {PERSISTENT | BACKUP, INT, "0"}},
+
     {"LaneLineCheck", {PERSISTENT | BACKUP, INT, "0"}},
     {"OnnxBsdEnabled", {PERSISTENT | BACKUP, INT, "0"}},
     {"OnnxBsdIntervalMs", {PERSISTENT | BACKUP, INT, "250"}},
@@ -1028,6 +1026,20 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"SoftwareMenu", {PERSISTENT | BACKUP, BOOL, "0"}},
     {"SoundLanguageSetting", {PERSISTENT | BACKUP, STRING, "auto"}},
     {"UseWideCamera", {PERSISTENT | BACKUP, BOOL, "1"}},
+
+    {"LeadForecast", {PERSISTENT | BACKUP, BOOL, "1"}},
+    {"TorqueControlTuneBig", {PERSISTENT | BACKUP, FLOAT, "1.0"}},  // big-model tune
+
+    // Accelerators: what runs the large model. See sunnypilot/jetlink_adapter/.
+    // a comma that has seen a chestnut downloads its big model through the model manager (models/manager.py)
+    {"ChestnutSeen", {PERSISTENT, BOOL}},
+    {"Offroad_ChestnutModelDownloading", {CLEAR_ON_MANAGER_START, JSON}},
+    {"Offroad_ChestnutModelMissing", {CLEAR_ON_MANAGER_START, JSON}},
+    // jetlink backend. JetlinkSpec carries whether the engine is built, which must
+    // survive a reboot, or every ignition cycle would rebuild a multi-minute engine.
+    // an iPhone on a direct cable charges from the comma; off by default, some
+    // lose the link once the comma powers them
+
 
     // one-time markers
     {"ExperimentalAssistsDefaultOn", {PERSISTENT | BACKUP, BOOL}},  // Speed/Lead Follow Assist turned on once when they became default (params_migration_zp.py)

@@ -11,10 +11,12 @@ sections:
   items:
   - key: Blendful
     widget: toggle
+
     title: 车道居中辅助（Alpha）
     description: 在模型自身转向的基础上轻柔地把车推回车道中央，车道线越清晰修正越强。遇障碍自动让行。默认模型不可用。
     enablement:
     - $ref: '#/macros/custom_model'
+
   - key: SmallModelSteering
     widget: option
     title: 小模型转向

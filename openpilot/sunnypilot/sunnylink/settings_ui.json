@@ -2518,6 +2518,7 @@
             {
               "key": "Blendful",
               "widget": "toggle",
+
               "title": "\u8f66\u9053\u5c45\u4e2d\u8f85\u52a9\uff08Alpha\uff09",
               "description": "\u5728\u6a21\u578b\u81ea\u8eab\u8f6c\u5411\u7684\u57fa\u7840\u4e0a\u8f7b\u67d4\u5730\u628a\u8f66\u63a8\u56de\u8f66\u9053\u4e2d\u592e\uff0c\u8f66\u9053\u7ebf\u8d8a\u6e05\u6670\u4fee\u6b63\u8d8a\u5f3a\u3002\u9047\u969c\u788d\u81ea\u52a8\u8ba9\u884c\u3002\u9ed8\u8ba4\u6a21\u578b\u4e0d\u53ef\u7528\u3002",
               "enablement": [
@@ -2527,6 +2528,7 @@
                   "equals": true
                 }
               ]
+
             },
             {
               "key": "SmallModelSteering",
