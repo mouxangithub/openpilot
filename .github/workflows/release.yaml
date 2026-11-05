@@ -1,15 +1,9 @@
 name: 打包预编译分支
 
+# 手动触发：把 test 分支精简打包后推送到 staging 分支（GitHub + CNB 双端）。
+# 不再监听 push 自动打包；master-c3 相关打包路径已移除。
 on:
-  push:
-    branches: [ master-c3, test ]
   workflow_dispatch:
-    inputs:
-      source_branch:
-        description: Source branch to strip and publish
-        required: true
-        type: choice
-        options: [ master-c3, test ]
 
 permissions:
   contents: write
@@ -20,42 +14,16 @@ env:
   GIT_CONFIG_VALUE_0: openpilot/selfdrive/modeld/models/big_driving_tinygrad.pkl
 
 jobs:
-  plan:
-    name: 规划发布
-    runs-on: ubuntu-latest
-    outputs:
-      source: ${{ steps.plan.outputs.source }}
-      target: ${{ steps.plan.outputs.target }}
-    steps:
-      - id: plan
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            SRC="${{ github.event.inputs.source_branch }}"
-          else
-            SRC="${{ github.ref_name }}"
-          fi
-          case "$SRC" in
-            master-c3) TGT=master-c3-prebuild ;;
-            test) TGT=test-prebuild ;;
-            *)
-              echo "Unsupported branch: $SRC"
-              exit 1
-              ;;
-          esac
-          echo "source=$SRC" >> "$GITHUB_OUTPUT"
-          echo "target=$TGT" >> "$GITHUB_OUTPUT"
-
   publish:
-    name: ${{ needs.plan.outputs.source }} → ${{ needs.plan.outputs.target }}
-    needs: plan
+    name: test → staging
     runs-on: ubuntu-latest
     concurrency:
-      group: release-${{ needs.plan.outputs.target }}
+      group: release-staging
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.plan.outputs.source }}
+          ref: test
           submodules: recursive
           fetch-depth: 0
 
@@ -66,7 +34,7 @@ jobs:
 
       - name: 推送精简源码分支
         env:
-          BRANCH: ${{ needs.plan.outputs.target }}
+          BRANCH: staging
           # 固定 TARGET_DIR（脚本未设置时会 mktemp 随机目录），供下一步 CNB 发布复用精简树。
           # 必须放在 runner.temp（repo 工作区外）：脚本里的 git clean -xdff 会清掉 repo 内的未跟踪目录。
           TARGET_DIR: ${{ runner.temp }}/stripped
@@ -74,7 +42,7 @@ jobs:
 
       - name: 同步发布到 CNB 镜像仓库
         env:
-          BRANCH: ${{ needs.plan.outputs.target }}
+          BRANCH: staging
           TARGET_DIR: ${{ runner.temp }}/stripped
           CNB_REPO: cnb.cool/mouxancnb/openpilot.git
           CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
