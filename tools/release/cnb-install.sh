@@ -57,11 +57,15 @@ for _ in $(seq 1 30); do
   sleep 2
 done
 if [ "$(date +%s)" -lt "$MIN_TIME" ]; then
-  HTTP_DATE=$(curl -fsSI https://cnb.cool 2>/dev/null | grep -i '^date:' | cut -d' ' -f2- | tr -d '\r')
-  if [ -n "$HTTP_DATE" ]; then
-    echo "    从 CNB 服务器校时: $HTTP_DATE"
-    sudo date -s "$HTTP_DATE" >/dev/null || true
-  fi
+  # 校时必须走 HTTP(80)：HTTPS 的证书校验本身依赖有效时钟（鸡生蛋）。
+  for TSYNC_URL in http://cnb.cool http://www.qq.com http://www.baidu.com; do
+    HTTP_DATE=$(curl -fsSI -m 10 "$TSYNC_URL" 2>/dev/null | grep -i '^date:' | cut -d' ' -f2- | tr -d '\r')
+    if [ -n "$HTTP_DATE" ]; then
+      echo "    从 $TSYNC_URL 校时: $HTTP_DATE"
+      sudo date -s "$HTTP_DATE" >/dev/null || true
+      [ "$(date +%s)" -ge "$MIN_TIME" ] && break
+    fi
+  done
 fi
 if [ "$(date +%s)" -lt "$MIN_TIME" ]; then
   echo "错误：系统时钟无效且校时失败，git 克隆 TLS 校验会失败。车辆上电让 GPS/NTP 同步后重试。" >&2
