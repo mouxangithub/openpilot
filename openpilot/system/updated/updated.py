@@ -558,11 +558,25 @@ class Updater:
       raise last_error
 
   def _validate_gitlink_layout(self, repo: str) -> None:
-    """The staged tree's gitlink set must match .gitmodules exactly."""
+    """The staged tree's gitlink set must match .gitmodules exactly.
+
+    A stripped release tree has neither .gitmodules nor any gitlink, which
+    is a valid layout: expected and staged are both empty. Only a mismatch
+    between the two sets is an error.
+    """
     expected: set[str] = set()
-    for line in run(["git", "config", "-f", ".gitmodules", "--get-regexp", r"submodule\..*\.path"], repo).splitlines():
-      value = line.split("=", 1)[1] if "=" in line else line.split(None, 1)[1]
-      expected.add(value.strip())
+    if os.path.exists(os.path.join(repo, ".gitmodules")):
+      try:
+        out = run(["git", "config", "-f", ".gitmodules", "--get-regexp", r"submodule\..*\.path"], repo)
+      except subprocess.CalledProcessError as e:
+        # exit code 1 with no output means the file has no submodule sections
+        if e.returncode == 1 and not (e.output or "").strip():
+          out = ""
+        else:
+          raise
+      for line in out.splitlines():
+        value = line.split("=", 1)[1] if "=" in line else line.split(None, 1)[1]
+        expected.add(value.strip())
 
     staged: dict[str, str] = {}
     for entry in run(["git", "ls-files", "--stage", "-z"], repo).split("\0"):
