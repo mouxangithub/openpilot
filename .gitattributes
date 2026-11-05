@@ -101,3 +101,8 @@ openpilot/sunnypilot/carrot/cluster/cluster_scene.py -filter -diff -merge binary
 openpilot/sunnypilot/carrot/cluster/radar_trajectory_labels.json -filter -diff -merge binary
 openpilot/sunnypilot/carrot/cluster/assets/images/*.png -filter -diff -merge binary
 openpilot/sunnypilot/carrot/cluster/assets/models/**/*.obj -filter -diff -merge binary
+
+# Updater zipapp: rebuilt locally for this fork (upstream LFS store is read-only
+# for us and its snapshot predates our raygui-compat application.py). Plain git
+# like the other fork assets; only rebuild when system/ui source changes.
+openpilot/common/hardware/comma/updater -filter -diff -merge
