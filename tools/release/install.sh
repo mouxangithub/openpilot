@@ -13,6 +13,9 @@
 # 用法（设备 SSH 可达即可，一条命令完成，不需要先传脚本）：
 #   ssh comma@<设备IP> "curl -fsSL https://raw.githubusercontent.com/mouxangithub/openpilot/refs/heads/test/tools/release/install.sh | bash"
 #
+# GitHub raw 不可达时，脚本本体走 gh-proxy 反代拉取：
+#   ssh comma@<设备IP> "curl -fsSL https://gh-proxy.com/https://raw.githubusercontent.com/mouxangithub/openpilot/refs/heads/test/tools/release/install.sh | bash"
+#
 # 或 PC 上先落地再管道推送（raw.githubusercontent.com 不可达时的替代）：
 #   ssh comma@<设备IP> "bash -s" < tools/release/install.sh
 #
@@ -20,6 +23,8 @@
 #   BRANCH=test         要安装的 GitHub 分支（默认 test）
 #   REPO_URL=...        GitHub 仓库地址（默认 https://github.com/mouxangithub/openpilot.git）
 #   GITHUB_USER=...     SSH 公钥来源 GitHub 用户名（默认 mouxangithub，注入到 GithubSshKeys）
+#   GH_PROXY=...        GitHub 反代地址（默认 https://gh-proxy.com，直连失败自动启用；设为 direct 强制直连）
+#                       注意：gh-proxy 不代理 LFS batch API，LFS 仍需 GitHub 直连
 #
 # 脚本跑在设备上（comma 用户）。
 
@@ -82,9 +87,33 @@ echo "    时钟 OK: $(date)"
 echo "==> [4/6] 从 GITHUB 克隆 $REPO_URL (分支 $BRANCH)"
 sudo rm -rf "$TMP_PATH"
 # 与 installer.cc 一致：depth=1 + 进度输出。分步克隆比 --recurse-submodules 可控，逐仓报错。
-if ! git clone --progress "$REPO_URL" -b "$BRANCH" --depth=1 "$TMP_PATH" 2>&1 | tail -3; then
-  echo "错误：克隆失败。检查设备网络（蜂窝/WiFi）与分支名。" >&2
-  exit 1
+# GitHub 不可达时自动改走 gh-proxy.com 反代（支持 git smart 协议，已实测）。
+# GH_PROXY 环境变量可覆盖代理地址，设为 "direct" 强制直连。
+GH_PROXY="${GH_PROXY:-https://gh-proxy.com}"
+git_clone() {  # $1=克隆用的 URL 重写参数（空=直连）
+  if [ -n "$1" ]; then
+    git -c "url.$1/https://github.com/.insteadOf=https://github.com/" \
+      clone --progress "$REPO_URL" -b "$BRANCH" --depth=1 "$TMP_PATH" 2>&1 | tail -3
+  else
+    git clone --progress "$REPO_URL" -b "$BRANCH" --depth=1 "$TMP_PATH" 2>&1 | tail -3
+  fi
+}
+PROXY_MODE=""
+if [ "$GH_PROXY" = "direct" ]; then
+  git_clone "" || { echo "错误：直连克隆失败。检查设备网络与分支名。" >&2; exit 1; }
+elif git_clone ""; then
+  :
+else
+  echo "    直连失败，自动改走代理 $GH_PROXY 重试..."
+  sudo rm -rf "$TMP_PATH"
+  if git_clone "$GH_PROXY"; then
+    PROXY_MODE=1
+    # 把 insteadOf 写进 repo config：子仓库 URL 全是 github.com 开头，submodule update 一并走代理
+    git -C "$TMP_PATH" config "url.$GH_PROXY/https://github.com/.insteadOf" "https://github.com/"
+  else
+    echo "错误：直连与代理克隆均失败。检查设备网络（蜂窝/WiFi）与分支名。" >&2
+    exit 1
+  fi
 fi
 
 # ---- 子仓库：test 分支带 .gitmodules（staging 精简树没有），必须拉齐 ----
@@ -97,13 +126,15 @@ fi
 N_SUB=$(git -C "$TMP_PATH" submodule status --recursive 2>/dev/null | grep -cv '^-' || true)
 echo "    子仓库就绪: $N_SUB 个已 checkout"
 
-# ---- LFS 资产：268 个文件（字体/动画/模型/comma updater 二进制）----
+# ---- LFS 资产：268 个文件（字体/动画/模型等）----
 # 设备端 .gitconfig 已带 lfs filter，clone checkout 时通常已自动 smudge；
 # 这里显式兜底拉取 + 指针校验，防止 GitHub LFS CDN 抖动留下指针占位。
+# 注意：gh-proxy 不代理 LFS batch API（/info/lfs），代理模式下 LFS 仍走直连 GitHub。
 echo "    拉取 LFS 资产（268 个文件）..."
 git -C "$TMP_PATH" lfs install --local >/dev/null 2>&1 || true
 if ! git -C "$TMP_PATH" lfs pull >/dev/null 2>&1; then
   echo "错误：主仓 LFS 拉取失败（字体/动画/模型文件仍是指针占位）。检查网络后重试。" >&2
+  [ -n "$PROXY_MODE" ] && echo "      提示：gh-proxy 不支持 LFS，LFS 需直连 GitHub；可临时开手机热点重跑本脚本。" >&2
   exit 1
 fi
 # 子仓库自身的 LFS（如 ai 仓库内模型）逐仓兜底；个别子仓无 LFS 时 git lfs pull 静默成功。
@@ -150,15 +181,30 @@ mkdir -p /data/params/d
 # AGNOS sshd 的 AuthorizedKeysFile 是 /data/params/d/GithubSshKeys /tmp/authorized_keys，
 # 只认密钥（PasswordAuthentication no）。先注入公钥再写 SshEnabled，
 # ssh-param-watcher 检测到 SshEnabled 变化后 set_ssh.sh 会拉起 sshd。
+# 公钥默认取仓库内 tools/release/github_keys.txt（mouxangithub 的 6 把 ed25519），
+# 四条通道逐级降级：CNB raw（国内直连）→ GitHub raw → gh-proxy raw → github.com/<user>.keys。
 GITHUB_USER="${GITHUB_USER:-mouxangithub}"
-if curl -fsSL -m 20 "https://github.com/${GITHUB_USER}.keys" -o /data/params/d/GithubSshKeys.new \
-   && [ -s /data/params/d/GithubSshKeys.new ] \
-   && grep -qE '^(ssh-|ecdsa-|sk-)' /data/params/d/GithubSshKeys.new; then
-  mv /data/params/d/GithubSshKeys.new /data/params/d/GithubSshKeys
-  echo "    已注入 ${GITHUB_USER} 的 GitHub SSH 公钥（$(grep -cE '^(ssh-|ecdsa-|sk-)' /data/params/d/GithubSshKeys) 把）"
+KEYS_TMP=/data/params/d/GithubSshKeys.new
+rm -f "$KEYS_TMP"
+KEYS_PATH_RAW="mouxangithub/openpilot/refs/heads/$BRANCH/tools/release/github_keys.txt"
+fetch_keys() {
+  # 默认用户：优先仓库内公钥文件（CNB/GitHub/代理三通道）
+  if [ "$GITHUB_USER" = "mouxangithub" ]; then
+    curl -fsSL -m 20 "https://cnb.cool/mouxancnb/openpilot/-/git/raw/$BRANCH/tools/release/github_keys.txt" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+    curl -fsSL -m 20 "https://raw.githubusercontent.com/$KEYS_PATH_RAW" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+    [ "$GH_PROXY" != "direct" ] && curl -fsSL -m 20 "$GH_PROXY/https://raw.githubusercontent.com/$KEYS_PATH_RAW" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+  fi
+  # 自定义用户或仓库文件全部失败：GitHub .keys 端点（直连/代理）
+  curl -fsSL -m 20 "https://github.com/${GITHUB_USER}.keys" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+  [ "$GH_PROXY" != "direct" ] && curl -fsSL -m 20 "$GH_PROXY/https://github.com/${GITHUB_USER}.keys" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+  return 1
+}
+if fetch_keys && grep -qE '^(ssh-|ecdsa-|sk-)' "$KEYS_TMP"; then
+  mv "$KEYS_TMP" /data/params/d/GithubSshKeys
+  echo "    已注入 SSH 公钥（$(grep -cE '^(ssh-|ecdsa-|sk-)' /data/params/d/GithubSshKeys) 把，来源 $GITHUB_USER）"
 else
-  rm -f /data/params/d/GithubSshKeys.new
-  echo "    警告：拉取 ${GITHUB_USER} 的 GitHub 公钥失败，SSH 可能无法登录；可稍后手动写入 /data/params/d/GithubSshKeys" >&2
+  rm -f "$KEYS_TMP"
+  echo "    警告：所有通道拉取公钥失败，SSH 可能无法登录；可稍后手动写入 /data/params/d/GithubSshKeys" >&2
 fi
 echo -n "1" > /data/params/d/SshEnabled
 sync

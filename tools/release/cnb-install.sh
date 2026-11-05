@@ -17,6 +17,7 @@
 #   BRANCH=staging      要安装的 CNB 分支（默认 staging）
 #   REPO_URL=...        CNB 仓库地址（默认 https://cnb.cool/mouxancnb/openpilot.git）
 #   GITHUB_USER=...     SSH 公钥来源 GitHub 用户名（默认 mouxangithub，注入到 GithubSshKeys）
+#   GH_PROXY=...        公钥拉取的 GitHub 反代（默认 https://gh-proxy.com，CNB 通道正常时用不到）
 #
 # 脚本跑在设备上（comma 用户）。
 
@@ -110,16 +111,28 @@ mkdir -p /data/params/d
 # AGNOS sshd 的 AuthorizedKeysFile 是 /data/params/d/GithubSshKeys /tmp/authorized_keys，
 # 只认密钥（PasswordAuthentication no）。先注入公钥再写 SshEnabled，
 # ssh-param-watcher 检测到 SshEnabled 变化后 set_ssh.sh 会拉起 sshd。
-# 公钥从 GitHub 拉取（github.com/<user>.keys），安装源虽是 CNB，密钥渠道走 GitHub。
+# 公钥默认取仓库内 tools/release/github_keys.txt，CNB raw 优先（国内直连最快），
+# GitHub raw / gh-proxy raw 降级；自定义用户走 github.com/<user>.keys。
 GITHUB_USER="${GITHUB_USER:-mouxangithub}"
-if curl -fsSL -m 20 "https://github.com/${GITHUB_USER}.keys" -o /data/params/d/GithubSshKeys.new \
-   && [ -s /data/params/d/GithubSshKeys.new ] \
-   && grep -qE '^(ssh-|ecdsa-|sk-)' /data/params/d/GithubSshKeys.new; then
-  mv /data/params/d/GithubSshKeys.new /data/params/d/GithubSshKeys
-  echo "    已注入 ${GITHUB_USER} 的 GitHub SSH 公钥（$(grep -cE '^(ssh-|ecdsa-|sk-)' /data/params/d/GithubSshKeys) 把）"
+KEYS_TMP=/data/params/d/GithubSshKeys.new
+rm -f "$KEYS_TMP"
+GH_PROXY="${GH_PROXY:-https://gh-proxy.com}"
+fetch_keys() {
+  if [ "$GITHUB_USER" = "mouxangithub" ]; then
+    curl -fsSL -m 20 "https://cnb.cool/mouxancnb/openpilot/-/git/raw/$BRANCH/tools/release/github_keys.txt" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+    curl -fsSL -m 20 "https://raw.githubusercontent.com/mouxangithub/openpilot/refs/heads/test/tools/release/github_keys.txt" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+    [ "$GH_PROXY" != "direct" ] && curl -fsSL -m 20 "$GH_PROXY/https://raw.githubusercontent.com/mouxangithub/openpilot/refs/heads/test/tools/release/github_keys.txt" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+  fi
+  curl -fsSL -m 20 "https://github.com/${GITHUB_USER}.keys" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+  [ "$GH_PROXY" != "direct" ] && curl -fsSL -m 20 "$GH_PROXY/https://github.com/${GITHUB_USER}.keys" -o "$KEYS_TMP" 2>/dev/null && [ -s "$KEYS_TMP" ] && return 0
+  return 1
+}
+if fetch_keys && grep -qE '^(ssh-|ecdsa-|sk-)' "$KEYS_TMP"; then
+  mv "$KEYS_TMP" /data/params/d/GithubSshKeys
+  echo "    已注入 SSH 公钥（$(grep -cE '^(ssh-|ecdsa-|sk-)' /data/params/d/GithubSshKeys) 把，来源 $GITHUB_USER）"
 else
-  rm -f /data/params/d/GithubSshKeys.new
-  echo "    警告：拉取 ${GITHUB_USER} 的 GitHub 公钥失败，SSH 可能无法登录；可稍后手动写入 /data/params/d/GithubSshKeys" >&2
+  rm -f "$KEYS_TMP"
+  echo "    警告：所有通道拉取公钥失败，SSH 可能无法登录；可稍后手动写入 /data/params/d/GithubSshKeys" >&2
 fi
 echo -n "1" > /data/params/d/SshEnabled
 sync
