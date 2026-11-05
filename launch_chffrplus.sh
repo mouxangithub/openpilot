@@ -577,11 +577,34 @@ agnos_init() {
     return 0
   fi
 
+  # Crash-loop guard: the updater zipapp bundles a snapshot of the system/ui
+  # source, so it can crash at import time whenever the AGNOS image ships a
+  # pyray wheel that no longer has an API the snapshot uses (observed bt4->bt5:
+  # wheel dropped rl.GuiTextAlignment, stale zipapp crashed at import and the
+  # loop below spun on the comma screen forever). After 3 consecutive failures,
+  # fall back to the headless CLI flash so the device still updates itself.
+  local updater_fails=0
   while true; do
     # PYTHONPATH must explicitly carry $PYDEPS_DIR: the updater inherits this
     # environment, and the deps installed by bootstrap_deps (notably pyserial,
     # needed by the bundled snapshot above) live there.
     PYTHONPATH="$PY_PATH" "$PY" "$DIR/openpilot/common/hardware/comma/updater" "$agnos_py" "$manifest"
+    updater_fails=$((updater_fails + 1))
+    if [ "$updater_fails" -ge 3 ]; then
+      echo "[agnos] updater UI failed $updater_fails times, falling back to headless flash" | tee -a /tmp/agnos_pending.log
+      # HTTPS needs a sane clock; RTC resets can leave 1970. Sync via HTTP(80)
+      # first: TLS certificate validation itself requires a valid clock.
+      if [ "$(date +%s)" -lt 1735689600 ]; then
+        local d
+        for _u in http://github.com http://www.qq.com http://www.baidu.com; do
+          d=$(curl -fsSI -m 10 "$_u" 2>/dev/null | grep -i '^date:' | cut -d' ' -f2- | tr -d '\r')
+          [ -n "$d" ] && sudo date -s "$d" >/dev/null 2>&1 && break
+        done
+      fi
+      sudo env PYTHONPATH="$PY_PATH" "$PY" "$agnos_py" --swap "$manifest" && sudo reboot
+      # swap failed too (network etc.); keep retrying via the UI loop
+      updater_fails=0
+    fi
   done
 }
 
