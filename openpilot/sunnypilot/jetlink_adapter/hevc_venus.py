@@ -198,8 +198,28 @@ ION_SYSTEM_HEAP_ID = 25                # this device's, from linux/msm_ion.h
 ION_ALLOC_PAD = 8                      # the driver wants 8 bytes more than asked
 
 HEVC_DEFAULT_BITRATE = 2_000_000
+# What 5/6 GHz Wi-Fi carries without a second thought, and USB even more so:
+# a cleaner frame into the phone's decoder, which is the model's input. 2.4
+# GHz and every band that cannot be said keep the safe default below
+HEVC_GOOD_BAND_BITRATE = 4_000_000
 HEVC_GOP = 20
 HEVC_FPS = 20
+
+
+def band_bitrate() -> int:
+  """The bitrate a link's encoder should run, from where the comma is.
+
+  The comma's half of the link knows its band (`jetlink.comma.wifi.band`):
+  5 or 6 GHz takes the higher rate, 2.4 GHz and every place that cannot say
+  (a cable, or no iwconfig answer) keep the default this module always used.
+  Read once a link, when the encoders are built.
+  """
+  try:
+    from jetlink.comma import wifi
+    band = wifi.band()
+  except Exception:
+    band = None
+  return HEVC_GOOD_BAND_BITRATE if band in ('5', '6') else HEVC_DEFAULT_BITRATE
 
 
 class EncoderError(RuntimeError):
@@ -237,7 +257,7 @@ def available() -> bool:
   return True
 
 
-def make_encoder(size, geometry=None, *, bitrate: int = HEVC_DEFAULT_BITRATE,
+def make_encoder(size, geometry=None, *, bitrate: int | None = None,
                  gop: int = HEVC_GOP, fps: int = HEVC_FPS) -> VenusEncoder:
   """One camera's encoder, as jetlink's `ModelFace.hevc_encoder` asks for it.
 
@@ -245,8 +265,18 @@ def make_encoder(size, geometry=None, *, bitrate: int = HEVC_DEFAULT_BITRATE,
   which is redundant here but is the second half of the contract. The size is
   what matters: a frame's length cannot be split back into a width and a
   height, so a builder handed only the length cannot open anything.
+
+  Without an explicit `bitrate` the rate follows the Wi-Fi band (band_bitrate).
   """
   height, width = int(size[0]), int(size[1])
+  if bitrate is None:
+    bitrate = band_bitrate()
+    try:
+      from openpilot.common.swaglog import cloudlog
+      cloudlog.info("jetlink hevc: %dx%d encoder at %d bps (%s band)", width, height,
+                    bitrate, 'good' if bitrate == HEVC_GOOD_BAND_BITRATE else 'default')
+    except Exception:
+      pass
   return VenusEncoder(width=width, height=height, bitrate=bitrate, gop=gop, fps=fps)
 
 
