@@ -130,10 +130,9 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
     self.font_demi = gui_app.font(FontWeight.SEMI_BOLD)
     self.font_norm = gui_app.font(FontWeight.NORMAL)
 
-    # CarrotPanelOpacity (0-100, default 100) + CarrotPanelSide (1=right of the
-    # MAX box, zoompilot's default position; 0=stacked under the MAX box).
+    # CarrotPanelOpacity (0-100, default 100). The sign's position is hardcoded
+    # to zoompilot's default (right of the MAX box); no side param is honored.
     self._panel_opacity = 100
-    self._panel_side = 1
 
   @property
   def speed_conv(self):
@@ -142,15 +141,11 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
   def update(self):
     SpeedLimitAlertRenderer.update(self)
     sm = ui_state.sm
-    # Read CarrotPanelOpacity (0-100) and CarrotPanelSide (1=right/zoompilot default, 0=under MAX).
+    # CarrotPanelOpacity (0-100) scales the animation fade alpha.
     try:
       self._panel_opacity = max(10, min(100, int(ui_state.params.get("CarrotPanelOpacity", 100))))
     except Exception:
       self._panel_opacity = 100
-    try:
-      self._panel_side = max(0, min(1, int(ui_state.params.get("CarrotPanelSide", 1))))
-    except Exception:
-      self._panel_side = 1
     if sm.recv_frame["carState"] < ui_state.started_frame:
       self.set_speed = SET_SPEED_NA
       self.speed = 0.0
@@ -229,17 +224,12 @@ class SpeedLimitRenderer(Widget, SpeedLimitAlertRenderer):
   def _render(self, rect: rl.Rectangle):
     width = UI_CONFIG.set_speed_width_metric if ui_state.is_metric else UI_CONFIG.set_speed_width_imperial
 
-    # CarrotPanelSide: 1=right (next to the MAX box, zoompilot's default),
-    # 0=left (stacked under the MAX box). The MAX box owns x+46..x+246 at the
-    # left edge of the content area, so "left" can only mean *below* it — the
-    # original x+60 landed exactly on top of the MAX box.
-    if self._panel_side == 0:
-      x = rect.x + 60
-      y = rect.y + 45 + UI_CONFIG.set_speed_height + 24
-    else:
-      x = rect.x + 60 + width + 30 - 6
-      y = rect.y + 45 - 6
-
+    # The sign always sits right of the MAX box (zoompilot's default layout).
+    # The MAX box owns x+46..x+246 at the left edge of the content area, and
+    # CarrotPanelSide (a carrot nav-HUD param, default "0") must not be reused
+    # to move this sign — it always resolves to the right-side position.
+    x = rect.x + 60 + width + 30 - 6
+    y = rect.y + 45 - 6
     sign_rect = rl.Rectangle(x, y, width, UI_CONFIG.set_speed_height + 6 * 2)
 
     # CarrotPanelOpacity (10-100) scales the animation fade alpha.

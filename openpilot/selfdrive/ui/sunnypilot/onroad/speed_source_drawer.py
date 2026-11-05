@@ -18,7 +18,7 @@ Active source highlight: ``resolver.source`` mapped to the row names.
 
 Mount point: ``HudRendererSP._render`` right after the speed-limit sign; the
 sign's rect is recomputed with the same layout rules SpeedLimitRenderer uses
-(CarrotPanelSide aware). Gated by the unregistered param
+(fixed right-of-MAX position, matching zoompilot). Gated by the unregistered param
 ``ShowSpeedLimitSources`` (code default OFF).
 """
 import math
@@ -357,19 +357,13 @@ class SpeedSourceDrawerRenderer(Widget):
     return state
 
   def _speed_limit_sign_rect(self, rect: rl.Rectangle) -> rl.Rectangle:
-    """Same layout rules SpeedLimitRenderer._render uses (CarrotPanelSide aware)."""
+    """Same layout rules SpeedLimitRenderer._render uses (fixed right-of-MAX)."""
     width = UI_CONFIG.set_speed_width_metric if ui_state.is_metric else UI_CONFIG.set_speed_width_imperial
-    try:
-      panel_side = max(0, min(1, int(ui_state.params.get("CarrotPanelSide", 1))))
-    except Exception:
-      panel_side = 1
 
-    if panel_side == 0:
-      x = rect.x + 60
-      y = rect.y + 45 + UI_CONFIG.set_speed_height + 24
-    else:
-      x = rect.x + 60 + width + 30 - 6
-      y = rect.y + 45 - 6
+    # Mirrors SpeedLimitRenderer._render: the sign is always right of the MAX
+    # box (zoompilot's default); no CarrotPanelSide override is honored.
+    x = rect.x + 60 + width + 30 - 6
+    y = rect.y + 45 - 6
 
     return rl.Rectangle(x, y, width, UI_CONFIG.set_speed_height + 6 * 2)
 
