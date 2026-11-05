@@ -1116,6 +1116,19 @@ launch() {
   ensure_egl_vendor
   is_comma_big_hw && { ensure_touch_input; ensure_magic_service; }
 
+  # sshd boot guarantee. sshd is managed by ssh-param-watcher(.path/.service):
+  # the .path unit only fires on SshEnabled *modifications*, so on rootfs images
+  # where ssh-param-watcher.service is not enabled (no boot-time oneshot), sshd
+  # is never started after a reboot even though the params say it should be —
+  # install scripts inject GithubSshKeys and "SSH works", then the device
+  # becomes unreachable after the first reboot. AGNOS 20.x rootfs is read-only
+  # so systemctl enable cannot persist; start it from here instead, before
+  # agnos_init, so SSH is reachable even while headless-waiting for an AGNOS
+  # update. Idempotent.
+  if [ -f /data/params/d/SshEnabled ] && [ "$(< /data/params/d/SshEnabled)" = "1" ]; then
+    sudo systemctl start ssh 2>/dev/null || true
+  fi
+
   # AGNOS OS update (may loop updater)
   [ -f /AGNOS ] && agnos_init
 

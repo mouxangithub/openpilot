@@ -207,7 +207,20 @@ else
   echo "    警告：所有通道拉取公钥失败，SSH 可能无法登录；可稍后手动写入 /data/params/d/GithubSshKeys" >&2
 fi
 echo -n "1" > /data/params/d/SshEnabled
+# 保险带：AuthorizedKeysFile 的第二通道 + 预生成主机密钥（避免首启 ExecStartPre 依赖）
+cp /data/params/d/GithubSshKeys /tmp/authorized_keys 2>/dev/null || true
+sudo ssh-keygen -A -f /data >/dev/null 2>&1 || true
 sync
+# ---- SSH 自检：参数注入成功 ≠ sshd 已拉起。sshd 由 ssh-param-watcher 拉起，
+# .path 只监听 SshEnabled 的"修改事件"，rootfs 若没启用 watcher.service 开机自启，
+# 重启后 sshd 无人拉起（launch_chffrplus.sh 已加开机兜底，双保险）。
+sleep 2
+if sudo systemctl is-active --quiet ssh; then
+  echo "    sshd 运行中，监听 22 端口。设备 IP: $(hostname -I 2>/dev/null || ip -4 addr show 2>/dev/null | grep -oE 'inet 192[0-9.]*' | awk '{print $2}' | tr '\n' ' ')"
+else
+  echo "    警告：sshd 未运行，尝试手动拉起..." >&2
+  sudo systemctl start ssh && echo "    sshd 已拉起，设备 IP: $(hostname -I 2>/dev/null)" || echo "    错误：sshd 拉起失败，请串口执行 'sudo systemctl start ssh' 排查" >&2
+fi
 
 if sudo systemctl start comma.service 2>/dev/null; then
   echo "完成！openpilot 已重启（comma.service），首次启动 scons 编译后 3-5 分钟进入主界面。"
