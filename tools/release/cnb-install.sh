@@ -16,6 +16,7 @@
 # 可选环境变量（放进 ssh 的引号内）：
 #   BRANCH=staging      要安装的 CNB 分支（默认 staging）
 #   REPO_URL=...        CNB 仓库地址（默认 https://cnb.cool/mouxancnb/openpilot.git）
+#   GITHUB_USER=...     SSH 公钥来源 GitHub 用户名（默认 mouxangithub，注入到 GithubSshKeys）
 #
 # 脚本跑在设备上（comma 用户）。
 
@@ -106,6 +107,20 @@ EOF
 chmod +x /data/continue.sh.new
 mv /data/continue.sh.new "$CONTINUE"
 mkdir -p /data/params/d
+# AGNOS sshd 的 AuthorizedKeysFile 是 /data/params/d/GithubSshKeys /tmp/authorized_keys，
+# 只认密钥（PasswordAuthentication no）。先注入公钥再写 SshEnabled，
+# ssh-param-watcher 检测到 SshEnabled 变化后 set_ssh.sh 会拉起 sshd。
+# 公钥从 GitHub 拉取（github.com/<user>.keys），安装源虽是 CNB，密钥渠道走 GitHub。
+GITHUB_USER="${GITHUB_USER:-mouxangithub}"
+if curl -fsSL -m 20 "https://github.com/${GITHUB_USER}.keys" -o /data/params/d/GithubSshKeys.new \
+   && [ -s /data/params/d/GithubSshKeys.new ] \
+   && grep -qE '^(ssh-|ecdsa-|sk-)' /data/params/d/GithubSshKeys.new; then
+  mv /data/params/d/GithubSshKeys.new /data/params/d/GithubSshKeys
+  echo "    已注入 ${GITHUB_USER} 的 GitHub SSH 公钥（$(grep -cE '^(ssh-|ecdsa-|sk-)' /data/params/d/GithubSshKeys) 把）"
+else
+  rm -f /data/params/d/GithubSshKeys.new
+  echo "    警告：拉取 ${GITHUB_USER} 的 GitHub 公钥失败，SSH 可能无法登录；可稍后手动写入 /data/params/d/GithubSshKeys" >&2
+fi
 echo -n "1" > /data/params/d/SshEnabled
 sync
 
