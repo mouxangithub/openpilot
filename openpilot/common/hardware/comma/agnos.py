@@ -353,7 +353,7 @@ def restore_partitions(partitions):
   if is_tizi_device() or is_mici_device():
     return partitions
 
-  partition_name_to_use = {'abl', 'boot'}
+  partition_name_to_use = {'xbl', 'xbl_config', 'abl', 'aop', 'devcfg', 'boot'}
   partitions_to_keep = {}
   agnos_tici_path = agnos_tici_manifest_path()
 
