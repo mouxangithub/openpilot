@@ -32,7 +32,28 @@ class ParamKeyType(IntEnum):
 
 
 _suffix = ".dylib" if sys.platform == "darwin" else ".so"
-lib = ctypes.CDLL(Path(__file__).with_name(f"libparams_c{_suffix}"))
+
+
+def _load_params_lib():
+  # Normal case: the native library sits next to this file in a real
+  # directory (source tree / build output).
+  adjacent = Path(__file__).with_name(f"libparams_c{_suffix}")
+  if adjacent.is_file():
+    return ctypes.CDLL(str(adjacent))
+  # Zipapp case: this module was imported from a self-contained zipapp
+  # (e.g. the updater), so __file__ lives inside an archive and cannot be
+  # dlopen'ed. Fall back to the real openpilot tree on sys.path
+  # (PYTHONPATH), which carries the compiled library.
+  for entry in sys.path:
+    if not entry:
+      continue
+    candidate = Path(entry) / "openpilot" / "common" / f"libparams_c{_suffix}"
+    if candidate.is_file():
+      return ctypes.CDLL(str(candidate))
+  raise OSError(f"libparams_c{_suffix} not found next to {__file__} or on sys.path")
+
+
+lib = _load_params_lib()
 
 ParamsHandle = ctypes.c_void_p
 

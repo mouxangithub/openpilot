@@ -11,6 +11,9 @@ from pathlib import Path
 from openpilot.common.basedir import BASEDIR
 
 
+# cereal lives inside the openpilot package in this fork (openpilot/cereal),
+# so it is bundled with the openpilot tree; a legacy top-level cereal/ dir is
+# only included when it actually has content.
 DIRS = ['cereal', 'openpilot']
 EXTS = ['.png', '.py', '.ttf', '.capnp', '.json', '.fnt', '.mo', '.po']
 INTERPRETER = '/usr/bin/env python3'
@@ -43,7 +46,10 @@ if __name__ == '__main__':
 
   with tempfile.TemporaryDirectory() as tmp:
     for directory in DIRS:
-      shutil.copytree(BASEDIR + '/' + directory, tmp + '/' + directory, symlinks=False, dirs_exist_ok=True, copy_function=copy)
+      src = Path(BASEDIR) / directory
+      if not src.exists() or not any(src.iterdir()):
+        continue  # stale layout remnant (e.g. empty root cereal/ in this fork)
+      shutil.copytree(src, tmp + '/' + directory, symlinks=False, dirs_exist_ok=True, copy_function=copy)
     entry = f'{args.module}:{args.entrypoint}'
     zipapp.create_archive(tmp, target=args.output, interpreter=INTERPRETER, main=entry)
 
