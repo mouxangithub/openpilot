@@ -1923,6 +1923,10 @@ msgstr "外接 SSD"
 msgid "Extra Follow Time"
 msgstr "额外跟车时距"
 
+#: selfdrive\ui\layouts\settings\toggles.py
+msgid "Extra Lenient"
+msgstr "最宽松"
+
 #: selfdrive\ui\sunnypilot\layouts\settings\steering_sub_layouts\lane_change_settings.py
 msgid "Extra Slow"
 msgstr "特慢"
@@ -4186,8 +4190,8 @@ msgid "Set how far a short press and a long press of + or - move your set speed.
 msgstr "设置 + 或 - 短按与长按时设定速度的变化量。"
 
 #: selfdrive\ui\layouts\settings\toggles.py
-msgid "Set how sensitive the driver distraction detection should be. Strict: Very sensitive, warns on minor distractions. Moderate: Balanced between sensitivity and false positives. Lenient: Only alerts on clear distractions. "
-msgstr "设置驾驶员分心检测的敏感度。严格：非常敏感，轻微分心即警告。适中：在敏感度与误报之间平衡。宽松：仅在明显分心时告警。"
+msgid "Set how sensitive the driver distraction detection should be. Strict: Very sensitive, warns on minor distractions. Moderate: Balanced between sensitivity and false positives. Lenient: Only alerts on clear distractions. Extra Lenient: Alerts only on sustained, obvious distractions (longest grace period)."
+msgstr "设置驾驶员分心检测的敏感度。严格：非常敏感，轻微分心即警告。适中：在敏感度与误报之间平衡。宽松：仅在明显分心时告警。最宽松：仅在持续、明显的分心时告警（宽限期最长）。"
 
 #: selfdrive\ui\sunnypilot\mici\layouts\steering.py
 msgid ""
@@ -5662,6 +5666,11 @@ msgstr "脱离以启用始终离路"
 msgid "display"
 msgstr "显示"
 
+#: selfdrive\ui\mici\layouts\settings\toggles.py
+
+msgid "distraction detection level"
+msgstr "分心检测灵敏度"
+
 #: selfdrive\ui\layouts\settings\device.py
 msgid "down"
 msgstr "下"
@@ -5795,6 +5804,11 @@ msgstr "关闭"
 #: selfdrive\ui\sunnypilot\mici\layouts\settings.py
 msgid "exit always offroad"
 msgstr "退出始终离线"
+
+#: selfdrive\ui\mici\layouts\settings\toggles.py
+
+msgid "extra lenient"
+msgstr "最宽松"
 
 #: selfdrive\ui\sunnypilot\mici\layouts\steering.py
 msgid "extra slow"
@@ -5943,6 +5957,11 @@ msgstr "留空以自动配置"
 #: selfdrive\ui\layouts\settings\device.py
 msgid "left"
 msgstr "左"
+#: selfdrive\ui\mici\layouts\settings\toggles.py
+
+msgid "lenient"
+msgstr "宽松"
+
 
 #: selfdrive\ui\sunnypilot\mici\layouts\steering.py
 msgid "less restrict"
@@ -6020,6 +6039,11 @@ msgstr "主屏模型"
 #: selfdrive\ui\sunnypilot\mici\layouts\settings.py
 msgid "models"
 msgstr "模型"
+
+#: selfdrive\ui\mici\layouts\settings\toggles.py
+
+msgid "moderate"
+msgstr "适中"
 
 #: selfdrive\ui\layouts\settings\initial_cruise_speed.py
 #: selfdrive\ui\onroad\hud_renderer.py
@@ -6411,6 +6435,11 @@ msgstr "转向"
 #: selfdrive\ui\sunnypilot\mici\layouts\steering.py
 msgid "steering on brake"
 msgstr "刹车时转向"
+
+#: selfdrive\ui\mici\layouts\settings\toggles.py
+
+msgid "strict"
+msgstr "严格"
 
 #: selfdrive\ui\sunnypilot\layouts\onboarding.py
 #: selfdrive\ui\sunnypilot\layouts\settings\settings.py
