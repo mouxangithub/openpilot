@@ -1,0 +1,58 @@
+name: build-panda
+
+# Build panda firmware (F4 dos + H7) so the packaged tree ships
+# panda/board/obj/panda.bin.signed etc. Without these, pandad's brick
+# guard ("expected signature unavailable, refusing to flash") leaves
+# pandas stuck in bootstub (e.g. F4 dos flashed with H7 fw by other
+# forks) permanently showing "无 PANDA".
+
+on:
+  push:
+    branches: [test]
+    paths:
+      - 'panda/**'
+      - '.github/workflows/build-panda.yaml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends gcc-arm-none-eabi binutils-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib
+          arm-none-eabi-gcc --version | head -1
+
+      - name: Install python deps
+        run: |
+          python3 -m pip install --break-system-packages --upgrade pip scons
+          # panda SConscript does `import opendbc` (repo path), provide it
+          pip3 install --break-system-packages -e ./panda
+
+      - name: Build debug firmware (F4 + H7)
+        run: |
+          cd panda
+          PYTHONPATH=$PWD/..:$PWD scons -j$(nproc)
+          ls -la board/obj/
+
+      - name: Build release-type firmware (debug cert, RELEASE flag)
+        run: |
+          cd panda
+          rm -f board/obj/panda.bin.signed board/obj/panda_h7.bin.signed
+          PYTHONPATH=$PWD/..:$PWD CERT=board/crypto/certs/debug RELEASE=1 scons -j$(nproc)
+          ls -la board/obj/
+
+      - name: Upload firmware artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: panda-firmware
+          path: |
+            panda/board/obj/panda.bin.signed
+            panda/board/obj/panda_h7.bin.signed
+            panda/board/obj/bootstub.panda.bin
+            panda/board/obj/bootstub.panda_h7.bin
+          if-no-files-found: error
