@@ -31,7 +31,7 @@ jobs:
       - name: Build camerad
         run: |
           uv sync --frozen --extra tools
-          uv run scons -j"$(nproc)" openpilot/system/camerad/camerad
+          uv run scons -j"$(nproc)" cache_dir=/tmp/scons_cache openpilot/system/camerad/camerad
           file openpilot/system/camerad/camerad
 
       - name: Upload artifact
