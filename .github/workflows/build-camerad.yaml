@@ -32,7 +32,10 @@ jobs:
           # the kernel repo into a default compiler search path.
           git clone --depth 1 --filter=blob:none --sparse \
             https://github.com/StarPilotHQ/agnos-kernel-sdm845.git /tmp/kernel
-          cd /tmp/kernel && git sparse-checkout set include/uapi/media include/uapi/linux/v4l2-controls.h include/uapi/linux/videodev2.h
+          cd /tmp/kernel && git sparse-checkout set --no-cone \
+            '/include/uapi/media/**' \
+            '/include/uapi/linux/v4l2-controls.h' \
+            '/include/uapi/linux/videodev2.h'
           sudo cp -r include/uapi/media /usr/local/include/
           # qcom VIDC controls live in the kernel's extended v4l2 headers; place
           # them in /usr/local/include/linux which the compiler searches before
