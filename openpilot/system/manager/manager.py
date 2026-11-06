@@ -59,6 +59,11 @@ def manager_init() -> None:
   if params.get_bool("RecordFrontLock"):
     params.put_bool("RecordFront", True, block=True)
 
+  # RecordingMode 0 (disable all): there is nothing to upload, so keep the
+  # onroad-uploads switch off no matter how it was toggled externally.
+  if params.get_int("RecordingMode") == 0 and params.get_bool("OnroadUploads"):
+    params.put_bool("OnroadUploads", False, block=True)
+
   if not PC:
     run_migration(params)
     run_migration_zp(params)

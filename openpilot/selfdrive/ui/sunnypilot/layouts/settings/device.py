@@ -118,7 +118,9 @@ class DeviceLayoutSP(DeviceLayout):
 
     self._onroad_uploads_and_reset_settings = dual_button_item_sp(
       left_text=lambda: tr("Onroad Uploads"),
-      left_callback=lambda: ui_state.params.put_bool("OnroadUploads", not ui_state.params.get_bool("OnroadUploads")),
+      # disabled while RecordingMode is 0 (disable all): nothing is recorded,
+      # so there is nothing to upload; manager also forces the param off
+      left_callback=lambda: None if ui_state.params.get_int("RecordingMode") == 0 else ui_state.params.put_bool("OnroadUploads", not ui_state.params.get_bool("OnroadUploads")),
       right_text=lambda: tr("Reset Settings"),
       right_callback=self._reset_settings
     )

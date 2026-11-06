@@ -57,6 +57,13 @@ DESCRIPTIONS = {
     "Extra Lenient: Alerts only on sustained, obvious distractions (longest grace period)."
   ),
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
+  "RecordingMode": tr_noop(
+    "Choose what gets recorded on each route. " +
+    "Full Recording: logs plus all camera video (default, uses the most storage). " +
+    "Logs Only: keeps the route log files for later analysis but records no video. " +
+    "Disable All: no logs and no video. " +
+    "A change applies to the next route after openpilot restarts."
+  ),
   "DisableDM": tr_noop("Disable driver monitoring (no cabin camera required). Similar to LITE mode."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
@@ -164,6 +171,16 @@ class TogglesLayout(Widget):
       icon="speed_limit.png"
     )
 
+    self._recording_mode_setting = multiple_button_item(
+      lambda: tr("Recording"),
+      lambda: tr(DESCRIPTIONS["RecordingMode"]),
+      buttons=[lambda: tr("Disable All"), lambda: tr("Logs Only"), lambda: tr("Full Recording")],
+      button_width=300,
+      callback=self._set_recording_mode,
+      selected_index=int(self._params.get("RecordingMode", return_default=True) or 2),
+      icon="monitoring.png"
+    )
+
     self._toggles = {}
     self._initial_cruise_speed = ListItem(
       title=lambda: tr("Initial Max Speed"),
@@ -217,6 +234,11 @@ class TogglesLayout(Widget):
         self._toggles["DistractionDetectionLevel"] = self._distraction_detection_level
         self._update_distraction_detection_visibility()
 
+      if param == "DisableDM":
+        # sits directly above "Record and Upload Driver Camera"
+        self._toggles["RecordingMode"] = self._recording_mode_setting
+        self._update_recording_visibility()
+
     self._scroller = Scroller(list(self._toggles.values()), line_separator=True, spacing=0)
 
     ui_state.add_engaged_transition_callback(self._update_toggles)
@@ -268,6 +290,18 @@ class TogglesLayout(Widget):
         self._toggles[toggle_def].action_item.set_enabled(not ui_state.engaged)
 
     self._update_distraction_detection_visibility()
+
+  def _update_recording_visibility(self):
+    # no video files in Disable All (0) / Logs Only (1): the camera and mic
+    # record-and-upload toggles have nothing to act on
+    recording_full = int(self._params.get("RecordingMode", return_default=True) or 2) >= 2
+    for key in ("RecordFront", "RecordAudio"):
+      if key in self._toggles:
+        self._toggles[key].set_visible(recording_full)
+
+  def _set_recording_mode(self, button_index: int):
+    self._params.put("RecordingMode", button_index, block=True)
+    self._update_recording_visibility()
 
   def _render(self, rect):
     self._scroller.render(rect)

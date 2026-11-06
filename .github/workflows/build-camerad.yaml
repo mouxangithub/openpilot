@@ -40,12 +40,14 @@ jobs:
       - name: Build camerad
         run: |
           uv sync --frozen --extra tools
-          uv run scons -j"$(nproc)" cache_dir=/tmp/scons_cache openpilot/system/camerad/camerad
-          file openpilot/system/camerad/camerad
+          uv run scons -j"$(nproc)" cache_dir=/tmp/scons_cache openpilot/system/camerad/camerad openpilot/system/loggerd/loggerd
+          file openpilot/system/camerad/camerad openpilot/system/loggerd/loggerd
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: camerad-aarch64
-          path: openpilot/system/camerad/camerad
+          name: camerad-loggerd-aarch64
+          path: |
+            openpilot/system/camerad/camerad
+            openpilot/system/loggerd/loggerd
           if-no-files-found: error

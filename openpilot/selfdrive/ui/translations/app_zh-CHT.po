@@ -3677,6 +3677,26 @@ msgid "Record and Upload Microphone Audio"
 msgstr "錄製並上傳麥克風音訊"
 
 #: selfdrive\ui\layouts\settings\toggles.py
+msgid "Recording"
+msgstr "錄製"
+
+#: selfdrive\ui\layouts\settings\toggles.py
+msgid "Choose what gets recorded on each route. Full Recording: logs plus all camera video (default, uses the most storage). Logs Only: keeps the route log files for later analysis but records no video. Disable All: no logs and no video. A change applies to the next route after openpilot restarts."
+msgstr "選擇每條路線錄製的內容。完整錄製：日誌加全部攝影機影片（預設，佔用儲存最多）。僅日誌：保留路線日誌檔案供之後分析，但不錄製影片。全部停用：不錄日誌也不錄影片。變更將在 openpilot 重新啟動後的下一條路線生效。"
+
+#: selfdrive\ui\layouts\settings\toggles.py
+msgid "Disable All"
+msgstr "全部停用"
+
+#: selfdrive\ui\layouts\settings\toggles.py
+msgid "Logs Only"
+msgstr "僅日誌"
+
+#: selfdrive\ui\layouts\settings\toggles.py
+msgid "Full Recording"
+msgstr "完整錄製"
+
+#: selfdrive\ui\layouts\settings\toggles.py
 msgid "Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."
 msgstr "行車時錄製並儲存麥克風音訊。音訊將包含在 comma connect 的行車紀錄影片中。"
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdlib>
+#include <string>
 #include <vector>
 
 #include "openpilot/cereal/messaging/messaging.h"
@@ -25,6 +26,18 @@ const auto MAIN_ENCODE_TYPE = Hardware::PC() ? cereal::EncodeIndex::Type::BIG_BO
 
 const bool LOGGERD_TEST = getenv("LOGGERD_TEST");
 const int SEGMENT_LENGTH = LOGGERD_TEST ? atoi(getenv("LOGGERD_SEGMENT_LENGTH")) : 60;
+
+// RecordingMode param: 0 = disable all recording, 1 = logs only (route log files kept,
+// no video), 2 = full recording (default). Read at loggerd start; a change applies to
+// the next route after openpilot restarts.
+inline bool record_video_files() {
+  const std::string mode = Params().get("RecordingMode");
+  return mode.empty() || atoi(mode.c_str()) >= 2;
+}
+inline bool record_log_files() {
+  const std::string mode = Params().get("RecordingMode");
+  return mode.empty() || atoi(mode.c_str()) >= 1;
+}
 
 inline int livestream_width() {
   switch (Hardware::get_device_type()) {
@@ -99,6 +112,7 @@ const EncoderInfo main_road_encoder_info = {
   .publish_name = "narrowRoadEncodeData",
   .thumbnail_name = "thumbnail",
   .filename = "fcamera.hevc",
+  .record = record_video_files(),
   .get_settings = [](int in_width){return EncoderSettings::MainEncoderSettings(in_width);},
   INIT_ENCODE_FUNCTIONS(NarrowRoadEncode),
 };
@@ -106,6 +120,7 @@ const EncoderInfo main_road_encoder_info = {
 const EncoderInfo main_wide_road_encoder_info = {
   .publish_name = "wideRoadEncodeData",
   .filename = "ecamera.hevc",
+  .record = record_video_files(),
   .get_settings = [](int in_width){return EncoderSettings::MainEncoderSettings(in_width);},
   INIT_ENCODE_FUNCTIONS(WideRoadEncode),
 };
@@ -113,7 +128,7 @@ const EncoderInfo main_wide_road_encoder_info = {
 const EncoderInfo main_cabin_encoder_info = {
   .publish_name = "cabinEncodeData",
   .filename = "dcamera.hevc",
-  .record = Params().getBool("RecordFront"),
+  .record = record_video_files() && Params().getBool("RecordFront"),
   .get_settings = [](int in_width){return EncoderSettings::MainEncoderSettings(in_width);},
   INIT_ENCODE_FUNCTIONS(CabinEncode),
 };
@@ -152,6 +167,7 @@ const EncoderInfo stream_cabin_encoder_info = {
 const EncoderInfo qcam_encoder_info = {
   .publish_name = "qNarrowRoadEncodeData",
   .filename = "qcamera.ts",
+  .record = record_video_files(),
   .include_audio = Params().getBool("RecordAudio"),
   .frame_width = 526,
   .frame_height = 330,

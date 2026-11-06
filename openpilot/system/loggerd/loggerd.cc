@@ -20,6 +20,7 @@ struct LoggerdState {
   std::atomic<int> ready_to_rotate{0};  // count of encoders ready to rotate
   int max_waiting = 0;
   double last_rotate_tms = 0.;      // last rotate time in ms
+  bool write_logs = true;           // RecordingMode: false = keep route skeleton only, no log content
 };
 
 void logger_rotate(LoggerdState *s) {
@@ -104,13 +105,16 @@ size_t write_encode_data(LoggerdState *s, cereal::Event::Reader event, RemoteEnc
   }
 
   // put it in log stream as the idx packet
-  MessageBuilder bmsg;
-  auto evt = bmsg.initEvent(event.getValid());
-  evt.setLogMonoTime(event.getLogMonoTime());
-  (evt.*(encoder_info.set_encode_idx_func))(idx);
-  auto new_msg = bmsg.toBytes();
-  s->logger.write((uint8_t *)new_msg.begin(), new_msg.size(), true);  // always in qlog?
-  return new_msg.size();
+  if (s->write_logs) {
+    MessageBuilder bmsg;
+    auto evt = bmsg.initEvent(event.getValid());
+    evt.setLogMonoTime(event.getLogMonoTime());
+    (evt.*(encoder_info.set_encode_idx_func))(idx);
+    auto new_msg = bmsg.toBytes();
+    s->logger.write((uint8_t *)new_msg.begin(), new_msg.size(), true);  // always in qlog?
+    return new_msg.size();
+  }
+  return 0;
 }
 
 int handle_encoder_msg(LoggerdState *s, Message *msg, std::string &name, struct RemoteEncoder &re, const EncoderInfo &encoder_info) {
@@ -268,6 +272,7 @@ void loggerd_thread() {
   }
 
   LoggerdState s;
+  s.write_logs = record_log_files();
   // init logger
   logger_rotate(&s);
   Params().put("CurrentRoute", s.logger.routeName());
@@ -322,9 +327,12 @@ void loggerd_thread() {
         if (service.encoder) {
           s.last_camera_seen_tms = millis_since_boot();
           bytes_count += handle_encoder_msg(&s, msg, service.name, remote_encoders[sock], encoder_infos_dict[service.name]);
-        } else {
+        } else if (s.write_logs) {
           s.logger.write((uint8_t *)msg->getData(), msg->getSize(), in_qlog);
           bytes_count += msg->getSize();
+          delete msg;
+        } else {
+          // RecordingMode 0: drop log content, keep the route skeleton alive
           delete msg;
         }
 
