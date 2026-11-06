@@ -13,11 +13,15 @@
 # 或 PC 上先落地再管道推送（raw.githubusercontent.com 不可达时的替代）：
 #   ssh comma@<设备IP> "bash -s" < tools/release/cnb-install.sh
 #
-# 可选环境变量（放进 ssh 的引号内）：
-#   BRANCH=staging      要安装的 CNB 分支（默认 staging）
-#   REPO_URL=...        CNB 仓库地址（默认 https://cnb.cool/mouxancnb/openpilot.git）
+# 可选环境变量（放进 ssh 的引号内，注意加在 bash 前面）：
+#   BRANCH=staging      要安装的分支（默认 staging）
+#   REPO_URL=...        仓库地址（默认 https://cnb.cool/mouxancnb/openpilot.git，任意 git URL 均可）
 #   GITHUB_USER=...     SSH 公钥来源 GitHub 用户名（默认 mouxangithub，注入到 GithubSshKeys）
 #   GH_PROXY=...        公钥拉取的 GitHub 反代（默认 https://gh-proxy.com，CNB 通道正常时用不到）
+#
+# 第三方仓库示例（装 sunnypilot 的 staging-tici，子仓库已并入树内、无 LFS 硬依赖）：
+#   ssh comma@<设备IP> "curl -fsSL https://cnb.cool/mouxancnb/openpilot/-/git/raw/test/tools/release/cnb-install.sh | REPO_URL=https://github.com/sunnypilot/sunnypilot.git BRANCH=staging-tici bash"
+# 注意：带 .gitmodules/LFS 的源码树（如 openpilot test 分支）请改用 install.sh。
 #
 # 脚本跑在设备上（comma 用户）。
 
@@ -75,7 +79,7 @@ if [ "$(date +%s)" -lt "$MIN_TIME" ]; then
 fi
 echo "    时钟 OK: $(date)"
 
-echo "==> [4/6] 从 CNB 克隆 $REPO_URL (分支 $BRANCH)"
+echo "==> [4/6] 克隆 $REPO_URL (分支 $BRANCH)"
 sudo rm -rf "$TMP_PATH"
 # 与 installer.cc 一致：depth=1 + 进度输出。staging 分支已内含全部文件（无 submodule、无 LFS 指针）。
 if ! git clone --progress "$REPO_URL" -b "$BRANCH" --depth=1 "$TMP_PATH" 2>&1 | tail -3; then
@@ -84,11 +88,17 @@ if ! git clone --progress "$REPO_URL" -b "$BRANCH" --depth=1 "$TMP_PATH" 2>&1 | 
 fi
 
 echo "==> [5/6] 校验并替换 $INSTALL_PATH"
-if [ ! -x "$TMP_PATH/launch_openpilot.sh" ] || [ ! -f "$TMP_PATH/git_src_commit" ]; then
-  echo "错误：分支内容校验失败（缺 launch_openpilot.sh 或 git_src_commit），不是有效的精简发布树" >&2
+# 只硬性要求 launch_openpilot.sh：打包树（staging）带 git_src_commit，
+# 第三方树（如 sunnypilot 的 staging-tici）没有，退回 git rev-parse。
+if [ ! -x "$TMP_PATH/launch_openpilot.sh" ]; then
+  echo "错误：分支内容校验失败（缺 launch_openpilot.sh），不是有效的 openpilot 树" >&2
   exit 1
 fi
-SRC_COMMIT=$(head -c 12 "$TMP_PATH/git_src_commit")
+if [ -f "$TMP_PATH/git_src_commit" ]; then
+  SRC_COMMIT=$(head -c 12 "$TMP_PATH/git_src_commit")
+else
+  SRC_COMMIT=$(git -C "$TMP_PATH" rev-parse --short=12 HEAD)
+fi
 mkdir -p /data/safe_staging
 sudo rm -rf "$BACKUP"
 if [ -d "$INSTALL_PATH" ]; then
