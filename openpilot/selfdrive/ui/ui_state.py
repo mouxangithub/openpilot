@@ -27,6 +27,15 @@ from openpilot.selfdrive.ui.screen_settings import (
 BACKLIGHT_OFFROAD = 65 if HARDWARE.get_device_type() == "mici" else 50
 PARAM_UPDATE_TIME = 1 / 5.0
 
+# C3 (tici) clone panels: the Samsung TSP firmware gates itself off when the
+# backlight duty is (near) zero, so a true 0 makes touch-wake impossible — the
+# controller generates no IRQs at all while asleep until the next brightness
+# change. Measured on a c3clone unit: touch alive at >=10/1023 duty, dead at 0
+# even with the panel controller kept powered (see hardware.py
+# set_display_power, the companion bl_power fix). Sleeping at ~2% instead keeps
+# the shared boost rail alive; the glow is imperceptible in a car.
+TSP_WAKE_SLEEP_BRIGHTNESS = 2  # percent; 2% of 1023 = ~20 raw steps
+
 
 class UIStatus(Enum):
   DISENGAGED = "disengaged"
@@ -451,7 +460,8 @@ class Device(DeviceSP):
       brightness = 100
 
     if not self._awake:
-      brightness = 0
+      # True 0 kills touch-wake on C3 clone panels (see TSP_WAKE_SLEEP_BRIGHTNESS).
+      brightness = TSP_WAKE_SLEEP_BRIGHTNESS if "tici" in HARDWARE.get_device_type() else 0
 
     if brightness != self._last_brightness:
       self._brightness_target = int(brightness)

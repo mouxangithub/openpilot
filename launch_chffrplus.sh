@@ -840,7 +840,12 @@ bootstrap_deps() {
   # forgets its wheel entry - and even then the retry loop can self-heal over
   # the pip mirror, which is exactly what did not exist during the 2026-11-01
   # jeepney boot hang.
-  ensure_pip_deps numpy aiohttp jinja2 zstandard requests
+  # typing_extensions: aiohttp >= 3.13 imports it at module scope, but the
+  # bundled aiohttp wheel is installed --no-deps, so the probe for aiohttp can
+  # pass while `import aiohttp` still dies later. Probing it directly makes the
+  # retry loop install it from the mirror; without this, aid (5090) and webui
+  # (5080) crash-loop with ModuleNotFoundError: typing_extensions.
+  ensure_pip_deps numpy aiohttp jinja2 zstandard requests typing_extensions
 
   stop_boot_spinner
 }
