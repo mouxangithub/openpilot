@@ -34,6 +34,7 @@ jobs:
             https://github.com/StarPilotHQ/agnos-kernel-sdm845.git /tmp/kernel
           cd /tmp/kernel && git sparse-checkout set --no-cone \
             '/include/uapi/media/**' \
+            '/include/uapi/linux/v4l2-common.h' \
             '/include/uapi/linux/v4l2-controls.h' \
             '/include/uapi/linux/videodev2.h'
           sudo cp -r include/uapi/media /usr/local/include/
@@ -41,9 +42,12 @@ jobs:
           # them in /usr/local/include/linux which the compiler searches before
           # the distro /usr/include/linux
           sudo mkdir -p /usr/local/include/linux
-          sudo cp include/uapi/linux/v4l2-controls.h include/uapi/linux/videodev2.h /usr/local/include/linux/
-          # strip kernel-only __user annotations (AGNOS ships these headers pre-stripped)
-          sudo sed -i 's/__user//g' /usr/local/include/media/*.h /usr/local/include/linux/v4l2-controls.h /usr/local/include/linux/videodev2.h
+          sudo cp include/uapi/linux/v4l2-common.h include/uapi/linux/v4l2-controls.h include/uapi/linux/videodev2.h /usr/local/include/linux/
+          # strip kernel-only bits: __user annotations and the
+          # linux/compiler.h include (userspace never has it; the only user
+          # inside these headers is __user which the sed above removes)
+          sudo sed -i -e 's/__user//g' -e '/#include <linux\/compiler.h>/d' \
+            /usr/local/include/media/*.h /usr/local/include/linux/v4l2-controls.h /usr/local/include/linux/videodev2.h
 
       - name: Build camerad
         run: |
