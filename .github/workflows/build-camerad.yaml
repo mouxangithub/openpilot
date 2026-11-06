@@ -1,0 +1,42 @@
+name: build camerad (comma arm64)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [test]
+    paths:
+      - 'openpilot/system/camerad/**'
+      - 'launch_env.sh'
+      - '.github/workflows/build-camerad.yaml'
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: false
+          submodules: recursive
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential curl
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          # SConstruct gates the camerad target behind COMMA_HARDWARE = isfile('/AGNOS')
+          sudo touch /AGNOS
+
+      - name: Build camerad
+        run: |
+          uv sync --frozen
+          uv run scons -j"$(nproc)" openpilot/system/camerad/camerad
+          file openpilot/system/camerad/camerad
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: camerad-aarch64
+          path: openpilot/system/camerad/camerad
+          if-no-files-found: error

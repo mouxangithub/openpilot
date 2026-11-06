@@ -21,13 +21,7 @@ fi
 
 export STAGING_ROOT="/data/safe_staging"
 
-# The comma 3 (tici) has no cabin camera, but camerad's camera config enables
-# it by default. The missing sensor fails its bringup and the first-frame
-# sync then waits for a frame that never arrives, so the UI never gets a
-# camera stream. Disable the cabin camera on that hardware; tizi (comma 3X)
-# does have one and keeps it enabled.
-if [ -z "$DISABLE_DRIVER" ]; then
-  case "$(tr -d '\0' < /sys/firmware/devicetree/base/model 2>/dev/null | awk '{print $NF}')" in
-    tici) export DISABLE_DRIVER=1 ;;
-  esac
-fi
+# NOTE: do not disable the cabin camera by device model here. Clone C3 units
+# report model "comma tici" but DO have a working OS04C10 cabin camera; the
+# camerad bringup-failure path (sensor_missing) already keeps hardware without
+# that camera healthy, so disabling by model string only breaks clones.

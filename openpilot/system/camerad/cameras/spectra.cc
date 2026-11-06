@@ -1069,10 +1069,15 @@ bool SpectraCamera::openSensor() {
   };
 
   // Figure out which sensor we have
-  // C3 cabin camera is OS04C10; probe it first (AR0231 init can break bringup on other sensors)
-  if (!init_sensor_lambda(new AR0231) &&
+  // Probe in this order for C3: the cabin camera is OS04C10 and it must be
+  // probed first - on C3 (incl. clones) a sensor that survives earlier failed
+  // probe attempts probes fine but then delivers no frames ("Reg upd ack with
+  // no waiting request"), stalling the whole first-frame sync. OS04C10-first
+  // is what zoompilot ships and is verified working on multiple C3 clones.
+  // AR0231 (tici road/driver cameras) goes last for the same reason.
+  if (!init_sensor_lambda(new OS04C10) &&
       !init_sensor_lambda(new OX03C10) &&
-      !init_sensor_lambda(new OS04C10)) {
+      !init_sensor_lambda(new AR0231)) {
     LOGE("** sensor %d FAILED bringup, disabling", cc.camera_num);
     enabled = false;
     // This camera will never deliver a frame: exclude it from the first-frame
