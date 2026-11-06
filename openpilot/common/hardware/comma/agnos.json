@@ -56,28 +56,28 @@
   },
   {
     "name": "boot",
-    "url": "https://cnb.cool/mouxancnb/agnos-builder/-/releases/download/agnos-20.2-carrot-bt2/boot-c3x-c4-756e2c1466a2fb1a11c1ca0a5543c71bf0be57986d6a03c19fbe5178ac386a4d.img.xz",
-    "compressed_hash": "c6c5c240274cd3d15f7239b8a5c75ddf3b328e87679a0b667a89beef182b9033",
-    "compressed_size": 14261420,
-    "hash": "756e2c1466a2fb1a11c1ca0a5543c71bf0be57986d6a03c19fbe5178ac386a4d",
-    "hash_raw": "756e2c1466a2fb1a11c1ca0a5543c71bf0be57986d6a03c19fbe5178ac386a4d",
-    "size": 47925248,
+    "url": "https://cnb.cool/mouxancnb/agnos-builder/-/releases/download/agnos-20.3-carrot-bt2/boot-c3x-c4-a02a9f4975683058d66fd0d4cf7b206bc5161dd9176d158b0e784cce4ac0db19.img.xz",
+    "compressed_hash": "aa628d733d470b08b7da34d90bbbe48a2bf4cea0a3f613daaa41a422803333a8",
+    "compressed_size": 14598368,
+    "hash": "a02a9f4975683058d66fd0d4cf7b206bc5161dd9176d158b0e784cce4ac0db19",
+    "hash_raw": "a02a9f4975683058d66fd0d4cf7b206bc5161dd9176d158b0e784cce4ac0db19",
+    "size": 49039360,
     "sparse": false,
     "full_check": true,
     "has_ab": true,
-    "ondevice_hash": "d108a0b309c37d37879035e5348555b796ed2a6ec0d9a25ddd6fa5eb0baf620f"
+    "ondevice_hash": "ad782b1076ce975bf9a798072374af8e37f6005bb4336ced4b734cfe455e3458"
   },
   {
     "name": "system",
-    "url": "https://cnb.cool/mouxancnb/agnos-builder/-/releases/download/agnos-20.2-carrot-bt2/system-e937795372c004b63cef3af39b18d1dc41edce80b2506d4fc41ca15de8b95edb.img.xz",
-    "compressed_hash": "bdea5505781b3ab096485818311f546340724c590abca137df951fc18087b9b8",
-    "compressed_size": 454251148,
-    "hash": "f618e3623185bf1c3250a15daffc765ecab0aaf66fd11a93e3045a60877de5b5",
-    "hash_raw": "e937795372c004b63cef3af39b18d1dc41edce80b2506d4fc41ca15de8b95edb",
+    "url": "https://cnb.cool/mouxancnb/agnos-builder/-/releases/download/agnos-20.3-carrot-bt2/system-bff90dd29a44fb3ccb7a52477b2bb34125230a95112109ca7b84a4d59142c41e.img.xz",
+    "compressed_hash": "69e087bd8b6f536caf145c5ae5781f87da46f9cb2f7b9f65c7ae6b93d45d3f7f",
+    "compressed_size": 473650176,
+    "hash": "17f5b4c87c479d1f45440e8d2eee41586bddb31d1319b4427cedc35fffc3ef97",
+    "hash_raw": "bff90dd29a44fb3ccb7a52477b2bb34125230a95112109ca7b84a4d59142c41e",
     "size": 2147483648,
     "sparse": true,
     "full_check": false,
     "has_ab": true,
-    "ondevice_hash": "f351c10b29d80a98b1fd2b844359ca605138975aef996b8a252e0dce049b5db1"
+    "ondevice_hash": "52ffb638833ca005218782c40be165a91183b51f8c46568163360537581703fa"
   }
 ]
