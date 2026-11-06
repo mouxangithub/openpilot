@@ -31,17 +31,20 @@ class DRIVER_MONITOR_SETTINGS:
     self._WHEELTOUCH_POLICY_ALERT_1_TIMEOUT = 5.
     self._WHEELTOUCH_POLICY_ALERT_2_TIMEOUT = 15.
     self._WHEELTOUCH_POLICY_ALERT_3_TIMEOUT = 25.
-    self._VISION_POLICY_ALERT_1_TIMEOUT = 5.
-    self._VISION_POLICY_ALERT_2_TIMEOUT = 8.
-    self._VISION_POLICY_ALERT_3_TIMEOUT = 13.
+    # Vision timeline relaxed for on-device use: sustained distraction takes
+    # 20s (was 13s) to reach alert 3, giving more headroom for glances at the
+    # instrument cluster / navigation before the awareness meter bottoms out.
+    self._VISION_POLICY_ALERT_1_TIMEOUT = 8.
+    self._VISION_POLICY_ALERT_2_TIMEOUT = 12.
+    self._VISION_POLICY_ALERT_3_TIMEOUT = 20.
 
     # no response = alert_3 sustained for certain amount of time
     self._NO_RESPONSE_TIMEOUT = 5.
 
     # lockout specs
-    self._MAX_ALERT_3 = 2
+    self._MAX_ALERT_3 = 3
     self._MAX_NO_RESPONSE = 1
-    self._LOCKOUT_TIMES = [int(60 * n_min / DT_DMON) for n_min in [1, 5, 15, 30]]
+    self._LOCKOUT_TIMES = [int(60 * n_min / DT_DMON) for n_min in [1, 2, 5, 10]]
 
     self._TIMEOUT_RECOVERY_FACTOR_MAX = 5.
     self._TIMEOUT_RECOVERY_FACTOR_MIN = 1.25
@@ -476,7 +479,7 @@ class DriverMonitoring:
   def set_distract_level_params(self):
     level = self.distraction_detection_level
 
-    # Level 0: strict, Level 1: moderate, Level 2: lenient, Level 3+: disabled
+    # Level 0: strict, Level 1: moderate, Level 2: lenient, Level 3: extra lenient, Level 4+: disabled
     if level == 0:
       self.settings._POSE_PITCH_THRESHOLD = 0.20
       self.settings._POSE_PITCH_THRESHOLD_SLACK = 0.22
@@ -498,6 +501,14 @@ class DriverMonitoring:
       self.settings._POSE_YAW_THRESHOLD_SLACK = 0.5042
       self.settings._BLINK_THRESHOLD = 0.865
       self.settings._PHONE_THRESH = 0.5
+    elif level == 3:
+      # extra lenient: alert only on clear, sustained distractions
+      self.settings._POSE_PITCH_THRESHOLD = 0.38
+      self.settings._POSE_PITCH_THRESHOLD_SLACK = 0.40
+      self.settings._POSE_YAW_THRESHOLD = 0.47
+      self.settings._POSE_YAW_THRESHOLD_SLACK = 0.58
+      self.settings._BLINK_THRESHOLD = 0.90
+      self.settings._PHONE_THRESH = 0.6
     else:
       self.settings._POSE_PITCH_THRESHOLD = float('inf')
       self.settings._POSE_PITCH_THRESHOLD_SLACK = float('inf')

@@ -53,7 +53,8 @@ DESCRIPTIONS = {
     "Set how sensitive the driver distraction detection should be. " +
     "Strict: Very sensitive, warns on minor distractions. " +
     "Moderate: Balanced between sensitivity and false positives. " +
-    "Lenient: Only alerts on clear distractions. "
+    "Lenient: Only alerts on clear distractions. " +
+    "Extra Lenient: Alerts only on sustained, obvious distractions (longest grace period)."
   ),
   'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "DisableDM": tr_noop("Disable driver monitoring (no cabin camera required). Similar to LITE mode."),
@@ -138,7 +139,7 @@ class TogglesLayout(Widget):
     self._distraction_detection_level = multiple_button_item(
       lambda: tr("Distraction Detection Level"),
       lambda: tr(DESCRIPTIONS["DistractionDetectionLevel"]),
-      buttons=[lambda: tr("Strict"), lambda: tr("Moderate"), lambda: tr("Lenient")],
+      buttons=[lambda: tr("Strict"), lambda: tr("Moderate"), lambda: tr("Lenient"), lambda: tr("Extra Lenient")],
       button_width=300,
       callback=self._set_distraction_detection_level,
       selected_index=self._params.get("DistractionDetectionLevel", return_default=True),

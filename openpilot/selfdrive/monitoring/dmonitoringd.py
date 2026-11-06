@@ -174,7 +174,7 @@ def dmonitoringd_thread():
     if sm['driverStateV2'].frameId % 40 == 1:
       DM.always_on = params.get_bool("AlwaysOnDM")
       demo_mode = params.get_bool("IsDriverViewEnabled")
-      DM.distraction_detection_level = int(params.get("DistractionDetectionLevel") or 0)
+      DM.distraction_detection_level = int(params.get("DistractionDetectionLevel") or 1)
 
     # save rhd virtual toggle every 5 mins
     if (sm['driverStateV2'].frameId % 6000 == 0 and not demo_mode and

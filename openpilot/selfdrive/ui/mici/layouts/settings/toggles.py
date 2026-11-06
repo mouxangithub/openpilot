@@ -68,7 +68,7 @@ class TogglesLayoutMici(NavScroller):
     distraction_level_toggle = BigMultiParamToggle(
       tr("distraction detection level"),
       "DistractionDetectionLevel",
-      [tr("strict"), tr("moderate"), tr("lenient")],
+      [tr("strict"), tr("moderate"), tr("lenient"), tr("extra lenient")],
     )
     record_front = BigParamControl(tr("record & upload cabin camera"), "RecordFront",
                                    description_icon=gui_app.texture("icons_mici/settings/device/cameras.png", 64, 64),
