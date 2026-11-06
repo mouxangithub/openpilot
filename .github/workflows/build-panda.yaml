@@ -20,6 +20,10 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          # panda + opendbc_repo are submodules; SConscript imports opendbc
+          # for INCLUDE_PATH and hashes can.h into the firmware version
+          submodules: recursive
 
       - name: Install toolchain
         run: |
@@ -30,20 +34,19 @@ jobs:
       - name: Install python deps
         run: |
           python3 -m pip install --break-system-packages --upgrade pip scons
-          # panda SConscript does `import opendbc` (repo path), provide it
-          pip3 install --break-system-packages -e ./panda
 
       - name: Build debug firmware (F4 + H7)
         run: |
           cd panda
-          PYTHONPATH=$PWD/..:$PWD scons -j$(nproc)
+          # opendbc resolved from the sibling submodule for INCLUDE_PATH
+          PYTHONPATH=$GITHUB_WORKSPACE/opendbc_repo scons -j$(nproc)
           ls -la board/obj/
 
       - name: Build release-type firmware (debug cert, RELEASE flag)
         run: |
           cd panda
           rm -f board/obj/panda.bin.signed board/obj/panda_h7.bin.signed
-          PYTHONPATH=$PWD/..:$PWD CERT=board/crypto/certs/debug RELEASE=1 scons -j$(nproc)
+          PYTHONPATH=$GITHUB_WORKSPACE/opendbc_repo CERT=board/crypto/certs/debug RELEASE=1 scons -j$(nproc)
           ls -la board/obj/
 
       - name: Upload firmware artifacts
