@@ -34,6 +34,8 @@ jobs:
             https://github.com/StarPilotHQ/agnos-kernel-sdm845.git /tmp/kernel
           cd /tmp/kernel && git sparse-checkout set include/uapi/media
           sudo cp -r include/uapi/media /usr/local/include/
+          # strip kernel-only __user annotations (AGNOS ships these headers pre-stripped)
+          sudo sed -i 's/__user//g' /usr/local/include/media/*.h
 
       - name: Build camerad
         run: |
