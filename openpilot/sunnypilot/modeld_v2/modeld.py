@@ -385,7 +385,7 @@ def main(demo=False):
   if model is None:
     model = small_model
   elif small_model is not None:
-    small_model.warmup()  # it steers beside the chestnut at low speed: its first run is ~1.3 s
+    small_model.warmup()  # the chestnut's fallback: its first run is ~1.3 s
   model = jetlink_adapter.attach(model, small_model, vipc_client_main.width, vipc_client_main.height)
   params.put_bool("ChestnutLoading", False)
   assert model is not None
@@ -455,7 +455,8 @@ def main(demo=False):
   lane_width_left_est = LaneWidthEstimator()
   lane_width_right_est = LaneWidthEstimator()
   loop_timing = LoopTiming()
-  small_lateral = SmallLateral(small_model)
+  # the small model never steers beside a chestnut (see small_steering_meaningful in the UI)
+  small_lateral = SmallLateral(None if CHESTNUT else small_model)
 
   while True:
     loop_timing.maybe_log()

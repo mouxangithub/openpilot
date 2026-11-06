@@ -193,9 +193,6 @@ class ModelFetcher:
   def active_source(chestnut_present: bool) -> str:
     return "chestnut" if chestnut_present else "qcom"
 
-  def _extend_catalog(self, source: str, json_data: dict) -> dict:
-    return json_data
-
   def _fetch_and_cache_models(self, source: str) -> list[custom.ModelManagerSP.ModelBundle] | None:
     """Fetches fresh model data from remote and updates cache.
 

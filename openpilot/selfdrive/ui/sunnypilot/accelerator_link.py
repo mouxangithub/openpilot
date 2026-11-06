@@ -59,6 +59,12 @@ def port_state(jetlink) -> str | None:
   return "empty" if port == "empty" else "device"
 
 
+def small_steering_meaningful() -> bool:
+  """The small model steers beside a big model only on tinygrad's runner,
+  and never beside a chestnut (modeld_v2/small_lateral.py)."""
+  return ui_state.active_runner_tinygrad and not ui_state.chestnut_present
+
+
 def link_status() -> str:
   """One line under the toggle: what is on the comma's USB-C port right now.
 

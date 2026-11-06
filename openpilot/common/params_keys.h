@@ -88,8 +88,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"Offroad_AcceleratorUnavailable", {CLEAR_ON_MANAGER_START, JSON}},
     {"Offroad_CarrotAutoUpdateFailed", {CLEAR_ON_MANAGER_START, JSON}},
     {"Offroad_JetlinkUnavailable", {CLEAR_ON_MANAGER_START, JSON}},
-    {"JetlinkLink", {PERSISTENT | BACKUP, INT, "0"}},
-    {"JetlinkSpec", {PERSISTENT, JSON}},
     {"JetlinkModelPointers", {PERSISTENT, JSON}},
     // an iPhone on a direct cable charges from the comma; off by default, some
     // lose the link once the comma powers them
@@ -1037,6 +1035,8 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"Offroad_ChestnutModelMissing", {CLEAR_ON_MANAGER_START, JSON}},
     // jetlink backend. JetlinkSpec carries whether the engine is built, which must
     // survive a reboot, or every ignition cycle would rebuild a multi-minute engine.
+    {"JetlinkLink", {PERSISTENT | BACKUP, INT, "0"}},
+    {"JetlinkSpec", {PERSISTENT, JSON}},
     // an iPhone on a direct cable charges from the comma; off by default, some
     // lose the link once the comma powers them
 
