@@ -4,6 +4,12 @@ name: 打包预编译分支
 # 不再监听 push 自动打包；master-c3 相关打包路径已移除。
 on:
   workflow_dispatch:
+    inputs:
+      full_push:
+        description: 强制全量推送 CNB（重置镜像历史）
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -46,6 +52,7 @@ jobs:
           TARGET_DIR: ${{ runner.temp }}/stripped
           CNB_REPO: cnb.cool/mouxancnb/openpilot.git
           CNB_TOKEN: ${{ secrets.CNB_TOKEN }}
+          FORCE_FULL_PUSH: ${{ github.event.inputs.full_push }}
         run: |
           if [ -z "${CNB_TOKEN:-}" ]; then
             echo "::warning::CNB_TOKEN secret 未配置，跳过 CNB 镜像发布"
@@ -54,7 +61,30 @@ jobs:
           cd "$TARGET_DIR"
           # CNB https 推送认证：用户名固定为 cnb，token 作为密码
           git remote add cnb "https://cnb:${CNB_TOKEN}@${CNB_REPO}"
+
+          # 增量推送：build_stripped.sh 产出的是孤立单提交，与 CNB 上现有分支无共同
+          # 历史，直接 push -f 每次都会全量上传整棵树（十几分钟）。这里以 CNB 当前
+          # tip 为父提交，用 commit-tree 重新生成携带同一棵树（HEAD^{tree}）的提交，
+          # 推送便只包含本次有变化的对象。CNB 分支不存在（首次发布）或拉取失败时
+          # 回退全量推送；也可用 full_push 输入强制全量以重置镜像历史。
+          force_arg="-f"
+          if [ "$FORCE_FULL_PUSH" != "true" ] \
+              && git fetch --depth=1 cnb "$BRANCH" \
+              && prev=$(git rev-parse -q --verify FETCH_HEAD); then
+            new=$(git commit-tree 'HEAD^{tree}' -p "$prev" -m "$(git log -1 --format=%B)")
+            git update-ref refs/heads/tmp "$new"
+            echo "增量推送: 挂到 CNB 现有 tip ${prev:0:12} 之下"
+            force_arg=""
+          else
+            echo "全量推送: CNB 上暂无 $BRANCH、指定强制全量、或 fetch 失败"
+          fi
+
           # 与 build_stripped.sh 推 GitHub 的参数一致：精简树无 LFS 对象，跳过 LFS 钩子并关闭压缩
-          GIT_LFS_SKIP_PUSH=1 git -c pack.window=0 -c pack.depth=0 -c pack.compression=0 \
-            push -f cnb "tmp:${BRANCH}" --no-verify
+          if ! GIT_LFS_SKIP_PUSH=1 git -c pack.window=0 -c pack.depth=0 -c pack.compression=0 \
+              push $force_arg cnb "tmp:${BRANCH}" --no-verify; then
+            # 增量推送失败（如 fetch 之后远端 tip 又变了）：全量兜底，下次会自动重新挂链
+            echo "::warning::增量推送失败，回退全量推送"
+            GIT_LFS_SKIP_PUSH=1 git -c pack.window=0 -c pack.depth=0 -c pack.compression=0 \
+              push -f cnb "tmp:${BRANCH}" --no-verify
+          fi
           echo "CNB 镜像已更新: https://${CNB_REPO%.git}/-/tree/${BRANCH}"
