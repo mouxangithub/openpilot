@@ -27,6 +27,13 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           # SConstruct gates the camerad target behind COMMA_HARDWARE = isfile('/AGNOS')
           sudo touch /AGNOS
+          # camerad includes <media/cam_*.h> (qcom camera UAPI), provided by
+          # AGNOS on-device (/usr/include/media). Pull the same headers from
+          # the kernel repo into a default compiler search path.
+          git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/StarPilotHQ/agnos-kernel-sdm845.git /tmp/kernel
+          cd /tmp/kernel && git sparse-checkout set include/uapi/media
+          sudo cp -r include/uapi/media /usr/local/include/
 
       - name: Build camerad
         run: |
