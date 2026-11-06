@@ -30,7 +30,7 @@ jobs:
 
       - name: Build camerad
         run: |
-          uv sync --frozen
+          uv sync --frozen --extra tools
           uv run scons -j"$(nproc)" openpilot/system/camerad/camerad
           file openpilot/system/camerad/camerad
 
