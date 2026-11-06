@@ -2,6 +2,7 @@
 # simple pandad wrapper that updates the panda first
 import os
 import re
+import shutil
 import usb1
 import time
 import signal
@@ -58,6 +59,26 @@ def _panda_hub_is_internal(serial: str, sysfs_root: str | Path = "/sys/bus/usb/d
     return None
   return None
 
+
+def ensure_panda_firmware() -> None:
+  # panda/board/obj holds build artifacts git never tracks, so plain git clones
+  # of this branch (and trees stripped of build outputs) have an empty FW_PATH.
+  # pandad's brick guard then refuses to flash and pandas stuck in bootstub
+  # (e.g. F4 dos units flashed with H7 firmware by other forks) can never
+  # recover. CI keeps prebuilt copies in <repo>/panda_firmware; restore them
+  # into place before any flash decisions.
+  files = ("panda.bin.signed", "panda_h7.bin.signed",
+           "bootstub.panda.bin", "bootstub.panda_h7.bin")
+  src_dir = os.path.join(BASEDIR, "panda_firmware")
+  for fn in files:
+    dst = os.path.join(FW_PATH, fn)
+    src = os.path.join(src_dir, fn)
+    if os.path.isfile(src) and not os.path.isfile(dst):
+      try:
+        shutil.copyfile(src, dst)
+        cloudlog.warning(f"pandad: restored missing firmware {fn} from {src_dir}")
+      except OSError:
+        cloudlog.exception(f"pandad: failed to restore firmware {fn}")
 
 def get_expected_signature(panda: Panda) -> bytes:
   # MCU-aware (our fork supports the comma three dos F4 panda, which zp's
@@ -188,6 +209,8 @@ def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -
 
 
 def main() -> None:
+  ensure_panda_firmware()
+
   # signal pandad to close the relay and exit
   def signal_handler(signum, frame):
     cloudlog.info(f"Caught signal {signum}, exiting")

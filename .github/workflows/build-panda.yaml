@@ -14,6 +14,10 @@ on:
       - '.github/workflows/build-panda.yaml'
   workflow_dispatch:
 
+# the commit step pushes built firmware back into the test branch
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04-arm
@@ -59,3 +63,23 @@ jobs:
             panda/board/obj/bootstub.panda.bin
             panda/board/obj/bootstub.panda_h7.bin
           if-no-files-found: error
+
+      - name: Commit firmware into the test branch
+        # test-branch git clones have an empty panda/board/obj (build artifacts
+        # are never tracked), so keep prebuilt copies in <repo>/panda_firmware
+        # for pandad.ensure_panda_firmware() to restore at runtime.
+        if: github.ref == 'refs/heads/test'
+        run: |
+          mkdir -p panda_firmware
+          cp panda/board/obj/panda.bin.signed panda/board/obj/panda_h7.bin.signed \
+             panda/board/obj/bootstub.panda.bin panda/board/obj/bootstub.panda_h7.bin \
+             panda_firmware/
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add panda_firmware
+          if git diff --cached --quiet; then
+            echo "panda firmware unchanged, nothing to commit"
+          else
+            git commit -m "panda: update prebuilt firmware from CI [skip ci]"
+            git push origin HEAD:test
+          fi

@@ -47,6 +47,14 @@ rm -rf .git/modules/
 rm -f panda/board/obj/panda.bin.signed
 rm -f panda/board/obj/panda_h7.bin.signed
 
+# ship prebuilt panda firmware: CI maintains <repo>/panda_firmware (see
+# build-panda.yaml) and pandad.ensure_panda_firmware() also restores these
+# at runtime for plain git clones, but packaging them into the canonical
+# panda/board/obj keeps the released tree flash-ready out of the box.
+if [ -d "$SOURCE_DIR/panda_firmware" ]; then
+  cp -p "$SOURCE_DIR"/panda_firmware/* panda/board/obj/
+fi
+
 # Release branch must not contain LFS pointers; strip LFS tracking and commit files as regular content.
 # release_files.py deliberately excludes .gitattributes from the stripped tree, so it is
 # normally absent here; only edit it when a previous step (e.g. setup_lfs with
