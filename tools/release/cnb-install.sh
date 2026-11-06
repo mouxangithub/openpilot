@@ -112,8 +112,17 @@ echo "    已安装版本: $BRANCH @ $SRC_COMMIT"
 echo "==> [6/6] 写入 continue.sh 并重启 openpilot"
 cat > /data/continue.sh.new <<'EOF'
 #!/usr/bin/env bash
-cd /data/openpilot
-exec ./launch_openpilot.sh
+# 带"卸载回退"的启动器：comma.sh 只要看到 /data/continue.sh 就会 exec 它，
+# 如果 openpilot 已被卸载/树损坏，裸 exec 会让 systemd 无限重启本脚本 → 卡逗号 logo。
+# 目标不存在时自删 continue.sh 并退出，让 comma.sh 回落到官方 setup/installer 流程。
+while true; do
+  if [ -f /data/openpilot/launch_openpilot.sh ]; then
+    cd /data/openpilot
+    exec ./launch_openpilot.sh
+  fi
+  rm -f /data/continue.sh
+  exit 1
+done
 EOF
 chmod +x /data/continue.sh.new
 mv /data/continue.sh.new "$CONTINUE"
