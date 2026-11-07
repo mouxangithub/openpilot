@@ -17,8 +17,8 @@ from openpilot.common.constants import CV
 from openpilot.common.realtime import DT_MDL as DT
 from openpilot.selfdrive.controls.lib.longitudinal_planner import get_cruise_accel
 from openpilot.sunnypilot.selfdrive.car.tests.fakes import FakeParams
-from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed import controller as c
-from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
+from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.approach import approach_accel
+from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import LIFT_FALL, E2ESetSpeedController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.tests.helpers import ENGAGED, build_sm
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.limits import op_long_cruise_jerk
 
@@ -31,7 +31,7 @@ ACTUATOR_TAU = 0.5  # s
 def simulate(enabled, seconds=60., tau=50., brake_at=None):
   """Rows of (t, v_ego, a_model, e2e candidate). brake_at: the model brakes at -0.5 from then on."""
   ctl = E2ESetSpeedController(params=FakeParams(ExperimentalModeSetSpeed=enabled), dt=DT)
-  v, a_act, a_cruise = V_PREF, 0., 0.
+  v, a_act, a_cruise, out = V_PREF, 0., 0., 0.
   log = []
   for i in range(int(seconds / DT)):
     t = i * DT
@@ -39,8 +39,8 @@ def simulate(enabled, seconds=60., tau=50., brake_at=None):
     if brake_at is not None and t >= brake_at:
       a_model = -0.5
     # the host passes last frame's cruise candidate at the approach pace, then builds this frame's
-    e2e = ctl.update(build_sm(v), a_model, min(a_cruise, c.approach_accel(v, V_CRUISE, STANDARD)), **ENGAGED)
-    a_cruise = get_cruise_accel(V_CRUISE, v, a_cruise, DT)
+    e2e = ctl.update(build_sm(v), a_model, min(a_cruise, approach_accel(v, V_CRUISE, STANDARD)), **ENGAGED)
+    a_cruise = get_cruise_accel(V_CRUISE, v, a_cruise, out, DT)
     out = min(e2e, a_cruise)
     a_act += DT / ACTUATOR_TAU * (out - a_act)
     v += a_act * DT
@@ -53,7 +53,7 @@ def chill_peak(seconds=60.):
   v, a_act, a_cruise = V_PREF, 0., 0.
   peak = v
   for _ in range(int(seconds / DT)):
-    a_cruise = get_cruise_accel(V_CRUISE, v, a_cruise, DT)
+    a_cruise = get_cruise_accel(V_CRUISE, v, a_cruise, a_cruise, DT)
     a_act += DT / ACTUATOR_TAU * (a_cruise - a_act)
     v += a_act * DT
     peak = max(peak, v)
@@ -78,10 +78,11 @@ def test_reaches_set_speed(tau, deficit):
 
 
 def test_added_jerk_bounded():
+  # the model never brakes in this run, so the lift never takes the gain's faster drop
   log = simulate(True)
   lift = log[:, 3] - log[:, 2]
   jerk = np.diff(lift) / DT
-  assert -c.LIFT_FALL - 1e-6 <= jerk.min() and jerk.max() <= op_long_cruise_jerk(0.) + 1e-6
+  assert -LIFT_FALL - 1e-6 <= jerk.min() and jerk.max() <= op_long_cruise_jerk(0.) + 1e-6
   assert lift.min() >= 0.
 
 

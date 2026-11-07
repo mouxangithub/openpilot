@@ -55,7 +55,6 @@ Panda *connect(std::string serial) {
   if (getenv("BOARDD_LOOPBACK")) {
     panda->set_loopback(true);
   }
-  //panda->enable_deepsleep();
 
   for (int i = 0; i < PANDA_CAN_CNT; i++) {
     panda->set_can_fd_auto(i, true);
@@ -79,8 +78,7 @@ void can_send_thread(Panda *panda, Panda *aux_panda, bool dual_can, bool fake_se
   util::set_thread_name("pandad_can_send");
 
   AlignedBuffer aligned_buf;
-  std::unique_ptr<Context> context(Context::create());
-  std::unique_ptr<SubSocket> subscriber(SubSocket::create(context.get(), "sendcan", "127.0.0.1", false, true, services.at("sendcan").queue_size));
+  std::unique_ptr<SubSocket> subscriber(SubSocket::create("sendcan", false, services.at("sendcan").queue_size));
   assert(subscriber != NULL);
   subscriber->setTimeout(100);
 
@@ -292,12 +290,13 @@ std::optional<bool> send_panda_states(PubMaster *pm, Panda *panda, Panda *aux_pa
     }
 
     // Convert faults bitset to capnp list
-    std::bitset<sizeof(health.faults_pkt) * 8> fault_bits(health.faults_pkt);
+    // bits above the last fault type would leave unset entries, which read as relayMalfunction
+    std::bitset<sizeof(health.faults_pkt) * 8> fault_bits(health.faults_pkt & ((2U << size_t(cereal::PandaState::FaultType::TIMER)) - 1U));
     auto faults = ps.initFaults(fault_bits.count());
 
     size_t j = 0;
     for (size_t f = size_t(cereal::PandaState::FaultType::RELAY_MALFUNCTION);
-         f <= size_t(cereal::PandaState::FaultType::HEARTBEAT_LOOP_WATCHDOG); f++) {
+         f <= size_t(cereal::PandaState::FaultType::TIMER); f++) {
       if (fault_bits.test(f)) {
         faults.set(j, cereal::PandaState::FaultType(f));
         j++;

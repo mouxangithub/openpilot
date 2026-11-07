@@ -222,7 +222,7 @@ def load_route_metadata(route):
   for entry in init_data.params.entries:
     try:
       params.put(entry.key, params.cpp2python(entry.key, entry.value), block=True)
-    except UnknownKeyName:
+    except (UnknownKeyName, TypeError):  # TypeError: an empty JSON param logs as b'' and won't round-trip
       pass
 
   origin = init_data.gitRemote.split('/')[3] if len(init_data.gitRemote.split('/')) > 3 else 'unknown'
@@ -234,7 +234,7 @@ def load_route_metadata(route):
 
 
 def draw_text_box(text, x, y, size, gui_app, font, color=None, center=False):
-  import pyray as rl
+  import raylib_nb as rl
   from openpilot.system.ui.lib.text_measure import measure_text_cached
   box_color, text_color = rl.Color(0, 0, 0, 85), color or rl.WHITE
   text_size = measure_text_cached(font, text, size)
@@ -286,13 +286,7 @@ def clip(route: Route, output: str, start: int, end: int, headless: bool = True,
          title: str | None = None, show_metadata: bool = True, show_time: bool = True, use_qcam: bool = False):
   timer, duration = Timer(), end - start
 
-  import pyray as rl
-  if big:
-    from openpilot.selfdrive.ui.onroad.augmented_road_view import AugmentedRoadView
-  else:
-    from openpilot.selfdrive.ui.mici.onroad.augmented_road_view import AugmentedRoadView
-  from openpilot.selfdrive.ui.ui_state import ui_state
-  from openpilot.system.ui.lib.application import gui_app, FontWeight
+  import raylib_nb as rl
   timer.lap("import")
 
   logger.info(f"Clipping {route.name.canonical_name}, {start}s-{end}s ({duration}s)")
@@ -310,7 +304,14 @@ def clip(route: Route, output: str, start: int, end: int, headless: bool = True,
     rl.set_config_flags(rl.ConfigFlags.FLAG_WINDOW_HIDDEN)
 
   with OpenpilotPrefix(shared_download_cache=True):
-    metadata = load_route_metadata(route) if show_metadata else None
+    metadata = load_route_metadata(route)  # restores the route's params too, so the UI matches the drive
+    # ui_state reads params at import, so it comes after the route's params are restored into the prefix
+    if big:
+      from openpilot.selfdrive.ui.onroad.augmented_road_view import AugmentedRoadView
+    else:
+      from openpilot.selfdrive.ui.mici.onroad.augmented_road_view import AugmentedRoadView
+    from openpilot.selfdrive.ui.ui_state import ui_state
+    from openpilot.system.ui.lib.application import gui_app, FontWeight
     camera_paths = route.qcamera_paths() if use_qcam else route.camera_paths()
     frame_queue = FrameQueue(camera_paths, start, end, fps=FRAMERATE, use_qcam=use_qcam)
 
@@ -334,6 +335,9 @@ def clip(route: Route, output: str, start: int, end: int, headless: bool = True,
     timer.lap("setup")
 
     frame_idx = 0
+    # the UI's timed windows (alert and icon persistence) run on replay time, not the faster render
+    rl.get_time = lambda: frame_idx / FRAMERATE
+    rl.get_frame_time = lambda: 1 / FRAMERATE
     with tqdm.tqdm(total=len(message_chunks), desc="Rendering", unit="frame") as pbar:
       for should_render, _, _ in gui_app.render():
         if frame_idx >= len(message_chunks):

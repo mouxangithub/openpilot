@@ -1051,7 +1051,7 @@ class TestAlphaLongitudinalPanelMici:
     from openpilot.selfdrive.ui.sunnypilot.mici.layouts.software import SoftwareLayoutSP
     from openpilot.system.ui.lib.application import gui_app
 
-    buttons = {btn.get_text(): btn for btn in SettingsLayoutSP()._scroller.items if hasattr(btn, "get_text")}
+    buttons = {btn.text: btn for btn in SettingsLayoutSP()._scroller.items if hasattr(btn, "text")}
     pushed = []
     monkeypatch.setattr(gui_app, "push_widget", lambda w: pushed.append(w))
     for label, cls in (("toggles", TogglesLayoutMici), ("developer", DeveloperLayoutMiciSP), ("software", SoftwareLayoutSP)):
@@ -1305,7 +1305,7 @@ class TestSpeedAssistBadge:
   """The Set Speed Assist badge comes and goes with the wheel and waits for the model icon."""
 
   def _settle(self, hud, monkeypatch, frames=200):
-    import pyray as rl
+    import raylib_nb as rl
     from openpilot.selfdrive.ui.sunnypilot.mici.onroad import hud_renderer
     drawn = []
     monkeypatch.setattr(hud_renderer, "draw_gauge_centered", lambda *a: drawn.append(a))
@@ -1320,8 +1320,8 @@ class TestSpeedAssistBadge:
     ("ENGAGED", "ACTIVE", False),  # within the model icon's persistence after engaging
   ])
   def test_follows_the_wheel(self, params, monkeypatch, status, chestnut, shown):
-    import pyray as rl
-    from openpilot.selfdrive.ui.sunnypilot.mici.onroad.hud_renderer import SPEED_ASSIST_ALPHA, HudRendererSP
+    import raylib_nb as rl
+    from openpilot.selfdrive.ui.sunnypilot.mici.onroad.hud_renderer import SPEED_ASSIST_ALPHA_IDLE, HudRendererSP
     from openpilot.selfdrive.ui.ui_state import ChestnutState, UIState, UIStatus, ui_state
 
     monkeypatch.setattr(UIState, "speed_assist_active", property(lambda _: True))
@@ -1331,15 +1331,15 @@ class TestSpeedAssistBadge:
     hud._chestnut_fade_time = rl.get_time()
     drawn = self._settle(hud, monkeypatch)
     if shown:
-      assert drawn and drawn[-1][3] == pytest.approx(SPEED_ASSIST_ALPHA, abs=0.02)
+      assert drawn and drawn[-1][3] == pytest.approx(SPEED_ASSIST_ALPHA_IDLE, abs=0.02)
     else:
       assert not drawn
 
   def test_swaps_in_after_the_model_icon(self, params, monkeypatch):
     from openpilot.selfdrive.ui.mici.onroad.hud_renderer import SET_SPEED_PERSISTENCE
-    from openpilot.selfdrive.ui.sunnypilot.mici.onroad.hud_renderer import SPEED_ASSIST_ALPHA, HudRendererSP
+    from openpilot.selfdrive.ui.sunnypilot.mici.onroad.hud_renderer import SPEED_ASSIST_ALPHA_IDLE, HudRendererSP
     from openpilot.selfdrive.ui.ui_state import ChestnutState, UIState, UIStatus, ui_state
-    import pyray as rl
+    import raylib_nb as rl
 
     monkeypatch.setattr(UIState, "speed_assist_active", property(lambda _: True))
     monkeypatch.setattr(ui_state, "status", UIStatus.ENGAGED)
@@ -1347,4 +1347,16 @@ class TestSpeedAssistBadge:
     hud = HudRendererSP()
     hud._chestnut_fade_time = rl.get_time() - SET_SPEED_PERSISTENCE - 0.1
     drawn = self._settle(hud, monkeypatch)
-    assert drawn and drawn[-1][3] == pytest.approx(SPEED_ASSIST_ALPHA, abs=0.02)
+    assert drawn and drawn[-1][3] == pytest.approx(SPEED_ASSIST_ALPHA_IDLE, abs=0.02)
+
+  @pytest.mark.parametrize(("fraction", "expected"), [(0.5, 0.55), (1.0, 0.7)])
+  def test_brightens_with_the_lift(self, params, monkeypatch, fraction, expected):
+    from openpilot.selfdrive.ui.sunnypilot.mici.onroad.hud_renderer import HudRendererSP
+    from openpilot.selfdrive.ui.ui_state import ChestnutState, UIState, UIStatus, ui_state
+
+    monkeypatch.setattr(UIState, "speed_assist_active", property(lambda _: True))
+    monkeypatch.setattr(ui_state, "status", UIStatus.ENGAGED)
+    monkeypatch.setattr(ui_state, "chestnut_state", ChestnutState.DISCONNECTED)
+    monkeypatch.setattr(HudRendererSP, "_speed_assist_lift_fraction", staticmethod(lambda: fraction))
+    drawn = self._settle(HudRendererSP(), monkeypatch)
+    assert drawn and drawn[-1][3] == pytest.approx(expected, abs=0.02)

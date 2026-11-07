@@ -1,5 +1,6 @@
 zoompilot vUNRELEASED
 ========================
+* Synced with sunnypilot and openpilot of 2026-11-05, on AGNOS 20.3.
 * chestnut
   * Tested with a chestnut and fixed what came up.
   * Fixed the comma not downloading the big model when a chestnut connects.
@@ -10,7 +11,13 @@ zoompilot vUNRELEASED
   * Uses jetlink's own model index, so no jetlink update is needed when comma changes how it releases models.
 * Mazda
   * Alpha longitudinal: less throttle lag, and a quicker launch from a stop.
+* Set Speed Assist follows the driving personality: gentler on Relaxed, quicker on Aggressive.
+* Set Speed Assist's onroad icon brightens while it adds acceleration.
+* Radar cars: the lead forecast now also covers radar leads, braking earlier behind slowing traffic.
+* Toyota: Speed Limit Assist works at any cruise set speed and never exceeds it; tap gas to keep your current speed.
 * Fixed Speed Limit Assist not turning on reliably on some cars.
+* Speed Limit source is now Auto, Car or Map; Auto follows the car's sign and fills in from the map.
+* Lane Center Assist is now on by default.
 * sunnylink: Lane Center Assist can be turned on with the Default model.
 
 zoompilot v2026.11.02-18

@@ -662,10 +662,12 @@ class Updater:
     cloudlog.info("git fetch success: %s", git_fetch_output)
 
     cloudlog.info("git reset in progress")
+    # Check out without running the installed LFS client, the new checkout installs its own below
+    nolfs = ["-c", "filter.lfs.process=", "-c", "filter.lfs.required=false", "-c", "core.hooksPath=/dev/null"]
     cmds = [
-      ["git", "checkout", "--force", "--no-recurse-submodules", "-B", branch, "FETCH_HEAD"],
+      ["git", *nolfs, "checkout", "--force", "--no-recurse-submodules", "-B", branch, "FETCH_HEAD"],
       ["git", "branch", "--set-upstream-to", f"origin/{branch}"],
-      ["git", "reset", "--hard"],
+      ["git", *nolfs, "reset", "--hard"],
       ["git", "clean", "-xdff"],
       ["git", "submodule", "sync"],
     ]
@@ -698,6 +700,12 @@ class Updater:
       ]
     ]
     cloudlog.info("git submodule update success: %s", '\n'.join(r))
+
+    # Only checkouts with LFS files need a client, so release updates don't depend on git-lfs
+    if run(["git", "ls-files", ":(attr:filter=lfs)"], OVERLAY_MERGED):
+      lfs = os.path.join(OVERLAY_MERGED, "tools/lfs.sh")
+      run([lfs, "pull"] if os.path.isfile(lfs) else ["git", "lfs", "pull"], OVERLAY_MERGED)
+
 
     # TODO: show agnos download progress
     if AGNOS:

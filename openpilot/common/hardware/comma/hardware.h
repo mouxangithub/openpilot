@@ -2,7 +2,6 @@
 
 #include <cstdlib>
 #include <cassert>
-#include <fstream>
 #include <map>
 #include <string>
 #include <algorithm>  // for std::clamp

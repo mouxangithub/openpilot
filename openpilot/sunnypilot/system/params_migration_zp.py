@@ -12,9 +12,12 @@ that has booted before.
 from openpilot.common.params import Params, UnknownKeyName
 from openpilot.common.swaglog import cloudlog
 from openpilot.sunnypilot.selfdrive.car.mazda_torque_seed import seed_car_defaults_offroad
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Policy
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.source_auto import AUTO
 
 E2E_ASSISTS_MIGRATED = "ExperimentalAssistsDefaultOn"
 E2E_ASSISTS = ("ExperimentalModeSetSpeed",)
+LANE_CENTER_MIGRATED = "LaneCenterAssistDefaultOn"
 
 
 def _migrate_e2e_assists_on(params: Params) -> None:
@@ -38,9 +41,34 @@ def _migrate_e2e_assists_on(params: Params) -> None:
     cloudlog.exception("params_migration_zp: e2e assists migration failed, retrying next boot")
 
 
+def _migrate_lane_center_on(params: Params) -> None:
+  # Lane Center Assist became default on 2026-11-06; turn it on once for every install, after
+  # which the driver's choice stands. Upstream's Blendful default stays "0", so new installs get
+  # it here too. The debug readout is left as it is.
+  if params.get_bool(LANE_CENTER_MIGRATED):
+    return
+  try:
+    params.put_bool("Blendful", True, block=True)
+    params.put_bool(LANE_CENTER_MIGRATED, True, block=True)
+    cloudlog.info("params_migration_zp: turned on Lane Center Assist")
+  except Exception:
+    cloudlog.exception("params_migration_zp: lane center migration failed, retrying next boot")
+
+
+def _fold_speed_limit_sources(params: Params) -> None:
+  # Car-first, map-first and combined became one Auto source 2026-11-05. No marker: the settings
+  # can no longer write 3 or 4, but a restored backup can.
+  try:
+    if params.get("SpeedLimitPolicy", return_default=True) in (Policy.map_data_priority, Policy.combined):
+      params.put("SpeedLimitPolicy", int(AUTO), block=True)
+      cloudlog.info("params_migration_zp: SpeedLimitPolicy folded into Auto")
+  except Exception:
+    cloudlog.exception("params_migration_zp: SpeedLimitPolicy fold failed, retrying next boot")
+
+
 def run_migration_zp(params: Params) -> None:
   # Isolate every hook so one failing migration can never prevent manager from starting.
-  for step in (_migrate_e2e_assists_on, seed_car_defaults_offroad):
+  for step in (_migrate_e2e_assists_on, _migrate_lane_center_on, _fold_speed_limit_sources, seed_car_defaults_offroad):
     try:
       step(params)
     except Exception:

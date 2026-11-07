@@ -11,7 +11,6 @@ from setproctitle import setproctitle
 
 from openpilot.cereal import log
 from opendbc.car.structs import car
-import openpilot.cereal.messaging as messaging
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
 from openpilot.common.swaglog import cloudlog
@@ -27,9 +26,6 @@ def launcher(proc: str, name: str) -> None:
 
     # rename the process
     setproctitle(proc)
-
-    # create new context since we forked
-    messaging.reset_context()
 
     # add daemon name tag to logs
     cloudlog.bind(daemon=name)
@@ -63,7 +59,6 @@ def join_process(process: Process, timeout: float) -> None:
 
 class ManagerProcess(ABC):
   daemon = False
-  sigkill = False
   should_run: Callable[[bool, Params, car.CarParams], bool]
   proc: Process | None = None
   enabled = True
@@ -118,7 +113,7 @@ class ManagerProcess(ABC):
       if not self.shutting_down:
         cloudlog.info(f"killing {self.name}")
         if sig is None:
-          sig = signal.SIGKILL if self.sigkill else signal.SIGINT
+          sig = signal.SIGINT
         self.signal(sig)
         self.shutting_down = True
 

@@ -32,6 +32,8 @@ public:
   // quiet their worker threads while idle. Default: nothing to do.
   virtual void set_idle(bool) {}
 
+  // before the first frame is sent: true once a subscriber (loggerd) is connected
+  bool subscribed() { return pm->all_readers_updated(encoder_info.publish_name); }
   void publisher_publish(int segment_num, uint32_t idx, VisionIpcBufExtra &extra, unsigned int flags, kj::ArrayPtr<capnp::byte> header, kj::ArrayPtr<capnp::byte> dat);
 
 protected:

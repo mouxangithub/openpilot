@@ -1,4 +1,4 @@
-import pyray as rl
+import raylib_nb as rl
 from openpilot.system.ui.lib.application import FONT_SCALE, font_fallback
 from openpilot.system.ui.lib.emoji import find_emoji
 

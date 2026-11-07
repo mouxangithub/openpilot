@@ -68,6 +68,8 @@ def manager_init() -> None:
     run_migration(params)
     run_migration_zp(params)
 
+  if params.get_bool("AlwaysOnDMLock"):
+    params.put_bool("AlwaysOnDM", True, block=True)
   if COMMA_HARDWARE:
     headless_override = os.getenv("OPENPILOT_HEADLESS", "").strip().lower()
     if headless_override in ("1", "true", "yes"):

@@ -28,7 +28,8 @@ from openpilot.sunnypilot.selfdrive.controls.lib.cutin_predecel import get_cutin
 from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_preview import (
   apply_preview_target, clip_preview_offset, get_lead_preview_request, rate_limit_preview,
 )
-from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController, approach_accel
+from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.approach import approach_accel
+from openpilot.sunnypilot.selfdrive.controls.lib.e2e_set_speed.controller import E2ESetSpeedController
 from openpilot.sunnypilot.selfdrive.controls.lib.e2e_alerts_helper import E2EAlertsHelper
 from openpilot.sunnypilot.selfdrive.controls.lib.lead_forecast.forecast import LeadForecast
 from openpilot.sunnypilot.selfdrive.controls.lib.smart_cruise_control.zoompilot import make_smart_cruise_control
@@ -110,7 +111,7 @@ class LongitudinalPlannerSP:
     self.scc = make_smart_cruise_control(CP)
     self.CP = CP
     self.CP_SP = CP_SP
-    self.resolver = SpeedLimitResolver(CP)
+    self.resolver = SpeedLimitResolver(CP, CP_SP)
     # cars whose setpoint only the driver can move run the SLA machine here; everywhere
     # else it runs in card (the cruise arbiter, next to the buttons and the setpoint) and
     # gets mirrored (speed_limit.helpers.pcm_machine_owns_sla). On Mazda alpha long the owner

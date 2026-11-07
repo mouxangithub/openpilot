@@ -106,6 +106,7 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info, bool encode
   std::unique_ptr<JpegEncoder> jpeg_encoder;
 
   static Params params;
+  const bool live = std::all_of(cam_info.encoder_infos.begin(), cam_info.encoder_infos.end(), [](auto &e) { return e.is_live; });
   int cur_seg = 0;
   bool prewarm_pending = encode_on_demand;
   while (!do_exit) {
@@ -133,6 +134,8 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info, bool encode
 
     bool lagging = false;
     const bool has_live = cam_info_has_live_encoder(cam_info);
+    bool subscribed = false;
+    int frames_waited = 0;
     while (!do_exit) {
       VisionIpcBufExtra extra;
       VisionBuf* buf = vipc_client.recv(&extra);
@@ -152,7 +155,14 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info, bool encode
         encoder_set_live_lagging(has_live, false, livestream_camera_active(cam_info.stream_type));
       }
 
-      if (!sync_encoders(s, cam_info.stream_type, extra.frame_id)) {
+      // creating our publishers kicked out any subscriber that was already connected (loggerd), and they lose
+      // everything we send until they reconnect, like the first keyframe. so wait for them, but not forever
+      if (!live && !subscribed) {
+        subscribed = std::all_of(encoders.begin(), encoders.end(), [](auto &e) { return e->subscribed(); }) || ++frames_waited > MAIN_FPS * 2;
+        if (!subscribed) continue;
+      }
+
+      if (!live && !sync_encoders(s, cam_info.stream_type, extra.frame_id)) {
         continue;
       }
       if (do_exit) break;

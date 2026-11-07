@@ -80,7 +80,7 @@ master commit: $GIT_HASH
 
 # should be no submodules or unexpected LFS files
 git submodule status
-if [ -z "$INCLUDE_BIG_MODEL" ] && [ -n "$(git lfs ls-files)" ]; then
+if [ -z "$INCLUDE_BIG_MODEL" ] && [ -n "$(./lfs.py ls-files)" ]; then
   echo "LFS files detected!"
   exit 1
 fi

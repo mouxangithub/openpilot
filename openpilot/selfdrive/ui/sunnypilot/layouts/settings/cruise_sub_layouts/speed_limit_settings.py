@@ -7,7 +7,7 @@ See the LICENSE.md file in the root directory for more details.
 from collections.abc import Callable
 from enum import IntEnum
 
-import pyray as rl
+import raylib_nb as rl
 from openpilot.selfdrive.ui.sunnypilot.layouts.settings.cruise_sub_layouts.speed_limit_policy import SpeedLimitPolicyLayout
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.common import Mode as SpeedLimitMode
@@ -17,6 +17,8 @@ from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.tiered_offset impor
   TIER_KEY_SUFFIXES,
   tier_label,
 )
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.helpers import pcm_machine_owns_sla
+from openpilot.sunnypilot.selfdrive.controls.lib.speed_limit.source_auto import car_shows_limit
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.ui.sunnypilot.widgets import get_highlighted_description
 from openpilot.system.ui.sunnypilot.widgets.list_view import multiple_button_item_sp, option_item_sp, simple_button_item_sp, LineSeparatorSP
@@ -29,11 +31,14 @@ SPEED_LIMIT_OFFSET_TYPE_BUTTONS = [tr("None"), tr("Fixed"), tr("%"), tr("Tiered"
 SPEED_LIMIT_CONFIRM_BUTTONS = [tr("Never"), tr("Lower"), tr("Higher"), tr("Both")]
 
 SPEED_LIMIT_MODE_DESCRIPTIONS = [
-  tr("Off: Disables the Speed Limit functions."),
-  tr("Information: Displays the current road's speed limit."),
-  tr("Warning: Provides a warning when exceeding the current road's speed limit."),
-  tr("Assist: Adjusts the vehicle's cruise speed based on the current road's speed limit when operating the +/- buttons."),
+  tr("Off: No speed limit features."),
+  tr("Info: Shows the speed limit."),
+  tr("Warning: Warns when you're over the speed limit."),
 ]
+# where only the driver can move the set speed, assist applies the limit unasked
+# (speed_limit_assist_zp); elsewhere it asks for a +/- press (cruise_arbiter)
+SPEED_LIMIT_ASSIST_CEILING = tr("Assist: Slows to the speed limit, up to your set speed. Tap gas to keep your speed.")
+SPEED_LIMIT_ASSIST_BUTTONS = tr("Assist: Sets cruise to the speed limit. When asked, press + or - to accept.")
 
 SPEED_LIMIT_OFFSET_DESCRIPTIONS = [
   tr("None: No Offset"),
@@ -103,6 +108,8 @@ class SpeedLimitSettingsLayout(Widget):
       button_width=720,
       callback=lambda: self._set_current_panel(PanelType.POLICY)
     )
+    # cars that report no limit always use the map
+    self._source_button.set_visible(lambda: car_shows_limit(ui_state.CP, ui_state.CP_SP))
 
     self._speed_limit_offset_type = multiple_button_item_sp(
       title=lambda: tr("Speed Limit Offset"),
@@ -157,7 +164,9 @@ class SpeedLimitSettingsLayout(Widget):
 
   @staticmethod
   def _get_mode_description():
-    return get_highlighted_description(ui_state.params, "SpeedLimitMode", SPEED_LIMIT_MODE_DESCRIPTIONS)
+    ceiling = ui_state.CP is not None and pcm_machine_owns_sla(ui_state.CP, ui_state.has_icbm)
+    assist = SPEED_LIMIT_ASSIST_CEILING if ceiling else SPEED_LIMIT_ASSIST_BUTTONS
+    return get_highlighted_description(ui_state.params, "SpeedLimitMode", [*SPEED_LIMIT_MODE_DESCRIPTIONS, assist])
 
   @staticmethod
   def _get_offset_description():

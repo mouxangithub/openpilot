@@ -354,6 +354,9 @@ def main(demo=False):
   if use_extra_client:
     cloudlog.warning(f"connected extra cam with buffer size: {vipc_client_extra.buffer_len} ({vipc_client_extra.width} x {vipc_client_extra.height})")
 
+  cam_w, cam_h = vipc_client_main.width, vipc_client_main.height
+  assert cam_w is not None and cam_h is not None
+
   cloudlog.warning("loading model")
   st = time.monotonic()
 
@@ -364,7 +367,7 @@ def main(demo=False):
       nonlocal big_model
       try:
         wait_for_chestnut()
-        m = ModelState(cam_w=vipc_client_main.width, cam_h=vipc_client_main.height, chestnut=True)
+        m = ModelState(cam_w=cam_w, cam_h=cam_h, chestnut=True)
         m.warmup()
         big_model = m
       except Exception:
@@ -381,7 +384,7 @@ def main(demo=False):
     else:
       params.put_bool("ChestnutActive", model is not None)
 
-  small_model = ModelState(cam_w=vipc_client_main.width, cam_h=vipc_client_main.height, chestnut=False) if model is None or CHESTNUT else None
+  small_model = ModelState(cam_w=cam_w, cam_h=cam_h, chestnut=False) if model is None or CHESTNUT else None
   if model is None:
     model = small_model
   elif small_model is not None:

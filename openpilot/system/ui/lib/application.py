@@ -1,5 +1,4 @@
 import atexit
-import cffi
 import math
 import os
 import queue
@@ -7,7 +6,7 @@ import time
 import signal
 import re
 import sys
-import pyray as rl
+import raylib_nb as rl
 import threading
 import platform
 import subprocess
@@ -715,8 +714,10 @@ class GuiApplication(GuiApplicationExt):
 
         # Store all mouse events for the current frame
         self._mouse_events = self._mouse.get_events()
-        if len(self._mouse_events) > 0:
-          self._last_mouse_event = self._mouse_events[-1]
+        # ignore additional fingers to avoid jumping
+        for mouse_event in self._mouse_events:
+          if mouse_event.slot == 0:
+            self._last_mouse_event = mouse_event
 
         # Skip rendering when screen is off
         if not self._should_render:
@@ -788,7 +789,7 @@ class GuiApplication(GuiApplicationExt):
         if RECORD:
           image = rl.load_image_from_texture(self._render_texture.texture)
           data_size = image.width * image.height * 4
-          data = bytes(rl.ffi.buffer(image.data, data_size))
+          data = image.to_bytes(data_size)
           self._ffmpeg_queue.put(data)  # Async write via background thread
           rl.unload_image(image)
 
@@ -1020,30 +1021,7 @@ class GuiApplication(GuiApplicationExt):
     rl.begin_scissor_mode = _begin_scissor_mode_scaled
 
   def _set_log_callback(self):
-    ffi_libc = cffi.FFI()
-    ffi_libc.cdef("""
-      int vasprintf(char **strp, const char *fmt, void *ap);
-      void free(void *ptr);
-    """)
-    libc = ffi_libc.dlopen(None)
-
-    @rl.ffi.callback("void(int, char *, void *)")
-    def trace_log_callback(log_level, text, args):
-      try:
-        text_addr = int(rl.ffi.cast("uintptr_t", text))
-        args_addr = int(rl.ffi.cast("uintptr_t", args))
-        text_libc = ffi_libc.cast("char *", text_addr)
-        args_libc = ffi_libc.cast("void *", args_addr)
-
-        out = ffi_libc.new("char **")
-        if libc.vasprintf(out, text_libc, args_libc) >= 0 and out[0] != ffi_libc.NULL:
-          text_str = ffi_libc.string(out[0]).decode("utf-8", "replace")
-          libc.free(out[0])
-        else:
-          text_str = rl.ffi.string(text).decode("utf-8", "replace")
-      except Exception as e:
-        text_str = f"[Log decode error: {e}]"
-
+    def trace_log_callback(log_level, text_str):
       if log_level == rl.TraceLogLevel.LOG_ERROR:
         cloudlog.error(f"raylib: {text_str}")
       elif log_level == rl.TraceLogLevel.LOG_WARNING:

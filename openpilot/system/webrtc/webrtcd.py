@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 
-from abc import abstractmethod
-from collections.abc import Callable
-import os
 import socket
 import time
-import capnp
 import argparse
 import asyncio
 import contextlib
@@ -18,6 +14,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 from typing import Any
 
+from openpilot.system.webrtc.device.bitrate import LivestreamBitrateController
+from openpilot.system.webrtc.device.messaging import CerealIncomingMessageProxy, CerealOutgoingMessageProxy, DynamicPubMaster
 from openpilot.system.webrtc.helpers import StreamRequestBody
 from openpilot.system.webrtc.schema import generate_field
 from openpilot.common.params import Params
@@ -247,42 +245,48 @@ class StreamSession:
   shared_pub_master = DynamicPubMaster([])
 
   def __init__(self, body: StreamRequestBody):
-    from openpilot.system.webrtc.device.video import LiveStreamVideoStreamTrack
     from teleoprtc.builder import WebRTCAnswerBuilder
 
     self.identifier = str(uuid.uuid4())
     self.params = Params()
+    self.is_body = "testJoystick" in body.bridge_services_in
+
     builder = WebRTCAnswerBuilder(body.sdp, bind_address=_default_route_ip())
 
-    self.enabled = body.enabled
+    # create video tracks and add to sdp
+    from openpilot.system.webrtc.device.video import LiveStreamVideoStreamTrack
+    self.video_enabled = body.enabled
     self.video_tracks = []
     for camera in body.cameras:
-      track = LiveStreamVideoStreamTrack(camera, self.enabled)
+      track = LiveStreamVideoStreamTrack(camera, self.video_enabled)
       self.video_tracks.append(track)
       builder.add_video_stream(camera, track)
     self.stream = builder.stream()
     active_cam = body.cameras[0] if body.cameras else "road"
     self.params.put("LivestreamActiveCamera", active_cam)
+    self.bitrate_controller = LivestreamBitrateController(self.stream.get_receiver_report_stats, self.params, self.video_enabled)
 
-    self.is_body = "testJoystick" in body.bridge_services_in
-
+    # start proxies
+    self.raw = body.raw
     self.incoming_bridge: CerealIncomingMessageProxy | None = None
     self.incoming_bridge_services = body.bridge_services_in
     self.outgoing_bridge: CerealOutgoingMessageProxy | None = None
-    self.bitrate_controller: LivestreamBitrateController | None = None
     if len(body.bridge_services_in) > 0:
       self.incoming_bridge = CerealIncomingMessageProxy(self.shared_pub_master)
     if len(body.bridge_services_out) > 0:
-      self.outgoing_bridge = CerealOutgoingMessageProxy(body.bridge_services_out, self.enabled)
-    self.bitrate_controller = LivestreamBitrateController(self.stream.get_receiver_report_stats, self.params, self.enabled)
+      self.outgoing_bridge = CerealOutgoingMessageProxy(body.bridge_services_out, self.video_enabled, self.raw)
 
+    # async tasks helpers
     self.run_task: asyncio.Task | None = None
+    self.background_tasks: list[asyncio.Task] = []
     self._cleanup_lock = asyncio.Lock()
     self._cleanup_done = False
+
+    # logger
     self.logger = logging.getLogger("webrtcd")
     cloudlog.warning(
-      "New stream session (%s), video cameras %s, video enabled %s, incoming services %s, outgoing services %s",
-      self.identifier, [t.id for t in self.video_tracks], body.enabled, body.bridge_services_in, body.bridge_services_out,
+      "New stream session (%s), video cameras %s, video enabled %s, incoming services %s, outgoing services %s, raw %s",
+      self.identifier, [t.id for t in self.video_tracks], body.enabled, body.bridge_services_in, body.bridge_services_out, body.raw,
     )
 
   def start(self):
@@ -301,6 +305,12 @@ class StreamSession:
 
   def message_handler(self, message: bytes):
     try:
+      if self.raw and isinstance(message, bytes):
+        service = messaging.log_from_bytes(message).which()
+        if service in self.incoming_bridge_services:
+          self.shared_pub_master.send(service, message)
+        return
+
       payload = json.loads(message) if isinstance(message, (bytes, str)) else None
       if isinstance(payload, dict):
         msg_type = payload.get("type")
@@ -315,15 +325,15 @@ class StreamSession:
             if self.bitrate_controller is not None:
               self.bitrate_controller.set_quality(payload["data"]["quality"])
           case "livestreamVideoEnable":
-            enabled = payload["data"]["enabled"]
-            self.enabled = enabled
+            video_enabled = payload["data"]["enabled"]
+            self.video_enabled = video_enabled
             for track in self.video_tracks:
-              track.enable(enabled)
+              track.enable(video_enabled)
             if self.outgoing_bridge is not None:
-              self.outgoing_bridge.enable(enabled)
+              self.outgoing_bridge.enable(video_enabled)
             if self.bitrate_controller is not None:
-              self.bitrate_controller.enable(enabled)
-            if not enabled:
+              self.bitrate_controller.enable(video_enabled)
+            if not video_enabled:
               self.params.put("LivestreamRequestKeyframe", True)
           case "clockSync":
             pong = json.dumps({"type": "clockSync", "data": {
@@ -356,7 +366,8 @@ class StreamSession:
 
   async def run(self):
     try:
-      self.params.put("LivestreamRequestKeyframe", True)
+      if self.video_enabled:
+        self.params.put("LivestreamRequestKeyframe", True)
 
       # avoid datachannel race by adding messange_handler immediately
       self.stream.set_message_handler(self.message_handler)
@@ -368,13 +379,13 @@ class StreamSession:
         if self.outgoing_bridge is not None:
           channel = self.stream.get_messaging_channel()
           self.outgoing_bridge.add_channel(channel)
-          self.outgoing_bridge.start()
+          self.background_tasks.append(asyncio.create_task(self.outgoing_bridge.run()))
       if self.bitrate_controller is not None:
-        self.bitrate_controller.start()
+        self.background_tasks.append(asyncio.create_task(self.bitrate_controller.run()))
 
       with cloudlog.ctx(session_id=self.identifier):
         cloudlog.warning("webrtcd.session.connected")
-      if self.is_body:
+      if self.is_body or self.raw:
         await self.run_body_session()
       else:
         await self.run_normal_session()
@@ -393,10 +404,10 @@ class StreamSession:
         return
       self._cleanup_done = True
       self.params.put("LivestreamRequestKeyframe", False)
-      if self.bitrate_controller is not None:
-        await self.bitrate_controller.stop()
-      if self.outgoing_bridge is not None:
-        await self.outgoing_bridge.stop()
+      for task in self.background_tasks:
+        task.cancel()
+      await asyncio.gather(*self.background_tasks, return_exceptions=True)
+      self.background_tasks.clear()
       for track in self.video_tracks:
         track.stop()
       self.video_tracks.clear()
@@ -410,7 +421,6 @@ class ServerState:
     self.teardown: asyncio.TimerHandle | None = None
 
 
-# if nothing connects for 5 seconds, tear down livestreaming processes
 def schedule_teardown(state: ServerState):
   if state.teardown is not None:
     state.teardown.cancel()
@@ -419,6 +429,7 @@ def schedule_teardown(state: ServerState):
     if not state.streams:
       Params().put_bool("IsLiveStreaming", False)
 
+  # if nothing connects for 5 seconds, tear down livestreaming processes
   state.teardown = asyncio.get_running_loop().call_later(5.0, clear)
 
 
@@ -439,7 +450,7 @@ async def handle_get_stream(state: ServerState, raw_body: bytes, content_type: s
 
   async with state.stream_lock:
     # don't remove existing connection on prewarm request
-    enabled = any(s.run_task and not s.run_task.done() and s.enabled for s in stream_dict.values())
+    enabled = any(s.run_task and not s.run_task.done() and s.video_enabled for s in stream_dict.values())
     if enabled and not body.enabled:
       return _json_response({"error": "busy", "message": "someone else is connected."})
 
