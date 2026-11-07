@@ -94,7 +94,7 @@ void can_send_thread(Panda *panda, Panda *aux_panda, bool dual_can, bool fake_se
 
     // Don't send if older than 1 second
     if ((nanos_since_boot() - event.getLogMonoTime() < 1e9) && !fake_send) {
-      LOGT("sending sendcan to panda: %s", (panda->hw_serial()).c_str());
+      LOGD("sending sendcan to panda: %s", (panda->hw_serial()).c_str());
       // primary panda: buses 0-2 (frames with src >= PANDA_BUS_OFFSET are skipped)
       panda->can_send(event.getSendcan());
 
@@ -108,7 +108,7 @@ void can_send_thread(Panda *panda, Panda *aux_panda, bool dual_can, bool fake_se
           aux_panda->can_send(event.getSendcan(), PANDA_BUS_OFFSET);
         }
       }
-      LOGT("sendcan sent to panda: %s", (panda->hw_serial()).c_str());
+      LOGD("sendcan sent to panda: %s", (panda->hw_serial()).c_str());
     } else {
       LOGE("sendcan too old to send: %" PRIu64 ", %" PRIu64, nanos_since_boot(), event.getLogMonoTime());
     }

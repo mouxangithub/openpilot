@@ -27,9 +27,7 @@ AR0231::AR0231() {
   frame_stride = (frame_width * 12 / 8) + 4;
   extra_height = AR0231_REGISTERS_HEIGHT + AR0231_STATS_HEIGHT;
 
-  registers_offset = 0;
   frame_offset = AR0231_REGISTERS_HEIGHT;
-  stats_offset = AR0231_REGISTERS_HEIGHT + frame_height;
 
   start_reg_array.assign(std::begin(start_reg_array_ar0231), std::end(start_reg_array_ar0231));
   init_reg_array.assign(std::begin(init_array_ar0231), std::end(init_array_ar0231));
