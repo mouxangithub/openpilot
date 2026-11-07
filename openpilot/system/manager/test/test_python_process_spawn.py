@@ -1,7 +1,7 @@
 """spawn=True launches a fresh interpreter that does not inherit manager state.
 
-Ported from carrotpilot 2fe2caf60; sp currently selects spawn only for
-qcomgpsd (crash restarts must not inherit the manager's IPC state).
+Ported from carrotpilot 2fe2caf60; sp selects spawn for services whose crash
+restarts must not inherit the manager's IPC state: qcomgpsd and carrot_man.
 """
 import ast
 import json
@@ -51,7 +51,8 @@ def test_deferred_and_restart_sensitive_services_select_spawn():
   calls = [n for n in ast.walk(ast.parse(path.read_text(encoding='utf-8')))
            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == 'PythonProcess']
   selected = [n.args[0].value for n in calls if any(k.arg == 'spawn' and ast.literal_eval(k.value) for k in n.keywords)]
-  assert selected == ['qcomgpsd']
+  # Order follows process_config.py: qcomgpsd before carrot_man.
+  assert selected == ['qcomgpsd', 'carrot_man']
 
 
 @pytest.mark.parametrize('legacy_fork', [False, True])

@@ -428,7 +428,9 @@ procs += [
   # switch (`CarrotNaviV2Enabled`, read by card.py), not a process gate - a
   # gated process cannot come up on demand, because the manager only re-evaluates
   # its gates on its own cycle, so the link would stay dead until a manager pass.
-  PythonProcess("carrot_man", "openpilot.sunnypilot.carrot.carrot_man", always_run, restart_if_crash=True),
+  # spawn: like qcomgpsd, a crash restart must not inherit the manager's IPC
+  # state; the web panel / UDP discovery would otherwise revive stale sockets.
+  PythonProcess("carrot_man", "openpilot.sunnypilot.carrot.carrot_man", always_run, restart_if_crash=True, spawn=True),
   PythonProcess("carrot_cluster", "openpilot.sunnypilot.carrot.cluster_autorun", enable_cluster_hud, restart_if_crash=True),
   PythonProcess("carrot_navi", "openpilot.sunnypilot.carrot.carrot_navi", always_run, restart_if_crash=True),
   # CarrotPilot-compatible API server on port 7000: the parameter REST API plus, as they
