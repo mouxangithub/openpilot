@@ -1,0 +1,40 @@
+name: sync-panda-firmware
+
+# Bump the panda submodule pointer to the panda fork's master tip after its
+# build-firmware workflow commits new binaries into board/obj. One-click:
+# run after panda firmware changes, or to pick up firmware updates.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-panda-firmware
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: bump panda pointer (test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: test
+
+      - name: Bump panda pointer if the fork moved
+        run: |
+          target=$(git ls-remote https://github.com/mouxangithub/panda.git refs/heads/master | cut -f1)
+          current=$(git rev-parse HEAD:panda)
+          echo "current pointer: ${current:0:12}, fork tip: ${target:0:12}"
+          if [ "$target" = "$current" ]; then
+            echo "panda pointer already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # pure plumbing: update the gitlink without fetching the submodule
+          git update-index --cacheinfo 160000,"$target",panda
+          git commit -m "panda: sync submodule pointer to ${target:0:12} [skip ci]"
+          git push origin test
