@@ -7,6 +7,7 @@ import signal
 import re
 import sys
 import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 import threading
 import platform
 import subprocess
@@ -816,7 +817,9 @@ class GuiApplication(GuiApplicationExt):
           filename = f"OpFont-Regular-{active_lang}.fnt"
           fnt_path = fspath / filename
         if fnt_path.exists():
-          font = rl.load_font(fnt_path.as_posix())
+          # raylib_nb has no load_font shim; LoadFontEx with no codepoints is
+          # the C LoadFont() equivalent (fontSize is ignored for .fnt atlases)
+          font = rl.load_font_ex(fnt_path.as_posix(), 200, None, 0)
           default_id = rl.get_font_default().texture.id
           if font.texture.id <= 0 or font.texture.id == default_id:
             cloudlog.error(f"Failed to load pre-baked font {filename}; texture id={font.texture.id}")
@@ -829,7 +832,7 @@ class GuiApplication(GuiApplicationExt):
           cloudlog.warning(f"OpFont atlas missing for {active_lang}; baking fallback from {NOTO_FONTS[active_lang]}")
           font = self._load_or_bake_cjk_font(active_lang)
         else:
-          font = rl.load_font(fnt_path.as_posix())
+          font = rl.load_font_ex(fnt_path.as_posix(), 200, None, 0)
         rl.set_texture_filter(font.texture, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
         self._fonts[font_weight] = font
         self._weight_by_object[id(font)] = font_weight
