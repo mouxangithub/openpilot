@@ -47,4 +47,15 @@ namespace Path {
   inline std::string model_root() {
     return Hardware::PC() ? Path::comma_home() + "/media/0/models" : "/data/media/0/models";
   }
+
+  // Fork watchdog heartbeat files live on shm (see common/watchdog.cc and
+  // common/watchdog.py). Upstream removed this helper with the dead-code
+  // sweep, but our watchdog chain still needs it.
+  inline std::string shm_path() {
+    #ifdef __APPLE__
+      return "/tmp";
+    #else
+      return "/dev/shm";
+    #endif
+  }
 }  // namespace Path
