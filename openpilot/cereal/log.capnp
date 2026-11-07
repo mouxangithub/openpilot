@@ -135,7 +135,7 @@ struct OnroadEvent @0xc4fa6047f024e718 {
     radarStationaryLead @107;
     # One-shot notice naming the NNFF torque model card loaded at boot, emitted
     # once per onroad session by selfdrived.
-    torqueNNLoad @105;
+    torqueNNLoad @110;
     # cp impact dashcam chain: measured impact notice + dashcam-mode reboot gate.
     impactDetected @108;
     impactDashcamReboot @109;
