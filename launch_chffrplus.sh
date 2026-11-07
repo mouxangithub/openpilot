@@ -572,6 +572,20 @@ agnos_init() {
   # device loops on ModuleNotFoundError forever. Make pyserial importable first.
   ensure_updater_deps
 
+  # RTC-less clones boot with a 1970 clock; every TLS download the updater
+  # makes (the AGNOS CDN) fails certificate validation until the clock is
+  # sane, and the updater UI loop hides the cause behind generic failures.
+  # Sync from an HTTP Date header (HTTP itself needs no TLS) BEFORE the
+  # updater ever runs, not only in the headless fallback below
+  # (observed 2026-11-07: bt2 -> bt3 on a clone reboot-looped for ~1h).
+  if [ "$(date +%s)" -lt 1735689600 ]; then
+    local d
+    for _u in http://www.baidu.com http://www.qq.com http://github.com; do
+      d=$(curl -fsSI -m 10 "$_u" 2>/dev/null | grep -i '^date:' | cut -d' ' -f2- | tr -d '\r')
+      [ -n "$d" ] && sudo date -s "$d" >/dev/null 2>&1 && echo "[agnos] clock synced from $_u: $d" | tee -a /tmp/agnos_pending.log && break
+    done
+  fi
+
   if is_headless_boot; then
     echo "[agnos] headless: OS update required ($(cat /VERSION) -> $AGNOS_VERSION). Use WebUI Software → AGNOS, or SSH: $agnos_py --swap $manifest" | tee -a /tmp/agnos_pending.log
     return 0
