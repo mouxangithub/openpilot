@@ -5,6 +5,7 @@ import re
 import usb1
 import time
 import signal
+import itertools
 import subprocess
 from pathlib import Path
 
@@ -181,6 +182,64 @@ def recover_internal_panda_any(panda_serial: str) -> Panda:
   except Exception:
     cloudlog.exception("USB DFU recovery unavailable, trying SPI ROM bootloader")
   return recover_internal_spi_panda(panda_serial)
+
+def recover_panda_via_dfu(panda_serial: str) -> None:
+  # A bootstub whose board detection fails (domestic C3XL built-in pandas with
+  # non-standard ID straps) reports HW_TYPE_UNKNOWN, so Panda.__init__ raises
+  # and the normal flasher cannot determine which firmware to write. Enter the
+  # ST ROM DFU over USB, identify the MCU from the DFU flash layout, then
+  # flash bootstub + app entirely over DFU. Requires firmware whose
+  # detect_board_type() has the matching fallback, otherwise the app
+  # assert_fatal()s again before usb_init().
+  cloudlog.warning(f"recovering panda {panda_serial} with unknown HW type via DFU")
+  context, handle, _, bootstub, _bcd = Panda.usb_connect(panda_serial)
+  if handle is None:
+    raise RuntimeError(f"could not open panda {panda_serial}")
+  try:
+    if not bootstub:
+      # an app that reports unknown HW cannot be ours (it asserts before
+      # usb_init), so this is unexpected; try to force bootstub first
+      try:
+        handle.controlWrite(Panda.REQUEST_IN, 0xd1, 1, 0, b'', timeout=15000, expect_disconnect=True)
+      except Exception:
+        pass
+      time.sleep(2)
+    # ask the bootstub to jump into the ST ROM DFU; the device disconnects
+    try:
+      handle.controlWrite(Panda.REQUEST_IN, 0xd1, 0, 0, b'', timeout=15000, expect_disconnect=True)
+    except Exception:
+      pass  # expected: the reset kills the connection mid-write
+  finally:
+    handle.close()
+    context.close()
+
+  if not Panda.wait_for_dfu(None, timeout=30):
+    raise RuntimeError("panda did not enter DFU mode")
+
+  for dfu_serial in PandaDFU.list():
+    cloudlog.info(f"DFU full flash for {dfu_serial}")
+    dfu = PandaDFU(dfu_serial)
+    try:
+      mcu = dfu.get_mcu_type()
+      cloudlog.info(f"DFU identified MCU: {mcu}")
+      with open(os.path.join(FW_PATH, mcu.config.bootstub_fn), "rb") as f:
+        bootstub_code = f.read()
+      with open(os.path.join(FW_PATH, mcu.config.app_fn), "rb") as f:
+        app_code = f.read()
+      # determine app sectors exactly like Panda.flash_static, and never
+      # erase beyond sector 6 - higher sectors hold the provisioning chunk
+      apps_sectors_cumsum = itertools.accumulate(mcu.config.sector_sizes[1:])
+      last_sector = next((i + 1 for i, v in enumerate(apps_sectors_cumsum) if v > len(app_code)), -1)
+      if not (1 <= last_sector < 7):
+        raise RuntimeError(f"app size out of range for DFU flash: {last_sector=}")
+      for i in range(last_sector + 1):
+        dfu._handle.erase_sector(i)
+      dfu._handle.program(mcu.config.bootstub_address, bootstub_code)
+      dfu._handle.program(mcu.config.app_address, app_code)
+      dfu.reset()
+      cloudlog.info(f"DFU full flash done for {dfu_serial} ({mcu})")
+    finally:
+      dfu.close()
 
 def flash_panda(panda_serial: str):
   panda = Panda(panda_serial)
@@ -465,6 +524,22 @@ def main() -> None:
           # e.g. only an external panda is visible while the internal one is
           # mid-reset; retry instead of crashing so the loop stays calm
           cloudlog.warning("no supported panda found, retrying...")
+          # a bootstub reporting HW_TYPE_UNKNOWN (clone built-in pandas with
+          # non-standard ID straps) cannot be identified over the normal
+          # interface; identify the MCU via the ROM DFU flash layout and
+          # flash bootstub + app entirely over DFU
+          for serial in panda_serials:
+            try:
+              probe = Panda(serial)
+              probe.close()
+            except ValueError:
+              try:
+                recover_panda_via_dfu(serial)
+              except Exception:
+                cloudlog.exception("DFU full-flash recovery failed")
+              break
+            except Exception:
+              continue
           no_internal_panda_count += 1
           continue
 
