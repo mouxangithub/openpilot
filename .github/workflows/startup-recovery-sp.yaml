@@ -35,7 +35,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: python -m pip install pytest==8.3.5 aiohttp requests numpy raylib==5.5.0.4
+      # comma-deps-raylib provides both `raylib` and `raylib_nb` (nanobind);
+      # the UI migration made startup_recovery import raylib_nb, which the
+      # old community `raylib` wheel does not ship.
+      - run: python -m pip install pytest==8.3.5 aiohttp requests numpy comma-deps-raylib
       - run: sudo apt-get update && sudo apt-get install -y tmux
       - name: Recovery and real process-lock regression checks
         env:

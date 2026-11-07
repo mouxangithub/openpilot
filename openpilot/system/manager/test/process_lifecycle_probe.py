@@ -46,7 +46,11 @@ def main(directory, legacy_fork, service='qcomgpsd'):
                'log': SimpleNamespace(ManagerState=SimpleNamespace(ProcessState=SimpleNamespace(new_message=SimpleNamespace))),
                'clear_watchdog': lambda *_: None,
                'read_watchdog_time': lambda *_: None,
-               'watchdog_timed_out': lambda *_: None}
+               'watchdog_timed_out': lambda *_: None,
+               # fault telemetry hooks (zp): ensure_running flushes crash reports
+               # and processes report exits; the probe substitutes no-ops.
+               'flush_crash_reports': lambda *_: None,
+               'report_process_exit': lambda *_: None}
   exec('import os, signal, time\nfrom abc import ABC, abstractmethod\n'
        + 'from collections.abc import Callable, ValuesView\nfrom multiprocessing import Process, get_context', namespace)
   exec(compile(ast.Module(body=definitions, type_ignores=[]), str(path), 'exec'), namespace)
