@@ -16,7 +16,8 @@ Differences from the original:
 """
 import time
 
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.cereal import log
 from openpilot.selfdrive.ui.sunnypilot.onroad.param_guards import safe_get_bool

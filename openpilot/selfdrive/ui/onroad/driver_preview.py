@@ -5,7 +5,8 @@ pearl cartoon eyes, gated by the CarrotDMPearlEyes param (sp addition).
 """
 import time
 
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.selfdrive.ui.dm_preview import PREVIEW_MAX_AGE, eye_expression, preview_rect, preview_state, sample_fresh, smooth_expression
 from openpilot.selfdrive.ui.ui_state import ui_state

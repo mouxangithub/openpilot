@@ -26,7 +26,8 @@ because the planner leaves the action at 0 (unknown) below that.
 """
 import time
 
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.selfdrive.ui.signal_status import (
   POINT_COLOR_BACKDROP, POINT_COLOR_SHADOW, SIGNAL_PALETTE, signal_action, signal_colors,

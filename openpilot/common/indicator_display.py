@@ -82,7 +82,8 @@ def draw(x, y, width, font, size):
   value = current()
   if value is None:
     return
-  import pyray as rl
+  import raylib_nb as rl
+  import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims)
   colors = {'prepare': (255, 200, 80), 'request': (120, 200, 255),
             'confirmed': (100, 240, 150), 'ended': (190, 190, 190)}
   color = rl.Color(*colors[value['state']], 255)

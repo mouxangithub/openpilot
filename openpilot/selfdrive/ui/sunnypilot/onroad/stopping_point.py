@@ -29,7 +29,8 @@ Gating params (unregistered, code defaults, both default OFF):
 """
 import math
 
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.selfdrive.ui.sunnypilot.onroad.param_guards import safe_get_bool
 from openpilot.selfdrive.ui.ui_state import ui_state

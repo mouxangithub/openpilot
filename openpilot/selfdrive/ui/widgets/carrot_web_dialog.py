@@ -1,4 +1,5 @@
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.selfdrive.ui.carrot_web import CarrotWebQrSession, fit_single_line_font_size
 from openpilot.selfdrive.ui.ui_state import ui_state

@@ -23,7 +23,8 @@ sign's rect is recomputed with the same layout rules SpeedLimitRenderer uses
 """
 import math
 
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.common.params import Params
 from openpilot.common.constants import CV

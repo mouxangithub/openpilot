@@ -17,7 +17,8 @@ carrot: its levels 1/2 fall back to labelling the control lead groups, which
 duplicates the chevron lead indicator here, so this port keeps labelling the
 measured points and only prunes the clutter instead.
 """
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 from openpilot.selfdrive.ui.radar_display import (
   RADAR_MIN_DRAW_DISTANCE_M, RADAR_MIN_MOVING_SPEED_MS, RADAR_POINTS_LEVEL, combined_speed,
   predicted_offset, radar_point_z, select_radar_display_points, speed_text,

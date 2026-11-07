@@ -27,7 +27,8 @@ import math
 import time
 from pathlib import Path
 
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.ui.lib.application import FONT_SCALE, FontWeight, gui_app

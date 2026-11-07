@@ -4,7 +4,8 @@ import functools
 from importlib.resources import as_file
 
 from PIL import Image, ImageDraw, ImageFont
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.system.ui.lib.application import FONT_DIR
 

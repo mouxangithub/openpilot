@@ -30,7 +30,8 @@ import os
 import platform
 import threading
 
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.common.params import Params
 from openpilot.selfdrive.ui.ui_state import ui_state

@@ -10,7 +10,8 @@ Mirrors the webui eGPU panel layout: a centered header with title and status
 badge, a short description, an optional not-detected warning, and a status
 details section with label/value rows.
 """
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 
 from openpilot.selfdrive.ui.ui_state import ui_state
 try:

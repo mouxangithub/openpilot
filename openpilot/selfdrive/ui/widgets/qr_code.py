@@ -1,5 +1,6 @@
 import numpy as np
-import pyray as rl
+import raylib_nb as rl
+import openpilot.system.ui.lib.raylib_compat  # noqa: F401  (pyray-era API shims on raylib_nb)
 import qrcode
 
 from openpilot.common.swaglog import cloudlog
