@@ -623,10 +623,14 @@ class HardwareComma(HardwareBase):
 
     gpio_set(GPIO.STM_RST_N, True)
     gpio_set(GPIO.STM_BOOT0, True)
-    time.sleep(0.01)
+    time.sleep(0.2)
     gpio_set(GPIO.STM_RST_N, False)
-    time.sleep(0.01)
+    # BOOT0 is latched on the reset edge. Drop it after releasing reset so the
+    # STM ROM bootloader responds; leaving it high breaks DFU enumeration
+    # (C3XL-validated timings, ported from mr-one's branch).
+    time.sleep(0.1)
     gpio_set(GPIO.STM_BOOT0, False)
+    time.sleep(1)
 
   def booted(self):
     # this normally boots within 8s, but on rare occasions takes 30+s

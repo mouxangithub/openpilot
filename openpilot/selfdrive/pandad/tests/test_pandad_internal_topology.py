@@ -238,13 +238,16 @@ class TestCheckPandaSupport(unittest.TestCase):
     assert aux == "dos1"
     assert ext_red is True
 
-  def test_unknown_topology_keeps_legacy_red_panda_behavior(self):
-    # non-tici platform (topology None): the Red Panda is treated as external
-    # like before, and is only selectable via UseRedPanda
+  def test_unknown_topology_falls_back_to_supported_panda(self):
+    # non-tici platform (topology None), no internal panda found: any
+    # supported external USB panda becomes active instead of dead-looping
+    # (C3XL compatibility, ported from mr-one); the Red Panda is still
+    # flagged external, and UseRedPanda keeps working
     for patcher in _patch_env({"red1": (HW_RED, False)}, {"red1": None}):
       patcher.start()
     active, aux, ext_red = pandad.check_panda_support(["red1"])
-    assert active == []
+    assert active == ["red1"]
+    assert aux is None
     assert ext_red is True
 
     active, aux, ext_red = pandad.check_panda_support(["red1"], use_red_panda=True)
@@ -276,6 +279,47 @@ class TestFlashPandaGuards(unittest.TestCase):
   def tearDown(self):
     mock.patch.stopall()
 
+  def test_recover_internal_usb_panda_no_dfu_raises(self):
+    # BOOT0/RST pulsed, but the board never enumerates in DFU -> RuntimeError
+    # instead of an infinite wait
+    with mock.patch.object(pandad, "PandaDFU") as fake_dfu, \
+         mock.patch.object(pandad.HARDWARE, "recover_internal_panda") as recover, \
+         mock.patch.object(pandad, "cloudlog"), \
+         mock.patch("openpilot.selfdrive.pandad.pandad.time.sleep"):
+      fake_dfu.usb_list.return_value = []
+      with self.assertRaises(RuntimeError):
+        pandad.recover_internal_usb_panda("r1")
+    recover.assert_called_once()
+
+  def test_recover_internal_usb_panda_flashes_bootstub(self):
+    # DFU present: bootstub gets flashed, then the function reconnects and
+    # only returns once the panda answers in bootstub mode
+    recovered = {"dfu": False}
+    fake_dfu_obj = mock.MagicMock()
+    fake_dfu_obj.__enter__ = lambda s: s
+    fake_dfu_obj.__exit__ = lambda s, *a: None
+    fake_dfu_obj.recover.side_effect = lambda: recovered.__setitem__("dfu", True)
+
+    reopened = {"n": 0}
+    panda = FakePanda("r1")
+    panda.bootstub = True
+
+    def fake_panda_ctor(serial):
+      reopened["n"] += 1
+      if reopened["n"] >= 2:
+        panda.bootstub = True  # answers in bootstub mode after recovery
+      return panda
+
+    with mock.patch.object(pandad, "PandaDFU") as fake_dfu_cls, \
+         mock.patch.object(pandad, "Panda", side_effect=fake_panda_ctor), \
+         mock.patch.object(pandad, "cloudlog"), \
+         mock.patch("openpilot.selfdrive.pandad.pandad.time.sleep"):
+      fake_dfu_cls.usb_list.return_value = ["dfu1"]
+      fake_dfu_cls.side_effect = lambda serial: fake_dfu_obj
+      out = pandad.recover_internal_usb_panda("r1")
+    assert recovered["dfu"] is True
+    assert out is panda
+
   def test_refuses_to_flash_without_expected_signature(self):
     # brick guard: a blank expected signature must never trigger panda.flash()
     FakePanda.devices = {"r1": (HW_RED, False, False)}
@@ -291,22 +335,30 @@ class TestFlashPandaGuards(unittest.TestCase):
     assert fp.closed
 
   def test_builtin_red_panda_bootstub_recovered_via_topology(self):
-    # hw_type says external, topology says internal -> recover_internal_panda
-    # must run; 4th tuple slot: firmware stays in bootstub after flashing
+    # hw_type says external, topology says internal -> a stuck bootstub must
+    # be recovered through the DFU path (recover_internal_usb_panda); 4th
+    # tuple slot: firmware stays in bootstub after flashing
     FakePanda.devices = {"r1": (HW_RED, False, True, True)}
     FakePanda.instances = []
+
+    def fake_recover(serial):
+      p = FakePanda(serial)
+      p.bootstub = False  # DFU recovery + reflash: app boots afterwards
+      return p
+
     with mock.patch.object(pandad, "Panda", FakePanda), \
          mock.patch.object(pandad, "_panda_hub_is_internal", side_effect=lambda s, **kw: True), \
          mock.patch.object(pandad, "get_expected_signature", return_value=b"\xaa" * 128), \
          mock.patch.object(pandad, "cloudlog"), \
-         mock.patch.object(pandad.HARDWARE, "recover_internal_panda") as recover, \
-         mock.patch.object(pandad.HARDWARE, "reset_internal_panda"):
+         mock.patch.object(pandad, "recover_internal_usb_panda", side_effect=fake_recover) as recover:
       pandad.flash_panda("r1")
-    assert len(FakePanda.instances) == 1
-    fp = FakePanda.instances[0]
-    assert fp.flashed
-    assert fp.recovered
-    recover.assert_called_once()
+    assert len(FakePanda.instances) == 2  # initial panda + post-recovery panda
+    first, second = FakePanda.instances
+    assert first.flashed
+    assert first.closed
+    recover.assert_called_once_with("r1")
+    assert second.flashed
+    assert second.closed
 
 
 if __name__ == "__main__":

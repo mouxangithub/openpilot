@@ -70,6 +70,43 @@ def get_expected_signature(panda: Panda) -> bytes:
     cloudlog.exception("Error computing expected signature")
     return b""
 
+def recover_internal_usb_panda(panda_serial: str) -> Panda:
+  # C3XL's built-in USB panda cannot enter the STM ROM bootloader through a
+  # normal soft reset when its app firmware is invalid. Pulse BOOT0/RST on the
+  # host side and recover the bootstub through the USB DFU device instead
+  # (ported from mr-one's C3XL branch).
+  dfu_serials = PandaDFU.usb_list()
+  if not dfu_serials:
+    cloudlog.info("Internal USB panda not in DFU, forcing BOOT0/RST recovery")
+    HARDWARE.recover_internal_panda()
+    for _ in range(50):
+      time.sleep(0.1)
+      dfu_serials = PandaDFU.usb_list()
+      if dfu_serials:
+        break
+
+  if not dfu_serials:
+    raise RuntimeError("internal USB panda did not enumerate in DFU mode")
+
+  for dfu_serial in dfu_serials:
+    cloudlog.info(f"Panda in DFU mode found, flashing recovery {dfu_serial}")
+    with PandaDFU(dfu_serial) as dfu:
+      dfu.recover()
+
+  # DFU recovery only restores the bootstub. Reconnect to it so the caller can
+  # write the app firmware through the normal flasher interface.
+  for _ in range(60):
+    time.sleep(0.5)
+    try:
+      panda = Panda(panda_serial)
+      if panda.bootstub:
+        return panda
+      panda.close()
+    except Exception:
+      pass
+
+  raise RuntimeError("internal USB panda bootstub did not enumerate")
+
 def flash_panda(panda_serial: str):
   panda = Panda(panda_serial)
 
@@ -96,15 +133,35 @@ def flash_panda(panda_serial: str):
 
   if panda.bootstub or panda_signature != fw_signature:
     cloudlog.info("Panda firmware out of date, update required")
-    panda.flash()
+    try:
+      panda.flash()
+    except Exception:
+      cloudlog.exception("flasher-based flash failed, falling back to DFU recover")
+      try:
+        panda.close()
+      except Exception:
+        pass
+      if internal_panda:
+        panda = recover_internal_usb_panda(panda_serial)
+        panda.flash()
+      else:
+        panda = Panda(panda_serial)
+        panda.recover(reset=True)
     cloudlog.info("Done flashing")
 
   if panda.bootstub:
     bootstub_version = panda.get_version()
     cloudlog.info(f"Flashed firmware not booting, flashing development bootloader. {bootstub_version=}, {internal_panda=}")
+    try:
+      panda.close()
+    except Exception:
+      pass
     if internal_panda:
-      HARDWARE.recover_internal_panda()
-    panda.recover(reset=(not internal_panda))
+      panda = recover_internal_usb_panda(panda_serial)
+      panda.flash()
+    else:
+      panda = Panda(panda_serial)
+      panda.recover(reset=True)
     cloudlog.info("Done flashing bootstub")
 
   if panda.bootstub:
@@ -149,10 +206,16 @@ def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -
   # enumerates first
   red_serial = None
   internal_serial = None
+  fallback_serial = None
   for serial in usb_serials:
-    panda = Panda(serial)
     try:
+      panda = Panda(serial)
       hw_type = panda.get_type()
+    except Exception:
+      # a panda that fails to open (e.g. mid-enumeration) must not abort the
+      # selection of the remaining ones
+      continue
+    try:
       is_red = hw_type == Panda.HW_TYPE_RED_PANDA
       topology_internal = _panda_hub_is_internal(serial)
       if is_red and topology_internal is not True:
@@ -163,6 +226,8 @@ def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -
         red_serial = serial
       if internal_serial is None and (panda.is_internal() or topology_internal is True):
         internal_serial = serial
+      if fallback_serial is None and hw_type in Panda.SUPPORTED_DEVICES:
+        fallback_serial = serial
     finally:
       panda.close()
 
@@ -183,6 +248,13 @@ def check_panda_support(panda_serials: list[str], use_red_panda: bool = False) -
   # 3. default: the internal panda is the active (and only) panda
   if internal_serial is not None:
     return [internal_serial], None, external_red_panda
+
+  # 4. no internal panda: fall back to any supported external USB panda so a
+  #    C3XL built-in panda (USB-only, possibly on an unexpected hub topology)
+  #    or a standalone black panda still becomes the active panda instead of
+  #    dead-looping (ported from mr-one's C3XL branch)
+  if fallback_serial is not None:
+    return [fallback_serial], None, external_red_panda
 
   return [], None, external_red_panda
 
@@ -219,22 +291,84 @@ def main() -> None:
     cloudlog.exception("pandad.uncaught_exception")
 
   count = 0
+  no_internal_panda_count = 0
+  recover_attempts = 0
   while not do_exit:
     try:
       cloudlog.event("pandad.flash_and_connect", count=count)
-      if (count % 2) == 0:
-        HARDWARE.reset_internal_panda()
-      else:
-        HARDWARE.recover_internal_panda()
       count += 1
 
-      # Flash all Pandas in DFU mode
-      for serial in PandaDFU.list():
-        cloudlog.info(f"Panda in DFU mode found, flashing recovery {serial}")
-        PandaDFU(serial).recover()
-        time.sleep(1)
+      # Handle missing panda (C3XL quirks, ported from mr-one): the internal
+      # panda's USB may not be enumerated yet shortly after boot - resetting
+      # before it has finished enumerating kicks it into the ROM bootloader/DFU,
+      # which makes it take much longer to come online. The C3XL's built-in USB
+      # panda does NOT enumerate by itself after a cold boot, it only comes
+      # back after a reset. And never force a board that already has firmware
+      # into the ROM bootloader right away: recover() erases the app sector
+      # before reflashing, so only a truly blank board needs it.
+      if no_internal_panda_count > 0:
+        panda_serials: list[str] = Panda.list()
+        if not panda_serials:
+          cloudlog.info("Panda not found yet, waiting briefly for USB enumeration...")
+          for _ in range(5):
+            time.sleep(1)
+            panda_serials = Panda.list()
+            if len(panda_serials):
+              cloudlog.info(f"Panda appeared after waiting: {panda_serials}")
+              break
+        if not panda_serials:
+          # the panda may be in its bootstub phase: USB is enumerated (3801)
+          # but not yet fully openable by libusb while it validates the app and
+          # switches to it. Only reset if the USB device is truly absent, since
+          # resetting mid-bootstub just restarts the ~10s boot sequence.
+          # NOTE: no local 'import subprocess' here - it would shadow the
+          # module-level import and break subprocess.Popen below.
+          usb_present = '3801' in subprocess.run(['lsusb'], capture_output=True, text=True).stdout
+          if usb_present:
+            cloudlog.info("Panda USB present but not enumerable (bootstub->app?), waiting up to 30s...")
+            for _ in range(60):
+              time.sleep(0.5)
+              panda_serials = Panda.list()
+              if len(panda_serials):
+                cloudlog.info(f"Panda appeared after waiting: {panda_serials}")
+                break
+        if not panda_serials:
+          cloudlog.info("No pandas found, resetting internal panda")
+          HARDWARE.reset_internal_panda()
+          # the internal panda takes a few seconds to boot its app after a
+          # reset; wait for it to come back in normal (non-bootstub) mode
+          # before deciding whether to flash. Only fall back to the bootloader
+          # (recover) path if it never appears.
+          for _ in range(40):
+            panda_serials = Panda.list()
+            if len(panda_serials) == 1:
+              try:
+                with Panda(panda_serials[0]) as p:
+                  if not p.bootstub:
+                    break
+              except Exception:
+                pass
+            time.sleep(0.5)
+          if not panda_serials:
+            if not PandaDFU.list() and recover_attempts < 3:
+              recover_attempts += 1
+              cloudlog.warning(f"Panda did not appear after reset ({recover_attempts}/3), retrying normal reset...")
+              continue
+            recover_attempts = 0
+            cloudlog.info("Panda missing after normal resets, entering ROM bootloader (recover)...")
+            HARDWARE.recover_internal_panda()
+            time.sleep(2)
+      else:
+        panda_serials = Panda.list()
 
-      panda_serials = Panda.list()
+      # only touch DFU when the panda truly never came up in normal mode
+      if not panda_serials:
+        for serial in PandaDFU.list():
+          cloudlog.info(f"Panda in DFU mode found, flashing recovery {serial}")
+          PandaDFU(serial).recover()
+          time.sleep(1)
+        panda_serials = Panda.list()
+
       if len(panda_serials):
         # custom flasher for xnor's Rivian Longitudinal Upgrade Kit
         flash_rivian_long(panda_serials)
@@ -249,7 +383,7 @@ def main() -> None:
           # e.g. only an external panda is visible while the internal one is
           # mid-reset; retry instead of crashing so the loop stays calm
           cloudlog.warning("no supported panda found, retrying...")
-          time.sleep(2)
+          no_internal_panda_count += 1
           continue
 
         assert len(active_serials) == 1
@@ -277,6 +411,8 @@ def main() -> None:
         cmd = ["./pandad", *active_serials] + ([aux_serial] if aux_serial else [])
         process = subprocess.Popen(cmd, cwd=os.path.join(BASEDIR, "openpilot/selfdrive/pandad"))
         process.wait()
+        no_internal_panda_count = 0
+        recover_attempts = 0
     # TODO: wrap all panda exceptions in a base panda exception
     except (usb1.USBErrorNoDevice, usb1.USBErrorPipe):
       # a panda was disconnected while setting everything up. let's try again
