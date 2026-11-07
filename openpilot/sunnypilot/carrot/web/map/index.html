@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="color-scheme" content="dark">
+  <meta name="robots" content="noindex, nofollow">
+  <title>carrot map</title>
+  <link rel="stylesheet" href="./vendor/leaflet.css">
+  <link rel="stylesheet" href="./map.css?v=1">
+</head>
+<body>
+  <main id="mapRoot" class="map-root" data-status="loading">
+    <div id="leafletMap" class="map-leaflet" aria-hidden="false"></div>
+
+    <div id="vehicleMarker" class="map-vehicle" hidden>
+      <div class="map-vehicle__arrow"></div>
+    </div>
+
+    <div id="navCard" class="map-nav" hidden>
+      <div id="navTurn" class="map-nav__turn">·</div>
+      <div class="map-nav__col">
+        <div id="navTurnText" class="map-nav__text"></div>
+        <div id="navRoad" class="map-nav__road"></div>
+      </div>
+      <div class="map-nav__col map-nav__col--right">
+        <div id="navTurnDist" class="map-nav__dist"></div>
+        <div id="navGoal" class="map-nav__goal"></div>
+      </div>
+    </div>
+
+    <div id="sdiBadge" class="map-sdi" hidden>
+      <span id="sdiLimit" class="map-sdi__limit"></span>
+      <span id="sdiDist" class="map-sdi__dist"></span>
+    </div>
+
+    <div id="statusText" class="map-status">waiting</div>
+  </main>
+  <script src="./vendor/leaflet.js"></script>
+  <script src="./map.js?v=1"></script>
+</body>
+</html>

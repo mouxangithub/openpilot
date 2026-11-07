@@ -1,0 +1,8 @@
+{
+  "namespace": "evolution",
+  "revision": 1,
+  "fields": {
+    "ai_evolution_enabled": {"type": "boolean", "default": false, "label": "Enable evolution", "description": "Whether evolution experiments run."},
+    "ai_evolution_scope": {"type": "enum", "default": "off", "enum": ["off", "debug", "staging", "production"], "label": "Evolution scope"}
+  }
+}

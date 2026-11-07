@@ -1,0 +1,13 @@
+# No warp is built here any more.
+#
+# jetlink main ("run modeld's own warp, not one jetlink builds", commit
+# 0f87696) uses the 2-input driving warp modeld builds for every checkout:
+# openpilot/selfdrive/modeld/SConscript compiles driving_warp_<cam>_tinygrad.pkl
+# (--frames 2, yuv420) for every road camera, and the same pickles are shipped in
+# openpilot/sunnypilot/modeld_v2/models/ (LFS), which
+# jetlink_adapter.Adapter.warp_path() points at. The old self-built
+# `python -m jetlink.openpilot.warp --lossless` CLI and the adapter-side warp
+# path/make_warp hooks were removed with that refactor, so there is nothing for
+# this SConscript to produce. The file is kept as a no-op so
+# openpilot/sunnypilot/SConscript's SConscript() call stays valid.
+Import('env')  # noqa: F401

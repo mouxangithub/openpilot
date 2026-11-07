@@ -1,0 +1,119 @@
+id: developer
+label: 开发者
+icon: developer
+order: 9
+remote_configurable: true
+description: 调试工具、远程访问与高级服务
+sections:
+- id: connectivity
+  title: 连接
+  description: 远程访问与调试接口
+  items:
+  - key: AdbEnabled
+    widget: toggle
+    blocked: true
+    title: 启用 ADB
+    description: ADB（Android 调试桥）允许通过 USB 或网络连接你的设备。更多信息见 https://docs.comma.ai/how-to/connect-to-comma。
+    enablement:
+    - $ref: '#/macros/offroad'
+  - key: SshEnabled
+    widget: toggle
+    blocked: true
+    title: 启用 SSH
+  - key: JoystickDebugMode
+    widget: toggle
+    title: 摇杆调试模式
+    enablement:
+    - $ref: '#/macros/offroad'
+  - key: NavigationEnabled
+    widget: toggle
+    title: 导航（Alpha）
+    description: 带路线图的转向导航。在 comma connect 上设置目的地。
+    visibility:
+    - type: capability
+      field: device_type
+      equals: mici
+    - $ref: '#/macros/release_branches_hide'
+  - key: ShowDebugInfo
+    widget: toggle
+    title: 界面调试模式
+- id: test_maneuvers
+  title: 测试机动
+  description: 危险：启用这些机动会用确定性测试序列替换正常驾驶行为。每次写入都需要明确确认。仅可在封闭环境使用。
+  visibility:
+  - type: any
+    conditions:
+    - type: capability
+      field: is_development
+      equals: true
+    - type: capability
+      field: is_sp_release
+      equals: true
+  enablement:
+  - type: any
+    conditions:
+    - type: capability
+      field: is_development
+      equals: true
+    - type: param
+      key: ShowAdvancedControls
+      equals: true
+  attestation_required: true
+  items:
+  - key: LateralManeuverMode
+    widget: toggle
+    title: 【测试】横向机动模式
+    description: 用确定性测试序列替换正常横向控制。禁止在道路使用。
+    enablement:
+    - $ref: '#/macros/not_engaged'
+    - type: capability
+      field: torque_allowed
+      equals: true
+  - key: LongitudinalManeuverMode
+    widget: toggle
+    title: 【测试】纵向机动模式
+    description: 用确定性测试序列替换正常纵向控制。禁止在道路使用。
+    enablement:
+    - $ref: '#/macros/not_engaged'
+    - $ref: '#/macros/longitudinal'
+- id: advanced_services
+  title: 高级设置
+  description: ''
+  items:
+  - key: ShowAdvancedControls
+    widget: toggle
+    title: 显示高级控件
+    description: 切换 sunnypilot 高级控件的可见性。仅改变开关的显示，不改变实际的启用/禁用状态。
+  - key: EnableGithubRunner
+    widget: toggle
+    title: GitHub Runner 服务
+    description: 启用或禁用 GitHub runner 服务。
+    visibility:
+    - $ref: '#/macros/release_branches_hide'
+    enablement:
+    - $ref: '#/macros/advanced_only'
+  - key: EnableCopyparty
+    widget: toggle
+    title: copyparty 服务
+    description: copyparty 是一个功能很强的文件服务器，可在浏览器里下载行车记录、查看日志，甚至对部分文件做一些编辑。需要通过 IP 地址在本地连接你的 comma。
+    enablement:
+    - $ref: '#/macros/advanced_only'
+  - key: QuickBootToggle
+    widget: toggle
+    title: 快速启动模式
+    visibility:
+    - type: not
+      condition:
+        type: any
+        conditions:
+        - type: capability
+          field: is_sp_release
+          equals: true
+        - type: capability
+          field: is_development
+          equals: true
+    enablement:
+    - type: param
+      key: DisableUpdates
+      equals: true
+    - $ref: '#/macros/advanced_only'

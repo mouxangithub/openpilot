@@ -1,0 +1,141 @@
+id: vehicle
+label: 车辆
+icon: vehicle
+order: 99
+kind: vehicle
+sections:
+- id: hyundai
+  title: 现代 / 起亚 / 捷尼赛思设置
+  description: ''
+  items:
+  - key: HyundaiLongitudinalTuning
+    widget: multiple_button
+    title: 自定义纵向调校
+    options:
+    - value: 0
+      label: 关
+    - value: 1
+      label: 动态
+    - value: 2
+      label: 预测
+    visibility:
+    - type: capability
+      field: hyundai_alpha_long_available
+      equals: true
+    enablement:
+    - $ref: '#/macros/offroad'
+    - $ref: '#/macros/longitudinal'
+- id: subaru
+  title: 斯巴鲁设置
+  description: ''
+  items:
+  - key: SubaruStopAndGo
+    widget: toggle
+    title: 走走停停（Beta）
+    enablement:
+    - $ref: '#/macros/offroad'
+    - type: capability
+      field: has_stop_and_go
+      equals: true
+  - key: SubaruStopAndGoManualParkingBrake
+    widget: toggle
+    title: 手刹车型走走停停（Beta）
+    enablement:
+    - $ref: '#/macros/offroad'
+    - type: capability
+      field: has_stop_and_go
+      equals: true
+- id: tesla
+  title: 特斯拉设置
+  description: ''
+  items:
+  - key: TeslaCoopSteering
+    widget: toggle
+    title: 协作转向（Beta）
+    enablement:
+    - $ref: '#/macros/offroad'
+  - key: TeslaMadsScreenButton
+    widget: multiple_button
+    title: MADS 屏幕激活
+    description: 在车机屏幕上多指按压以切换 MADS。开启后可使用完整 MADS 功能。指数越多越不容易误触。注意：设为关闭会将 MADS 设置重置为默认。
+    options:
+    - value: 0
+      label: 关
+    - value: 1
+      label: 三指
+    - value: 2
+      label: 四指
+    - value: 3
+      label: 五指
+    visibility:
+    - type: capability
+      field: tesla_has_vehicle_bus
+      equals: true
+    enablement:
+    - $ref: '#/macros/offroad'
+- id: toyota
+  title: 丰田 / 雷克萨斯设置
+  description: ''
+  items:
+  - key: ToyotaAutoHold
+    widget: toggle
+    needs_onroad_cycle: true
+    title: 丰田：自动电子手刹（仅 TSS2 混动车型）
+    enablement:
+    - $ref: '#/macros/not_engaged'
+  - key: ToyotaBrakeOnset
+    widget: toggle
+    needs_onroad_cycle: true
+    title: 丰田：柔和制动起步、过冲限制与动能回收交接
+    enablement:
+    - $ref: '#/macros/not_engaged'
+  - key: ToyotaEnhancedBsm
+    widget: toggle
+    needs_onroad_cycle: true
+    title: 丰田：普锐斯 TSS2 BSM 及部分 tssp
+    enablement:
+    - $ref: '#/macros/not_engaged'
+  - key: ToyotaTSS2Long
+    widget: toggle
+    needs_onroad_cycle: true
+    title: 丰田：TSS2 自定义纵向控制
+    enablement:
+    - $ref: '#/macros/not_engaged'
+  - key: ToyotaDriveMode
+    widget: toggle
+    needs_onroad_cycle: true
+    title: 启用驾驶模式按键联动
+    enablement:
+    - $ref: '#/macros/not_engaged'
+  - key: ToyotaEnforceStockLongitudinal
+    widget: toggle
+    needs_onroad_cycle: true
+    title: 强制原厂纵向控制
+    description: sunnypilot 不接管油门刹车，使用丰田原厂纵向控制。
+    enablement:
+    - $ref: '#/macros/not_engaged'
+  - key: ToyotaStopAndGoHack
+    widget: toggle
+    needs_onroad_cycle: true
+    title: 走走停停增强（Alpha）
+    description: sunnypilot 允许部分丰田/雷克萨斯车型在拥堵走走停停中自动恢复。仅适用于能够使用纵向控制的特定车型。这是 Alpha 功能，使用风险自负。
+    enablement:
+    - $ref: '#/macros/not_engaged'
+    - $ref: '#/macros/longitudinal'
+    - type: param
+      key: ToyotaEnforceStockLongitudinal
+      equals: false
+  - key: ToyotaTSS2Smooth
+    widget: toggle
+    needs_onroad_cycle: true
+    title: TSS2 平顺纵向控制（Alpha）
+    description: 为 TSS2 车型启用更平顺的纵向控制。使用随速度变化的自定义积分增益曲线，让拥堵行驶更平顺。
+    enablement:
+    - $ref: '#/macros/not_engaged'
+    - $ref: '#/macros/longitudinal'
+    - type: param
+      key: ToyotaEnforceStockLongitudinal
+      equals: false
+    - type: capability
+      field: toyota_tss2
+      equals: true

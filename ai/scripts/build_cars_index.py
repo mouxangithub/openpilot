@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+"""Parse upstream docs/CARS.md into a structured vehicle support index.
+
+Reads the 11-column supported-cars table (Make|Model|Supported Package|ACC|
+No ACC accel below|No ALC below|Steering Torque|Resume from stop|Hardware
+Needed|Video|Setup Video), cleans HTML fragments (star icons -> 0-5 scale,
+<details> hardware lists -> plain text) and emits a static data module
+`cars_index.py` with `CARS_INDEX` + `lookup_cars`.
+
+Usage (stdlib only):
+  python ai/scripts/build_cars_index.py [--source docs/CARS.md] [--out ai/tools/domains/vehicle/cars_index.py]
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+
+_FOOTNOTE_RE = re.compile(r"\[<sup>[^<]*</sup>\]\(#footnotes\)")
+_TAG_RE = re.compile(r"<[^>]+>")
+_STAR_RE = re.compile(r"icon-star-(full|empty)\.svg")
+_YEARS_RE = re.compile(r"^(?P<model>.*?)[\s\u00a0]*(?P<years>\d{4}(?:[-–]\d{2,4})?)\s*$")
+_MPH_RE = re.compile(r"(\d+(?:\.\d+)?)")
+
+_FIELDS = (
+  "make",
+  "model",
+  "years",
+  "package",
+  "acc",
+  "acc_min_mph",
+  "alc_min_mph",
+  "steer_torque_stars",
+  "resume_stars",
+  "hardware_summary",
+)
+
+
+def _strip_footnotes(text: str) -> str:
+  """Remove footnote links like [<sup>1,16</sup>](#footnotes)."""
+  return _FOOTNOTE_RE.sub("", text).strip()
+
+
+def _strip_tags(text: str) -> str:
+  """Drop remaining HTML tags and collapse whitespace."""
+  text = _TAG_RE.sub(" ", text)
+  return re.sub(r"\s+", " ", text).strip()
+
+
+def _stars(cell: str) -> str:
+  """Convert a star-icon cell to a 0-5 scale string ('' when unparseable)."""
+  icons = _STAR_RE.findall(cell)
+  if not icons:
+    return ""
+  full = sum(1 for icon in icons if icon == "full")
+  return str(round(5 * full / len(icons)))
+
+
+def _mph(cell: str) -> str:
+  """Extract the numeric part of a '26 mph' cell ('' when unparseable)."""
+  m = _MPH_RE.search(_strip_tags(cell))
+  return m.group(1) if m else ""
+
+
+def _hardware(cell: str) -> str:
+  """Flatten the <details> hardware cell to 'item; item; ...' plain text."""
+  cell = cell.strip()
+  if not cell:
+    return ""
+  text = cell.replace("<br>", "; ").replace("<br/>", "; ").replace("<br />", "; ")
+  text = re.sub(r"<a\s[^>]*>.*?</a>", "", text, flags=re.IGNORECASE | re.DOTALL)
+  text = re.sub(r"<summary>.*?</summary>", "", text, flags=re.IGNORECASE | re.DOTALL)
+  text = _strip_tags(text)
+  text = re.sub(r"^(Parts|None)\b[:\s]*", "", text).strip(" ;")
+  return text
+
+
+def _split_model_years(model_raw: str) -> tuple[str, str]:
+  """Split 'RAV4 2019-24' into ('RAV4', '2019-24'); no year -> ('', model)."""
+  m = _YEARS_RE.match(model_raw)
+  if m:
+    model = m.group("model").strip()
+    if model:
+      return model, m.group("years")
+  return "", model_raw
+
+
+def parse_cars_md(source: Path) -> list[dict[str, str]]:
+  """Parse all data rows of the CARS.md table; skip header/separator/footnotes."""
+  rows: list[dict[str, str]] = []
+  lines = source.read_text(encoding="utf-8").splitlines()
+  for line in lines:
+    line = line.strip()
+    if not (line.startswith("|") and line.endswith("|")):
+      continue
+    # Only strip the outer delimiters so trailing empty cells (Video cols) survive.
+    cells = [c.strip() for c in line[1:-1].split("|")]
+    if len(cells) < 11:
+      continue
+    make_raw, model_raw, package, acc, acc_min, alc_min, steer, resume = cells[:8]
+    hardware = cells[8]
+    make = _strip_footnotes(make_raw)
+    if not make or make == "Make" or set(make) <= {"-", " "}:
+      continue  # header / separator row
+    model_raw_clean = _strip_footnotes(model_raw)
+    model, years = _split_model_years(model_raw_clean)
+    rows.append({
+      "make": make,
+      "model": model,
+      "years": years,
+      "package": _strip_tags(_strip_footnotes(package)),
+      "acc": _strip_footnotes(acc),
+      "acc_min_mph": _mph(acc_min),
+      "alc_min_mph": _mph(alc_min),
+      "steer_torque_stars": _stars(steer),
+      "resume_stars": _stars(resume),
+      "hardware_summary": _hardware(hardware),
+    })
+  return rows
+
+
+_LOOKUP_TEMPLATE = '''
+
+def lookup_cars(make: str | None = None, model: str | None = None) -> list[dict[str, Any]]:
+  """Case-insensitive substring lookup over CARS_INDEX (None/'' matches all)."""
+  make_q = (make or "").strip().lower()
+  model_q = (model or "").strip().lower()
+  hits: list[dict[str, Any]] = []
+  for row in CARS_INDEX:
+    if make_q and make_q not in str(row.get("make", "")).lower():
+      continue
+    if model_q and model_q not in f"{row.get('model', '')} {row.get('years', '')}".lower():
+      continue
+    hits.append(dict(row))
+  return hits
+'''
+
+
+def render_module(rows: list[dict[str, str]]) -> str:
+  """Render the generated cars_index.py data module."""
+  body = json.dumps(rows, ensure_ascii=False, indent=2)
+  header = (
+    '"""Vehicle support index parsed from upstream docs/CARS.md (AUTOGENERATED).\n'
+    "\n"
+    "Regenerate with: python ai/scripts/build_cars_index.py\n"
+    '"""\n'
+    "\n"
+    "from __future__ import annotations\n"
+    "\n"
+    "from typing import Any\n"
+    "\n"
+    "# Rows: make/model/years/package/acc/acc_min_mph/alc_min_mph/\n"
+    "# steer_torque_stars/resume_stars/hardware_summary (unparseable fields stay '').\n"
+    "CARS_INDEX: list[dict[str, Any]] = "
+  )
+  return header + body + _LOOKUP_TEMPLATE
+
+
+def main() -> int:
+  parser = argparse.ArgumentParser(description="Build cars_index.py from docs/CARS.md")
+  parser.add_argument("--source", default=str(ROOT / "docs" / "CARS.md"))
+  parser.add_argument("--out", default=str(ROOT / "ai" / "tools" / "domains" / "vehicle" / "cars_index.py"))
+  args = parser.parse_args()
+
+  source = Path(args.source)
+  out = Path(args.out)
+  if not source.is_file():
+    print(f"source not found: {source}")
+    return 1
+
+  rows = parse_cars_md(source)
+  if not rows:
+    print("no rows parsed from source")
+    return 1
+  empty_make = sum(1 for r in rows if not r["make"])
+  empty_acc = sum(1 for r in rows if not r["acc"])
+  out.parent.mkdir(parents=True, exist_ok=True)
+  out.write_text(render_module(rows), encoding="utf-8")
+  print(f"wrote {out} ({len(rows)} rows, empty make={empty_make}, empty acc={empty_acc})")
+  return 0
+
+
+if __name__ == "__main__":
+  raise SystemExit(main())

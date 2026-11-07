@@ -1,0 +1,515 @@
+import glob
+import os
+import platform
+import time
+
+from opendbc.car.structs import car
+from openpilot.cereal import custom
+from openpilot.common.params import Params
+from openpilot.common.hardware import PC, COMMA_HARDWARE, HARDWARE
+from openpilot.system.manager.process import PythonProcess, NativeProcess, DaemonProcess
+from openpilot.common.hardware.hw import Paths
+from openpilot.common.swaglog import cloudlog
+
+# A process that is alive but has stopped making progress is not caught by
+# restart_if_crash. These are the thresholds for the processes that are
+# watched. The control chain (controlsd, selfdrived, plannerd) is never
+# watched: restarting it leaves a gap in the control output.
+UI_WATCHDOG_MAX_DT = int(os.getenv("UI_WATCHDOG_MAX_DT", "10"))
+CAMERAD_WATCHDOG_MAX_DT = int(os.getenv("CAMERAD_WATCHDOG_MAX_DT", "5"))
+
+from openpilot.common.dm import is_dm_disabled
+from openpilot.sunnypilot.mapd.mapd_manager import MAPD_PATH
+from openpilot.sunnypilot import jetlink_adapter
+
+from openpilot.sunnypilot.models.helpers import get_active_model_runner
+from openpilot.sunnypilot.sunnylink.utils import sunnylink_need_register, sunnylink_ready, use_sunnylink_uploader
+from openpilot.sunnypilot.system.manager.processes import extend_procs
+
+WEBCAM = os.getenv("USE_WEBCAM") is not None
+LITE = os.getenv("LITE") is not None
+# Lets an external launcher own the carrot API/web stack, matching CarrotPilot's
+# `enabled=not CARROT_WEB_EXTERNAL` gate on carrot_server.
+CARROT_WEB_EXTERNAL = os.getenv("CARROT_WEB_EXTERNAL") == "1"
+
+def driverview(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started or params.get_bool("IsDriverViewEnabled")
+
+def dm_process(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return driverview(started, params, CP) and not is_dm_disabled(params)
+
+def notcar(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and CP.notCar
+
+def iscar(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and not CP.notCar
+
+def logging(started: bool, params: Params, CP: car.CarParams) -> bool:
+  run = (not CP.notCar) or not params.get_bool("DisableLogging")
+  return started and run
+
+def ublox_available() -> bool:
+  return os.path.exists('/dev/ttyHS0') and not os.path.exists('/persist/comma/use-quectel-gps')
+
+def ublox(started: bool, params: Params, CP: car.CarParams) -> bool:
+  use_ublox = ublox_available()
+  if use_ublox != params.get_bool("UbloxAvailable"):
+    params.put_bool("UbloxAvailable", use_ublox, block=True)
+  return started and use_ublox
+
+def joystick(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and params.get_bool("JoystickDebugMode")
+
+def not_joystick(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and not params.get_bool("JoystickDebugMode")
+
+def long_maneuver(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and params.get_bool("LongitudinalManeuverMode")
+
+def lat_maneuver(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and params.get_bool("LateralManeuverMode")
+
+def not_long_maneuver(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and not params.get_bool("LongitudinalManeuverMode")
+
+def qcomgps(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and not ublox_available()
+
+def beep(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and params.get_bool("SpDevBeep")
+
+def always_run(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return True
+
+def builtin_display(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return HARDWARE.has_builtin_display()
+
+def only_onroad(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started
+
+def navigation(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and params.get_bool("NavigationEnabled")
+
+def only_offroad(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return not started
+
+def livestream(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return params.get_bool("IsLiveStreaming")
+
+def enable_webrtc(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # Cluster HUD and Carrot Vision can consume the road camera concurrently.
+  # The web encoder remains idle until a Carrot Vision session requests it.
+  return params.get_bool("CarrotVisionEnabled")
+
+def cluster_hud_active(params: Params) -> bool:
+  try:
+    return params.get_int("ClusterHud") == 1
+  except Exception:
+    return False
+
+def enable_cluster_hud(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # Optional external cluster screen (ported from CarrotPilot's cluster
+  # subsystem). Off by default; the sunnypilot onroad overlay stays the
+  # primary in-cabin presentation and this process only runs when the user
+  # explicitly enables the external display. Matches cp: cluster_autorun
+  # handles device checks internally.
+  return cluster_hud_active(params)
+
+def radar_tracks_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  """Carrot radar stack: radarcan (CAN -> liveTracks) and the dPath radard.
+
+  Off by default - upstream radard/card keep publishing radarTracks, so the
+  stock path is untouched unless EnableRadarTracks is on.
+  """
+  return started and params.get_bool("EnableRadarTracks")
+
+def radar_tracks_disabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return started and not params.get_bool("EnableRadarTracks")
+
+def signal_color_observer(started: bool, params: Params, CP: car.CarParams) -> bool:
+  """Signal-light observation trial; opt-in through a local artifact install."""
+  from openpilot.selfdrive.modeld.signal_color_shadow import requested
+  return started and requested()
+
+
+def signal_yolo_observer(started: bool, params: Params, CP: car.CarParams) -> bool:
+  """YOLO traffic-light detector observer; opt-in through a local artifact install.
+
+  This is a second, independent observation producer. It never writes the
+  transport the classical observer uses, so the two cannot fight over the same
+  file, and it holds no control permission at all.
+  """
+  from openpilot.selfdrive.modeld.signal_yolo_shadow import requested
+  return started and requested()
+
+def onroad_preview(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return params.get_bool("IsOnroadPreview")
+
+def use_copyparty(started, params, CP: car.CarParams) -> bool:
+  return bool(params.get_bool("EnableCopyparty"))
+
+def speed_limit_vision_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  """Vision speed-limit daemon: opt-in through SpeedLimitVisionEnabled (default off).
+
+  Only runs onroad (offroad the daemon idles by itself) and never in dashcam
+  mode (passive car params), mirroring the StarPilot run_speed_limit_vision gate.
+  """
+  return started and params.get_bool("SpeedLimitVisionEnabled") and not CP.passive
+
+def bluetooth_audio_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  """Bluetooth audio manager (bluetooth_managerd, ported from StarPilot): opt-in
+  through BluetoothAudioEnabled (default off, code-level - not in params_keys.h).
+
+  The daemon itself further gates every radio operation behind its own
+  BluetoothEnabled param, mirroring StarPilot's bluetooth_enabled gate.
+
+  KNOWN LIMITATION (kept documented, mirrors the task's feasibility report): AGNOS
+  does not ship bluez/D-Bus or the bluez-alsa plugin, and sunnypilot does not
+  install StarPilot's /usr/comma/bluetooth-radio helper or its radio systemd
+  service. With the param on, the daemon starts, reports available=False and
+  every Bluetooth operation fails with "Bluetooth radio support is not
+  installed"; it never touches the Qualcomm stack (/dev/btpower, /dev/ttyHS1)
+  that AGNOS actually uses. This port is for forks/images that do ship bluez
+  (e.g. custom radio bring-up); keep the param off on stock devices.
+  """
+  return params.get_bool("BluetoothAudioEnabled")
+
+def sunnylink_ready_shim(started, params, CP: car.CarParams) -> bool:
+  """Shim for sunnylink_ready to match the process manager signature."""
+  return sunnylink_ready(params)
+
+def sunnylink_need_register_shim(started, params, CP: car.CarParams) -> bool:
+  """Shim for sunnylink_need_register to match the process manager signature."""
+  return sunnylink_need_register(params)
+
+def use_sunnylink_uploader_shim(started, params, CP: car.CarParams) -> bool:
+  """Shim for use_sunnylink_uploader to match the process manager signature."""
+  return use_sunnylink_uploader(params)
+
+def is_tinygrad_model(started, params, CP: car.CarParams) -> bool:
+  """Check if the active model runner is tinygrad."""
+  return bool(get_active_model_runner(params, not started) == custom.ModelManagerSP.Runner.tinygrad)
+
+def is_stock_model(started, params, CP: car.CarParams) -> bool:
+  """Check if the active model runner is stock."""
+  return bool(get_active_model_runner(params, not started) == custom.ModelManagerSP.Runner.stock)
+
+def imu_calibration_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return params.get_bool("ImuCalibrationEnabled")
+
+def imu_calibration_disabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return not params.get_bool("ImuCalibrationEnabled")
+
+def carrot_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # run even offroad: web panel (8088) / UDP / FTP must work while parked;
+  # carrot_man gates its own behaviour with the IsOnroad param
+  return params.get_bool("CarrotEnabled")
+
+def enable_xiaoge_data(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # Keep the current CarrotEnabled gating (ShareData stays opt-in elsewhere);
+  # the manager additionally holds xiaoge_data until the onroad startup gate
+  # in manager.py (XiaogeStartupGate) reports a healthy onroad session.
+  return started and params.get_bool("CarrotEnabled")
+
+def carrot_recovery_enabled(started: bool, params: Params, CP: car.CarParams) -> bool:
+  # The 6999 support terminal is an unauthenticated remote shell (plus git-recovery
+  # actions), so it is opt-in and off by default. CarrotPilot runs it always; this fork
+  # does not. See openpilot/sunnypilot/carrot/recovery/server.py.
+  return params.get_bool("CarrotRecoveryEnabled")
+
+def mapd_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
+  return bool(os.path.exists(Paths.mapd_root()))
+
+def uploader_ready(started: bool, params: Params, CP: car.CarParams) -> bool:
+  if not params.get_bool("OnroadUploads"):
+    return only_offroad(started, params, CP)
+
+  return always_run(started, params, CP)
+
+def or_(*fns):
+  return lambda *args: any(fn(*args) for fn in fns)
+
+def and_(*fns):
+  return lambda *args: all(fn(*args) for fn in fns)
+
+class RestartingPythonProcess(PythonProcess):
+  """A PythonProcess that manager starts again after it dies: start() leaves
+  a proc that has exited in place for good. For jetlinkd, which holds the USB
+  gadget for as long as the link is on; jetlink's owner adopts what a dead
+  one left and holds a crash loop back itself.
+
+  One that dies within QUICK_DEATH of its start never got that far (an
+  import error, a raise before the owner's loop, a second owner stepping
+  aside for a live one), so the next start waits BACKOFF, doubling to
+  BACKOFF_MAX, rather than forking manager twice a second for a whole drive.
+  One that ran longer is started again on the next loop."""
+  QUICK_DEATH = 10.0
+  BACKOFF = 10.0
+  BACKOFF_MAX = 300.0
+
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.started_at = 0.0
+    self.backoff = 0.0
+    self.next_start = 0.0
+
+  def now(self) -> float:
+    return time.monotonic()
+
+  def start(self) -> None:
+    now = self.now()
+    if self.proc is not None and self.proc.exitcode is not None:
+      if now - self.started_at < self.QUICK_DEATH:
+        self.backoff = min(self.BACKOFF_MAX, 2 * self.backoff or self.BACKOFF)
+        self.next_start = now + self.backoff
+        cloudlog.warning(f"{self.name} died {now - self.started_at:.1f} s after it started, starting it again in {self.backoff:.0f} s")
+      else:
+        self.backoff = 0.0
+      self.stop()  # reaps it, logs the exit code and clears proc
+    if self.proc is None:
+      if now < self.next_start:
+        return
+      self.started_at = now
+    super().start()
+
+class AudioProcess(RestartingPythonProcess):
+  """micd and soundd: started once the sound card exists, which a slow boot can
+  register 30 s after manager wants them, longer than their stream retry waits.
+  Until then, and through a restart's backoff, they report shouldBeRunning with
+  nothing running, so processNotRunning keeps openpilot from engaging silently."""
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self.wanted = False
+
+  @staticmethod
+  def sound_card_present() -> bool:
+    return PC or bool(glob.glob("/dev/snd/pcmC*"))
+
+  def start(self) -> None:
+    if self.proc is None and not self.sound_card_present():
+      self.wanted = True
+      return
+    super().start()  # its reap of a dead proc goes through stop()
+    self.wanted = True
+
+  def stop(self, *args, **kwargs):
+    self.wanted = False
+    return super().stop(*args, **kwargs)
+
+  def get_process_state_msg(self):
+    state = super().get_process_state_msg()
+    if self.wanted and self.proc is None:
+      state.name = self.name
+      state.shouldBeRunning = True
+    return state
+
+procs = [
+  DaemonProcess("manage_athenad", "openpilot.system.athena.manage_athenad", "AthenadPid"),
+
+  NativeProcess("loggerd", "openpilot/system/loggerd", ["./loggerd"], logging),
+  NativeProcess("encoderd", "openpilot/system/loggerd", ["./encoderd"], only_onroad),
+  NativeProcess("stream_encoderd", "openpilot/system/loggerd", ["./encoderd", "--stream"], or_(livestream, notcar)),
+  # Carrot Vision WebRTC (port 5001, the /stream proxy target on 7000). Runs
+  # alongside the generic daemon (below, under debug procs), which keeps its
+  # own livestream lifecycle.
+  PythonProcess("carrot_webrtcd", "openpilot.system.webrtc.carrot_webrtcd", and_(iscar, enable_webrtc)),
+  # Carrot Vision: road-only encoder + WebRTC for the 7000 panel. The encoder
+  # stays idle until a viewer session opens (CarrotVisionActive).
+  NativeProcess("carrot_vision_encoderd", "openpilot/system/loggerd", ["./encoderd", "--carrot-vision-road"], and_(iscar, enable_webrtc)),
+  PythonProcess("logmessaged", "openpilot.system.logmessaged", always_run),
+
+  NativeProcess("camerad", "openpilot/system/camerad", ["./camerad"], or_(driverview, livestream, onroad_preview), enabled=not WEBCAM,
+                watchdog_max_dt=CAMERAD_WATCHDOG_MAX_DT),
+  PythonProcess("webcamerad", "openpilot.system.camerad.webcam.camerad", driverview, enabled=WEBCAM),
+  PythonProcess("proclogd", "openpilot.system.proclogd", only_onroad, enabled=platform.system() != "Darwin"),
+  PythonProcess("journald", "openpilot.system.journald", only_onroad, platform.system() != "Darwin"),
+  AudioProcess("micd", "openpilot.system.micd", iscar, enabled=not LITE),
+  PythonProcess("timed", "openpilot.system.timed", always_run, enabled=not PC),
+
+  PythonProcess("modeld", "openpilot.selfdrive.modeld.modeld", and_(or_(only_onroad, onroad_preview), is_stock_model)),
+  # Signal-light colour observation (camera comparison only, never control).
+  PythonProcess("signalcolord", "openpilot.selfdrive.modeld.signal_color_shadow", signal_color_observer, restart_if_crash=True),
+  # YOLO traffic-light detector observer (camera comparison only, never control).
+  PythonProcess("signalyolod", "openpilot.selfdrive.modeld.signal_yolo_shadow", signal_yolo_observer, restart_if_crash=True),
+  PythonProcess("dmonitoringmodeld", "openpilot.selfdrive.modeld.dmonitoringmodeld", dm_process, enabled=(WEBCAM or not PC) and not LITE),
+  PythonProcess("navd", "openpilot.selfdrive.navigation.navd", navigation),
+  PythonProcess("mapsd", "openpilot.selfdrive.navigation.mapsd", navigation),
+
+  PythonProcess("sensord", "openpilot.system.sensord.sensord", only_onroad, enabled=not PC),
+  PythonProcess("ui", "openpilot.selfdrive.ui.ui", and_(always_run, builtin_display), restart_if_crash=True,
+                watchdog_max_dt=UI_WATCHDOG_MAX_DT),
+  AudioProcess("soundd", "openpilot.selfdrive.ui.soundd", driverview, enabled=not LITE),
+  PythonProcess("feedbackd", "openpilot.selfdrive.ui.feedback.feedbackd", only_onroad, enabled=not LITE),
+  PythonProcess("beepd", "openpilot.sunnypilot.selfdrive.ui.beepd", beep, enabled=LITE),
+  # External GPIO42 beeper (self-gated on ExternalBeepEnabled; idle no-op when off).
+  # Named "external_beepd" because the LITE UI beeper above already owns "beepd".
+  PythonProcess("external_beepd", "openpilot.selfdrive.selfdrived.beep", always_run),
+  PythonProcess("locationd", "openpilot.selfdrive.locationd.locationd", only_onroad),
+  NativeProcess("_pandad", "openpilot/selfdrive/pandad", ["./pandad"], always_run, enabled=False),
+  PythonProcess("calibrationd", "openpilot.selfdrive.locationd.calibrationd", and_(only_onroad, imu_calibration_disabled)),
+  PythonProcess("imu_calibrationd", "openpilot.selfdrive.locationd.imu_calibrationd", and_(only_onroad, imu_calibration_enabled)),
+  PythonProcess("torqued", "openpilot.selfdrive.locationd.torqued", only_onroad),
+  PythonProcess("controlsd", "openpilot.selfdrive.controls.controlsd", and_(not_joystick, iscar)),
+  PythonProcess("joystickd", "openpilot.tools.joystick.joystickd", or_(joystick, notcar)),
+  PythonProcess("selfdrived", "openpilot.selfdrive.selfdrived.selfdrived", only_onroad),
+  PythonProcess("card", "openpilot.selfdrive.car.card", only_onroad),
+  PythonProcess("deleter", "openpilot.system.loggerd.deleter", always_run),
+  PythonProcess("dmonitoringd", "openpilot.selfdrive.monitoring.dmonitoringd", dm_process, enabled=(WEBCAM or not PC) and not LITE),
+  # Restart GPS without forking the running manager's IPC state.
+  PythonProcess("qcomgpsd", "openpilot.system.qcomgpsd.qcomgpsd", qcomgps, enabled=COMMA_HARDWARE, spawn=True),
+  PythonProcess("pandad", "openpilot.selfdrive.pandad.pandad", always_run),
+  PythonProcess("paramsd", "openpilot.selfdrive.locationd.paramsd", only_onroad),
+  PythonProcess("lagd", "openpilot.selfdrive.locationd.lagd", only_onroad),
+  PythonProcess("ubloxd", "openpilot.system.ubloxd.ubloxd", ublox, enabled=COMMA_HARDWARE),
+  PythonProcess("pigeond", "openpilot.system.ubloxd.pigeond", ublox, enabled=COMMA_HARDWARE),
+  PythonProcess("plannerd", "openpilot.selfdrive.controls.plannerd", not_long_maneuver),
+  PythonProcess("maneuversd", "openpilot.tools.longitudinal_maneuvers.maneuversd", long_maneuver),
+  PythonProcess("lateral_maneuversd", "openpilot.tools.lateral_maneuvers.lateral_maneuversd", lat_maneuver),
+  # EnableRadarTracks swaps in CarrotPilot's CAN-driven radar stack: radarcan
+  # publishes liveTracks from raw CAN, radard_dpath selects leads from them.
+  PythonProcess("radard", "openpilot.selfdrive.controls.radard", radar_tracks_disabled),
+  PythonProcess("radard_dpath", "openpilot.sunnypilot.carrot.radar.radard_dpath", radar_tracks_enabled),
+  PythonProcess("radarcan", "openpilot.sunnypilot.carrot.radar.radarcan", radar_tracks_enabled),
+  PythonProcess("hardwared", "openpilot.system.hardware.hardwared", always_run),
+  PythonProcess("modem", "openpilot.common.hardware.comma.modem", always_run, enabled=COMMA_HARDWARE and not LITE),
+  PythonProcess("tombstoned", "openpilot.system.tombstoned", always_run, enabled=not PC),
+  PythonProcess("updated", "openpilot.system.updated.updated", only_offroad, enabled=not PC),
+  PythonProcess("uploader", "openpilot.system.loggerd.uploader", uploader_ready),
+  PythonProcess("statsd", "openpilot.sunnypilot.system.statsd", always_run),
+
+  # debug procs
+  NativeProcess("bridge", "openpilot/cereal/messaging", ["./bridge"], notcar),
+  PythonProcess("webrtcd", "openpilot.system.webrtc.webrtcd", or_(livestream, notcar)),
+  PythonProcess("joystick", "openpilot.tools.joystick.joystick_control", and_(joystick, iscar)),
+
+  # sunnylink <3
+  DaemonProcess("manage_sunnylinkd", "openpilot.sunnypilot.sunnylink.athena.manage_sunnylinkd", "SunnylinkdPid"),
+  PythonProcess("sunnylink_registration_manager", "openpilot.sunnypilot.sunnylink.registration_manager", sunnylink_need_register_shim),
+  PythonProcess("statsd_sp", "openpilot.sunnypilot.sunnylink.statsd", and_(always_run, sunnylink_ready_shim)),
+]
+
+# sunnypilot
+procs += [
+  # Models
+  PythonProcess("models_manager", "openpilot.sunnypilot.models.manager", only_offroad),
+  # always_run: jetlinkd holds the USB gadget open for as long as the link is
+  # enabled, onroad included. A gadget whose owner exits leaves the bus, and
+  # that is the unplug at every ignition edge this arrangement removes
+  RestartingPythonProcess(jetlink_adapter.OWNER, jetlink_adapter.__name__, and_(always_run, jetlink_adapter.should_run)),
+  NativeProcess("modeld_tinygrad", "openpilot/sunnypilot/modeld_v2", ["./modeld"], and_(or_(only_onroad, onroad_preview), is_tinygrad_model)),
+  PythonProcess("modeld_warmup", "openpilot.sunnypilot.modeld_v2.warmup", only_offroad),
+
+  # Backup
+  PythonProcess("backup_manager", "openpilot.sunnypilot.sunnylink.backups.manager", and_(only_offroad, sunnylink_ready_shim)),
+
+  # mapd
+  NativeProcess("mapd", Paths.mapd_root(), ["bash", "-c", f"{MAPD_PATH} > /dev/null 2>&1"], mapd_ready),
+  PythonProcess("mapd_manager", "openpilot.sunnypilot.mapd.mapd_manager", always_run),
+
+  # Carrot
+  # amapNaviSP and AmapMapData (Web API) removed: carrot_man now only produces
+  # carrotManSP / navInstructionCarrotSP. OSM remains the map-data provider.
+  #
+  # always_run, NOT carrot_enabled: carrot_man is the UDP 7705 discovery
+  # advertiser and the 7706 listener on this fork, and the phone app must find
+  # the unit on 7705 before it can enable anything. CarrotEnabled defaults to
+  # "0", so gating the process on it made every default device invisible to the
+  # app ("7705 未激活"). CarrotPilot runs every carrot_* process with
+  # always_run for the same reason; carrot_man still gates its own rich navi /
+  # publish / web work on CarrotEnabled inside tick(), so only the listener and
+  # the beacon stay live on a device with the feature switched off.
+  #
+  # restart_if_crash=True for both: they are the discovery + navi backbone.
+  # Without it a crash leaves the unit unfindable until a manual reboot; the
+  # manager must auto-relaunch them (mirrors CarrotPilot).
+  #
+  # carrot_navi (TCP 7714 v2) is always_run exactly like CarrotPilot: it owns
+  # 7714 for the lifetime of the unit and only speaks when the app connects.
+  # Whether the data it produces reaches the driving stack is a *behaviour*
+  # switch (`CarrotNaviV2Enabled`, read by card.py), not a process gate - a
+  # gated process cannot come up on demand, because the manager only re-evaluates
+  # its gates on its own cycle, so the link would stay dead until a manager pass.
+  PythonProcess("carrot_man", "openpilot.sunnypilot.carrot.carrot_man", always_run, restart_if_crash=True),
+  PythonProcess("carrot_cluster", "openpilot.sunnypilot.carrot.cluster_autorun", enable_cluster_hud, restart_if_crash=True),
+  PythonProcess("carrot_navi", "openpilot.sunnypilot.carrot.carrot_navi", always_run, restart_if_crash=True),
+  # CarrotPilot-compatible API server on port 7000: the parameter REST API plus, as they
+  # are ported, the /ws raw and camera streams. The companion app (navipilot / CP 搭子)
+  # treats 7000 as its main channel, so without it the app reports "设备未连接" and its
+  # conditional-experiment mode cannot switch. always_run like CarrotPilot's; the gate only
+  # exists so an external launcher can take the stack over.
+  # restart_if_crash: the app's main channel must come back on its own. Without it the
+  # manager leaves the port dead until the next ignition cycle, which the app reports as
+  # "设备未连接" with nothing on the device to explain why.
+  PythonProcess("carrot_server", "openpilot.sunnypilot.carrot.carrot_server", always_run,
+                enabled=not CARROT_WEB_EXTERNAL, restart_if_crash=True),
+
+  # Support terminal on 6999 (CarrotPilot's recovery/server.py): a standalone, stdlib-only
+  # shell that keeps working when the rest of the web stack is broken. Gated on
+  # CarrotRecoveryEnabled (default "0") because it is an unauthenticated shell reachable
+  # from the car network - see the module docstring before turning it on.
+  PythonProcess("carrot_recovery", "openpilot.sunnypilot.carrot.recovery.server",
+                carrot_recovery_enabled, restart_if_crash=True),
+
+  # Xiaoge ONNX BSD/Lane detection
+  # Reads VisionIPC camera buffers, runs ONNX inference, publishes to customReservedRawData0.
+  # card.py merges results into carState (blindspot) and carStateSP (lane lines).
+  # restart_if_crash=True: xiaoge_data can crash on startup if cameras are temporarily
+  # unavailable (e.g. camera stream not yet stable when entering the car). Without this
+  # flag the manager waits for the next ensure_running cycle before restarting, causing a
+  # spurious "进程未运行" alert to appear briefly.
+  PythonProcess("xiaoge_data", "openpilot.sunnypilot.carrot.xiaoge_data", enable_xiaoge_data, restart_if_crash=True),
+
+  # Bluetooth HID remote daemon
+  # Reads evdev input events from paired Bluetooth HID remotes (e.g. Yiser J6).
+  # Publishes cruise/lane commands to /dev/shm/carrot-bluetooth/{cruise,lane}.json.
+  # CommandReader in cruise.py / desire_helper.py consumes these commands.
+  #
+  # always_run + enabled=COMMA_HARDWARE mirrors CarrotPilot's
+  # `always_run, enabled=TICI`: Bluetooth HID remotes only exist on comma
+  # hardware (AGNOS exposes the evdev nodes), and the old gate on CarrotEnabled
+  # meant a unit with the master switch off could not pair its remote. This fork
+  # has no `TICI` symbol - `COMMA_HARDWARE` (AGNOS present) is its equivalent.
+  PythonProcess("carrot_bluetooth", "openpilot.sunnypilot.carrot.bluetooth.daemon", always_run, enabled=COMMA_HARDWARE, restart_if_crash=True),
+
+  # Generic external-input daemon (wheel controls): reads /dev/input/event* directly
+  # (stdlib only, no evdev package) for USB/Bluetooth HID devices and maps buttons onto
+  # favorite slots / the personality cycle / the existing cruise command channel.
+  # Opt-in at the config layer ("enabled" in wheel_controls.json), so the process itself
+  # is always_run like carrot_bluetooth; a device mapped here must not also be mapped in
+  # carrot_bluetooth (both daemons receive every event of a node).
+  PythonProcess("wheel_controlsd", "openpilot.sunnypilot.system.wheel_controls.wheel_controlsd",
+                always_run, enabled=COMMA_HARDWARE, restart_if_crash=True),
+
+  # locationd
+  NativeProcess("locationd_llk", "openpilot/sunnypilot/selfdrive/locationd", ["./locationd"], only_onroad),
+
+  # Vision speed-limit recognition daemon (detector + value classifier + reject
+  # classifier ONNX pipeline). Off by default; opt-in through SpeedLimitVisionEnabled.
+  # The process renices itself to 19 and throttles on CPU/memory pressure.
+  PythonProcess("speed_limit_vision", "openpilot.sunnypilot.system.speed_limit_vision", speed_limit_vision_enabled),
+
+  # Bluetooth audio device manager (bluetooth_managerd), ported from StarPilot's
+  # starpilot/system/bluetooth (bluez D-Bus + bluez-alsa A2DP output). Opt-in through
+  # BluetoothAudioEnabled (default off). See the feasibility note on the gate function
+  # above: stock AGNOS has no bluez, so this is inert on comma hardware unless a
+  # custom image ships bluez + the radio helper. Distinct from carrot_bluetooth
+  # (HID remotes via evdev) - that one stays always_run.
+  PythonProcess("bluetooth_managerd", "openpilot.sunnypilot.system.bluetooth.daemon", bluetooth_audio_enabled),
+]
+procs = extend_procs(procs)
+
+if os.path.exists("../../sunnypilot/sunnylink/uploader.py"):
+  procs += [PythonProcess("sunnylink_uploader", "openpilot.sunnypilot.sunnylink.uploader", use_sunnylink_uploader_shim)]
+
+if os.path.exists("../../third_party/copyparty/copyparty-sfx.py"):
+  sunnypilot_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+  copyparty_args = [f"-v{Paths.crash_log_root()}:/swaglogs:r"]
+  copyparty_args += [f"-v{Paths.log_root()}:/routes:r"]
+  copyparty_args += [f"-v{Paths.model_root()}:/models:rw"]
+  copyparty_args += [f"-v{sunnypilot_root}:/sunnypilot:rw"]
+  copyparty_args += ["-p8080"]
+  copyparty_args += ["-z"]
+  copyparty_args += ["-q"]
+  procs += [NativeProcess("copyparty-sfx", "openpilot/third_party/copyparty", ["./copyparty-sfx.py", *copyparty_args], and_(only_offroad, use_copyparty))]
+
+managed_processes = {p.name: p for p in procs}

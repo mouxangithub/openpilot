@@ -1,0 +1,27 @@
+{
+  "namespace": "mcp",
+  "revision": 1,
+  "fields": {
+    "ai_mcp_servers": {
+      "type": "object",
+      "default": {},
+      "label": "MCP servers",
+      "description": "Map of server_id -> {command, args, env, enabled, trust}."
+    },
+    "ai_mcp_default_trust": {
+      "type": "enum",
+      "default": "ask",
+      "enum": ["ask", "allow", "deny"],
+      "label": "Default MCP trust policy",
+      "description": "Default trust decision for un-whitelisted MCP servers."
+    },
+    "ai_mcp_tool_timeout": {
+      "type": "number",
+      "default": 60,
+      "min": 1,
+      "max": 600,
+      "label": "MCP tool timeout (s)",
+      "description": "Maximum wait for an MCP tool call response."
+    }
+  }
+}

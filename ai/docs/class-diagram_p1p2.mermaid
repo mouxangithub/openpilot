@@ -1,0 +1,324 @@
+classDiagram
+    direction TB
+
+    class EventType {
+        <<enumeration>>
+        TURN_START
+        TURN_END
+        STEP_START
+        STEP_END
+        USER_MESSAGE
+        ASSISTANT_MESSAGE
+        TOOL_CALL
+        TOOL_RESULT
+        REQUEST_HEADER
+        REQUEST_CONTEXT
+        LIFECYCLE
+        GOAL_CHANGE
+        PLAN_CHANGE
+        TODO_CHANGE
+        SCHEDULE_CHANGE
+        SUBAGENT_START
+        SUBAGENT_END
+        COMPACTION_PRUNE
+        COMMAND_RUN
+        COMMAND_DONE
+        MCP_TRUST_ASKED
+        MCP_TRUST_DECIDED
+        SPILL_EXTERNALIZED
+        SPILL_RECALL
+    }
+
+    class SessionEvent {
+        +EventType type
+        +int seq
+        +int time
+        +Any data
+        +SurfaceOp|None surface_op
+        +tuple[int]|None source_seqs
+        +to_dict() dict
+    }
+
+    class SessionLog {
+        +str session_id
+        +tuple~SessionEvent~ events
+        +Path|None persist_path
+        +append(type, data, surface_op) SessionEvent
+        +append_domain_event(domain, snapshot, tombstone) SessionEvent
+        +derive_messages() list[dict]
+        +request_header() RequestHeader|None
+        +resume_ctx() ResumeContext
+    }
+
+    class ResumeContext {
+        +dict goal
+        +dict plan
+        +dict todo
+        +list[str] interrupted
+        +list[SessionEvent] repaired
+    }
+
+    class RepairResult {
+        +list[SessionEvent] repaired
+        +list[str] interrupted
+        +str|None original_copy_path
+        +to_dict() dict
+    }
+
+    class AgentLoop {
+        +str session_id
+        +str agent_id
+        +Any params
+        +ToolPipeline tool_pipeline
+        +SessionLog log
+        +int max_tool_rounds
+        +float tool_timeout
+        +float stream_timeout
+        +str|None workflow_id
+        +Any compaction
+        +run_until_idle(is_cancelled) dict
+        +_turn() bool
+        +_step(turn, step) str
+        +configure_request(provider, model, system, tools)
+    }
+
+    class ToolPipeline {
+        +dict[str, Callable] _tools
+        +add_pre_hook(hook)
+        +add_guard_hook(hook)
+        +add_around_hook(hook)
+        +add_post_hook(hook)
+        +add_post_waterfall(hook)
+        +register_primitive(name, handler)
+        +execute(call_id, name, raw_arguments, ...) dict
+    }
+
+    class ToolResult {
+        +bool ok
+        +Any value
+        +str|None content
+        +dict|None block
+        +dict|None meta
+    }
+
+    class SpillBackend {
+        <<interface>>
+        +write(text, session_id, tool_name, call_id) SpillRef
+        +read(ref) str
+        +delete(ref) bool
+    }
+
+    class LocalSpillBackend {
+        +Path base_dir
+        +write(...) SpillRef
+        +read(ref) str
+    }
+
+    class RemoteSpillBackend {
+        +str endpoint
+        +write(...) SpillRef
+        +read(ref) str
+    }
+
+    class SandboxPolicyService {
+        +ConfinedSandboxMode DEFAULT_MODE
+        +resolve(params, session_id, cwd) ConfinedSessionPolicy
+        +contained_cwd(requested) str
+    }
+
+    class ConfinedSessionPolicy {
+        +str session_id
+        +ConfinedSandboxMode mode
+        +str containment_root
+        +to_context() dict
+        +to_dict() dict
+    }
+
+    class ShellRunner {
+        +str workspace_root
+        +run_shell(command, timeout, policy, cwd) RunResult
+    }
+
+    class PythonRunner {
+        +str workspace_root
+        +run_python(code, timeout, bindings, cwd) RunResult
+    }
+
+    class ApprovalService {
+        +HumanInLoop hitl
+        +EventProjectionRegistry registry
+        +ask(record, session_log, request) ApprovalRecord
+        +decide(approval_id, approved, decided_by) ApprovalRecord
+        +is_allowed(approval_id) bool
+        +fold_approvals(events) dict[str, ApprovalRecord]
+    }
+
+    class ApprovalRecord {
+        +str approval_id
+        +ApprovalRequest request
+        +ApprovalState state
+        +int asked_at
+        +int|None decided_at
+        +str|None decided_by
+        +to_dict() dict
+    }
+
+    class ConfigRegistry {
+        +register_schema(namespace, fields, revision)
+        +get_schema(namespace) dict
+        +all() dict
+        +namespaces() list[str]
+    }
+
+    class SchemaField {
+        +str key
+        +str type
+        +Any default
+        +float|None min
+        +float|None max
+        +list|None enum
+        +bool secret
+        +bool restart
+        +str label
+        +str description
+    }
+
+    class ConfigValidator {
+        +validate_payload(schema, payload) list[ValidationError]
+    }
+
+    class BundleManifest {
+        +str id
+        +str name
+        +str version
+        +list~BundlePackageRef~ packages
+        +patch_operations() list[dict]
+        +profile_bundles() list[str]
+        +capabilities() set[str]
+        +to_dict() dict
+    }
+
+    class ProfileComposer {
+        +Any bundle_loader
+        +Any profile_manager
+        +compose(profile_id, bundles) tuple[dict, list[str]]
+        +preview(profile_id, bundles) list[PatchLayer]
+        +has_conflicts(profile_id, bundles) bool
+    }
+
+    class PatchLayer {
+        +int order
+        +str source
+        +list[dict] operations
+        +to_dict() dict
+    }
+
+    class MCPStdioClient {
+        +str command
+        +list[str] args
+        +dict[str, str] env
+        +async start()
+        +async request(method, params) Any
+        +async close()
+    }
+
+    class MCPHost {
+        +Params params
+        +discover_tools(server_id) dict
+        +call_tool(server_id, tool_name, args, session_id) dict
+        +list_resources(server_id) list[dict]
+        +read_resource(server_id, uri) dict
+        +list_prompts(server_id) list[dict]
+        +health_check(server_id) dict
+    }
+
+    class AcpStdioServer {
+        +Any params
+        +str session_id
+        +async handle(msg) list[dict]
+        +async run()
+        +_run_prompt(content) dict
+    }
+
+    class GraphExecutor {
+        +register(kind, handler)
+        +async run(graph, inputs) GraphResult
+    }
+
+    class Graph {
+        +dict nodes
+        +dict edges
+        +start_nodes() list[Node]
+        +outgoing(node_id) list[Edge]
+    }
+
+    class SubagentPool {
+        +int max_concurrency
+        +SubagentLineage lineage
+        +create_task(...) SubagentTask
+        +submit(task, ...) asyncio.Task
+        +run(task, ...) SubagentResult
+        +run_many(tasks, ...) list[SubagentResult]
+    }
+
+    class SubagentTask {
+        +str id
+        +str agent_id
+        +str prompt
+        +str provider
+        +int depth
+        +int max_depth
+        +dict|None output_schema
+        +list[str]|None tools
+        +str parent_id
+        +str origin
+        +to_dict() dict
+    }
+
+    class SubagentLineage {
+        +add_edge(parent_task, child_task, run_id, depth, origin)
+        +children(parent_task) list[dict]
+        +roots() list[str]
+        +rebuild_from_events(events)
+    }
+
+    class LspServerManager {
+        +get_client(workspace_root) LspClient|None
+        +register_provider(ext, factory)
+        +async stop_all()
+    }
+
+    class LspClient {
+        +async definition(uri, line, char) list
+        +async references(uri, line, char) list
+        +async implementation(uri, line, char) list
+        +async hover(uri, line, char) dict|None
+        +async diagnostics(uri) list
+        +async rename(uri, line, char, newName) dict
+    }
+
+    SessionLog --> SessionEvent : appends
+    SessionLog --> ResumeContext : resume_ctx
+    AgentLoop --> SessionLog : owns
+    AgentLoop --> ToolPipeline : owns
+    ToolPipeline --> ToolResult : produces
+    ToolPipeline --> SpillBackend : post-execute spill
+    LocalSpillBackend --|> SpillBackend
+    RemoteSpillBackend --|> SpillBackend
+    SandboxPolicyService --> ConfinedSessionPolicy : produces
+    ShellRunner --> ConfinedSessionPolicy : uses
+    PythonRunner --> ConfinedSessionPolicy : uses
+    ApprovalService --> ApprovalRecord : produces
+    ApprovalService --> HumanInLoop : delegates
+    ConfigRegistry --> SchemaField : manages
+    ConfigValidator --> ConfigRegistry : consumes
+    ProfileComposer --> PatchLayer : produces
+    ProfileComposer --> BundleManifest : consumes
+    MCPHost --> MCPStdioClient : manages
+    AcpStdioServer --> MCPHost : may use
+    AcpStdioServer --> AgentLoop : drives
+    GraphExecutor --> Graph : executes
+    SubagentPool --> SubagentTask : manages
+    SubagentPool --> SubagentLineage : tracks
+    SubagentLineage --> SessionEvent : rebuilds from
+    LspServerManager --> LspClient : manages

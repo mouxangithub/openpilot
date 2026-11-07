@@ -1,0 +1,4 @@
+{"task_input": "上次改完跟车，对比两条路线看看", "expected_behavior": "compare_tune_ab or compare_route_signals; interpret score; suggest rollback if worse.", "difficulty": "medium", "category": "ab", "source": "golden"}
+{"task_input": "改坏了，恢复改之前的参数", "expected_behavior": "list_tune_snapshots, restore_tune_snapshot; confirm; verify with read_params.", "difficulty": "easy", "category": "rollback", "source": "golden"}
+{"task_input": "把这次调参记到护照里", "expected_behavior": "list_tune_passport or audit trail tools; summarize change reason for owner.", "difficulty": "easy", "category": "passport", "source": "golden"}
+{"task_input": "这条路线打分适合当调参基准吗？", "expected_behavior": "score_route_tune or score_tune_session; explain metrics; caveats about road type.", "difficulty": "hard", "category": "scoring", "source": "golden"}

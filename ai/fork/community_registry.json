@@ -1,0 +1,196 @@
+{
+  "version": 2,
+  "description": "Known openpilot community forks — hints for matching; runtime scan + AI analysis remain authoritative.",
+  "device_targets": ["c2", "c3", "c3x", "c4", "pc"],
+  "forks": [
+    {
+      "id": "dragonpilot/dragonpilot",
+      "name": "Dragonpilot",
+      "aliases": ["dragonpilot", "dp"],
+      "remotes": ["dragonpilot/dragonpilot"],
+      "branches": ["d2", "main", "master"],
+      "device_targets": ["c2", "c3", "c3x", "c4", "pc"],
+      "marker_dirs": [],
+      "marker_files": ["d2"],
+      "param_prefixes": ["dp_"],
+      "settings_globs": ["**/dragonpilot/**/*.py", "**/dp_settings*.py"],
+      "wiki_repos": [
+        {
+          "url": "https://github.com/dragonpilot/dragonpilot_wiki",
+          "branch": "master",
+          "max_files": 80,
+          "notes": "C2 社区文档与 FAQ（约 57 篇 md，默认分支 master）"
+        }
+      ],
+      "community_urls": [
+        "https://github.com/dragonpilot/dragonpilot",
+        "https://github.com/dragonpilot/dragonpilot/tree/d2"
+      ],
+      "notes": "d2 分支面向 comma two (C2)；目录可能是 flat（selfdrive 在根）或 nested。"
+    },
+    {
+      "id": "sunnypilot/sunnypilot",
+      "name": "sunnypilot",
+      "aliases": ["sunnypilot", "sp"],
+      "remotes": ["sunnypilot/sunnypilot"],
+      "branches": ["dev", "release", "master", "main"],
+      "device_targets": ["c3", "c3x", "c4", "pc"],
+      "marker_dirs": ["sunnypilot"],
+      "marker_files": [],
+      "param_prefixes": ["Sp", "sp_"],
+      "settings_globs": ["sunnypilot/**/settings*.py"],
+      "wiki_repos": [
+        {
+          "url": "https://community.sunnypilot.ai/c/documentation/114",
+          "kind": "discourse",
+          "max_files": 80,
+          "discourse_doc_filter": true,
+          "discourse_max_posts": 3,
+          "discourse_tags": ["docs-auto-sync"],
+          "notes": "官方文档区（Discourse API，首帖 HTML→文本）"
+        },
+        {
+          "url": "https://github.com/sunnypilot/user-docs",
+          "branch": "master",
+          "notes": "官方用户文档 Markdown 源仓（与论坛 docs-auto-sync 同步）"
+        },
+        {
+          "url": "https://github.com/vinnie291/sunnylink-wiki",
+          "branch": "main",
+          "extra_paths": ["data/toggles.json", "data/models.json"],
+          "notes": "Sunnylink 开关与车型 JSON 参考"
+        }
+      ],
+      "community_urls": ["https://github.com/sunnypilot/sunnypilot", "https://community.sunnypilot.ai"],
+      "notes": "常见 C3 DOS / C3X / C4；含 sunnypilot/ 子树与 Sp* Param。"
+    },
+    {
+      "id": "mouxangithub/openpilot",
+      "name": "optskug openpilot",
+      "aliases": ["optskug", "mouxangithub", "tsk"],
+      "remotes": ["mouxangithub/openpilot"],
+      "branches": ["master-c3", "master-c3-new"],
+      "device_targets": ["c3", "c3x", "c4", "pc"],
+      "marker_dirs": ["sunnypilot"],
+      "marker_files": [],
+      "param_prefixes": ["Sp", "sp_"],
+      "settings_globs": ["sunnypilot/**/settings*.py"],
+      "wiki_repos": [
+        {
+          "url": "https://github.com/sunnypilot/user-docs",
+          "branch": "master",
+          "notes": "与 sunnypilot 共用用户文档"
+        }
+      ],
+      "community_urls": ["https://github.com/mouxangithub/openpilot"],
+      "notes": "基于 sunnypilot 的 C3 fork；分支 master-c3 / master-c3-new。"
+    },
+    {
+      "id": "FrogAi/FrogPilot",
+      "name": "FrogPilot",
+      "aliases": ["frogpilot", "frog"],
+      "remotes": ["frogai/frogpilot"],
+      "branches": ["FrogPilot", "main", "master"],
+      "device_targets": ["c3", "c3x", "c4", "pc"],
+      "marker_dirs": ["frogpilot"],
+      "marker_files": [],
+      "param_prefixes": ["Frog", "frog"],
+      "settings_globs": ["frogpilot/**/*.py"],
+      "wiki_repos": [
+        {
+          "url": "https://frogpilot.wiki.gg/",
+          "kind": "mediawiki",
+          "max_files": 60,
+          "notes": "FrogPilot 社区 Wiki（wiki.gg / MediaWiki API）"
+        }
+      ],
+      "community_urls": ["https://github.com/FrogAi/FrogPilot", "https://frogpilot.wiki.gg/"],
+      "notes": "frogpilot/ 目录与 Frog* 调参体系。"
+    },
+    {
+      "id": "BluePilotDev/bluepilot",
+      "name": "BluePilot",
+      "aliases": ["bluepilot", "bp"],
+      "remotes": ["bluepilotdev/bluepilot"],
+      "branches": ["main", "master"],
+      "device_targets": ["c3", "c3x", "c4", "pc"],
+      "marker_dirs": ["bluepilot"],
+      "marker_files": [],
+      "param_prefixes": ["Bp", "bp_"],
+      "settings_globs": ["bluepilot/**/*.py"],
+      "wiki_repos": [
+        {
+          "url": "https://github.com/sunnypilot/user-docs",
+          "branch": "master",
+          "notes": "与 sunnypilot 共用用户文档基础"
+        },
+        {
+          "url": "https://github.com/BluePilotDev/bluepilot",
+          "branch": "main",
+          "extra_paths": ["README_SP.md", "RELEASES.md"],
+          "notes": "BluePilot 发行说明与 README"
+        }
+      ],
+      "community_urls": ["https://github.com/BluePilotDev/bluepilot", "https://bluepilot.dev"],
+      "notes": "基于 sunnypilot 分支；bluepilot.dev 为站点文档，GitHub 仓内 Markdown 可 ingest。"
+    },
+    {
+      "id": "commaai/openpilot",
+      "name": "comma openpilot",
+      "aliases": ["openpilot", "comma"],
+      "remotes": ["commaai/openpilot"],
+      "branches": ["master", "release3", "nightly"],
+      "device_targets": ["c3", "c3x", "c4", "pc"],
+      "marker_dirs": [],
+      "marker_files": [],
+      "param_prefixes": [],
+      "settings_globs": [],
+      "wiki_repos": [
+        {
+          "url": "https://github.com/commaai/openpilot/wiki",
+          "notes": "官方 Wiki（GitHub wiki）"
+        }
+      ],
+      "community_urls": ["https://github.com/commaai/openpilot"],
+      "notes": "上游；C2 官方支持止于 0.8.13.1，新设备为 C3+。"
+    },
+    {
+      "id": "ajouatom/openpilot",
+      "name": "CarrotPilot",
+      "aliases": ["carrotpilot", "carrot", "ajouatom"],
+      "remotes": ["ajouatom/openpilot"],
+      "branches": ["c3-v9", "main", "master"],
+      "device_targets": ["c3", "c3x", "c4", "pc"],
+      "marker_dirs": [],
+      "marker_files": [],
+      "param_prefixes": ["Carrot", "carrot"],
+      "settings_globs": ["**/carrot/**/*.py", "**/carrot*.py"],
+      "wiki_repos": [
+        {
+          "url": "https://github.com/ajouatom/openpilot",
+          "branch": "c3-v9",
+          "extra_paths": ["README.md"],
+          "max_files": 25,
+          "notes": "主仓 README 与文档 Markdown"
+        }
+      ],
+      "community_urls": ["https://github.com/ajouatom/openpilot"],
+      "notes": "Carrot 调参体系；无独立 wiki 仓，以主仓文档为主。"
+    },
+    {
+      "id": "iq-pilot/iq.pilot",
+      "name": "IQ.Pilot",
+      "aliases": ["iq.pilot", "iqpilot", "iq"],
+      "remotes": ["iq.lvbs/iq.pilot"],
+      "branches": ["main", "master"],
+      "device_targets": ["c3", "c3x", "c4", "pc"],
+      "marker_dirs": [],
+      "marker_files": [],
+      "param_prefixes": [],
+      "settings_globs": [],
+      "wiki_repos": [],
+      "community_urls": ["https://gitlvb.teallvbs.xyz/IQ.Lvbs/IQ.Pilot"],
+      "notes": "自托管 Git；remote URL 可能不含 github.com，暂无公开 Wiki 源可 ingest。"
+    }
+  ]
+}

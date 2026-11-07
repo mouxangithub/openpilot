@@ -1,0 +1,165 @@
+/* Artifact delivery drawer — overlay, does not affect chat flex layout */
+
+.artifact-header-btn {
+  position: relative;
+}
+
+.artifact-header-btn .badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 0.95rem;
+  height: 0.95rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: var(--accent, #4ecdc4);
+  color: #0b1214;
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 0.95rem;
+  text-align: center;
+}
+
+.artifact-header-btn .badge.hidden {
+  display: none;
+}
+
+.artifact-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 85;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.artifact-drawer-backdrop.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.artifact-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(380px, 92vw);
+  max-width: 100%;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-elevated, #151a1f);
+  border-left: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.35);
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+  pointer-events: none;
+}
+
+.artifact-drawer.open {
+  transform: translateX(0);
+  pointer-events: auto;
+}
+
+.artifact-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  flex-shrink: 0;
+}
+
+.artifact-drawer-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.artifact-drawer-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.artifact-empty {
+  color: var(--text-muted, rgba(255, 255, 255, 0.5));
+  font-size: 0.85rem;
+  padding: 2rem 1rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.artifact-card {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 10px;
+  padding: 0.55rem 0.65rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.artifact-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.artifact-kind {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.85;
+  padding: 0.12rem 0.4rem;
+  border-radius: 4px;
+  background: rgba(78, 205, 196, 0.15);
+  color: var(--accent, #4ecdc4);
+}
+
+.artifact-summary {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.85));
+}
+
+.artifact-preview {
+  margin: 0;
+  font-size: 0.72rem;
+  max-height: 180px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-muted, rgba(255, 255, 255, 0.65));
+}
+
+.artifact-card-foot {
+  margin-top: 0.35rem;
+  font-size: 0.65rem;
+  opacity: 0.6;
+  word-break: break-all;
+}
+
+/* Sub-agent tool calls — collapsed in main chat */
+.tool-call.subagent-collapsed .tool-result-section {
+  display: none;
+}
+
+.tool-call.subagent-collapsed .tool-args {
+  max-height: 2.5rem;
+  overflow: hidden;
+}
+
+.tool-subagent-tag {
+  font-size: 0.62rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(183, 148, 246, 0.18);
+  color: #c4b5fd;
+}

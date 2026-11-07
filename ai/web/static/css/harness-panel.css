@@ -1,0 +1,261 @@
+/* harness-panel.css — Goal/Plan/Todo 状态侧栏 + ToolCard 增强徽标 */
+
+/* ---------- 浮动开关按钮 ---------- */
+.harness-status-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 84px;
+  z-index: 1200;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.harness-status-toggle:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- 侧栏主体 ---------- */
+.harness-status-panel {
+  position: fixed;
+  right: 14px;
+  bottom: 136px;
+  z-index: 1190;
+  width: 320px;
+  max-height: min(620px, calc(100vh - 170px));
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius, 12px);
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  transition: opacity var(--transition), transform var(--transition);
+}
+.harness-status-panel[aria-hidden="true"] {
+  opacity: 0;
+  transform: translateY(12px);
+  pointer-events: none;
+}
+
+.harness-status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+.harness-status-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.harness-status-close {
+  background: none;
+  border: none;
+  color: #9fb0cc;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.harness-status-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.harness-status-body {
+  padding: 10px 14px;
+  overflow-y: auto;
+  flex: 1;
+}
+.harness-status-section {
+  margin-bottom: 14px;
+}
+.harness-status-section h4 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #9fb0cc;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.harness-status-empty {
+  color: #66779a;
+  font-size: 12px;
+  padding: 6px 0;
+}
+
+/* ---------- Goal ---------- */
+.harness-goal {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.harness-goal-phase {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: #2b3a5e;
+  color: #bcd0f0;
+  margin-bottom: 6px;
+}
+.harness-goal-phase.active { background: #1f6f43; color: #d7ffe8; }
+.harness-goal-phase.paused { background: #8a6d1a; color: #ffe9b0; }
+.harness-goal-phase.blocked { background: #8a2f2f; color: #ffd4d4; }
+.harness-goal-phase.complete { background: #2f5e8a; color: #d4ecff; }
+.harness-goal-objective {
+  font-size: 13px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.harness-goal-meta {
+  font-size: 11px;
+  color: #8296b8;
+  margin-top: 6px;
+}
+
+/* ---------- Plans ---------- */
+.harness-plan {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.harness-plan-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.harness-plan-status {
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 20px;
+  background: #2b3a5e;
+  color: #bcd0f0;
+  white-space: nowrap;
+}
+.harness-plan-status.active { background: #1f6f43; color: #d7ffe8; }
+.harness-plan-status.paused { background: #8a6d1a; color: #ffe9b0; }
+.harness-plan-status.complete { background: #2f5e8a; color: #d4ecff; }
+.harness-plan-status.cancelled { background: #4a4a5e; color: #ccc; }
+.harness-plan-title {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.harness-plan-steps {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #aebdd8;
+}
+.harness-plan-steps li.done,
+.harness-plan-steps li.complete { color: #7fbf9a; text-decoration: line-through; }
+.harness-plan-steps li.active { color: #ffd479; }
+
+/* ---------- Todos ---------- */
+.harness-todos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.harness-todos li {
+  padding: 4px 0;
+  font-size: 12px;
+  color: #c4d0e8;
+  word-break: break-word;
+}
+.harness-todos li.done {
+  color: #7fbf9a;
+  text-decoration: line-through;
+}
+
+/* ---------- 底部 ---------- */
+.harness-status-foot {
+  padding: 8px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+.harness-status-refresh {
+  width: 100%;
+  padding: 6px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: #c4d0e8;
+  cursor: pointer;
+  font-size: 12px;
+}
+.harness-status-refresh:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ---------- ToolCard 增强徽标 ---------- */
+.tool-duration {
+  font-size: 10px;
+  color: #8296b8;
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.tool-error-code {
+  display: inline-block;
+  font-size: 10px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: #8a2f2f;
+  color: #ffd4d4;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.tool-source {
+  display: inline-block;
+  font-size: 10px;
+  margin-right: 6px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  background: #2b3a5e;
+  color: #bcd0f0;
+}
+
+/* ---------- 浅色主题覆盖 ---------- */
+[data-theme="light"] .harness-status-panel {
+  background: rgba(250, 251, 253, 0.98);
+  border-color: rgba(15, 18, 28, 0.12);
+  color: #1c2333;
+  box-shadow: 0 12px 40px rgba(15, 18, 28, 0.18);
+}
+[data-theme="light"] .harness-status-toggle {
+  background: var(--surface);
+  border-color: var(--border-strong);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+[data-theme="light"] .harness-status-head {
+  border-bottom-color: rgba(15, 18, 28, 0.1);
+  background: rgba(15, 18, 28, 0.03);
+}
+[data-theme="light"] .harness-status-section h4,
+[data-theme="light"] .harness-status-empty,
+[data-theme="light"] .harness-status-close { color: #5c6a85; }
+[data-theme="light"] .harness-goal,
+[data-theme="light"] .harness-plan { border-color: rgba(15, 18, 28, 0.12); background: rgba(15, 18, 28, 0.02); }
+[data-theme="light"] .harness-goal-meta,
+[data-theme="light"] .tool-duration { color: #74839f; }
+[data-theme="light"] .harness-plan-steps { color: #46536e; }
+[data-theme="light"] .harness-todos li { color: #33405c; }
+[data-theme="light"] .harness-status-foot { border-top-color: rgba(15, 18, 28, 0.1); }
+[data-theme="light"] .harness-status-refresh { border-color: rgba(15, 18, 28, 0.14); background: rgba(15, 18, 28, 0.04); color: #33405c; }

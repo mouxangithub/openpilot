@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: OP Agent Wiki
+    url: https://github.com/mouxangithub/ai/wiki
+    about: 安装、CLI、调优与排障
+  - name: GitHub Discussions
+    url: https://github.com/mouxangithub/ai/discussions
+    about: 使用问题与经验分享（非 Bug 可先讨论）

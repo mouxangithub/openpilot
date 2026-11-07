@@ -1,0 +1,4 @@
+{"task_input": "帮我做个全面体检", "expected_behavior": "run_health_check; summarize panda, processes, storage, events; prioritized action list in plain Chinese.", "difficulty": "easy", "category": "checkup", "source": "golden"}
+{"task_input": "准备 OTA 升级，先检查有没有问题", "expected_behavior": "guide_ota_update or ota_preflight; git_status, space, manager; blockers before update.", "difficulty": "medium", "category": "ota", "source": "golden"}
+{"task_input": "设备发热严重正常吗", "expected_behavior": "device_health, read_onroad_events; thermal context; when to stop driving; no false certainty.", "difficulty": "medium", "category": "thermal", "source": "golden"}
+{"task_input": "manager 好像挂了", "expected_behavior": "list_managed_processes, read_manager_log; safe restart guidance offroad; confirm for manager_control.", "difficulty": "medium", "category": "process", "source": "golden"}

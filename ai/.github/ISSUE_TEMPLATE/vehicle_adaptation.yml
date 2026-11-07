@@ -1,0 +1,41 @@
+name: 新车适配
+description: 新车型指纹、CAN、无法识别等问题
+title: "[adapt]: "
+labels: ["vehicle-adaptation", "ai-assistant"]
+body:
+  - type: input
+    id: vehicle
+    attributes:
+      label: 车型（年款 + 品牌 + 型号）
+    validations:
+      required: true
+  - type: input
+    id: fork
+    attributes:
+      label: openpilot fork
+      placeholder: "sunnypilot / dragonpilot / stock comma / …"
+  - type: dropdown
+    id: stage
+    attributes:
+      label: 当前阶段
+      options:
+        - 完全无法 Engage
+        - 能 Engage 但功能异常
+        - 准备做指纹 / CAN 适配
+        - 已有草稿需合入
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: 详细说明
+      description: 已尝试的步骤、Cabana/路线、错误事件等
+    validations:
+      required: true
+  - type: checkboxes
+    id: secoc
+    attributes:
+      label: 丰田 / Lexus SecOC
+      options:
+        - label: 需要 SecOC 密钥（已安装 / 未安装请说明）

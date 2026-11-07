@@ -1,0 +1,343 @@
+import pytest
+
+try:
+  import openpilot.cereal.messaging  # noqa: F401
+except ImportError:  # PC without the msgq native module
+  import pytest as _pytest
+  _pytest.skip('msgq native module unavailable on this host', allow_module_level=True)
+
+from openpilot.common.realtime import DT_DMON
+from openpilot.selfdrive.monitoring.dm2 import DriverMonitoring2
+from openpilot.selfdrive.monitoring.dm2_context import ObjectObservation, TrafficContext
+from openpilot.selfdrive.monitoring.policy import DriverMonitoring, AlertLevel
+from openpilot.selfdrive.monitoring.test_monitoring import make_msg
+
+
+def wheel(dm, seconds, clear=False, response=False, enabled=True, strict=False):
+  for _ in range(round(seconds / DT_DMON)):
+    dm.configure_context(dm.now + DT_DMON, False, strict, clear)
+    if response:
+      dm.record_interaction(dm.now)
+    dm.run_without_camera(response, enabled, False, False)
+
+
+def camera(dm, seconds, msg=None, clear=False, response=False, held=False, strict=False):
+  msg = make_msg(True, distracted=True) if msg is None else msg
+  for _ in range(round(seconds / DT_DMON)):
+    dm.configure_context(dm.now + DT_DMON, True, strict, clear)
+    if response:
+      dm.record_interaction(dm.now)
+    dm._update_states(msg, [0, 0, 0], 20, True, False)
+    dm._update_events(held, True, False, False)
+
+
+@pytest.mark.parametrize('camera_available', [False, True])
+@pytest.mark.parametrize('initial', [False, True])
+def test_live_mode_preserves_elapsed_and_accumulated_state(camera_available, initial):
+  dm = DriverMonitoring2(experimental=initial)
+  dm.configure_context(100, camera_available, clear=True)
+  dm.awareness = 0.9
+  elapsed = (1 - dm.awareness) * dm._timeouts(dm._active_kind())[2]
+  dm.alert_3_cnt, dm.no_response_cnt, dm.lockout_time = 1, 1, 42
+  dm.too_distracted = True
+  dm.set_experimental(not initial)
+  dm.configure_context(100.05, camera_available, clear=True)
+  assert (1 - dm.awareness) * dm._timeouts(dm._active_kind())[2] == pytest.approx(elapsed)
+  assert (dm.alert_3_cnt, dm.no_response_cnt, dm.lockout_time) == (1, 1, 42)
+  assert dm.too_distracted
+
+
+@pytest.mark.parametrize('level', [AlertLevel.two, AlertLevel.three])
+def test_live_mode_cannot_clear_orange_or_terminal_warning(level):
+  dm = DriverMonitoring2()
+  dm.configure_context(100, False)
+  dm.alert_level = level
+  dm.awareness = dm.threshold_alert_2 if level == AlertLevel.two else -0.1
+  previous = dm.awareness
+  dm.set_experimental(True)
+  dm.configure_context(100.05, False, clear=True)
+  assert dm.alert_level == level and dm.awareness <= previous
+  assert dm._timeouts('WHEELTOUCH') == dm.INTERACTION_TIMEOUTS
+
+
+def test_live_mode_expires_grace_and_forward_streak_without_creating_response():
+  dm = DriverMonitoring2(experimental=True)
+  dm.configure_context(100, True)
+  dm.record_interaction(100)
+  dm.forward_frames = 40
+  assert dm.interaction_grace_remaining == 45
+  dm.set_experimental(True)  # Re-reading the same setting must preserve genuine grace.
+  assert dm.interaction_grace_remaining == 45
+  dm.set_experimental(False)
+  dm.set_experimental(True)
+  dm.configure_context(100.1, True)
+  assert dm.interaction_grace_remaining == 0 and dm.forward_frames == 0
+  dm.record_interaction(100)  # Previously consumed input cannot be replayed.
+  assert not dm.input_received
+
+
+def test_shorter_live_budget_crosses_terminal_once():
+  dm = DriverMonitoring2(experimental=True)
+  wheel(dm, 46, clear=True)  # Still below the experimental orange threshold.
+  dm.set_experimental(False)
+  wheel(dm, DT_DMON)
+  assert dm.alert_level == AlertLevel.three and dm.alert_3_cnt == 1
+  wheel(dm, DT_DMON)
+  assert dm.alert_3_cnt == 1
+
+
+@pytest.mark.parametrize('experimental,clear,factor', [(False, False, 1), (False, True, 1), (True, False, 1), (True, True, 2)])
+def test_interaction_budgets_and_terminal_alert(experimental, clear, factor):
+  dm = DriverMonitoring2(experimental=experimental)
+  wheel(dm, 15 * factor - DT_DMON, clear)
+  assert dm.alert_level == AlertLevel.none
+  wheel(dm, 2 * DT_DMON, clear)
+  assert dm.alert_level == AlertLevel.one
+  wheel(dm, 15 * factor, clear)
+  assert dm.alert_level == AlertLevel.two
+  wheel(dm, 15 * factor, clear)
+  assert dm.alert_level == AlertLevel.three and dm.alert_3_cnt == 1
+  wheel(dm, 6, clear, response=True)
+  assert dm.alert_level == AlertLevel.three and dm.no_response_cnt == 1
+  assert dm.get_state_packet().driverMonitoringState.noResponseForceDecel
+  wheel(dm, DT_DMON, enabled=False)
+  assert dm.alert_level == AlertLevel.none
+
+
+@pytest.mark.parametrize('experimental,clear', [(False, False), (True, False), (True, True)])
+def test_interaction_resets_entire_budget_even_from_orange(experimental, clear):
+  dm = DriverMonitoring2(experimental=experimental)
+  factor = 2 if experimental and clear else 1
+  wheel(dm, 31 * factor, clear)
+  assert dm.alert_level == AlertLevel.two
+  wheel(dm, DT_DMON, clear, response=True)
+  assert dm.awareness == 1 and dm.alert_level == AlertLevel.none
+  wheel(dm, 14 * factor, clear)
+  assert dm.alert_level == AlertLevel.none
+
+
+def test_traffic_override_preserves_elapsed_and_does_not_clear_orange():
+  dm = DriverMonitoring2(experimental=True)
+  wheel(dm, 32, clear=True)
+  assert dm.alert_level == AlertLevel.one
+  wheel(dm, DT_DMON, clear=True, strict=True)
+  assert dm.alert_level == AlertLevel.two
+  assert (1 - dm.awareness) * 45 == pytest.approx(32.05)
+  wheel(dm, DT_DMON, clear=True)
+  assert dm.wheel_factor == 1 and dm.alert_level == AlertLevel.two
+  wheel(dm, DT_DMON, clear=True, response=True)
+  wheel(dm, DT_DMON, clear=True)
+  assert dm.wheel_factor == 2 and dm.alert_level == AlertLevel.none
+
+
+def test_overdue_terminal_is_counted_once_after_budget_shrinks():
+  dm = DriverMonitoring2(experimental=True)
+  wheel(dm, 48, clear=True)
+  wheel(dm, DT_DMON, strict=True)
+  assert dm.alert_level == AlertLevel.three and dm.alert_3_cnt == 1
+  wheel(dm, 10, clear=True, response=True)
+  assert dm.alert_3_cnt == 1 and dm.no_response_cnt == 1
+
+
+@pytest.mark.parametrize('clear,factor', [(False, 2), (True, 4)])
+@pytest.mark.parametrize('cause', ['eye', 'sleep', 'phone'])
+def test_camera_experimental_doubles_timing_but_not_detection_thresholds(clear, factor, cause):
+  dm = DriverMonitoring2(experimental=True)
+  msg = make_msg(True, distracted=(cause == 'eye'))
+  if cause != 'eye':
+    setattr(msg.leftDriverData, cause + 'Prob', 0.99)
+  camera(dm, 5 * factor - .5, msg, clear)
+  assert dm.distracted_types[cause] and dm.alert_level == AlertLevel.none
+  camera(dm, 1, msg, clear)
+  assert dm.alert_level == AlertLevel.one
+  camera(dm, 3 * factor, msg, clear)
+  assert dm.alert_level == AlertLevel.two
+  camera(dm, 5 * factor, msg, clear)
+  assert dm.alert_level == AlertLevel.three
+  assert dm.settings._SLEEP_THRESH == .75 and dm.settings._PHONE_THRESH == .5
+
+
+@pytest.mark.parametrize('clear,allowance', [(False, 45), (True, 90)])
+def test_camera_input_starts_full_grace_then_camera_clock(clear, allowance):
+  dm = DriverMonitoring2(experimental=True)
+  camera(dm, DT_DMON, clear=clear, response=True)
+  assert dm.awareness == 1
+  camera(dm, allowance - 1, clear=clear, held=True)
+  assert dm.alert_level == AlertLevel.none and dm.awareness == 1
+  assert dm.grace_started == DT_DMON  # held gas/steering never renews it
+  camera(dm, 1.5, clear=clear)
+  assert dm.interaction_grace_remaining == 0 and dm.awareness < 1
+  camera(dm, (20 if clear else 10), clear=clear)
+  assert dm.alert_level == AlertLevel.one
+
+
+def test_traffic_cancels_camera_grace_and_inputs_cannot_restore_it_during_hold():
+  dm = DriverMonitoring2(experimental=True)
+  camera(dm, DT_DMON, clear=True, response=True)
+  camera(dm, 50, clear=True)
+  assert dm.interaction_grace_remaining == pytest.approx(40)
+  camera(dm, DT_DMON, strict=True)
+  assert dm.interaction_grace_remaining == 0
+  assert dm.vision_factor == 1 and dm.awareness < 1
+  camera(dm, DT_DMON, response=True, strict=True)
+  assert dm.interaction_grace_remaining == 0 and dm.awareness < 1
+  camera(dm, DT_DMON)
+  assert dm.interaction_grace_remaining == 0
+  camera(dm, DT_DMON, response=True)
+  assert dm.interaction_grace_remaining == 45 and dm.awareness == 1
+
+
+def test_first_traffic_only_uses_stock_for_twenty_seconds_then_returns_to_experimental():
+  dm, traffic = DriverMonitoring2(experimental=True), TrafficContext()
+  traffic.update(0, [], True, True, True)
+  assert traffic.update(10, [], True, True, True) == (False, True)
+  dm.configure_context(10, True, clear=True)
+  dm.record_interaction(10)
+  assert dm.vision_factor == 4 and dm.interaction_grace_remaining == 90
+  for i in range(601):
+    now = 11 + i / 20
+    objects = [ObjectObservation(30, 0, 20, 0)]
+    if i >= 100:
+      objects.append(ObjectObservation(60, 3, 20, 0))
+    strict, clear = traffic.update(now, objects, True, True, True)
+    dm.configure_context(now, True, strict, clear)
+    dm._update_states(make_msg(True), [0, 0, 0], 20, True, False)
+    dm._update_events(False, True, False, False)
+    assert dm.experimental  # Never overwrite the saved/requested mode.
+    assert dm.vision_factor == (1 if strict else 2)
+    assert dm.alert_level == AlertLevel.none  # Mere presence is not distraction.
+    if now >= 11.3:
+      assert dm.interaction_grace_remaining == 0
+  assert not strict and dm.experimental_active and not clear
+  assert traffic.strict_until <= 31.25
+
+
+def test_strict_camera_restores_pose_and_phone_criteria():
+  dm = DriverMonitoring2(experimental=True)
+  dm.configure_context(1, True, strict=True)
+  dm.pose.yaw = dm.settings._YAW_NATURAL_OFFSET + .44
+  dm.pose.pitch = dm.settings._PITCH_NATURAL_OFFSET
+  dm.phone_prob = .75
+  dm._get_distracted_types()
+  assert not dm.relax_pose and dm.distracted_types['pose'] and dm.distracted_types['phone']
+  assert dm._timeouts('VISION') == (5, 8, 13)
+  assert dm._timeouts('WHEELTOUCH') == (5, 15, 25)
+
+
+def test_stale_duplicate_or_future_input_cannot_restart_grace():
+  dm = DriverMonitoring2(experimental=True)
+  dm.configure_context(10, True)
+  dm.record_interaction(9)
+  dm.record_interaction(11)
+  assert dm.interaction_grace_remaining == 0
+  dm.record_interaction(10)
+  dm.configure_context(11, True)
+  dm.record_interaction(10)
+  assert dm.interaction_grace_remaining == 44
+
+
+def test_expired_grace_cannot_restart_just_because_road_becomes_clear():
+  dm = DriverMonitoring2(experimental=True)
+  camera(dm, DT_DMON, response=True)
+  camera(dm, 48)
+  assert dm.interaction_grace_remaining == 0
+  previous = dm.awareness
+  camera(dm, DT_DMON, clear=True)
+  assert dm.interaction_grace_remaining == 0 and dm.awareness < 1
+  assert (1 - dm.awareness) * 52 >= (1 - previous) * 26
+
+
+def test_camera_input_resets_orange_but_does_not_clear_terminal_or_lockout():
+  dm = DriverMonitoring2(experimental=True)
+  camera(dm, 18)
+  assert dm.alert_level == AlertLevel.two
+  camera(dm, DT_DMON, response=True)
+  assert dm.awareness == 1 and dm.alert_level == AlertLevel.none
+  camera(dm, 73)
+  assert dm.alert_level == AlertLevel.three
+  count = dm.alert_3_cnt
+  camera(dm, 3, response=True, msg=make_msg(True))
+  assert dm.alert_level == AlertLevel.three and dm.alert_3_cnt == count
+  assert dm.interaction_grace_remaining == 0
+  dm.too_distracted = True
+  dm.alert_level = AlertLevel.none
+  dm.awareness = .5
+  dm.configure_context(dm.now + 1, True)
+  dm.record_interaction(dm.now)
+  assert dm.awareness == .5 and dm.interaction_grace_remaining == 0
+
+
+def test_forward_attention_resets_after_two_seconds_without_starting_input_grace():
+  dm = DriverMonitoring2(experimental=True)
+  camera(dm, 18)
+  for _ in range(39):
+    camera(dm, DT_DMON, msg=make_msg(True))
+    assert not dm.forward_recovery
+  camera(dm, DT_DMON, msg=make_msg(True))
+  assert dm.forward_recovery and dm.awareness == 1
+  assert dm.interaction_grace_remaining == 0
+  camera(dm, DT_DMON)
+  assert not dm.forward_recovery and dm.forward_frames == 0
+
+
+def test_pose_relaxation_restores_settings_and_keeps_strong_warning_thresholds():
+  dm = DriverMonitoring2(experimental=True)
+  dm.configure_context(1, True)
+  dm.pose.yaw = dm.settings._YAW_NATURAL_OFFSET + .44
+  dm.pose.pitch = dm.settings._PITCH_NATURAL_OFFSET
+  dm._get_distracted_types()
+  assert not dm.distracted_types['pose']
+  assert dm.settings._POSE_YAW_THRESHOLD == .4020
+  dm.alert_level = AlertLevel.two
+  dm._get_distracted_types()
+  assert dm.distracted_types['pose']
+
+
+def test_camera_failure_recovery_preserves_progress_and_terminal():
+  dm = DriverMonitoring2(experimental=True)
+  dm.awareness = .5
+  dm.configure_context(1, False, clear=True)
+  assert dm.awareness == .5
+  wheel(dm, 1, clear=True)
+  prior = dm.awareness
+  dm.configure_context(3, True)
+  assert dm.awareness <= prior
+  wheel(dm, 100, clear=True)
+  assert dm.alert_level == AlertLevel.three
+  camera(dm, 3, msg=make_msg(True), response=True)
+  assert dm.alert_level == AlertLevel.three
+
+
+def test_camera_traffic_shrink_retains_elapsed_and_counts_terminal_once():
+  dm = DriverMonitoring2(experimental=True)
+  camera(dm, 30, clear=True)
+  assert dm.alert_level == AlertLevel.one
+  camera(dm, DT_DMON, strict=True)
+  assert dm.alert_level == AlertLevel.three and dm.alert_3_cnt == 1
+  camera(dm, 7, clear=True, response=True)
+  assert dm.alert_3_cnt == 1 and dm.no_response_cnt == 1
+
+
+def test_mode_zero_camera_recovery_restores_stock_wheel_timing():
+  dm = DriverMonitoring2()
+  wheel(dm, 10)
+  assert dm._timeouts('WHEELTOUCH') == (15, 30, 45)
+  camera(dm, DT_DMON, msg=make_msg(True))
+  assert dm._timeouts('WHEELTOUCH') == (5, 15, 25)
+  assert dm._timeouts('VISION') == (5, 8, 13)
+
+
+@pytest.mark.parametrize('experimental', [False, True])
+def test_standard_camera_matches_stock_including_face_loss_and_inputs(experimental):
+  standard, dm = DriverMonitoring(), DriverMonitoring2(experimental=experimental)
+  sequence = ([make_msg(True)] * 30 + [make_msg(True, distracted=True)] * 80 +
+              [make_msg(True)] * 70 + [make_msg(False)] * 40 + [make_msg(True)] * 60)
+  for i, sample in enumerate(sequence):
+    dm.configure_context(i * DT_DMON, True, strict=experimental or i % 2 == 0, clear=True)
+    dm.record_interaction(i * DT_DMON)  # added BT/buttons must not affect mode 0
+    for policy in (standard, dm):
+      policy._set_pose_strictness(.2, 20)
+      policy._update_states(sample, [0, 0, 0], 20, True, False)
+      policy._update_events(i % 53 == 0, True, False, False)
+    for field in ('awareness', 'alert_level', 'active_policy', 'alert_3_cnt', 'no_response_cnt', 'too_distracted'):
+      assert getattr(dm, field) == getattr(standard, field)

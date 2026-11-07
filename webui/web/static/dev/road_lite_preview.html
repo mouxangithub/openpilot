@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>road_lite 预览（mock 数据，非设备）</title>
+<link rel="stylesheet" href="../css/opui.css" />
+<style>
+  /* Minimal host page: the real index.html is a full app shell; here we only
+     need the onroad screen, the HUD nodes road_lite.js measures against, and a
+     sized camera-wrap so the canvas can lay itself out. */
+  /* --opui-w/-h/-scale are normally set by body_layout.js from the device
+     screen; without them `.opui` collapses to shrink-to-fit. */
+  html, body { margin: 0; height: 100%; background: #05070c; overflow: hidden; }
+  #app { --opui-w: 1920; --opui-h: 1080; --opui-scale: 1; --border-w: 18px; --border-stroke-inset: 18px; }
+  #screen-onroad { position: absolute; inset: 0; }
+  .opui-onroad-stage { position: absolute; inset: 0; }
+  #camera-wrap { position: absolute; inset: 0; }
+  #rl-hint {
+    position: absolute; left: 12px; bottom: 10px; z-index: 40;
+    font: 500 12px/1.5 ui-monospace, monospace; color: rgba(190, 210, 240, 0.72);
+    background: rgba(8, 12, 22, 0.72); border: 1px solid rgba(120, 160, 235, 0.25);
+    border-radius: 10px; padding: 8px 12px; pointer-events: none;
+  }
+  #rl-hint b { color: #9fe8ff; }
+</style>
+</head>
+<body>
+<div id="app" class="opui" data-screen="onroad" data-metric="1">
+  <section id="screen-onroad" class="opui-screen opui-screen--onroad">
+    <div class="opui-onroad-stage">
+      <div id="camera-wrap" class="opui-camera-wrap preview-off"></div>
+      <div id="hud" class="opui-hud">
+        <div class="opui-hud-gradient" aria-hidden="true"></div>
+        <div id="hud-set-speed" class="opui-hud-cruise is-set">
+          <div class="opui-hud-cruise-max">MAX</div>
+          <div id="set-speed-val" class="opui-hud-cruise-val">60</div>
+        </div>
+        <div id="hud-speed-limit-wrap" class="opui-hud-sla">
+          <span id="hud-speed-limit">60</span>
+        </div>
+        <div class="opui-hud-speed-block">
+          <span id="hud-speed">54</span>
+          <span id="hud-unit" class="opui-hud-unit">km/h</span>
+        </div>
+      </div>
+    </div>
+  </section>
+  <div id="rl-hint">
+    road_lite 预览 · <b>mock 数据</b> · 非设备画面<br />
+    导航带应在时速块下方居中；限速只由左侧 SLA 圆环显示（此处为静态值）<br />
+    加 <b>?objdiag=1</b> 显示每个目标的原始判据
+  </div>
+</div>
+
+<script type="module">
+import { opuiWs } from "../js/ws.js";
+import { initRoadLite } from "../js/road_lite.js";
+
+const DISTS = [5, 15, 30, 50, 80, 120, 160];
+// right-hand curve, radius ~550 m, plus a gentle S so lane centres are not flat
+const curve = (d) => -0.0009 * d * d + 0.9 * Math.sin(d / 40);
+const laneLine = (base) => DISTS.map((d) => +((base + curve(d)).toFixed(2)));
+const r2 = (v) => +Number(v).toFixed(2);
+
+let t0 = performance.now();
+let speedKph = 54;
+
+/* ?mock=lanes isolates the lane-marking rendering: no band, no targets, no
+   plan path — handy when tuning line_kinds / lane_centers. */
+const MODE = new URLSearchParams(location.search).get("mock") || "full";
+const LANES_ONLY = MODE === "lanes";
+
+function buildState() {
+  const t = (performance.now() - t0) / 1000;
+  speedKph = 54 + 6 * Math.sin(t * 0.25);
+  const vMs = speedKph / 3.6;
+
+  const dLead = 42 + 5 * Math.sin(t * 0.35);
+
+  const st = {
+    ok: true, started: true, engaged: true,
+    speed: Math.round(speedKph), speed_raw: vMs, unit: "km/h", is_metric: true,
+    set_speed: 60, is_cruise_set: true, is_cruise_available: true,
+    a_ego: 0.25 * Math.sin(t * 0.9),
+    alert: { status: "normal", size: "none", text1: "", text2: "" },
+    turn_signals: true, blindspot: true, speed_limit_mode: 1,
+    lead_d_rel: r2(dLead), lead_v_rel: r2(3 * Math.sin(t * 0.3)),
+    lead_a_lead_k: -0.8,
+    lead2_d_rel: 30, lead2_v_rel: -1.5, lead2_y_rel: -2.6,
+    // side / flanking objects — only visible via radarTracks
+    radar_tracks: [
+      { id: 11, d: r2(9.5 + 2.4 * Math.sin(t * 0.7)), y: 2.35, v: r2(-0.8 + 1.6 * Math.sin(t * 0.7)) },
+      { id: 12, d: r2(14 + 1.8 * Math.sin(t * 0.5)), y: r2(-2.5 + 1.1 * Math.sin(t * 0.55)), v: -0.4 },
+      { id: 13, d: 26, y: 4.1, v: -0.2 },
+    ],
+    road_model: {
+      dists: DISTS,
+      edges: [laneLine(-5.7), laneLine(5.7)],
+      lines: [laneLine(-5.5), laneLine(-1.85), laneLine(1.85), laneLine(5.5)],
+      probs: [0.94, 0.97, 0.96, 0.9],
+      line_types: [1, 0, 0, 1],
+      // left of ego = solid yellow, right = dashed white
+      line_kinds: [6, 3, 2, 6],
+      lane_centers: DISTS.map((d) => r2(curve(d))),
+      leads: [
+        // offM = -y (model y is +right). Negative y → target sits to the left.
+        { d: r2(dLead), y: 0.35, prob: 0.92, v: r2(8 + 2 * Math.sin(t * 0.3)), a: -0.4, y_std: 0.42, x_std: 1.15, heading: 0.03, i: 0 },
+        { d: 34, y: -2.75, prob: 0.71, v: 15.0, a: 0.1, y_std: 0.40, x_std: 1.20, heading: -0.05, i: 1 },
+        { d: 70, y: 0.25, prob: 0.66, v: 21.0, a: 0.0, y_std: 0.55, x_std: 2.05, heading: 0.02, i: 2 },
+        // two-wheeler on the left shoulder, wobble → high y_std
+        { d: 24, y: -4.2, prob: 0.58, v: 5.0, a: 0.0, y_std: 0.95, x_std: 0.80, heading: -0.08, i: 3 },
+        { d: 16, y: -3.8, prob: 0.52, v: 7.5, a: 0.2, y_std: 0.82, x_std: 0.85, heading: 0.06, i: 4 },
+        // pedestrian at the left kerb, nearly stationary
+        { d: 18, y: -4.6, prob: 0.48, v: 1.2, a: 0.0, y_std: 0.30, x_std: 0.38, heading: -1.35, i: 5 },
+      ],
+      path: DISTS.map((d) => r2(curve(d) + 0.1 * Math.sin(d / 30))),
+      path_std: DISTS.map((d) => r2(0.25 + d * 0.006)),
+    },
+    sp_hud: {
+      cluster_speed: Math.round(speedKph),
+      blindspot_left: false, blindspot_right: true,
+      turn_signal_left: false, turn_signal_right: true,
+      speed_limit_mode: 1,
+      speed_limit_resolver: 60, speed_limit_last: 60, speed_limit_final_last: 60,
+      speed_limit_valid: true, speed_limit_last_valid: true,
+      speed_limit_source: "map", speed_limit_assist_state: "off",
+      carrot_nav: {
+        active: 1,
+        road_limit_speed: 60, spd_type: 100, spd_limit: 60, spd_dist: 320, spd_countdown: 0,
+        turn_info: 2, dist_to_turn: 480, turn_countdown: 8,
+        atc_type: "", v_turn_speed: 42,
+        road_name: "G4 京港澳高速",
+        tbt_main_text: "中环路", tbt_main_text_next: "广园快速路",
+        near_dir_name: "东", desired_speed: 60, desired_source: "sdi",
+        traffic_state: 2, traffic_countdown: 12, left_sec: 0,
+        go_pos_dist: 12400, go_pos_time: 1080,
+        goal_name: "", sdi_descr: "区间测速", road_cate: 1,
+        panel_side: 0, panel_opacity: 100,
+      },
+    },
+  };
+
+  if (LANES_ONLY) {
+    st.turn_signals = false;
+    st.blindspot = false;
+    st.radar_tracks = [];
+    st.lead2_d_rel = null;
+    st.road_model.leads = [];
+    st.road_model.path = null;
+    st.road_model.path_std = null;
+    st.sp_hud.carrot_nav = { active: 0 };
+  }
+  return st;
+}
+
+initRoadLite();
+const push = () => opuiWs._emit("state", { type: "state", data: buildState() });
+push();
+setInterval(push, 200);
+</script>
+</body>
+</html>

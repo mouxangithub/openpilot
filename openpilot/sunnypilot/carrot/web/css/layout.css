@@ -1,0 +1,148 @@
+
+/* ── Page Container ───────────────────────────────────────── */
+/* Default: bounded centered layout. Full-bleed and split pages use
+   role classes so page IDs remain mostly for JavaScript targeting. */
+.page {
+  position: relative;
+  inline-size: 100%;
+  max-inline-size: var(--page-content-max, var(--content-max-width));
+  margin-inline: auto;
+  padding-block: var(--page-gutter-block, var(--sp-lg));
+  padding-inline: var(--page-gutter-inline, var(--sp-lg));
+  padding-bottom: var(--page-bottom-gutter, calc(var(--nav-bar-height) + 20px + env(safe-area-inset-bottom, 0px)));
+  min-block-size: var(--page-min-height, calc(var(--app-vv-height, 100dvh) - var(--nav-bar-height) - env(safe-area-inset-bottom, 0px)));
+  box-sizing: border-box;
+}
+
+.page[hidden] {
+  display: none !important;
+}
+
+.page--full {
+  max-inline-size: none;
+  margin-inline: 0;
+  padding: 0;
+}
+
+.page--split {
+  max-inline-size: none;
+  margin-inline: 0;
+  padding-block: var(--page-split-gutter-block, var(--page-gutter-block, var(--sp-lg)));
+  padding-inline: var(--page-split-gutter-inline, var(--page-gutter-inline, var(--sp-lg)));
+}
+
+/* ── Swipe Container ──────────────────────────────────────── */
+.swipe-container {
+  position: relative;
+  touch-action: pan-y;
+  overflow-x: clip;
+}
+
+/* Pages mid-transition are pulled out of flow and pinned by JS to the
+   same host box. Animate compositor-friendly properties only. */
+.page-transitioning {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+}
+
+.screen-host {
+  position: relative;
+  overflow-x: clip;
+}
+
+.page-active {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.page-enter-from-right {
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+  z-index: 2;
+}
+
+.page-enter-from-left {
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+  z-index: 2;
+}
+
+.page-exit-to-left {
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+  z-index: 1;
+}
+
+.page-exit-to-right {
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+  z-index: 1;
+}
+
+/* ── Headings: Hierarchy ──────────────────────────────────── */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-xl);
+}
+
+.page-title {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  color: var(--md-on-surface);
+  margin: 0;
+  letter-spacing: 0;
+}
+
+.page-header--hidden {
+  display: none !important;
+}
+
+.section-title {
+  font-size: var(--fs-title-sm);
+  font-weight: 600;
+  color: var(--md-primary);
+  margin: 0 0 var(--sp-sm) 0;
+  letter-spacing: 0.15px;
+}
+
+.topbar #btnLang {
+  display: none !important;
+}
+
+.item-label {
+  font-size: var(--fs-body-md);
+  font-weight: 500;
+  color: var(--md-on-surface);
+}
+
+/* ── Dividers ─────────────────────────────────────────────── */
+.divider {
+  border: none;
+  border-top: 1px solid var(--md-stroke-soft);
+  margin: var(--sp-lg) 0;
+}
+
+.divider--thin {
+  border: none;
+  border-top: 1px solid var(--md-stroke-soft);
+  margin: var(--sp-sm) 0;
+}
+
+/* ── Section (spacing-driven groups) ──────────────────────── */
+.section {
+  margin-bottom: var(--sp-2xl);
+}
+
+/* .ui-stagger-item moved to components.css; the global
+   prefers-reduced-motion guard in base.css disables the animation. */
+

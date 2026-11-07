@@ -1,0 +1,18 @@
+{
+  "revision": 2,
+  "namespaces": {
+    "conversation": {"revision": 2, "file": "conversation.json"},
+    "evolution": {"revision": 1, "file": "evolution.json"},
+    "vehicle_safety": {"revision": 1, "file": "vehicle_safety.json"},
+    "data_backup": {"revision": 1, "file": "data_backup.json"},
+    "scheduler": {"revision": 1, "file": "agent_scheduler.json"},
+    "dev_diagnostics": {"revision": 1, "file": "dev_diagnostics.json"},
+    "sandbox": {"revision": 1, "file": "sandbox.json"},
+    "spill": {"revision": 1, "file": "spill.json"},
+    "mcp": {"revision": 1, "file": "mcp.json"},
+    "bundle": {"revision": 1, "file": "bundle.json"},
+    "workflow": {"revision": 1, "file": "workflow.json"},
+    "lsp": {"revision": 1, "file": "lsp.json"},
+    "subagent": {"revision": 1, "file": "subagent.json"}
+  }
+}

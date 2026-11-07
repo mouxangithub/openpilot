@@ -1,0 +1,199 @@
+"""
+Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
+
+This file is part of sunnypilot and is licensed under the MIT License.
+See the LICENSE.md file in the root directory for more details.
+"""
+import json
+
+from openpilot.common.swaglog import cloudlog
+from openpilot.sunnypilot.selfdrive.car.sync_sunnylink_params import CAR_LIST_JSON_OUT
+
+ONROAD_BRIGHTNESS_MIGRATION_VERSION: str = "1.0"
+CARROT_STOP_DISTANCE_MIGRATION_VERSION: str = "1.0"
+CARROT_UDP_PORT_MIGRATION_VERSION: str = "1.0"
+ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION: str = "1.0"
+
+# index → seconds mapping for OnroadScreenOffTimer (SSoT)
+ONROAD_BRIGHTNESS_TIMER_VALUES = {0: 0, 1: 3, 2: 5, 3: 10, 4: 15, 5: 30, 6: 60, 7: 180, 8: 300, 9: 600}
+VALID_TIMER_VALUES = set(ONROAD_BRIGHTNESS_TIMER_VALUES.values())
+
+
+def _resolve_brand(_params) -> str:
+  bundle = _params.get("CarPlatformBundle")
+  if isinstance(bundle, dict) and bundle.get("brand"):
+    return str(bundle["brand"])
+
+  # Auto-fingerprinted cars have no bundle, fall back to the last known CarParams.
+  CP_bytes = _params.get("CarParamsPersistent")
+  if CP_bytes is None:
+    return ""
+
+  # Never raises: callers rely on "" to mean "brand unknown, skip the migration".
+  try:
+    from openpilot.cereal import messaging  # lazy: avoids heavy import at module level
+    from opendbc.car.structs import car
+    return str(messaging.log_from_bytes(CP_bytes, car.CarParams).brand)
+  except Exception as e:
+    cloudlog.exception(f"params_migration: failed to resolve brand from CarParamsPersistent: {e}")
+    return ""
+
+
+def _migrate_car_platform_bundle(_params):
+  bundle = _params.get("CarPlatformBundle")
+  if bundle is None:
+    return
+
+  old_platform = bundle.get("platform")
+  if not old_platform:
+    return
+
+  from opendbc.car.fingerprints import MIGRATION  # lazy: avoids heavy import at module level
+  if old_platform not in MIGRATION:
+    return
+
+  new_platform = str(MIGRATION[old_platform])
+
+  with open(CAR_LIST_JSON_OUT) as f:
+    car_list = json.load(f)
+
+  candidates = [(k, v) for k, v in car_list.items() if v.get("platform") == new_platform]
+  if candidates:
+    old_model = bundle.get("model")
+    key, data = next(((k, v) for k, v in candidates if v.get("model") == old_model), candidates[0])
+    bundle = {**data, "name": key}
+  else:
+    bundle["platform"] = new_platform
+
+  _params.put("CarPlatformBundle", bundle, block=True)
+  cloudlog.info(f"params_migration: CarPlatformBundle migrated {old_platform!r} -> {new_platform!r}")
+
+
+def _migrate_tesla_mads_screen_button(_params):
+  # TeslaMadsScreenButton defaults to Off for fresh installs, but the screen button was previously always
+  # active on Teslas with a vehicle bus. Seed existing Tesla installs with 3-finger to preserve that.
+  try:
+    if _params.get("TeslaMadsScreenButton") is not None:
+      return
+
+    if _resolve_brand(_params) != "tesla":
+      return
+
+    from opendbc.sunnypilot.car.tesla.values import MadsScreenButtonType  # lazy: avoids heavy import at module level
+    _params.put("TeslaMadsScreenButton", MadsScreenButtonType.THREE_FINGER, block=True)
+    cloudlog.info("params_migration: seeded TeslaMadsScreenButton with 3-finger to preserve existing behavior")
+  except Exception as e:
+    cloudlog.exception(f"Error migrating TeslaMadsScreenButton: {e}")
+
+
+def _migrate_model_bundle_slots(_params):
+  # Pre-split, a chestnut user's big-model selection lived in the single
+  # ActiveBundle. Seed both slots; validation drops whichever does not match
+  # its own manifest.
+  try:
+    if _params.get("ModelManager_ActiveBundleChestnut") is not None:
+      return
+    if (chestnut_bundle := _params.get("ModelManager_ActiveBundleUSBGPU")) is not None:
+      _params.put("ModelManager_ActiveBundleChestnut", chestnut_bundle, block=True)
+      cloudlog.info("params_migration: seeded ModelManager_ActiveBundleChestnut from ModelManager_ActiveBundleUSBGPU")
+      return
+    if (bundle := _params.get("ModelManager_ActiveBundle")) is None:
+      return
+    _params.put("ModelManager_ActiveBundleChestnut", bundle, block=True)
+    cloudlog.info("params_migration: seeded ModelManager_ActiveBundleChestnut from ModelManager_ActiveBundle")
+  except Exception as e:
+    cloudlog.exception(f"Error migrating model bundle slots: {e}")
+
+
+def _migrate_carrot_stop_distance(_params):
+  # StopDistanceCarrot (cm) and LongitudinalMpcTuningStopDistance (m) were two
+  # controls for one quantity with the same 6.0 m default. The carrot one is retired
+  # and carrot now reads sunnypilot's entry, so carry an explicitly-set legacy value
+  # across before dropping the old key - otherwise a user who had tuned it would
+  # silently fall back to 6.0 m.
+  try:
+    if _params.get("CarrotStopDistanceMigrated") == CARROT_STOP_DISTANCE_MIGRATION_VERSION:
+      return
+
+    legacy = _params.get("StopDistanceCarrot")
+    if legacy is not None:
+      legacy_cm = int(legacy)
+      if legacy_cm > 0 and legacy_cm != 600:
+        metres = legacy_cm / 100.0
+        _params.put("LongitudinalMpcTuningStopDistance", metres, block=True)
+        cloudlog.info(f"params_migration: merged StopDistanceCarrot={legacy_cm}cm into " +
+                f"LongitudinalMpcTuningStopDistance={metres}m")
+      else:
+        cloudlog.info("params_migration: StopDistanceCarrot was at its default; nothing to merge.")
+      _params.remove("StopDistanceCarrot")
+
+    _params.put("CarrotStopDistanceMigrated", CARROT_STOP_DISTANCE_MIGRATION_VERSION, block=True)
+  except Exception as e:
+    cloudlog.exception(f"Error migrating StopDistanceCarrot: {e}")
+
+
+def _migrate_carrot_udp_port(_params):
+  # CarrotManUdpPort used to be a user setting and its registered default was 0,
+  # which carrot_man read as "do not listen at all" - so a default-config device
+  # was silent on both 7705 (no broadcast) and 7706 (no socket), and the phone app
+  # could never find it. The port is now the CARROT_MAN_UDP_PORT constant.
+  #
+  # Clear any stored value so it cannot look like a live setting, and so a device
+  # that has 0 or a custom port stored converges to the fixed one.
+  try:
+    if _params.get("CarrotUdpPortMigrated") == CARROT_UDP_PORT_MIGRATION_VERSION:
+      return
+
+    legacy = _params.get("CarrotManUdpPort")
+    if legacy is not None:
+      cloudlog.info(f"params_migration: clearing retired CarrotManUdpPort={legacy}; the listen " +
+                "port is now the fixed 7706 constant")
+      _params.remove("CarrotManUdpPort")
+
+    _params.put("CarrotUdpPortMigrated", CARROT_UDP_PORT_MIGRATION_VERSION, block=True)
+  except Exception as e:
+    cloudlog.exception(f"Error migrating CarrotManUdpPort: {e}")
+
+
+def run_migration(_params):
+  _migrate_carrot_udp_port(_params)
+  _migrate_carrot_stop_distance(_params)
+
+  # migrate OnroadScreenOffBrightness
+  if _params.get("OnroadScreenOffBrightnessMigrated") != ONROAD_BRIGHTNESS_MIGRATION_VERSION:
+    try:
+      val = _params.get("OnroadScreenOffBrightness", return_default=True)
+      if val >= 2:  # old: 5%, new: Screen Off
+        new_val = val + 1
+        _params.put("OnroadScreenOffBrightness", new_val, block=True)
+        log_str = f"Successfully migrated OnroadScreenOffBrightness from {val} to {new_val}."
+      else:
+        log_str = "Migration not required for OnroadScreenOffBrightness."
+
+      _params.put("OnroadScreenOffBrightnessMigrated", ONROAD_BRIGHTNESS_MIGRATION_VERSION, block=True)
+      cloudlog.info(log_str + f" Setting OnroadScreenOffBrightnessMigrated to {ONROAD_BRIGHTNESS_MIGRATION_VERSION}")
+    except Exception as e:
+      cloudlog.exception(f"Error migrating OnroadScreenOffBrightness: {e}")
+
+  # migrate OnroadScreenOffTimer
+  if _params.get("OnroadScreenOffTimerMigrated") != ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION:
+    try:
+      val = _params.get("OnroadScreenOffTimer", return_default=True)
+      if val not in VALID_TIMER_VALUES:
+        _params.put("OnroadScreenOffTimer", 15, block=True)
+        log_str = f"Successfully migrated OnroadScreenOffTimer from {val} to 15 (default)."
+      else:
+        log_str = "Migration not required for OnroadScreenOffTimer."
+
+      _params.put("OnroadScreenOffTimerMigrated", ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION, block=True)
+      cloudlog.info(log_str + f" Setting OnroadScreenOffTimerMigrated to {ONROAD_BRIGHTNESS_TIMER_MIGRATION_VERSION}")
+    except Exception as e:
+      cloudlog.exception(f"Error migrating OnroadScreenOffTimer: {e}")
+
+  _migrate_car_platform_bundle(_params)
+
+  # seed TeslaMadsScreenButton for existing Tesla installs
+  _migrate_tesla_mads_screen_button(_params)
+
+  # seed the chestnut model slot from the pre-split single slot
+  _migrate_model_bundle_slots(_params)

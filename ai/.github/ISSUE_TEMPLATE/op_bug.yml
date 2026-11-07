@@ -1,0 +1,63 @@
+name: OP Agent Bug
+description: OP 助手 / Web UI / CLI / 终端 缺陷报告
+title: "[bug]: "
+labels: ["bug", "ai-assistant"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！请先查看 [Wiki 排障](https://github.com/mouxangithub/ai/wiki/Troubleshooting)。
+        涉及 openpilot 行驶逻辑请同时说明 fork 与车型。
+  - type: dropdown
+    id: area
+    attributes:
+      label: 问题区域
+      options:
+        - Web 聊天 / 向导
+        - Web 终端 / op CLI
+        - 调参 / 确认卡
+        - 新车适配
+        - 无法 Engage 排查
+        - 发布 PR / Issue
+        - 安装 / 集成
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: OP 版本（设置 → 开发 → 版本，或 `op status`）
+      placeholder: "例如 20260728 / commit abc1234"
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题描述
+      description: 用通俗语言说明发生了什么
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 …
+        2. 点击 / 输入 …
+        3. 看到 …
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+  - type: input
+    id: device
+    attributes:
+      label: 设备 / 环境
+      placeholder: "C3 / PC Windows / WSL / …"
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志或截图说明
+      description: 可粘贴 `/logs` 摘要、终端输出（勿贴 API Key）

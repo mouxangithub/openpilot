@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OP 助手 · 工具面板</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0d1117; --panel:#161b22; --border:#30363d; --text:#c9d1d9; --accent:#58a6ff; --ok:#238636; --warn:#d29922; --danger:#da3633; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif; background:var(--bg); color:var(--text); }
+    .shell { display:grid; grid-template-columns: 220px 1fr; min-height:100vh; }
+    .sidebar { background:var(--panel); border-right:1px solid var(--border); padding:16px; }
+    .sidebar h2 { font-size:14px; margin:0 0 12px; color:#8b949e; text-transform:uppercase; letter-spacing:.05em; }
+    .nav { list-style:none; margin:0; padding:0; }
+    .nav li { padding:8px 10px; border-radius:6px; cursor:pointer; margin-bottom:4px; font-size:14px; }
+    .nav li:hover, .nav li.active { background:rgba(88,166,255,.15); color:var(--accent); }
+    .main { padding:24px; }
+    .panel h1 { font-size:20px; margin:0 0 16px; }
+    .card { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:16px; }
+    .card h3 { margin:0 0 8px; font-size:15px; }
+    .card p { margin:0 0 12px; color:#8b949e; font-size:13px; }
+    button { background:#21262d; border:1px solid var(--border); color:var(--text); padding:6px 12px; border-radius:6px; cursor:pointer; font-size:13px; }
+    button:hover { border-color:#8b949e; }
+    button.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+    button.danger { background:var(--danger); border-color:var(--danger); color:#fff; }
+    input, textarea, select { background:#0d1117; border:1px solid var(--border); color:var(--text); padding:8px 10px; border-radius:6px; width:100%; margin-bottom:8px; font-size:13px; }
+    .row { display:flex; gap:8px; margin-bottom:8px; }
+    .row input, .row button { margin-bottom:0; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { text-align:left; padding:8px; border-bottom:1px solid var(--border); }
+    th { color:#8b949e; font-weight:500; }
+    .badge { display:inline-block; padding:2px 6px; border-radius:10px; font-size:11px; background:#30363d; }
+    .status { padding:8px 12px; border-radius:6px; margin-bottom:12px; font-size:13px; }
+    .status.ok { background:rgba(35,134,54,.15); color:#3fb950; }
+    .status.warn { background:rgba(210,153,34,.15); color:var(--warn); }
+    .hidden { display:none; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <h2>WorkBuddy 工具</h2>
+      <ul class="nav">
+        <li class="active" data-panel="files">文件管理</li>
+        <li data-panel="knowledge">知识库</li>
+        <li data-panel="skills">技能市场</li>
+        <li data-panel="mcp">MCP 配置</li>
+        <li data-panel="scheduler">定时任务</li>
+        <li data-panel="sessions">会话总结</li>
+        <li data-panel="ci">CI 工作流</li>
+        <li data-panel="notifications">通知中心</li>
+        <li data-panel="update">版本更新</li>
+      </ul>
+    </aside>
+    <main class="main">
+      <section class="panel" id="panel-files">
+        <h1>文件管理</h1>
+        <div class="card">
+          <div class="row">
+            <input type="text" id="filePath" placeholder="输入路径，例如 openpilot/common/params.py">
+            <button onclick="loadFile()">读取</button>
+            <button class="danger" onclick="saveFile()">保存（需确认）</button>
+          </div>
+          <textarea id="fileContent" rows="18" placeholder="文件内容..." readonly></textarea>
+          <p>提示：保存操作会经过后端 write_pending 确认流程。</p>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="panel-knowledge">
+        <h1>知识库</h1>
+        <div class="card">
+          <h3>文档列表</h3>
+          <div id="ragList">加载中...</div>
+          <button onclick="loadRag()">刷新</button>
+          <button class="primary" onclick="reindexRag()">重新索引</button>
+        </div>
+        <div class="card">
+          <h3>Wiki Ingest</h3>
+          <button onclick="wikiIngest()">触发社区 Wiki 同步</button>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="panel-skills">
+        <h1>技能市场 / 已安装</h1>
+        <div class="card">
+          <div id="skillList">加载中...</div>
+          <button onclick="loadSkills()">刷新</button>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="panel-mcp">
+        <h1>MCP 配置</h1>
+        <div class="card">
+          <p>管理已连接的 MCP 服务器。</p>
+          <div id="mcpList">加载中...</div>
+          <button onclick="loadMcp()">刷新</button>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="panel-scheduler">
+        <h1>定时任务</h1>
+        <div class="card">
+          <div class="row">
+            <input type="text" id="nlTask" placeholder="用自然语言创建任务，例如：每天9点检查日志">
+            <button class="primary" onclick="createTask()">创建</button>
+          </div>
+          <div id="taskList">加载中...</div>
+          <button onclick="loadTasks()">刷新</button>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="panel-sessions">
+        <h1>会话总结</h1>
+        <div class="card">
+          <div class="row">
+            <input type="text" id="finishSessionId" placeholder="输入 session_id">
+            <input type="text" id="finishSessionTitle" placeholder="标题（可选）">
+            <button class="primary" onclick="finishSession()">总结并归档</button>
+          </div>
+          <div id="finishSessionResult"></div>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="panel-ci">
+        <h1>CI 工作流</h1>
+        <div class="card">
+          <div class="row">
+            <input type="text" id="ciWorkflow" placeholder="workflow 文件名，例如 build.yaml">
+            <input type="text" id="ciRef" placeholder="分支，默认 master-c3" value="master-c3">
+            <button class="primary" onclick="runCiWorkflow()">触发</button>
+          </div>
+          <div id="ciResult"></div>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="panel-notifications">
+        <h1>通知中心</h1>
+        <div class="card">
+          <div id="notificationList">加载中...</div>
+          <button onclick="loadNotifications()">刷新</button>
+          <button onclick="clearNotifications()">全部已读</button>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="panel-update">
+        <h1>版本更新</h1>
+        <div class="card">
+          <div id="versionInfo">加载中...</div>
+          <button onclick="checkUpdate()">检查更新</button>
+          <button class="primary" onclick="doUpdate()">一键更新</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API = path => `/api/ai${path}`;
+    function switchPanel(id) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById('panel-' + id).classList.remove('hidden');
+      document.querySelectorAll('.nav li').forEach(li => li.classList.remove('active'));
+      document.querySelector(`.nav li[data-panel="${id}"]`).classList.add('active');
+    }
+    document.querySelectorAll('.nav li').forEach(li => li.addEventListener('click', () => switchPanel(li.dataset.panel)));
+
+    async function apiGet(path) { const r = await fetch(API(path)); return r.json(); }
+    async function apiPost(path, body) {
+      const r = await fetch(API(path), { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body || {}) });
+      return r.json();
+    }
+
+    async function loadFile() {
+      const path = document.getElementById('filePath').value;
+      if (!path) return alert('请输入路径');
+      const data = await apiGet(`/files/content?path=${encodeURIComponent(path)}`);
+      document.getElementById('fileContent').value = data.ok ? (data.content || '') : `错误: ${data.error || 'unknown'}`;
+      document.getElementById('fileContent').readOnly = !data.ok;
+    }
+    async function saveFile() {
+      if (!confirm('确定保存？此操作会触发 write_pending 确认流程。')) return;
+      const path = document.getElementById('filePath').value;
+      const content = document.getElementById('fileContent').value;
+      const data = await apiPost('/files/content', { path, content });
+      alert(data.ok ? '已保存（或进入待确认）' : `失败: ${data.error || 'unknown'}`);
+    }
+
+    async function loadRag() {
+      const data = await apiGet('/rag?compact=1');
+      const div = document.getElementById('ragList');
+      if (!data.ok) { div.innerHTML = '加载失败'; return; }
+      div.innerHTML = `<p>共 ${data.count || 0} 篇文档，已嵌入 ${data.embedded_docs || 0} 篇，向量块 ${data.vector_chunks || 0}</p>`;
+    }
+    async function reindexRag() {
+      const data = await apiPost('/rag', { operation: 'reindex', background: true });
+      alert(data.ok ? `已启动后台任务 ${data.jobId}` : `失败: ${data.error || 'unknown'}`);
+    }
+    async function wikiIngest() {
+      const data = await apiPost('/rag', { operation: 'wiki_ingest', background: true });
+      alert(data.ok ? `已启动 Wiki 同步 ${data.jobId}` : `失败: ${data.error || 'unknown'}`);
+    }
+
+    async function loadSkills() {
+      const data = await apiGet('/skills/registry');
+      const div = document.getElementById('skillList');
+      if (!data.ok) { div.innerHTML = '加载失败'; return; }
+      div.innerHTML = '<pre style="white-space:pre-wrap">' + JSON.stringify(data, null, 2) + '</pre>';
+    }
+
+    async function loadMcp() {
+      const data = await apiGet('/tools');
+      const div = document.getElementById('mcpList');
+      div.innerHTML = '<pre style="white-space:pre-wrap">' + JSON.stringify(data, null, 2) + '</pre>';
+    }
+
+    async function loadTasks() {
+      const data = await apiGet('/scheduler');
+      const div = document.getElementById('taskList');
+      div.innerHTML = '<pre style="white-space:pre-wrap">' + JSON.stringify(data, null, 2) + '</pre>';
+    }
+    async function createTask() {
+      const text = document.getElementById('nlTask').value;
+      if (!text) return alert('请输入任务描述');
+      const data = await apiPost('/scheduler', { name: text, action: 'chat_notify', trigger: 'daily_at', nl: true });
+      alert(data.ok ? '已创建' : `失败: ${data.error || 'unknown'}`);
+      loadTasks();
+    }
+    async function deleteTask(id) {
+      const data = await apiPost('/scheduler', { task_id: id, delete: true });
+      loadTasks();
+    }
+
+    async function finishSession() {
+      const session_id = document.getElementById('finishSessionId').value.trim();
+      if (!session_id) return alert('请输入 session_id');
+      const title = document.getElementById('finishSessionTitle').value.trim();
+      const data = await apiPost('/chat/tool', { tool: 'finish_session', args: { session_id, title } });
+      document.getElementById('finishSessionResult').innerHTML = '<pre style="white-space:pre-wrap">' + JSON.stringify(data, null, 2) + '</pre>';
+    }
+
+    async function runCiWorkflow() {
+      const workflow = document.getElementById('ciWorkflow').value.trim();
+      if (!workflow) return alert('请输入 workflow');
+      const ref = document.getElementById('ciRef').value.trim() || 'master-c3';
+      const data = await apiPost('/chat/tool', { tool: 'run_ci_workflow', args: { workflow, ref } });
+      document.getElementById('ciResult').innerHTML = '<pre style="white-space:pre-wrap">' + JSON.stringify(data, null, 2) + '</pre>';
+    }
+
+    async function loadNotifications() {
+      const data = await apiGet('/notifications');
+      const div = document.getElementById('notificationList');
+      div.innerHTML = '<pre style="white-space:pre-wrap">' + JSON.stringify(data, null, 2) + '</pre>';
+    }
+    async function clearNotifications() {
+      await apiPost('/notifications', {});
+      loadNotifications();
+    }
+
+    async function checkUpdate() {
+      const data = await apiGet('/package/version');
+      document.getElementById('versionInfo').innerHTML = '<pre style="white-space:pre-wrap">' + JSON.stringify(data, null, 2) + '</pre>';
+    }
+    async function doUpdate() {
+      if (!confirm('确定执行 OTA 更新？')) return;
+      const data = await apiPost('/package/update', {});
+      alert(data.ok ? '更新已启动' : `失败: ${data.error || 'unknown'}`);
+    }
+
+    // Initial load
+    loadRag();
+  </script>
+</body>
+</html>

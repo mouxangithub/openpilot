@@ -1,0 +1,97 @@
+/*
+ * Local China map dock (Tianditu/Leaflet iframe) anchored inside the drive
+ * vision stage. Geometry is driven by CSS custom properties set in
+ * web/js/realtime/carrot_map.js (--carrot-map-right/width/height/offset-y).
+ */
+
+.carrot-map-dock {
+  position: absolute;
+  right: var(--carrot-map-right, 24px);
+  top: 50%;
+  width: var(--carrot-map-width, 360px);
+  height: var(--carrot-map-height, 300px);
+  transform: translateY(calc(-50% + var(--carrot-map-offset-y, 0px)));
+  z-index: 30;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #141412;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, width 0.18s ease, height 0.18s ease;
+}
+
+.carrot-map-dock.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.carrot-map-dock[data-error] {
+  border-color: rgba(226, 75, 74, 0.6);
+}
+
+.carrot-map-dock__frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  display: block;
+  background: #262624;
+}
+
+.carrot-map-dock__zoom {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+}
+
+.carrot-map-dock__zoombtn {
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(20, 20, 19, 0.72);
+  color: #f1efe8;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.carrot-map-dock__zoombtn:last-child {
+  border-bottom: 0;
+}
+
+.carrot-map-dock__zoombtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.carrot-map-zoomlabel {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  transform: translateX(-50%);
+  z-index: 31;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: rgba(20, 20, 19, 0.82);
+  color: #f1efe8;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.carrot-map-zoomlabel.is-visible {
+  opacity: 1;
+}

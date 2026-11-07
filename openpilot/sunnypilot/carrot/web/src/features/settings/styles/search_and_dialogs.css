@@ -1,0 +1,34 @@
+/* Settings-diff dialog, profile apply sheet and the search result list.
+   Split out of the former device.css; rule order is unchanged. */
+
+.app-dialog--settings-diff .app-dialog__sheet {
+  width: min(calc(100vw - 24px), 520px);
+  max-height: min(calc(100dvh - 24px), 680px);
+  overflow: hidden;
+}
+
+.app-dialog--settings-diff .app-dialog__body {
+  min-height: 0;
+  overflow: auto;
+  white-space: normal;
+}
+
+.setting-profile-apply {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.setting-profile-apply__title {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--md-on-surface);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Setting-search result rows and the search-open state moved to
+   styles/search.css. */

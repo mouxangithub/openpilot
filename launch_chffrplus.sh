@@ -1,0 +1,1156 @@
+#!/usr/bin/env bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+PYDEPS_DIR="/data/.pydeps"    # outside $DIR so overlay updates do not wipe pip deps
+# Offline wheels tracked in the checkout. The device cannot reach pypi.org (TLS dies
+# with SSL_ERROR_SYSCALL), so anything the fork needs at runtime ships here and is
+# installed with --no-index. Same layout as CarrotPilot's third_party/wheels.
+WHEEL_DIR="$DIR/third_party/wheels"
+# Progress lines for the boot spinner (see start_boot_spinner): tail -f streams
+# every appended line into the spinner's stdin, one per render frame.
+BOOT_SPINNER_TEXT="/tmp/.boot_spinner_lines"
+
+# AGNOS updates can drop /usr/local/venv/bin from PATH. Restore it so scons,
+# pip and the venv Python wrappers are reachable.
+export PATH="/usr/local/venv/bin:${PATH}"
+
+source "$DIR/launch_env.sh"
+
+# ---------------------------------------------------------------------------
+# Shared helpers for Python path setup and dependency bootstrapping.
+# AGNOS rootfs is read-only; pip deps are installed into $PYDEPS_DIR on first boot.
+# ---------------------------------------------------------------------------
+find_python() {
+  local py="$1"
+  command -v "$py" >/dev/null 2>&1 && echo "$py" && return 0
+  command -v python3 >/dev/null 2>&1 && echo python3 && return 0
+  return 1
+}
+
+setup_python_path() {
+  local root="$1"
+  local venv_site="/usr/local/venv/lib/python3.12/site-packages"
+  local py_path="$root"
+  [ -d "$venv_site" ] && py_path="$py_path:$venv_site"
+  [ -d "$PYDEPS_DIR" ] && py_path="$py_path:$PYDEPS_DIR"
+  echo "$py_path"
+}
+
+# Ensures pip is available and the requested module is importable.
+# Installs pip bootstrap + target package into $PYDEPS_DIR if needed.
+ensure_pip_dep() {
+  local module="$1"
+  local pydeps="$PYDEPS_DIR"
+  local py=$(find_python python3.12) || return 1
+  local py_path=$(setup_python_path "$DIR")
+  local lockfile="/tmp/ensure_pip_dep_${module}.lock"
+
+  # Fast path: skip import check if the package directory already exists.
+  [ -d "$pydeps/$module" ] && return 0
+
+  # Only one pip install at a time; concurrent calls from keep-alive loops
+  # race on the same .pydeps directory and slow each other down.
+  exec 200>"$lockfile"
+  flock 200 || return 1
+
+  # Re-check after acquiring lock in case another instance just installed it.
+  [ -d "$pydeps/$module" ] && return 0
+
+  if ! PYTHONPATH="$py_path" "$py" -c "import $module" 2>/dev/null; then
+    [ -d "$pydeps" ] || mkdir -p "$pydeps" 2>/dev/null || return 1
+    if ! "$py" -c "import pip" 2>/dev/null; then
+      # Device network cannot reach bootstrap.pypa.io, so prefer Aliyun mirror.
+      curl -fsSL "${GET_PIP_URL:-https://mirrors.aliyun.com/pypi/get-pip.py}" -o /tmp/get-pip.py 2>/dev/null && \
+        "$py" /tmp/get-pip.py --target="$pydeps" --no-warn-script-location >> /tmp/bootstrap.log 2>&1 || true
+    fi
+    # The device cannot reach pypi.org (TLS dies with SSL_ERROR_SYSCALL); same reason
+    # the get-pip bootstrap above prefers mirrors.aliyun.com. Override with PIP_INDEX_URL.
+    local index_url="${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}"
+    local tmpdir=$(pip_scratch_dir)
+    TMPDIR="$tmpdir" PYTHONPATH="$py_path" "$py" -m pip install --no-cache-dir --index-url="$index_url" --target="$pydeps" "$module" >> /tmp/bootstrap.log 2>&1 || return 1
+    rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+  fi
+}
+
+# Waits up to $1 seconds for a working DNS resolver. Returns 0 as soon as a
+# known host resolves, 1 on timeout. Prevents pip install races at early boot
+# when systemd-resolved is still populating its cache.
+wait_for_dns() {
+  local timeout="${1:-60}"
+  # Resolve the interpreter the same way the rest of the script does: a bare
+  # "python3.12" is not guaranteed to be on PATH at early boot, and a missing
+  # command would report DNS failure forever instead of probing it.
+  local py="${PY:-}"
+  [ -n "$py" ] || py=$(find_python python3.12) || py=python3
+  local waited=0
+  while [ "$waited" -lt "$timeout" ]; do
+    if "$py" -c "import socket; socket.getaddrinfo('mirrors.aliyun.com', None)" 2>/dev/null; then
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  return 1
+}
+
+# Scratch space for pip. AGNOS's $TMPDIR is a 150 MB tmpfs (/tmp), which is too small
+# to unpack a wheel like opencv-python-headless (~35 MB packed, ~90 MB unpacked plus
+# numpy): the install dies with ENOSPC before a single byte reaches $PYDEPS_DIR - that
+# is what kept cv2 uninstalled. Scratch goes next to the target instead, where /data
+# has room; fall back to $TMPDIR if that is not writable.
+pip_scratch_dir() {
+  local dir="${PIP_TMPDIR:-/data/.pip-tmp}"
+  if mkdir -p "$dir" 2>/dev/null; then
+    echo "$dir"
+  else
+    echo "${TMPDIR:-/tmp}"
+  fi
+}
+
+# Maps an import name to a pip requirement. Only needed where the two differ:
+# ensure_pip_deps probes with `import <name>` and then hands the same name to pip,
+# which works for aiohttp/numpy/... but not for cv2 - the OpenCV wheel is called
+# `opencv-python-headless`. Without this, xiaoge's V-ASM vision server never starts
+# (see bootstrap_deps) and the failure is invisible.
+pip_requirement_for() {
+  case "$1" in
+    cv2)
+      # Single source of truth for the pin: xiaoge/requirements.txt in this repo.
+      local pinned
+      pinned=$(grep -m1 '^opencv-python-headless' \
+        "$DIR/openpilot/sunnypilot/carrot/xiaoge/requirements.txt" 2>/dev/null)
+      echo "${pinned:-opencv-python-headless}"
+      ;;
+    zmq)
+      # zmq is the import name; pyzmq is the wheel. Probing with `import pyzmq`
+      # always reported "missing", so bootstrap_deps never returned success and
+      # the boot-time retry loop spun forever.
+      echo "pyzmq"
+      ;;
+    serial)
+      # `serial` is the import name; the wheel is pyserial. The updater's bundled
+      # snapshot imports serial at module scope (system/hardware/tici/lpa.py), so a
+      # missing pyserial makes the FIRST-BOOT updater die with ModuleNotFoundError
+      # before it can install AGNOS. See ensure_updater_deps().
+      echo "pyserial"
+      ;;
+    *)
+      echo "$1"
+      ;;
+  esac
+}
+
+# Ensures a list of pip packages are importable.
+# More efficient than repeated ensure_pip_dep calls because a single pip
+# invocation resolves the dependency graph once. Failures are propagated so
+# that overlay updates cannot silently leave ai/webui without dependencies.
+ensure_pip_deps() {
+  local pydeps="$PYDEPS_DIR"
+  local py=$(find_python python3.12) || return 1
+  local py_path=$(setup_python_path "$DIR")
+  local lockfile="/tmp/ensure_pip_deps.lock"
+  shift 0
+
+  exec 200>"$lockfile"
+  flock 200 || return 1
+
+  local missing=()
+  for module in "$@"; do
+    if ! PYTHONPATH="$py_path" "$py" -c "import $module" 2>/dev/null; then
+      missing+=("$module")
+    fi
+  done
+
+  if [ ${#missing[@]} -eq 0 ]; then
+    return 0
+  fi
+
+  # pip gets the requirement names, not the import names (cv2 -> opencv-python-headless).
+  local requirements=()
+  for module in "${missing[@]}"; do
+    requirements+=("$(pip_requirement_for "$module")")
+  done
+
+  echo "[ensure_pip_deps] missing: ${missing[*]} -> ${requirements[*]}; waiting for DNS..." >> /tmp/bootstrap.log
+  if ! wait_for_dns 60; then
+    echo "[ensure_pip_deps] DNS not ready after 60s; deferring install" >> /tmp/bootstrap.log
+    # Must report failure, not success: the caller uses this status to decide
+    # whether to keep retrying. Returning 0 here would look like "deps are fine"
+    # and the packages would never be installed, leaving aid/webui crash-looping
+    # until someone restarted the device by hand.
+    return 1
+  fi
+
+  [ -d "$pydeps" ] || mkdir -p "$pydeps" 2>/dev/null || return 1
+  if ! "$py" -c "import pip" 2>/dev/null; then
+    curl -fsSL "${GET_PIP_URL:-https://mirrors.aliyun.com/pypi/get-pip.py}" -o /tmp/get-pip.py 2>/dev/null && \
+      "$py" /tmp/get-pip.py --target="$pydeps" --no-warn-script-location >> /tmp/bootstrap.log 2>&1 || return 1
+  fi
+
+  # The device cannot reach pypi.org (TLS dies with SSL_ERROR_SYSCALL); same reason
+  # the get-pip bootstrap below prefers mirrors.aliyun.com. Override with PIP_INDEX_URL.
+  local index_url="${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}"
+  # --upgrade makes this a real repair path: a package directory left behind by an
+  # interrupted download makes plain install report "already exists" and skip the
+  # copy, so the import check would keep failing and the retry loop would spin.
+  # --no-cache-dir keeps the wheel cache off the almost-full rootfs (90% used), and
+  # TMPDIR moves pip's unpacking off the 150 MB tmpfs.
+  local tmpdir=$(pip_scratch_dir)
+  if ! TMPDIR="$tmpdir" PYTHONPATH="$py_path" "$py" -m pip install --no-cache-dir --upgrade --index-url="$index_url" --target="$pydeps" "${requirements[@]}" >> /tmp/bootstrap.log 2>&1; then
+    echo "[ensure_pip_deps] install failed; will retry on next keep_alive cycle" >> /tmp/bootstrap.log
+    rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+    return 1
+  fi
+  rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+  echo "[ensure_pip_deps] installed: ${requirements[*]}" >> /tmp/bootstrap.log
+}
+
+# Probe form is "<import>" or "<import>; assert <expr>". The assertion matters: a# present-but-wrong package must count as missing. `import cv2` happily accepts a cv2
+# built without dnn.readNetFromONNX, and that build cannot run xiaoge's inference -
+# which is exactly how the vision path stayed silently dead. CarrotPilot asserts the
+# same two properties.
+python_package_ok() {
+  local probe="$1"
+  local py=$(find_python python3.12) || return 1
+  local py_path=$(setup_python_path "$DIR")
+  PYTHONPATH="$py_path" "$py" -c "import ${probe}" >/dev/null 2>&1
+}
+
+# Boot spinner: the same raylib loading screen manager's build.py uses (glow
+# logo + progress bar), started early so the wheel-install phase shows visible
+# progress instead of an apparently-frozen comma splash. spinner.py only needs
+# pyray (AGNOS venv) and the checkout, so it runs before /data/.pydeps exists.
+#
+# Transport is `tail -f` on a plain file rather than a FIFO: FIFO opens block
+# until both ends exist, which would hang the boot if spinner.py ever failed to
+# start (no display, import error). tail keeps the pipe open forever, so the
+# spinner's select() never sees EOF and nothing here can block: every step is
+# best-effort and boot proceeds identically if the spinner never comes up.
+start_boot_spinner() {
+  [ -n "$BOOT_SPINNER_PID" ] && return 0
+  local py=$(find_python python3.12) || return 0
+  : > "$BOOT_SPINNER_TEXT" 2>/dev/null || return 0
+  tail -f -n 0 "$BOOT_SPINNER_TEXT" 2>/dev/null | \
+    PYTHONPATH="$(setup_python_path "$DIR")" "$py" "$DIR/openpilot/system/ui/spinner.py" \
+    > /tmp/spinner.log 2>&1 &
+  BOOT_SPINNER_PID=$!
+  return 0
+}
+
+boot_spinner_text() {  # a message, rendered as wrapped text under the logo
+  [ -n "$BOOT_SPINNER_PID" ] || return 0
+  echo "$1" >> "$BOOT_SPINNER_TEXT" 2>/dev/null
+  return 0
+}
+
+boot_spinner_progress() {  # cur/total rendered as the rounded progress bar
+  [ -n "$BOOT_SPINNER_PID" ] || return 0
+  local cur=$1 total=$2
+  [ "$total" -gt 0 ] 2>/dev/null || return 0
+  echo $((100 * cur / total)) >> "$BOOT_SPINNER_TEXT" 2>/dev/null
+  return 0
+}
+
+stop_boot_spinner() {
+  [ -n "$BOOT_SPINNER_PID" ] || return 0
+  kill "$BOOT_SPINNER_PID" 2>/dev/null
+  wait "$BOOT_SPINNER_PID" 2>/dev/null
+  # tail exits on its own: the next appended line hits a pipe whose reader is
+  # gone (SIGPIPE). No pkill needed - a pattern-based kill here risks catching
+  # unrelated processes, which is exactly what a boot script must not do.
+  echo "__stop__" >> "$BOOT_SPINNER_TEXT" 2>/dev/null
+  rm -f "$BOOT_SPINNER_TEXT" 2>/dev/null
+  BOOT_SPINNER_PID=""
+  return 0
+}
+
+# Last-resort wheel install: unpack the wheel (it is a zip archive) straight
+# into the target dir with the stdlib zipfile module - no pip involved. What
+# this skips vs pip is only .dist-info metadata and entry-point scripts, which
+# imports do not need; binary payloads (.so files) sit at the wheel root and
+# land in place. Proven on-device 2026-11-02 when a crash-looping updater
+# blocked pip's normal preconditions and zipfile extraction of jeepney revived
+# it immediately.
+install_wheel_unpacked() {
+  local wheel="$1"   # absolute path to a .whl
+  local pydeps="$2"  # target dir
+  local py=$(find_python python3.12) || py=python3
+  mkdir -p "$pydeps" 2>/dev/null || return 1
+  "$py" -m zipfile -e "$wheel" "$pydeps/" >> /tmp/bootstrap.log 2>&1
+}
+
+# Installs one dependency from $WHEEL_DIR, preferring the bundled wheel over the
+# network. Returns non-zero when the probe still fails afterwards, so callers can
+# decide whether the package was required.
+ensure_wheel_package() {
+  local probe="$1"   # e.g. "cv2; assert cv2.__version__ == '4.13.0'"
+  local req="$2"     # e.g. "opencv-python-headless==4.13.0.92"
+  local pydeps="$PYDEPS_DIR"
+
+  python_package_ok "$probe" && return 0
+  [ -d "$WHEEL_DIR" ] || { echo "[wheels] $req: no $WHEEL_DIR; skipping" >> /tmp/bootstrap.log; return 1; }
+
+  local py=$(find_python python3.12) || return 1
+  local tmpdir=$(pip_scratch_dir)
+  mkdir -p "$pydeps" 2>/dev/null || return 1
+
+  # --no-deps is deliberate: these wheels only need numpy, and numpy must keep coming
+  # from AGNOS. Letting pip resolve dependencies would also pull its own numpy into
+  # $PYDEPS_DIR (observed: numpy 2.5.3 next to AGNOS's 2.5.1). CarrotPilot installs
+  # the same wheels the same way.
+  if TMPDIR="$tmpdir" "$py" -m pip install --no-cache-dir --no-index --no-deps --disable-pip-version-check \
+       --find-links "$WHEEL_DIR" --target "$pydeps" "$req" >> /tmp/bootstrap.log 2>&1 \
+     && python_package_ok "$probe"; then
+    rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+    echo "[wheels] installed $req" >> /tmp/bootstrap.log
+    return 0
+  fi
+  rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+
+  # pip failed (missing/corrupt pip, TMPDIR trouble, fresh image): unpack the
+  # wheel directly. A wrong-but-present package can still pass afterwards, so
+  # the probe below stays the arbiter either way. Wheel filenames are lowercase
+  # (PEP 427) while req spelling is not (PyJWT), so normalize to lowercase -
+  # the device glob is case-sensitive and PyJWT-* would silently miss pyjwt-*.
+  local pkg="${req%%==*}" ver="${req##*==}"
+  pkg=$(echo "${pkg//-/_}" | tr 'A-Z' 'a-z')
+  local fallback
+  for fallback in "$WHEEL_DIR"/${pkg}-*"${ver}"*.whl; do
+    [ -f "$fallback" ] || continue
+    install_wheel_unpacked "$fallback" "$pydeps" && \
+      echo "[wheels] $req: pip path failed, unpacked $(basename "$fallback") directly" >> /tmp/bootstrap.log
+    break
+  done
+
+  if python_package_ok "$probe"; then
+    echo "[wheels] installed $req (after fallback)" >> /tmp/bootstrap.log
+    return 0
+  fi
+
+  echo "[wheels] $req unavailable from $WHEEL_DIR; treated as optional" >> /tmp/bootstrap.log
+  return 1
+}
+
+start_service() {
+  local name="$1"
+  local script="$2"
+  local logfile="/tmp/${name}.log"
+  local root="$DIR"
+
+  [ -f "$root/$script" ] || return 0
+  local py="$PY"
+  [ -n "$py" ] || py=$(find_python python3.12) || return 1
+  local py_path="$PY_PATH"
+  [ -n "$py_path" ] || py_path=$(setup_python_path "$root")
+
+  local module="${script%.py}"
+  module="${module//\//.}"
+  pgrep -f "[p]ython.*$module" >/dev/null 2>&1 && return 0
+  echo "[$name] starting $(date)" >> "$logfile"
+  # WEBUI_TLS 默认关闭（HTTP），避免自签名证书导致浏览器 ERR_SSL_PROTOCOL_ERROR；
+  # 需要 HTTPS 时手动 export WEBUI_TLS=1。
+  local tls_env=""
+  if [ "${WEBUI_TLS:-0}" = "1" ]; then
+    tls_env="WEBUI_TLS=1"
+  fi
+  (cd "$root" && PYTHONPATH="$py_path" $tls_env "$py" -m "$module" >> "$logfile" 2>&1 &)
+}
+
+# Background keep-alive for a service. Starts immediately, then restarts every
+# $interval seconds if it died. Port is kept for readability only.
+keep_alive() {
+  local name="$1"
+  local script="$2"
+  local port="$3"
+  local interval="${4:-45}"
+  start_service "$name" "$script"
+  while true; do
+    sleep "$interval"
+    start_service "$name" "$script"
+  done
+}
+
+# ---------------------------------------------------------------------------
+# Hardware detection and initialization
+# ---------------------------------------------------------------------------
+
+is_headless_boot() {
+  # Only the explicit environment variable disables the native UI. Some C3
+  # boots leave the touchscreen controller unprobed while the display panel
+  # itself is functional. In that case we still want the native UI to start
+  # (with a virtual touch fallback if necessary).
+  case "${OPENPILOT_HEADLESS,,}" in 1|true|yes) return 0 ;; esac
+  return 1
+}
+
+# The COMMA raylib platform and /usr/comma/magic.py require /dev/input/event2.
+# When the real touch driver failed to probe, create a minimal virtual device
+# via /dev/uinput so DRM/EGL initialization can succeed.
+ensure_touch_input() {
+  [ -e /dev/input/event2 ] && return 0
+  sudo chmod 666 /dev/uinput 2>/dev/null || true
+  keep_alive fake_touch openpilot/system/ui/lib/fake_touch.py 0 &
+  local n=0
+  while [ ! -e /dev/input/event2 ] && [ $n -lt 60 ]; do
+    sleep 0.2
+    n=$((n+1))
+  done
+}
+
+# magic.py serves /tmp/drmfd.sock, which passes a DRM master fd to the UI.
+# If the system magic.service failed (usually due to missing touch), start it
+# ourselves once the touch input is available.
+ensure_magic_service() {
+  [ -S /tmp/drmfd.sock ] && return 0
+  keep_alive magic scripts/magic_wrapper.py 0 &
+}
+
+# This device renders through the qcom Adreno blob: /usr/lib/aarch64-linux-gnu/dri/
+# only ships the generic libdril stub, so mesa's EGL can never get a display here.
+# If anything ever repoints libEGL.so.1 / libGLESv2.so.2 at mesa (a stray package
+# install, a debug session), magic.py and the UI both fail EGL init and the device
+# boots into a permanent splash loop. Self-heal the vendor symlinks on boot.
+ensure_egl_vendor() {
+  local lib="/usr/lib/aarch64-linux-gnu"
+  local gles_target
+  # EGL: force the Adreno blob (mesa can never get a display here, see above).
+  # GLESv2: the 20.2-carrot-bt2 graphics rework ships a standalone
+  # libGLESv2_adreno.so and the image expects libGLESv2.so.2 -> libGLESv2_adreno.so
+  # (mesa's .so.2.1.0 sits next to it). Pointing that symlink at mesa instead of
+  # the blob makes glGetString return NULL inside raylib's rlLoadExtensions and
+  # magic.py SIGSEGVs before it can serve /tmp/drmfd.sock - the UI then cannot
+  # get a DRM master fd and the device boots into a permanent splash loop.
+  # Prefer the blob whenever the image has one; on older images, heal only when
+  # dangling and never hardcode the version.
+  if [ -f "$lib/libGLESv2_adreno.so" ]; then
+    gles_target="libGLESv2_adreno.so"
+  else
+    [ "$(readlink "$lib/libEGL.so.1" 2>/dev/null)" = "libEGL_adreno.so" ] && \
+      [ -e "$lib/libGLESv2.so.2" ] && return 0
+    gles_target="$(ls "$lib"/libGLESv2.so.2.* 2>/dev/null | head -1)"
+    gles_target="$(basename "$gles_target" 2>/dev/null)"
+    [ -n "$gles_target" ] || return 0
+  fi
+  [ "$(readlink "$lib/libEGL.so.1" 2>/dev/null)" = "libEGL_adreno.so" ] && \
+    [ "$(readlink "$lib/libGLESv2.so.2" 2>/dev/null)" = "$gles_target" ] && return 0
+  sudo -n mount -o remount,rw / || return 0
+  sudo -n ln -sfn libEGL_adreno.so "$lib/libEGL.so.1"
+  sudo -n ln -sfn "$gles_target" "$lib/libGLESv2.so.2"
+  sudo -n mount -o remount,ro /
+  echo "egl: restored Adreno vendor symlinks (libGLESv2.so.2 -> $gles_target)"
+}
+
+comma_device_slug() {
+  tr -d '\0' < /sys/firmware/devicetree/base/model 2>/dev/null | awk '{print $NF}'
+}
+
+is_comma_big_hw() {
+  case "$(comma_device_slug)" in tici|tizi) return 0 ;; esac
+  return 1
+}
+
+set_tici_hw() {
+  is_comma_big_hw || return 0
+  export TICI_HW=1
+
+  local cache="/persist/sp_dev_panda_mcu_type"
+  local legacy_cache="/persist/dp_dev_panda_mcu_type"
+  local attempts=15 confirm=3 mcu="" count=0 last="" cur cached
+
+  # Fast path: check sp cache, then dragonpilot legacy cache
+  for c in "$cache" "$legacy_cache"; do
+    cached=$(cat "$c" 2>/dev/null)
+    case "$cached" in F4|H7)
+      mcu="$cached"; echo "panda MCU $mcu [cached]"
+      break
+    esac
+  done
+
+  # Slow path: detect panda MCU, requiring $confirm consecutive identical reads
+  if [ -z "$mcu" ]; then
+    echo "Querying panda MCU type..."
+    for _ in $(seq 1 "$attempts"); do
+      [ -n "$last" ] && sleep 1 || sleep 3
+      case "$(${PY:-python3} -c "from panda import Panda; p = Panda(cli=False); print(p.get_mcu_type()); p.close()" 2>/dev/null)" in
+        *McuType.F4*) cur="F4" ;;
+        *McuType.H7*) cur="H7" ;;
+        *)            cur="" ;;
+      esac
+      if [ -n "$cur" ] && [ "$cur" = "$last" ]; then
+        ((++count))
+      else
+        count=1; last="$cur"
+      fi
+      [ -n "$cur" ] && [ "$count" -ge "$confirm" ] && mcu="$cur" && break
+      echo "panda MCU read='${cur:-UNKNOWN}' (confirmed $count/$confirm)"
+    done
+
+    if [ -z "$mcu" ]; then
+      echo "[warn] TICI (UNKNOWN) detected after $attempts attempts, continuing without panda MCU detection"
+      # 不退出：允许 panda 未连接/固件不兼容的设备继续启动 webui/manager，便于调试和首次安装
+    fi
+
+    # Persist to /persist (read-only partition — remount rw for one write)
+    if sudo mount -o remount,rw /persist 2>/dev/null; then
+      echo "$mcu" | sudo tee "$cache" "$legacy_cache" >/dev/null 2>&1
+      sudo mount -o remount,ro /persist 2>/dev/null
+    fi
+  fi
+
+  if [ "$mcu" = "F4" ]; then
+    echo "TICI (DOS) detected"; mount_nvme; export TICI_DOS=1; set_aux_panda
+  else
+    echo "TICI (TRES) detected"; export TICI_TRES=1
+  fi
+}
+
+set_aux_panda() {
+  local mode="/sys/devices/platform/soc/a600000.ssusb/mode"
+  [ -e "$mode" ] || return 0
+  echo "Checking for aux panda (switching USB-C port to host mode)..."
+  echo host | sudo tee "$mode" >/dev/null 2>&1
+  for _ in $(seq 1 6); do
+    sleep 0.5
+    [ "$(lsusb 2>/dev/null | grep -c 'comma.ai panda')" -ge 2 ] && \
+      echo "aux panda detected" && return 0
+  done
+  echo "no aux panda found; reverting USB-C port to device mode"
+  echo none | sudo tee "$mode" >/dev/null 2>&1
+}
+
+
+mount_nvme() {
+  for i in $(seq 1 10); do
+    [ -b /dev/nvme0n1p1 ] && break
+    sleep 1
+  done
+  [ ! -b /dev/nvme0n1p1 ] && return 0
+
+  if ! mountpoint -q /data/media/0/realdata; then
+    mount /dev/nvme0n1p1 /data/media/0/realdata
+  fi
+
+  if mountpoint -q /data/media/0/realdata; then
+    OWNER="$(stat -c '%U' /data/media/0/realdata)"
+    GROUP="$(stat -c '%G' /data/media/0/realdata)"
+    PERM="$(stat -c '%a' /data/media/0/realdata)"
+    [ "$OWNER" != "comma" ] || [ "$GROUP" != "comma" ] && chown comma:comma /data/media/0/realdata
+    [ "$PERM" != "755" ] && chmod 755 /data/media/0/realdata
+  fi
+}
+
+set_lite_hw() {
+  [ "$(comma_device_slug)" = "tici" ] || return 0
+  # the probe needs i2c-tools; AGNOS images without it would read as "Lite HW"
+  # on every full-fat C3 and disable DM (dmonitoringd) for good. A missing
+  # probe must not count as a missing chip.
+  command -v i2cget >/dev/null 2>&1 || return 0
+  [ -z "$(i2cget -y 0 0x10 0x00 2>/dev/null)" ] && echo "Lite HW" && export LITE=1
+}
+
+agnos_init() {
+  sudo rm -f /data/etc/NetworkManager/system-connections/*.nmmeta
+  rm -f /data/scons_cache/config.lock
+  sudo abctl --set_success
+  sudo chgrp gpu /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0
+  sudo chmod 660 /dev/adsprpc-smd /dev/ion /dev/kgsl-3d0
+
+  [ "$(< /VERSION)" = "$AGNOS_VERSION" ] && return 0
+
+  local agnos_py="$DIR/openpilot/common/hardware/comma/agnos.py"
+  local manifest="$DIR/openpilot/system/hardware/comma/agnos.json"
+  if $agnos_py --verify $manifest; then
+    sudo reboot
+  fi
+
+  # The updater is a self-contained zipapp that runs with THIS interpreter and its
+  # environment. Its bundled snapshot of system/hardware/tici/lpa.py imports serial
+  # at module scope, which reaches the crash chain
+  #   updater -> ui/updater -> ui/lib/application -> common/swaglog
+  #           -> system/hardware/__init__ -> tici/hardware -> tici/lpa -> import serial
+  # so a missing pyserial aborts the updater before it can install AGNOS and the
+  # device loops on ModuleNotFoundError forever. Make pyserial importable first.
+  ensure_updater_deps
+
+  if is_headless_boot; then
+    echo "[agnos] headless: OS update required ($(cat /VERSION) -> $AGNOS_VERSION). Use WebUI Software → AGNOS, or SSH: $agnos_py --swap $manifest" | tee -a /tmp/agnos_pending.log
+    return 0
+  fi
+
+  # Crash-loop guard: the updater zipapp bundles a snapshot of the system/ui
+  # source, so it can crash at import time whenever the AGNOS image ships a
+  # pyray wheel that no longer has an API the snapshot uses (observed bt4->bt5:
+  # wheel dropped rl.GuiTextAlignment, stale zipapp crashed at import and the
+  # loop below spun on the comma screen forever). After 3 consecutive failures,
+  # fall back to the headless CLI flash so the device still updates itself.
+  local updater_fails=0
+  while true; do
+    # PYTHONPATH must explicitly carry $PYDEPS_DIR: the updater inherits this
+    # environment, and the deps installed by bootstrap_deps (notably pyserial,
+    # needed by the bundled snapshot above) live there.
+    PYTHONPATH="$PY_PATH" "$PY" "$DIR/openpilot/common/hardware/comma/updater" "$agnos_py" "$manifest"
+    updater_fails=$((updater_fails + 1))
+    if [ "$updater_fails" -ge 3 ]; then
+      echo "[agnos] updater UI failed $updater_fails times, falling back to headless flash" | tee -a /tmp/agnos_pending.log
+      # HTTPS needs a sane clock; RTC resets can leave 1970. Sync via HTTP(80)
+      # first: TLS certificate validation itself requires a valid clock.
+      if [ "$(date +%s)" -lt 1735689600 ]; then
+        local d
+        for _u in http://github.com http://www.qq.com http://www.baidu.com; do
+          d=$(curl -fsSI -m 10 "$_u" 2>/dev/null | grep -i '^date:' | cut -d' ' -f2- | tr -d '\r')
+          [ -n "$d" ] && sudo date -s "$d" >/dev/null 2>&1 && break
+        done
+      fi
+      sudo env PYTHONPATH="$PY_PATH" "$PY" "$agnos_py" --swap "$manifest" && sudo reboot
+      # swap failed too (network etc.); keep retrying via the UI loop
+      updater_fails=0
+    fi
+  done
+}
+
+# Guarantees the AGNOS updater can start on a FIRST BOOT. The updater is a
+# self-contained zipapp but has NO bundled site-packages: `#!/usr/bin/env python3`
+# resolves to the system interpreter, so it needs pyserial from the environment.
+# Its bundled system/hardware/tici/lpa.py imports serial at module scope and the
+# very first thing the updater does is pull in that chain, so without pyserial the
+# updater dies immediately and its `while true` loop in agnos_init never recovers.
+#
+# Prefers the bundled offline wheel (third_party/wheels/pyserial-*.whl) since a
+# fresh install may have no network yet; falls back to the pip mirror.
+ensure_updater_deps() {
+  local pydeps="$PYDEPS_DIR"
+  local py=$(find_python python3.12) || py=python3
+  local py_path=$(setup_python_path "$DIR")
+
+  # Jeepney check MUST come before the pyserial fast path below. The updater's
+  # wifi_manager imports jeepney at module scope, and the fast path returns as
+  # soon as pyserial is importable - which it is on every image that ships it
+  # in the venv. That early return used to skip this block entirely, leaving
+  # jeepney uninstalled and the updater crash-looping on ModuleNotFoundError
+  # (observed on a freshly imaged 12.8 device, 2026-11-02).
+  if ! PYTHONPATH="$py_path" "$py" -c "import jeepney" >/dev/null 2>&1; then
+    local jwheel=""
+    for w in "$WHEEL_DIR"/jeepney-*.whl; do
+      [ -f "$w" ] && jwheel="$w" && break
+    done
+    if [ -n "$jwheel" ]; then
+      mkdir -p "$pydeps" 2>/dev/null || true
+      local jtmp=$(pip_scratch_dir)
+      if TMPDIR="$jtmp" "$py" -m pip install --no-cache-dir --no-index --no-deps \
+           --disable-pip-version-check --target "$pydeps" "$jwheel" >> /tmp/bootstrap.log 2>&1; then
+        echo "[ensure_updater_deps] installed jeepney from bundled wheel" >> /tmp/bootstrap.log
+      else
+        # pip itself failed (fresh image, broken pip): unpack directly. The
+        # updater crash-loops without jeepney, so this fallback is required,
+        # not optional - same technique used to hand-rescue the 2026-11-02
+        # freshly-imaged device over serial.
+        if install_wheel_unpacked "$jwheel" "$pydeps"; then
+          echo "[ensure_updater_deps] jeepney: pip failed, unpacked $(basename "$jwheel") directly" >> /tmp/bootstrap.log
+        fi
+      fi
+      rm -rf "$jtmp"/pip-* 2>/dev/null || true
+      # Re-probe with the exact PYTHONPATH the updater will use; a silent
+      # failed install here reproduced as an infinite updater crash-loop.
+      if ! PYTHONPATH="$py_path" "$py" -c "import jeepney" >/dev/null 2>&1; then
+        echo "[ensure_updater_deps] WARNING: jeepney still missing after install attempts; updater will crash-loop" >> /tmp/bootstrap.log
+      fi
+    else
+      echo "[ensure_updater_deps] WARNING: jeepney missing and no bundled wheel found" >> /tmp/bootstrap.log
+    fi
+  fi
+
+  # Fast path: pyserial already importable with the same path the updater will
+  # use (it ships in the AGNOS venv on many images).
+  if PYTHONPATH="$py_path" "$py" -c "import serial" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "[ensure_updater_deps] pyserial missing; installing for the AGNOS updater" >> /tmp/bootstrap.log
+  mkdir -p "$pydeps" 2>/dev/null || true
+
+  local tmpdir=$(pip_scratch_dir)
+  local wheel=""
+  for w in "$WHEEL_DIR"/pyserial-*.whl; do
+    [ -f "$w" ] && wheel="$w" && break
+  done
+
+  # 1) Offline wheel first (no network needed).
+  if [ -n "$wheel" ]; then
+    if TMPDIR="$tmpdir" "$py" -m pip install --no-cache-dir --no-index --no-deps \
+         --disable-pip-version-check --target "$pydeps" "$wheel" >> /tmp/bootstrap.log 2>&1 \
+       && PYTHONPATH="$py_path" "$py" -c "import serial" >/dev/null 2>&1; then
+      echo "[ensure_updater_deps] installed pyserial from bundled wheel" >> /tmp/bootstrap.log
+      rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+      return 0
+    fi
+  fi
+
+  # 2) Network fallback via the pip mirror.
+  if wait_for_dns 30; then
+    if ! "$py" -c "import pip" >/dev/null 2>&1; then
+      curl -fsSL "${GET_PIP_URL:-https://mirrors.aliyun.com/pypi/get-pip.py}" -o /tmp/get-pip.py 2>/dev/null && \
+        "$py" /tmp/get-pip.py --target="$pydeps" --no-warn-script-location >> /tmp/bootstrap.log 2>&1 || true
+    fi
+    local index_url="${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}"
+    TMPDIR="$tmpdir" PYTHONPATH="$py_path" "$py" -m pip install --no-cache-dir --upgrade \
+      --index-url="$index_url" --target="$pydeps" pyserial >> /tmp/bootstrap.log 2>&1 || true
+  fi
+
+  rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+
+  if PYTHONPATH="$py_path" "$py" -c "import serial" >/dev/null 2>&1; then
+    echo "[ensure_updater_deps] pyserial ready" >> /tmp/bootstrap.log
+    return 0
+  fi
+
+  # Non-fatal: if the updater is truly needed and pyserial is still absent it will
+  # log its own traceback. Returning 0 keeps agnos_init's flow intact rather than
+  # aborting the whole boot.
+  echo "[ensure_updater_deps] WARNING: pyserial still missing; updater may fail" >> /tmp/bootstrap.log
+  return 0
+}
+
+link_repos() {
+  for repo in msgq opendbc rednose teleoprtc tinygrad jetlink; do
+    ln -sfn "${repo}_repo/$repo" "$repo"
+  done
+}
+
+# Every wheel bundled in third_party/wheels, as "probe|requirement" pairs.
+# This is the single source of truth: ensure_bundled_wheels installs the lot
+# offline (bootstrap_deps calls it before agnos_init, so the network pip path
+# below never has to save a boot), and the pip-group call at the bottom of
+# bootstrap_deps stays as a fuse for anything a future dependency forgets to
+# add here.
+#
+# Why each one rides along - ranked by what dies without it:
+#
+#   setproctitle - manager's process.py imports it at module scope: no manager,
+#                  no boot at all.
+#   pyzmq        - common/swaglog.py imports it at module scope; cloudlog backs
+#                  every daemon, so nothing starts without it either.
+#   jeepney      - the AGNOS updater's wifi_manager imports it at module scope,
+#                  and bootstrap_deps runs before agnos_init. Learned the hard
+#                  way 2026-11-01: a pending OS update sat on the splash screen
+#                  forever because jeepney only existed on the network path.
+#   pyserial     - the updater's bundled snapshot imports serial at module scope
+#                  (ensure_updater_deps also carries it for a wiped .pydeps).
+#   tqdm         - module-scope import in opendbc's fw_versions: the
+#                  fingerprinting card dies before it caches anything.
+#   cv2          - xiaoge's V-ASM vision server (carrot/xiaoge/v_asm_server.py)
+#                  needs cv2.dnn.readNetFromONNX to load the lane/BSM models and
+#                  publish on customReservedRawData0 for card.py. While it was
+#                  missing the thread died silently (xiaoge_data stayed "healthy"
+#                  on the manager) - measured 2026-09-27: 16 segments, zero
+#                  customReservedRawData0.
+#   shapely      - carrot_man resamples the 7714 route with LineString for
+#                  curvature/curve speed; guarded by SHAPELY_AVAILABLE, so its
+#                  absence degrades silently instead of raising.
+#   psutil       - carrot_man's UDP 7705 broadcast address lookup and carrot_navi's
+#                  discovery beacon enumerate interfaces with net_if_addrs().
+#   qrcode       - the Carrot Web pairing dialog.
+#   PyJWT        - athena and sunnylink import it at module scope; missing it only
+#                  takes down their own daemons, but it is 33 KB of insurance.
+#   requests / aiohttp / jinja2 / zstandard - the ai/, webui and carrot server
+#                  stacks (aid.py, webuid.py, carrot_man/navi, carrot/server).
+#                  These only matter after the network stage, but the fork ships
+#                  to cars that may never see a mirror, so the whole runtime is
+#                  bundled rather than downloaded on first boot.
+BUNDLED_WHEELS=(
+  "setproctitle|setproctitle==1.3.8"
+  "zmq|pyzmq==26.4.0"
+  "jeepney|jeepney==0.9.0"
+  "serial|pyserial==3.5"
+  "tqdm|tqdm==4.70.1"
+  "cv2; assert cv2.__version__ == '4.13.0'; assert hasattr(cv2.dnn, 'readNetFromONNX')|opencv-python-headless==4.13.0.92"
+  "shapely|shapely==2.1.2"
+  "psutil|psutil==7.2.2"
+  "qrcode|qrcode==8.2"
+  "jwt|PyJWT==2.15.1"
+  "requests|requests==2.34.2"
+  "urllib3|urllib3==2.8.0"
+  "charset_normalizer|charset-normalizer==3.5.2"
+  "idna|idna==3.20"
+  "certifi|certifi==2026.10.23"
+  "aiohttp|aiohttp==3.14.5"
+  "multidict|multidict==7.2.1"
+  "yarl|yarl==1.25.1"
+  "aiosignal|aiosignal==1.4.0"
+  "frozenlist|frozenlist==1.8.0"
+  "attrs|attrs==26.1.0"
+  "propcache|propcache==0.5.4"
+  "aiohappyeyeballs|aiohappyeyeballs==2.7.1"
+  "jinja2|jinja2==3.1.6"
+  "markupsafe|markupsafe==3.0.4"
+  "zstandard|zstandard==0.25.0"
+)
+
+ensure_bundled_wheels() {
+  local entry probe req
+  local missing=()
+  for entry in "${BUNDLED_WHEELS[@]}"; do
+    probe="${entry%%|*}"
+    req="${entry#*|}"
+    python_package_ok "$probe" || missing+=("$req")
+  done
+
+  # One pip invocation for everything missing. 26 separate pip calls each pay
+  # interpreter startup, wheel discovery and per-package pyc compilation on the
+  # C3, which made a fresh boot sit on the splash for several minutes; batched
+  # with --no-compile it is roughly an order of magnitude faster (pyc files are
+  # then produced lazily on first import, which /data/.pydeps persists).
+  if [ ${#missing[@]} -gt 0 ]; then
+    local py=$(find_python python3.12) || return 1
+    local tmpdir=$(pip_scratch_dir)
+    mkdir -p "$PYDEPS_DIR" 2>/dev/null || return 1
+    boot_spinner_text "Installing offline packages (${#missing[@]} remaining)"
+    TMPDIR="$tmpdir" "$py" -m pip install --no-cache-dir --no-index --no-deps --no-compile \
+      --disable-pip-version-check --find-links "$WHEEL_DIR" --target "$PYDEPS_DIR" \
+      "${missing[@]}" >> /tmp/bootstrap.log 2>&1 || true
+    rm -rf "$tmpdir"/pip-* 2>/dev/null || true
+  fi
+
+  # Per-package verification; ensure_wheel_package's probe passes immediately
+  # for everything the batch install satisfied and runs the zipfile fallback
+  # for whatever pip missed, so nothing loses the robustness added 2026-11-02.
+  local done_count=0
+  local total=${#BUNDLED_WHEELS[@]}
+  for entry in "${BUNDLED_WHEELS[@]}"; do
+    probe="${entry%%|*}"
+    req="${entry#*|}"
+    ensure_wheel_package "$probe" "$req" || true
+    done_count=$((done_count + 1))
+    boot_spinner_progress "$done_count" "$total"
+  done
+}
+
+bootstrap_deps() {
+  # Visible feedback for a phase that used to look like a frozen splash
+  # (several minutes of 26-wheel pip churn on a fresh image).
+  start_boot_spinner
+
+  # All bundled, all offline: see BUNDLED_WHEELS above for the per-wheel
+  # rationale and the ranking by what dies without them.
+  ensure_bundled_wheels
+
+  boot_spinner_text "Finishing up"
+
+  # Fuse, not a path: every entry above is bundled, so these probes pass and
+  # the network install never runs. It only fires if a future dependency
+  # forgets its wheel entry - and even then the retry loop can self-heal over
+  # the pip mirror, which is exactly what did not exist during the 2026-11-01
+  # jeepney boot hang.
+  # typing_extensions: aiohttp >= 3.13 imports it at module scope, but the
+  # bundled aiohttp wheel is installed --no-deps, so the probe for aiohttp can
+  # pass while `import aiohttp` still dies later. Probing it directly makes the
+  # retry loop install it from the mirror; without this, aid (5090) and webui
+  # (5080) crash-loop with ModuleNotFoundError: typing_extensions.
+  ensure_pip_deps numpy aiohttp jinja2 zstandard requests typing_extensions
+
+  stop_boot_spinner
+}
+
+# Retries bootstrap_deps() until it succeeds, because a single attempt at boot is
+# not enough on a fresh install: DNS and the network are often not ready yet, and
+# the pip mirror can fail transiently. Without this loop the deps would stay
+# missing until the next manual restart and aid/webui would crash-loop the whole
+# time. Exits as soon as the deps import, so there is no steady-state cost.
+bootstrap_deps_retry() {
+  local fast_interval=15 fast_attempts=40 slow_interval=300
+  local attempt=0
+  while true; do
+    if bootstrap_deps; then
+      echo "[bootstrap_deps_retry] dependencies satisfied (attempt $((attempt + 1)))" >> /tmp/bootstrap.log
+      return 0
+    fi
+    attempt=$((attempt + 1))
+    if [ "$attempt" -lt "$fast_attempts" ]; then
+      sleep "$fast_interval"
+    else
+      # Keep retrying at a slow cadence so a device that boots offline still
+      # heals on its own once a connection appears.
+      [ "$attempt" -eq "$fast_attempts" ] && \
+        echo "[bootstrap_deps_retry] still missing after $fast_attempts attempts; backing off to ${slow_interval}s" >> /tmp/bootstrap.log
+      sleep "$slow_interval"
+    fi
+  done
+}
+
+# Build the minimal Params shared library before starting services that need it.
+# After an overlay update the compiled .so is missing; building it here avoids
+# webui falling back to dev/mock mode.
+ensure_params_build() {
+  local so="$DIR/openpilot/common/libparams_c.so"
+  [ -f "$so" ] && return 0
+  # nproc counts CPUs in the CURRENT affinity mask with ONLINE status. Early in
+  # AGNOS boot secondary CPUs are not yet hotplugged, so nproc can return 1 and
+  # this build crawls at -j1 (minutes). /proc/cpuinfo lists all present CPUs.
+  local jobs=$(grep -c '^processor' /proc/cpuinfo 2>/dev/null)
+  [ "$jobs" -ge 1 ] 2>/dev/null || jobs=4
+  echo "[ensure_params_build] building libparams_c.so ($jobs jobs)..."
+  if ! (cd "$DIR" && PYTHONPATH="$PY_PATH" scons -j"$jobs" openpilot/common/libparams_c.so >> /tmp/params_build.log 2>&1); then
+    # Surface the tail so a broken schema/toolchain is visible on the boot
+    # screen instead of a silent fall-back to dev/mock mode (the full log is
+    # in /tmp/params_build.log).
+    echo "[warn] ensure_params_build failed, webui may fall back to dev/mock mode"
+    tail -5 /tmp/params_build.log
+  fi
+}
+
+# Params registry guard (cp parity): a prebuilt checkout can retain
+# libparams_c.so compiled from an older params_keys.h. Verify the loaded
+# native registry against the checkout header; on mismatch rebuild the
+# params library (stale scons-cache objects included) before manager starts.
+# Best-effort: if the rebuild fails we boot anyway, loudly, like the old flow.
+# Capture the bounded startup failure log around a launcher command (cp parity).
+# Passive tee only: never reboots, never changes exit semantics. The interactive
+# recovery display (system/ui/startup_recovery.py) and --repo auto-recovery stay
+# available for manual use but are not wired into the boot path yet.
+function run_startup_command {
+  "$@" 2>&1 | python3 -m openpilot.common.startup_recovery --capture-log /tmp/carrot_startup_failure.log
+  return "${PIPESTATUS[0]}"
+}
+
+function ensure_params_registry {
+  if ! PYTHONPATH="$PY_PATH" python3 "$DIR/openpilot/system/manager/params_check.py"; then
+    echo "[warn] Native Params do not match this checkout; rebuilding libparams_c.so"
+    rm -f "$DIR"/openpilot/common/params.*.os "$DIR"/openpilot/common/params_pyx.*.os \
+          "$DIR"/openpilot/common/libparams_c.so "$DIR"/openpilot/common/libparams_c.a
+    if ! (cd "$DIR" && PYTHONPATH="$PY_PATH" scons -j"$(grep -c '^processor' /proc/cpuinfo 2>/dev/null || echo 4)" openpilot/common/libparams_c.so >> /tmp/params_build.log 2>&1); then
+      echo "[warn] libparams_c.so rebuild failed; booting best-effort (see /tmp/params_build.log)"
+    fi
+  fi
+}
+
+# BlueZ is not shipped on C3, but the Carrot Bluetooth HID remote feature needs
+# the org.bluez D-Bus service. Install it once per boot if it is missing; the
+# actual work runs in the background so it does not block the boot sequence.
+#
+# The carrot-bluetooth-radio.service (which runs btattach to bring up hci0) has:
+#   ExecCondition=/usr/bin/test -f /data/bluetooth/ENABLED
+# Without this file the service is skipped and hci0 never appears.
+#
+# THREE-LAYER ENSURE STRATEGY to eliminate all race conditions:
+#   1. Fast path (BlueZ already installed):  create ENABLED + start service in main shell.
+#   2. First-boot (main shell, before subshell):  same – ensures the service never sees a
+#      missing ENABLED file even when apt-get is still running in the background.
+#   3. Retry path (subshell install):  re-creates ENABLED + restarts service when apt-get
+#      finally succeeds (idempotent, no harm if called twice).
+#
+# HARDWARE COMPATIBILITY: carrot-bluetooth-radio needs /dev/btpower and /dev/ttyHS1.
+# If /dev/ttyHS1 is missing the current AGNOS kernel does not expose the WCN3990
+# Bluetooth UART; starting the service would just fail-loop.  We still create ENABLED
+# (so the radio auto-starts after the user flashes a Bluetooth-capable AGNOS) but we
+# skip starting the doomed service and log a clear warning instead.
+ensure_bluez() {
+  # Helper: create /data/bluetooth/ENABLED and start the BlueZ D-Bus service.
+  # Idempotent – safe to call multiple times.
+  start_bluez_dbus() {
+    sudo mkdir -p /data/bluetooth
+    sudo chmod 777 /data/bluetooth
+    sudo touch /data/bluetooth/ENABLED
+    sudo chmod 666 /data/bluetooth/ENABLED
+    sudo systemctl start bluetooth >> /tmp/bluez_install.log 2>&1
+  }
+
+  # Helper: start the carrot-bluetooth-radio service only if the underlying hardware
+  # nodes are available.  Without /dev/ttyHS1 the service's ExecStartPre will crash-loop,
+  # so stop any already-running instance and do not start a new one.
+  start_carrot_bt_radio() {
+    if [ ! -e /dev/ttyHS1 ] || [ ! -e /dev/btpower ]; then
+      local missing=""
+      [ ! -e /dev/ttyHS1 ] && missing="/dev/ttyHS1"
+      [ ! -e /dev/btpower ] && missing="${missing}${missing:+, }/dev/btpower"
+      echo "[ensure_bluez] ${missing} missing; this device/AGNOS lacks Bluetooth radio hardware, stopping carrot-bluetooth-radio" >> /tmp/bluez_install.log
+      sudo systemctl stop carrot-bluetooth-radio >> /tmp/bluez_install.log 2>&1 || true
+      return 0
+    fi
+    sudo systemctl start carrot-bluetooth-radio >> /tmp/bluez_install.log 2>&1
+  }
+
+  if command -v bluetoothctl >/dev/null 2>&1 && command -v bluetoothd >/dev/null 2>&1; then
+    # Fast path: BlueZ already installed – create ENABLED and bring up the radio now.
+    echo "[ensure_bluez] bluez already present; ensuring radio is up" >> /tmp/bluez_install.log
+    start_bluez_dbus
+    start_carrot_bt_radio
+    return 0
+  fi
+
+  # First-boot install: BlueZ is not installed yet.
+  # LAYER 2 – create ENABLED and start the BlueZ service HERE in the main shell,
+  # before we fork the background subshell.  This eliminates the race where systemd
+  # starts carrot-bluetooth-radio.service before the subshell finishes creating ENABLED.
+  echo "[ensure_bluez] bluez missing; creating ENABLED and starting dbus before background install" >> /tmp/bluez_install.log
+  start_bluez_dbus
+  start_carrot_bt_radio
+
+  # If a previous install attempt already ran (and failed), do NOT retry here – the
+  # ENABLED file is already created and the service is already running.  If BlueZ
+  # eventually gets installed later (e.g. next boot or manual apt-get), a subsequent
+  # call to ensure_bluez() will pick it up via the fast path above.
+  [ -f /tmp/.bluez_install_attempted ] && return 0
+  touch /tmp/.bluez_install_attempted
+
+  # LAYER 3 – download and install in the background.  If it succeeds, re-creates
+  # ENABLED and restarts the service (idempotent; also covers retries after a
+  # previous failed attempt finally succeeded).
+  (
+    if sudo apt-get update >> /tmp/bluez_install.log 2>&1; then
+      if sudo apt-get install -y bluez >> /tmp/bluez_install.log 2>&1; then
+        # BlueZ package postinst handles enable; start it explicitly so we can
+        # immediately create the ENABLED flag and bring up hci0.
+        sudo systemctl enable bluetooth >> /tmp/bluez_install.log 2>&1
+        start_bluez_dbus
+        start_carrot_bt_radio
+        echo "[ensure_bluez] installed and started" >> /tmp/bluez_install.log
+      else
+        echo "[ensure_bluez] install failed" >> /tmp/bluez_install.log
+      fi
+    else
+      echo "[ensure_bluez] apt-get update failed" >> /tmp/bluez_install.log
+    fi
+  ) &
+}
+
+launch() {
+  [ -f "$DIR/.git/index.lock" ] && rm -f "$DIR/.git/index.lock"
+
+  if [ -f "${DIR}/.overlay_init" ]; then
+    if find "${DIR}/.git" -newer "${DIR}/.overlay_init" | grep -q . 2>/dev/null; then
+      echo "${DIR} has been modified, skipping overlay update installation"
+    elif [ -f "${STAGING_ROOT}/finalized/.overlay_consistent" ] && [ ! -d /data/safe_staging/old_openpilot ]; then
+      echo "Valid overlay update found, installing"
+      local launcher="${BASH_SOURCE[0]}"
+      mv "$DIR" /data/safe_staging/old_openpilot
+      mv "${STAGING_ROOT}/finalized" "$DIR"
+      cd "$DIR"
+      echo "Restarting launch script ${launcher}"
+      unset AGNOS_VERSION
+      exec "${launcher}"
+    fi
+  fi
+
+  ln -sfn "$(pwd)" /data/pythonpath
+
+  # submodule package symlinks for bare `import opendbc`/`import jetlink` on device;
+  # PY_PATH below also carries the explicit submodule dirs. On PC these come from editable installs.
+  ln -sfn msgq_repo/msgq msgq
+  ln -sfn opendbc_repo/opendbc opendbc
+  ln -sfn rednose_repo/rednose rednose
+  ln -sfn teleoprtc_repo/teleoprtc teleoprtc
+  ln -sfn tinygrad_repo/tinygrad tinygrad
+  ln -sfn jetlink_repo/jetlink jetlink
+  # Resolve Python interpreter and path once, then reuse in service loops.
+  # Create .pydeps early so PY_PATH already includes it and does not need
+  # to be recomputed after pip install.
+  mkdir -p "$PYDEPS_DIR"
+  PY=$(find_python python3.12) || PY=python3
+  PY_PATH=$(setup_python_path "$DIR")
+  export PY PY_PATH
+
+  # hardware specific init
+  if [ -f /AGNOS ]; then
+    # with Jetlink on, draw nothing from its USB-C port from boot (docs/porting.md in jetlink)
+    sudo -n bash jetlink/comma/jetlink-root.sh boot /data/params/d/JetlinkLink &
+    agnos_init
+
+    # PYTHONPATH must be the SAME set as PY_PATH, not just $PWD.
+    #
+    # manager.py is started later with `./manager.py` and inherits PYTHONPATH, and
+    # openpilot/system/manager/process.py launches every daemon via
+    # subprocess.Popen(...) with no env= argument, so every daemon inherits it too.
+    # With PYTHONPATH=$PWD alone, /data/.pydeps was on PY_PATH but NOT on the
+    # environment, so daemons could not import the pip deps that bootstrap_deps()
+    # installs there. The concrete symptom on a C3 was carrot_navi printing
+    # "aiohttp is not installed; 7714 v2 WebSocket receiver cannot start" and then
+    # idling forever, so port 7714 never listened while the process looked healthy.
+    #
+    # aid/webui were unaffected only because keep_alive passes PYTHONPATH="$py_path"
+    # explicitly; manager's children get no such help.
+    export PYTHONPATH="$PY_PATH"
+    link_repos
+
+    # Use a PyPI mirror by default; the device's network currently cannot reach
+    # pypi.org (it resolves to a placeholder IP), so Aliyun mirror is used.
+    export PIP_INDEX_URL="${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}"
+
+    # Bootstrap shared Python deps. The first attempt runs inline so the common
+    # case (deps already installed) costs one import check. If it is not satisfied
+    # yet, a background loop keeps retrying until the deps import so aid/webui
+    # recover without a manual restart.
+    if bootstrap_deps; then
+      echo "[bootstrap_deps] satisfied at boot" >> /tmp/bootstrap.log
+    else
+      echo "[bootstrap_deps] not satisfied at boot; retrying in background" >> /tmp/bootstrap.log
+      bootstrap_deps_retry >> /tmp/bootstrap.log 2>&1 &
+    fi
+  fi
+
+  sudo mkdir -p /cache/tsk
+  sudo chown comma:comma /cache/tsk
+
+  # AGNOS-specific hardware detection (slow on first boot, cached afterwards)
+  [ -f /AGNOS ] && { set_tici_hw; set_lite_hw; }
+
+  # Build Params .so before services need it; after an overlay update it is
+  # missing and would cause webui to fall back to dev/mock mode.
+  ensure_params_build
+
+  # BlueZ is required for the Carrot Bluetooth HID remote panel. It is not
+  # present on a fresh C3 image, so install it on first boot if missing.
+  ensure_bluez
+
+  # The AGNOS updater needs pyserial before agnos_init ever runs (see
+  # ensure_updater_deps). Do it here too so the dependency is satisfied even when
+  # AGNOS is already current and agnos_init returns early.
+  ensure_updater_deps
+
+  # Start AI and WebUI before the AGNOS OS update so they stay reachable even
+  # if the updater loops waiting for user confirmation.
+  keep_alive aid ai/aid.py 5090 &
+  keep_alive webui webui/webuid.py 5080 &
+
+  # Ensure DRM fd socket is available for the native UI. On devices where the
+  # panel backlight is present but the touch controller did not probe, the
+  # system magic.service fails; we fall back to a virtual touch device and a
+  # userspace magic.py instance.
+  # EGL vendor symlinks must point at the Adreno blob on every comma device:
+  # a stale overlay/upper symlink at mesa (e.g. left by a previous image's
+  # self-heal) SIGSEGVs magic.py before it can serve /tmp/drmfd.sock, and the
+  # UI splash-loops for lack of a DRM master fd. Idempotent, fails safe.
+  ensure_egl_vendor
+  is_comma_big_hw && { ensure_touch_input; ensure_magic_service; }
+
+  # sshd boot guarantee. sshd is managed by ssh-param-watcher(.path/.service):
+  # the .path unit only fires on SshEnabled *modifications*, so on rootfs images
+  # where ssh-param-watcher.service is not enabled (no boot-time oneshot), sshd
+  # is never started after a reboot even though the params say it should be —
+  # install scripts inject GithubSshKeys and "SSH works", then the device
+  # becomes unreachable after the first reboot. AGNOS 20.x rootfs is read-only
+  # so systemctl enable cannot persist; start it from here instead, before
+  # agnos_init, so SSH is reachable even while headless-waiting for an AGNOS
+  # update. Idempotent.
+  if [ -f /data/params/d/SshEnabled ] && [ "$(< /data/params/d/SshEnabled)" = "1" ]; then
+    sudo systemctl start ssh 2>/dev/null || true
+  fi
+
+  # AGNOS OS update (may loop updater)
+  [ -f /AGNOS ] && agnos_init
+
+  tmux capture-pane -pq -S-1000 > /tmp/launch_log
+
+  cd openpilot/system/manager
+  if [ ! -f "$DIR/prebuilt" ]; then
+    if ! ./build.py; then
+      echo "[warn] build.py failed, UI resources may be missing"
+    else
+      touch "$DIR/prebuilt"
+    fi
+  fi
+  ensure_params_registry
+  run_startup_command ./manager.py
+
+  while true; do sleep 1; done
+}
+
+launch

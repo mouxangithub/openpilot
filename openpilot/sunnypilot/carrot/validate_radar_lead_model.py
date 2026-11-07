@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""Compatibility launcher for the radar lead model validation sweep."""
+
+from pathlib import Path
+import sys
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+  sys.path.insert(0, str(REPO_ROOT))
+
+from openpilot.sunnypilot.carrot.radar.tools.validate_radar_lead_model import main
+
+
+if __name__ == "__main__":
+  raise SystemExit(main())

@@ -1,0 +1,105 @@
+id: models
+label: 模型
+icon: models
+order: 10
+remote_configurable: false
+description: 驾驶模型行为与相机标定
+sections:
+- id: model_behavior
+  title: 模型行为
+  description: 车道意图、车道居中与前车感知调校
+  items:
+  - key: Blendful
+    widget: toggle
+
+    title: 车道居中辅助（Alpha）
+    description: 在模型自身转向的基础上轻柔地把车推回车道中央，车道线越清晰修正越强。遇障碍自动让行。默认模型不可用。
+    enablement:
+    - $ref: '#/macros/custom_model'
+
+  - key: SmallModelSteering
+    widget: option
+    title: 小模型转向
+    description: 使用大模型时，低于此车速由小模型转向。低速下更稳。0 为关闭。默认 5 m/s（11 mph，18 km/h）。默认模型不可用。
+    min: 0
+    max: 9
+    step: 0.5
+    unit: m/s
+    enablement:
+    - $ref: '#/macros/custom_model'
+  - key: LaneTurnDesire
+    widget: toggle
+    title: 使用变道转向意图
+    description: 以 20 mph（32 km/h）或更低车速行驶且打转向灯时，车辆将朝该方向在最近可行驶路径上规划转弯，避免红灯等场景下选错转向方向。
+  - key: LaneTurnValue
+    widget: option
+    title: 调整变道转向速度
+    description: 变道转向意图的最高车速。
+    min: 0
+    max: 20
+    step: 1
+    unit:
+      metric: km/h
+      imperial: mph
+    enablement:
+    - type: param
+      key: LaneTurnDesire
+      equals: true
+    - $ref: '#/macros/advanced_only'
+  - key: LagdToggle
+    widget: toggle
+    title: 自学习转向延迟
+    description: 让车机学习并自适应车辆的转向响应时间
+  - key: LagdToggleDelay
+    widget: option
+    title: 调整软件延迟
+    description: 关闭自学习转向延迟时使用的软件延迟。默认 0.2
+    min: 0.05
+    max: 0.5
+    step: 0.01
+    enablement:
+    - type: not
+      condition:
+        type: param
+        key: LagdToggle
+        equals: true
+    - $ref: '#/macros/advanced_only'
+- id: lateral_control
+  title: 横向控制
+  description: 受支持模型的神经网络横向控制
+  items:
+  - key: NeuralNetworkLateralControl
+    widget: toggle
+    title: 神经网络横向控制（NNLC）
+    description: 用神经网络代替默认扭矩控制器进行横向控制。
+    visibility:
+    - type: not
+      condition:
+        type: capability
+        field: steer_control_type
+        equals: angle
+    enablement:
+    - $ref: '#/macros/offroad'
+    - type: capability
+      field: torque_allowed
+      equals: true
+    - type: param
+      key: EnforceTorqueControl
+      equals: false
+    - type: param
+      key: LateralJerkTorqueController
+      equals: false
+- id: camera
+  title: 摄像头
+  description: 相机位置与标定
+  items:
+  - key: CameraOffset
+    widget: option
+    title: 调整相机偏移
+    description: 虚拟移动相机视角，使模型中心偏左（正值）或偏右（负值）
+    min: -0.35
+    max: 0.35
+    step: 0.01
+    unit: 米
+    enablement:
+    - $ref: '#/macros/advanced_only'

@@ -1,0 +1,18 @@
+id: software
+label: 软件
+icon: software
+order: 7
+remote_configurable: true
+description: 软件更新偏好
+sections:
+- id: updates
+  title: 更新
+  description: 控制软件更新
+  items:
+  - key: DisableUpdates
+    widget: toggle
+    title: 禁用更新
+    description: 开启后关闭软件更新。需要重启生效。
+    enablement:
+    - $ref: '#/macros/offroad'
+    - $ref: '#/macros/advanced_only'

@@ -1,0 +1,8 @@
+{
+  "namespace": "vehicle_safety",
+  "revision": 1,
+  "fields": {
+    "ai_safety_max_speed": {"type": "number", "default": 120, "min": 0, "max": 300, "label": "Max advisory speed (km/h)"},
+    "ai_safety_warn_enabled": {"type": "boolean", "default": true, "label": "Enable safety warnings"}
+  }
+}

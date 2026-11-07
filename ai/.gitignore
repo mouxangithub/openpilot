@@ -1,0 +1,31 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+.env
+.env.*
+data/pc_tool_sessions/
+data/fork_drafts/
+data/fork_analysis/
+*.swp
+*~
+.DS_Store
+config.json
+web/static/vendor/office/_staging/
+cabana_cache
+data
+/workspace/
+.ai/
+
+# Panda firmware is built under openpilot/panda/board/obj — never vendor into ai/
+**/*.signed
+**/panda/board/obj/
+
+# Vendored EPS patch repo build artifacts and caches
+vendor/eps_patch/payload/build/
+vendor/eps_patch/.docker/
+vendor/eps_patch/.venv/
+vendor/eps_patch/__pycache__/

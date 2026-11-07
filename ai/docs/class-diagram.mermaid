@@ -1,0 +1,225 @@
+classDiagram
+    direction TB
+
+    class EventType {
+        <<enumeration>>
+        TURN_START
+        ...
+        GOAL_CHANGE
+        PLAN_CHANGE
+        TODO_CHANGE
+        SCHEDULE_CHANGE
+        SANDBOX_MODE
+        PERMISSION_PRESET
+        APPROVAL_ASKED
+        APPROVAL_DECIDED
+        COMMAND_RUN
+        COMMAND_DONE
+    }
+
+    class SessionEvent {
+        +EventType type
+        +int seq
+        +int time
+        +Any data
+        +SurfaceOp|None surface_op
+        +tuple[int]|None source_seqs
+        +to_dict() dict
+    }
+
+    class EventEnvelope {
+        +str event_id
+        +str session_id
+        +int sequence
+        +str type
+        +dict payload
+        +bool ignorable
+        +str recorded_at
+        +to_dict() dict
+        +from_dict(data) EventEnvelope
+    }
+
+    class ProjectionFolder~T~ {
+        <<callable>>
+        +name: str
+        +zero: T
+        +event_types: set[str]
+        +apply(state: T, event: SessionEvent) T
+    }
+
+    class EventProjectionRegistry {
+        -dict[str, ProjectionFolder] _folders
+        +register(folder) None
+        +unregister(name) None
+        +fold(events, projection) Any
+        +fold_all(events) dict[str, Any]
+        +supported_types() set[str]
+    }
+
+    class SandboxMode {
+        <<enumeration>>
+        READ_ONLY
+        WORKSPACE_WRITE
+        DANGER_FULL_ACCESS
+    }
+
+    class ConfinedSandboxMode {
+        <<literal>>
+        "read-only" | "workspace-write"
+    }
+
+    class ConfinedSessionPolicy {
+        +str session_id
+        +ConfinedSandboxMode mode
+        +str containment_root
+        +to_context() dict
+        +to_dict() dict
+    }
+
+    class SandboxPolicyService {
+        +ConfinedSandboxMode DEFAULT_MODE
+        +str MODE_PARAM
+        -str workspace_root
+        +resolve(params, session_id, cwd) ConfinedSessionPolicy
+        +contained_cwd(requested) str
+        -_resolve_mode(params) ConfinedSandboxMode
+    }
+
+    class Capability {
+        <<enumeration>>
+        USB_DEVICE_ACCESS
+        CAN_BUS_ACCESS
+        VEHICLE_FLASH
+        VEHICLE_LOG_READ
+        DBC_PARSE
+        WORKSPACE_WRITE
+        SHELL_EXEC
+        +all() set~str~
+    }
+
+    class GrantState {
+        <<enumeration>>
+        ALLOWED
+        ASK
+        DENIED
+    }
+
+    class CapabilityGrant {
+        +str capability
+        +GrantState state
+        +str source
+        +str reason
+        +to_dict() dict
+    }
+
+    class SandboxPolicy {
+        +SandboxMode mode
+        +Path containment_root
+        +dict[str, CapabilityGrant] grants
+        +is_allowed(capability) bool
+        +requires_hitl(capability) bool
+        +set_grant(capability, state, source, reason) None
+        +to_dict() dict
+        +default(containment_root) SandboxPolicy
+    }
+
+    class PermissionPreset {
+        +str name
+        +str description
+        +dict[str, GrantState] grants
+        +hitl_capabilities list~str~
+        +to_dict() dict
+        +from_dict(data) PermissionPreset
+    }
+
+    class PermissionPresetService {
+        -AiConfigStore store
+        -dict[str, PermissionPreset] _builtins
+        +BUILTIN_STRICT: PermissionPreset
+        +BUILTIN_WORKSPACE: PermissionPreset
+        +BUILTIN_DANGER: PermissionPreset
+        +get_active() str
+        +set_active(name) None
+        +list_presets() list~PermissionPreset~
+        +apply(name, policy) SandboxPolicy
+        +register_custom(preset) None
+    }
+
+    class ApprovalState {
+        <<enumeration>>
+        PENDING
+        APPROVED
+        DENIED
+        EXPIRED
+    }
+
+    class ApprovalRequest {
+        +str action
+        +str capability
+        +str description
+        +str tool_call_id
+        +dict|None metadata
+    }
+
+    class ApprovalRecord {
+        +str approval_id
+        +ApprovalRequest request
+        +ApprovalState state
+        +int asked_at
+        +int|None decided_at
+        +str|None decided_by
+        +to_dict() dict
+    }
+
+    class ApprovalService {
+        -HumanInLoop hitl
+        -EventProjectionRegistry registry
+        -dict[str, ApprovalRecord] _cache
+        +ask(record, session_log, request) ApprovalRecord
+        +decide(approval_id, approved, decided_by) ApprovalRecord
+        +is_allowed(approval_id) bool
+        +list_pending() list~ApprovalRecord~
+        +expire_before(timestamp) int
+        +fold_approvals(events) dict[str, ApprovalRecord]
+    }
+
+    class VehicleState {
+        +bool enabled
+        +float v_ego_m_s
+        +bool ignition
+    }
+
+    class VehicleGuard {
+        -float threshold
+        +check_write_allowed(state) tuple[bool, str]
+    }
+
+    class ToolSpec {
+        +str name
+        +str capability
+        +bool requires_hitl
+    }
+
+    class ToolDispatcher {
+        -dict handlers
+        -dict schemas
+        -SandboxPolicyService sandbox
+        -AuditLog audit
+        -HumanInLoop hitl
+        -ApprovalService approval
+        +run(name, argument, session, tool_call_id) dict
+    }
+
+    EventProjectionRegistry --> ProjectionFolder : registers
+    EventProjectionRegistry --> SessionEvent : folds
+    SandboxPolicyService --> ConfinedSessionPolicy : produces
+    PermissionPresetService --> PermissionPreset : manages
+    PermissionPresetService --> SandboxPolicy : mutates
+    PermissionPresetService --> AiConfigStore : persists
+    ApprovalService --> ApprovalRecord : produces
+    ApprovalService --> HumanInLoop : delegates
+    ApprovalService --> EventProjectionRegistry : registers folder
+    ToolDispatcher --> ApprovalService : calls for high-consequence actions
+    ToolDispatcher --> SandboxPolicyService : checks policy
+    SandboxPolicy --> CapabilityGrant : contains
+    VehicleGuard --> VehicleState : checks

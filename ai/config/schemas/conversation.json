@@ -1,0 +1,12 @@
+{
+  "namespace": "conversation",
+  "revision": 2,
+  "fields": {
+    "ai_compaction_enabled": {"type": "boolean", "default": true, "label": "Enable compaction", "description": "Whether long conversations are auto-summarized."},
+    "ai_compact_after_turns": {"type": "number", "default": 24, "min": 4, "max": 200, "label": "Compact after user turns"},
+    "ai_keep_recent_turns": {"type": "number", "default": 8, "min": 2, "max": 64, "label": "Keep recent user turns"},
+    "ai_use_agent_loop": {"type": "boolean", "default": true, "label": "Use AgentLoop by default", "description": "Whether new chat turns run through the AgentLoop pipeline."},
+    "ai_tool_timeout": {"type": "number", "default": 60, "min": 1, "max": 3600, "label": "Tool timeout (s)", "description": "Maximum wall-clock time for a single tool execution."},
+    "ai_stream_timeout": {"type": "number", "default": 120, "min": 1, "max": 3600, "label": "Stream timeout (s)", "description": "Maximum wait for a single LLM stream chunk."}
+  }
+}

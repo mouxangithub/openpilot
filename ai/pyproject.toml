@@ -1,0 +1,32 @@
+[project]
+name = "ai-op-assistant-enhanced"
+version = "1.0.0"
+description = "AI OP Assistant Enhanced — harness-aligned agent with vehicle safety, audit hash chain, and capability sandbox."
+requires-python = ">=3.13"
+dependencies = [
+  "aiohttp>=3.9",
+  "pyzmq>=25.0",
+  "zstandard>=0.22",
+  "jinja2>=3.1",
+  "numpy>=2.0",
+  "requests>=2.31",
+  "tqdm>=4.66",
+  "pydantic>=2.5",
+  "aiosqlite>=0.20",
+  "pyyaml>=6.0",
+  "python-dotenv>=1.0",
+  "anthropic>=0.25.0",
+  "openai>=1.40.0",
+  "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-aiohttp",
+  "pytest-asyncio",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

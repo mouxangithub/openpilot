@@ -1,0 +1,24 @@
+{
+  "namespace": "bundle",
+  "revision": 1,
+  "fields": {
+    "ai_active_profile": {
+      "type": "string",
+      "default": "default",
+      "label": "Active profile",
+      "description": "Currently active bundle profile identifier."
+    },
+    "ai_active_bundles": {
+      "type": "list",
+      "default": [],
+      "label": "Active bundles",
+      "description": "List of bundle identifiers currently applied to the active profile."
+    },
+    "ai_bundle_auto_update": {
+      "type": "boolean",
+      "default": false,
+      "label": "Auto-update bundles",
+      "description": "Whether installed bundles are checked for updates on startup."
+    }
+  }
+}

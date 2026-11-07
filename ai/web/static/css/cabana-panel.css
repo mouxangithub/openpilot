@@ -1,0 +1,1721 @@
+/* Cabana — centered modal dialog */
+
+.cabana-modal .modal-content.cabana-modal-content {
+  width: min(1020px, 96vw);
+  /* Fixed height: the modal must not collapse to content height, otherwise
+   * the flex:1 table area (below) shrinks to the header row. */
+  height: min(90vh, 940px);
+  max-height: min(90vh, 940px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cabana-modal-header {
+  flex-shrink: 0;
+}
+
+.cabana-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cabana-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1;
+  min-height: 0;
+  padding: 0.65rem 0.85rem 0.75rem;
+  overflow: hidden;
+}
+
+/* ---- Zone layout: ContextBar / MainGrid / Inspector / BottomDock --------- */
+
+.cabana-contextbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  flex-shrink: 0;
+}
+
+.cabana-ctx-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.cabana-ctx-section[hidden] {
+  display: none !important;
+}
+
+.cabana-ctx-live .cabana-dbc-picker-wrap {
+  flex: 1 1 220px;
+}
+
+.cabana-ctx-replay-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.cabana-ctx-replay-controls .cabana-progress {
+  flex: 1 1 90px;
+  min-width: 5rem;
+  width: auto;
+}
+
+.cabana-ctx-replay-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+}
+
+.cabana-meta {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+/* Pull-down menus (更多 / 筛选 / 导出) */
+
+.cabana-menu-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.cabana-menu {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  min-width: 11rem;
+  padding: 0.3rem;
+  background: var(--bg-card, var(--surface));
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cabana-menu[hidden] {
+  display: none !important;
+}
+
+.cab-menu-item {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cab-menu-item:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.cab-menu-item.primary {
+  color: var(--accent);
+}
+
+.cab-menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.cabana-menu.cabana-filter-pop {
+  /* Right-aligned (inherited from .cabana-menu) so it expands leftwards and
+   * never clips against the modal's right edge — the filter row ends at the
+   * right side of the modal. min-width is wide (15rem), so leftward growth
+   * is the only safe direction. max-width guards ultra-narrow viewports
+   * (<~340px) where the intrinsic width alone exceeds the modal; inputs and
+   * chips inside shrink/scroll accordingly. */
+  min-width: 15rem;
+  max-width: calc(100vw - 0.5rem);
+  padding: 0.5rem;
+  gap: 0.45rem;
+}
+
+.cabana-filter-pop .toolbar-input,
+.cabana-filter-pop .cabana-filter {
+  min-width: 0;
+  width: 100%;
+}
+
+/* MainGrid: left = filter + table, right = Inspector */
+
+.cabana-main-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.cabana-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.cabana-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  flex-shrink: 0;
+}
+
+.cabana-filter-row .cabana-filter {
+  flex: 1 1 140px;
+  min-width: 0;
+  width: auto;
+}
+
+/* Inspector: right pane at ≥1024px, bottom drawer below */
+
+.cabana-inspector {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.cabana-inspector[hidden] {
+  display: none !important;
+}
+
+.cabana-inspector-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.cabana-inspector-tab {
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cabana-inspector-tab.active {
+  background: var(--accent-soft);
+  border-color: rgba(78, 205, 196, 0.35);
+  color: var(--accent);
+}
+
+.cabana-inspector-handle {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.4rem;
+  display: none;
+}
+
+.cabana-inspector-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.cab-itab {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.cab-itab[hidden] {
+  display: none !important;
+}
+
+/* BottomDock (replay only): video thumb + loading progress */
+
+.cabana-bottom-dock {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.cabana-bottom-dock[hidden] {
+  display: none !important;
+}
+
+.cabana-bottom-dock .cabana-video-preview {
+  flex: 0 0 160px;
+  min-height: 90px;
+  max-height: 120px;
+}
+
+.cabana-bottom-dock .cabana-replay-loading {
+  flex: 1;
+  align-self: center;
+}
+
+/* Inspector DBC tab */
+
+.cabana-dbc-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  flex-wrap: wrap;
+}
+
+#cabanaDbcInferBtn.highlight {
+  box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.45);
+  animation: cabana-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cabana-pulse {
+  50% { box-shadow: 0 0 0 4px rgba(78, 205, 196, 0.2); }
+}
+
+.cabana-dbc-status {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.cabana-dbc-status.error {
+  color: #fc8181;
+}
+
+.cabana-dbc-status.busy {
+  color: var(--accent);
+}
+
+.cabana-dbc-candidates {
+  padding: 0 0.5rem;
+  font-size: 0.68rem;
+  overflow: auto;
+}
+
+.cabana-dbc-cand-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.cabana-dbc-cand-table th,
+.cabana-dbc-cand-table td {
+  padding: 0.2rem 0.35rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cabana-dbc-cand-table td.mono {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.cabana-dbc-diff {
+  margin: 0.4rem 0.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.15));
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  overflow: auto;
+  max-height: 180px;
+  white-space: pre;
+}
+
+.cab-dbc-diff-add {
+  color: #95e06c;
+}
+
+.cabana-dbc-actions {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.2rem 0.5rem 0.45rem;
+}
+
+.cabana-dbc-versions {
+  border-top: 1px solid var(--border);
+  padding: 0.4rem 0.5rem 0.5rem;
+}
+
+.cabana-dbc-versions-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.cabana-dbc-versions-head .toolbar-input {
+  max-width: 12rem;
+  padding: 0.25rem 0.45rem;
+  font-size: 0.72rem;
+}
+
+.cabana-dbc-versions-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 140px;
+  overflow: auto;
+  font-size: 0.68rem;
+}
+
+.cabana-dbc-version-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.2rem 0.15rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.cabana-dbc-version-item.current {
+  color: var(--accent);
+}
+
+/* DBC picker visible in both live and replay modes */
+
+.cabana-car-bar {
+  display: none;
+}
+
+.cabana-mode-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.cabana-mode-tab {
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.cabana-mode-tab.active {
+  background: var(--accent-soft);
+  border-color: rgba(78, 205, 196, 0.35);
+  color: var(--accent);
+}
+
+.cabana-replay-stats {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cabana-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.cab-filter-chip {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.66rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.cab-filter-chip.active {
+  background: var(--accent-soft);
+  border-color: rgba(78, 205, 196, 0.35);
+  color: var(--accent);
+}
+
+.cabana-replay-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.cabana-replay-progress {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.cabana-replay-video {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cabana-replay-video input {
+  margin: 0;
+}
+
+.cabana-video-preview {
+  flex-shrink: 0;
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #0a0c10;
+  min-height: 120px;
+  max-height: min(200px, 22vh);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cabana-video-preview[hidden] {
+  display: none !important;
+}
+
+.cabana-video-img {
+  display: block;
+  max-width: 100%;
+  max-height: min(200px, 22vh);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.cabana-video-placeholder {
+  padding: 0.75rem 1rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ContextBar sections toggle via [hidden]; keep the legacy guards for the
+   replay-only blocks that now live in the bottom dock. */
+
+.cabana-mode-live .cabana-ctx-replay,
+.cabana-mode-live .cabana-replay-video {
+  display: none !important;
+}
+
+.cabana-mode-replay #cabanaConnectBtn {
+  display: none !important;
+}
+
+.cabana-ctx-replay[hidden],
+.cab-replay-loading[hidden],
+#cabanaRouteChatBtn[hidden] {
+  display: none !important;
+}
+
+.cabana-route-select {
+  min-width: 0;
+  width: 100%;
+}
+
+.cabana-replay-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+.cabana-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(78, 205, 196, 0.25);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: cabana-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes cabana-spin {
+  to { transform: rotate(360deg); }
+}
+
+.cabana-speed-select {
+  min-width: 4.5rem;
+}
+
+.cabana-progress {
+  width: 100%;
+}
+
+.cabana-progress-label {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.cabana-plot-wrap {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 0.5rem;
+}
+
+.cabana-plot-wrap[hidden] {
+  display: none !important;
+}
+
+.cabana-plot-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.cabana-plot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.cabana-ai-result {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.cabana-ai-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.cabana-ai-result-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cabana-ai-result-text {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  max-height: min(220px, 28vh);
+  overflow: auto;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.cabana-ai-result.analyzing .cabana-ai-result-text {
+  opacity: 0.65;
+}
+
+.cabana-plot-chart {
+  min-height: 180px;
+  overflow: hidden;
+}
+
+.cabana-plot-chart:empty {
+  display: none;
+}
+
+.cabana-label-progress {
+  font-size: 0.68rem;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cabana-label-progress[hidden] {
+  display: none !important;
+}
+
+.cab-detail-close {
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.cabana-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.cabana-detail-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cabana-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.cabana-detail-meta {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cabana-detail-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.cabana-detail-signals:empty {
+  display: none;
+}
+
+.cab-signal-pick {
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 0.66rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.cab-signal-pick.active {
+  background: var(--accent-soft);
+  border-color: rgba(78, 205, 196, 0.35);
+  color: var(--accent);
+}
+
+.cabana-detail-history {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cabana-detail-history-head {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.cabana-detail-history-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cabana-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+}
+
+.cabana-history-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  text-align: left;
+  padding: 0.25rem 0.5rem;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.cabana-history-table td {
+  padding: 0.2rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-secondary);
+  vertical-align: top;
+}
+
+.cabana-history-table td.mono {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+
+.cabana-history-table td:last-child {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cabana-plot-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 180px;
+  padding: 1rem;
+  color: var(--text-muted, #8a9aaa);
+  font-size: 0.85rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.cab-plot-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: rgba(78, 205, 196, 0.35);
+}
+
+.cabana-dbc-picker-wrap {
+  min-width: 0;
+  position: relative;
+}
+
+.cabana-dbc-picker {
+  position: relative;
+}
+
+.cabana-dbc-search {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+}
+
+.cabana-dbc-list {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  max-height: min(280px, 42vh);
+  margin: 0;
+  padding: 0.3rem 0;
+  list-style: none;
+  overflow-y: auto;
+  z-index: 20;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  -webkit-overflow-scrolling: touch;
+}
+
+.cabana-dbc-item {
+  padding: 0.55rem 0.75rem;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1.35;
+  word-break: break-all;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.cabana-dbc-item-name {
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cabana-dbc-item-sub {
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.cabana-dbc-item:hover,
+.cabana-dbc-item:focus-visible {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.cabana-dbc-item.selected {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.cabana-dbc-empty,
+.cabana-dbc-more {
+  padding: 0.65rem 0.75rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.cabana-toolbar select {
+  min-width: 0;
+}
+
+.toolbar-input,
+.cabana-filter {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.cabana-table-wrap {
+  flex: 1;
+  /* Guarantee usable table space even when the modal body is squeezed. */
+  min-height: 200px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+.cabana-table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+  table-layout: fixed;
+}
+
+.cabana-table-wrap th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+}
+
+.cabana-table-wrap th[data-sort]:hover {
+  color: var(--accent);
+}
+
+.cabana-table-wrap th.sorted-asc::after {
+  content: ' ▲';
+  font-size: 0.55rem;
+  opacity: 0.6;
+}
+
+.cabana-table-wrap th.sorted-desc::after {
+  content: ' ▼';
+  font-size: 0.55rem;
+  opacity: 0.6;
+}
+
+.cab-virtual-spacer td {
+  padding: 0 !important;
+  border: none !important;
+  height: 0;
+  line-height: 0;
+}
+
+.cabana-table-wrap tr.cab-data-row {
+  height: 34px;
+  cursor: pointer;
+}
+
+.cabana-table-wrap tr.cab-data-row:hover {
+  background: rgba(78, 205, 196, 0.06);
+}
+
+.cabana-table-wrap tr.cab-data-row.selected {
+  background: var(--accent-soft);
+}
+
+.cabana-table-wrap td.cab-col-bus,
+.cabana-table-wrap td.cab-col-freq {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cabana-table-wrap td.cab-col-bus {
+  width: 2.2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.cabana-table-wrap td.cab-col-freq {
+  width: 3rem;
+  text-align: right;
+  color: var(--text-muted);
+}
+
+.cabana-table-wrap td.cab-col-time {
+  width: 4.5rem;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+.cabana-table-wrap td.cab-col-name {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cabana-table-wrap td.cab-col-value {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cabana-table-wrap td.cab-col-label {
+  width: 5.5rem;
+}
+
+.cabana-table-wrap th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-elevated);
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  z-index: 1;
+}
+
+.cabana-table-wrap td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  color: var(--text-secondary);
+}
+
+.cabana-table-wrap td.cab-col-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.cabana-table-wrap td.cab-col-value {
+  max-width: 180px;
+}
+
+.cab-explain-btn {
+  margin-bottom: 0.25rem;
+}
+
+.cab-explain-text {
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: inline-block;
+  font-weight: 600;
+}
+
+.cab-tag-cruise { background: rgba(78, 205, 196, 0.18); color: #4ecdc4; }
+.cab-tag-steer { background: rgba(99, 179, 237, 0.18); color: #63b3ed; }
+.cab-tag-brake { background: rgba(252, 129, 129, 0.18); color: #fc8181; }
+.cab-tag-throttle { background: rgba(246, 173, 85, 0.18); color: #f6ad55; }
+.cab-tag-speed { background: rgba(154, 230, 180, 0.15); color: #9ae6b4; }
+.cab-tag-radar { background: rgba(183, 148, 244, 0.18); color: #b794f4; }
+.cab-tag-auth { background: rgba(160, 174, 192, 0.18); color: #a0aec0; }
+.cab-tag-default { background: var(--accent-soft); color: var(--accent); }
+
+.cab-explain-pending {
+  font-size: 0.66rem;
+  color: var(--text-muted, #8a9aaa);
+  font-style: italic;
+}
+
+.cab-explain-hex {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.cab-status {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.cab-status.live {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-glow);
+}
+
+.cab-status.connecting {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.cabana-panel-hint {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  flex-shrink: 0;
+}
+
+#cabanaBtn.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: rgba(78, 205, 196, 0.25);
+}
+
+.cabana-replay-full {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cabana-replay-full input {
+  margin: 0;
+}
+
+/* ≥1024px: two-column main grid with a side Inspector (38% width) */
+@media (min-width: 1024px) {
+  .cabana-main-grid {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .cabana-left-col {
+    flex: 1 1 62%;
+    min-width: 0;
+  }
+
+  .cabana-inspector {
+    flex: 0 0 38%;
+    max-width: 38%;
+    min-height: 0;
+  }
+
+  .cabana-inspector-handle {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .cabana-modal .modal-content.cabana-modal-content {
+    width: min(100%, 96vw);
+    max-height: min(92vh, 92dvh);
+  }
+}
+
+@media (max-width: 767px) {
+  .cabana-modal {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .cabana-modal .modal-content.cabana-modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: min(96dvh, 96vh);
+    height: min(96dvh, 96vh);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+  }
+
+  .cabana-modal-header {
+    padding: 0.65rem 0.75rem;
+    padding-top: max(0.65rem, env(safe-area-inset-top, 0px));
+    flex-shrink: 0;
+  }
+
+  .cabana-modal-header h2 {
+    font-size: 0.92rem;
+  }
+
+  .cabana-modal-actions .cab-status {
+    display: none;
+  }
+
+  .cabana-modal-body {
+    padding: 0.55rem 0.65rem calc(0.65rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.45rem;
+    overflow: hidden;
+  }
+
+  .cabana-meta {
+    white-space: normal;
+    line-height: 1.35;
+    font-size: 0.7rem;
+    flex-basis: 100%;
+  }
+
+  /* ContextBar collapses into two rows of horizontally scrollable controls */
+  .cabana-ctx-replay-controls {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .cabana-ctx-replay-controls::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cabana-ctx-replay-controls .btn.small,
+  .cabana-ctx-replay-controls .toolbar-select {
+    flex-shrink: 0;
+    min-height: 36px;
+  }
+
+  .cabana-label-progress {
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .cabana-filter-row {
+    gap: 0.3rem;
+  }
+
+  /* Popover clamping on narrow screens is handled in cabana-panel.js
+   * (toggleMenu -> clampMenuToModal): anchor buttons do not reliably wrap to
+   * the row start on mobile, so any fixed left/right anchoring can push the
+   * menu out of the fullscreen modal. JS measures and pins it instead. */
+
+  .cabana-filter-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.1rem;
+    margin: 0 -0.1rem;
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+  }
+
+  .cabana-filter-chips::-webkit-scrollbar {
+    display: none;
+  }
+
+  .cab-filter-chip {
+    flex-shrink: 0;
+    min-height: 30px;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.7rem;
+    touch-action: manipulation;
+  }
+
+  .cabana-table-wrap {
+    flex: 1 1 auto;
+    min-height: 120px;
+    max-height: none;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Inspector becomes a bottom drawer (expand/collapse via the handle) */
+  .cabana-inspector {
+    flex-shrink: 0;
+    max-height: min(42vh, 320px);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .cabana-inspector.collapsed {
+    max-height: 2.4rem;
+  }
+
+  .cabana-inspector.collapsed .cabana-inspector-body {
+    overflow: hidden;
+  }
+
+  .cabana-inspector-handle {
+    display: inline-block;
+  }
+
+  .cabana-detail-header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface);
+  }
+
+  .cabana-detail-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .cabana-detail-actions .btn.small {
+    min-height: 36px;
+    touch-action: manipulation;
+  }
+
+  .cabana-plot-wrap {
+    max-height: min(28vh, 200px);
+  }
+
+  .cabana-table-wrap th:nth-child(2),
+  .cabana-table-wrap td:nth-child(2),
+  .cabana-table-wrap th:nth-child(5),
+  .cabana-table-wrap td:nth-child(5) {
+    display: none;
+  }
+
+  .cabana-table-wrap td.cab-col-name,
+  .cabana-table-wrap td:nth-child(2) {
+    max-width: 42vw;
+  }
+
+  .cabana-table-wrap td.cab-col-value,
+  .cabana-table-wrap td:nth-child(3) {
+    max-width: 28vw;
+    font-size: 0.68rem;
+  }
+
+  .cabana-table-wrap td.cab-col-label,
+  .cabana-table-wrap td:nth-child(4) {
+    width: 4.8rem;
+    max-width: 22vw;
+  }
+
+  .cabana-ai-result {
+    flex-shrink: 0;
+    max-height: min(34vh, 240px);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cabana-ai-result-text {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    font-size: 0.74rem;
+  }
+
+  .cabana-panel-hint {
+    display: none;
+  }
+
+  .cabana-dbc-list {
+    max-height: min(220px, 34vh);
+  }
+
+  .cabana-filter,
+  .toolbar-input,
+  .cabana-dbc-search,
+  .cabana-route-select,
+  .toolbar-select {
+    font-size: 16px;
+    min-height: 40px;
+  }
+
+  .cabana-mode-tab {
+    min-height: 34px;
+    padding: 0.35rem 0.75rem;
+    touch-action: manipulation;
+  }
+}
+
+@media (max-width: 400px) {
+  .cabana-table-wrap td.cab-col-label,
+  .cabana-table-wrap td:nth-child(4) {
+    width: 4.2rem;
+  }
+}
+
+.cabana-filter-row {
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  align-items: center;
+}
+
+.cabana-filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.cab-byte-changed {
+  color: var(--accent, #4ecdc4);
+  font-weight: 600;
+}
+
+.cabana-detail-binary {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.25));
+  border-radius: 6px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.15));
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  overflow-x: auto;
+}
+
+.cab-bin-head {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.cab-bin-row {
+  display: flex;
+  gap: 0.5rem;
+  line-height: 1.5;
+}
+
+.cab-bin-idx {
+  width: 1.8rem;
+  color: var(--text-muted);
+}
+
+.cab-bin-bits span {
+  display: inline-block;
+  width: 0.65rem;
+  text-align: center;
+}
+
+.cab-bit-on { color: var(--text, #e8eef2); }
+.cab-bit-off { color: var(--text-muted, #6a7a88); opacity: 0.55; }
+.cab-bit-signal {
+  color: #ffd93d;
+  background: rgba(255, 217, 61, 0.12);
+  border-radius: 2px;
+}
+
+/* P2: hex byte grid (simplified binaryview, 16 bytes per row) */
+.cabana-binary-grid {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  border: 1px solid var(--border, rgba(128, 128, 128, 0.25));
+  border-radius: 6px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.15));
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  overflow-x: auto;
+}
+
+.cab-bgrid-head {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.cab-bgrid-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1.4;
+}
+
+.cab-bgrid-idx {
+  width: 2.2rem;
+  color: var(--text-muted);
+}
+
+.cab-bgrid-byte {
+  display: inline-block;
+  width: 1.55rem;
+  text-align: center;
+  border-radius: 3px;
+  cursor: default;
+}
+
+/* P2: live server-side filter buttons */
+#cabanaLiveFilterBtn.active {
+  background: var(--accent-soft, rgba(78, 205, 196, 0.12));
+  color: var(--accent, #4ecdc4);
+  border-color: var(--accent, #4ecdc4);
+}
+
+.platform-memory-notes .dev-item-list {
+  margin: 0;
+}
+
+/* ---- Standalone window mode (?cabana=1) ----------------------------------
+ * The chat shell is hidden and the Cabana modal becomes a full-viewport app.
+ * Element visibility is toggled from ai.js via body.cabana-standalone. */
+
+body.cabana-standalone {
+  overflow: hidden !important;
+}
+
+/* Hide every direct child of body except the Cabana modal and the toast
+ * container (splash, app shell, drawers, other modals). */
+body.cabana-standalone > :not(#cabanaModal):not(#toast) {
+  display: none !important;
+}
+
+body.cabana-standalone #toast {
+  z-index: 1100;
+}
+
+body.cabana-standalone #cabanaModal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  padding: 0;
+}
+
+body.cabana-standalone #cabanaBackdrop {
+  display: none !important;
+}
+
+body.cabana-standalone .cabana-modal .modal-content.cabana-modal-content {
+  width: 100%;
+  max-width: none;
+  height: 100vh;
+  max-height: none;
+  border-radius: 0;
+  border: none;
+}
+
+/* ---- Vehicle profile (one-click DBC reverse engineering) ----------------- */
+
+.cab-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.cab-profile-head #cabanaProfileCommitBtn {
+  margin-left: auto;
+}
+
+.cab-profile-truth-note {
+  margin: 0.2rem 0.5rem 0.4rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.7rem;
+  color: #e6a23c;
+  background: rgba(230, 162, 60, 0.12);
+  border-radius: 6px;
+}
+
+.cab-profile-group {
+  margin: 0.5rem 0;
+}
+
+.cab-profile-group-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 0 0.5rem;
+  margin-bottom: 0.3rem;
+}
+
+.cab-profile-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.45rem;
+  padding: 0 0.5rem;
+}
+
+.cab-profile-empty {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+.cab-profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(128, 128, 128, 0.25);
+  border-radius: 8px;
+  background: rgba(128, 128, 128, 0.06);
+  min-width: 0;
+}
+
+.cab-profile-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.cab-profile-sig-name {
+  font-weight: 600;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cab-profile-sig-meta {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cab-profile-flag {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* Confidence ring */
+.cab-profile-conf {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.cab-profile-conf .ring-bg {
+  fill: none;
+  stroke: rgba(128, 128, 128, 0.25);
+  stroke-width: 3;
+}
+
+.cab-profile-conf .ring {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.cab-profile-conf.hi .ring { stroke: #3fbf6f; }
+.cab-profile-conf.mid .ring { stroke: #e6a23c; }
+.cab-profile-conf.low .ring { stroke: #9aa4ad; }
+
+.cab-profile-conf-num {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  line-height: 1;
+}
+
+/* Evidence list: collapsed shows only the first item; toggle expands. */
+.cab-profile-evi {
+  min-width: 0;
+}
+
+.cab-profile-evi ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+.cab-profile-evi li {
+  padding: 0.1rem 0;
+}
+
+.cab-profile-evi li.extra {
+  display: none;
+}
+
+.cab-profile-evi:not(.collapsed) li.extra {
+  display: list-item;
+}
+
+.cab-profile-evi-toggle {
+  font-size: 0.62rem;
+  padding: 0.1rem 0.35rem;
+}
+
+/* Mini sparkline (reuse existing plot color accent) */
+.cab-profile-mini {
+  width: 120px;
+  height: 32px;
+  color: #4ecdc4;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.cab-profile-mini:hover {
+  opacity: 0.8;
+}
+
+.cab-profile-naming-btn {
+  align-self: flex-start;
+  font-size: 0.65rem;
+}
+
+/* Evidence chain line in the DBC infer candidates table */
+.cab-dbc-cand-evi {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  word-break: break-all;
+}

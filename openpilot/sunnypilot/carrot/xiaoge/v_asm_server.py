@@ -1,0 +1,1090 @@
+#!/usr/bin/env python3
+"""Xiaoge vision service providing lane and gated blindspot results to car.
+
+Ported from CarrotPilot (cp):
+  selfdrive/carrot/xiaoge/v_asm_server.py
+
+Runs ONNX inference on VisionIPC camera frames (wide + road cameras) and publishes
+results via customReservedRawData0. A standalone HTTP server on port 8082 serves
+status, config, and JPEG snapshots for debugging.
+"""
+import argparse
+import json
+import sys
+import threading
+import time
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+from PIL import Image
+
+if __package__ in (None, ""):
+  sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
+
+import openpilot.cereal.messaging as messaging
+from openpilot.sunnypilot.carrot.xiaoge.lane_inference import DEFAULT_LANE_MODEL_PATH, LaneInference, prepare_lane_image
+from openpilot.sunnypilot.carrot.xiaoge.nv12 import nv12_y_plane, pack_nv12
+from openpilot.sunnypilot.carrot.xiaoge.v_asm_inference import DEFAULT_MODEL_PATH, VASMInference
+from openpilot.sunnypilot.carrot.xiaoge.xiaoge_vision import XIAOGE_BLINDSPOT_TIMEOUT_NS, XIAOGE_LANE_TIMEOUT_NS, lane_width_meters
+from openpilot.sunnypilot.carrot.xiaoge.yolo_inference import DEFAULT_FOCAL_PX, DEFAULT_HEIGHT_PX, DEFAULT_WIDTH_PX, Tracker, YoloInference
+
+try:
+  import cv2
+  cv2.setNumThreads(1)
+except ModuleNotFoundError as error:
+  if error.name == "cv2":
+    raise SystemExit(
+        "V-ASM requires OpenCV. Restart openpilot through its normal launcher to install the bundled wheel into pydeps. " +
+      "For development, install xiaoge/requirements.txt in a writable virtual environment."
+    ) from None
+  raise
+
+
+HOST = "127.0.0.1"
+PORT = 8082
+CONFIG_PATH = Path(__file__).resolve().parent / "v_asm_config.json"
+MIN_THRESHOLD = 0.0
+MAX_THRESHOLD = 1.0
+MIN_SMOOTHING_SECONDS = 0.1
+MAX_SMOOTHING_SECONDS = 0.5
+MIN_BASE_INTERVAL_SECONDS = 0.05
+MAX_BASE_INTERVAL_SECONDS = 1.0
+BASE_INTERVAL_SECONDS = 0.25
+FOLLOWUP_INTERVAL_SECONDS = 0.15
+FOLLOWUP_WINDOW_SECONDS = 1.5
+VASM_MIN_LANE_WIDTH_METERS = 2.0
+CAMERA_TIMEOUT_SECONDS = 2.0
+SNAPSHOT_TIMEOUT_SECONDS = 5.0
+# VisionIPC recv holds the GIL while waiting. Poll without blocking, then sleep
+# in Python so an idle camera cannot stall inference or HTTP on other threads.
+CAMERA_POLL_INTERVAL_SECONDS = 0.005
+PARAM_REFRESH_SECONDS = 1.0
+
+PARAM_SETTING_DEFAULTS = {
+  "OnnxBsdEnabled": 0,
+  "OnnxBsdThreshold": 94,
+  "OnnxBsdSmoothingMs": 200,
+  "OnnxBsdIntervalMs": 250,
+  "OnnxLaneThreshold": 25,
+  "OnnxLaneIntervalMs": 1000,
+  "YoloObstacleEnabled": 0,
+}
+# Road-thread YOLO target cadence (with backpressure stretching it as needed).
+YOLO_INTERVAL_SECONDS = 0.25
+
+# Measured on SDM845 (comma 3): the lane model needs ~421 ms on a Gold core and
+# 941-1104 ms on a Silver core, and doubles again while both camera threads infer
+# concurrently. Stored values below this floor therefore cause back-to-back
+# inference that saturates a core, starves the other threads via the GIL, and is
+# what shows up downstream as intermittent "model lagging" freshness errors.
+MIN_LANE_INTERVAL_MS = 600
+# After a slow inference, wait this multiple of the measured latency before the
+# next one so a spiky schedule cannot turn the camera threads into 100 % duty
+# loops that drag each other (and the rest of the process) down.
+INFERENCE_BACKPRESSURE_FACTOR = 1.15
+
+# Circuit breaker: the driving model must stay alive while the vision heads run.
+# If modelV2 stalls (camerad/modeld wedge) while the heads were previously
+# running, all xiaoge inference stops immediately so this subscriber can neither
+# be implicated in nor worsen a camera-pipeline wedge; the heads re-arm only
+# after modelV2 has been healthy again for a full window, and give up for the
+# session after too many trips. modelV2 staleness also trips commIssue NO_ENTRYs
+# downstream, so keeping it alive is the contract this service must honour.
+PIPELINE_STALE_SECONDS = 1.5
+PIPELINE_RECOVERY_SECONDS = 10.0
+MAX_PIPELINE_FAULTS = 3
+PIPELINE_CHECK_INTERVAL_SECONDS = 0.5
+
+
+DEFAULT_POLYGONS = {
+  "width": 1928,
+  "height": 1208,
+  "poly_left": [
+    [0, 550],
+    [550, 480],
+    [650, 950],
+    [0, 1200],
+  ],
+  "poly_right": [
+    [1378, 480],
+    [1927, 550],
+    [1927, 1200],
+    [1278, 950],
+  ],
+}
+
+
+def normalize_config(config: object) -> dict:
+  if not isinstance(config, dict):
+    raise ValueError("configuration must be a JSON object")
+  try:
+    width, height = int(config.get("width", 0)), int(config.get("height", 0))
+  except (TypeError, ValueError) as error:
+    raise ValueError("camera dimensions must be integers") from error
+  if not 1 <= width <= 8192 or not 1 <= height <= 8192:
+    raise ValueError("camera dimensions must be between 1 and 8192")
+
+  normalized = {"width": width, "height": height}
+  for side in ("left", "right"):
+    polygon = config.get(f"poly_{side}", [])
+    if not isinstance(polygon, list) or len(polygon) > 64:
+      raise ValueError(f"poly_{side} must contain at most 64 points")
+    if polygon and len(polygon) < 3:
+      raise ValueError(f"poly_{side} requires at least 3 points")
+    points = []
+    for point in polygon:
+      if not isinstance(point, (list, tuple)) or len(point) != 2:
+        raise ValueError(f"poly_{side} points must be [x, y]")
+      try:
+        x, y = round(float(point[0])), round(float(point[1]))
+      except (TypeError, ValueError) as error:
+        raise ValueError(f"poly_{side} coordinates must be numbers") from error
+      if not 0 <= x < width or not 0 <= y < height:
+        raise ValueError(f"poly_{side} point is outside the image")
+      points.append([x, y])
+    normalized[f"poly_{side}"] = points
+  if not normalized["poly_left"] and not normalized["poly_right"]:
+    raise ValueError("annotate at least one side")
+  return normalized
+
+
+def create_params():
+  try:
+    from openpilot.common.params import Params
+    return Params()
+  except (ImportError, OSError):
+    return None
+
+
+def read_param_int(params, name: str, default: int) -> int:
+  if params is None:
+    return default
+  try:
+    raw = params.get(name)
+    if raw is None or raw == b"" or raw == "":
+      return default
+    return int(raw)
+  except Exception:
+    # A source hot-update can briefly leave params_pyx on the previous key
+    # table. Keep vision alive on defaults until the native module reloads.
+    return default
+
+
+class VASMService:
+  def __init__(self, model_path: Path, params=None):
+    self.lock = threading.Lock()
+    self.snapshot_condition = threading.Condition(self.lock)
+    self.snapshot_requests = {"wide": 0, "road": 0}
+    self.snapshot_responses = {"wide": 0, "road": 0}
+    self.vasm_inference_lock = threading.Lock()
+    self.publish_lock = threading.Lock()
+    # HTTP and both camera threads refresh settings; serialize the read as well
+    # as the model transition so an older read cannot restore a disabled model.
+    self.settings_refresh_lock = threading.Lock()
+    self.bsd_generation = 0
+    self.inference = VASMInference(model_path)
+    # Start unloaded: the BSD net is only resident while OnnxBsdEnabled is on.
+    # The forced settings refresh at the end of __init__ loads it if enabled.
+    self.bsd_enabled = False
+    self.config = self._read_config()
+    if self.config:
+      self.inference.load_config(self.config)
+    self.threshold = 0.94
+    self.smoothing_seconds = 0.2
+    self.base_interval_seconds = BASE_INTERVAL_SECONDS
+    self.running = True
+    self.last_jpeg: bytes | None = None
+    self.last_frame_at = 0.0
+    self.last_inference_at = 0.0
+    self.last_inference_ms = 0.0
+    self.last_inference_thread_cpu_ms = 0.0
+    self.inference_count = 0
+    self.inference_fps = 0.0
+    self._fps_window_start = time.monotonic()
+    self._fps_window_count = 0
+    self.last_side_at = {"left": 0.0, "right": 0.0}
+    self.next_side = "left"
+    self.followup_until = {"left": 0.0, "right": 0.0}
+    # Generation checkpoint for the camera loop: a toggle transition must not
+    # let an inference that was already in flight publish stale results.
+    self.last_bsd_generation = -1
+    self.camera_error = "waiting for wide road camera"
+    self.sm = messaging.SubMaster(["carState", "modelV2"])
+    self.pm = messaging.PubMaster(["customReservedRawData0"])
+    self.vasm_gate = {
+      "active": False,
+      "side": "",
+      "eligibleSides": [],
+      "reason": "waiting for carState and modelV2",
+      "laneWidth": 0.0,
+      "laneWidths": {"left": 0.0, "right": 0.0},
+    }
+    self.vasm_result = {
+      "left": False,
+      "right": False,
+      "side": "",
+      "updatedMonoTimeNanos": 0,
+      "updatedMonoTimeNanosBySide": {"left": 0, "right": 0},
+    }
+
+    # Lane inference engine setup
+    self.lane_inference = LaneInference(DEFAULT_LANE_MODEL_PATH)
+    self.lane_inference.load()
+    # YOLO obstacle head (road camera, serialised with lane inference). Starts
+    # unloaded: the net is only resident while YoloObstacleEnabled is on, and
+    # the forced settings refresh at the end of __init__ loads it if enabled.
+    self.yolo_enabled = False
+    self.yolo = YoloInference(focal_px=DEFAULT_FOCAL_PX, width_px=DEFAULT_WIDTH_PX, height_px=DEFAULT_HEIGHT_PX)
+    self.yolo_tracker = Tracker()
+    self.yolo_result = None
+    self.last_yolo_inference_at = 0.0
+    self.last_yolo_inference_ms = 0.0
+    self.yolo_inference_fps = 0.0
+    self.yolo_inference_count = 0
+    self._yolo_fps_window_start = time.monotonic()
+    self._yolo_fps_window_count = 0
+    self.lane_threshold = 0.25
+    self.lane_interval_seconds = 1.0
+    self.lane_camera_error = "waiting for road camera"
+    self.last_road_jpeg: bytes | None = None
+    # Pipeline circuit-breaker state (see PIPELINE_* constants). All reads and
+    # writes happen on the wide-camera thread only; camera threads read the
+    # fault flag under self.lock.
+    self.pipeline_fault = False
+    self.pipeline_faults = 0
+    self.pipeline_model_alive = False
+    self.pipeline_recovery_at = 0.0
+    self._pipeline_next_check = 0.0
+    self.last_road_frame_at = 0.0
+    self.last_lane_inference_at = 0.0
+    self.last_lane_inference_ms = 0.0
+    self.last_lane_inference_thread_cpu_ms = 0.0
+    self.lane_inference_count = 0
+    self.lane_inference_fps = 0.0
+    self._lane_fps_window_start = time.monotonic()
+    self._lane_fps_window_count = 0
+    self.lane_result = {
+      "leftLine": -1,
+      "rightLine": -1,
+      "leftConf": 0.0,
+      "rightConf": 0.0,
+      "candidatesCount": 0,
+      "valid": False,
+      "error": "",
+      "updatedMonoTimeNanos": 0,
+    }
+    self.params = params if params is not None else create_params()
+    self.last_param_refresh_at = 0.0
+    self._refresh_settings_from_params(force=True)
+
+  def _refresh_settings_from_params(self, force: bool = False) -> None:
+    # Serialize the read as well as the model transition: without this, a thread
+    # that read params before a disable can commit a stale enabled value after
+    # the unload and revive the model.
+    with self.settings_refresh_lock:
+      self._refresh_settings_locked(force)
+
+  def _refresh_settings_locked(self, force: bool = False) -> None:
+    now = time.monotonic()
+    with self.lock:
+      if not force and now - self.last_param_refresh_at < PARAM_REFRESH_SECONDS:
+        return
+      self.last_param_refresh_at = now
+
+    values = {
+      name: read_param_int(self.params, name, default)
+      for name, default in PARAM_SETTING_DEFAULTS.items()
+    }
+    bsd_enabled = values["OnnxBsdEnabled"] == 1
+    with self.lock:
+      bsd_enabled_changed = bsd_enabled != self.bsd_enabled
+      if bsd_enabled_changed:
+        # Advance the generation and drop every stale blind-spot artifact so no
+        # result inferred by the previous lifecycle outlives the toggle.
+        self.bsd_generation += 1
+        self.vasm_result = {
+          "left": False, "right": False, "side": "", "updatedMonoTimeNanos": 0,
+          "updatedMonoTimeNanosBySide": {"left": 0, "right": 0},
+        }
+        self.last_side_at = {"left": 0.0, "right": 0.0}
+        self.followup_until = {"left": 0.0, "right": 0.0}
+        self.last_inference_at = 0.0
+      self.bsd_enabled = bsd_enabled
+      self.threshold = min(max(values["OnnxBsdThreshold"], 0), 100) / 100.0
+      self.smoothing_seconds = min(max(values["OnnxBsdSmoothingMs"], 100), 500) / 1000.0
+      self.base_interval_seconds = min(max(values["OnnxBsdIntervalMs"], 50), 1000) / 1000.0
+      self.lane_threshold = min(max(values["OnnxLaneThreshold"], 0), 100) / 100.0
+      self.lane_interval_seconds = min(max(values["OnnxLaneIntervalMs"], MIN_LANE_INTERVAL_MS), 2000) / 1000.0
+
+    # Apply the resident-model lifecycle outside the state lock: a load touches
+    # ONNX/dnn and can be slow, and inference takes the dedicated dnn lock.
+    if bsd_enabled_changed:
+      with self.vasm_inference_lock:
+        if bsd_enabled:
+          self.inference.load()
+          if self.inference.valid and self.config:
+            self.inference.load_config(self.config)
+        else:
+          self.inference.unload()
+
+    # Same lifecycle for the YOLO obstacle head: toggling drops every tracked
+    # trajectory and the last result so nothing from the old lifecycle survives.
+    yolo_enabled = values["YoloObstacleEnabled"] == 1
+    with self.lock:
+      yolo_enabled_changed = yolo_enabled != self.yolo_enabled
+      if yolo_enabled_changed:
+        self.yolo_result = None
+      self.yolo_enabled = yolo_enabled
+    if yolo_enabled_changed:
+      self.yolo_tracker.reset()
+      with self.vasm_inference_lock:
+        if yolo_enabled:
+          self.yolo.load()
+        else:
+          self.yolo.unload()
+
+  def _persist_settings(self, values: dict[str, int]) -> None:
+    if self.params is None:
+      return
+    try:
+      for name, value in values.items():
+        self.params.put_int(name, value)
+    except Exception as error:
+      raise ValueError("could not persist ONNX settings") from error
+
+  def _read_config(self) -> dict:
+    try:
+      return normalize_config(json.loads(CONFIG_PATH.read_text()))
+    except (OSError, ValueError, json.JSONDecodeError):
+      return DEFAULT_POLYGONS
+
+  def _write_config(self, config: dict) -> None:
+    temporary_path = CONFIG_PATH.with_suffix(".tmp")
+    temporary_path.write_text(json.dumps(config, separators=(",", ":")) + "\n")
+    temporary_path.replace(CONFIG_PATH)
+
+  def save_config(self, config: object) -> dict:
+    normalized = normalize_config(config)
+    self._write_config(normalized)
+    with self.vasm_inference_lock:
+      self.inference.load_config(normalized)
+    with self.lock:
+      self.config = normalized
+    return normalized
+
+  def clear_config(self) -> None:
+    try:
+      CONFIG_PATH.unlink()
+    except FileNotFoundError:
+      pass
+    with self.vasm_inference_lock:
+      self.inference.load_config(DEFAULT_POLYGONS)
+    with self.lock:
+      self.config = DEFAULT_POLYGONS
+
+  def set_settings(self, settings: object) -> dict:
+    if not isinstance(settings, dict):
+      raise ValueError("settings must be a JSON object")
+    try:
+      threshold = float(settings.get("threshold", self.threshold))
+      smoothing_seconds = float(settings.get("smoothingSeconds", self.smoothing_seconds))
+      base_interval_seconds = float(settings.get("baseIntervalSeconds", self.base_interval_seconds))
+      lane_threshold = float(settings.get("laneThreshold", self.lane_threshold))
+      lane_interval_seconds = float(settings.get("laneIntervalSeconds", self.lane_interval_seconds))
+    except (TypeError, ValueError) as error:
+      raise ValueError("settings must be numeric") from error
+    if not MIN_THRESHOLD <= threshold <= MAX_THRESHOLD:
+      raise ValueError(f"threshold must be {MIN_THRESHOLD:.2f} to {MAX_THRESHOLD:.2f}")
+    if not MIN_SMOOTHING_SECONDS <= smoothing_seconds <= MAX_SMOOTHING_SECONDS:
+      raise ValueError(f"smoothingSeconds must be {MIN_SMOOTHING_SECONDS:.1f} to {MAX_SMOOTHING_SECONDS:.1f}")
+    if not MIN_BASE_INTERVAL_SECONDS <= base_interval_seconds <= MAX_BASE_INTERVAL_SECONDS:
+      raise ValueError(f"baseIntervalSeconds must be {MIN_BASE_INTERVAL_SECONDS:.2f} to {MAX_BASE_INTERVAL_SECONDS:.2f}")
+    if not 0.0 <= lane_threshold <= 1.0:
+      raise ValueError("laneThreshold must be 0.0 to 1.0")
+    if not 0.05 <= lane_interval_seconds <= 2.0:
+      raise ValueError("laneIntervalSeconds must be 0.05 to 2.0")
+
+    self._persist_settings({
+      "OnnxBsdThreshold": round(threshold * 100),
+      "OnnxBsdSmoothingMs": round(smoothing_seconds * 1000),
+      "OnnxBsdIntervalMs": round(base_interval_seconds * 1000),
+      "OnnxLaneThreshold": round(lane_threshold * 100),
+      "OnnxLaneIntervalMs": round(lane_interval_seconds * 1000),
+    })
+    with self.lock:
+      self.threshold = threshold
+      self.smoothing_seconds = smoothing_seconds
+      self.base_interval_seconds = base_interval_seconds
+      self.lane_threshold = lane_threshold
+      self.lane_interval_seconds = lane_interval_seconds
+    return self.status()
+
+  def store_toggle_values(self, payload: object) -> dict:
+    """Persist arbitrary toggle values posted by the phone app on 8082.
+
+    navipilot (the CP companion app) posts a flat ``{key: scalar}`` map to
+    ``POST /store_toggle_values`` instead of going through ``/api/param_set`` on
+    7000. Keys are looked up in the registered Params store first so a known key
+    keeps its declared type (``Params.put`` raises on a type mismatch rather than
+    casting); anything unregistered is written into the nav_params.json cache so
+    the user's choice is not silently dropped.
+    """
+    if not isinstance(payload, dict):
+      raise ValueError("toggle values must be a JSON object")
+    # Some app builds wrap the map under "values" / "toggles"; accept both.
+    body = payload
+    for wrapper in ("values", "toggles", "params"):
+      inner = payload.get(wrapper)
+      if isinstance(inner, dict):
+        body = inner
+        break
+
+    stored: dict[str, object] = {}
+    rejected: dict[str, str] = {}
+    for key, value in body.items():
+      if not isinstance(key, str) or not key:
+        continue
+      try:
+        if self.params is not None:
+          stored[key] = self.params.put(key, value)
+        else:
+          rejected[key] = "params store unavailable"
+      except Exception as error:  # UnknownKeyName / TypeError / read-only store
+        rejected[key] = str(error)
+    return {"success": True, "stored": stored, "rejected": rejected}
+
+  def status(self) -> dict:
+    self._refresh_settings_from_params()
+    with self.lock:
+      now = time.monotonic()
+      now_nanos = time.monotonic_ns()
+      camera_age = now - self.last_frame_at if self.last_frame_at else None
+      road_camera_age = now - self.last_road_frame_at if self.last_road_frame_at else None
+      camera_available = camera_age is not None and camera_age <= CAMERA_TIMEOUT_SECONDS and not self.camera_error
+      road_camera_available = road_camera_age is not None and road_camera_age <= CAMERA_TIMEOUT_SECONDS and not self.lane_camera_error
+      vasm_timestamp = self.vasm_result["updatedMonoTimeNanos"]
+      vehicle_sides = {}
+      for side in ("left", "right"):
+        # Per-side freshness: sides are inferred on alternating passes, so a
+        # single shared timestamp would age the idle side even when its result
+        # is fresh.
+        side_timestamp = self.vasm_result["updatedMonoTimeNanosBySide"][side]
+        side_fresh = side_timestamp > 0 and 0 <= now_nanos - side_timestamp <= XIAOGE_BLINDSPOT_TIMEOUT_NS
+        valid = bool(self.bsd_enabled and camera_available and self.inference.valid and self.vasm_gate["active"] and
+                     side_fresh and side in self.vasm_gate["eligibleSides"])
+        vehicle_sides[side] = {
+          "valid": valid,
+          "active": self.vasm_result[side] if valid else False,
+          "confidence": self.inference.confidence[side] if valid else 0.0,
+          "updatedMonoTimeNanos": side_timestamp,
+        }
+      lane_timestamp = self.lane_result["updatedMonoTimeNanos"]
+      lane_fresh = bool(road_camera_available and self.lane_inference.valid and self.lane_result["valid"] and
+                        lane_timestamp > 0 and 0 <= now_nanos - lane_timestamp <= XIAOGE_LANE_TIMEOUT_NS)
+      gate = self.vasm_gate if self.bsd_enabled else {
+        "active": False,
+        "side": "",
+        "eligibleSides": [],
+        "reason": "visual BSD is disabled",
+        "laneWidth": 0.0,
+        "laneWidths": {"left": 0.0, "right": 0.0},
+      }
+      return {
+        "bsdEnabled": self.bsd_enabled,
+        "standalone": False,
+        "integrated": True,
+        "model": {
+          "path": str(self.inference.model_path),
+          "loaded": self.inference.valid,
+          "error": self.inference.error,
+        },
+        "configured": bool(self.config),
+        "configuredSides": list(self.inference.configured_sides),
+        "gate": gate,
+        "threshold": self.threshold,
+        "smoothingSeconds": self.smoothing_seconds,
+        "baseIntervalSeconds": self.base_interval_seconds,
+        "camera": {
+          "available": camera_available,
+          "error": self.camera_error,
+          "lastFrameAgeSeconds": camera_age,
+        },
+        "imageSide": vehicle_sides,
+        "vehicleSide": vehicle_sides,
+        "inference": {
+          "latencyMs": round(self.last_inference_ms, 1),
+          "threadCpuMs": round(self.last_inference_thread_cpu_ms, 1),
+          "updatedMonoTimeNanos": vasm_timestamp,
+          "fps": self.inference_fps,
+          "count": self.inference_count,
+          "lastAgeSeconds": round(time.monotonic() - self.last_inference_at, 2) if self.last_inference_at else None,
+        },
+        "lastInferenceAgeSeconds": time.monotonic() - self.last_inference_at if self.last_inference_at else None,
+        "lane": {
+          "enabled": True,
+          "loaded": self.lane_inference.valid,
+          "error": self.lane_inference.error,
+          "threshold": self.lane_threshold,
+          "intervalSeconds": self.lane_interval_seconds,
+          "cameraAvailable": road_camera_available,
+          "cameraError": self.lane_camera_error,
+          "lastFrameAgeSeconds": road_camera_age,
+          "resultFresh": lane_fresh,
+          "result": self.lane_result,
+          "inference": {
+            "latencyMs": round(self.last_lane_inference_ms, 1),
+            "threadCpuMs": round(self.last_lane_inference_thread_cpu_ms, 1),
+            "fps": self.lane_inference_fps,
+            "count": self.lane_inference_count,
+            "lastAgeSeconds": round(time.monotonic() - self.last_lane_inference_at, 2) if self.last_lane_inference_at else None,
+          },
+        },
+        "yolo": {
+          "enabled": self.yolo_enabled,
+          "loaded": self.yolo.valid,
+          "error": self.yolo.error,
+          "intervalSeconds": YOLO_INTERVAL_SECONDS,
+          "resultAgeSeconds": round(time.monotonic() - self.last_yolo_inference_at, 2) if self.last_yolo_inference_at else None,
+          "inference": {
+            "latencyMs": round(self.last_yolo_inference_ms, 1),
+            "fps": self.yolo_inference_fps,
+            "count": self.yolo_inference_count,
+            "tracks": len(self.yolo_tracker.tracks),
+          },
+        },
+      }
+
+  def snapshot(self, stream_type: str) -> bytes | None:
+    with self.snapshot_condition:
+      self.snapshot_requests[stream_type] += 1
+      requested = self.snapshot_requests[stream_type]
+      self.snapshot_condition.wait_for(
+        lambda: self.snapshot_responses[stream_type] >= requested or not self.running,
+        timeout=SNAPSHOT_TIMEOUT_SECONDS,
+      )
+      if self.snapshot_responses[stream_type] < requested:
+        return None
+      return self.last_road_jpeg if stream_type == "road" else self.last_jpeg
+
+  def _update_vasm_gate(self) -> tuple[str, ...]:
+    self.sm.update(0)
+    services = ["carState", "modelV2"]
+    if not (self.sm.all_alive(services) and self.sm.all_valid(services)):
+      widths = {"left": 0.0, "right": 0.0}
+      eligible_sides = ()
+      reason = "carState or modelV2 is unavailable"
+    else:
+      # Dual-side continuous monitoring: no lane-change direction and no speed
+      # gate any more (cp c6566c65a). Both sides are candidates whenever the
+      # model sees a lane wide enough to hold a vehicle alongside.
+      meta = self.sm["modelV2"].meta
+      widths = {"left": lane_width_meters(meta, "laneWidthLeft"), "right": lane_width_meters(meta, "laneWidthRight")}
+      eligible_sides = tuple(
+        side for side in ("left", "right")
+        if widths[side] >= VASM_MIN_LANE_WIDTH_METERS and side in self.inference.configured_sides
+      )
+      reason = "" if eligible_sides else "configured lane widths below 2.0 m"
+    selected_side = self.next_side if self.next_side in eligible_sides else (eligible_sides[0] if eligible_sides else "")
+    gate = {
+      "active": bool(eligible_sides),
+      "side": selected_side,
+      "eligibleSides": list(eligible_sides),
+      "reason": reason,
+      "laneWidth": widths.get(selected_side, 0.0),
+      "laneWidths": widths,
+    }
+    with self.lock:
+      self.vasm_gate = gate
+    return eligible_sides
+
+  def _check_pipeline_health(self, now: float) -> None:
+    """Circuit breaker (wide-camera thread only). Trips when modelV2 — the
+    driving model this service must not disturb — goes stale while the heads
+    were running: all xiaoge inference stops immediately and the results clear,
+    so a camerad/modeld wedge can neither be worsened by nor pinned on this
+    subscriber. Heads re-arm after modelV2 stays healthy for a full recovery
+    window, up to MAX_PIPELINE_FAULTS trips per session."""
+    if now < self._pipeline_next_check:
+      return
+    self._pipeline_next_check = now + PIPELINE_CHECK_INTERVAL_SECONDS
+    try:
+      self.sm.update(0)
+      model_age = now - self.sm.recv_time.get('modelV2', 0.0)
+    except Exception:
+      return
+    model_alive = model_age < PIPELINE_STALE_SECONDS
+    was_alive = self.pipeline_model_alive
+    self.pipeline_model_alive = model_alive
+
+    if self.pipeline_fault:
+      if not model_alive:
+        self.pipeline_recovery_at = 0.0
+        return
+      if self.pipeline_recovery_at == 0.0:
+        self.pipeline_recovery_at = now
+        return
+      if now - self.pipeline_recovery_at < PIPELINE_RECOVERY_SECONDS:
+        return
+      self.pipeline_recovery_at = 0.0
+      if self.pipeline_faults < MAX_PIPELINE_FAULTS:
+        self.pipeline_fault = False
+        self._log_pipeline('xiaogeVisionPipelineRecovered')
+      else:
+        self._log_pipeline('xiaogeVisionPipelineDisabled')
+      return
+
+    if was_alive and not model_alive:
+      self.pipeline_fault = True
+      self.pipeline_faults += 1
+      with self.lock:
+        self.vasm_result = {
+          "left": False, "right": False, "side": "", "updatedMonoTimeNanos": 0,
+          "updatedMonoTimeNanosBySide": {"left": 0, "right": 0},
+        }
+        self.yolo_result = None
+        self.lane_result = {**self.lane_result, "valid": False}
+      self._log_pipeline('xiaogeVisionPipelineFault', model_age_s=round(model_age, 2))
+      self.publish_vision_result()
+
+  def _log_pipeline(self, event: str, **extra) -> None:
+    try:
+      from openpilot.common.swaglog import cloudlog
+      cloudlog.event(event, faults=self.pipeline_faults, **extra)
+    except Exception:
+      pass
+
+  def publish_vision_result(self) -> None:
+    status = self.status()
+    lane = status["lane"]["result"]
+    sides = status["vehicleSide"]
+    valid_sides = [side for side in ("left", "right") if sides[side]["valid"]]
+    blindspot_valid = bool(valid_sides)
+    blindspot_side = status["gate"]["side"] if status["gate"]["side"] in valid_sides else (valid_sides[0] if valid_sides else "")
+    now_nanos = time.monotonic_ns()
+    document = {
+      "type": "xiaogeVision",
+      "version": 1,
+      "lane": {
+        "leftLine": lane["leftLine"],
+        "rightLine": lane["rightLine"],
+        "valid": status["lane"]["resultFresh"],
+        "latencyMs": status["lane"]["inference"]["latencyMs"],
+        "receivedMonoTimeNanos": lane["updatedMonoTimeNanos"] or now_nanos,
+      },
+      "blindspot": {
+        "left": sides["left"]["active"],
+        "right": sides["right"]["active"],
+        "valid": blindspot_valid,
+        "side": blindspot_side,
+        "validSides": valid_sides,
+        "receivedMonoTimeNanos": status["inference"]["updatedMonoTimeNanos"] or now_nanos,
+        "receivedMonoTimeNanosBySide": {
+          side: sides[side]["updatedMonoTimeNanos"] for side in ("left", "right")
+        },
+      },
+    }
+    # Optional section: readers built for version 1 must keep parsing when the
+    # YOLO head is off, so the key is simply absent instead of version-bumped.
+    with self.lock:
+      yolo_result = self.yolo_result if self.yolo_enabled else None
+    if yolo_result is not None:
+      document["yolo"] = yolo_result
+    payload = json.dumps(document, separators=(",", ":")).encode()
+    with self.publish_lock:
+      msg = messaging.new_message("customReservedRawData0", size=len(payload), valid=True)
+      msg.customReservedRawData0 = payload
+      self.pm.send("customReservedRawData0", msg)
+
+  @staticmethod
+  def _jpeg_from_nv12(data: bytes, width: int, height: int, stride: int, uv_offset: int) -> bytes:
+    nv12 = pack_nv12(data, width, height, stride, uv_offset)
+    rgb = cv2.cvtColor(nv12, cv2.COLOR_YUV2RGB_NV12)
+    output = BytesIO()
+    Image.fromarray(rgb).save(output, "JPEG", quality=85)
+    return output.getvalue()
+
+  @staticmethod
+  def _lane_jpeg_from_nv12(data: bytes, width: int, height: int, stride: int) -> bytes:
+    """Build the grayscale road-camera input expected by the lane model."""
+    frame = nv12_y_plane(data, width, height, stride)
+    gray = prepare_lane_image(frame, width, height)
+    output = BytesIO()
+    Image.fromarray(gray).save(output, "JPEG", quality=50)
+    return output.getvalue()
+
+  def run_camera(self) -> None:
+    from msgq.visionipc import VisionIpcClient
+    from openpilot.cereal.visionipc import VisionStreamType
+
+    client = None
+    while self.running:
+      try:
+        if client is None or not client.is_connected():
+          client = VisionIpcClient("camerad", VisionStreamType.VISION_STREAM_WIDE_ROAD, True)
+          if not client.connect(False):
+            with self.lock:
+              self.camera_error = "wide road camera is unavailable; start openpilot/camerad first"
+            time.sleep(1.0)
+            continue
+
+        buffer = client.recv(timeout_ms=0)
+        if buffer is None:
+          time.sleep(CAMERA_POLL_INTERVAL_SECONDS)
+          continue
+        now = time.monotonic()
+        self._refresh_settings_from_params()
+        self._check_pipeline_health(now)
+        publish_clear = False
+        with self.lock:
+          bsd_enabled = self.bsd_enabled
+          bsd_generation = self.bsd_generation
+          bsd_settings_changed = bsd_generation != self.last_bsd_generation
+          self.last_bsd_generation = bsd_generation
+          self.last_frame_at = now
+          self.camera_error = ""
+          if self.snapshot_responses["wide"] < self.snapshot_requests["wide"]:
+            self.last_jpeg = self._jpeg_from_nv12(buffer.data, buffer.width, buffer.height, buffer.stride, buffer.uv_offset)
+            self.snapshot_responses["wide"] = self.snapshot_requests["wide"]
+            self.snapshot_condition.notify_all()
+          if not bsd_enabled:
+            publish_clear = bsd_settings_changed or self.vasm_result["left"] or self.vasm_result["right"]
+            self.vasm_result["left"] = self.vasm_result["right"] = False
+            self.vasm_result["side"] = ""
+            self.vasm_result["updatedMonoTimeNanos"] = 0
+            self.vasm_result["updatedMonoTimeNanosBySide"] = {"left": 0, "right": 0}
+          elif bsd_settings_changed:
+            publish_clear = True
+            self.vasm_result["left"] = self.vasm_result["right"] = False
+            self.vasm_result["side"] = ""
+            self.vasm_result["updatedMonoTimeNanos"] = 0
+            self.vasm_result["updatedMonoTimeNanosBySide"] = {"left": 0, "right": 0}
+        if bsd_settings_changed:
+          # A toggle transition invalidates smoothed scores even when the model
+          # itself stays resident (enable -> enable config change path).
+          with self.vasm_inference_lock:
+            self.inference.reset()
+        if not bsd_enabled:
+          if publish_clear:
+            self.publish_vision_result()
+          continue
+        # Circuit breaker open: publish the cleared results once, then stand
+        # down from all BSD inference until it closes again.
+        if self.pipeline_fault:
+          if publish_clear:
+            self.publish_vision_result()
+          continue
+
+        eligible_sides = self._update_vasm_gate()
+        with self.lock:
+          for candidate in ("left", "right"):
+            if candidate not in eligible_sides:
+              publish_clear = publish_clear or self.vasm_result[candidate]
+              self.vasm_result[candidate] = False
+              self.vasm_result["updatedMonoTimeNanosBySide"][candidate] = 0
+          if not eligible_sides:
+            publish_clear = publish_clear or self.vasm_result["left"] or self.vasm_result["right"]
+            self.vasm_result["left"] = self.vasm_result["right"] = False
+            self.vasm_result["side"] = ""
+            self.vasm_result["updatedMonoTimeNanos"] = time.monotonic_ns()
+          else:
+            side = self.next_side if self.next_side in eligible_sides else eligible_sides[0]
+            interval = FOLLOWUP_INTERVAL_SECONDS if now < self.followup_until[side] else self.base_interval_seconds
+            if self.last_inference_ms > 0.0:
+              interval = max(interval, self.last_inference_ms * INFERENCE_BACKPRESSURE_FACTOR / 1000.0)
+            if now - self.last_inference_at < interval:
+              continue
+        if not eligible_sides:
+          if publish_clear:
+            self.publish_vision_result()
+          continue
+        with self.vasm_inference_lock:
+          with self.lock:
+            # A disable may have landed while this thread was waiting for the
+            # dnn lock: never start inference for a dead generation.
+            if not self.bsd_enabled or bsd_generation != self.bsd_generation:
+              continue
+          configured_sides = self.inference.configured_sides
+          if side not in configured_sides or not self.inference.valid:
+            continue
+          frame = pack_nv12(buffer.data, buffer.width, buffer.height, buffer.stride, buffer.uv_offset)
+          previous = self.last_side_at[side]
+          t0 = time.monotonic()
+          cpu0 = time.thread_time()
+          self.inference.update(frame, buffer.width, buffer.height, side, self.threshold, self.smoothing_seconds, now - previous if previous else interval)
+          t1 = time.monotonic()
+          thread_cpu_ms = (time.thread_time() - cpu0) * 1000.0
+          active = self.inference.active[side]
+        with self.lock:
+          # Disabling/re-enabling may have raced the completed inference.
+          if not self.bsd_enabled or bsd_generation != self.bsd_generation:
+            continue
+          self.last_inference_ms = (t1 - t0) * 1000.0
+          self.last_inference_thread_cpu_ms = thread_cpu_ms
+          self.inference_count += 1
+          self._fps_window_count += 1
+          if t1 - self._fps_window_start >= 1.0:
+            self.inference_fps = round(self._fps_window_count / (t1 - self._fps_window_start), 1)
+            self._fps_window_start = t1
+            self._fps_window_count = 0
+          self.last_inference_at = self.last_side_at[side] = now
+          if active:
+            self.followup_until[side] = now + FOLLOWUP_WINDOW_SECONDS
+          updated_nanos = time.monotonic_ns()
+          self.vasm_result[side] = active
+          self.vasm_result["side"] = side
+          self.vasm_result["updatedMonoTimeNanos"] = updated_nanos
+          self.vasm_result["updatedMonoTimeNanosBySide"][side] = updated_nanos
+          other_side = "right" if side == "left" else "left"
+          self.next_side = other_side if other_side in eligible_sides else side
+        self.publish_vision_result()
+      except (OSError, ValueError, AttributeError) as error:
+        # AttributeError is included defensively: a cereal field that exists in a
+        # CarrotPilot schema but not in this fork's (e.g. ModelDataV2.meta.laneWidth*)
+        # must degrade to an error string instead of silently killing this thread.
+        with self.lock:
+          self.camera_error = str(error)
+        client = None
+        time.sleep(1.0)
+
+  def run_road_camera(self) -> None:
+    from msgq.visionipc import VisionIpcClient
+    from openpilot.cereal.visionipc import VisionStreamType
+
+    client = None
+    while self.running:
+      try:
+        if client is None or not client.is_connected():
+          client = VisionIpcClient("camerad", VisionStreamType.VISION_STREAM_NARROW_ROAD, True)
+          if not client.connect(False):
+            with self.lock:
+              self.lane_camera_error = "road camera is unavailable; start openpilot/camerad first"
+            time.sleep(1.0)
+            continue
+
+        buffer = client.recv(timeout_ms=0)
+        if buffer is None:
+          time.sleep(CAMERA_POLL_INTERVAL_SECONDS)
+          continue
+        now = time.monotonic()
+        self._refresh_settings_from_params()
+        frame = nv12_y_plane(buffer.data, buffer.width, buffer.height, buffer.stride)
+        with self.lock:
+          self.last_road_frame_at = now
+          self.lane_camera_error = ""
+          if self.snapshot_responses["road"] < self.snapshot_requests["road"]:
+            self.last_road_jpeg = self._lane_jpeg_from_nv12(buffer.data, buffer.width, buffer.height, buffer.stride)
+            self.snapshot_responses["road"] = self.snapshot_requests["road"]
+            self.snapshot_condition.notify_all()
+
+        # Lane and YOLO share this thread but throttle independently, so neither
+        # cadence can starve the other. Reserving the slot before inferring
+        # keeps one slow frame from double-firing its own head.
+        with self.lock:
+          lane_due = self.lane_inference.valid and not self.pipeline_fault and \
+            now - self.last_lane_inference_at >= self._lane_interval_for(now)
+          lane_threshold = self.lane_threshold
+          if lane_due:
+            self.last_lane_inference_at = now
+          yolo_due = self.yolo_enabled and self.yolo.valid and not self.pipeline_fault and \
+            now - self.last_yolo_inference_at >= self._yolo_interval_for(now)
+          if yolo_due:
+            self.last_yolo_inference_at = now
+
+        if lane_due:
+          t0 = time.monotonic()
+          cpu0 = time.thread_time()
+          res = self.lane_inference.infer(
+            frame, buffer.width, buffer.height, conf_thresh=lane_threshold
+          )
+          t1 = time.monotonic()
+          thread_cpu_ms = (time.thread_time() - cpu0) * 1000.0
+          with self.lock:
+            self.last_lane_inference_ms = (t1 - t0) * 1000.0
+            self.last_lane_inference_thread_cpu_ms = thread_cpu_ms
+            self.lane_inference_count += 1
+            self._lane_fps_window_count += 1
+            if t1 - self._lane_fps_window_start >= 1.0:
+              self.lane_inference_fps = round(self._lane_fps_window_count / (t1 - self._lane_fps_window_start), 1)
+              self._lane_fps_window_start = t1
+              self._lane_fps_window_count = 0
+            res["updatedMonoTimeNanos"] = time.monotonic_ns()
+            self.lane_result = res
+
+        if yolo_due:
+          t0 = time.monotonic()
+          dets = self.yolo.infer(frame, buffer.width, buffer.height)
+          self.yolo_tracker.update(dets, now)
+          t1 = time.monotonic()
+          with self.lock:
+            self.last_yolo_inference_ms = (t1 - t0) * 1000.0
+            self.yolo_inference_count += 1
+            self._yolo_fps_window_count += 1
+            if t1 - self._yolo_fps_window_start >= 1.0:
+              self.yolo_inference_fps = round(self._yolo_fps_window_count / (t1 - self._yolo_fps_window_start), 1)
+              self._yolo_fps_window_start = t1
+              self._yolo_fps_window_count = 0
+            self.yolo_result = {
+              "valid": True,
+              "receivedMonoTimeNanos": time.monotonic_ns(),
+              "dets": self._yolo_payload_dets(),
+            }
+
+        if lane_due or yolo_due:
+          self.publish_vision_result()
+      except (OSError, ValueError, AttributeError) as error:
+        # See run_camera: guard against cereal-schema drift killing the thread silently.
+        with self.lock:
+          self.lane_camera_error = str(error)
+        client = None
+        time.sleep(1.0)
+
+  def _lane_interval_for(self, now: float) -> float:
+    interval = self.lane_interval_seconds
+    if self.last_lane_inference_ms > 0.0:
+      interval = max(interval, self.last_lane_inference_ms * INFERENCE_BACKPRESSURE_FACTOR / 1000.0)
+    return interval
+
+  def _yolo_interval_for(self, now: float) -> float:
+    interval = YOLO_INTERVAL_SECONDS
+    if self.last_yolo_inference_ms > 0.0:
+      interval = max(interval, self.last_yolo_inference_ms * INFERENCE_BACKPRESSURE_FACTOR / 1000.0)
+    return interval
+
+  def _yolo_payload_dets(self) -> list[dict]:
+    """Serialise tracked objects; must be called with self.lock held."""
+    return [{
+      "tid": tr.tid,
+      "cid": tr.cid,
+      "conf": tr.conf,
+      "cx": round(tr.box[0], 4),
+      "cy": round(tr.box[1], 4),
+      "w": round(tr.box[2], 4),
+      "h": round(tr.box[3], 4),
+      "d": tr.d,
+      "y": tr.y,
+      "pred": [[round(px, 4), round(py, 4)] for px, py in self.yolo_tracker.predict(tr)],
+    } for tr in self.yolo_tracker.tracks.values()]
+
+
+class Handler(BaseHTTPRequestHandler):
+  service: VASMService
+  index_path = Path(__file__).resolve().parent / "v_asm_web.html"
+
+  def handle_one_request(self) -> None:
+    try:
+      super().handle_one_request()
+    except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
+      return
+
+  def _json(self, status: HTTPStatus, payload: object) -> None:
+    body = json.dumps(payload).encode()
+    self.send_response(status)
+    self.send_header("Content-Type", "application/json")
+    self.send_header("Content-Length", str(len(body)))
+    self.send_header("Cache-Control", "no-store")
+    self.end_headers()
+    self.wfile.write(body)
+
+  def do_GET(self) -> None:
+    path = urlparse(self.path).path
+    if path == "/":
+      body = self.index_path.read_bytes()
+      self.send_response(HTTPStatus.OK)
+      self.send_header("Content-Type", "text/html; charset=utf-8")
+      self.send_header("Content-Length", str(len(body)))
+      self.end_headers()
+      self.wfile.write(body)
+    elif path == "/api/status":
+      self._json(HTTPStatus.OK, self.service.status())
+    elif path == "/api/config":
+      self._json(HTTPStatus.OK, self.service.config)
+    elif path == "/api/snapshot":
+      parsed_url = urlparse(self.path)
+      stream_type = parse_qs(parsed_url.query).get("stream", ["wide"])[0]
+      if stream_type not in ("wide", "road"):
+        self._json(HTTPStatus.BAD_REQUEST, {"error": "stream must be wide or road"})
+        return
+      jpeg = self.service.snapshot(stream_type)
+      if jpeg is None:
+        self._json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": f"no {stream_type} camera frame available"})
+        return
+      self.send_response(HTTPStatus.OK)
+      self.send_header("Content-Type", "image/jpeg")
+      self.send_header("Content-Length", str(len(jpeg)))
+      self.send_header("Cache-Control", "no-store")
+      self.end_headers()
+      self.wfile.write(jpeg)
+    else:
+      self.send_error(HTTPStatus.NOT_FOUND)
+
+  def do_POST(self) -> None:
+    path = urlparse(self.path).path
+    try:
+      length = int(self.headers.get("Content-Length", "0"))
+      if not 0 < length <= 65536:
+        raise ValueError("request body must be 1 to 65536 bytes")
+      payload = json.loads(self.rfile.read(length))
+      if path == "/api/config":
+        self._json(HTTPStatus.OK, self.service.save_config(payload))
+      elif path == "/api/settings":
+        self._json(HTTPStatus.OK, self.service.set_settings(payload))
+      elif path == "/store_toggle_values":
+        # navipilot posts its toggle map here instead of 7000/api/param_set.
+        self._json(HTTPStatus.OK, self.service.store_toggle_values(payload))
+      else:
+        self.send_error(HTTPStatus.NOT_FOUND)
+    except (ValueError, json.JSONDecodeError) as error:
+      self._json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
+
+  def do_DELETE(self) -> None:
+    if urlparse(self.path).path != "/api/config":
+      self.send_error(HTTPStatus.NOT_FOUND)
+      return
+    self.service.clear_config()
+    self._json(HTTPStatus.OK, {"success": True})
+
+  def log_message(self, _format: str, *_args) -> None:
+    return
+
+
+def main() -> None:
+  parser = argparse.ArgumentParser(description="Xiaoge vision server")
+  parser.add_argument("--host", default=HOST)
+  parser.add_argument("--port", type=int, default=PORT)
+  parser.add_argument("--model", type=Path, default=DEFAULT_MODEL_PATH)
+  args = parser.parse_args()
+  if not 1 <= args.port <= 65535:
+    parser.error("port must be 1 through 65535")
+
+  service, server = create_server(args.host, args.port, args.model)
+  print(f"Xiaoge vision server: http://{args.host}:{args.port}")
+  try:
+    server.serve_forever()
+  except KeyboardInterrupt:
+    pass
+  finally:
+    server.server_close()
+    service.running = False
+
+
+def create_server(host: str = HOST, port: int = PORT, model_path: Path = DEFAULT_MODEL_PATH) -> tuple[VASMService, ThreadingHTTPServer]:
+  # Camera wakeups can leave receivers on camerad's isolated CPU, where realtime
+  # driving tasks take precedence. Set affinity before OpenCV creates workers so
+  # both inference and camera threads stay on the background cores.
+  if sys.platform == "linux":
+    from openpilot.common.realtime import set_core_affinity
+    set_core_affinity([0, 1, 2, 3])
+  cv2.setNumThreads(2)
+  service = VASMService(model_path)
+  Handler.service = service
+  server = ThreadingHTTPServer((host, port), Handler)
+  threading.Thread(target=service.run_camera, daemon=True).start()
+  threading.Thread(target=service.run_road_camera, daemon=True).start()
+  return service, server
+
+
+if __name__ == "__main__":
+  main()

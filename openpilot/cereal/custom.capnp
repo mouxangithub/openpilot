@@ -1,0 +1,1501 @@
+using Cxx = import "/include/c++.capnp";
+$Cxx.namespace("cereal");
+
+@0xb526ba661d550a59;
+
+# custom.capnp: a home for empty structs reserved for custom forks
+# These structs are guaranteed to remain reserved and empty in mainline
+# cereal, so use these if you want custom events in your fork.
+
+# DO rename the structs
+# DON'T change the identifier (e.g. @0x81c2f05a394cf4af)
+
+struct ModularAssistiveDrivingSystem {
+  state @0 :ModularAssistiveDrivingSystemState;
+  enabled @1 :Bool;
+  active @2 :Bool;
+  available @3 :Bool;
+  # Enabled but held off by the car's own lane keep (switched off, or the EPS re-arming after it
+  # came back on): the UI shows lateral as off rather than paused or active.
+  lateralHeld @4 :Bool;
+
+  enum ModularAssistiveDrivingSystemState {
+    disabled @0;
+    paused @1;
+    enabled @2;
+    softDisabling @3;
+    overriding @4;
+  }
+}
+
+struct IntelligentCruiseButtonManagement {
+  state @0 :IntelligentCruiseButtonManagementState;
+  sendButton @1 :SendButtonState;
+  vTarget @2 :Float32;
+
+  enum IntelligentCruiseButtonManagementState {
+    inactive @0;      # No button press or default state
+    preActive @1;     # Pre-active state before transitioning to increasing or decreasing
+    increasing @2;    # Increasing speed
+    decreasing @3;    # Decreasing speed
+    holding @4;       # Holding steady speed
+  }
+
+  enum SendButtonState {
+    none @0;
+    increase @1;
+    decrease @2;
+    # sustained button stream at the message's native rate: the fast walk for large
+    # moves (interleaved with the wheel's own frames it registers as paced presses,
+    # never as a held button)
+    increaseHold @3;
+    decreaseHold @4;
+  }
+}
+
+# Same struct as Log.RadarState.LeadData
+struct LeadData {
+  dRel @0 :Float32;
+  yRel @1 :Float32;
+  vRel @2 :Float32;
+  aRel @3 :Float32;
+  vLead @4 :Float32;
+  dPath @6 :Float32;
+  vLat @7 :Float32;
+  vLeadK @8 :Float32;
+  aLeadK @9 :Float32;
+  fcw @10 :Bool;
+  status @11 :Bool;
+  aLeadTau @12 :Float32;
+  modelProb @13 :Float32;
+  radar @14 :Bool;
+  radarTrackId @15 :Int32 = -1;
+
+  aLeadDEPRECATED @5 :Float32;
+}
+
+struct SelfdriveStateSP @0x81c2f05a394cf4af {
+  mads @0 :ModularAssistiveDrivingSystem;
+  intelligentCruiseButtonManagement @1 :IntelligentCruiseButtonManagement;
+  buttonsPressed @2 :UInt16;
+  buttonsReleaseToggle @3 :UInt16;
+  zoompilot @4 :SelfdriveStateZP;
+
+  enum AudibleAlert {
+    none @0;
+
+    engage @1;
+    disengage @2;
+    refuse @3;
+
+    warningSoft @4;
+    warningImmediate @5;
+
+    prompt @6;
+    promptRepeat @7;
+    promptDistracted @8;
+
+    # unused, these are reserved for upstream events so we don't collide
+    reserved9 @9;
+    reserved10 @10;
+    reserved11 @11;
+    reserved12 @12;
+    reserved13 @13;
+    reserved14 @14;
+    reserved15 @15;
+    reserved16 @16;
+    reserved17 @17;
+    reserved18 @18;
+    reserved19 @19;
+    reserved20 @20;
+    reserved21 @21;
+    reserved22 @22;
+    reserved23 @23;
+    reserved24 @24;
+    reserved25 @25;
+    reserved26 @26;
+    reserved27 @27;
+    reserved28 @28;
+    reserved29 @29;
+    reserved30 @30;
+
+    promptSingleLow @31;
+    promptSingleHigh @32;
+
+    # carrot (phone projection & navigation)
+    audioTurn @33;
+    longEngaged @34;
+    longDisengaged @35;
+    trafficSignGreen @36;
+    trafficSignChanged @37;
+    laneChangeCarrot @38;
+    stopping @39;
+    autoHold @40;
+    engage2 @41;
+    disengage2 @42;
+    trafficError @43;
+    bsdWarning @44;
+    speedDown @45;
+    stopStop @46;
+    reverseGear2 @47;
+    audio1 @48;
+    audio2 @49;
+    audio3 @50;
+    audio4 @51;
+    audio5 @52;
+    audio6 @53;
+    audio7 @54;
+    audio8 @55;
+    audio9 @56;
+    audio10 @57;
+    nnff @58;
+    preLaneChangeCarrot @59;
+    atcCancel @60;
+    atcResume @61;
+    preLaneChangeLeft2 @62;
+    preLaneChangeRight2 @63;
+    laneChangeOk @64;
+    lastLane @65;
+    newLane @66;
+    laneChangeEnd @67;
+  }
+}
+
+struct ModelManagerSP @0xaedffd8f31e7b55d {
+  activeBundle @0 :ModelBundle;
+  selectedBundle @1 :ModelBundle;
+  availableBundles @2 :List(ModelBundle);
+
+  struct DownloadUri {
+    uri @0 :Text;
+    sha256 @1 :Text;
+  }
+
+  enum DownloadStatus {
+    notDownloading @0;
+    downloading @1;
+    downloaded @2;
+    cached @3;
+    failed @4;
+    verifying @5;
+  }
+
+  struct DownloadProgress {
+    status @0 :DownloadStatus;
+    progress @1 :Float32;
+    eta @2 :UInt32;
+    speed @3 :Float32;
+    canceling @4 :Bool;
+    resuming @5 :Bool;
+  }
+
+  struct Chunk {
+    fileName @0 :Text;
+    sha256 @1 :Text;
+  }
+
+  struct Artifact {
+    fileName @0 :Text;
+    downloadUri @1 :DownloadUri;
+    downloadProgress @2 :DownloadProgress;
+    chunks @3 :List(Chunk);
+  }
+
+  struct Model {
+    type @0 :Type;
+    artifact @1 :Artifact;  # Main artifact
+    metadata @2 :Artifact;  # Metadata artifact
+
+    enum Type {
+      supercombo @0;
+      navigation @1;
+      vision @2;
+      policy @3;
+      offPolicy @4;
+      onPolicy @5;
+      chunked @6;
+    }
+  }
+
+  enum Runner {
+    snpe @0;
+    tinygrad @1;
+    stock @2;
+  }
+
+  struct Override {
+    key @0 :Text;
+    value @1 :Text;
+  }
+
+  struct ModelBundle {
+    index @0 :UInt32;
+    internalName @1 :Text;
+    displayName @2 :Text;
+    models @3 :List(Model);
+    status @4 :DownloadStatus;
+    generation @5 :UInt32;
+    environment @6 :Text;
+    runner @7 :Runner;
+    is20hz @8 :Bool;
+    ref @9 :Text;
+    minimumSelectorVersion @10 :UInt32;
+    overrides @11 :List(Override);
+  }
+}
+
+struct LongitudinalPlanSP @0xf35cc4560bbf6ec2 {
+  longitudinalPlanSource @1 :LongitudinalPlanSource;
+  smartCruiseControl @2 :SmartCruiseControl;
+  speedLimit @3 :SpeedLimit;
+  vTarget @4 :Float32;
+  aTarget @5 :Float32;
+  events @6 :List(OnroadEventSP.Event);
+  e2eAlerts @7 :E2eAlerts;
+  accelController @8 :AccelController;
+  # fork's trafficLight @9 / carrot @10 / leadForecast @11 / e2eSetSpeed @12 / e2eLeadGap @13
+  # follow below. zoompilot's longitudinal nest (e2e_set_speed, lead_forecast, sccVAheadMin)
+  # is appended at the next free ordinal @14 (not zp's @8, which the fork's accelController
+  # owns). Ordinals are the wire contract, so appending past the fork's fields is the only
+  # safe resolution - reusing @8/@9 would alias.
+  zoompilot @14 :LongitudinalPlanZP;
+  # Experimental neural signal assistance: current observed light evidence for
+  # the onroad HUD (0 unknown, 1 red, 2 green, 3 mixed) plus whether detection
+  # is suspended on a motorway road class.
+  signalAssistAction @15 :UInt16;
+  signalDetectionSuspended @16 :Bool;
+  # Carrot cruise coasting (default off): a fixed physical m/s reference for the
+  # overspeed band, 0 when ineligible, plus the active margin in percent. The
+  # brake relief itself is applied in longcontrol.
+  cruiseCoastingTarget @17 :Float32;
+  cruiseCoastingPercent @18 :UInt8;
+
+  # retired 2026-10: DEC removed from the planner; the field is kept only so
+  # older logs keep loading. Nothing writes or reads it any more.
+  deprecated :group {
+    dec @0 :DynamicExperimentalControlDEPRECATED;
+  }
+
+  struct DynamicExperimentalControlDEPRECATED {
+    state @0 :DynamicExperimentalControlState;
+    enabled @1 :Bool;
+    active @2 :Bool;
+    decelIntent @3 :Float32;
+    curveDetected @4 :Bool;
+    wantBlended @5 :Bool;
+    leadVeto @6 :Bool;
+
+    enum DynamicExperimentalControlState {
+      acc @0;
+      blended @1;
+    }
+  }
+
+  struct SmartCruiseControl {
+    vision @0 :Vision;
+    map @1 :Map;
+
+    struct Vision {
+      state @0 :VisionState;
+      vTarget @1 :Float32;
+      aTarget @2 :Float32;
+      currentLateralAccel @3 :Float32;
+      maxPredictedLateralAccel @4 :Float32;
+      enabled @5 :Bool;
+      active @6 :Bool;
+      # lowest planned speed on the model horizon, m/s; 0 = no lookahead (feature off,
+      # long disabled, or no model), 255 caps "nothing binding ahead"
+      vAheadMin @7 :Float32;
+    }
+
+    struct Map {
+      state @0 :MapState;
+      vTarget @1 :Float32;
+      aTarget @2 :Float32;
+      enabled @3 :Bool;
+      active @4 :Bool;
+    }
+
+    enum VisionState {
+      disabled @0; # System disabled or inactive.
+      enabled @1; # No predicted substantial turn on vision range.
+      entering @2; # A substantial turn is predicted ahead, adapting speed to turn comfort levels.
+      turning @3; # Actively turning. Managing acceleration to provide a roll on turn feeling.
+      leaving @4; # Road ahead straightens. Start to allow positive acceleration.
+      overriding @5; # System overriding with manual control.
+    }
+
+    enum MapState {
+      disabled @0; # System disabled or inactive.
+      enabled @1; # No predicted substantial turn on map range.
+      turning @2; # Actively turning. Managing acceleration to provide a roll on turn feeling.
+      overriding @3; # System overriding with manual control.
+    }
+  }
+
+  struct SpeedLimit {
+    resolver @0 :Resolver;
+    assist @1 :Assist;
+
+    struct Resolver {
+      speedLimit @0 :Float32;
+      distToSpeedLimit @1 :Float32;
+      source @2 :Source;
+      speedLimitOffset @3 :Float32;
+      speedLimitLast @4 :Float32;
+      speedLimitFinal @5 :Float32;
+      speedLimitFinalLast @6 :Float32;
+      speedLimitValid @7 :Bool;
+      speedLimitLastValid @8 :Bool;
+    }
+
+    struct Assist {
+      state @0 :AssistState;
+      enabled @1 :Bool;
+      active @2 :Bool;
+      vTarget @3 :Float32;
+      aTarget @4 :Float32;
+    }
+
+    enum Source {
+      none @0;
+      car @1;
+      map @2;
+    }
+
+    enum AssistState {
+      disabled @0;
+      inactive @1; # No speed limit set or not enabled by parameter.
+      preActive @2;
+      pending @3; # Awaiting new speed limit.
+      adapting @4; # Reducing speed to match new speed limit.
+      active @5; # Cruising at speed limit.
+    }
+  }
+
+  enum LongitudinalPlanSource {
+    cruise @0;
+    sccVision @1;
+    sccMap @2;
+    speedLimitAssist @3;
+    carrot @4;
+  }
+
+  struct TrafficLightState {
+    lightState @0 :State;
+    source @1 :Source;
+    confidence @2 :Float32;
+    distance @3 :Float32;
+
+    enum State {
+      unknown @0;
+      red @1;
+      green @2;
+      redConfirmed @3;
+      greenConfirmed @4;
+    }
+
+    enum Source {
+      none @0;
+      carrot @1;
+      amap @2;
+      vision @3;
+      fused @4;
+    }
+  }
+
+  struct CarrotPlan {
+    xState @0 :Text;
+    drivingMode @1 :Text;
+    vTarget @2 :Float32;
+    aTarget @3 :Float32;
+    stopDist @4 :Float32;
+    active @5 :Bool;
+  }
+
+  struct E2eAlerts {
+    greenLightAlert @0 :Bool;
+    leadDepartAlert @1 :Bool;
+  }
+
+  struct AccelController {
+    enabled @0 :Bool;
+    active @1 :Bool;
+    profile @2 :Profile;
+    enum Profile {
+      eco @0;
+      normal @1;
+      sport @2;
+    }
+  }
+
+  # The model's lead forecast as the long MPC obstacle
+  # (sunnypilot/selfdrive/controls/lib/lead_forecast): how much of each lead
+  # the MPC took from the forecast, and the trajectory it got.
+  struct LeadForecast {
+    leadOne @0 :Lead;
+    leadTwo @1 :Lead;
+
+    struct Lead {
+      weight @0 :Float32;      # 0 upstream extrapolation .. 1 forecast, rate-limited
+      inhibit @1 :Inhibit;
+      x @2 :List(Float32);     # m, the MPC's lead position at its T_IDXS
+      v @3 :List(Float32);     # m/s
+    }
+
+    enum Inhibit {
+      disabled @0;      # the LeadForecast toggle is off (and logs from before it)
+      none @1;
+      noLead @2;
+      radar @3;         # a radar track: measured, keeps upstream's extrapolation
+      invalid @4;
+      mismatch @5;      # radarState's lead is not the model's lead
+    }
+  }
+
+  # Experimental mode's set-speed floor (sunnypilot/selfdrive/controls/lib/e2e_set_speed):
+  # what it added to the model's acceleration and, when nothing, why.
+  struct E2ESetSpeed {
+    authority @0 :Float32;     # 0..1, rate-limited
+    gain @1 :Float32;          # 0..1 from the model's own acceleration
+    floor @2 :Float32;         # m/s^2 the boost pulls toward
+    boost @3 :Float32;         # m/s^2 added to the model's acceleration
+    inhibit @4 :Inhibit;
+
+    enum Inhibit {
+      disabled @0;      # the ExperimentalModeSetSpeed toggle is off (and logs from before it)
+      none @1;
+      inactive @2;      # not e2e, or long control reset
+      decActive @3;
+      invalid @4;
+      hold @5;          # a trip cleared less than the hold time ago
+      fcw @6;
+      hardBrake @7;
+      forceDecel @8;
+      stop @9;
+      lead @10;
+      driver @11;       # gas or brake pressed
+      modelBraking @12;
+      planSlowing @13;
+      lateral @14;
+      coast @15;        # allow_throttle false
+      laneChange @16;
+      lowSpeed @17;
+    }
+  }
+
+  # Experimental mode's follow-distance assist (sunnypilot/selfdrive/controls/lib/e2e_lead_gap):
+  # what it added to the model's acceleration behind a lead and, when nothing, why.
+  struct E2ELeadGap {
+    authority @0 :Float32;     # 0..1, rate-limited
+    gain @1 :Float32;          # 0..1 from the model's own acceleration
+    weight @2 :Float32;        # 0..1 from the gap excess and ego speed
+    gapExcess @3 :Float32;     # m beyond long_mpc's gap for this personality
+    boost @4 :Float32;         # m/s^2 added to the model's acceleration
+    inhibit @5 :Inhibit;
+
+    enum Inhibit {
+      disabled @0;      # the ExperimentalModeLeadGap toggle is off (and logs from before it)
+      none @1;
+      inactive @2;      # not e2e, or long control reset
+      decActive @3;
+      invalid @4;
+      hold @5;          # a trip cleared less than the hold time ago
+      fcw @6;
+      hardBrake @7;
+      forceDecel @8;
+      stop @9;
+      driver @10;       # gas or brake pressed
+      modelBraking @11;
+      planSlowing @12;
+      lateral @13;
+      coast @14;        # allow_throttle false
+      laneChange @15;
+      lowSpeed @16;
+      noLead @17;
+      leadUncertain @18;
+      leadSlow @19;
+      leadBraking @20;  # braking now, or its forecast slows
+      leadChanged @21;  # the lead jumped: cut-in, swap, new car
+    }
+  }
+
+  trafficLight @9 :TrafficLightState;
+  carrot @10 :CarrotPlan;
+  leadForecast @11 :LeadForecast;
+  e2eSetSpeed @12 :E2ESetSpeed;
+  e2eLeadGap @13 :E2ELeadGap;
+}
+
+struct OnroadEventSP @0xda96579883444c35 {
+  events @0 :List(Event);
+  zoompilot @1 :OnroadEventZP;
+
+  struct Event {
+    name @0 :EventName;
+
+    # event types
+    enable @1 :Bool;
+    noEntry @2 :Bool;
+    warning @3 :Bool;   # alerts presented only when  enabled or soft disabling
+    userDisable @4 :Bool;
+    softDisable @5 :Bool;
+    immediateDisable @6 :Bool;
+    preEnable @7 :Bool;
+    permanent @8 :Bool; # alerts presented regardless of openpilot state
+    overrideLateral @10 :Bool;
+    overrideLongitudinal @9 :Bool;
+  }
+
+  enum EventName {
+    lkasEnable @0;
+    lkasDisable @1;
+    manualSteeringRequired @2;
+    manualLongitudinalRequired @3;
+    silentLkasEnable @4;
+    silentLkasDisable @5;
+    silentBrakeHold @6;
+    silentWrongGear @7;
+    silentReverseGear @8;
+    silentDoorOpen @9;
+    silentSeatbeltNotLatched @10;
+    silentParkBrake @11;
+    controlsMismatchLateral @12;
+    hyundaiRadarTracksConfirmed @13;
+    experimentalModeSwitchedDEPRECATED @14;
+    wrongCarModeAlertOnly @15;
+    pedalPressedAlertOnly @16;
+    laneTurnLeft @17;
+    laneTurnRight @18;
+    speedLimitPreActive @19;
+    speedLimitActive @20;
+    speedLimitChanged @21;
+    speedLimitPending @22;
+    e2eChime @23;
+    laneChangeRoadEdge @24;
+    bigModelReady @25;
+    bigModelAvailable @29;
+    bigModelLinkLost @30;
+    # mads: panda reports lateral not allowed for 20 frames while engaged (warning before disable)
+    controlsMismatchLateralWarning @36;
+
+    # mads: pedal pressed silent event
+    silentPedalPressed @31;
+    # mads: LKAS switched off holds lateral paused (mads.py update_stock_lkas)
+    stockLkasOff @32;
+    # mads: LKAS back on but EPS has not re-armed yet
+    stockLkasArming @33;
+    # chime when longitudinal control becomes available
+    longitudinalEnableChime @34;
+    # chime when longitudinal control becomes unavailable
+    longitudinalDisableChime @35;
+
+    # carrot (phone projection & navigation)
+    trafficSignGreen @26;
+    trafficSignChanged @27;
+    trafficStopping @28;
+
+    # speed limit change announcement (SpeedLimitChangedAlert param, default off):
+    # a sustained speedLimitLast jump (>= 5 kph holding > 2 s) fires this once per change,
+    # mirroring StarPilot's speedLimitChanged standing alert
+    speedLimitChangedAlert @37;
+  }
+}
+
+struct CarParamsSP @0x80ae746ee2596b11 {
+  flags @0 :UInt32;        # flags for car specific quirks in sunnypilot
+  safetyParam @1 : Int16;  # flags for sunnypilot's custom safety flags
+  pcmCruiseSpeed @3 :Bool;
+  intelligentCruiseButtonManagementAvailable @4 :Bool;
+  enableGasInterceptor @5 :Bool;
+  zoompilot @6 :CarParamsZP;
+
+  neuralNetworkLateralControl @2 :NeuralNetworkLateralControl;
+
+  struct NeuralNetworkLateralControl {
+    model @0 :Model;
+    fuzzyFingerprint @1 :Bool;
+
+    struct Model {
+      path @0 :Text;
+      name @1 :Text;
+    }
+  }
+}
+
+struct CarControlSP @0xa5cd762cd951a455 {
+  mads @0 :ModularAssistiveDrivingSystem;
+  params @1 :List(Param);
+  leadOne @2 :LeadData;
+  leadTwo @3 :LeadData;
+  intelligentCruiseButtonManagement @4 :IntelligentCruiseButtonManagement;
+  zoompilot @5 :CarControlZP;
+
+  struct Param {
+    key @0 :Text;
+    type @2 :ParamType;
+    value @3 :Data;
+
+    valueDEPRECATED @1 :Text; # The data type change may cause issues with backwards compatibility.
+  }
+
+  enum ParamType {
+    string @0;
+    bool @1;
+    int @2;
+    float @3;
+    time @4;
+    json @5;
+    bytes @6;
+  }
+}
+
+# zoompilot-only CarControl extension: telemetry for offline validation.
+struct CarControlZP @0xaadf9bc39b7bd41e {
+  laneChangeSmoothing @0 :LaneChangeSmoothing;
+  icbmHold @1 :Bool;  # SelfdriveStateZP.icbmHold, for the car's button sender
+
+  struct LaneChangeSmoothing {
+    jerkFactor @0 :Float32;
+  }
+}
+
+struct BackupManagerSP @0xf98d843bfd7004a3 {
+  backupStatus @0 :Status;
+  restoreStatus @1 :Status;
+  backupProgress @2 :Float32;
+  restoreProgress @3 :Float32;
+  lastError @4 :Text;
+  currentBackup @5 :BackupInfo;
+  backupHistory @6 :List(BackupInfo);
+
+  enum Status {
+    idle @0;
+    inProgress @1;
+    completed @2;
+    failed @3;
+  }
+
+  struct Version {
+    major @0 :UInt16;
+    minor @1 :UInt16;
+    patch @2 :UInt16;
+    build @3 :UInt16;
+    branch @4 :Text;
+  }
+
+  struct MetadataEntry {
+    key @0 :Text;
+    value @1 :Text;
+    tags @2 :List(Text);
+  }
+
+  struct BackupInfo {
+    deviceId @0 :Text;
+    version @1 :UInt32;
+    config @2 :Text;
+    isEncrypted @3 :Bool;
+    createdAt @4 :Text;  # ISO timestamp
+    updatedAt @5 :Text;  # ISO timestamp
+    sunnypilotVersion @6 :Version;
+    backupMetadata @7 :List(MetadataEntry);
+  }
+}
+
+struct CarStateSP @0xb86e6369214c01c8 {
+  speedLimit @0 :Float32;
+
+  # Carrot 7714 WebSocket v2 navigation lane hints (from phone app).
+  # These are derived from carrotNaviSP.laneCurrent and merged into
+  # carStateSP so selfdrived can use them for lane-change decisions.
+  carrotLaneValid @1 :Bool;
+  carrotLeftLineBlocked @2 :Bool;
+  carrotRightLineBlocked @3 :Bool;
+
+  # Carrot blind-spot hints from the direct Amap LiDAR/camera UDP path (port 4211).
+  #
+  # These exist so carrot stops writing the subscription's carState reader.
+  # SubMaster.__getitem__ returns a capnp _DynamicStructReader
+  # (cereal/messaging/__init__.py:226,229-230 via as_reader(), and :259), whose
+  # attributes cannot be assigned - doing so raises AttributeError. carrot_man used
+  # to assign sm['carState'].leftBlindspot inside tick(), so whenever the LiDAR
+  # reported a blind spot the exception aborted the rest of tick(), and _publish()
+  # never ran: carrotManSP stopped being published entirely (SLA, TMC congestion and
+  # lane-guide blocking all lose their input), with only one swaglog line to show for
+  # it. carrot now offers the hint here and card.py merges it into the real
+  # carState.leftBlindspot, which is the same single-writer pattern already used for
+  # the 7714 lane hints above.
+  carrotLeftBlindHint @4 :Bool;
+  carrotRightBlindHint @5 :Bool;
+
+  # VW two-stage stalk swipe latch (GRA_Tip_Stufe_2).
+  #
+  # VCruiseCarrot reads this in _prepare_buttons to distinguish a short press from
+  # a stage-2 swipe, which maps to an immediate +/-10 on release. It previously read
+  # it off carState, where the field does not exist in opendbc's CarState schema, so
+  # the first button press crashed card.py with
+  # `AttributeError: capnp ... struct has no such member; name = cruiseSpeedBigStep`.
+  # It lives here (fork-only CarStateSP) rather than in opendbc because it is a
+  # cp/Carrot behaviour bit, not a safety-relevant stock signal.
+  #
+  # No publisher fills it yet: mqbcan.create_acc_buttons_control currently only
+  # echoes GRA_Tip_Stufe_2 back to the car without decoding it. Until a VW
+  # CarState decodes it, this stays false and VCruiseCarrot treats every press as
+  # a short press, which is the pre-existing behaviour.
+  carrotCruiseSpeedBigStep @6 :Bool;
+
+  # Xiaoge ONNX lane inference results (customReservedRawData0 → card.py → here).
+  # -1: unknown, 0: dashed, 1: solid, +10: white, +20: yellow, +30: blue, e.g. 21=solid yellow.
+  # Merged by apply_xiaoge_vision_result() which preserves color codes from other sources.
+  xiaogeLeftLaneLine @7 :Int16;
+  xiaogeRightLaneLine @8 :Int16;
+
+  # Hybrid engine state (toyota HYBRID flag). Written by the brand's carstate_ext and
+  # read by longitudinal_planner.get_max_accel_override so an engine-off hybrid is not
+  # asked for acceleration it cannot deliver.
+  #
+  # Appended at @9/@10 rather than the @1/@2 this branch originally used: the other
+  # side of the merge had already taken @1-@8 for the Carrot/Xiaoge fields above.
+  # Ordinals are the wire contract, so renumbering here is the only safe resolution -
+  # reusing @1/@2 would silently alias engineOff onto carrotLaneValid.
+  engineOff @9 :Bool;
+  engineRpm @10 :Float32;
+
+  # zoompilot-specific fields (CarStateZP): lkasArming, distanceFarther.
+  # Added at @11 to avoid wire conflicts with sunnypilot fields @0-@10.
+  zoompilot @11 :CarStateZP;
+
+  # Xiaoge YOLO obstacle-head summary (CarStateYolo). The raw detection list
+  # never enters capnp: it is for HUD painting, so the UI subscribes to
+  # customReservedRawData0 directly. These five fields are the control-side
+  # digest, computed by the xiaoge ONNX YOLO head plus path projection and
+  # written by card.py (single writer, same pattern as the lane fields above).
+  # yoloVruNearestDist uses 0.0 = no valid target; block flags stay False until
+  # the VRU gate consumes them.
+  yoloVruPresent @12 :Bool;
+  yoloVruNearestDist @13 :Float32;
+  yoloVruBlockLeft @14 :Bool;
+  yoloVruBlockRight @15 :Bool;
+  yoloVruMonoTimeNanos @16 :Int64;
+}
+
+# CarStateZP (the fork's CarState nest, including the Mazda stock-ECU fields) is
+# defined with the other zoompilot fork structs at the bottom of this file.
+
+struct LiveMapDataSP @0xf416ec09499d9d19 {
+  speedLimitValid @0 :Bool;
+  speedLimit @1 :Float32;
+  speedLimitAheadValid @2 :Bool;
+  speedLimitAhead @3 :Float32;
+  speedLimitAheadDistance @4 :Float32;
+  roadName @5 :Text;
+  # Curve speed derived from the map route shape, geodetic-independent: the
+  # lowest safe speed over the lookahead window, in m/s (same unit as speedLimit
+  # above). `curveSpeedDistance` is how far ahead that constraint begins.
+  #
+  # This is NOT a speed limit sign, and it must not enter the SpeedLimitResolver:
+  # SLA owns absolute, driver-visible sign constraints, while this is a
+  # navigation-derived deceleration for a point ahead. SmartCruiseControlMap owns
+  # that with its jerk/accel-limited lookahead, and reads this field there.
+  # A missing / zero value means "no curve constraint", never "stop".
+  curveSpeedValid @6 :Bool;
+  curveSpeed @7 :Float32;
+  curveSpeedDistance @8 :Float32;
+}
+
+struct ModelDataV2SP @0xa1680744031fdb2d {
+  laneTurnDirection @0 :TurnDirection;
+  leftLaneChangeEdgeBlock @1 :Bool;
+  rightLaneChangeEdgeBlock @2 :Bool;
+  blendfulCurvature @3 :Float32;
+  blendfulTrust @4 :Float32;
+  modelCurvature @5 :Float32;
+  blendfulGoingAround @6 :Bool;
+  blendfulLeftProb @7 :Float32;
+  blendfulRightProb @8 :Float32;
+  blendfulLaneWidth @9 :Float32;
+  zoompilot @10 :ModelDataV2ZP;
+
+  # Runtime state of an off-board accelerator (sunnypilot/accelerators). Offroad
+  # progress stays in the AcceleratorProgress param; telemetry waits for a customReserved slot.
+  # NOTE: the fork's old bigModelAvailable @3 was dropped in the zp merge - it aliased
+  # zoompilot @3; zoompilot.acceleratorState now carries the same information.
+  acceleratorState @11 :AcceleratorState;
+
+  enum AcceleratorState {
+    none @0;
+    joining @1;
+    running @2;
+    retrying @3;
+    unavailable @4;
+    ready @5;      # link up, engine loaded, waiting for a window to switch
+  }
+
+  acceleratorNameDEPRECATED @12 :Text;  # always jetlink; ordinal kept for old logs
+
+  enum TurnDirection {
+    none @0;
+    turnLeft @1;
+    turnRight @2;
+  }
+}
+
+struct LongitudinalMpcTuningSP @0xcb9fd56c7057593a {
+  comfortBrake @0 :Float32;
+  stopDistance @1 :Float32;
+  tFollowRelaxed @2 :Float32;
+  tFollowStandard @3 :Float32;
+  tFollowAggressive @4 :Float32;
+  xEgoObstacleCost @5 :Float32;
+  jEgoCost @6 :Float32;
+  aChangeCost @7 :Float32;
+  dangerZoneCost @8 :Float32;
+  leadDangerFactor @9 :Float32;
+}
+
+struct NavInstructionCarrotSP @0x9ccdc8676701b412 {
+  maneuverPrimaryText @0 :Text;
+  maneuverSecondaryText @1 :Text;
+  maneuverDistance @2 :Float32;
+  maneuverType @3 :Text;
+  maneuverModifier @4 :Text;
+  distanceRemaining @5 :Float32;
+  timeRemaining @6 :Float32;
+  timeRemainingTypical @7 :Float32;
+  speedLimit @8 :Float32;
+  allManeuvers @9 :List(Maneuver);
+  lanes @10 :List(Lane);
+  showFull @11 :Bool;
+  speedLimitSign @12 :SpeedLimitSign;
+
+  struct Maneuver {
+    distance @0 :Float32;
+    type @1 :Text;
+    modifier @2 :Text;
+  }
+
+  struct Lane {
+    directions @0 :List(Direction);
+    active @1 :Bool;
+    activeDirection @2 :Direction;
+  }
+
+  enum Direction {
+    none @0;
+    left @1;
+    right @2;
+    straight @3;
+    slightLeft @4;
+    slightRight @5;
+  }
+
+  enum SpeedLimitSign {
+    mutcd @0; # US Style
+    vienna @1; # EU Style
+  }
+}
+
+struct CarrotManSP @0xcd96dafb67a082d0 {
+  activeCarrot @0 :Int32;
+  nRoadLimitSpeed @1 :Int32;
+  remote @2 :Text;
+  xSpdType @3 :Int32;
+  xSpdLimit @4 :Int32;
+  xSpdDist @5 :Int32;
+  xSpdCountDown @6 :Int32;
+  xTurnInfo @7 :Int32;
+  xDistToTurn @8 :Int32;
+  xTurnCountDown @9 :Int32;
+  atcType @10 :Text;
+  vTurnSpeed @11 :Int32;
+  szPosRoadName @12 :Text;
+  szTBTMainText @13 :Text;
+  desiredSpeed @14 :Int32;
+  desiredSource @15 :Text;
+  carrotCmdIndex @16 :Int32;
+  carrotCmd @17 :Text;
+  carrotArg @18 :Text;
+  xPosLat @19 :Float32;
+  xPosLon @20 :Float32;
+  xPosAngle @21 :Float32;
+  xPosSpeed @22 :Float32;
+  trafficState @23 :Int32;
+  nGoPosDist @24 :Int32;
+  nGoPosTime @25 :Int32;
+  szSdiDescr @26 :Text;
+  naviPaths @27 :Text;
+  leftSec @28 :Int32;
+  xDistToTurnNav @29 :Int32;
+  xDistToTurnNavLast @30 :Int32;
+  xDistToTurnMax @31 :Int32;
+  xDistToTurnMaxCnt @32 :Int32;
+  xLeftTurnSec @33 :Int32;
+  roadCate @34 :Int32;
+  extBlinker @35 :Int32;
+  extState @36 :Int32;
+  leftBlind @37 :Int32;
+  rightBlind @38 :Int32;
+  trafficCountdown @39 :Int32;
+  szGoalName @40 :Text;
+  szTBTMainTextNext @41 :Text;
+  szNearDirName @42 :Text;
+  nSdiSection @43 :Int32 = -1;
+  gpsSpeed @44 :Float32 = 0.0;
+  epochTime @45 :Int64 = 0;
+  timezone @46 :Text = "Asia/Seoul";
+  nTBTNextRoadWidth @47 :Int32 = 0;
+  goalPosX @48 :Float32 = 0.0;
+  goalPosY @49 :Float32 = 0.0;
+  vehicleNaviActive @50 :Bool = false;
+  vehicleNaviSpeed @51 :Int32 = 0;
+  vehicleNaviSectionActive @52 :Bool = false;
+  vehicleNaviAvailable @53 :Bool = false;
+  # Service area / toll gate hints (App §2.3 SAPA_* group, KEY_TYPE 10001).
+  sapaName @54 :Text = "";
+  sapaDist @55 :Int32 = 0;      # meters; -1 = invalid
+  sapaType @56 :Int32 = 0;      # 0=service/parking area, 1=toll gate, 2=checkpoint
+  sapaCnt @57 :Int32 = 0;       # SAPA_NUM raw (semantics TBD, observed constant 2)
+  # TMC live traffic congestion (App §2.5, KEY_TYPE 13011).
+  tmcTotalDistance @58 :Int32 = 0;
+  tmcResidualDistance @59 :Int32 = 0;
+  tmcSegmentCount @60 :Int32 = 0;
+  tmcOverallStatus @61 :Int32 = 0;  # 0=unknown,1=free,2=slow,3=congested,4=severe,5=very-free,10=current
+  # Lane guidance arrow codes (App §2.2 navLaneGuide / navLaneGuideCnt).
+  navLaneGuide @62 :Text = "";
+  # Per-segment TMC arrays, packed as compact JSON strings so the lists survive
+  # pycapnp without per-element List management (same convention as
+  # naviPaths). Consumers json.loads() them.
+  #   tmcSegmentStatuses : int[]  1=free,2=slow,3=congested,4=severe,5=very-free,0/10=unknown
+  #   tmcSegmentDistances: int[]  metres, index-aligned with the statuses
+  tmcSegmentStatuses @63 :Text = "";
+  tmcSegmentDistances @64 :Text = "";
+  # Number of entries the app declared for navLaneGuide; lets consumers detect a
+  # truncated / malformed guidance array (length mismatch => discard).
+  navLaneGuideCnt @65 :Int32 = 0;
+
+  # Blind-spot hint from the direct Amap LiDAR/camera UDP path (port 4211).
+  # carrot offers it; card.py merges it into the real carState.leftBlindspot,
+  # which keeps carState single-writer. carrot_man must never assign the
+  # subscription itself: SubMaster hands out a capnp _DynamicStructReader
+  # (cereal/messaging/__init__.py:226,229-230,:259) whose attributes cannot be
+  # set, so doing so raised and aborted the rest of tick() - including
+  # _publish(), which silently stopped carrotManSP altogether.
+  amapLeftBlind @66 :Bool = false;
+  amapRightBlind @67 :Bool = false;
+
+  # ATC (auto turn control) speed target for the upcoming turn, in m/s.
+  # 250 kph-equivalent sentinel (V_CRUISE_UNSET-ish) means "no ATC limit".
+  # carrot computes this in update_auto_turn as a deceleration-aware target for
+  # the turn at xDistToTurn; it previously went only into the display-only
+  # desiredSpeed, so the vehicle never acted on it.
+  #
+  # ATC and the curve/route speeds below are the map-deceleration family: they all
+  # describe "a lower speed that applies at a point x metres ahead", which is exactly
+  # what SmartCruiseControlMap already models with its jerk/accel-limited lookahead.
+  # They are folded into that controller (see _update_carrot_map_decel), not into SLA,
+  # because SLA owns speed-limit signs - absolute constraints - while SCC-M owns
+  # navigation-driven deceleration. That mirrors the existing TMC congestion path.
+  atcSpeed @68 :Float32 = 0;
+  atcDist @69 :Float32 = 0;
+
+  # Curve speed from the turn table (v_turn_speed, already @11 as Int32 kph) and the
+  # route-curvature speed. Both in m/s; 0 means "no value".
+  #
+  # curveDist is the *model* distance at which the vision curve envelope
+  # (curve_speed.py, feeding vTurnSpeedMs) says the constraint becomes binding.
+  # It is deliberately NOT xDistToTurn: that one is the phone's turn-by-turn
+  # maneuver distance, so with no navigation turn queued it is 0 or stale, and
+  # SmartCruiseControlMap skips any source whose distance is not positive
+  # (map_controller._update_carrot_map_decel). Pairing the two made a purely
+  # visual curve decel get dropped whenever the router had nothing to say.
+  vTurnSpeedMs @70 :Float32 = 0;
+  curveDist @75 :Float32 = 0;
+  routeSpeed @71 :Float32 = 0;
+  routeDist @72 :Float32 = 0;
+
+  # Readable form of `desiredSource` plus its colour class, so every consumer shows
+  # the same thing instead of re-deriving a mapping. `desiredSource` is the internal
+  # token ("atc", "hda_section", ...); `desiredSourceLabel` is the driver-facing
+  # reason ("turn", "section") and `desiredSourceColor` is the HUD colour mode
+  # (2 = normal deceleration, 3 = vehicle CAN navigation, 4 = external navigation).
+  # Mapping lives in openpilot/sunnypilot/carrot/deceleration_source.py.
+  desiredSourceLabel @73 :Text = "";
+  desiredSourceColor @74 :Int32 = 0;
+
+  # Section (point-to-point average speed camera) cap, ported from
+  # Carrotpilot joongyu01/carrot-wip-speedcam. xSectionLimitKph is the cap the
+  # driver may hold inside the section: max(section limit * safety factor,
+  # time-bank allowance), already rounded. xSectionAllowanceKph is the raw
+  # allowance (0 when no bank) so the UI can show *why* the cap moved.
+  # Consumers: SLA speed_limit_resolver folds xSectionLimitKph into the map
+  # source while xSectionActive; it must never RAISE the road-class limit.
+  xSectionActive @76 :Bool = false;
+  xSectionLimitKph @77 :Int32 = 0;
+  xSectionAllowanceKph @78 :Float32 = 0;
+}
+
+struct ImuCalibrationSP @0xb057204d7deadf3f {
+  status @0 :Status;
+  progress @1 :Int8;
+  error @2 :Error;
+  rpyCalib @3 :List(Float32);
+  imuCalibMatrix @4 :List(Float32);
+  yawStd @5 :Float32;
+  validRatio @6 :Float32;
+
+  enum Status {
+    idle @0;
+    staticCollecting @1;
+    dynamicCollecting @2;
+    computing @3;
+    completed @4;
+    failed @5;
+    cancelled @6;
+  }
+
+  enum Error {
+    none @0;
+    notStationary @1;
+    slopeTooSteep @2;
+    notEnoughStaticSamples @3;
+    noStraightRoad @4;
+    timeout @5;
+    cameraOdometryUnreliable @6;
+    computationFailed @7;
+    matrixInvalid @8;
+  }
+}
+
+struct CarrotNaviStateSP @0xbd443b539493bc68 {
+  schemaVersion @0 :UInt16;
+  generation @1 :UInt64;
+  sessionId @2 :Text;
+  publishMonoTimeNanos @3 :UInt64;
+  connected @4 :Bool;
+  vehicle @5 :Vehicle;
+  guidanceCurrent @6 :Guidance;
+  guidanceNext @7 :Guidance;
+  laneCurrent @8 :Lane;
+  laneAhead @9 :List(Lane);
+  speed @10 :Speed;
+  trafficSignal @11 :TrafficSignal;
+  crossroad @12 :Crossroad;
+  route @13 :Route;
+  navigationStatus @14 :NavigationStatus;
+
+  struct ItemMeta {
+    present @0 :Bool;
+    sequence @1 :UInt64;
+    sourceTimestampMillis @2 :UInt64;
+    receivedMonoTimeNanos @3 :UInt64;
+  }
+
+  struct Vehicle {
+    meta @0 :ItemMeta;
+    latitude @1 :Float64;
+    longitude @2 :Float64;
+    headingDeg @3 :Float32;
+    speedKph @4 :Float32;
+    roadName @5 :Text;
+    virtualGps @6 :Bool;
+  }
+
+  struct Guidance {
+    meta @0 :ItemMeta;
+    distanceM @1 :Int32;
+    timeSec @2 :Int32;
+    turnType @3 :Int32;
+    roadName @4 :Text;
+    mainText @5 :Text;
+    nearDirection @6 :Text;
+    midDirection @7 :Text;
+    farDirection @8 :Text;
+    pointValid @9 :Bool;
+    latitude @10 :Float64;
+    longitude @11 :Float64;
+  }
+
+  struct Lane {
+    meta @0 :ItemMeta;
+    count @1 :Int16;
+    distanceM @2 :Int32;
+    visible @3 :Bool;
+    lanePlay @4 :Bool;
+    currentLane @5 :Int16;
+    turnCode @6 :Int32;
+    turnInfo @7 :List(Int16);
+    etcInfo @8 :List(Int16);
+    available @9 :List(Int16);
+    guideLineColor @10 :Int16;
+    roadCategory @11 :Int16;
+    voiceCode @12 :Int16;
+    roadCategoryValid @13 :Bool;  # explicit source field, not the default zero
+  }
+
+  struct Speed {
+    meta @0 :ItemMeta;
+    currentKph @1 :Float32;
+    roadLimitValid @2 :Bool;
+    roadLimitKph @3 :Int16;
+    sdiPresent @4 :Bool;
+    sdiType @5 :Int32;
+    sdiDistanceM @6 :Int32;
+    sdiSpeedLimitKph @7 :Int16;
+    sectionPresent @8 :Bool;
+    sectionActive @9 :Bool;
+    sectionSpeedLimitKph @10 :Int16;
+    sectionAverageKph @11 :Float32;
+    sectionOverallAverageKph @12 :Float32;
+    sectionRemainingDistanceM @13 :Float32;
+    sectionRemainingTimeSec @14 :Int32;
+    sectionProgress @15 :Float32;
+    sectionSuspended @16 :Bool;
+    sectionOffRoute @17 :Bool;
+    sdiSectionType @18 :Int32;
+    sdiBlockType @19 :Int32;
+    sdiBlockSpeedKph @20 :Int16;
+    sdiBlockDistanceM @21 :Int32;
+    secondarySdiPresent @22 :Bool;
+    secondarySdiType @23 :Int32;
+    secondarySdiDistanceM @24 :Int32;
+    secondarySdiSpeedLimitKph @25 :Int16;
+    secondarySdiSectionType @26 :Int32;
+    secondarySdiBlockType @27 :Int32;
+    secondarySdiBlockSpeedKph @28 :Int16;
+    secondarySdiBlockDistanceM @29 :Int32;
+  }
+
+  struct TrafficSignal {
+    meta @0 :ItemMeta;
+    visible @1 :Bool;
+    distanceM @2 :Int32;
+    source @3 :Text;
+    redValid @4 :Bool;
+    redOn @5 :Bool;
+    redRemainSec @6 :Int16;
+    leftValid @7 :Bool;
+    leftOn @8 :Bool;
+    leftRemainSec @9 :Int16;
+    greenValid @10 :Bool;
+    greenOn @11 :Bool;
+    greenRemainSec @12 :Int16;
+    rightValid @13 :Bool;
+    rightOn @14 :Bool;
+    rightRemainSec @15 :Int16;
+    uturnValid @16 :Bool;
+    uturnOn @17 :Bool;
+    uturnRemainSec @18 :Int16;
+    uiCounterValid @19 :Bool;
+    uiCounterRemainSec @20 :Int16;
+  }
+
+  struct Crossroad {
+    meta @0 :ItemMeta;
+    visible @1 :Bool;
+    distanceM @2 :Int32;
+    imageCode @3 :Int32;
+    imageUrl @4 :Text;
+  }
+
+  struct Coordinate {
+    latitude @0 :Float64;
+    longitude @1 :Float64;
+  }
+
+  struct Route {
+    meta @0 :ItemMeta;
+    remainingDistanceM @1 :Int32;
+    remainingTimeSec @2 :Int32;
+    movedDistanceM @3 :Int32;
+    movedTimeSec @4 :Int32;
+    totalDistanceM @5 :Int32;
+    polyline @6 :List(Coordinate);
+  }
+
+  struct NavigationStatus {
+    meta @0 :ItemMeta;
+    mode @1 :Text;
+    guidanceActive @2 :Bool;
+    offRoute @3 :Bool;
+    routePresent @4 :Bool;
+  }
+}
+
+struct CarrotNaviMediaSP @0xfc6241ed8877b611 {
+  schemaVersion @0 :UInt16;
+  sessionId @1 :Text;
+  kind @2 :Text;
+  name @3 :Text;
+  sequence @4 :UInt64;
+  sourceTimestampMillis @5 :UInt64;
+  receivedMonoTimeNanos @6 :UInt64;
+  present @7 :Bool;
+  messageType @8 :UInt8;
+  formatOrReason @9 :UInt8;
+  flags @10 :UInt16;
+  width @11 :UInt16;
+  height @12 :UInt16;
+  reason @13 :Text;
+  payload @14 :Data;
+}
+
+struct CustomReserved17 @0xa30662f84033036c {
+}
+
+struct CustomReserved18 @0xc86a3d38d13eb3ef {
+}
+
+# zoompilot: the liveTorqueParametersSP message (torqued_ext), on the last of sunnypilot's
+# reserved slots so log.capnp's Event union stays untouched. The service is customReserved19.
+struct CustomReserved19 @0xa4f1eb3323f5f582 {
+  # liveTorqueParametersSP (torqued_ext), on the last of sunnypilot's reserved slots so
+  # log.capnp's Event union stays untouched. The service is customReserved19.
+  version @0 :Int32;               # torqued VERSION, keys the cache restore with CarParamsPrevRoute
+  speedBinCenters @1 :List(Float32);
+  speedBinLatAccelFactors @2 :List(Float32);
+  speedBinFrictions @3 :List(Float32);
+  speedBinValid @4 :List(Bool);
+  # cache-only: empty on the published message; the per-bin buckets are thousands of
+  # points and only the restore path reads them (LiveTorqueParametersSP param)
+  speedBinPoints @5 :List(List(List(Float32)));
+  seedVersion @6 :Int32;           # speed_dependent.toml seed_version the bins were learned under; 0 before the field existed
+  # cache-only, empty on the published message and in a cache from before 2026-10-21
+  speedBinDecays @7 :List(Float32);  # per-bin filter decay
+  speedBinLearned @8 :List(Bool);    # the bin has been fit since its last reseed, whatever its points now
+}
+
+# ---- zoompilot -----------------------------------------------------------------------------
+# Fork structs. A sunnypilot struct above that zoompilot extends carries exactly one fork field,
+# a `zoompilot` nest at its next ordinal, defined here; no sunnypilot enum carries a fork
+# enumerant. An upstream append to such a struct then renumbers only our nest's line (logs from
+# before a renumber read with zoompilot-research tools/legacy_schema). CustomReserved19 is the
+# one reserved struct zoompilot fills whole.
+
+struct SelfdriveStateZP @0xde02074862680d1d {
+  # MADS enabled but held off by the car's own lane keep (switched off, or the EPS re-arming
+  # after it came back on): the UI shows lateral as off rather than paused or active.
+  madsLateralHeld @0 :Bool;
+  # ICBM's sendButton as a sustained stream at the message's native rate: the fast walk for
+  # large moves (interleaved with the wheel's own frames it registers as paced presses, never
+  # as a held button). sendButton keeps the direction.
+  icbmHold @1 :Bool;
+  # The retired ExperimentalMode param (chill mode went 2026-11); older logs only.
+  experimentalModeDEPRECATED @2 :Bool = true;
+}
+
+struct CarParamsZP @0x89825c62ea259087 {
+  minimumSetSpeed @0 :Float32;  # m/s, lowest set speed the stock cruise accepts; 0 = 20 mph / 30 km/h
+}
+
+struct ModelDataV2ZP @0xb99ad9cc1f2c3736 {
+  # Runtime state of an off-board accelerator (sunnypilot/jetlink_adapter). Offroad
+  # progress stays in the AcceleratorProgress param; telemetry waits for a customReserved slot.
+  acceleratorState @0 :AcceleratorState;
+
+  enum AcceleratorState {
+    none @0;
+    joining @1;
+    running @2;
+    retrying @3;
+    unavailable @4;
+    ready @5;      # link up, engine loaded, waiting for a window to switch
+  }
+}
+
+# zoompilot's own onroad events, raised and logged by selfdrived beside sunnypilot's
+# (onroadEventsSP.zoompilot.events). Event has OnroadEventSP.Event's fields.
+struct OnroadEventZP @0xeff60a9f4d5cb12f {
+  events @0 :List(Event);
+
+  struct Event {
+    name @0 :EventName;
+
+    # event types
+    enable @1 :Bool;
+    noEntry @2 :Bool;
+    warning @3 :Bool;   # alerts presented only when  enabled or soft disabling
+    userDisable @4 :Bool;
+    softDisable @5 :Bool;
+    immediateDisable @6 :Bool;
+    preEnable @7 :Bool;
+    permanent @8 :Bool; # alerts presented regardless of openpilot state
+    overrideLateral @10 :Bool;
+    overrideLongitudinal @9 :Bool;
+  }
+
+  enum EventName {
+    controlsMismatchLateralWarning @0;
+    silentPedalPressed @1;
+    stockEcuNotReady @2;
+    stockEcuInitializing @3;
+    stockEcuReady @4;
+    bigModelAvailable @5;
+    bigModelLinkLost @6;
+    stockLkasOff @7;
+    longitudinalEnableChime @8;
+    longitudinalDisableChime @9;
+    stockLkasArming @10;
+    stockCruiseFailed @11;
+    speedAssistSwitched @12;
+  }
+}
+
+struct CarStateZP @0xc879af11c43cb400 {
+  cruiseSession @0 :CruiseSession;
+  # The stock ECU transition contract (opendbc/sunnypilot/car/stock_ecu.py), written by card
+  # at carState rate: the driver's view of the ECU openpilot stands in for. ready is the
+  # vehicle's own silence guard, never a session acknowledgement.
+  stockEcu @1 :StockEcuState;
+  # The wheel's "farther" distance button, level. Upstream's one gapAdjustCruise button type
+  # cycles the personality one way; selfdrived steps it the other way on this release.
+  distanceFarther @2 :Bool;
+  # The car's own lane keep is back on after the driver switched it off, and the EPS has not
+  # applied torque since. MADS keeps the driver told lateral is disabled until it does.
+  lkasArming @3 :Bool;
+  # Whether ICBM drives the set speed this frame, decided by card alone (icbm_latch.py); every
+  # other process reads it here instead of CarParamsSP.pcmCruiseSpeed. unset is a log from
+  # before the field: readers fall back to that boot flag.
+  icbmActivation @4 :IcbmActivation;
+
+  enum IcbmActivation {
+    unset @0;
+    passive @1;
+    active @2;
+  }
+
+  enum StockEcuState {
+    notNeeded @0;
+    starting @1;
+    parkToTakeOver @2;
+    stockCruiseOn @3;
+    ready @4;
+    restoring @5;
+    restored @6;
+    failed @7;
+  }
+
+  # The card-side cruise arbiter's session, published at carState rate. On non-pcm
+  # cars this is the authoritative SLA session: plannerd mirrors it into
+  # longitudinalPlanSP.speedLimit.assist for the UI, and the ICBM servo freezes while
+  # a confirm prompt is pending. announceCounter lets 20 Hz consumers see 100 Hz
+  # alert-worthy transitions without sampling loss.
+  struct CruiseSession {
+    state @0 :LongitudinalPlanSP.SpeedLimit.AssistState;
+    # plan cap in m/s: the session target while active, the frozen hold while
+    # prompting, V_CRUISE_UNSET (255) otherwise
+    vCap @1 :Float32;
+    lastIntent @2 :CruiseIntent;
+    announceCounter @3 :UInt32;     # bumps when an activation must raise the alert
+
+    enum CruiseIntent {
+      none @0;
+      increment @1;
+      decrement @2;
+      confirm @3;
+      decline @4;
+      dismiss @5;
+    }
+  }
+}
+
+struct LongitudinalPlanZP @0xc3b0556e1118c2db {
+  e2eSetSpeed @0 :E2ESetSpeed;
+  leadForecast @1 :LeadForecast;
+  e2eLeadGap @2 :E2ELeadGap;  # retired 2026-10-27, folded into e2eSetSpeed; older logs only
+  # lowest planned speed on the model horizon, m/s (smart cruise control vision); 0 = no
+  # lookahead (feature off, long disabled, or no model), 255 caps "nothing binding ahead"
+  sccVAheadMin @3 :Float32;
+
+  # Experimental mode's follow-distance assist, retired 2026-10-27 (Set Speed Assist lifts toward the
+  # lead MPC too): what it added to the model's acceleration behind a lead and, when nothing, why.
+  struct E2ELeadGap {
+    authority @0 :Float32;     # 0..1, rate-limited
+    gain @1 :Float32;          # 0..1 from the model's own acceleration
+    weight @2 :Float32;        # 0..1 from the gap excess and ego speed
+    gapExcess @3 :Float32;     # m beyond long_mpc's gap for this personality
+    boost @4 :Float32;         # m/s^2 added to the model's acceleration
+    inhibit @5 :Inhibit;
+
+    enum Inhibit {
+      disabled @0;      # the ExperimentalModeLeadGap toggle is off (and logs from before it)
+      none @1;
+      inactive @2;      # not e2e, or long control reset
+      decActive @3;     # retired 2026-10, older logs only
+      invalid @4;
+      hold @5;          # a trip cleared less than the hold time ago
+      fcw @6;
+      hardBrake @7;
+      forceDecel @8;
+      stop @9;
+      driver @10;       # gas or brake pressed
+      modelBraking @11;
+      planSlowing @12;
+      lateral @13;
+      coast @14;        # allow_throttle false
+      laneChange @15;
+      lowSpeed @16;
+      noLead @17;
+      leadUncertain @18;
+      leadSlow @19;
+      leadBraking @20;  # braking now, or its forecast slows
+      leadChanged @21;  # the lead jumped: cut-in, swap, new car
+    }
+  }
+
+  # The model's lead forecast as the long MPC obstacle (sunnypilot/selfdrive/controls/lib/lead_forecast):
+  # how much of each lead the MPC took from the forecast, and the trajectory it got.
+  struct LeadForecast {
+    leadOne @0 :Lead;
+    leadTwo @1 :Lead;
+
+    struct Lead {
+      weight @0 :Float32;      # 0 upstream extrapolation .. 1 forecast, rate-limited
+      inhibit @1 :Inhibit;
+      x @2 :List(Float32);     # m, the MPC's lead position at its T_IDXS
+      v @3 :List(Float32);     # m/s
+    }
+
+    enum Inhibit {
+      disabled @0;      # the LeadForecast toggle is off (and logs from before it)
+      none @1;
+      noLead @2;
+      radar @3;         # a radar track: measured, keeps upstream's extrapolation
+      invalid @4;
+      mismatch @5;      # radarState's lead is not the model's lead
+    }
+  }
+
+  # Experimental mode's Set Speed Assist (sunnypilot/selfdrive/controls/lib/e2e_set_speed):
+  # what it added to the model's acceleration and, when nothing, why.
+  struct E2ESetSpeed {
+    authority @0 :Float32;     # retired 2026-10-27; 1, or 0 while a hazard held the boost off
+    gain @1 :Float32;          # 0..1 from the model's own acceleration and throttle probability, and speed
+    floor @2 :Float32;         # m/s^2 the lift pulls toward: chill's answer, min(lead MPC, cruise)
+    boost @3 :Float32;         # m/s^2 added to the model's acceleration, never negative since 2026-10-27
+    inhibit @4 :Inhibit;
+    bound @5 :Float32;         # retired 2026-10-27; m/s^2 the speed envelope allowed
+    added @6 :Float32;         # retired 2026-10-27; m/s the envelope had put on the car
+    fade @7 :Float32;          # 0..1 from the bend ahead at the current speed
+
+    enum Inhibit {
+      disabled @0;      # the ExperimentalModeSetSpeed toggle is off (and logs from before it)
+      none @1;
+      inactive @2;      # not e2e, or long control reset
+      decActive @3;     # retired 2026-10, older logs only
+      invalid @4;
+      hold @5;          # retired 2026-10-27, older logs only
+      fcw @6;           # retired 2026-10-27, older logs only
+      hardBrake @7;     # retired 2026-10-27, older logs only
+      forceDecel @8;    # retired 2026-10-27, older logs only
+      stop @9;          # retired 2026-10, older logs only (the envelope covers stops)
+      lead @10;         # retired 2026-10-27, older logs only
+      driver @11;       # retired 2026-10-27, older logs only
+      modelBraking @12; # retired 2026-10-27, older logs only
+      planSlowing @13;  # retired 2026-10-27, older logs only
+      lateral @14;      # retired 2026-10, older logs only
+      coast @15;        # retired 2026-10, older logs only
+      laneChange @16;
+      lowSpeed @17;     # retired 2026-10, older logs only
+    }
+  }
+}

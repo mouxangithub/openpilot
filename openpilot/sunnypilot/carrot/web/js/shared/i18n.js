@@ -1,0 +1,399 @@
+"use strict";
+
+// Translation registry — loaded by translations/registry.js + ko/en/zh.js
+const TRANSLATION_REGISTRY = window.CarrotTranslations || { packs: {}, order: ["en", "ko", "zh"] };
+const UI_STRINGS = TRANSLATION_REGISTRY.strings || {};
+const ACTION_LABELS = TRANSLATION_REGISTRY.actionLabels || {};
+const ERROR_MESSAGES = TRANSLATION_REGISTRY.errorMessages || {};
+const DRIVE_MODES = TRANSLATION_REGISTRY.driveModes || {};
+const CARROT_WEB_LANGUAGE_CODES = Object.freeze(["en", "ko", "zh"]);
+window.CARROT_WEB_LANGUAGE_CODES = CARROT_WEB_LANGUAGE_CODES;
+
+// Device language options — loaded from the server bootstrap (languages.json).
+// Falls back to a minimal set if the server data is unavailable.
+window.CarrotDeviceLanguageOptions = Object.freeze(
+  (Array.isArray(window.__CARROT_BOOTSTRAP__?.deviceLanguages) &&
+    window.__CARROT_BOOTSTRAP__.deviceLanguages.length > 0)
+    ? window.__CARROT_BOOTSTRAP__.deviceLanguages
+    : [
+        { code: "main_en", name: "English" },
+        { code: "main_ko", name: "한국어" },
+      ]
+);
+
+let LANG = "en";
+
+
+function normalizeLangCode(raw) {
+  const value = String(raw || "").trim().toLowerCase();
+  const packs = window.CarrotTranslations?.packs || {};
+  if (packs[value]) return value;
+  const deviceAliases = {
+    main_ko: "ko",
+    main_en: "en",
+    "main_zh-chs": "zh",
+    "main_zh-cht": "zh",
+  };
+  if (deviceAliases[value]) return deviceAliases[value];
+  const withoutMainPrefix = value.replace(/^main[_-]/, "");
+  if (packs[withoutMainPrefix]) return withoutMainPrefix;
+  if (value.startsWith("ko")) return "ko";
+  if (value.startsWith("zh")) return "zh";
+  if (value.startsWith("en")) return "en";
+  return "";
+}
+
+function getBootstrapWebSettings() {
+  return window.__CARROT_BOOTSTRAP__?.webSettings || {};
+}
+
+function getBootstrappedWebLanguage() {
+  return normalizeLangCode(
+    window.CarrotWebSettingsState?.web_language || getBootstrapWebSettings().web_language,
+  );
+}
+
+function getLegacyStoredWebLanguage() {
+  try {
+    return normalizeLangCode(localStorage.getItem(LANG_STORAGE_KEY));
+  } catch {
+    return "";
+  }
+}
+
+function detectDefaultLang() {
+  const webSettingLang = getBootstrappedWebLanguage();
+  if (webSettingLang) return webSettingLang;
+
+  const legacyStored = getLegacyStoredWebLanguage();
+  if (legacyStored) return legacyStored;
+
+  const deviceLang = normalizeLangCode(window.__CARROT_BOOTSTRAP__?.deviceLanguage);
+  if (deviceLang) return deviceLang;
+
+  const browserLangs = Array.isArray(navigator.languages) && navigator.languages.length
+    ? navigator.languages
+    : [navigator.language, navigator.userLanguage];
+  for (const candidate of browserLangs) {
+    const normalized = normalizeLangCode(candidate);
+    if (normalized) return normalized;
+  }
+  return "en";
+}
+
+LANG = detectDefaultLang();
+
+function hasStoredWebLanguage() {
+  return Boolean(getBootstrappedWebLanguage() || getLegacyStoredWebLanguage());
+}
+
+
+/* ── Friendly error / action label lookup ─────────────────── */
+function friendlyError(json) {
+  if (!json) return null;
+  const code = json.error_code;
+  const detail = json.error_detail || "";
+  const langMap = ERROR_MESSAGES[LANG] || ERROR_MESSAGES.en;
+  if (code && langMap[code]) return langMap[code](detail);
+  // fallback: try to make raw errors more readable
+  const raw = json.error || "";
+  if (raw.startsWith("git subcommand not allowed:")) {
+    const sub = raw.replace("git subcommand not allowed:", "").trim();
+    return (ERROR_MESSAGES[LANG] || ERROR_MESSAGES.en).GIT_CMD_NOT_ALLOWED(sub);
+  }
+  if (raw.startsWith("not allowed:")) {
+    const cmd = raw.replace("not allowed:", "").trim();
+    return (ERROR_MESSAGES[LANG] || ERROR_MESSAGES.en).CMD_NOT_ALLOWED(cmd);
+  }
+  if (raw === "timeout") return (ERROR_MESSAGES[LANG] || ERROR_MESSAGES.en).CMD_TIMEOUT();
+  if (raw === "bad mode") return (ERROR_MESSAGES[LANG] || ERROR_MESSAGES.en).INVALID_RESET_MODE();
+  if (raw === "missing branch") return (ERROR_MESSAGES[LANG] || ERROR_MESSAGES.en).MISSING_BRANCH();
+  return raw || null;
+}
+
+function getActionLabel(action) {
+  const labels = (ACTION_LABELS[LANG] || ACTION_LABELS.en)[action];
+  return labels || { running: action + "...", done: action, failed: action };
+}
+
+
+/* ── Text rendering helpers ──────────────────────────────── */
+function setNavText(id, txt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  // The label is the last <span> child
+  const spans = el.querySelectorAll(":scope > span");
+  if (spans.length >= 2) spans[spans.length - 1].textContent = txt;
+  else el.textContent = txt;
+}
+
+function setText(id, txt) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = txt;
+}
+
+function updateLangLabel() {
+  const main = langLabel?.querySelector(".lang-label__main");
+  const sub = langLabel?.querySelector(".lang-label__sub");
+  const emoji = LANG_EMOJI[LANG] || "🌐";
+  const pack = TRANSLATION_REGISTRY.getPack?.(LANG) || {};
+  const languageName = pack.name || LANG.toUpperCase();
+  const nativeName = pack.nativeName || languageName;
+  if (langLabel) {
+    if (main && sub) {
+      main.textContent = emoji;
+      sub.textContent = "";
+      sub.hidden = true;
+    } else {
+      langLabel.textContent = emoji;
+    }
+  }
+
+  if (btnLang) {
+    const text = `${getUIText("language", getUIText("lang", "Language"))} (${languageName})`;
+    btnLang.setAttribute("aria-label", text);
+    btnLang.title = text;
+  }
+  if (btnSettingLang) {
+    const label = `${getUIText("language", getUIText("lang", "Language"))} · ${nativeName}`;
+    btnSettingLang.textContent = label;
+    btnSettingLang.title = label;
+  }
+  document.documentElement.lang = LANG;
+}
+
+function formatUIText(text, vars = {}) {
+  let out = String(text ?? "");
+  Object.entries(vars || {}).forEach(([key, value]) => {
+    out = out.replaceAll(`{${key}}`, String(value));
+  });
+  return out;
+}
+
+function getUIText(key, fallback = "", vars = null) {
+  const value = UI_STRINGS[LANG]?.[key] ?? UI_STRINGS.en?.[key] ?? UI_STRINGS.ko?.[key] ?? fallback;
+  return vars ? formatUIText(value, vars) : value;
+}
+
+function updateWebLanguageState(lang) {
+  if (window.__CARROT_BOOTSTRAP__?.webSettings) {
+    window.__CARROT_BOOTSTRAP__.webSettings.web_language = lang;
+  }
+  if (window.CarrotWebSettingsState) {
+    window.CarrotWebSettingsState.web_language = lang;
+  }
+}
+
+function persistWebLanguage(lang) {
+  try {
+    localStorage.setItem(LANG_STORAGE_KEY, lang);
+  } catch {}
+
+  updateWebLanguageState(lang);
+  if (typeof setWebSettingByKey === "function") {
+    setWebSettingByKey("web_language", lang).catch(() => {});
+    return;
+  }
+
+  fetch("/api/web_settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ web_language: lang }),
+  })
+    .then((response) => response.ok ? response.json() : null)
+    .then((payload) => {
+      const saved = normalizeLangCode(payload?.settings?.web_language);
+      if (saved) updateWebLanguageState(saved);
+    })
+    .catch(() => {});
+}
+
+function maybeMigrateLegacyWebLanguage() {
+  if (getBootstrappedWebLanguage() || !getLegacyStoredWebLanguage()) return;
+  window.setTimeout(() => persistWebLanguage(LANG), 0);
+}
+
+maybeMigrateLegacyWebLanguage();
+
+
+/* ── Page-wide UI text rendering ─────────────────────────── */
+function renderUIText() {
+  const s = UI_STRINGS[LANG];
+  if (!s) return;
+  document.title = "CarrotPilot";
+
+  // Nav bar (nested spans — set last child text)
+  setNavText("btnHome", s.home);
+  setNavText("btnSetting", s.setting);
+  setNavText("btnTools", s.tools);
+  setNavText("btnLogs", s.logs);
+  setNavText("btnTerminal", s.terminal);
+  setText("carrotTitle", "CarrotPilot");
+
+  // Car Select
+  setText("carTitle", s.car_select);
+  setText("btnBackCar", s.back);
+  setText("makersTitle", s.makers);
+  setText("modelTitle", s.models);
+
+  // Setting
+  setText("settingTitleText", s.setting);
+  setText("settingTabDeviceLabel", getUIText("setting_tab_device", "Device"));
+  setText("settingTabCarrotLabel", getUIText("setting_tab_carrot", "CarrotPilot"));
+  setText("btnBackGroups", s.back);
+  setText("groupsTitle", s.groups);
+  setText("itemsTitle", s.items);
+
+  // Tools
+  setText("toolsTitle", s.tools);
+  setText("gitCommandsTitle", getUIText("git_commands", "Git Commands"));
+  setText("userSystemTitle", getUIText("user_system", "User / System"));
+  setText("toolsQuickLinkTitle", getUIText("quick_link", "Link"));
+  setText("userSettingsTitle", getUIText("section_settings_backup", "Settings"));
+  setText("btnToolsCarSelect", getUIText("car_select", "Car Select"));
+  setText("btnToolsLanguage", getUIText("language", "Language"));
+  setText("btnToolsWebSettings", getUIText("web_settings", "Web Settings"));
+  setText("btnDeviceInfo", getUIText("info", "Info"));
+  setText("btnGitBranch", "change branch");
+  setText("btnGitResetRepo", "reset repo");
+  setText("btnDeviceLang", "Device Lang");
+  setText("btnResetCalib", "Reset Calib");
+  setText("btnSendTmuxLog", "capture tmux");
+  setText("btnSendTmuxServerLog", "send tmux");
+  setText("btnDeleteVideos", "delete all videos");
+  setText("btnDeleteLogs", "delete all logs");
+  setText("btnRebuildAll", "Rebuild All");
+  setText("btnReboot", "Reboot");
+  setText("btnBackupSettings", getUIText("backup", "Backup"));
+  setText("btnRestoreSettings", getUIText("restore", "Restore"));
+  setText("btnQrBackupSettings", getUIText("qr_backup", "QR Backup"));
+  setText("btnQrRestoreSettings", getUIText("qr_restore", "QR Restore"));
+  setText("btnCopySettings", getUIText("copy", "Copy"));
+  setText("btnViewSettings", getUIText("view", "View"));
+  setText("sysCmdTitle", getUIText("section_sys_cmd", "System Command"));
+  setText("sysCmdHelp", getUIText("sys_cmd_help", "Allowed: pull, status, branch, log, git ..., df, free, uptime"));
+  setText("outputTitle", getUIText("section_output", "Output"));
+  setText("terminalTitle", s.terminal);
+  setText("terminalSessionMeta", "/data/openpilot");
+  setText("btnTerminalCtrlC", s.terminal_ctrl_c);
+  setText("btnTerminalClear", s.terminal_clear);
+  setText("btnTerminalReconnect", s.terminal_reconnect);
+  setText("logsDashcamTitle", s.logs_dashcam || "Dashcam");
+  setText("logsScreenTitle", s.logs_screenrecord || "Screen Record");
+  setText("btnStartVision", `▶ ${s.start_vision || "Start Drive Vision"}`);
+  setText("btnVisionStop", s.vision_stop || "Stop");
+  if (typeof applyRecordFabState === "function") applyRecordFabState();
+  window.DriveVisionFacade?.lifecycle?.renderText?.();
+  setText("settingSearchTitle", s.setting_search);
+  if (settingSearchInput) settingSearchInput.placeholder = s.setting_search_placeholder || "";
+  if (settingSearchMeta && (!settingSearchInput || !settingSearchInput.value.trim())) {
+    settingSearchMeta.textContent = s.setting_search_idle || "";
+  }
+  if (btnSettingSearch) {
+    btnSettingSearch.setAttribute("aria-label", s.setting_action_menu || "Setting actions");
+    btnSettingSearch.title = s.setting_action_menu || "Setting actions";
+  }
+  if (settingFabSearchLabel) settingFabSearchLabel.textContent = s.setting_search || "Search Settings";
+  if (btnSettingFabSearch) {
+    btnSettingFabSearch.setAttribute("aria-label", s.setting_search || "Search Settings");
+    btnSettingFabSearch.title = s.setting_search || "Search Settings";
+  }
+  if (settingFabProfileAddLabel) settingFabProfileAddLabel.textContent = s.profile_add || "Add Profile";
+  if (btnSettingFabProfileAdd) {
+    btnSettingFabProfileAdd.setAttribute("aria-label", s.profile_add || "Add Profile");
+    btnSettingFabProfileAdd.title = s.profile_add || "Add Profile";
+  }
+  if (settingFabFingerprintLabel) settingFabFingerprintLabel.textContent = s.setting_fingerprint_title || "Settings fingerprint";
+  if (btnSettingFabFingerprint) {
+    btnSettingFabFingerprint.setAttribute("aria-label", s.setting_fingerprint_title || "Settings fingerprint");
+    btnSettingFabFingerprint.title = s.setting_fingerprint_title || "Settings fingerprint";
+  }
+  if (settingFabResetDefaultsLabel) settingFabResetDefaultsLabel.textContent = s.setting_reset_defaults || "Reset Settings";
+  if (btnSettingFabResetDefaults) {
+    btnSettingFabResetDefaults.setAttribute("aria-label", s.setting_reset_defaults || "Reset Settings");
+    btnSettingFabResetDefaults.title = s.setting_reset_defaults || "Reset Settings";
+  }
+  if (btnSettingSearchSubmit) {
+    btnSettingSearchSubmit.setAttribute("aria-label", s.setting_search || "Search Settings");
+    btnSettingSearchSubmit.title = s.setting_search || "Search Settings";
+  }
+  // The overlay panel view is created by pages/setting.js; re-render its
+  // results so a language change re-labels the visible list.
+  if (typeof settingSearchPanelView !== "undefined" && settingSearchPanelView.isOpen()) {
+    settingSearchPanelView.render();
+  }
+  setText("appBranchPickerTitle", s.branch_select);
+  setText("appBranchPickerClose", s.close);
+  setText("appCarPickerTitle", s.car_select);
+  setText("appCarPickerClose", s.cancel);
+  updateLangLabel();
+  syncHomeUtilityButtons();
+  window.DriveVisionHudContent?.renderText?.();
+  renderQuickLinkUI();
+}
+
+
+/* ── Language switching ──────────────────────────────────── */
+function setWebLanguage(lang, options = {}) {
+  const normalized = normalizeLangCode(lang);
+  if (!normalized || !UI_STRINGS[normalized]) return false;
+  const persist = options.persist !== false;
+  const render = options.render !== false;
+  const dispatch = options.dispatch !== false;
+  LANG = normalized;
+  if (persist) {
+    persistWebLanguage(LANG);
+  }
+
+  updateLangLabel();
+
+  if (!render) return true;
+
+  renderUIText();
+  if (typeof loadRecordState === "function") loadRecordState().catch(() => {});
+  if (typeof rerenderPageLangUi === "function") rerenderPageLangUi();
+
+  if (SETTINGS && !(typeof getCurrentSettingTab === "function" && getCurrentSettingTab() === "device")) {
+    if (typeof rebuildSettingSearchEntries === "function") rebuildSettingSearchEntries();
+    if (typeof renderGroups === "function") renderGroups({ animateGroups: false });
+    if (CURRENT_GROUP && typeof renderItems === "function") {
+      const currentTop = typeof getSettingItemsScrollTop === "function"
+        ? getSettingItemsScrollTop()
+        : 0;
+      renderItems(CURRENT_GROUP, {
+        detailName: (typeof CURRENT_SETTING_DETAIL !== "undefined" && CURRENT_SETTING_DETAIL) ? CURRENT_SETTING_DETAIL : "",
+        scrollMode: "restore",
+        scrollTop: currentTop,
+        animateItems: false,
+      });
+    }
+  }
+  if (dispatch) {
+    window.dispatchEvent(new CustomEvent("carrot:languagechange", { detail: { lang: LANG } }));
+  }
+  return true;
+}
+
+async function syncWebLanguageFromDeviceDefault() {
+  if (hasStoredWebLanguage()) return false;
+  try {
+    const values = typeof bulkGet === "function" ? await bulkGet(["LanguageSetting"]) : {};
+    const lang = normalizeLangCode(values?.LanguageSetting);
+    if (!lang || lang === LANG) return false;
+    return setWebLanguage(lang, { persist: false, render: false, dispatch: false });
+  } catch {
+    return false;
+  }
+}
+
+function toggleLang() {
+  const allowed = CARROT_WEB_LANGUAGE_CODES;
+  const rawOrder = Array.isArray(TRANSLATION_REGISTRY.order) ? TRANSLATION_REGISTRY.order : allowed;
+  const order = [...new Set([...rawOrder, ...allowed])].filter((lang) => allowed.includes(lang) && UI_STRINGS[lang]);
+  const currentIndex = Math.max(0, order.indexOf(LANG));
+  const next = order[(currentIndex + 1) % order.length] || "en";
+  setWebLanguage(next);
+}
+
+if (btnLang) btnLang.onclick = () => toggleLang();
+if (btnSettingLang) btnSettingLang.onclick = () => toggleLang();

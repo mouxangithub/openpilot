@@ -1,0 +1,458 @@
+from __future__ import annotations
+"""
+Copyright (c) 2021-, Haibin Wen, sunnypilot, and a number of other contributors.
+
+This file is part of sunnypilot and is licensed under the MIT License.
+See the LICENSE.md file in the root directory for more details.
+"""
+
+"""
+WebInterface - small HTTP control plane for the carrot module.
+
+The CarrotPilot web UI exposes two screens:
+
+* ``/radar`` - live visualisation of the four-corner radar + Amap blind
+  spot data; and
+* ``/nav_params`` - read/edit form for the carrot navigation tunings.
+
+We provide an equivalent here using the Python standard library so the
+component works on PC dev previews (where systemd / nginx is not
+available) and on the device.  The server is started in a daemon thread
+and can be torn down with :meth:`WebInterface.stop`.
+"""
+
+import json
+import logging
+import os
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
+from urllib.parse import parse_qs, urlparse
+
+from collections.abc import Callable
+
+from openpilot.sunnypilot.carrot.amap_navi import AmapNaviServ
+from openpilot.sunnypilot.carrot.config import UnifiedParams
+from openpilot.sunnypilot.carrot import web_settings as ws
+from openpilot.sunnypilot.carrot.server.services.params_typed import _USB_PORT_KEYS, _enforce_usb_port
+from openpilot.common.params import Params
+
+_LOG = logging.getLogger("sunnypilot.carrot.web")
+
+
+def html_escape(value: str, attribute: bool = False) -> str:
+  """Minimal escaping for interpolating untrusted strings into the hand-rolled HTML."""
+  value = (value or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+  if attribute:
+    value = value.replace('"', "&quot;").replace("'", "&#x27;")
+  return value
+
+
+_HTML_NAVPARAMS_HEAD = """<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>sunnypilot · Carrot 参数</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body { font-family: -apple-system, system-ui, sans-serif; margin: 16px; max-width: 720px; }
+h1 { font-size: 18px; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; }
+input[type=number] { width: 100%; box-sizing: border-box; }
+input[type=submit] { padding: 8px 12px; }
+</style>
+</head>
+<body>
+<h1>sunnypilot · Carrot / Amap 导航参数</h1>
+<p>以下参数优先从系统 Params 读取，未注册的键会回退到 nav_params.json。</p>
+<form method="post" action="/nav_params_save">
+<table>
+<thead><tr><th>参数</th><th>值</th><th>类型</th></tr></thead>
+<tbody>
+"""
+
+
+_HTML_NAVPARAMS_TAIL = """</tbody>
+</table>
+<p><input type="submit" value="保存"></p>
+</form>
+<p><a href="/models">模型</a> · <a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/radar">雷达视图</a> · <a href="/nav_params">导航参数</a></p>
+</body>
+</html>
+"""
+
+
+_HTML_RADAR_HEAD = """<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>sunnypilot · 雷达视图</title>
+<style>
+body { font-family: -apple-system, system-ui, sans-serif; margin: 16px; }
+.b { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.card { border: 1px solid #ddd; padding: 10px; border-radius: 6px; }
+.t { font-weight: 600; margin-bottom: 6px; }
+.ok { color: #2c7; }
+.warn { color: #d33; }
+</style>
+</head>
+<body>
+<h1>四角雷达 + Amap 盲区</h1>
+<div class="b">
+"""
+
+
+_HTML_RADAR_TAIL = """</div>
+<p><a href="/models">模型</a> · <a href="/settings">设置</a> · <a href="/actions">操作</a> · <a href="/nav_params">导航参数</a></p>
+</body>
+</html>
+"""
+
+
+class _CarrotHTTPServer(ThreadingHTTPServer):
+  """ThreadingHTTPServer that carries the WebInterface instance.
+
+  ``BaseRequestHandler.__init__`` assigns ``self.server = <raw server>``
+  on every handler instance, shadowing any class attribute, so the
+  interface must be exposed through a dedicated attribute.
+  """
+
+  def __init__(self, address: tuple[str, int], handler_cls, interface: WebInterface) -> None:
+    super().__init__(address, handler_cls)
+    self.interface = interface
+
+
+class _CarrotWebHandler(BaseHTTPRequestHandler):
+  interface: WebInterface
+
+  # Quieter access log.
+  def log_message(self, format, *args):  # noqa: A002 - stdlib BaseHTTPRequestHandler signature
+    return
+
+  def _write(self, body: bytes, status: int = 200, content_type: str = "text/html; charset=utf-8") -> None:
+    try:
+      self.send_response(status)
+      self.send_header("Content-Type", content_type)
+      self.send_header("Cache-Control", "no-store")
+      self.send_header("Content-Length", str(len(body)))
+      self.end_headers()
+      self.wfile.write(body)
+    except (BrokenPipeError, ConnectionResetError):
+      pass
+
+  def _redirect(self, location: str) -> None:
+    try:
+      self.send_response(303)
+      self.send_header("Location", location)
+      self.end_headers()
+    except (BrokenPipeError, ConnectionResetError):
+      pass
+
+  def do_GET(self) -> None:
+    parsed = urlparse(self.path)
+    path = parsed.path
+
+    if path == "/" :
+      self._redirect("/models")
+      return
+    elif path == "/models":
+      self._write(self.server.interface.render_models_page(parse_qs(parsed.query)))
+    elif path == "/nav_params":
+      self._write(self.server.interface.render_nav_params_page())
+    elif path == "/radar":
+      self._write(self.server.interface.render_radar_page())
+    elif path == "/radar_data":
+      body = json.dumps(self.server.interface.snapshot_radar_data()).encode("utf-8")
+      self._write(body, content_type="application/json; charset=utf-8")
+    elif path == "/nav_params_data":
+      body = json.dumps(self.server.interface.snapshot_nav_params()).encode("utf-8")
+      self._write(body, content_type="application/json; charset=utf-8")
+    elif path == "/settings":
+      self._write(self.server.interface.render_settings_page(parse_qs(parsed.query)))
+    elif path == "/actions":
+      self._write(self.server.interface.render_actions_page(parse_qs(parsed.query)))
+    elif path == "/health":
+      self._write(b"ok", content_type="text/plain; charset=utf-8")
+    else:
+      self._write(b"<h1>404</h1>", status=404)
+
+  def do_POST(self) -> None:
+    parsed = urlparse(self.path)
+    if parsed.path == "/models_save":
+      length = int(self.headers.get("Content-Length", "0") or "0")
+      body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
+      ok = self.server.interface.apply_models_form(parse_qs(body))
+      self._redirect(f"/models?saved={'1' if ok else '0'}")
+      return
+    if parsed.path == "/nav_params_save":
+      length = int(self.headers.get("Content-Length", "0") or "0")
+      body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
+      self.server.interface.apply_form_update(parse_qs(body))
+      self._redirect("/nav_params")
+      return
+    if parsed.path == "/settings_save":
+      length = int(self.headers.get("Content-Length", "0") or "0")
+      body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
+      form = parse_qs(body)
+      ok = self.server.interface.apply_settings_form(form)
+      from urllib.parse import quote
+      page = (form.get("page", [""])[0] or "").strip()
+      self._redirect(f"/settings?page={quote(page)}&saved={'1' if ok else '0'}")
+      return
+    if parsed.path == "/action_run":
+      length = int(self.headers.get("Content-Length", "0") or "0")
+      body = self.rfile.read(length).decode("utf-8") if length > 0 else ""
+      ok, detail = self.server.interface.run_action(parse_qs(body))
+      from urllib.parse import quote
+      self._redirect(f"/actions?saved={'1' if ok else '0'}&detail={quote(detail)}")
+      return
+    self._write(b"<h1>404</h1>", status=404)
+
+
+class WebInterface:
+  """HTTP control plane for the carrot module.
+
+  The class is intentionally self-contained: the carrot module
+  (``CarrotManager``) holds a reference and starts the server during
+  initialization.  ``stop()`` is idempotent and safe to call from any
+  thread.
+  """
+
+  DEFAULT_PORT = 8088
+
+  def __init__(self, amap_navi: AmapNaviServ, params: UnifiedParams | None = None,
+               port: int = DEFAULT_PORT,
+               radar_source: Callable[[], dict[str, Any]] | None = None) -> None:
+    self._amap_navi = amap_navi
+    self._params = params or UnifiedParams()
+    self._port = port
+    self._radar_source = radar_source
+    self._server: ThreadingHTTPServer | None = None
+    self._thread: threading.Thread | None = None
+    self._lock = threading.Lock()
+
+  # ---- lifecycle -------------------------------------------------------- #
+
+  def start(self) -> None:
+    with self._lock:
+      if self._server is not None:
+        return
+      try:
+        server = _CarrotHTTPServer(("0.0.0.0", self._port), _CarrotWebHandler, self)
+      except OSError as exc:
+        _LOG.warning("web interface failed to bind port %s: %s", self._port, exc)
+        return
+      self._server = server
+      thread = threading.Thread(
+        target=server.serve_forever, name="carrot-web", daemon=True,
+      )
+      self._thread = thread
+      thread.start()
+      _LOG.info("carrot web interface listening on port %s", self._port)
+
+  def stop(self) -> None:
+    with self._lock:
+      if self._server is None:
+        return
+      try:
+        self._server.shutdown()
+        self._server.server_close()
+      except Exception:
+        pass
+      self._server = None
+      self._thread = None
+
+  # ---- rendering -------------------------------------------------------- #
+
+  def render_nav_params_page(self) -> bytes:
+    rows: list[str] = []
+    for key in sorted(self._params.keys()):
+      value = self._params.get(key, "")
+      kind = self._infer_kind(key, value)
+      rows.append(self._render_row(key, value, kind))
+    body = _HTML_NAVPARAMS_HEAD + "\n".join(rows) + _HTML_NAVPARAMS_TAIL
+    return body.encode("utf-8")
+
+  def _render_row(self, key: str, value: Any, kind: str) -> str:
+    name = f'p[{key}]'
+    safe_key = key.replace('"', "&quot;")
+    if kind == "bool":
+      checked = " checked" if int(value or 0) else ""
+      return f'<tr><td>{safe_key}</td><td><input type="checkbox" name="{name}"{checked} value="1"></td><td>bool</td></tr>'
+    if kind == "float":
+      return f'<tr><td>{safe_key}</td><td><input type="number" step="0.01" name="{name}" value="{value}"></td><td>float</td></tr>'
+    return f'<tr><td>{safe_key}</td><td><input type="number" step="1" name="{name}" value="{value}"></td><td>int</td></tr>'
+
+  def _infer_kind(self, key: str, value: Any) -> str:
+    if isinstance(value, bool) or key.endswith("Enabled"):
+      return "bool"
+    if isinstance(value, float):
+      return "float"
+    return "int"
+
+  def render_radar_page(self) -> bytes:
+    sd = self._amap_navi.shared_data
+    cards = [
+      self._card("左前", sd.camera_left, sd.lidar_left, sd.lf_drel),
+      self._card("右前", sd.camera_right, sd.lidar_right, sd.rf_drel),
+      self._card("左后", sd.lidar_car_left_blind, sd.lidar_left_blind, sd.lb_drel),
+      self._card("右后", sd.lidar_car_right_blind, sd.lidar_right_blind, sd.rb_drel),
+    ]
+    return (_HTML_RADAR_HEAD + "".join(cards) + _HTML_RADAR_TAIL).encode("utf-8")
+
+  def _card(self, name: str, cam: bool, lidar: bool, samples: dict) -> str:
+    state_cls = "warn" if (cam or lidar) else "ok"
+    state = "检测到盲区" if (cam or lidar) else "正常"
+    sample_count = len(samples)
+    return (
+      f'<div class="card"><div class="t">{name}</div>' +
+      f'<div>摄像头: <span class="{state_cls}">{state}</span></div>' +
+      f'<div>激光雷达: {lidar}</div>' +
+      f'<div>距离样本: {sample_count}</div></div>'
+    )
+
+  # ---- JSON snapshots --------------------------------------------------- #
+
+  def snapshot_radar_data(self) -> dict[str, Any]:
+    sd = self._amap_navi.shared_data
+    data: dict[str, Any] = {
+      "timestamp": time.time(),  # noqa: TID251
+      "left_blind": sd.left_blind,
+      "right_blind": sd.right_blind,
+      "lidar_l": sd.lidar_left,
+      "lidar_r": sd.lidar_right,
+      "camera_l": sd.camera_left,
+      "camera_r": sd.camera_right,
+      "lf_drel": dict(sd.lf_drel),
+      "lb_drel": dict(sd.lb_drel),
+      "rf_drel": dict(sd.rf_drel),
+      "rb_drel": dict(sd.rb_drel),
+      "lf_vrel": sd.lf_vrel,
+      "lb_vrel": sd.lb_vrel,
+      "rf_vrel": sd.rf_vrel,
+      "rb_vrel": sd.rb_vrel,
+      "op_blocked": sd.op_blocked,
+      "road_blocked": sd.road_blocked,
+      "ext_blinker": sd.ext_blinker,
+    }
+    if self._radar_source is not None:
+      try:
+        radar = self._radar_source()
+        data["points"] = radar.get("points", [])
+        data["tracks"] = radar.get("tracks", [])
+        data["leads"] = radar.get("leads", [])
+        data["radar_timestamp"] = radar.get("timestamp", data["timestamp"])
+      except Exception:
+        # Fall back to the four-corner snapshot if the source errors out.
+        pass
+    return data
+
+  def snapshot_nav_params(self) -> dict[str, Any]:
+    return {key: self._params.get(key, "") for key in sorted(self._params.keys())}
+
+  # ---- form handling ---------------------------------------------------- #
+
+  def apply_form_update(self, form: dict[str, list[str]]) -> None:
+    touched_usb_port = False
+    for raw_key, values in form.items():
+      if not raw_key.startswith("p["):
+        continue
+      key = raw_key[2:-1]
+      if not values:
+        continue
+      value = values[0]
+      if value in ("0", "1") and self._infer_kind(key, self._params.get(key, "")) == "bool":
+        self._params.put_bool(key, value == "1")
+      else:
+        try:
+          if "." in value:
+            self._params.put_float(key, float(value))
+          else:
+            self._params.put_int(key, int(value))
+        except ValueError:
+          continue
+      touched_usb_port = touched_usb_port or key in _USB_PORT_KEYS
+
+    if touched_usb_port:
+      _enforce_usb_port()
+
+  # ---- models (the on-device Models panel, in a browser) ----------------- #
+
+  def render_models_page(self, query: dict[str, list[str]] | None = None) -> bytes:
+    saved_raw = (query or {}).get("saved", [""])[0]
+    saved = 1 if saved_raw == "1" else (0 if saved_raw == "0" else None)
+    return ws.render_models_page(ws.collect_models(Params()), saved=saved).encode("utf-8")
+
+  def apply_models_form(self, form: dict[str, list[str]]) -> bool:
+    ok, _detail = ws.apply_models_form(Params(), form)
+    return ok
+
+  # ---- settings (the on-device pages, in a browser) --------------------- #
+
+  def render_settings_page(self, query: dict[str, list[str]] | None = None) -> bytes:
+    """The index of on-device settings pages, or one page's controls."""
+    params = Params()
+    grouped, kinds, values = ws.collect(params)
+    page = (query or {}).get("page", [""])[0].strip()
+    if page not in grouped:
+      return ws.render_index(grouped).encode("utf-8")
+    saved_raw = (query or {}).get("saved", [""])[0]
+    saved = 1 if saved_raw == "1" else (0 if saved_raw == "0" else None)
+    return ws.render_page(page, grouped[page], kinds, values, saved=saved, labels=ws.param_labels()).encode("utf-8")
+
+  def apply_settings_form(self, form: dict[str, list[str]]) -> bool:
+    """Writes the keys the page carries, through the setter for each declared type."""
+    params = Params()
+    _, kinds, _ = ws.collect(params)
+    updates = ws.parse_form_updates(form, kinds)
+    _, skipped = ws.apply_updates(params, updates, kinds)
+    return skipped == 0
+
+  # ---- actions (the on-device buttons) ---------------------------------- #
+
+  def render_actions_page(self, query: dict[str, list[str]] | None = None) -> bytes:
+    from urllib.parse import unquote_plus
+    q = query or {}
+    saved_raw = q.get("saved", [""])[0]
+    saved = 1 if saved_raw == "1" else (0 if saved_raw == "0" else None)
+    return ws.render_actions(saved=saved, detail=unquote_plus(q.get("detail", [""])[0])).encode("utf-8")
+
+  def run_action(self, form: dict[str, list[str]]) -> tuple[bool, str]:
+    """Runs one of the on-device buttons' work. Returns (ok, detail)."""
+    action = (form.get("action", [""])[0] or "").strip()
+    if action == "view_error_log":
+      return self._read_error_log()
+
+    bool_actions = {
+      "refresh_models": "ModelManager_ClearCache",
+      "clear_mapd_cache": "Mapd_ClearCache",
+      "check_osm_updates": "OsmDbUpdatesCheck",
+      "backup_now": "BackupManager_CreateBackup",
+      "offroad_on": "OffroadMode",
+    }
+    if action == "offroad_off":
+      Params().put_bool("OffroadMode", False)
+      return True, "已写入 OffroadMode=0"
+    if action in bool_actions:
+      key = bool_actions[action]
+      Params().put_bool(key, True)
+      return True, f"已写入 {key}=1"
+    return False, f"未知操作：{action}"
+
+  @staticmethod
+  def _read_error_log() -> tuple[bool, str]:
+    try:
+      from openpilot.common.hardware.hw import Paths
+      path = os.path.join(Paths.crash_log_root(), "error.log")
+    except Exception as exc:  # the device paths are not importable on every host
+      return False, f"无法定位日志：{exc}"
+    try:
+      with open(path, encoding="utf-8", errors="ignore") as fh:
+        text = fh.read()
+    except FileNotFoundError:
+      return True, "（error.log 不存在，说明没有崩溃记录）"
+    except OSError as exc:
+      return False, f"读取失败：{exc}"
+    return True, text[-20000:]

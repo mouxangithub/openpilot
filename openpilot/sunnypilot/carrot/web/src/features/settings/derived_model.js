@@ -1,0 +1,405 @@
+import {
+  extractSettingChosung,
+  settingSearchKeywords,
+  settingSearchMatches,
+} from "./search/match.js";
+
+export const SETTING_DERIVED_IDS = Object.freeze({
+  favoritesGroup: "__setting_favorites__",
+  searchGroup: "__setting_search__",
+  profilesDivider: "__setting_profiles_divider__",
+  profileGroupPrefix: "__setting_profile__:",
+  categoryDividerPrefix: "__setting_category__:",
+});
+
+export function localizedSettingNodeLabel(node, language = "en") {
+  if (!node) return "";
+  if (language === "zh") return node.zh || node.en || node.ko || "";
+  if (language === "ko") return node.ko || node.en || node.zh || "";
+  return node.en || node.ko || node.zh || "";
+}
+
+export function localizedSettingItemText(item, keyKo, keyEn, fallback = "", language = "en") {
+  if (!item) return fallback;
+  if (language === "zh") return item[`c${keyEn.slice(1)}`] || item[keyEn] || item[keyKo] || fallback;
+  if (language === "ko") return item[keyKo] || item[keyEn] || fallback;
+  return item[keyEn] || item[keyKo] || fallback;
+}
+
+export function createSettingsDerivedModel(options = {}) {
+  const catalog = options.catalog || null;
+  const favorites = Array.isArray(options.favorites) ? options.favorites : [];
+  const profiles = Array.isArray(options.profiles) ? options.profiles : [];
+  const language = options.language || "en";
+  const labels = {
+    favorites: options.labels?.favorites || "Favorites",
+    profiles: options.labels?.profiles || "Profiles",
+  };
+  const groups = catalog?.groups || [];
+  const itemsByGroup = catalog?.items_by_group || {};
+  const groupIndex = new Map();
+  groups.forEach((entry, index) => {
+    if (!groupIndex.has(entry?.group)) groupIndex.set(entry?.group, { entry, index });
+  });
+  const itemIndex = new Map();
+  const itemOrder = new Map();
+  Object.entries(itemsByGroup).forEach(([group, items]) => {
+    const order = new Map();
+    (items || []).forEach((item, index) => {
+      if (!item?.name) return;
+      if (!itemIndex.has(item.name)) itemIndex.set(item.name, { group, item });
+      if (!order.has(item.name)) order.set(item.name, index);
+    });
+    itemOrder.set(group, order);
+  });
+  const profilesById = new Map();
+  profiles.forEach((profile) => {
+    const id = String(profile?.id || "");
+    if (!profilesById.has(id)) profilesById.set(id, profile);
+  });
+
+  function profileGroup(profileId) {
+    return SETTING_DERIVED_IDS.profileGroupPrefix + String(profileId || "");
+  }
+
+  function isProfileGroup(group) {
+    return String(group || "").startsWith(SETTING_DERIVED_IDS.profileGroupPrefix);
+  }
+
+  function profileIdFromGroup(group) {
+    return isProfileGroup(group)
+      ? String(group).slice(SETTING_DERIVED_IDS.profileGroupPrefix.length)
+      : "";
+  }
+
+  function getProfileById(profileId) {
+    return profilesById.get(String(profileId || "")) || null;
+  }
+
+  function getProfileByGroup(group) {
+    return getProfileById(profileIdFromGroup(group));
+  }
+
+  function findItemByName(name) {
+    return itemIndex.get(String(name || "").trim()) || null;
+  }
+
+  function getFavoriteEntries() {
+    return favorites.map(findItemByName)
+      .filter((entry) => entry && !entry.item?.detail_parent && !entry.item?.search_only);
+  }
+
+  function getProfileEntries(profile) {
+    return Object.keys(profile?.values || {})
+      .map(findItemByName)
+      .filter((entry) => entry && !entry.item?.search_only)
+      .sort((left, right) => {
+        const leftGroup = groupIndex.get(left.group)?.index ?? 9999;
+        const rightGroup = groupIndex.get(right.group)?.index ?? 9999;
+        if (leftGroup !== rightGroup) return leftGroup - rightGroup;
+
+        const leftItem = itemOrder.get(left.group)?.get(left.item.name) ?? 9999;
+        const rightItem = itemOrder.get(right.group)?.get(right.item.name) ?? 9999;
+        if (leftItem !== rightItem) return leftItem - rightItem;
+        return String(left.item.name).localeCompare(String(right.item.name));
+      });
+  }
+
+  function getValidFavoriteNames() {
+    return getFavoriteEntries().map((entry) => entry.item.name).filter(Boolean);
+  }
+
+  function getGroupsForDisplay() {
+    const displayGroups = [{
+      group: SETTING_DERIVED_IDS.favoritesGroup,
+      count: getFavoriteEntries().length,
+      virtual: true,
+    }];
+    const categories = catalog?.categories;
+    if (Array.isArray(categories) && categories.length) {
+      categories.forEach((category) => {
+        displayGroups.push({
+          group: SETTING_DERIVED_IDS.categoryDividerPrefix + (category.id || ""),
+          label: localizedSettingNodeLabel(category, language),
+          divider: true,
+          virtual: true,
+        });
+        (category.groups || []).forEach((group) => {
+          displayGroups.push({
+            group: group.id,
+            ko: group.ko,
+            en: group.en,
+            zh: group.zh,
+            count: group.count,
+            category: category.id,
+          });
+        });
+      });
+    } else {
+      displayGroups.push(...groups);
+    }
+
+    if (profiles.length) {
+      displayGroups.push({
+        group: SETTING_DERIVED_IDS.profilesDivider,
+        label: labels.profiles,
+        divider: true,
+        virtual: true,
+      });
+      profiles.forEach((profile) => {
+        displayGroups.push({
+          group: profileGroup(profile.id),
+          count: getProfileEntries(profile).length,
+          label: profile.name,
+          profile,
+          virtual: true,
+        });
+      });
+    }
+    return displayGroups;
+  }
+
+  function getItemEntriesForGroup(group) {
+    if (group === SETTING_DERIVED_IDS.favoritesGroup) return getFavoriteEntries();
+    const profile = getProfileByGroup(group);
+    if (profile) return getProfileEntries(profile);
+    return (itemsByGroup[group] || [])
+      .filter((item) => !item?.detail_parent && !item?.search_only)
+      .map((item) => ({ group, item }));
+  }
+
+  function getDetailEntries(group, parentName) {
+    const target = String(parentName || "").trim();
+    if (!target || isProfileGroup(group) || group === SETTING_DERIVED_IDS.favoritesGroup) {
+      return getItemEntriesForGroup(group).filter((entry) => entry.item?.name === target);
+    }
+    const items = itemsByGroup[group] || [];
+    const parent = items.find((item) => item?.name === target && !item?.detail_parent);
+    if (!parent) return [];
+    return [parent, ...items.filter((item) => String(item?.detail_parent || "") === target)]
+      .map((item) => ({ group, item }));
+  }
+
+  function getGroupMeta(group) {
+    if (group === SETTING_DERIVED_IDS.favoritesGroup) {
+      return { group, egroup: "Favorites", count: getFavoriteEntries().length, virtual: true };
+    }
+    const profile = getProfileByGroup(group);
+    if (profile) {
+      return {
+        group,
+        egroup: profile.name,
+        count: getProfileEntries(profile).length,
+        profile,
+        virtual: true,
+      };
+    }
+    return groupIndex.get(group)?.entry || null;
+  }
+
+  function getGroupLabel(group) {
+    if (group === SETTING_DERIVED_IDS.favoritesGroup) return labels.favorites;
+    const profile = getProfileByGroup(group);
+    if (profile) return profile.name;
+    const meta = getGroupMeta(group);
+    if (!meta) return group;
+    if (meta.ko || meta.en || meta.zh) return localizedSettingNodeLabel(meta, language);
+    if (language === "zh") return meta.cgroup || meta.egroup || meta.group;
+    if (language === "ko") return meta.group || meta.egroup || group;
+    return meta.egroup || meta.group || group;
+  }
+
+  function getItemContextLabel(group, item) {
+    const groupLabel = getGroupLabel(group);
+    const sectionLabel = item?.__section
+      ? localizedSettingNodeLabel(item.__section, language)
+      : "";
+    if (!sectionLabel || sectionLabel === groupLabel) return groupLabel;
+    return `${groupLabel} > ${sectionLabel}`;
+  }
+
+  // Use catalog order, one live parameter per result (no profile duplicates).
+  // Include detail children and their parent context, so a feature search also
+  // finds controls normally tucked inside that feature's detail screen.
+  let inlineSearchIndex = null;
+  function searchItemEntries(query) {
+    const keywords = settingSearchKeywords(query);
+    if (!keywords.length) return { entries: [], total: 0 };
+    if (!inlineSearchIndex) {
+      const text = (node) => node
+        ? [node.name, node.title, node.etitle, node.ctitle, node.descr, node.edescr, node.cdescr]
+        : [];
+      const seen = new Set();
+      const ordered = groups.flatMap(({ group }) => (itemsByGroup[group] || []).map((item) => ({ group, item })))
+        .filter(({ item }) => {
+          if (!item?.name || seen.has(item.name)) return false;
+          seen.add(item.name);
+          return true;
+        });
+      inlineSearchIndex = ordered.map((entry) => {
+        const { group, item } = entry;
+        const parent = itemIndex.get(item.detail_parent)?.item;
+        const meta = getGroupMeta(group);
+        const haystack = [group, meta?.egroup, meta?.ko, meta?.en, meta?.zh,
+          getItemContextLabel(group, item), ...text(item), ...text(parent)]
+          .filter(Boolean).join("\n").normalize("NFC").toLowerCase();
+        return {
+          entry,
+          haystack,
+          // Precomputed Korean initial-consonant projection (초성 검색).
+          chosung: extractSettingChosung(haystack),
+        };
+      });
+    }
+    const matches = inlineSearchIndex.filter(({ haystack, chosung }) =>
+      settingSearchMatches(haystack, chosung, keywords));
+    return { entries: matches.slice(0, 20).map(({ entry }) => entry), total: matches.length };
+  }
+
+  function makeSearchEntry({ source, profile = null, group, item, parentItem = null, sourceLabels }) {
+    const groupLabel = getGroupLabel(group);
+    const contextGroupLabel = getItemContextLabel(group, item);
+    const title = localizedSettingItemText(item, "title", "etitle", "", language);
+    const descr = localizedSettingItemText(item, "descr", "edescr", "", language);
+    const parentTitle = parentItem ? localizedSettingItemText(parentItem, "title", "etitle", "", language) : "";
+    const parentDescr = parentItem ? localizedSettingItemText(parentItem, "descr", "edescr", "", language) : "";
+    const isProfile = source === "profile" && profile?.id;
+    const profileName = isProfile ? String(profile.name || "") : "";
+    const sourceLabel = isProfile ? sourceLabels.profile : sourceLabels.carrot;
+    const contextLabel = isProfile ? `${profileName} / ${contextGroupLabel}` : contextGroupLabel;
+    // NFC so a decomposed query (some IMEs, macOS) still matches; the shared
+    // matcher normalizes its query the same way. A child also carries the
+    // parent's text so the feature name finds its nested controls.
+    const haystack = [sourceLabel, profileName, groupLabel, contextGroupLabel, item.name, title, descr,
+      parentItem?.name, parentTitle, parentDescr]
+      .join("\n")
+      .normalize("NFC")
+      .toLowerCase();
+    return {
+      source: isProfile ? "profile" : "carrot",
+      sourceLabel,
+      profileId: isProfile ? profile.id : "",
+      profileName,
+      group: isProfile ? profileGroup(profile.id) : group,
+      originalGroup: group,
+      groupLabel,
+      contextGroupLabel,
+      contextLabel,
+      name: item.name,
+      title,
+      descr,
+      // Search-only controls do not exist in their catalog group's ordinary
+      // row list. Search selection must render them through inline search.
+      searchOnly: item?.search_only === true,
+      // Empty for a top-level item; a detail child points at the parent whose
+      // detail screen must be open before the child row exists.
+      detailParent: parentItem ? String(parentItem.name || "") : "",
+      haystack,
+      // Precomputed Korean initial-consonant projection (초성 검색).
+      chosung: extractSettingChosung(haystack),
+    };
+  }
+
+  function buildSearchEntries(sourceLabels = {}) {
+    const resolvedLabels = {
+      carrot: sourceLabels.carrot || "CarrotPilot",
+      profile: sourceLabels.profile || "Profile",
+    };
+    const entries = [];
+    groups.forEach((groupMeta) => {
+      const group = groupMeta.group;
+      const items = itemsByGroup[group] || [];
+      const childrenByParent = new Map();
+      items.forEach((item) => {
+        const parent = String(item?.detail_parent || "");
+        if (!parent) return;
+        if (!childrenByParent.has(parent)) childrenByParent.set(parent, []);
+        childrenByParent.get(parent).push(item);
+      });
+      items.forEach((item) => {
+        if (item?.detail_parent) return;
+        entries.push(makeSearchEntry({ source: "carrot", group, item, sourceLabels: resolvedLabels }));
+        // A child control only renders inside its parent's detail screen;
+        // index it (with the parent's text) so a search can find and jump to it.
+        (childrenByParent.get(item.name) || []).forEach((child) => {
+          entries.push(makeSearchEntry({
+            source: "carrot",
+            group,
+            item: child,
+            parentItem: item,
+            sourceLabels: resolvedLabels,
+          }));
+        });
+      });
+    });
+    profiles.forEach((profile) => {
+      getProfileEntries(profile).forEach((entry) => {
+        entries.push(makeSearchEntry({
+          source: "profile",
+          profile,
+          group: entry.group,
+          item: entry.item,
+          sourceLabels: resolvedLabels,
+        }));
+      });
+    });
+    return entries;
+  }
+
+  return Object.freeze({
+    profileGroup,
+    isProfileGroup,
+    profileIdFromGroup,
+    getProfileById,
+    getProfileByGroup,
+    findItemByName,
+    getFavoriteEntries,
+    getProfileEntries,
+    getValidFavoriteNames,
+    getGroupsForDisplay,
+    getItemEntriesForGroup,
+    getDetailEntries,
+    getGroupMeta,
+    getGroupLabel,
+    getItemContextLabel,
+    buildSearchEntries,
+    searchItemEntries,
+  });
+}
+
+export function createSettingsDerivedModelMemo() {
+  let cached = null;
+
+  function get(options = {}) {
+    const favoritesLabel = options.labels?.favorites || "Favorites";
+    const profilesLabel = options.labels?.profiles || "Profiles";
+    if (
+      cached?.catalog === options.catalog &&
+      cached.favorites === options.favorites &&
+      cached.profiles === options.profiles &&
+      cached.language === options.language &&
+      cached.favoritesLabel === favoritesLabel &&
+      cached.profilesLabel === profilesLabel
+    ) {
+      return cached.model;
+    }
+
+    const model = createSettingsDerivedModel(options);
+    cached = {
+      catalog: options.catalog,
+      favorites: options.favorites,
+      profiles: options.profiles,
+      language: options.language,
+      favoritesLabel,
+      profilesLabel,
+      model,
+    };
+    return model;
+  }
+
+  function clear() {
+    cached = null;
+  }
+
+  return Object.freeze({ get, clear });
+}

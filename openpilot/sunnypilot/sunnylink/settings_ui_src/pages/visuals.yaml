@@ -1,0 +1,116 @@
+id: visuals
+label: 视觉
+icon: visuals
+order: 4
+remote_configurable: true
+description: HUD 叠加层、提醒与屏幕显示元素
+sections:
+- id: hud_elements
+  title: HUD 元素
+  description: 驾驶画面上的叠加显示
+  items:
+  - key: BlindSpot
+    widget: toggle
+    title: 显示盲区警告
+    description: 开启后，只要车辆支持 BSM，检测到盲区有车即显示警告。
+  - key: TorqueBar
+    widget: toggle
+    title: 转向弧线
+    description: 横向控制启用时在驾驶画面显示转向弧线。
+    visibility:
+    - $ref: '#/macros/hide_on_mici'
+  - key: ConfidenceBall
+    widget: toggle
+    title: 置信球
+    description: "在屏幕上你所在的一侧以球体显示模型的置信度，与 comma 4 相同：位置越高越有信心，接管状态下置信度从高到低依次为绿色、黄色、红色。"
+    visibility:
+    - $ref: '#/macros/hide_on_mici'
+  - key: ShowTurnSignals
+    widget: toggle
+    title: 显示转向灯
+    description: 开启后在 HUD 上绘制转向指示。
+    visibility:
+    - $ref: '#/macros/hide_on_mici'
+  - key: RoadNameToggle
+    widget: toggle
+    title: 显示道路名
+    description: 显示车辆当前行驶道路的名称。需要已下载所在位置的 OpenStreetMap 数据才能获取道路名。
+    visibility:
+    - $ref: '#/macros/hide_on_mici'
+  - key: StandstillTimer
+    widget: toggle
+    title: 静止计时器
+    description: 车辆静止时在 HUD 上显示计时。
+    visibility:
+    - $ref: '#/macros/hide_on_mici'
+  - key: RocketFuel
+    widget: toggle
+    title: 实时加速度条
+    description: 在屏幕左侧显示车辆实时加减速指示。显示的是车辆当前实际动作，而非规划器的请求。
+    visibility:
+    - $ref: '#/macros/hide_on_mici'
+  - key: ChevronInfo
+    widget: option
+    title: 路径箭头下方显示指标
+    options:
+    - value: 0
+      label: 关
+    - value: 1
+      label: 距离
+    - value: 2
+      label: 速度
+    - value: 3
+      label: 时间
+    - value: 4
+      label: 全部
+    visibility:
+    - $ref: '#/macros/hide_on_mici'
+    enablement:
+    - $ref: '#/macros/longitudinal'
+- id: developer_ui
+  title: 开发者界面信息
+  description: 速度表与调试显示选项
+  visibility:
+  - $ref: '#/macros/hide_on_mici'
+  items:
+  - key: DevUIInfo
+    widget: option
+    title: 开发者界面
+    description: 显示来自各种来源的实时参数与指标。
+    options:
+    - value: 0
+      label: 关
+    - value: 1
+      label: 底部
+    - value: 2
+      label: 右侧
+    - value: 3
+      label: 右侧和底部
+  - key: TrueVEgoUI
+    widget: toggle
+    title: 速度表：始终显示真实车速
+    description: 适用车型上始终显示轮速传感器给出的真实车速。
+  - key: HideVEgoUI
+    widget: toggle
+    title: 速度表：行车画面隐藏
+    description: 开启后行车画面不显示速度表。
+- id: alerts_extras
+  title: 提醒与附加
+  description: 红绿灯提醒与视觉效果
+  items:
+  - key: GreenLightAlert
+    widget: toggle
+    title: 绿灯提醒（Beta）
+    description: 等待的红灯变绿且前方无车时，播放提示音并弹出屏幕提醒。屏幕视觉提醒仅限 comma 3X。注意：此提示音仅作通知用途，观察环境并做出决策仍是驾驶员的责任。
+  - key: LeadDepartAlert
+    widget: toggle
+    title: 前车起步提醒（Beta）
+    description: 本车停止且前车起步时，播放提示音并弹出屏幕提醒。屏幕视觉提醒仅限 comma 3X。注意：此提示音仅作通知用途，观察环境并做出决策仍是驾驶员的责任。
+  - key: E2EAlertsWhenEngaged
+    widget: toggle
+    title: 巡航中提醒（Beta）
+    description: 即使巡航已接管并停在原地，也播放绿灯提醒和前车起步提醒。不开启时这些提醒只在巡航未接管时响铃。注意：此提示音仅作通知用途，观察环境并做出决策仍是驾驶员的责任。
+  - key: RainbowMode
+    widget: toggle
+    title: 特斯拉彩虹模式
+    description: 在模型期望路径上显示彩虹效果。不影响任何驾驶行为。

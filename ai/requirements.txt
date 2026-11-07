@@ -1,0 +1,11 @@
+# op助手 (ai/) 运行时依赖
+# 说明：openpilot 本体依赖由仓库根 pyproject.toml / 设备镜像提供；
+# 此文件只锁定 ai/ 自身直接使用的第三方包，用于 PC 联调与 CI 环境可复现安装。
+# 安装：python -m pip install -r requirements.txt
+aiohttp>=3.9
+pyzmq>=25.0
+zstandard>=0.22
+jinja2>=3.1
+numpy>=2.0
+requests>=2.31
+tqdm>=4.66

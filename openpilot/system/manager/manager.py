@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+import datetime
+import os
+import signal
+import sys
+import time
+import traceback
+
+import openpilot.cereal.messaging as messaging
+from openpilot.common.utils import atomic_write
+from openpilot.sunnypilot.common.ignition import get_ignition_state
+from openpilot.common.params import Params, ParamKeyFlag
+from openpilot.common.text_window import TextWindow
+from openpilot.common.hardware import HARDWARE, PC, COMMA_HARDWARE
+from openpilot.system.manager.helpers import unblock_stdout, save_bootlog
+from openpilot.system.manager.process import ensure_running
+from openpilot.system.manager.process_config import managed_processes
+from openpilot.system.athena.registration import register, UNREGISTERED_DONGLE_ID
+from openpilot.common.swaglog import cloudlog, add_file_handler
+from openpilot.common.version import get_build_metadata
+from openpilot.common.hardware.hw import Paths
+
+from openpilot.sunnypilot.selfdrive.car.stock_ecu_handback import StockEcuHandBackGate
+from openpilot.sunnypilot.system.params_migration import run_migration
+from openpilot.sunnypilot.system.params_migration_zp import run_migration_zp
+from openpilot.common.basedir import BASEDIR
+from openpilot.system.manager.update_status import UpdateStatus
+from openpilot.system.manager.xiaoge_startup import XiaogeStartupGate
+from openpilot.system.manager.camera_config import configure_wide_camera
+
+
+def manager_init() -> None:
+  save_bootlog()
+
+  build_metadata = get_build_metadata()
+
+  params = Params()
+  # Latch the wide-camera setting before camerad starts (cp parity): flipping
+  # UseWideCamera mid-session must not race the native camera configuration.
+  configure_wide_camera(params)
+  params.clear_all(ParamKeyFlag.CLEAR_ON_MANAGER_START)
+  params.clear_all(ParamKeyFlag.CLEAR_ON_ONROAD_TRANSITION)
+  params.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
+  params.clear_all(ParamKeyFlag.CLEAR_ON_IGNITION_ON)
+  # if build_metadata.release_channel:
+  #   params.clear_all(ParamKeyFlag.DEVELOPMENT_ONLY)
+
+  # device boot mode
+  if params.get("DeviceBootMode") == 1:  # start in Always Offroad mode
+    # the preference; hardwared applies it on its first loop, before it can go onroad
+    params.put_bool("OffroadModeRequested", True, block=True)
+
+  # quick boot
+  if params.get_bool("QuickBootToggle") and not PC:
+    prebuilt_path = "/data/openpilot/prebuilt"
+    if not os.path.exists(prebuilt_path):
+      open(prebuilt_path, 'x').close()
+
+  if params.get_bool("RecordFrontLock"):
+    params.put_bool("RecordFront", True, block=True)
+
+  # RecordingMode 0 (disable all): there is nothing to upload, so keep the
+  # onroad-uploads switch off no matter how it was toggled externally.
+  if params.get_int("RecordingMode") == 0 and params.get_bool("OnroadUploads"):
+    params.put_bool("OnroadUploads", False, block=True)
+
+  if not PC:
+    run_migration(params)
+    run_migration_zp(params)
+
+  if COMMA_HARDWARE:
+    headless_override = os.getenv("OPENPILOT_HEADLESS", "").strip().lower()
+    if headless_override in ("1", "true", "yes"):
+      try:
+        from openpilot.common.hardware.comma.hardware import invalidate_display_probe_cache
+        invalidate_display_probe_cache()
+      except Exception:
+        pass
+    if headless_override in ("0", "false", "no"):
+      try:
+        from openpilot.common.hardware.comma.hardware import probe_builtin_display
+        if not probe_builtin_display():
+          cloudlog.warning(
+            "OPENPILOT_HEADLESS=0 but no builtin panel detected — native ui may fail; use WebUI or unset override"
+          )
+      except Exception:
+        pass
+    if HARDWARE.has_builtin_display():
+      cloudlog.info("Display detected — native ui enabled")
+    else:
+      cloudlog.warning("Headless mode — no builtin display; native ui disabled (use WebUI)")
+      if params.get_bool("IsDriverViewEnabled"):
+        params.put_bool("IsDriverViewEnabled", False, block=True)
+        cloudlog.warning("Headless mode: cleared IsDriverViewEnabled (blocks onroad)")
+
+  # set unset params to their default value
+  for k in params.all_keys():
+    default_value = params.get_default_value(k)
+    if default_value is not None and params.get(k) is None:
+      params.put(k, default_value, block=True)
+
+  # Create folders needed for msgq
+  try:
+    os.mkdir(Paths.shm_path())
+  except FileExistsError:
+    pass
+  except PermissionError:
+    print(f"WARNING: failed to make {Paths.shm_path()}")
+
+  # Heartbeat files of processes that no longer exist would otherwise pile up
+  # in /dev/shm across restarts: the manager only reads the pids it watches,
+  # so nothing else would ever remove them.
+  from openpilot.common.watchdog import sweep_stale_heartbeats
+  if swept := sweep_stale_heartbeats():
+    cloudlog.info(f"removed {swept} stale watchdog heartbeat file(s)")
+
+  # set params
+  serial = HARDWARE.get_serial()
+  params.put("Version", build_metadata.openpilot.version, block=True)
+  params.put("GitCommit", build_metadata.openpilot.git_commit, block=True)
+  params.put("GitCommitDate", build_metadata.openpilot.git_commit_date, block=True)
+  params.put("GitBranch", build_metadata.channel, block=True)
+  params.put("GitRemote", build_metadata.openpilot.git_origin, block=True)
+  params.put_bool("IsDevelopmentBranch", build_metadata.development_channel, block=True)
+  params.put_bool("IsTestedBranch", build_metadata.tested_channel, block=True)
+  params.put_bool("IsReleaseBranch", build_metadata.release_channel, block=True)
+  params.put_bool("IsReleaseSpBranch", build_metadata.release_sp_channel, block=True)
+  params.put("HardwareSerial", serial, block=True)
+
+  # set dongle id
+  reg_res = register(show_spinner=True)
+  if reg_res:
+    dongle_id = reg_res
+  else:
+    raise Exception(f"Registration failed for device {serial}")
+  os.environ['DONGLE_ID'] = dongle_id  # Needed for swaglog
+  os.environ['GIT_ORIGIN'] = build_metadata.openpilot.git_normalized_origin # Needed for swaglog
+  os.environ['GIT_BRANCH'] = build_metadata.channel # Needed for swaglog
+  os.environ['GIT_COMMIT'] = build_metadata.openpilot.git_commit # Needed for swaglog
+
+  if not build_metadata.openpilot.is_dirty:
+    os.environ['CLEAN'] = '1'
+
+  # init logging
+  cloudlog.bind_global(dongle_id=dongle_id,
+                       version=build_metadata.openpilot.version,
+                       origin=build_metadata.openpilot.git_normalized_origin,
+                       branch=build_metadata.channel,
+                       commit=build_metadata.openpilot.git_commit,
+                       dirty=build_metadata.openpilot.is_dirty,
+                       device=HARDWARE.get_device_type())
+
+def manager_cleanup() -> None:
+  # send signals to kill all procs
+  for p in managed_processes.values():
+    p.stop(block=False)
+
+  # ensure all are killed
+  for p in managed_processes.values():
+    p.stop(block=True)
+
+  cloudlog.info("everything is dead")
+
+
+def manager_thread() -> None:
+  cloudlog.bind(daemon="manager")
+  cloudlog.info("manager start")
+  cloudlog.info({"environ": os.environ})
+
+  params = Params()
+
+  ignore: list[str] = []
+  if params.get("DongleId") in (None, UNREGISTERED_DONGLE_ID):
+    ignore += ["manage_athenad", "uploader"]
+  if os.getenv("NOBOARD") is not None:
+    ignore.append("pandad")
+  ignore += [x for x in os.getenv("BLOCK", "").split(",") if len(x) > 0]
+
+  # selfdriveState/modelV2/carState feed the XiaogeStartupGate (cp parity):
+  # optional xiaoge inference must not compete with onroad startup.
+  sm = messaging.SubMaster(['deviceState', 'carParams', 'pandaStates', 'selfdriveState', 'modelV2', 'carState'], poll='deviceState')
+  pm = messaging.PubMaster(['managerState'])
+
+  # Detect a changed checkout (e.g. an update landed while driving) without
+  # replacing the manager's startup identity. surfaced as a cloudlog warning
+  # until a managerState.rebootRequired field is added to cereal.
+  update_status = UpdateStatus(BASEDIR)
+  xiaoge_startup = XiaogeStartupGate()
+
+  params.put_bool("IsOffroad", True, block=True)
+  ensure_running(managed_processes.values(), False, params=params, CP=sm['carParams'], not_run=ignore)
+
+  started_prev = False
+  ignition_prev = False
+  # a stop with no cancel: proceeds on any hand-back answer, or after the bound with none
+  stop_gate = StockEcuHandBackGate(params)
+
+  while True:
+    sm.update(1000)
+
+    started = sm['deviceState'].started
+
+    if started and not started_prev:
+      params.clear_all(ParamKeyFlag.CLEAR_ON_ONROAD_TRANSITION)
+    elif not started and started_prev:
+      params.clear_all(ParamKeyFlag.CLEAR_ON_OFFROAD_TRANSITION)
+
+    ignition = get_ignition_state(sm['pandaStates'])
+    if ignition and not ignition_prev:
+      params.clear_all(ParamKeyFlag.CLEAR_ON_IGNITION_ON)
+
+    # update offroad state for services that don't subscribe to deviceState
+    if started != started_prev:
+      params.put_bool("IsOffroad", not started, block=True)
+
+    started_prev = started
+    ignition_prev = ignition
+
+    # XiaogeStartupGate (cp parity): hold xiaoge_data out of the process set
+    # until onroad services are fresh, safety matches and controls are ready.
+    now = time.monotonic()
+    xiaoge_ready = xiaoge_startup.update(started, sm, sm['carParams'], params.get_bool('ControlsReady'), now)
+    not_run = ignore if xiaoge_ready else [*ignore, 'xiaoge_data']
+
+    ensure_running(managed_processes.values(), started, params=params, CP=sm['carParams'], not_run=not_run)
+
+    if update_status.update(now):
+      cloudlog.warning("Checkout changed since boot; reboot required to run the new code")
+
+    running = ' '.join("{}{}\u001b[0m".format("\u001b[32m" if p.proc.is_alive() else "\u001b[31m", p.name)
+                       for p in managed_processes.values() if p.proc)
+    print(running)
+    cloudlog.debug(running)
+
+    # send managerState
+    msg = messaging.new_message('managerState', valid=True)
+    msg.managerState.processes = [p.get_process_state_msg() for p in managed_processes.values()]
+    pm.send('managerState', msg)
+
+    # kick AGNOS power monitoring watchdog
+    try:
+      if sm.all_checks(['deviceState']):
+        with atomic_write("/var/tmp/power_watchdog", "w", overwrite=True) as f:
+          f.write(str(time.monotonic()))
+    except Exception:
+      pass
+
+    # Exit main loop when uninstall/shutdown/reboot is needed
+    shutdown = False
+    for param in ("DoUninstall", "DoShutdown", "DoReboot"):
+      if params.get_bool(param):
+        shutdown = True
+        params.put("LastManagerExitReason", f"{param} {datetime.datetime.now()}", block=True)
+        cloudlog.warning(f"Shutting down manager - {param} set")
+
+    # a stop taken while onroad waits for the stock ECU hand-back, bounded
+    if shutdown and stop_gate.ready(started):
+      break
+
+
+def _acquire_singleton_lock() -> bool:
+  """Refuse to start when another manager instance is already running.
+
+  Double managers fight over msgq publisher endpoints: the losers die with
+  MultiplePublishersError, loggers interleave (corrupt rlogs), and onroad this
+  shows up as the "进程间通信问题" disengage cascade with modelV2 dead. Every
+  second entry point (systemd restart racing, the AI agent's manager_control
+  tool, a stray manual launch) must lose here instead of taking down the stack.
+
+  Uses an flock on /dev/shm so the kernel releases it even on SIGKILL. PC/dev
+  machines without fcntl just skip the check.
+  """
+  try:
+    import fcntl
+  except ImportError:
+    return True
+  lock_path = "/dev/shm/openpilot_manager.lock"
+  try:
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o644)
+    fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+  except OSError:
+    print("manager: another instance is already running (singleton lock held), exiting")
+    return False
+  # fd intentionally never closed: the lock lives for the process lifetime.
+  return True
+
+
+def main() -> None:
+  if not _acquire_singleton_lock():
+    return
+  manager_init()
+  if os.getenv("PREPAREONLY") is not None:
+    return
+
+  # SystemExit on sigterm
+  signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(1))
+
+  try:
+    manager_thread()
+  except Exception:
+    traceback.print_exc()
+    cloudlog.exception("crash")
+  finally:
+    manager_cleanup()
+
+  params = Params()
+  if params.get_bool("DoUninstall"):
+    cloudlog.warning("uninstalling")
+    HARDWARE.uninstall()
+  elif params.get_bool("DoReboot"):
+    cloudlog.warning("reboot")
+    HARDWARE.reboot()
+  elif params.get_bool("DoShutdown"):
+    cloudlog.warning("shutdown")
+    HARDWARE.shutdown()
+
+
+if __name__ == "__main__":
+  unblock_stdout()
+
+  try:
+    main()
+  except KeyboardInterrupt:
+    print("got CTRL-C, exiting")
+  except Exception:
+    add_file_handler(cloudlog)
+    cloudlog.exception("Manager failed to start")
+
+    try:
+      managed_processes['ui'].stop()
+    except Exception:
+      pass
+
+    # Show last 3 lines of traceback
+    error = traceback.format_exc(-3)
+    error = "Manager failed to start\n\n" + error
+    if COMMA_HARDWARE and not HARDWARE.has_builtin_display():
+      try:
+        with open("/tmp/manager_last_error.txt", "w", encoding="utf-8") as f:
+          f.write(error)
+      except Exception:
+        pass
+    else:
+      with TextWindow(error) as t:
+        t.wait_for_exit()
+
+    raise
+
+  # manual exit because we are forked
+  sys.exit(0)

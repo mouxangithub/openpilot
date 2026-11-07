@@ -1,0 +1,33 @@
+sequenceDiagram
+    autonumber
+    participant Client
+    participant chat_handlers as ChatHandlers
+    participant Agent as Agent facade
+    participant Loop as AgentLoop
+    participant Pipeline as ToolPipeline
+    participant LLM as chat_completion_with_failover
+    participant Spill as spill post-hook
+    participant Sandbox as sandbox_hooks
+
+    Client->>chat_handlers: POST /api/ai/chat {messages, tools=true}
+    chat_handlers->>chat_handlers: _prepare_chat_run()
+    chat_handlers->>Agent: run_chat_with_agents(body, tools, ...)
+    Agent->>Agent: __init__(ai_use_agent_loop=true)
+    Agent->>Pipeline: ToolPipeline(handlers)
+    Agent->>Pipeline: add_post_waterfall(spill)
+    Agent->>Pipeline: install_hook_guards(sandbox/approval)
+    Agent->>Agent: _build_messages()
+    Agent->>Loop: AgentLoop(...)
+    Agent->>Loop: run_until_idle()
+    Loop->>Loop: _turn()
+    Loop->>Loop: _step(turn, step)
+    Loop->>LLM: stream_fn(request)
+    LLM-->>Loop: assistant_msg + tool_calls
+    Loop->>Pipeline: execute(call_id, name, args)
+    Pipeline->>Sandbox: guard check / sandbox run
+    Pipeline->>Spill: externalize oversized result
+    Pipeline-->>Loop: ToolResult
+    Loop->>Loop: log.append(TOOL_RESULT)
+    Loop-->>Agent: {ok, agentId}
+    Agent-->>chat_handlers: done event
+    chat_handlers-->>Client: SSE stream ends

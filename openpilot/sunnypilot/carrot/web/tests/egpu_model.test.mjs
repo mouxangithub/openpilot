@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { modelDisplayName, modelDisplayTitle } from "../src/features/tools/egpu_model.js";
+
+test("BMRLNAP v6 model gets a friendly eGPU title", () => {
+  const status = { model_id: "comma-bmrlanpv6-9d683c06-f3669cb7" };
+  assert.equal(modelDisplayName(status), "BMRLNAP v6");
+  assert.equal(modelDisplayTitle(status, "eGPU big model"), "BMRLNAP v6 · eGPU");
+});
+
+test("TGC model gets a friendly eGPU title", () => {
+  const status = { model_id: "comma-pr38739-tgc-a2e422ee-1791d594" };
+  assert.equal(modelDisplayName(status), "TGC");
+  assert.equal(modelDisplayTitle(status, "eGPU big model"), "TGC · eGPU");
+});
+
+test("Time-to-Go model gets a friendly eGPU title", () => {
+  const status = { model_id: "comma-pr38726-time-to-go-5a658611-39131097" };
+  assert.equal(modelDisplayName(status), "Time to Go");
+  assert.equal(modelDisplayTitle(status, "eGPU big model"), "Time to Go · eGPU");
+});
+
+test("explicit model display name takes priority", () => {
+  const status = { display_name: "Experimental model", model_id: "comma-pr38726-time-to-go" };
+  assert.equal(modelDisplayTitle(status, "eGPU big model"), "Experimental model · eGPU");
+});
+
+test("unknown models keep the localized generic title", () => {
+  assert.equal(modelDisplayTitle({ model_id: "unknown-model" }, "eGPU 빅모델"), "eGPU 빅모델");
+});
+
+test("Cinque v2 model gets a distinct friendly eGPU title", () => {
+  const status = { model_id: "comma-pr38823-cinque-v2-37bfa141-09d080f3" };
+  assert.equal(modelDisplayName(status), "Cinque v2");
+  assert.equal(modelDisplayTitle(status, "eGPU big model"), "Cinque v2 · eGPU");
+  assert.equal(modelDisplayName({ model_id: "comma-pr38771-cinque-terre-68b5f8e4-e8d82173" }), "Cinque Terre");
+});
+
+test("Cinque v3 has its own eGPU title", () => {
+  assert.equal(modelDisplayName({ model_id: "comma-pr38932-cinque-v3-892fc3a1-e758b96d" }), "Cinque v3");
+  assert.equal(modelDisplayName({ model_id: "comma-pr39047-mdm-v1-bea3fd4f-4fe66440" }), "Mountain Dew v1");
+  assert.equal(modelDisplayName({ model_id: "comma-pr39047-mdm-v1-4bfb5340-e20cde17" }), "Mountain Dew v1 (870a4823)");
+});

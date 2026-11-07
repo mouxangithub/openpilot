@@ -1,0 +1,46 @@
+{
+  "version": 5,
+  "license": "CC0 — Kenney furniture-kit, city-kit-roads, racing-kit, mini-characters",
+  "base": "/static/vendor/office/",
+  "tileSize": 1.0,
+  "models": {
+    "desk": { "file": "desk.glb", "footprint": 0.9, "y": 0 },
+    "chair": { "file": "chair.glb", "footprint": 0.5, "y": 0 },
+    "monitor": { "file": "monitor.glb", "footprint": 0.45, "y": 0 },
+    "sofa": { "file": "sofa.glb", "footprint": 1.1, "y": 0 },
+    "plant": { "file": "plant.glb", "footprint": 0.35, "y": 0 },
+    "coffeeTable": { "file": "coffee-table.glb", "footprint": 0.75, "y": 0 },
+    "coffeeMachine": { "file": "coffee-machine.glb", "footprint": 0.4, "y": 0 },
+    "bookcase": { "file": "bookcase.glb", "footprint": 0.55, "y": 0 },
+
+    "roadStraight": { "file": "road-straight.glb", "footprint": 1.0, "y": 0 },
+    "roadBend": { "file": "road-bend.glb", "footprint": 1.0, "y": 0 },
+    "roadCrossroad": { "file": "road-crossroad.glb", "footprint": 1.0, "y": 0 },
+    "roadCrossroadPath": { "file": "road-crossroad-path.glb", "footprint": 1.0, "y": 0 },
+    "roadEnd": { "file": "road-end.glb", "footprint": 1.0, "y": 0 },
+    "barrier": { "file": "barrier.glb", "footprint": 0.25, "y": 0 },
+    "cone": { "file": "cone.glb", "footprint": 0.12, "y": 0 },
+    "streetLight": { "file": "street-light.glb", "footprint": 0.3, "y": 0 },
+
+    "trackStraight": { "file": "track-straight.glb", "footprint": 1.0, "y": 0 },
+    "trackCorner": { "file": "track-corner.glb", "footprint": 1.0, "y": 0 },
+    "trackStart": { "file": "track-start.glb", "footprint": 1.2, "y": 0 },
+    "vehicle": { "file": "vehicle-sedan.glb", "footprint": 1.35, "y": 0 },
+    "raceBarrier": { "file": "race-barrier.glb", "footprint": 0.3, "y": 0 },
+    "flagCheckers": { "file": "flag-checkers.glb", "footprint": 0.25, "y": 0 },
+    "trafficLight": { "file": "traffic-light.glb", "footprint": 0.15, "y": 0 },
+
+    "characterMaleA": { "file": "character-male-a.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterMaleB": { "file": "character-male-b.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterMaleC": { "file": "character-male-c.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterMaleD": { "file": "character-male-d.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterMaleE": { "file": "character-male-e.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterMaleF": { "file": "character-male-f.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterFemaleA": { "file": "character-female-a.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterFemaleB": { "file": "character-female-b.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterFemaleC": { "file": "character-female-c.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterFemaleD": { "file": "character-female-d.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterFemaleE": { "file": "character-female-e.glb", "character": true, "height": 0.95, "y": 0 },
+    "characterFemaleF": { "file": "character-female-f.glb", "character": true, "height": 0.95, "y": 0 }
+  }
+}

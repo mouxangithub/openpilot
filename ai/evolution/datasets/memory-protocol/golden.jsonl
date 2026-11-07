@@ -1,0 +1,5 @@
+{"task_input": "记住我开丰田 RAV4，跟车喜欢远一点", "expected_behavior": "Must call append_daily_memory and update USER.md; plain Chinese; no param write without confirm.", "difficulty": "medium", "category": "memory", "source": "golden"}
+{"task_input": "今天调了 FollowDistanceGap 到 3", "expected_behavior": "Log to daily memory and MEMORY solved section; explain feel change.", "difficulty": "easy", "category": "memory", "source": "golden"}
+{"task_input": "以后别跟我讲 dp_lon 这种词", "expected_behavior": "Update USER communication preference; consumer language; append_daily_memory.", "difficulty": "easy", "category": "preference", "source": "golden"}
+{"task_input": "上次 SecOC 密钥装好了，别忘了", "expected_behavior": "MEMORY long-term fact + daily bullet; no API keys in memory.", "difficulty": "medium", "category": "fact", "source": "golden"}
+{"task_input": "你好", "expected_behavior": "No memory write for trivial greeting; friendly reply only.", "difficulty": "easy", "category": "skip", "source": "golden"}

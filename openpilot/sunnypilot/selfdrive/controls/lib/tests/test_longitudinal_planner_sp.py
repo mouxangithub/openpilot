@@ -1,0 +1,178 @@
+"""
+Copyright (c) 2026-, Zeph Leggett.
+
+This file is part of zoompilot and is licensed under the MIT License.
+See the LICENSE.md file in the root directory for more details.
+
+The SP planner overlay hands the arbitrated (vTarget, aTarget) to mpc.set_cur_state, which
+pins the MPC's stage 0 to it. A single NaN there poisons HPIPM past acados_reset (every
+solve after it fails and the car never resumes), so no source may reach the seed with a
+non-finite target.
+"""
+import math
+import unittest
+from unittest.mock import MagicMock, patch
+
+import openpilot.cereal.messaging as messaging
+from openpilot.cereal import custom
+from opendbc.car import structs
+from openpilot.common.test import OpenpilotTestCase
+from openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_planner import LongitudinalPlannerSP
+
+LongitudinalPlanSource = custom.LongitudinalPlanSP.LongitudinalPlanSource
+
+
+class TestSeedGuard(OpenpilotTestCase):
+
+  def setup_method(self):
+    self.make()
+
+  def make(self):
+    cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=True, longitudinalActuatorDelay=0.36)
+    self.planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(), MagicMock())
+    # the sources are exercised in their own tests; here only their published pair matters
+    self.planner.scc.update = MagicMock()
+    self.planner.resolver.update = MagicMock()
+    self.planner.resolver.distance = 0.
+    self.planner.sla.update = MagicMock()
+    self.sm = {'carState': messaging.new_message('carState').carState,
+               'carControl': messaging.new_message('carControl').carControl,
+               'carStateSP': messaging.new_message('carStateSP').carStateSP}
+
+  def test_finite_targets_pass_through(self):
+    self.planner.scc.vision.output_v_target = 15.
+    self.planner.scc.vision.output_a_target = -0.8
+    v, a = self.planner.update_targets(self.sm, 20., 0., 25.)
+    assert (v, a) == (15., -0.8)
+    assert self.planner.source == LongitudinalPlanSource.sccVision
+
+  def test_non_finite_source_never_reaches_the_seed(self):
+    for bad in (float('nan'), float('inf'), -float('inf')):
+      self.make()
+      self.planner.scc.vision.output_v_target = 10.
+      self.planner.scc.vision.output_a_target = bad
+      with patch('openpilot.sunnypilot.selfdrive.controls.lib.longitudinal_planner.cloudlog') as log:
+        v, a = self.planner.update_targets(self.sm, 20., -0.3, 25.)
+        self.planner.update_targets(self.sm, 20., -0.3, 25.)
+      assert math.isfinite(v) and math.isfinite(a), bad
+      assert (v, a) == (25., -0.3)
+      assert self.planner.source == LongitudinalPlanSource.cruise
+      assert log.error.call_count == 1  # logged once, not at 20 Hz
+
+  def test_nan_v_target_falls_back_to_the_cruise_speed(self):
+    self.planner.scc.vision.output_v_target = float('nan')
+    self.planner.scc.vision.output_a_target = -0.5
+    v, a = self.planner.update_targets(self.sm, 20., 0., 25.)
+    assert (v, a) == (25., 0.)
+
+  def test_everything_bad_still_seeds_finite(self):
+    self.planner.scc.vision.output_v_target = float('nan')
+    v, a = self.planner.update_targets(self.sm, float('nan'), float('nan'), float('nan'))
+    assert math.isfinite(v) and math.isfinite(a)
+
+
+class TestSccNeedsLongOrIcbm(unittest.TestCase):
+  """SCC's params survive losing openpilot long and ICBM, so the planner keeps it idle there."""
+
+  def _scc_enabled(self, op_long: bool, pcm_cruise_speed: bool) -> bool:
+    cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=op_long, longitudinalActuatorDelay=0.36)
+    planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(pcmCruiseSpeed=pcm_cruise_speed), MagicMock())
+    planner.scc.update = MagicMock()
+    planner.resolver.update = MagicMock()
+    planner.resolver.distance = 0.
+    planner.sla.update = MagicMock()
+    cc = messaging.new_message('carControl').carControl
+    cc.enabled = True
+    sm = {'carState': messaging.new_message('carState').carState, 'carControl': cc,
+          'carStateSP': messaging.new_message('carStateSP').carStateSP}
+    planner.update_targets(sm, 20., 0., 25.)
+    return planner.scc.update.call_args.args[1]
+
+  def test_stock_acc_without_icbm_keeps_scc_idle(self):
+    assert not self._scc_enabled(op_long=False, pcm_cruise_speed=True)
+
+  def test_icbm_or_op_long_lets_scc_run(self):
+    assert self._scc_enabled(op_long=False, pcm_cruise_speed=False)
+    assert self._scc_enabled(op_long=True, pcm_cruise_speed=True)
+
+
+class TestCarrotSpeedSource(unittest.TestCase):
+  """Carrot's curve/driving-mode v_target is a 5th speed source that can only
+  ever slow the car below the user cruise, never command more speed."""
+
+  def _planner(self, *, carrot_enabled: bool, active: bool, v_target: float):
+    cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=True, longitudinalActuatorDelay=0.36)
+    planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(), MagicMock())
+    planner.scc.update = MagicMock()
+    planner.resolver.update = MagicMock()
+    planner.resolver.distance = 0.
+    planner.sla.update = MagicMock()
+    planner._carrot_enabled = carrot_enabled
+    # active/v_target are read-only on the real adapter, so stub the source
+    planner.carrot_source = MagicMock(active=active, v_target=v_target)
+    sm = {'carState': messaging.new_message('carState').carState,
+          'carControl': messaging.new_message('carControl').carControl,
+          'carStateSP': messaging.new_message('carStateSP').carStateSP}
+    return planner, sm
+
+  def test_active_slower_carrot_target_wins(self):
+    planner, sm = self._planner(carrot_enabled=True, active=True, v_target=12.)
+    v, _ = planner.update_targets(sm, 20., 0., 25.)
+    assert v == 12.
+    assert planner.source == LongitudinalPlanSource.carrot
+
+  def test_carrot_can_not_exceed_cruise(self):
+    # a curve/driving-mode target above the user cruise must be clamped down
+    planner, sm = self._planner(carrot_enabled=True, active=True, v_target=40.)
+    v, _ = planner.update_targets(sm, 20., 0., 25.)
+    assert v == 25.
+    assert planner.source == LongitudinalPlanSource.cruise
+
+  def test_inactive_carrot_is_not_a_source(self):
+    planner, sm = self._planner(carrot_enabled=True, active=False, v_target=10.)
+    v, _ = planner.update_targets(sm, 20., 0., 25.)
+    assert v == 25.
+    assert planner.source == LongitudinalPlanSource.cruise
+    assert LongitudinalPlanSource.carrot not in planner.targets
+
+  def test_killswitch_off_keeps_stock_sources_only(self):
+    planner, sm = self._planner(carrot_enabled=False, active=True, v_target=10.)
+    planner.update_targets(sm, 20., 0., 25.)
+    assert LongitudinalPlanSource.carrot not in planner.targets
+    planner.carrot_source.update.assert_not_called()
+
+  def test_non_finite_carrot_target_ignored(self):
+    planner, sm = self._planner(carrot_enabled=True, active=True, v_target=float('nan'))
+    v, _ = planner.update_targets(sm, 20., 0., 25.)
+    assert v == 25.
+    assert LongitudinalPlanSource.carrot not in planner.targets
+
+
+
+class TestCarrotMaxAccelGate:
+  """carrot turn-accel / cutin-predecel caps are default-OFF and only lower."""
+
+  def _planner(self, turn: bool, cutin: bool = False):
+    cp = structs.CarParams(brand="mazda", openpilotLongitudinalControl=True, longitudinalActuatorDelay=0.36)
+    planner = LongitudinalPlannerSP(cp, structs.CarParamsSP(), MagicMock())
+    planner._turn_accel_enabled = turn
+    planner._cutin_predecel_enabled = cutin
+    model = messaging.new_message('modelV2').modelV2
+    controls = messaging.new_message('controlsState').controlsState
+    radar = messaging.new_message('radarState').radarState
+    sm = {'modelV2': model, 'controlsState': controls, 'radarState': radar}
+    return planner, sm
+
+  def test_all_disabled_returns_none(self):
+    planner, sm = self._planner(False, False)
+    assert planner.get_carrot_max_accel(sm, 20., 25.) is None
+
+  def test_enabled_returns_finite_or_none_but_never_raises(self):
+    planner, sm = self._planner(True)
+    out = planner.get_carrot_max_accel(sm, 20., 25.)
+    assert out is None or math.isfinite(out)
+
+  def test_cutin_only_never_raises(self):
+    planner, sm = self._planner(False, True)
+    out = planner.get_carrot_max_accel(sm, 20., 25.)
+    assert out is None or math.isfinite(out)

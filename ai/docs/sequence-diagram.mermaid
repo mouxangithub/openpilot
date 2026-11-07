@@ -1,0 +1,46 @@
+sequenceDiagram
+    autonumber
+
+    rect rgb(240,248,255)
+        Note over Client,EventProjectionRegistry: 会话启动时解析沙盒策略并写入事件
+        Client->>SessionManager: create(cwd)
+        SessionManager->>SessionLog: __init__(session_id, persist_path)
+        SessionManager->>SandboxPolicyService: resolve(params, session_id=sid, cwd=cwd)
+        SandboxPolicyService-->>SessionManager: ConfinedSessionPolicy
+        SessionManager->>SessionLog: append(SANDBOX_MODE, policy.to_dict())
+        SessionLog->>EventProjectionRegistry: 触发已注册 folder（可选）
+        SessionManager-->>Client: SessionRecord + policy
+    end
+
+    rect rgb(255,250,240)
+        Note over Client,EventProjectionRegistry: 切换权限预设
+        Client->>PermissionPresetService: set_active("workspace")
+        PermissionPresetService->>AiConfigStore: put("ai_permission_preset", "workspace")
+        PermissionPresetService->>SessionLog: append(PERMISSION_PRESET, {preset: "workspace"})
+        SessionLog->>EventProjectionRegistry: apply permission_preset folder
+        PermissionPresetService-->>Client: ok
+    end
+
+    rect rgb(240,255,240)
+        Note over ToolDispatcher,AuditLog: 工具调用触发审批
+        ToolDispatcher->>SandboxPolicyService: get_policy(session.cwd)
+        SandboxPolicyService-->>ToolDispatcher: SandboxPolicy
+        ToolDispatcher->>SandboxPolicyService: check_capability(capability, policy, vehicle_state)
+        SandboxPolicyService-->>ToolDispatcher: {allowed: True, hitl_required: True}
+        ToolDispatcher->>ApprovalService: ask(session_record, session_log, ApprovalRequest(...))
+        ApprovalService->>SessionLog: append(APPROVAL_ASKED, {...})
+        ApprovalService->>HumanInLoop: request_approval(ApprovalRequest)
+        HumanInLoop-->>ApprovalService: True
+        ApprovalService->>SessionLog: append(APPROVAL_DECIDED, {approved: True})
+        ApprovalService-->>ToolDispatcher: ApprovalRecord(APPROVED)
+        ToolDispatcher->>AuditLog: append("tool_call", {...})
+        ToolDispatcher->>Handler: execute(argument, session, call_id)
+    end
+
+    rect rgb(255,240,245)
+        Note over ResumeFlow,ApprovalService: 从事件日志恢复审批状态
+        ResumeFlow->>SessionLog: events
+        ResumeFlow->>ApprovalService: fold_approvals(events)
+        ApprovalService->>ApprovalService: iterate APPROVAL_ASKED / APPROVAL_DECIDED
+        ApprovalService-->>ResumeFlow: dict[approval_id, ApprovalRecord]
+    end

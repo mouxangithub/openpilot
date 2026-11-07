@@ -1,0 +1,564 @@
+/* OP 办公室 — 居中 modal（与知识库 / 用量弹窗统一） */
+
+.office-modal .modal-content {
+  width: min(1080px, 98vw);
+  max-height: min(94vh, 960px);
+  display: flex;
+  flex-direction: column;
+}
+
+.office-modal-header {
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+}
+
+.office-modal-head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.office-modal-head-text h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text);
+}
+
+.office-modal-head-text .settings-pane-desc {
+  margin: 0.15rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.office-modal-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 0.85rem 0.75rem;
+  gap: 0.45rem;
+}
+
+.office-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  padding: 0;
+  border-bottom: none;
+  flex-shrink: 0;
+}
+
+.office-stat {
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.office-stat b {
+  display: block;
+  font-size: 0.95rem;
+  margin-top: 0.1rem;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.office-main-row {
+  display: flex;
+  gap: 0.55rem;
+  flex: 1;
+  min-height: 460px;
+  min-width: 0;
+}
+
+.office-scene-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 460px;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(78, 205, 196, 0.1), transparent 55%),
+    linear-gradient(180deg, rgba(8, 12, 20, 0.55), rgba(8, 12, 20, 0.92));
+  margin: 0;
+}
+
+.office-scene-wrap::after {
+  content: '左键旋转 · 右键/中键/Shift+左键平移 · 滚轮缩放 · 双击聚焦 · 0 全景';
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  font-size: 0.65rem;
+  color: rgba(148, 163, 184, 0.65);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.office-scene-canvas,
+.office-scene-mount {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  touch-action: none;
+  cursor: grab;
+  position: relative;
+}
+
+.office-scene-gl {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  user-select: none;
+}
+
+.office-scene-canvas:active,
+.office-scene-mount:active {
+  cursor: grabbing;
+}
+
+.office-scene-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 240px;
+  color: var(--text-muted);
+  text-align: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.office-driving-overlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: auto;
+  bottom: auto;
+  max-width: min(280px, calc(100% - 16px));
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(8, 12, 20, 0.72);
+  color: #fbbf24;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  pointer-events: none;
+  z-index: 2;
+  backdrop-filter: blur(4px);
+}
+
+.office-driving-overlay strong {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.office-driving-overlay span {
+  color: rgba(148, 163, 184, 0.92);
+  font-size: 0.72rem;
+}
+
+.office-roster {
+  width: 188px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
+
+.office-roster-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0 0 0.1rem;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.office-roster-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  padding: 0.32rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.office-roster-item:hover {
+  background: rgba(78, 205, 196, 0.08);
+}
+
+.office-roster-item.is-selected {
+  border-color: var(--accent);
+  background: rgba(78, 205, 196, 0.12);
+}
+
+.office-roster-item.is-active .office-roster-status {
+  color: #86efac;
+}
+
+.office-roster-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.office-roster-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.office-roster-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.office-roster-status {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  margin-top: 0.05rem;
+  line-height: 1.2;
+}
+
+.office-agent-detail {
+  flex-shrink: 0;
+  padding: 0.55rem 0.65rem;
+  margin-bottom: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+}
+
+.office-agent-detail[hidden] {
+  display: none !important;
+}
+
+.office-agent-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+}
+
+.office-agent-detail-head h4 {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.office-agent-detail-desc {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.office-agent-detail-meta {
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.office-scene-empty {
+  pointer-events: none;
+}
+
+.office-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  flex-shrink: 0;
+}
+
+.office-desk {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.35rem;
+  text-align: center;
+  background: var(--bg-card);
+  transition: border-color var(--transition), box-shadow var(--transition);
+  min-height: 88px;
+}
+
+.office-desk.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-soft);
+}
+
+.office-desk-avatar {
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.office-desk-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.office-desk-status {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  margin-top: 0.2rem;
+  line-height: 1.25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  flex-wrap: wrap;
+}
+
+.office-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.office-desk.status-assigned .office-dot { background: var(--warning); }
+.office-desk.status-working .office-dot { background: var(--accent-green); animation: office-pulse 1.2s infinite; }
+.office-desk.status-waiting .office-dot { background: var(--danger); }
+
+@keyframes office-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.office-tasks-wrap {
+  flex-shrink: 0;
+  max-height: 108px;
+  overflow-y: auto;
+  padding-top: 0.15rem;
+  border-top: 1px solid var(--border);
+}
+
+.office-tasks-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.office-task {
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  margin-bottom: 0.4rem;
+  border-left: 3px solid transparent;
+}
+
+.office-task.status-working { border-left-color: var(--accent-green); }
+.office-task.status-assigned { border-left-color: var(--warning); }
+.office-task.status-done { border-left-color: var(--text-muted); }
+.office-task.status-error { border-left-color: var(--danger); }
+
+.office-task-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+}
+
+.office-task-msg {
+  font-size: 0.75rem;
+  margin-top: 0.2rem;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.office-tasks-empty {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0.5rem 0;
+}
+
+.active-agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--text);
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.active-agent-badge.hidden {
+  display: none;
+}
+
+.agent-handoff-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  border: 1px solid var(--border-strong);
+  font-size: 0.8rem;
+}
+
+.orchestration-banner,
+.orchestration-synthesis-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  margin: 0.5rem 0;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+}
+
+.orchestration-banner {
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(14, 165, 233, 0.28);
+}
+
+.orchestration-synthesis-banner {
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.28);
+}
+
+.agent-summary-block {
+  margin: 0.45rem 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border-left: 3px solid var(--accent);
+  font-size: 0.78rem;
+}
+
+.agent-summary-head {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.agent-summary-body {
+  white-space: pre-wrap;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.tool-agent-tag {
+  font-size: 0.65rem;
+  opacity: 0.8;
+  margin-right: 0.35rem;
+}
+
+@media (max-width: 520px) {
+  .office-modal .modal-content {
+    width: 100%;
+    max-height: min(96vh, 96dvh);
+  }
+
+  .office-modal-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 0.35rem;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .office-main-row {
+    flex-direction: column;
+    min-height: 0;
+    flex: 0 0 auto;
+  }
+
+  .office-roster {
+    width: 100%;
+    max-height: 108px;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    order: 2;
+  }
+
+  .office-roster-item {
+    flex: 0 0 auto;
+    min-width: 132px;
+  }
+
+  .office-scene-wrap {
+    min-height: 200px;
+    height: min(34vh, 240px);
+    flex-shrink: 0;
+    order: 1;
+  }
+
+  .office-scene-wrap::after {
+    content: '拖动旋转 · 双指缩放';
+    font-size: 0.58rem;
+    left: 6px;
+    bottom: 4px;
+  }
+
+  .office-agent-detail {
+    order: 3;
+    margin-bottom: 0;
+  }
+
+  .office-tasks-wrap {
+    order: 4;
+    max-height: 96px;
+    flex-shrink: 0;
+  }
+
+  .office-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    flex-shrink: 0;
+  }
+}
+
+[data-theme="light"] .office-desk {
+  background: var(--bg-elevated);
+}
+
+[data-theme="light"] .office-task {
+  background: rgba(15, 18, 28, 0.03);
+}

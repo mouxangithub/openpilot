@@ -1,0 +1,250 @@
+VERSION ""
+
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: XXX
+
+
+BO_ 85 CID_CRAWAH: 8 XXX
+ SG_ sig_lmqego : 40|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 287 CID_VSUYVS: 5 XXX
+ SG_ sig_uefwof : 0|16@1- (0.1,0) [-450|450] "" XXX
+ SG_ sig_ttcoap : 16|8@1+ (4,0) [0|1020] "" XXX
+ SG_ sig_fghgbq : 32|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 289 CID_QXPDTS: 8 XXX
+ SG_ sig_mniqdb : 0|12@1+ (1,0) [0|255] "" XXX
+
+BO_ 301 CID_SROETQ: 8 XXX
+ SG_ sig_lzlffi : 0|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_kftxmm : 1|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_ktlxyu : 2|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_jhvaxq : 3|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_inlzng : 4|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_kftyqu : 6|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_vmmwyz : 8|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_ubahmy : 55|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 307 CID_QMUUVA: 8 XXX
+ SG_ sig_xovpuw : 0|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_nzqyuq : 1|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_pjswju : 2|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_zipsrw : 3|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_ecghww : 4|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_qofkml : 5|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_xsdwtk : 7|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_cvzplw : 36|3@1+ (1,0) [0|7] "" XXX
+ SG_ sig_wrlqbk : 40|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_uzmlmj : 63|4@0+ (1,0) [0|15] "" XXX
+
+BO_ 482 CID_TCDUBH: 8 XXX
+ SG_ sig_hfquge : 0|10@1- (0.01,0) [0|5] "" XXX
+ SG_ sig_tqntde : 10|10@1- (0.01,0) [-5|0] "" XXX
+ SG_ sig_hfhxif : 20|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_ausukb : 21|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_uipsvp : 22|2@1+ (1,0) [0|1] "" XXX
+ SG_ sig_kqgoqc : 24|16@1- (0.1,0) [-780|779.9] "" XXX
+ SG_ sig_yjvxpi : 47|8@0+ (1,0) [0|255] "" XXX
+ SG_ sig_hcyhoo : 48|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_fghgbq : 52|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 508 CID_KERMHK: 8 XXX
+ SG_ sig_rcgbok : 0|2@1+ (1,0) [0|1] "" XXX
+ SG_ sig_kwshuz : 2|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_civxub : 3|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_bhnetn : 4|12@1- (1,0) [-2048|2047] "" XXX
+ SG_ sig_eszmdp : 16|16@1- (0.1,0) [-780|779.9] "Deg" XXX
+ SG_ sig_itfrci : 32|12@1- (1,0) [0|63] "" XXX
+ SG_ sig_bymskd : 44|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_opaoqh : 45|1@1+ (1,0) [0|255] "" XXX
+ SG_ sig_qfglfx : 46|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_nzzupz : 47|1@0+ (1,0) [0|3] "" XXX
+ SG_ sig_jgmunz : 48|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_fghgbq : 52|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 578 CID_PFTVEH: 8 XXX
+ SG_ sig_fxlqwz : 30|7@0+ (1,0) [0|127] "" XXX
+ SG_ sig_xcjeqw : 37|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_wymsqb : 40|3@1+ (1,0) [0|7] "" XXX
+ SG_ sig_fghgbq : 55|4@0+ (1,0) [0|15] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 660 CID_QSAUBE: 8 XXX
+ SG_ sig_lzlffi : 1|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_kftxmm : 3|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_ktlxyu : 5|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_jhvaxq : 7|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_kftyqu : 17|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_inlzng : 19|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_lhwimo : 21|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_fkrdgo : 26|1@0+ (1,0) [0|1] "" XXX
+
+BO_ 694 CID_XMKCQO: 8 XXX
+ SG_ sig_pprioc : 7|8@0+ (1,0) [0|255] "" XXX
+ SG_ sig_bxewtn : 15|8@0+ (1,0) [0|255] "" XXX
+ SG_ sig_esfkvp : 23|8@0+ (1,0) [0|255] "" XXX
+ SG_ sig_ziqoah : 31|8@0+ (1,0) [0|255] "" XXX
+ SG_ sig_dwtjdd : 39|8@0+ (1,0) [0|255] "" XXX
+ SG_ sig_xxzirf : 47|8@0+ (1,0) [0|255] "" XXX
+
+BO_ 790 CID_HGZKCQ: 8 XXX
+ SG_ sig_dedkvi : 3|4@0+ (1,0) [0|1] "" XXX
+ SG_ sig_xnxyjw : 4|2@1+ (1,0) [0|3] "" XXX
+ SG_ sig_mfykom : 6|2@1+ (1,0) [0|3] "" XXX
+ SG_ sig_pahrba : 8|2@1+ (1,0) [0|3] "" XXX
+ SG_ sig_aohukz : 10|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_oiobwq : 11|4@1+ (1,0) [0|1] "" XXX
+ SG_ sig_uprtqw : 15|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_kqgoqc : 16|11@1- (1,0) [-1024|1023] "" XXX
+ SG_ sig_hfhxif : 27|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_ausukb : 28|1@1+ (1,0) [0|3] "" XXX
+ SG_ sig_zyaysi : 29|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_vvkmqz : 30|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_pzvsvx : 31|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_qgavhs : 32|2@1+ (1,0) [0|3] "" XXX
+ SG_ sig_dwbngy : 34|2@1+ (1,0) [0|3] "" XXX
+ SG_ sig_vehado : 36|4@1+ (1,0) [0|3] "" XXX
+ SG_ sig_ukhsab : 40|8@1+ (5,-5) [-5|1270] "" XXX
+ SG_ sig_uwnlau : 49|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_lfdhgc : 51|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_fghgbq : 52|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|15] "" XXX
+
+BO_ 792 CID_IQMESB: 8 XXX
+ SG_ sig_rcgbok : 0|2@1+ (1,0) [0|1] "" XXX
+ SG_ sig_kwshuz : 2|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_civxub : 3|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_ozgtym : 4|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_odtaoc : 5|3@1+ (1,0) [0|1] "" XXX
+ SG_ sig_itfrci : 8|12@1- (1,0) [-2048|2047] "" XXX
+ SG_ sig_kviyqk : 20|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_opaoqh : 21|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_pcoiep : 22|2@1+ (1,0) [0|15] "" XXX
+ SG_ sig_bhnetn : 24|12@1- (1,0) [-2048|2047] "" XXX
+ SG_ sig_ckxuov : 36|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_ktcyrh : 40|12@1+ (1,0) [0|4095] "" XXX
+ SG_ sig_fghgbq : 52|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 813 CID_XQYNBW: 8 XXX
+ SG_ sig_gqnxpm : 0|9@1+ (0.5,0) [0|255.5] "" XXX
+ SG_ sig_ldwxym : 9|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_ijrdxw : 10|3@1+ (1,0) [0|7] "" XXX
+ SG_ sig_ifqqtp : 13|3@1+ (1,0) [0|7] "" XXX
+ SG_ sig_rqvixu : 16|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_znmccg : 17|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_civxub : 18|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_hprcqm : 19|3@1+ (1,0) [0|1] "" XXX
+ SG_ sig_ueqstp : 22|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_ynhjzo : 23|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_pahrba : 24|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_tvpmqh : 25|7@1+ (1,0) [0|127] "" XXX
+ SG_ sig_uppwhx : 32|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_iprocm : 36|8@1+ (1,0) [0|15] "" XXX
+ SG_ sig_ohsrtt : 47|4@0+ (1,0) [0|7] "" XXX
+ SG_ sig_fghgbq : 48|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_hgcmjs : 55|4@0+ (1,0) [0|15] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 814 CID_RJDCMR: 8 XXX
+ SG_ sig_zspfbe : 0|8@1+ (0.05,-5) [-100|155] "" XXX
+ SG_ sig_umvvum : 8|8@1+ (0.05,-5) [0|1.26] "" XXX
+ SG_ sig_ffvcas : 16|8@1+ (0.05,-5) [0|1.26] "" XXX
+ SG_ sig_vfmqcq : 24|7@1+ (0.2,0) [0|12.7] "" XXX
+ SG_ sig_civxub : 31|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_vuisck : 32|7@1+ (0.2,-16) [0|12.7] "" XXX
+ SG_ sig_qvxncf : 39|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_doptnp : 40|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_zrsmfm : 41|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_yjgifm : 42|1@1+ (1,0) [0|3] "" XXX
+ SG_ sig_gbaqki : 45|3@0+ (1,0) [0|1] "" XXX
+ SG_ sig_xkavyk : 46|2@1+ (1,0) [0|3] "" XXX
+ SG_ sig_fghgbq : 48|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_tvemyu : 55|4@0+ (1,0) [0|15] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 815 CID_MVWQTW: 8 XXX
+ SG_ sig_fghgbq : 48|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_rviwwu : 55|4@0+ (1,0) [0|15] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 834 CID_GDWRBP: 8 XXX
+ SG_ sig_oefitp : 0|8@1+ (0.01,0) [0|2.55] "" XXX
+ SG_ sig_wrfhru : 8|8@1+ (0.01,0) [0|2.55] "" XXX
+ SG_ sig_dissfn : 19|1@1+ (1,0) [0|1] "" XXX
+ SG_ sig_ckstwk : 20|2@1+ (1,0) [0|255] "" XXX
+ SG_ sig_aqesyu : 28|2@1+ (1,0) [0|1] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 884 CID_NCBHOL: 8 MRR
+ SG_ sig_qfnwgn : 2|3@0+ (1,0) [0|3] "" MRR
+ SG_ sig_roxlcn : 7|4@0+ (1,0) [0|15] "" MRR
+ SG_ sig_lhpiui : 15|8@0+ (0.1,-12) [0|255] "" MRR
+ SG_ sig_voxvab : 23|8@0+ (1,-100) [0|255] "" MRR
+ SG_ sig_ijbmoi : 40|1@0+ (1,0) [0|3] "" MRR
+ SG_ sig_bzpoue : 43|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_ntusyz : 44|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_fghgbq : 52|4@1+ (1,0) [0|15] "" MRR
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" MRR
+
+BO_ 944 CID_YHMGPU: 8 XXX
+ SG_ sig_tekixn : 1|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_dzciox : 2|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_ymtlod : 4|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_lftkfn : 5|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_ssvpvb : 6|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_fehruy : 7|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_xmstyv : 8|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_uikswg : 11|3@0+ (1,0) [0|7] "" XXX
+ SG_ sig_lggzjg : 12|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_ebundx : 14|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_tpueds : 15|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_dzuevb : 16|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_aleizt : 18|2@0+ (1,0) [0|3] "" XXX
+ SG_ sig_fmnatb : 19|1@0+ (1,0) [0|1] "" XXX
+ SG_ sig_jnpios : 23|4@0+ (1,0) [0|15] "" XXX
+ SG_ sig_xaplnq : 24|28@1+ (1,0) [0|268435455] "" XXX
+ SG_ sig_fghgbq : 52|4@1+ (1,0) [0|15] "" XXX
+ SG_ sig_xbjyma : 56|8@1+ (1,0) [0|255] "" XXX
+
+BO_ 1048 CID_WMSVRZ: 8 XXX
+ SG_ sig_ebwnrw : 9|2@0+ (1,0) [0|1] "" XXX
+ SG_ sig_rxlfvj : 11|2@0+ (1,0) [0|1] "" XXX
+ SG_ sig_cyxgeo : 17|1@0+ (1,0) [0|1] "" XXX
+
+VAL_ 578 sig_wymsqb 4 "D" 2 "R" 3 "N" 1 "P";

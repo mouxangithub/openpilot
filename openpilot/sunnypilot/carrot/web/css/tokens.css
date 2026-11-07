@@ -1,0 +1,112 @@
+/* Legacy component tokens pending component-by-component migration. */
+
+:root {
+  /* Default interactive controls are boxed.
+     --r-round is reserved for explicitly semantic shapes only:
+     FABs, switches, badges, status dots, and circular icon controls. */
+  --control-radius: var(--r-sm);
+  --control-min-height: 44px;
+
+  /* Shared menu trigger and hamburger glyph. Dropdown surfaces keep their own
+     popup tokens; these only define the reusable entry control and icon. */
+  --menu-trigger-size: 42px;
+  --menu-icon-size: 22px;
+  --menu-icon-line-height: 2px;
+  --menu-icon-line-gap: 4px;
+
+  /* Popup UX primitives
+     - Compact sheets for alert / confirm / prompt.
+     - Bottom sheets on narrow portrait screens.
+     - Value grids for short numeric or code choices.
+     - Action lists for commands and destructive choices.
+     - Fully rounded shapes are reserved for semantic controls. */
+  --dialog-sheet-radius: 16px;
+  --dialog-sheet-radius-mobile: 18px;
+  --dialog-control-radius: var(--control-radius);
+  --dialog-choice-radius: var(--control-radius);
+  --dialog-sheet-width: 420px;
+  --dialog-sheet-width-wide: 520px;
+  --dialog-sheet-max-height: calc(100dvh - var(--sp-lg) * 2);
+  --dialog-sheet-mobile-max-height: min(88dvh, 720px);
+
+  /* Preference editor component. The tools web-settings dialog is the first
+     consumer; keep its geometry and control sizing centralized for future
+     drive-workspace and other preference editors. */
+  --preference-sheet-width: 560px;
+  --preference-sheet-height: clamp(420px, 68dvh, 560px);
+  --preference-nav-width: 112px;
+  --preference-row-min-height: 64px;
+  --preference-select-width: min(150px, 38vw);
+  --preference-select-min-width: 112px;
+
+  /* Drive layout preference preview. Runtime layout values stay in the shared
+     JS spec; these tokens only define reusable presentation geometry/colors. */
+  --drive-layout-preview-landscape-aspect: 16 / 7;
+  --drive-layout-preview-divider-size: 4px;
+  --drive-layout-segment-height: 34px;
+  --drive-layout-area-1-surface: color-mix(in srgb, var(--md-info) 16%, var(--md-surface-cont-h));
+  --drive-layout-area-2-surface: color-mix(in srgb, var(--md-success) 14%, var(--md-surface-cont-h));
+
+  /* ── On-screen keyboard ───────────────────────────────────────
+     --kb-inset: exact keyboard height. The CSS env() fallback is used at first
+     paint; viewport.js overwrites it with VirtualKeyboard geometry when the API
+     is available so Chrome/Samsung use one measured value.
+     --kb-gap: the breathing space every keyboard-anchored surface keeps above
+     the keyboard. One source of truth so dialogs, terminal and the settings
+     search panel are consistent. */
+  --kb-inset: env(keyboard-inset-height, 0px);
+
+  /* ── Popup surface ────────────────────────────────────────────
+     One surface for every floating popup (dialog sheet, dropdown
+     menu, popover) so they share background / border / shadow /
+     radius / backdrop. Values equal the existing dialog sheet, so
+     dialogs are unchanged — only non-dialog popups (e.g. the
+     dropdown menu) are pulled onto this surface. Size stays per
+     component (width/height are NOT tokenized here). */
+  --popup-bg: color-mix(in srgb, var(--md-surface-cont) 96%, #000);
+  --popup-border-color: color-mix(in srgb, var(--md-stroke-soft) 92%, transparent);
+  --popup-radius: var(--dialog-sheet-radius);
+  --popup-shadow: var(--shadow-4);
+  --popup-backdrop: color-mix(in srgb, #000 62%, transparent);
+  --popup-item-radius: var(--control-radius);
+  --popup-item-border: color-mix(in srgb, var(--md-outline-var) 46%, transparent);
+  --popup-item-bg: var(--md-surface-cont);
+  --popup-item-active-border: color-mix(in srgb, var(--md-primary) 56%, var(--md-stroke-soft));
+  --popup-item-active-bg: var(--md-primary-state);
+
+  --drive-layer-surface: 0;
+  --drive-layer-content: 1;
+  --drive-layer-media: 2;
+  --drive-layer-overlay: 3;
+  --drive-layer-status: 4;
+  --drive-layer-alert: 5;
+  --drive-layer-loading: 46;
+  --drive-layer-modal: 50;
+  --drive-layer-controls: 60;
+  --drive-layer-resize: 65;
+  --drive-layer-transport: 70;
+  --drive-layer-panel: 90;
+  --carrot-navi-pane-bg: #090d12;
+  --carrot-navi-divider-handle-width: 8px;
+  --carrot-navi-divider-handle-height: 84px;
+
+  /* ── Toast / Snackbar ──────────────────────────────────────────
+     One surface design for every app toast (showAppToast → .app-toast).
+     Values match the carrot-web-push reference exactly (style.css
+     .toast / .toast-ic). The round icon carries the tone color; the
+     message text stays white so toasts differ only by glyph/color.
+     Default tone == reference "info" (blue i). */
+  --toast-bg: #1b222c;                       /* reference --surface-higher */
+  --toast-fg: #fff;
+  --toast-border: rgba(120, 129, 145, 0.22);
+  --toast-radius: 16px;
+  --toast-shadow: 0 16px 42px rgba(0, 0, 0, 0.55);
+  --toast-icon-size: 24px;
+  --toast-icon-fg: #0c0f14;
+  --toast-icon-default: #6ea8ff;             /* same as info */
+  --toast-icon-info: #6ea8ff;
+  --toast-icon-success: #3fef7d;
+  --toast-icon-warn: #ffb06d;                /* reference --orange */
+  --toast-icon-error: #ff6b6b;               /* reference --error */
+
+}

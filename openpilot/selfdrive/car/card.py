@@ -1,0 +1,486 @@
+#!/usr/bin/env python3
+import os
+import time
+import threading
+
+import openpilot.cereal.messaging as messaging
+
+from openpilot.cereal import log, custom
+from opendbc.car.structs import car
+
+from openpilot.common.params import Params
+from openpilot.common.realtime import config_realtime_process, Priority, Ratekeeper
+from openpilot.common.swaglog import cloudlog, ForwardingHandler
+from opendbc.car import DT_CTRL, structs
+from opendbc.car.can_definitions import CanData, CanRecvCallable, CanSendCallable
+from opendbc.car.carlog import carlog
+from opendbc.car.fw_versions import ObdCallback
+from opendbc.car.car_helpers import get_car, interfaces
+from opendbc.car.interfaces import CarInterfaceBase, RadarInterfaceBase
+from opendbc.safety import ALTERNATIVE_EXPERIENCE
+from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
+from openpilot.selfdrive.car.card_diagnostics import should_log_card_diagnostics
+from openpilot.selfdrive.car.cruise import VCruiseCarrot
+from openpilot.selfdrive.car.helpers import convert_carControlSP, convert_to_capnp
+
+from openpilot.sunnypilot.mads.helpers import set_alternative_experience, set_car_specific_params
+from openpilot.sunnypilot.selfdrive.car import interfaces as sunnypilot_interfaces
+from openpilot.sunnypilot.carrot.carrot_man_input import get_carrot_man
+from openpilot.sunnypilot.carrot.carrot_navi_fusion import merge_carrot_navi_lanes
+from openpilot.sunnypilot.carrot.xiaoge.xiaoge_vision import (
+  apply_xiaoge_vision_result,
+  parse_xiaoge_vision_payload,
+  xiaoge_blindspot_vision,
+)
+from openpilot.sunnypilot.selfdrive.car.card_ext import CardExt
+from openpilot.sunnypilot.common.mode_state_runtime import experimental_mode_requested
+
+REPLAY = "REPLAY" in os.environ
+
+EventName = log.OnroadEvent.EventName
+
+# forward
+carlog.addHandler(ForwardingHandler(cloudlog))
+
+
+def obd_callback(params: Params) -> ObdCallback:
+  def set_obd_multiplexing(obd_multiplexing: bool):
+    if params.get_bool("ObdMultiplexingEnabled") != obd_multiplexing:
+      cloudlog.warning(f"Setting OBD multiplexing to {obd_multiplexing}")
+      params.remove("ObdMultiplexingChanged")
+      params.put_bool("ObdMultiplexingEnabled", obd_multiplexing, block=True)
+      params.get_bool("ObdMultiplexingChanged", block=True)
+      cloudlog.warning("OBD multiplexing set successfully")
+  return set_obd_multiplexing
+
+
+def can_comm_callbacks(logcan: messaging.SubSocket, sendcan: messaging.PubSocket) -> tuple[CanRecvCallable, CanSendCallable]:
+  def can_recv(wait_for_one: bool = False) -> list[list[CanData]]:
+    """
+    wait_for_one: wait the normal logcan socket timeout for a CAN packet, may return empty list if nothing comes
+
+    Returns: CAN packets comprised of CanData objects for easy access
+    """
+    ret = []
+    for can in messaging.drain_sock(logcan, wait_for_one=wait_for_one):
+      ret.append([CanData(msg.address, msg.dat, msg.src) for msg in can.can])
+    return ret
+
+  def can_send(msgs: list[CanData]) -> None:
+    sendcan.send(can_list_to_can_capnp(msgs, msgtype='sendcan'))
+
+  return can_recv, can_send
+
+
+class Car:
+  CI: CarInterfaceBase
+  RI: RadarInterfaceBase
+  CP: car.CarParams
+  CP_SP: structs.CarParamsSP
+  CP_SP_capnp: custom.CarParamsSP
+
+  def __init__(self, CI=None, RI=None) -> None:
+    self.can_sock = messaging.sub_sock('can', timeout=20)
+    self.sm = messaging.SubMaster(
+      ['pandaStates', 'carControl', 'onroadEvents', 'longitudinalPlan', 'radarState', 'drivingModelData']
+      + ['carControlSP', 'longitudinalPlanSP', 'carrotManSP', 'carrotNaviSP']
+      + ['customReservedRawData0'])
+    self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'radarTracks'] + ['carParamsSP', 'carStateSP'])
+
+    self.can_rcv_cum_timeout_counter = 0
+
+    # card diagnostics (cp parity): bounded summary every 100 frames, only when
+    # a CAN timeout or a severe loop stall makes it actionable.
+    self.card_diag_frames = 0
+    self.card_diag_loop_max_us = 0
+    self.card_diag_can_timeouts = 0
+    self.card_diag_prev_timeout_counter = 0
+
+    self.CC_prev = car.CarControl.new_message()
+    self.CS_prev = car.CarState.new_message()
+    self.CS_SP_prev = custom.CarStateSP.new_message()
+    self.initialized_prev = False
+
+    self.last_actuators_output = structs.CarControl.Actuators()
+
+    self.params = Params()
+
+    self.can_callbacks = can_comm_callbacks(self.can_sock, self.pm.sock['sendcan'])
+
+    is_release = False  # self.params.get_bool("IsReleaseBranch")
+    is_release_sp = self.params.get_bool("IsReleaseSpBranch")
+
+    if CI is None:
+      # wait for one pandaState and one CAN packet
+      print("Waiting for CAN messages...")
+      while True:
+        can = messaging.recv_one_retry(self.can_sock)
+        if len(can.can) > 0:
+          break
+
+      alpha_long_allowed = self.params.get_bool("AlphaLongitudinalEnabled")
+      num_pandas = len(messaging.recv_one_retry(self.sm.sock['pandaStates']).pandaStates)
+
+      cached_params = None
+      cached_params_raw = self.params.get("CarParamsCache")
+      if cached_params_raw is not None:
+        with car.CarParams.from_bytes(cached_params_raw) as _cached_params:
+          cached_params = _cached_params
+
+      fixed_fingerprint = (self.params.get("CarPlatformBundle") or {}).get("platform", None)
+      init_params_list_sp = sunnypilot_interfaces.initialize_params(self.params)
+
+      self.CI = get_car(*self.can_callbacks, obd_callback(self.params), alpha_long_allowed, is_release, num_pandas, cached_params,
+                        fixed_fingerprint, init_params_list_sp, is_release_sp)
+      sunnypilot_interfaces.setup_interfaces(self.CI, self.params)
+      self.RI = interfaces[self.CI.CP.carFingerprint].RadarInterface(self.CI.CP, self.CI.CP_SP)
+      self.CP = self.CI.CP
+      self.CP_SP = self.CI.CP_SP
+
+      # continue onto next fingerprinting step in pandad
+      self.params.put_bool("FirmwareQueryDone", True, block=True)
+    else:
+      self.CI, self.CP, self.CP_SP = CI, CI.CP, CI.CP_SP
+      self.RI = RI
+
+    self.CP.alternativeExperience = 0
+    if self.params.get_bool("ToyotaAutoHold"):
+      self.CP.alternativeExperience |= ALTERNATIVE_EXPERIENCE.ALLOW_AEB
+
+    # mads
+    set_alternative_experience(self.CP, self.CP_SP, self.params)
+    set_car_specific_params(self.CP, self.CP_SP, self.params)
+
+    openpilot_enabled_toggle = self.params.get_bool("OpenpilotEnabledToggle")
+    controller_available = self.CI.CC is not None and openpilot_enabled_toggle and not self.CP.dashcamOnly
+    self.CP.passive = not controller_available or self.CP.dashcamOnly
+    if self.CP.passive:
+      safety_config = structs.CarParams.SafetyConfig()
+      safety_config.safetyModel = structs.CarParams.SafetyModel.noOutput
+      self.CP.safetyConfigs = [safety_config]
+
+    if self.CP.secOcRequired:
+      # Copy user key if available
+      try:
+        with open("/cache/params/SecOCKey") as f:
+          user_key = f.readline().strip()
+          if len(user_key) == 32:
+            self.params.put("SecOCKey", user_key, block=True)
+      except Exception:
+        pass
+
+      secoc_key = self.params.get("SecOCKey")
+      if secoc_key is not None:
+        saved_secoc_key = bytes.fromhex(secoc_key.strip())
+        if len(saved_secoc_key) == 16:
+          self.CP.secOcKeyAvailable = True
+          self.CI.CS.secoc_key = saved_secoc_key
+          if controller_available:
+            self.CI.CC.secoc_key = saved_secoc_key
+        else:
+          cloudlog.warning("Saved SecOC key is invalid")
+
+    # Write previous route's CarParams
+    prev_cp = self.params.get("CarParamsPersistent")
+    if prev_cp is not None:
+      self.params.put("CarParamsPrevRoute", prev_cp, block=True)
+
+    # Write CarParams for controls and radard
+    cp_bytes = self.CP.to_bytes()
+    self.params.put("CarParams", cp_bytes, block=True)
+    self.params.put("CarParamsCache", cp_bytes)
+    self.params.put("CarParamsPersistent", cp_bytes)
+
+    # Write CarParamsSP for controls
+    # convert to pycapnp representation for caching and logging
+    self.CP_SP_capnp = convert_to_capnp(self.CP_SP)
+    cp_sp_bytes = self.CP_SP_capnp.to_bytes()
+    self.params.put("CarParamsSP", cp_sp_bytes, block=True)
+    self.params.put("CarParamsSPCache", cp_sp_bytes)
+    self.params.put("CarParamsSPPersistent", cp_sp_bytes)
+
+    # VCruiseCarrot subclasses VCruiseHelper, so update_speed_limit_assist and the rest
+    # of the SLA surface below keep working; it adds cp's cruise-button state machine on top.
+    self.v_cruise_helper = VCruiseCarrot(self.CP, self.CP_SP)
+    # zoompilot's post-v_cruise extensions (stock ECU handback, ICBM activation) ride on
+    # the same helper, so they work with VCruiseCarrot too.
+    self.card_ext = CardExt(self.CP, self.CP_SP, self.params, self.sm, self.v_cruise_helper, self.CI)
+
+    self.is_metric = self.params.get_bool("IsMetric")
+    self.experimental_mode = experimental_mode_requested(self.params)
+    self.initial_cruise_speed = self.params.get("InitialCruiseSpeedKph", return_default=True)
+    self.carrot_enabled = self.params.get_bool("CarrotEnabled")
+    self.carrot_navi_v2_enabled = self.params.get_bool("CarrotNaviV2Enabled")
+    self.carrot_nav_lane_guide_block = self.params.get_bool("CarrotNavLaneGuideBlockEnabled")
+    self._carrot_navi_cache = None
+    self._carrot_navi_cache_mono = 0.0
+
+    # Xiaoge vision: parsed customReservedRawData0 payload and last error log time.
+    self._xiaoge_vision_result = None
+    self._xiaoge_vision_error_log_at_ns = 0
+
+    # card is driven by can recv, expected at 100Hz
+    self.rk = Ratekeeper(100, print_delay_threshold=None)
+
+  def state_update(self) -> tuple[car.CarState, custom.CarStateSP, structs.RadarDataT | None]:
+    """carState update loop, driven by can"""
+
+    can_strs = messaging.drain_sock_raw(self.can_sock, wait_for_one=True)
+    can_list = can_capnp_to_list(can_strs)
+
+    # Update carState from CAN
+    CS, CS_SP = self.CI.update(can_list)
+    CS_SP = convert_to_capnp(CS_SP)
+
+    # Update radar tracks from CAN
+    # update_carrot runs the brand's update() and then smooths the tracks with ego
+    # motion (cp L1). For brands without the layer it is identical to update().
+    RD: structs.RadarDataT | None = self.RI.update_carrot(CS.vEgo, CS.aEgo, time.monotonic(), can_list)
+
+    self.sm.update(0)
+
+    # Merge Carrot navigation lane hints into carState/carStateSP. Both the 7714
+    # v2 stream and the 7706 navLaneGuide array feed the SAME flags, so there is
+    # only one lane-blocking decision.
+    if self.sm.updated['carrotNaviSP'] and self.sm.valid['carrotNaviSP']:
+      self._carrot_navi_cache = self.sm['carrotNaviSP']
+      self._carrot_navi_cache_mono = time.monotonic()
+    carrot_navi = self._carrot_navi_cache
+    navi_fresh = carrot_navi is not None and time.monotonic() - self._carrot_navi_cache_mono <= 0.5
+    # Freshness gate (cp carrot_man_input): a stalled carrot_man must not keep
+    # feeding lane-blocking hints after its publisher died mid-route.
+    carrot_man = get_carrot_man(self.sm)
+    nav_guide = getattr(carrot_man, 'navLaneGuide', "") if carrot_man is not None else ""
+    nav_guide_cnt = int(getattr(carrot_man, 'navLaneGuideCnt', 0) or 0) if carrot_man is not None else 0
+    if self.carrot_enabled:
+      merge_carrot_navi_lanes(
+        CS_SP,
+        carrot_navi if (self.carrot_navi_v2_enabled and navi_fresh) else None,
+        nav_guide,
+        nav_guide_cnt,
+        self.carrot_nav_lane_guide_block,
+      )
+
+      # Amap direct LiDAR/camera blind-spot hint. carrot_man publishes it on
+      # carrotManSP and this is the ONLY place it becomes carState, which keeps
+      # carState single-writer. carrot_man used to assign
+      # sm['carState'].leftBlindspot itself, but SubMaster hands out a capnp
+      # _DynamicStructReader whose attributes cannot be set - so that raised inside
+      # tick() and silently stopped carrotManSP from being published at all.
+      #
+      # Only ever sets True: this is an additional blind-spot source OR-ed onto the
+      # car's own signal, never a way to clear it.
+      if carrot_man is not None:
+        if bool(getattr(carrot_man, 'amapLeftBlind', False)):
+          CS.leftBlindspot = True
+        if bool(getattr(carrot_man, 'amapRightBlind', False)):
+          CS.rightBlindspot = True
+
+    # Xiaoge ONNX vision: parse customReservedRawData0 and merge into carState/carStateSP.
+    sm_done_ns = self.sm.logMonoTime.get('customReservedRawData0', 0)
+    try:
+      raw = self.sm['customReservedRawData0']
+      if raw is not None and len(raw) > 0:
+        self._xiaoge_vision_result = parse_xiaoge_vision_payload(bytes(raw))
+    except Exception:
+      self._xiaoge_vision_result = None
+      if sm_done_ns - self._xiaoge_vision_error_log_at_ns >= 60_000_000_000:
+        cloudlog.exception("xiaoge vision parse error")
+        self._xiaoge_vision_error_log_at_ns = sm_done_ns
+    # Source-aware blindspot split (cp c6566c65a): snapshot the vehicle (OEM)
+    # state before the ONNX merge, then record both sources alongside the
+    # merged left/rightBlindspot in the SAME carState frame so UI never sees a
+    # new warning with unknown source attribution.
+    sm_oem_left, sm_oem_right = bool(CS.leftBlindspot), bool(CS.rightBlindspot)
+    sm_vision_left, sm_vision_right = xiaoge_blindspot_vision(self._xiaoge_vision_result, sm_done_ns)
+    CS.leftBlindspotOem = sm_oem_left
+    CS.rightBlindspotOem = sm_oem_right
+    CS.leftBlindspotOnnx = sm_vision_left
+    CS.rightBlindspotOnnx = sm_vision_right
+    CS.blindspotSplitSourcesValid = True
+    apply_xiaoge_vision_result(CS, CS_SP, self._xiaoge_vision_result, sm_done_ns)
+
+    can_rcv_valid = len(can_strs) > 0
+
+    # Check for CAN timeout
+    if not can_rcv_valid:
+      self.can_rcv_cum_timeout_counter += 1
+
+    if can_rcv_valid and REPLAY:
+      self.can_log_mono_time = messaging.log_from_bytes(can_strs[0]).logMonoTime
+
+    # radarcan consumes the CAN stream independently. Bind its decode to the exact
+    # CAN batch and ego state used here, matching cp's update_carrot association.
+    CS.radarInput.firstCanMonoTime = can_list[0][0] if can_list else 0
+    CS.radarInput.lastCanMonoTime = can_list[-1][0] if can_list else 0
+    CS.radarInput.canPacketCount = len(can_list)
+    CS.radarInput.receiveMonoTime = self.can_log_mono_time if REPLAY and can_rcv_valid else time.monotonic_ns()
+
+    self.v_cruise_helper.update_speed_limit_assist(self.is_metric, self.sm['longitudinalPlanSP'])
+    # CS_SP is passed explicitly: card.py is the PUBLISHER of carStateSP, it is not
+    # in this SubMaster, so `self.sm['carStateSP']` would raise KeyError.
+    self.v_cruise_helper.update_v_cruise(CS, self.sm['carControl'].enabled, self.is_metric, self.sm, CS_SP)
+    if self.sm['carControl'].enabled and not self.CC_prev.enabled:
+      # Use CarState w/ buttons from the step selfdrived enables on
+      # InitialCruiseSpeedKph (zp semantics): the second argument is the initial
+      # set-speed floor, re-read on the engage edge so a settings change applies
+      # without a reboot.
+      self.initial_cruise_speed = self.params.get("InitialCruiseSpeedKph", return_default=True)
+      self.v_cruise_helper.initialize_v_cruise(self.CS_prev, self.initial_cruise_speed)
+    self.card_ext.update_v_cruise_post(CS, CS_SP)
+
+    # TODO: mirror the carState.cruiseState struct?
+    CS.vCruise = float(self.v_cruise_helper.v_cruise_kph)
+    CS.vCruiseCluster = float(self.v_cruise_helper.v_cruise_cluster_kph)
+    # Debug string the cruise helper accumulates (button events, gap changes).
+    # Empty when nothing happened; carrot consumers read it as informational only.
+    CS.logCarrot = getattr(self.v_cruise_helper, "log", "") or ""
+    # Published for the brand controllers: soft-hold state after a cancel, and whether the
+    # car should be auto-engaged (GM auto-cruise). getattr-guarded because the helper
+    # implementation may be VCruiseHelper alone, which does not define these.
+    CS.softHoldActive = int(getattr(self.v_cruise_helper, "_soft_hold_active", 0) or 0)
+    CS.activateCruise = int(getattr(self.v_cruise_helper, "_activate_cruise", 0) or 0)
+    self.CI.CS.softHoldActive = CS.softHoldActive
+
+    return CS, CS_SP, RD
+
+  def state_publish(self, CS: car.CarState, CS_SP: custom.CarStateSP, RD: structs.RadarDataT | None):
+    """carState and carParams publish loop"""
+
+    # carParams - logged every 50 seconds (> 1 per segment)
+    if self.sm.frame % int(50. / DT_CTRL) == 0:
+      cp_send = messaging.new_message('carParams')
+      cp_send.valid = True
+      cp_send.carParams = self.CP
+      self.pm.send('carParams', cp_send)
+
+    # publish new carOutput
+    co_send = messaging.new_message('carOutput')
+    co_send.valid = self.sm.all_checks(['carControl'])
+    co_send.carOutput.actuatorsOutput = self.last_actuators_output
+    self.pm.send('carOutput', co_send)
+
+    # kick off controlsd step while we actuate the latest carControl packet
+    cs_send = messaging.new_message('carState')
+    cs_send.valid = CS.canValid
+    cs_send.carState = CS
+    cs_send.carState.canErrorCounter = self.can_rcv_cum_timeout_counter
+    cs_send.carState.cumLagMs = -self.rk.remaining * 1000.
+    self.pm.send('carState', cs_send)
+
+    if RD is not None:
+      tracks_msg = messaging.new_message('radarTracks')
+      tracks_msg.valid = not any(RD.errors.to_dict().values())
+      tracks_msg.radarTracks = RD
+      self.pm.send('radarTracks', tracks_msg)
+
+    # carParamsSP - logged every 50 seconds (> 1 per segment)
+    if self.sm.frame % int(50. / DT_CTRL) == 0:
+      cp_sp_send = messaging.new_message('carParamsSP')
+      cp_sp_send.valid = True
+      cp_sp_send.carParamsSP = self.CP_SP_capnp
+      self.pm.send('carParamsSP', cp_sp_send)
+
+    cs_sp_send = messaging.new_message('carStateSP')
+    cs_sp_send.valid = CS.canValid
+    cs_sp_send.carStateSP = CS_SP
+    self.pm.send('carStateSP', cs_sp_send)
+
+  def controls_update(self, CS: car.CarState, CC: car.CarControl, CC_SP: custom.CarControlSP):
+    """control update loop, driven by carControl"""
+
+    if not self.initialized_prev:
+      # Initialize CarInterface, once controls are ready
+      # TODO: this can make us miss at least a few cycles when doing an ECU knockout
+      self.CI.init(self.CP, self.CP_SP, *self.can_callbacks)
+      # signal pandad to switch to car safety mode
+      self.params.put_bool("ControlsReady", True)
+
+    if self.sm.all_alive(['carControl']):
+      # cp impact dashcam: while a dashcam reboot is pending, neutralize the final
+      # CAN output at the last application boundary, no matter what was queued.
+      if self.params.get_bool("ImpactDashcamReboot"):
+        CC = CC.as_builder()
+        CC.enabled = CC.latActive = CC.longActive = False
+        CC.actuators = car.CarControl.Actuators.new_message()
+        CC.cruiseControl.resume = CC.cruiseControl.override = False
+        CC.cruiseControl.cancel = CS.cruiseState.enabled
+        CC = CC.as_reader()
+      # send car controls over can
+      now_nanos = self.can_log_mono_time if REPLAY else int(time.monotonic() * 1e9)
+      self.last_actuators_output, can_sends = self.CI.apply(CC, self.card_ext.controls_update(CS, CC, convert_carControlSP(CC_SP)), now_nanos)
+      self.pm.send('sendcan', can_list_to_can_capnp(can_sends, msgtype='sendcan', valid=CS.canValid))
+
+      self.CC_prev = CC
+
+  def step(self):
+    CS, CS_SP, RD = self.state_update()
+
+    self.state_publish(CS, CS_SP, RD)
+
+    initialized = (not any(e.name == EventName.selfdriveInitializing for e in self.sm['onroadEvents']) and
+                   self.sm.seen['onroadEvents'])
+    if not self.CP.passive and initialized:
+      self.controls_update(CS, self.sm['carControl'], self.sm['carControlSP'])
+
+    self.initialized_prev = initialized
+    self.CS_prev = CS
+    self.CS_SP_prev = CS_SP
+
+  def params_thread(self, evt):
+    while not evt.is_set():
+      self.is_metric = self.params.get_bool("IsMetric")
+      self.experimental_mode = experimental_mode_requested(self.params) and self.CP.openpilotLongitudinalControl
+      self.carrot_enabled = self.params.get_bool("CarrotEnabled")
+      # These two are the *behaviour* switches for the carrot navi path, not
+      # process gates: carrot_navi (TCP 7714) is always_run, so flipping them must
+      # take effect without restarting card. They used to be read once in
+      # __init__ only, so a runtime change silently did nothing until the next
+      # reboot - which read as "the toggle is broken".
+      self.carrot_navi_v2_enabled = self.params.get_bool("CarrotNaviV2Enabled")
+      self.carrot_nav_lane_guide_block = self.params.get_bool("CarrotNavLaneGuideBlockEnabled")
+
+      # sunnypilot
+      self.v_cruise_helper.read_custom_set_speed_params()
+      self.card_ext.update_params()
+
+      time.sleep(0.1)
+
+  def card_thread(self):
+    e = threading.Event()
+    t = threading.Thread(target=self.params_thread, args=(e, ))
+    try:
+      t.start()
+      while True:
+        loop_start = time.monotonic()
+        self.step()
+        loop_us = int((time.monotonic() - loop_start) * 1e6)
+        self.card_diag_loop_max_us = max(self.card_diag_loop_max_us, loop_us)
+        self.card_diag_can_timeouts += max(0, self.can_rcv_cum_timeout_counter - self.card_diag_prev_timeout_counter)
+        self.card_diag_prev_timeout_counter = self.can_rcv_cum_timeout_counter
+        self.card_diag_frames += 1
+        if self.card_diag_frames >= 100:
+          if should_log_card_diagnostics(self.card_diag_loop_max_us, 0, self.card_diag_can_timeouts):
+            print(f"card_diag: can_timeouts={self.card_diag_can_timeouts}, "
+                  f"loop_max_us={self.card_diag_loop_max_us}")
+          self.card_diag_frames = 0
+          self.card_diag_loop_max_us = 0
+          self.card_diag_can_timeouts = 0
+        self.rk.monitor_time()
+    finally:
+      e.set()
+      t.join()
+
+
+def main():
+  # CAN reader. Splitting card away from controlsd/selfdrived is the exact layout
+  # CarrotPilot ships (card on 5, controlsd/selfdrived on 6). Keeping all three on
+  # core 4 pinned that core at ~99% under load - one GC/scheduler hiccup pushed
+  # selfdrived's Ratekeeper past its 11.1ms budget and the UI warned "系统滞后".
+  config_realtime_process(5, Priority.CTRL_HIGH)
+  car = Car()
+  car.card_thread()
+
+
+if __name__ == "__main__":
+  main()

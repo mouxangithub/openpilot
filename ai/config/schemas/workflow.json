@@ -1,0 +1,26 @@
+{
+  "namespace": "workflow",
+  "revision": 1,
+  "fields": {
+    "ai_workflow_enabled": {
+      "type": "boolean",
+      "default": false,
+      "label": "Enable workflow graph",
+      "description": "Whether the workflow graph engine is active."
+    },
+    "ai_default_workflow": {
+      "type": "string",
+      "default": "",
+      "label": "Default workflow",
+      "description": "Workflow graph identifier used when none is specified."
+    },
+    "ai_workflow_max_steps": {
+      "type": "number",
+      "default": 50,
+      "min": 1,
+      "max": 1000,
+      "label": "Workflow max steps",
+      "description": "Maximum nodes the workflow engine will execute before aborting."
+    }
+  }
+}

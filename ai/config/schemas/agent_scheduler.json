@@ -1,0 +1,8 @@
+{
+  "namespace": "scheduler",
+  "revision": 1,
+  "fields": {
+    "ai_scheduler_enabled": {"type": "boolean", "default": true, "label": "Enable agent scheduler"},
+    "ai_scheduler_tick_seconds": {"type": "number", "default": 1, "min": 1, "max": 3600, "label": "Scheduler tick interval (s)"}
+  }
+}

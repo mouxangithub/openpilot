@@ -1,0 +1,64 @@
+id: device
+label: 设备
+icon: device
+order: 6
+remote_configurable: true
+description: 设备行为、单位与录制设置
+sections:
+- id: general
+  title: 通用
+  description: 电源、启动与单位偏好
+  items:
+  - key: OffroadModeRequested
+    widget: toggle
+    title: 强制驻车模式
+  - key: DeviceBootMode
+    widget: option
+    title: 唤醒行为
+    description: 控制设备启动/休眠后的状态。默认：设备正常启动/唤醒并处于可接管状态。驻车：设备启动/唤醒后进入『总是驻车』模式。
+    options:
+    - value: 0
+      label: 标准
+    - value: 1
+      label: 总是驻车
+  - key: QuietMode
+    widget: toggle
+    title: 静音模式
+  - key: OnroadUploads
+    widget: toggle
+    title: 行车数据上传
+  - key: MaxTimeOffroad
+    widget: option
+    title: 最长驻车时间
+    description: 熄火后达到设定时长自动关机。默认 30 小时。
+    options:
+    - value: 0
+      label: 总是开
+    - value: 5
+      label: 5m
+    - value: 10
+      label: 10m
+    - value: 15
+      label: 15m
+    - value: 30
+      label: 30m
+    - value: 60
+      label: 1h
+    - value: 120
+      label: 2h
+    - value: 180
+      label: 3h
+    - value: 300
+      label: 5h
+    - value: 600
+      label: 10h
+    - value: 1440
+      label: 24h
+    - value: 1800
+      label: 30 小时（默认）
+- id: language
+  title: 语言
+  items:
+  - key: LanguageSetting
+    widget: info
+    title: 语言

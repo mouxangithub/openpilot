@@ -1,0 +1,8 @@
+{
+  "namespace": "dev_diagnostics",
+  "revision": 1,
+  "fields": {
+    "ai_diag_verbose": {"type": "boolean", "default": false, "secret": false, "label": "Verbose diagnostics"},
+    "ai_diag_api_key": {"type": "secret", "default": "", "secret": true, "label": "Diagnostics API key"}
+  }
+}

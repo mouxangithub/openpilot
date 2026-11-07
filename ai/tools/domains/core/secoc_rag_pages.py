@@ -1,0 +1,5940 @@
+"""Auto-generated SecOC RAG chunks. Run fetch_secoc_rag.mjs to refresh."""
+
+from __future__ import annotations
+
+from typing import Any
+
+SECOC_RAG_PAGES: list[dict[str, Any]] = [
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_0",
+    "title": "optskug SecOC Setup Guide (1/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+openpilot/etc. on Toyota/Lexus/Subaru with TSK/ECU SECURITY KEY/SecOC
+
+[^1]
+
+Toyota's Sword in Rock situation (https://store.steampowered.com/app/1865370/Theonewhopullsouttheswordwillbecrownedking/) (that has been pulled out quite a bit by Willem and Greg (https://icanhack.nl/blog/secoc-key-extraction/)!)
+
+The comma.ai Discord (https://discord.comma.ai) isn't really a good place to store answers or guidance to questions about the situation with Toyota's TSK/ECU Security Key/SecOC and openpilot.
+Discord's search is terrible, and the content inside of it isn't accessible to search engines.
+This is an attempt to document some of the discussion and information about the situation with Toyota's TSK/ECU Security Key/SecOC and openpilot in a more accessible way.
+
+> [!TIP]
+> This document is a bit long, you may want to put the URL of this document into your 🤖 AI assistant of choice to ask it questions about the contents of this document. [](https://deepwiki.com/optskug/docs) is a good choice for querying with citations and references. Note that DeepWiki may lag behind the latest copy of the document by a week.
+>
+> https://deepwiki.com/optskug/docs
+>
+> [](https://deepwiki.com/optskug/docs)
+>
+> You are encouraged to share DeepWiki conversations links in Discord if you aren't sure it is interpreting this document correctly or if you have follow up questions that it can't handle.
+>
+> Of course, other AI assistants such as ChatGPT (https://chat.openai.com/chat), Claude (https://claude.ai/), or Gemini (https://gemini.google.com) can also be used once you pass them the URL of this repository: https://github.com/optskug/docs
+>
+
+---
+
+Table of Contents
+
+ openpilot/etc. on Toyota/Lexus/Subaru with TSK/ECU SECURITY KEY/SecOC (#openpilotetc-on-toyotalexussubaru-with-tskecu-security-keysecoc)
+    Background (#background)
+    Cars (#cars)
+       🟢 Successfully running openpilot (#-successfully-running-openpilot)
+          Notes (#notes)
+       🟡 Reported working with a newer experimental path (#-reported-working-with-a-newer-experimental-path)
+       🟠 May be possible to hack but hasn't been tried (#-may-be-possible-to-hack-but-hasnt-been-tried)
+       🔴 Not hacked and can't run""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_1",
+    "title": "optskug SecOC Setup Guide (2/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+openpilot (#-not-hacked-and-cant-run-openpilot)
+       🔵 Vehicles not in comma's supported vehicles list (#-vehicles-not-in-commas-supported-vehicles-list)
+       Unknown (#unknown)
+ Setup Guide (#setup-guide)
+    Key Extraction (#key-extraction)
+    Advanced Topics (#advanced-topics)
+ FAQ (#faq)
+ Forks (#forks)
+ Discords of Note (#discords-of-note)
+ Current History (#current-history)
+
+---
+
+Background
+
+tl;dr: Toyota started to use cryptographical signatures to block openpilot (and other hacks). Some smart people in the industry hacked the signatures for some cars, but not all cars. Nobody is known to be working on the issue at the moment.
+
+openpilot, in order to control the latitude (aka. steering), needs to be able to man-in-the-middle the steering control messages used by the lane keep assist system. It blocks the original steering control messages and replaces them with its own. Latitude-controlling messages originally come from the forward-facing camera, which is also known as the "Forward Recognition Camera" or "Object Recognition Camera" in Toyota vehicles. The camera is responsible for the lane keep assist in Toyota vehicles.
+
+There is a STEERINGLKA-ish message and more in some new Toyotas that currently has an "authentication code" scheme appended to the end. The algorithm and security system for this "authentication code" is somewhat known for certain vehicles but requires a key that is unique to each vehicle to be extracted or smuggled out of the vehicle (https://icanhack.nl/blog/secoc-key-extraction/). Not all vehicles are able to have their keys extracted with what is currently known. Without the key for each vehicle, third parties like comma and users cannot control the vehicle. While vehicles that have had their keys smuggled out are currently working with openpilot.
+
+Most work on the issue still builds on what Willem and Greg accomplished. As of July 2026, 3b1b.eth is pursuing the payload-build secret through analysis of a purchased steering-control module, with the goal of building wider DataFlash-dumping payloads. Newer vehicles other than the ones on this list are not known to be working with the existing exploits discovered and built by Wille""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_2",
+    "title": "optskug SecOC Setup Guide (3/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+m and Greg to dump their keys.
+
+There has been some primordial research on firmware modification to disable the security system, but it is not known if this is possible or not. However, there has been no updates since July 2025.
+
+> [!NOTE]
+> Toyota is not alone in implementing encrypted CAN bus systems to block ADAS additions. For example, Ford has been rolling out their Trusted Realtime Operating Network (TRON) on CANFD vehicles starting with the 2023 Superduty. You can check the Confirmed TRON Status List (https://bluepilot.dev/2025/08/13/confirmed-tron-status-list/) on Blue Pilot for more details on affected Ford vehicles that are likewise currently incompatible with openpilot.
+
+Unresolved Mysteries
+
+The following is not comprehensive.
+
+ The exact details of how the process of how Toyota's tools communicate with the vehicle and their servers, and how the key is updated for multiple ECUs is still not fully known or experimented with. A high level overview of the process is known, but not the exact details.
+   Could a simulation of an extraneous "blank" vulnerable ECU into the system be tacked onto the communication with Toyota to extract the key?
+   There's something with Master ECUs and Slave ECUs here.
+ The 2023 US made ICE Corolla (VIN starts with 5) is a TSS 3.0 vehicle that does not appear to have ECU Security Key or SecOC steps when replacing the forward camera. No one has come by to show what TSS3 without TSK looks like. One person has come by but they don't have that much time and ... that's it? Just one person, how weird.
+ What might a firmware mod approach look like? Is it possible to flash a custom firmware that disables SecOC?
+
+---
+
+Cars
+
+🟢 Successfully running openpilot
+
+These cars can run openpilot but are not listed on https://comma.ai/vehicles#toyota or CARS.md (https://github.com/commaai/openpilot/blob/master/docs/CARS.md) because comma.ai (the company) understandably doesn't want to own the security key hacking process.
+
+If it is on https://comma.ai/vehicles#toyota, then it's not in question and is supported by comma.ai for openpilot. At the moment, all harnesses for pre-existing and non-TSK/SecOC supported Toyota vehicles are Toyota Harness""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_3",
+    "title": "optskug SecOC Setup Guide (4/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+A and can be used with TSK/SecOC supported vehicles.
+
+Follow the Setup Guide (#setup-guide) below and you'll have it working.
+
+ 2021-2023 RAV4 Prime/PHEV aka. Plug-in Hybrid
+   All Trims supported
+   For non-Prime/PHEV RAV4s (e.g. various ICE trims, Hybrid trims, etc.) in the US, please refer to comma's supported vehicle list (https://comma.ai/vehicles#toyota)
+   Toyota Harness A
+   Early 2024 MY situation like Early 2024 MY Sienna unknown.
+   The compatibility status of the RAV4 Hybrid or RAV4 ICE is not relevant to the Prime/PHEV. They're different vehicles.
+ 2021-2023 Sienna Hybrid (US-made), 2021-2022 Sienna Hybrid (Mainland China-made)
+   All Trims supported
+   VINs starting with 5 are US-made. VINs starting with L are Mainland China-made. We are not aware of Siennas made in any other regions.
+   Toyota Harness A
+   Not applicable to 2023+ Sienna (Mainland China-made)
+   Early 2024 MY (Built in 09/23 to 11/23 according to sticker) might work? Currently too few data points to determine cutoff
+    https://discord.com/channels/469524606043160576/905950538816978974/1350659380592513142
+     Check driver door jam to get month and year. It's Month/Year
+       
+     Working
+       US-made
+         Gako - 10/23
+         lukechen01 - 11/23 (https://discord.com/channels/469524606043160576/905950538816978974/1482268326259327098)
+       Mainland China-made
+         aivordin's acquaintance - 03/22 (https://discord.com/channels/469524606043160576/905950538816978974/1395329561297817731)
+     Not Working
+       US-made
+         ~~samueljsg - 12/23~~ - later reported working via the 🟡 newer experimental path (#-reported-working-with-a-newer-experimental-path)
+         grb5 - 09/24
+       Mainland China-made
+         hl.elias44035 - 12/22
+         aivordin's acquaintance 2 - 08/23 (https://discord.com/channels/469524606043160576/905950538816978974/1399314022829920286)
+         sadmenmen - 04/24 (https://discord.com/channels/469524606043160576/905950538816978974/1362613104206151932)
+ 2020-2022 Yaris Hybrid (EUDM/JDM/MXDM)
+   All Trims supported
+   Toyota Harness A
+   Dataflash dump hack works as the key is not in the same address as RAV4 Prime in program memory
+   Brute forc""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_4",
+    "title": "optskug SecOC Setup Guide (5/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+e efforts to find key location successful on both European and Japanese Yaris Hybrid. European user eventually gave up full installation due to unrelated C3 malfunction.
+   https://github.com/I-CAN-hack/secoc/pull/4 - brute force dataflash dump approach used to locate and extract the SecOC key
+   First Continental Radar + Camera setup going and thus first radar controlled ACC vehicle done with. This does not mean longitudinal is controlled by openpilot though.
+     Experimental work in disabling the radar has shown this does is not enough to let openpilot control longitudinal.
+   Not sold in the USA, but is in Australia, Japan, and Europe
+   Only one guy using it in Japan and one guy in Poland, unfortunately. Help increase the population!
+     Another vehicle, not a daily driver, but an academic study specimen, has their key dumped in France.
+     ggajoch has dumped their key in Poland and is using it.
+     Some issue with going over lane lines at the moment causing LKAS errors. Needs more investigation. EU only? (https://github.com/sunnypilot/opendbc/issues/364)
+     Some issue with Traction Control (https://discord.com/channels/469524606043160576/905950538816978974/1438655571082477569)
+ 2021 GR Yaris (EUDM/JDM/MXDM)
+   All Trims supported
+   Toyota Harness A
+   Memory dump hack works but the key is not in the same address as RAV4 Prime.
+   Same hardware as Hybrid Yaris with Continental Radar + Camera
+   Manual Transmission
+   One user in Poland at the moment. lx93.
+   WIP
+
+Notes
+
+ These vehicles have TSS 2.0.
+ These vehicles do not use the HSM.
+ These all seem to share the commonality of a ~~version 1 bootloader~~[^4] ? on the EPS
+ Longitudinal
+   The pull request for longitudinal support has been merged into opendbc (https://github.com/commaai/opendbc/pull/1385), but openpilot has not yet updated its copy of the repository to include it.
+   Some Forks (#forks) have it as an option.
+   Resume command spams still works from existing implementation so stop and go without touching is active if openpilot is active.
+
+🟡 Reported working with a newer experimental path
+
+These cars have credible community reports of working openpilot control, but they do not follow th""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_5",
+    "title": "optskug SecOC Setup Guide (6/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+e current Setup Guide (#setup-guide). The current GUI guide/app extraction flow does not handle this path yet.
+
+If you have one of these cars, please stop by the comma Discord (https://discord.comma.ai)'s #toyota-security channel - we need more information, especially build dates, EPS versions, CAN logs, dump behavior, successful attempts, and failed attempts.
+
+Related vehicles such as 🟠 2023+ Sienna (Mainland China-made) (#-may-be-possible-to-hack-but-hasnt-been-tried), 2021+ Venza, and 2024+ RAV4 Prime are still only speculative revisit candidates for this newer DataFlash candidate scan + CAN MAC-oracle strategy. They are not promoted into this category unless someone reports a working result.
+
+ 2024+ Sienna
+   TSS 2.0-ish / Toyota Security / SecOC. Some new public notes and tooling previously called this "TSS3", but Discord discussion and later repo cleanup suggest the 4th gen Sienna itself is better described as TSS2.5-ish / TSS 2.0-ish rather than true TSS3. TSS generation is not a reliable proxy for Toyota TSK / ECU Security Key / SecOC behavior.
+   VanceLiu/Vance425 and thehui/bkai201 report successful SecOC key recovery on the 8965B4514000 / 0x02 Sienna EPS family using EPS DataFlash candidate scanning plus CAN MAC-oracle validation. See thehui/bkai201's Toyota Dataflash SecOC Setup repo (https://github.com/Bk2ol/tskextractionbycanlog), whose currently validated target remains a 4th-gen Sienna with EPS 8965B4514000.
+   Start with thehui/bkai201's Toyota Dataflash SecOC Setup repo (https://github.com/Bk2ol/tskextractionbycanlog) if you are researching this path. Treat it as experimental research tooling, not as the normal GUI setup guide.
+   Still not broadly "supported": payload availability, exact vehicle/build/market coverage, and independent verification are incomplete. The upper build-date / model-year range for this approach is not known.
+   At least code is executed. Unknown what might have changed across other 2024+ Siennas.
+   New 02 ~~bootloader~~[^4] seen.
+   Reports:
+     Working
+       US-made
+           VanceLiu/Vance425 - 01/24
+           chipmunk/aidashu - 01/24, EPS 8965B4514000
+           samueljsg - 12/23
+           Chaim - 04/24 (http""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_6",
+    "title": "optskug SecOC Setup Guide (7/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+s://discord.com/channels/469524606043160576/905950538816978974/1518307440029077625)
+           (thehui)/bkai201 - 06/24
+           joshschmitt60596 - N/A , was a 21 but had its EPS swapped to something with the 0x02 identifier, so unknown effective build date.
+           robocow1 - 09/25, used Codex to drive the process, also first C3 with these vehicles (https://discord.com/channels/469524606043160576/905950538816978974/1524238336741474394)
+           Toshi - 06/26 - First 2026 working (https://discord.com/channels/469524606043160576/905950538816978974/1528218323047940267)
+     Not Working
+       PRC-made
+           panduslee - 09/25
+           3b1b.eth - 09/25 (https://discord.com/channels/469524606043160576/905950538816978974/1524242481200365753)
+
+🟠 May be possible to hack but hasn't been tried
+
+If you have one of these cars, please stop by the comma Discord (https://discord.comma.ai)'s #toyota-security channel - we need more information from people like you.
+
+ 2023 US-made Corolla (VIN starts with 5)
+   Uses TSS 3.0 but does not appear to have ECU Security Key or SecOC steps when replacing the forward camera. It's unknown whether it has TSK, and if yes in what form. Maybe they just don't do the pairing thing but hardcode a key. No one knows. This is still of great interest to the Toyota Security Key / SecOC efforts as it may provide better insight into the TSS 3.0 system without the security key complication. The effort needs CAN bus logs to look at with a comma device hooked up from someone with this car.
+   Note that this is not the same as the 2023 TMC/JP-made Corolla or the 2024+ Corolla. It happens to be applicable to a single year of US-made Corolla.
+ 2023+ Sienna (Mainland China-made)
+   Separate from the US-made 2024+ Sienna reports above. This may be worth revisiting, but it is not known to be working.
+   Compare with 🟡 2024+ Sienna (#-reported-working-with-a-newer-experimental-path): Toyota Safety Sense generation does not map cleanly to Toyota TSK / ECU Security Key / SecOC behavior.
+   Existing data points are mixed and confusing: a Mainland China-made 2022 Sienna owner in Frogpilot Discord reportedly extracted a key but got stuck writing param""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_7",
+    "title": "optskug SecOC Setup Guide (8/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+s, while later 2023+ Mainland China-made examples failed or showed changed identifiers.
+   Known non-working / uncertain examples include hl.elias44035's December 2022 build, aivordin's acquaintance 2 with an August 2023 build, and sadmenmen's April 2024 build.
+   calvinspark later noticed an August 2023 Mainland China-made Sienna that did not dump had an 0x01 app identifier and 0x02 ~~bootloader~~[^4] identifier.
+   Please bring build date, VIN origin, EPS/app identifiers, CAN logs, and dump behavior to #toyota-security.
+ 2021+ Venza
+   Key at least not at the same location as the RAV4 Prime.
+   Very speculative June 2026 follow-up: after the 2024-era Sienna 8965B4514000 / 0x02 EPS reports above, it may be worth brave testers trying the newer DataFlash candidate scan + CAN MAC-oracle strategy here too. This is not proven for 2021+ Venza; ECU differences, payload compatibility, security-access differences, HSM changes, or a different key location may still make it fail. Please report successes, failures, EPS versions, CAN logs, and dump behavior back in #toyota-security.
+   Has a 02 ~~bootloader~~[^4] though from two 2021 samples.
+ 2024+ RAV4 Prime/PHEV aka. Plug-in Hybrid
+   TSS 2.0
+   Key at least not at the same location as other RAV4 Prime.
+   Very speculative June 2026 follow-up: after the 2024-era Sienna 8965B4514000 / 0x02 EPS reports above, it may be worth brave testers trying the newer DataFlash candidate scan + CAN MAC-oracle strategy here too. This is not proven for 2024+ RAV4 Prime; ECU differences, payload compatibility, security-access differences, HSM changes, or a different key location may still make it fail. Please report successes, failures, EPS versions, CAN logs, and dump behavior back in #toyota-security.
+   At least code is executed. Unknown what might have changed.
+   New 02 ~~bootloader~~[^4] seen.
+   Reports:
+     Not Working
+       JP-made
+           yc - 10/23 (https://discord.com/channels/469524606043160576/1524987019087052820/1525024279547220028)
+ 2022+ GR Yaris (EUDM/JDM/MXDM)
+   Unknown
+
+🔴 Not hacked and can't run openpilot
+
+These fall into a few categories:
+
+ Introduced in 2022+ with TSK/SecOC but it's strongly suspected that th""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_8",
+    "title": "optskug SecOC Setup Guide (9/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+ey have an updated chip that precludes the existing exploits from dumping the key. (Most)
+   See Willem's blog post about dumping the keys, specifically the section "Notes on Newer Vehicles" (https://icanhack.nl/blog/secoc-key-extraction/#notes-on-newer-vehicles)
+   We've only been able to dump keys from vehicles models that were introduced with TSK/SecOC in 2020-2021. Presumably Toyota was going through their existing stock of ECU hardware and phased in TSK/SecOC over time for existing models but new models starting in 2022+ all have an evolved or uncracked TSK/SecOC from day one.
+ We can't get code execution on the EPS ECU to run the exploit for some other reason. (Tundra)
+ CAN Bus captures from these vehicles are unlikely to be of use for any research until someone figures out how to get into the ECUs themselves. In other words, you can't tell much from ciphertext.
+
+The List:
+
+ 2022+ Aygo X (EUDM)[^3]
+ 2023+ Aygo X (Euro tech info Lookup)
+ 2023+ bz4x[^3] (Probably the same for sister rebranded Subaru Solterra)
+ 2025+ Camry[^3]
+ 2023 TMC/JP-made Corolla[^3]
+ 2022+ Corolla Cross (USDM, not applicable to Thailand, Brazil, or Taiwan)[^3]
+ 2023 Corolla Cross Hybrid
+   TSS 2.0
+   Known to be not working.
+   Memory can be dumped but the key is not in visible memory.
+   Mentioned in Willem's blog post.
+ 2024+ Corolla/ Corolla Hybrid, All origins.
+ 2023+ Crown
+ 2024+ Grand Highlander ICE and Hybrid[^3], 2024 Crown Kluger ICE and Hybrid (PRC, elsewhere?)
+ 2024 Highlander ICE and Hybrid,
+   TSS 2.0
+   Known to be not working.
+   Memory can be dumped but the key is not in visible memory.
+   02 ~~bootloader~~[^4]
+ 2025+ Highlander ICE and Hybrid[^3]
+ 2024+ Mirai[^3]
+ 2023+ Prius and Prius Prime/PHEV[^3]
+ 2021+ Yaris Cross Hybrid (EUDM/JDM/MXDM)
+   Emna tried optskug/secoc key extraction and reached programming session / seed generation, but the computed key was rejected with SECURITYACCESS - invalid key.
+   This now has a concrete negative datapoint rather than only "hasn't been tried" speculation.
+   The likely next step is not merely rebuilding payload.bin; someone probably needs to figure out the correct security key / SEEDKEYSECRET, possibly by following Willem's sacr""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_9",
+    "title": "optskug SecOC Setup Guide (10/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+ificial EPS reverse-engineering path.
+ 2024+ RAV4 Prime/PHEV aka. Plug-in Hybrid
+   TSS 2.0
+   Key at least not at the same location as other RAV4 Prime
+   Very speculative June 2026 follow-up: after the 2024-era Sienna 8965B4514000 / 0x02 EPS reports below, it may be worth brave testers trying the newer DataFlash candidate scan + CAN MAC-oracle strategy here too. This is not proven for 2024+ RAV4 Prime; ECU differences, payload compatibility, security-access differences, HSM changes, or a different key location may still make it fail. Please report successes, failures, EPS versions, CAN logs, and dump behavior back in #toyota-security.
+   At least code is executed. Unknown what might have changed.
+   New 02 ~~bootloader~~[^4] seen
+ 2024+ RAV4 in Europe (techinfo)
+ 2023+ Sequoia (Speculated from being a Tundra with an SUV Body)
+ 2024+ Tacoma[^3]
+ 2022+ Tundra (Confirmed in https://github.com/commaai/openpilot/issues/27869#issuecomment-1504046497)
+   TSS 2.0
+   Still red: no working key extraction is reported. Willem later reported getting the exploit to run on a 2022 Tundra EPS, but said the EPS uses an HSM. Tim later tried the Sienna-style DataFlash candidate verifier and reported no luck (https://discord.com/channels/469524606043160576/905950538816978974/1515703348060487681).
+   Relevant source links: Willem's 2022 Tundra EPS / HSM update (https://discord.com/channels/469524606043160576/905950538816978974/1394067422566416405), Tim's June 2026 Tundra test thread (https://discord.com/channels/469524606043160576/905950538816978974/1515703348060487681), and the public I-CAN-hack/secoc tundra branch (https://github.com/I-CAN-hack/secoc/tree/tundra).
+   User ThisGuy has an extra rack on the bench. Sent to Willem for further analysis. Uses HSM, possible firmware mod approach to disable SecOC in planning. See July 2025 update below.
+   04 ~~bootloader~~[^4]
+ 2024+ Lexus GX[^3]
+ 2022+ Lexus LX, NX[^3]
+ 2023+ Lexus LS[^3]
+ 2023+ Lexus RX, RZ[^3]
+ 2024+ Lexus TX[^3]
+ 2025 Lexus ES Hybrid (Korean import)
+   Reported on April 19, 2026 on the sunnypilot forum as showing dashcam mode, unrecognized car before manual selection and unknown vehicle variant after manual selection""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_10",
+    "title": "optskug SecOC Setup Guide (11/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+.
+   Reported VIN starts with J.
+   sunnyhaibin's follow-up log review found PCMCRUISE only when using the SecOC DBC along with 0x0F / SECOCSYNCHONIZATION.
+   This strongly suggests that this market-specific variant is affected by TSK/SecOC.
+   Do not generalize this finding to all 2025 Lexus ES vehicles.
+ 2025 Lexus ES (China-market / PRC)
+   Long (long047829) reports TSK/SecOC-style checksum failures on a China-market ES2025 while using openpilot.
+   This is a separate market-specific report from the Korean-import ES Hybrid and should not be generalized to all 2025 Lexus ES vehicles.
+ 2025+ Lexus UX[^3]
+
+🔵 Vehicles not in comma's supported vehicles list
+
+The following vehicles aren't in comma's supported vehicles list but are known to not have SecOC/TSK.
+
+They may not have been added due to:
+
+ Bugs in the automated process of adding vehicles to the supported vehicle list such as in the case of the 2025 Lexus ES.
+ No one has tried it!
+ Sometimes no one has tried that specific year and sent in evidential data that comma will accept to put it on the list. This sometimes results in weird year gaps on comma's list even if its other years in the same generation/facelift are supported.
+ No development has been done on it.
+
+However, they are confirmed on Toyota Techinfo to not have SecOC/TSK.
+
+With the exception of the 2023 US-made Corolla, these vehicles are not TSK vehicles and might just be a fingerprint away from being supported by openpilot.
+
+Vehicle status notes in this section are for the US market unless otherwise specified.
+
+ 2023 US-made (VIN starts with 5) Corolla Sedan
+   TSS 3.0
+   No ECU Security Key or SecOC steps when replacing the forward camera.
+   It's unknown whether it has TSK, and if yes in what form. Maybe they just don't do the pairing thing but hardcode a key. No one knows.
+   Likely requires a C3X as it's probably that it uses CAN-FD.
+   Probably not a fingerprint print away.
+ Taiwan-market Corolla Cross
+   TSS 2.0
+   No TSK/SecOC.
+   Locally built / Taiwan domestic-market model.
+   Saber422 reports that the 2026 Taiwan Corolla Cross is still TSS2.
+   This is not a hardware hack or bypass situation. The Taiwan Corolla Cross simply appears to""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_11",
+    "title": "optskug SecOC Setup Guide (12/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+be a market-specific non-TSK case, similar to the Thailand-market Corolla Cross situation.
+   Not known to be openpilot-supported yet. It likely needs normal route/fingerprint work rather than key extraction.
+ 2021 Lexus RC
+   TSS2
+   No TSK
+ 2022, 2024-2025 Lexus RC
+   TSS2.5
+   No TSK
+   No one has tried
+ 2020 Lexus IS
+   TSS+
+   No one has tried
+ 2021 Lexus IS
+   TSS2.5
+   No one has tried
+ 2025 Lexus ES Non-Hybrid
+   In the US market, this seems to have issues being auto-added to comma's supported vehicle list for some reason.
+   This should not be read as covering non-US variants such as the Korean-import 2025 Lexus ES Hybrid noted above.
+ 2024 Lexus UX
+   Last year without security key according to TechInfo.
+
+Unknown
+
+If your car is not listed above, then there has been no documented information or attempts. Please talk to us at the comma Discord (https://discord.comma.ai)'s #toyota-security channel.
+
+---
+
+Setup Guide
+
+Key Extraction
+
+Your car has a security key that Toyota doesn't want you to have. \\
+Follow this guide to run a hardware exploit (https://icanhack.nl/blog/secoc-key-extraction/) to extract the key.
+
+Comma 3X and Comma 4
+
+Step 1. Install TSK Manager
+
+44-second overview.<br>
+<a href="https://www.youtube.com/shorts/bYqBKtZDiA4"><img src="img/v6.1.software-shorts.jpg" width="300"></a>
+
+18-minute real-time demonstration. Turn on the captions.<br>
+<a href="https://www.youtube.com/watch?v=Jo9SRp4VjMs&list=PLDDq90qjoCsk"><img src="img/v6.1.software.jpg" width="500"></a>
+
+Step 2. Install the hardware
+
+> [!CAUTION]
+> Your phone charging cable will not work here. For connecting a comma device to the harness, always use the official OBD-C cable that came with the comma device. comma.ai sells it if you need more: https://comma.ai/shop/obd-c-cable. If you must buy your own, USB-C 3.1 Gen 2 is required.
+
+Turn on the captions.<br>
+<a href="https://www.youtube.com/watch?v=jwalKl9AsR8&list=PLDDq90qjoCsk"><img src="img/v6.2.hardware.jpg" width="500"></a>
+
+Step 3. Extract the key
+
+> [!CAUTION]
+> The 12V battery will die in 10 minutes when you're in Not Ready to Drive mode.
+>
+> Turn off the A/C and never stay on this mode for more than 5 minutes at a time. After""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_12",
+    "title": "optskug SecOC Setup Guide (13/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+5 minutes, start the engine and leave it running for 5 minutes before trying again.
+>
+> The 12V battery is not your hybrid driving battery. It doesn't matter that your car is charged to 100%.
+>
+> THIS IS IMPORTANT! Many people had to jump the car, so I'm telling you. Please listen. Do not stay on this mode for more than 5 minutes.
+
+Turn on the captions.<br>
+<a href="https://www.youtube.com/watch?v=qRibDOLg4f4&list=PLDDq90qjoCsk"><img src="img/v6.3.extraction.jpg" width="500"></a>
+
+Step 4. Install openpilot or sunnypilot
+
+Turn on the captions.<br>
+<a href="https://www.youtube.com/watch?v=Ndfnhri2JGU&list=PLDDq90qjoCsk"><img src="img/v6.4.openpilot.jpg" width="500"></a>
+
+Comma 3
+
+Step 1. Install TSK Manager
+
+At home, sitting next to your router, turn on the comma device with a phone charger. Ignore the low voltage warning.
+
+Choose Custom Software and enter the URL:
+
+https://install.sunnypilot.ai/fork/optskug/tskm-c3
+
+Unplug the power to turn off the device.
+
+<details><summary>Troubleshooting</summary>
+
+1. A normal phone or laptop charger works fine. If not, USB A-to-C cables work well, and USB PD (Power Delivery) sometimes doesn't work.
+1. Sometimes the installer won't proceed or gets stuck around 10% and restarts. Instead of Custom Software, install comma openpilot, uninstall it through the Settings menu, and then try again.
+1. The installation takes about 2 minutes, or ~20 minutes if an OS update is needed. OS update downloads a ton of stuff so don't be too far away from the router.
+1. Prefetching may fail if you're in China. The extraction will still work, but you'll have to install sunnypilot/staging-tici manually instead of using TSK Manager.
+1. In some cases the installation gets stuck in "registering device" screen. If this happens, unplug the device to power off, plug it back in, and then tap-tap-tap on the screen as it boots to reset the comma device. Afterward, install using the URL for the comma device.
+</details>
+
+Step 2. Install the hardware
+
+Go to your car and connect everything including Comma Power (OBD2 connector + long cable).
+
+Official Setup Guide: https://comma.ai/setup
+
+Turn the car on and off - the comma device should remain powered on.
+
+<de""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_13",
+    "title": "optskug SecOC Setup Guide (14/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+tails><summary>Troubleshooting</summary>
+
+1. The car harness sends a 12V signal instead of the usual 5V. Do not plug in anything other than a comma device.
+2. For connecting a comma device to the harness, always use the official OBD-C cable that came with the comma device. comma.ai sells it if you need more: https://comma.ai/shop/obd-c-cable. If you must buy your own, USB-C 3.1 Gen 2 is required.
+3. You can remove Comma Power later but connect it for now.
+</details>
+
+Step 3. Put the car into Not Ready To Drive mode
+
+Slowly press the POWER button twice WITHOUT pressing the brake pedal.
+
+ 
+
+> [!CAUTION]
+> The 12V battery will die in 10 minutes. Turn off the A/C and never stay on this mode for more than 5 minutes at a time. After 5 minutes, start the engine and leave it running for 5 minutes before trying again.
+>
+> The 12V battery is not your hybrid driving battery. It doesn't matter that your car is charged to 100%.
+>
+> THIS IS IMPORTANT! Many people had to jump the car, so I'm telling you. Please listen. Do not stay on this mode for more than 5 minutes.
+
+<details><summary>Troubleshooting</summary>
+
+1. Some cars refer to Not Ready To Drive mode as IGNITION ON mode while others refer to it as POWER ON mode. Regardless of what your car calls it, get on the mode that says Not Ready To Drive.
+2. The first press turns on ACCESSORY mode. The second press activates Not Ready To Drive mode.
+3. Some cars don't have ACCESSORY mode. Doesn't matter - get on the mode that says Not Ready To Drive.
+</details>
+
+Step 4. Run the exploit using TSK Manager
+
+> [!NOTE]
+> Your car is going to freak out - it will beep and flash all kinds of errors.
+>
+> Relax. The exploit is safe to run and can't break your car even if you yank the cable.
+>
+> Turn off the car, wait one minute, and turn it back on. Everything will be back to normal.
+
+Run TSK Extractor. This takes up to 10 seconds.
+
+Congratulations, you have the key now!
+
+> [!WARNING]
+> It's theoretically possible for someone to remotely hack your car with the key under very specific circumstances. You don't need to protect the key like it's your bank password, but still don't post it on Discord.
+
+Sometimes TSK Extractor can't talk to the""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_14",
+    "title": "optskug SecOC Setup Guide (15/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+car. Try again.
+
+<details><summary>Troubleshooting</summary>
+
+1. Once extracted, the key is installed in /cache/params/SecOCKey and /data/params/d/SecOCKey files.
+2. In rare cases, TSK Extractor may hit an unexpected error.
+
+   
+
+   Send @calvinspark a photo and then try again.
+3. Run TSK Extractor within 30 seconds of putting the car in Not Ready To Drive mode. If the car stays on that mode for a long time the extractor no longer works.
+4. Normally the extraction succeeds on the first try or after the first car restart. If you tried the extractor 3 times for 3 car restarts (=9 times) and still doesn't work, there might be a hardware problem and/or you're doing something wrong. Stop and talk to us in #toyota-security.
+</details>
+
+Step 5. Install sunnypilot/staging-tici
+
+Start your car's engine.
+
+Go to the Reboot Menu and choose Install sunnypilot/staging-tici.
+
+For C3, there are no branches from comma.ai with C3+TSK support, so sunnypilot is your best option.
+
+<details><summary>Troubleshooting</summary>
+
+1. Frustratingly, there isn't a release branch from comma.ai with TSK support.
+1. openpilot won't be able to drive your car if you install a branch without TSK support. See Forks (#forks) for more information.
+</details>
+
+Step 6. Calibrate & Validate
+
+C3 will boot into the 15mph calibration screen.
+
+If you're able to calibrate and use openpilot to control the steering wheel and gas/brake pedals, it's working!
+
+sunnypilot/staging-tici can use both the gas and brake pedals (aka "long support") and also the steering wheel (aka "lat support") on TSK vehicles. In other words, it can do all the normal things that an openpilot can do including Experimental Mode.
+
+<details><summary>Troubleshooting</summary>
+
+1. If you get an LKAS error, either the key was not installed or you're running a fork/branch without TSK support.
+2. If the comma device says Car unrecognized or Dashcam mode for unsupported car, you need to do Fingerprinting (https://github.com/optskug/docs/blob/19c61098eac496ded2fb1cacb732be6671c38c69/README.md#step-5-fingerprinting-if-the-car-is-not-recognized). However, this shouldn't happen anymore. If it does, please talk to us in #toyota-security.
+3. The key""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_15",
+    "title": "optskug SecOC Setup Guide (16/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+will change if you get a new bumper because the bumper has distance sensors that use the security key. Instead of applying the existing key to the bumper, they replace the key on all parts of the car. The same goes for many other parts with SecOC components. Even if you never get into an accident, the key can still change if a Toyota service technician presses a wrong button.
+</details>
+
+Step 7. Clean up
+
+Put the covers back on, and you're done. Congratulations!
+
+Comma Power (OBD2 connector + long cable) is optional. It's not necessary for using a comma device, but keeping it allows the comma device to stay powered on when you turn off the car.
+
+<details><summary>Comma Power</summary>
+
+Pros
+ Don't need to wait for the comma device to boot up on a car start.
+ Auto-update to get the latest and greatest.
+ Upload logs and videos to comma connect (https://connect.comma.ai/) automatically. If you do this, you'll be in the training set and your specific driving will improve faster than others. (https://discord.com/channels/469524606043160576/954493346250887168/1328801037578145802)
+ Easier to SSH in to debug.
+
+Cons
+ Auto-updates may break.
+ Some have experienced 12V battery drain.
+ More cables to manage.
+
+I (@calvinspark) don't use it because I hate even a remote possibility of a 12V battery issue.
+
+If you decide not to use it, bring the comma device into your home to get updates. Note that an auto-update to v0.10.0 broke C3 users, so check Discord for compatibility issues before a major version update.
+</details>
+
+Step 8. What's next?
+
+Keep using sunnypilot/staging-tici
+
+ If everything's working as expected for a week or two, you're done - just keep using it. If you want to tinker more, check out Forks (#forks).
+
+Tell us how it went
+
+Did everything go smoothly? Was something not clear? Did you get into a state that's not described in the doc?
+
+Please let us know! We've put in lots of effort into this doc, so even a simple "It worked out well" comment is appreciated.
+
+We're in comma Discord (https://discord.comma.ai) in #toyota-security channel.
+
+Advanced Topics
+
+Install a known key
+
+In some cases it's possible to type in a key that you already know (https://github.com""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_16",
+    "title": "optskug SecOC Setup Guide (17/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+/optskug/docs/blob/f582e47020c0aff210cbdf9d452c0f19e67bcad7/README.md#key-installation). This was made when the key extraction was just getting started.
+
+These days the key extraction is well-established, so re-extracting the key is just as easy as typing it in.
+
+Run the exploit using SSH manually
+
+Is a GUI button too easy for your engineering spirit? Here is how to extract the key manually (https://github.com/optskug/docs/blob/19c61098eac496ded2fb1cacb732be6671c38c69/README.md#step-4b-run-the-exploit-using-ssh-manually).
+
+---
+FAQ
+
+Q: Can I use one comma device with both a SecOC/TSK vehicle and a non-SecOC vehicle?
+
+A: Yes, this should be fine. The SecOC key can remain installed; openpilot should simply not use it on the non-SecOC vehicle.
+
+Switching between two SecOC/TSK vehicles is where it gets annoying. The key is vehicle-specific, so the correct key needs to be present for whichever SecOC/TSK vehicle is being driven.
+
+Changing forks is still a reinstall/flash process, not a built-in dual-boot or per-car preset switcher. Pick a branch or fork that supports the vehicles you plan to use.
+
+Source: comma.ai Discord #toyota-security (https://discord.com/channels/469524606043160576/905950538816978974/1513075043800977478)
+
+---
+Forks
+
+> [!CAUTION]
+> Using forks presents a real danger. Do your research!
+>
+> Begin your research in comma.ai Discord's #custom-forks (https://discord.com/channels/469524606043160576/538741329799413760).<br/>
+> Please do not ask about forks outside of that channel.
+
+> [!NOTE]
+> All forks support lat, MADS/AOL, and long, unless noted otherwise.
+>  Lat is lateral support which means openpilot can use the steering wheel.
+>  MADS/AOL are features in sunnypilot and FrogPilot that keep the steering wheel control engaged even after applying brakes.
+>  Long is longitudinal support which means openpilot can use the gas and brake pedals.
+
+openpilot
+
+URL
+ C4: commaai/nightly-dev
+ C3X: commaai/nightly-dev
+ C3: Not supported. Product support ended so use a fork instead.
+
+Notes
+ Not a fork but an alternate branch from comma.ai with TSK support.
+ Install this if you need support from comma.ai's support (https://comma.ai/support). They won't talk to you if""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_17",
+    "title": "optskug SecOC Setup Guide (18/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+you're on a fork.
+ Pre-compiled, so quick to install.
+ It has the most up-to-date changes, which is cool, but it could get unstable.
+ Supports lat and long, but no MADS/AOL.
+
+sunnypilot
+
+URL (Source) (https://community.sunnypilot.ai/t/recommended-branch-installations/235)
+ C4: install.sunnypilot.ai/release-mici
+ C3X: release.sunnypilot.ai
+ C3: install.sunnypilot.ai/staging-tici
+
+Notes
+ Release branch of sunnypilot is extensively tested by the Toyota SecOC community.
+ Model switcher to easily switch between various AI models.
+ NNLC: Big steering improvements for '21-23 RAV4 Prime and Sienna.
+ sunnypilot complies with comma.ai's safety rules as accurately as possible.
+ C3 branch (staging-tici) is slightly older than release but similarly capable at the moment.
+ Forum: https://community.sunnypilot.ai
+
+FrogPilot
+
+URL
+ C4: Not yet supported
+ C3X: frogpilot.download
+ C3: frogpilot.download
+
+Notes
+ Uses an old AGNOS version. When downgrading, OP may get stuck in a registration loop. In this case, tap-tap-tap on the boot logo and reset the device to recover and then install again.</li>
+ ‼️ DO NOT RUN FROGPILOT DEEP STORAGE DELETE. It deletes your security key, and you have to run TSK Manager again. Run it only when you're selling the device.
+ Discord: https://discord.com/invite/frogpilot
+
+SatoPilot
+
+URL
+ C4: Not yet supported
+ C3X: alexandresato/personal3
+ C3: alexandresato/personal3
+
+Notes
+ First fork to get long!
+ Very quick stop-and-go response.
+ alexandresato/extractsecockeybtn includes a TSK key extract button and is rebased with <code>personal3</code> often. The button is only for C3 & C3X, not for C4.
+
+Others
+
+If you are installing a fork not included in the list above, find the fork author and ask the following.
+
+1. Does it meet the safety standards from comma (https://github.com/commaai/openpilot/blob/master/docs/SAFETY.md#forks-of-openpilot)? Using a fork that doesn't meet the safety standards will get you banned from comma.ai servers.
+1. Is it for the latest C3X or C4? A fork for an older comma device may brick your C3X/C4 (https://discord.com/channels/771493367246094347/834826173795139584/1315136040020742185).
+1. Does it support SecOC/TSK?
+1. Does it contai""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_18",
+    "title": "optskug SecOC Setup Guide (19/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+n banned code? Using a fork with banned code may get you banned from comma.ai servers (https://discord.com/channels/469524606043160576/954493346250887168/1297991602710511728).
+1. Is there anything (https://discord.com/channels/469524606043160576/616456819027607567/1166547952836300870) to watch out (https://github.com/FrogAi/FrogPilot/blob/9751e9b03364fab843accf00b62af85adfef4feb/selfdrive/ui/soundd.py#L98) for?
+
+If you can't find the author, don't install the fork!
+
+---
+
+Discords of Note
+
+Most if not all Discord links are to the comma.ai Discord accessible with an invite from https://discord.comma.ai unless otherwise noted. These other Discords include:
+
+ Retropilot (RP): https://discord.gg/GzWegVa.
+ Sunnypilot's Openpilot Server (SP): https://discord.gg/TCTvFTKrAV.
+   #dev-toyota-security (Sienna) (https://discord.com/channels/880416502577266699/1371352826625785907)
+   #dev-toyota-security (RAV4 Prime) (https://discord.com/channels/880416502577266699/1385812275285327945)
+ Openpilot Enthusiasts (Formerly "Openpilot community") (OPC): https://discord.gg/rRB7eDKccy
+ MoreTorque (MT): https://discord.gg/439DM9KJ4r
+ Frogpilot (FP): https://github.com/FrogAi/FrogPilot?tab=readme-ov-file#discord
+ Konik.ai (KA): Discord Link on https://konik.ai/
+ Car Hacking Village (CHV): https://www.carhackingvillage.com/
+
+The activities, actions, and discussions on non-comma.ai Discords are/may not supported by or affiliated with comma.ai (this may even apply even to the comma.ai Discord too). In the case of MoreTorque, comma.ai is strongly opposed to that community/Discord. That said, the ECU Security Key issues affects all and relevant events and information may be there as well.
+
+---
+
+Bounty Statuses
+
+🗳️ comma.ai Vote for Toyota Security
+
+In June 2022, comma.ai created a paid vote/crowdfund for making openpilot support Toyota Security. Once they get 500 votes at $100 a vote, they have 6 months to figure it out and open source a solution; Otherwise, a refund will happen and all the money is returned. The current status of that was: ) (https://docs.google.com/spreadsheets/d/1GOeN2ph9JLvOlwStZso988YPT-lILl7yZqFW8UPCFZM/edit#gid=0&range=B1)[^2] .
+
+Vote counts were reported every week""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_19",
+    "title": "optskug SecOC Setup Guide (20/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+or similar and are recorded in this spreadsheet by the community:
+https://docs.google.com/spreadsheets/d/1GOeN2ph9JLvOlwStZso988YPT-lILl7yZqFW8UPCFZM/edit#gid=0
+
+The result of this vote, even though it has not met its target cost, is a pull request was produced for the RAV4 Prime to be supported in openpilot (https://github.com/commaai/openpilot/pull/31179). It was eventually merged in.
+
+In January, the vote page was taken down. Below is a snapshot.
+
+The last known vote count from community observations:
+
+[](https://docs.google.com/spreadsheets/d/1GOeN2ph9JLvOlwStZso988YPT-lILl7yZqFW8UPCFZM/edit#gid=0&range=BulkVoteCount)[^2]
+
+115/500 votes.
+
+In addition to their vote system, comma also has/had specific bounties up:
+
+ "$5k if someone cracks it and upstreams RAV4 prime support -geohot (link currently broken) (https://discord.com/channels/469524606043160576/524328425415245827/839289683489062952)
+   Currently locked to Willem for Willem's PR for the RAV4 Prime to merge in completely: https://github.com/commaai/openpilot/pull/32661#issuecomment-2156220468
+   Likely paid out.
+ We're announcing a bounty for the 2023 Corolla, 2023 Corolla Hybrid, and 2023 Prius. $500 for a working port merged. (https://discord.com/channels/469524606043160576/954493346250887168/1082390596544639086)
+
+👥 Communities Bounty
+
+The overall community bounty has been canceled for numerous reasons:
+
+https://www.reddit.com/r/Commaai/comments/1d5r7xr/comment/l6vjf9e/
+
+Original Sheet: https://docs.google.com/spreadsheets/d/1MKS78utvbAe74Xv7zszgEnn6JrtBgpgYlVOfoIvLEw/edit#gid=0
+
+Specific Community Bounties
+
+In its place are more specific community bounties:
+
+ Tundra Interest Group
+   ~~"I’ll put up 2k for Tundra alone" - bgill66~~ (https://discord.com/channels/469524606043160576/905950538816978974/1243275998745722911)
+     Scrubbed / User had bumped to $5k but there was no interest. https://discord.com/channels/469524606043160576/905950538816978974/1259282479257485383
+ heitikender for RX 2023
+   ~~1000~~ ~~2000EUR~~ 3000EUR
+   "I can buy techinfo access and whatever else is needed. Have pics of connectors."
+   Konik.ai Discord link: https://discord.com/channels/1110987393990922322/13555310733536789""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_20",
+    "title": "optskug SecOC Setup Guide (21/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+50/1355531309333614782
+   Raised to 2000 EUR
+     https://discord.com/channels/469524606043160576/1310778132478955540/1367854050103529524
+   Raised to 3000 EUR
+     https://discord.com/channels/469524606043160576/905950538816978974/1368164880489775185
+ ecman. for some Lexus RX
+   1000 USD
+   https://discord.com/channels/469524606043160576/905950538816978974/1374020440711762042
+ yja5020. for Land Cruiser 250
+   1000 USD
+   https://discord.com/channels/469524606043160576/905950538816978974/1473790899942326363
+   "My offer is serious but conditional to have comma properly working on the LC 250"
+
+Pictures of TSK'd and non-TSK'd Camera ECUs
+
+FWIW the outside of the ECU Security Key camera of a Rav4 Prime looks the same as a non-ECU Security Camera of a Corolla or Corolla Hatchback.
+
+2021 Rav4 Prime:
+
+Security Key'd Denso innards: https://discord.com/channels/469524606043160576/905950538816978974/939203494152372274
+
+2020 Corolla/Corolla Hatchback:
+
+A photo teardown of the 2020 Corolla camera (NON ECU SECURITY KEY) innards: https://photos.app.goo.gl/qsBaMFT6PSEs7BFXA
+
+Current History
+
+Here's a brief to get anybody going into this ECU Security Key issue up to speed. I'll keep updating this with links to the relevant Discord messages and other stuff as I find them.
+
+Discord links may be linking to the middle of the conversation. Scroll up and down for context.
+
+Many of these Discord links are to the #toyota-security channel in the comma.ai Discord. For a list of other relevant Discord servers, please see the Discords of Note (#discords-of-note) section.
+
+Background
+
+For Toyota openpilot enthusiasts, the community was very excited for the RAV4 Prime, a high performance Toyota that was going to have "Toyota Safety Sense 2" (TSS2), other awesome Toyota traits such as reliability, utility, and economy, and, new for a Toyota SUV, speed. It is the fastest accelerating real Toyota excluding Lexuses as the Supra, a BMW badged as a Toyota, does not count.
+
+Previously seen TSS2 vehicles have had an architecture where both latitude and longitudinal are both controlled by the front-facing camera. openpilot was able to intercept and control latitude and longitudinal all at the front-""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_21",
+    "title": "optskug SecOC Setup Guide (22/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+facing camera of TSS2 vehicles, promising full openpilot capabilities. No other taps in the CAN of the vehicle were needed to control or block messages for this capability.
+
+The typical process for adding a new TSS2 vehicle is simply creating a fingerprint with reference to the closest similar vehicle and trying it out.
+
+Timeline
+
+2013
+
+ IOActive experiments with injecting packets to steer a Prius in a widely disseminated and seminal security assessment. Their research around this time also led to them being able to remotely inject through the radio with a FCA vehicle and cause it to steer. In an unwise move, they demonstrated this in the middle of a busy highway. Anyways, not great. (https://www.youtube.com/watch?v=qX0rRRUdOKU)
+   This is way in the past, but it's important to note that even large slow dinosaurs or turtles move and it's been a few years.
+
+August 2020
+
+matty#8553 came on Discord as the first user with a RAV4 Prime and a new Comma 2. crazysim#7797 / @nelsonjchen offered to get the RAV4 Prime supported. Some worrying observations were immediately made in a GitHub issue after validating that the hardware was sound and working on another non-Prime TSS2 RAV4  (https://github.com/commaai/openpilot/issues/2103):
+
+ The STEERINGLKA CAN message is now 8 bytes in size. Existing TSS2 vehicles had a 5 byte STEERINGLKA CAN message.
+   There is a 4 byte authentication code on the CAN message instead of the simple 1 byte checksum of past Toyotas.
+ @nelsonjchen implemented and tried many checksum algorithms to try and create an identical STEERINGLKA message to what was seen in Cabana (https://github.com/nelsonjchen/toyotachecksum2020scratch/blob/8422bd3b4b7770391e940d31202b8129fdebcb02/src/lib.rs#L97-L108). None of them worked.
+ @nelsonjchen asked around on many Discords and other well-known users for help. No one was able to help.
+ @nelsonjchen notices that the "checksum" is the not the same for messages with the same data. It doesn't seem like a checksum. Maybe some other state is kept somewhere?
+ The authentication code messages change between ignitions.
+ The messages are different between vehicles.
+ The same inputs result in different "checksum"/authenticati""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_22",
+    "title": "optskug SecOC Setup Guide (23/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+on code outputs.
+ @nelsonjchen notices that Toyota filed a patent about message authentication on the CAN bus. (https://discord.com/channels/469524606043160576/524327905937850394/749576060110241824)
+ matty#8553 eventually returned the Comma 2 within the trial period. (https://discord.com/channels/469524606043160576/524327905937850394/793525907763363901)
+
+October 2020
+
+ geohot offers to take a look at a RAV4 Prime in-person if someone makes the drive to San Diego (https://www.youtube.com/watch?v=JQxAGhhflDc&t=37m23s)
+ aka#2674 starts trying to look at the issue on their own RAV4 Prime. aka#2674 is able to capture some traffic of some sort from Toyota's Techstream diagnostic tool of both the CAN bus kind and the server traffic. (https://discord.com/channels/469524606043160576/524327905937850394/763998197507948564)
+
+November 2020
+
+ aka#2674 bought another RAV4 Prime camera ($800!) to take a look at and to see how the reprogramming works. (https://discord.com/channels/469524606043160576/524327905937850394/772718083798335521)
+ aka#2674 moved to San Diego area
+
+December 2020
+
+ James-T1 takes a look at ECU Security in Toyota's TechInfo site. The Sienna and Venza are discovered to be additionally affected vehicles. (https://discord.com/channels/469524606043160576/524327905937850394/793229962869604382)
+ Support for the Camry with TSS 2.5 was added around this time. It did not have ECU Security Key. TSS versioning does not appear to be correlated with ECU Security Key presence.
+
+January 2021
+
+ @nelsonjchen makes the bounty spreadsheet in Discord inspired by the recent success of the Honda 10th Gen Accord Bounty. (https://discord.com/channels/469524606043160576/524327905937850394/803436044028215316)
+
+February 2021
+
+ Willem Melching of comma.ai took a deeper interest and posted on Discord (https://discord.com/channels/469524606043160576/524327905937850394/808639016266235975). He is waiting for parts from  affected vehicles to show up on part or junkyard sites for bench analysis.
+ The NHTSA had posted a PDF from Toyota about ECU Security Key and how to reconnect an ECU replacement such as a camera and so on using ECU Security Key to a vehicle. In summary, Techstream users mu""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_23",
+    "title": "optskug SecOC Setup Guide (24/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+st connect to the Techstream backend for keys. (https://static.nhtsa.gov/odi/tsbs/2020/MC-10184541-9999.pdf)
+
+March 2021
+
+ TheReaper#0283 posts about looking at the issue as part of his day job. TheReaper#0283's day job appears to be reverse engineering and creating an alternative Yaris GR ECU for racing purposes. A diagram and hint that the ECU Security Key implementation is likely an AUTOSAR implementation is provided along with some guidance as to the architecture of the implementation. (https://discord.com/channels/469524606043160576/524327905937850394/826016337142480906)
+   
+   The relevant AUTOSAR documentation the diagram was pulled from is here: https://www.autosar.org/fileadmin/userupload/standards/classic/4-3/AUTOSARSWSSecureOnboardCommunication.pdf
+ @nelsonjchen and many others in the #toyota-lexus community decide to create an additional Firmware Dump milestone bounty as it is generally something that appears to be required. We simply do not know the exact details of the authentication system such that even if we capture the key programming commands, we do not know how to use the values. (https://discord.com/channels/469524606043160576/524327905937850394/826013930493050891)
+   Also known as SecOC.
+
+April 2021
+
+ Mutley#1114 takes an interest in the issue. Mutley#1114 is able to record a CAN log and observe that Toyota Techstream writes a local XML file to the disk with part of the keys before contacting the backend. (https://discord.com/channels/469524606043160576/524327905937850394/834765270840770561)
+ Daniel Farley#9948 brings in a Yaris GR from New Zealand. It has ECU Security Key. Possible offer of some parts from another rally converted Yaris GR for reverse engineering. (https://discord.com/channels/469524606043160576/524327905937850394/834576493325713408)
+
+May 2021
+
+ ayau#2654 and MD1000#7505 work together to take a look at MD1000#7505's 2021 Sienna. It definitely has ECU Security Key. (https://discord.com/channels/469524606043160576/524327905937850394/842903140030611466)
+ geohot, CEO of comma.ai, adds $5000 to the ECU Security Key bounty with some important clean-room stipulations. (https://discord.com/channels/469524606043160576/52432842541524""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_24",
+    "title": "optskug SecOC Setup Guide (25/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+5827/847528122793590784) The bounty (https://docs.google.com/spreadsheets/d/1MKS78utvbAe74Xv7zszgEnn6JrtBgpgYlVOfoIvLEw/edit#gid=0) at this point is now about $8000 with $3000 from the non-comma.ai portion of the community.
+
+June 2021
+
+ ayau#2654 discovers a video about an alternative ECU for the Yaris GR. It discusses that the camera doesn't work in this setup. @nelsonjchen suspects it's TheReaper#0283 in the video. (https://discord.com/channels/469524606043160576/524327905937850394/850804871127891968)
+
+July 2021
+
+ wocsor#0313 takes an interest in the issue and @nelsonjchen briefs him on the situation and current public observations. wocsor#0313 puts out an open offer to affected owners in the ATL area to spend some time to make some observations with his hardware but unfortunately, no one on the spreadsheet is from around the ATL area. (https://discord.com/channels/469524606043160576/524327905937850394/870149096894255144)
+   We'll message him if and when someone in ATL does appear. Of course, if you have an affected vehicle and are in ATL, please get in contact with us!
+
+August 2021
+
+ Comma 3 is released at comma Con.
+   At the Comma Team Group Chat, Erich, a prominent Toyota community contributor and community Discord moderator, asked about ECU Security Key: (https://youtu.be/qTaPD0l8PM?t=23390)
+     Adeeb: I think we'll just look into it a bit and just kind of understand what the scope of the issue was and we just decided this isn't affecting too many cars yet that's not where we're choosing. We've aggressively chosen in the last year or so to not spend time on specific cars
+
+       We've spent almost all of our time doing things that improve everybody's experience with openpilot.
+       Now the comma three's out, maybe we can get back to doing stuff that helps some subset of the users but we've we've really been pushing on the experience that every user sees
+
+       Hotz: I'm counting on the community for that one of you out there we put five thousand dollars of commas hard-earned money up.
+
+ @nelsonjchen writes this timeline: https://github.com/commaai/openpilot/discussions/19932#discussioncomment-1123629
+
+ Tatsuya#9505 discovers an article from a reputabl""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_25",
+    "title": "optskug SecOC Setup Guide (26/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+e japanese technical publication discussing the use of AES and CMAC to secure ECUs by Toyota in response to attacks as seen on the Prius in 2013. (Archived Link) (https://web.archive.org/web/20210805040317/https://xtech.nikkei.com/atcl/nxt/column/18/00001/00161/)
+
+ Achilles308#2230 brings up PASTA, a security testbed that was produced by Toyota and a discussion happens over it. (https://discord.com/channels/469524606043160576/524327905937850394/872673279733800990)
+
+ cferra#1932 points out that the radar module is the same. Some discussion happens on if the radar communication may be authenticated and/or has modes to be in authentication mode.  (https://discord.com/channels/469524606043160576/524327905937850394/872750852358688778)
+
+ Mutley#1114, a leading hunter, elaborates on their attempts and believes that a firmware dump of an involved ECU such as the EPS is the only way to really determine what is going on. Mutley#1114 tried spoofing firmware versions. Unfortunately, Toyota only distributes firmware if there's another public firmware and no firmware is available to download from Toyota. This appeared to still be the case as of August 2021. (https://discord.com/channels/469524606043160576/524327905937850394/873993271574143056)
+
+ deagle50#5014 asks how a firmware dump might be done. crazysim#7797 gives the best answer he could but he isn't a hunter. (https://discord.com/channels/469524606043160576/524327905937850394/881940297108578344)
+
+September 2021
+
+ @nelsonjchen asks if aka#2674 may be willing to take pictures of the insides of their spare Rav4 Prime front camera for comparison to a non-ECU Security camera as the exteriors look the same. No immediate response so far. (https://discord.com/channels/469524606043160576/524327905937850394/883632739784478731)
+ EpiJunkie#1220 looked up TechInfo and confirms that the North American Corolla Cross has ECU Security Key (https://discord.com/channels/469524606043160576/524327905937850394/886733789353635871)
+   In contrast, the Thailand Corolla Cross posts from tape#7233 posted in January 2021 do not mention ECU Security Key and AFAIK, tape#7233's Thai Corolla Cross is working. (https://discord.com/channels/469524606043""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_26",
+    "title": "optskug SecOC Setup Guide (27/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+160576/524327905937850394/804016804175282267)
+ EpiJunkie#1220 lists parts in a Rav4 Prime that are covered underneath ECU Security Key. Theoretically, dumping the firmware for some of these parts would help shed light on how the system works. Bolded are parts involved with OP latitude. (https://discord.com/channels/469524606043160576/524327905937850394/887755778012880926)
+  - ECM
+  - Hybrid vehicle control ECU
+  - Forward recognition camera
+  - No. 2 skid control ECU (brake actuator assembly)
+  - Rack and pinion power steering gear assembly
+  - Clearance warning ECU assembly
+  - Steering sensor
+  - Central gateway ECU (network gateway ECU)
+  - Combination meter assembly
+  - Airbag sensor assembly
+ "toyota encryption is a small segment right now. when it comes to corolla or prius we will prioritize" - geohot (https://discord.com/channels/469524606043160576/524328425415245827/889659628655345684)
+ After a small bit of confusion with some jank in Cabana, belm0#9067 determines that the CH-R Hybrid doesn't have ECU Security Key. However, the 2021 Yaris Cross Hybrid does. (https://discord.com/channels/469524606043160576/524327905937850394/892723021066944512)
+ (OPC Discord) kumar#2021
+ mentions having dumped the Prius EPS firmware with the aid of a local friend in PHX. If the friend were to go for it, @nelsonjchen would have tried to arrange for a affected vehicle to travel to PHX. Unfortunately, the friend declined to help with dumping EPS Firmware from an ECU Security Key vehicle. (https://discord.com/channels/771493367246094347/771495215570747403/888052591504789584)
+
+October 2021
+
+ EpiJunkie#1220 lists the steps to get first-hand information on if a model has ECU Security Key on the forward recognition camera from TechInfo. (https://discord.com/channels/469524606043160576/524327905937850394/894262224552624228)
+ Regarding offers by comma to take a look at owners of ECU Security Key vehicles in the SoCal area:
+   ["it’s been a while, but I believe all the people interested in coming down [to San Diego] weren’t comfortable with something experimental" - adeeb](https://discord.com/channels/469524606043160576/524327905937850394/896842676278800434)
+   Rez (∩｀-´)⊃━☆ﾟ.･｡ﾟ#28""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_27",
+    "title": "optskug SecOC Setup Guide (28/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+96
+ replied interest with some times in SD but no replies were received from comma.  (https://discord.com/channels/469524606043160576/524327905937850394/900899681272496178)
+ eggs#7709 looks up the "yaris 2020 hybrid euro model" and it requires an ECU Security Key update when replacing the camera. It is believed that this also applies to the Australian model. (https://discord.com/channels/469524606043160576/524327905937850394/896984387344801843)
+ Ale Sato Brazil SP#5717 tries out OP on a Brazilian Corolla Cross and it works. That model from that region does not have ECU Security Key. (https://discord.com/channels/469524606043160576/524327905937850394/897182609371717652)
+ (OPC Discord) kumar#2021 sees a rather curious message on his head unit. There's an update to improve the Pre-Collision system on his TSS2 Prius?! In TSS2, the camera is very important to PCS. Up to this point, there has not been evidence of a camera update ever happening. If this does involve a camera update, maybe the firmware from the camera can be intercepted. Maybe this issue might affect firmware from an ECU Security Key vehicle as well. Very curious.  (https://discord.com/channels/771493367246094347/771495215570747403/900570141417426965)
+    
+    (Comma.ai Discord) X-Post to comma.ai Discord. Mutley#1114 acknowledges this curiosity.  (https://discord.com/channels/469524606043160576/524327905937850394/900834516166389813)
+ Added @nelsonjchen's firmware dump milestone criteria (https://github.com/commaai/openpilot/discussions/19932#discussioncomment-1554882)
+
+November 2021
+
+ geohot creates a #toyota-security channel on Discord and makes a rough plan sketch to try to help the community (this channel is under the Development section of Discord, checkout #join-development if you don't see it): (https://discord.com/channels/469524606043160576/905950538816978974/905950733558513674)
+  1. list all the ECUs that have the security
+  2. find out what chips are in those ECUs. ideally we find a dumpable one without any hw security features
+  3. dump the firmware!
+  4. understand the algorithm/keys doing the encryption. at this point, openpilot will work if it's rekeyed.
+  5. if possible, break the crypto""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_28",
+    "title": "optskug SecOC Setup Guide (29/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+. at this point, openpilot will just work
+ the comma team does have logs of the pairing process and is able to see some xml stuff with some unknown values labeled M1, M2, M3, and so on (https://canary.discord.com/channels/469524606043160576/905950538816978974/906082176305610812)
+ Somebody on RP Discord claims a friend of theirs has used their OP hardware to crack the system with OP working on their 2021 Venza. They wish to stay anonymous/low at this time. They are not interested in releasing their work but could be interested in releasing it for the bounty amounts to be paid to a charity.
+   "Alright, here is what I understood from our convo. He said the ecu key is really important at lest the way he is doing. Without that ecu cannot community at all so op has no chance of working obviously. So he overwrite the original key with the new key that he generated in online portal. While the key is being sent to the car he does mitm to grab the handshake and duplicate and use that every time he wants to use op(he said something about hash being encrypted not sure what that was all about) . He also said he using using two panda and arduino. Asked him if he is interested in handing over his progress to comma so they can improve and make it better but he said no for now."
+   Added as "Mysterious Stranger" in bounty/interested user spreadsheet.
+
+December 2021
+
+ Somebody cross posts from RP Discord to comma.ai Discord what the RP Discord user and his mysterious friend claims. Lots of doubt as to veracity as other than the small explanation above, previously known info and not much new info or proof of working was shared.  (https://discord.com/channels/469524606043160576/905950538816978974/915068210481618944)
+ The RP Discord user with the mysterious friend  leaves all OP communities due to harassment.
+ MBrownies#7412 orders a 2021 Sienna ECM ECU to try and dump. Seems to have some history in the past of some electronics repair knowledge (https://discord.com/channels/469524606043160576/905950538816978974/915643239141363732)
+   Pictures (https://discord.com/channels/469524606043160576/905950538816978974/920412000234917908)
+ @nelsonjchen borrowing jokes#4106's TechInfo account""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_29",
+    "title": "optskug SecOC Setup Guide (30/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+sees that the 2022 Toyota Tundra has ECU Security Key on the Forward Recognition Camera (https://discord.com/channels/469524606043160576/524327905937850394/916155760352837692)
+ @nelsonjchen had a talk with wocsor. wocsor has since moved to Colorado. wocsor is still open for taking a look at a ECU Security Key Toyota especially on a weekend. Please hit us up if you're in Colorado. (https://canary.discord.com/channels/469524606043160576/524327905937850394/916901731282079764)
+ MBrownies#7412 starts an attempt to dump the firmware from a 2021 Sienna ECM ECU in #toyota-security. (https://discord.com/channels/469524606043160576/905950538816978974/918688294081003520)
+ MBrownies#7412 says there may be a firmware update for the 2021 Sienna ECM that may be interceptable. IceyJ#0001, the son of a 2021 Sienna owner, appears to be interested in intercepting the firmware with MBrownies#7412's assistance. (https://discord.com/channels/469524606043160576/905950538816978974/918768906183798844)
+ (RP Discord) eRock970#1675 mentions they go through Colorado in their Rav4 Prime to wocsor. wocsor's MITM idea was debunked but he's still game to try something. (https://discord.com/channels/660951518014341124/801610171641364500/922592221067345921)
+
+January 2022
+
+ Willem Melching from comma.ai posts a 4 part blog post about his own adventures in hacking a VW golf ECU including dumping and reverse engineering it on his own time. (https://blog.willemmelching.nl/carhacking/2022/01/02/vw-part1/)
+ IceyJ#0001 is planning to work with MBrownies#7412 on dumping something next month. IceyJ#0001 was delayed a bit by sickness and other issues. (https://discord.com/channels/469524606043160576/905950538816978974/932763692762800218)
+ #toyota-security discusses dumping the flash as seen on the LKAS forward camera (https://discord.com/channels/469524606043160576/905950538816978974/932839231406088252)
+ The Rav4 Hybrid 2022 doesn't work out of the box with fingerprinting. At first glance it looks like the radar changed and security key wasn't added. (https://discord.com/channels/469524606043160576/934541955818467379/936126765137555527)
+ (MT Discord) ryleymcc#4808 creates a #toyota channel in MT Discord a""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_30",
+    "title": "optskug SecOC Setup Guide (31/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+nd posts a request with offer of help/partnership to skilled hardware developers to develop a Toyota Torque Interceptor. When asked if this was a possible alternative to CAN MITM on Security Key Toyotas and referencing this discussion, ryleymcc#4808 claims it would circumvent all the Security Key issues. (https://discord.com/channels/839295599928934430/936051750639665172/936099944518025217)
+   NOTE: comma.ai strongly disapproves of ryleymcc#4808's work and operations, citing serious safety concerns.
+   This approach would likely not fulfill much of the bounty as it is currently specified as it is unlikely to make it into a release branch.
+
+February 2022
+
+ The Continental Radar on the 2022 Rav4 may indicate a return to Continental for Radars and Cameras. It's possible that some of these ECU Security Key vehicles have Continental Setups and not Denso setups. Further research might need to be done.  (https://discord.com/channels/469524606043160576/934541955818467379/937772568822317076)
+ VagueAscent#4842 posts pictures of the internals of a Denso Toyota Security Key Camera. It looks the same as a non-Toyota Security Key camera. This may mean the learnings from practicing dumping of a much cheaper and plentiful non-Security Key Camera may be helpful.  (https://discord.com/channels/469524606043160576/905950538816978974/939203494152372274)
+ wocsor#0313 says he heard the Dragonpilot people have cracked ECU Security Key. However, it'll require more hardware and Dragonpilot will be keeping their implentations closed-source. (https://youtu.be/OXlEKoCRmwk?t=1360)
+   Discussion in #toyota-security. Rumor is two pandas and an arduino. (https://canary.discord.com/channels/469524606043160576/905950538816978974/939331758124593193)
+ zorrobyte#5330 discovers that the Rav4 Prime has the same steering rack as the Rav4 Hybrid. This may mean that the authentication is implemented at the gateway. zorrobyte#5330 suspects the rumored dragonpilot approach may be taking advantage of this and bypassing the gateway. (https://discord.com/channels/469524606043160576/905950538816978974/939392177144999967)
+ MBrownies#7412 says IceyJ#0001, who was going to help try to capture a relevant firmware""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_31",
+    "title": "optskug SecOC Setup Guide (32/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+dump together, has gone MIA. (https://discord.com/channels/469524606043160576/905950538816978974/942146323908550687)
+ wocsor#0313 says that a rack replacement on a Rav4 Prime requires re-keying anyway so maybe the communication here is authenticated anyway. Nevermind. (https://discord.com/channels/469524606043160576/905950538816978974/943268332436590602)
+ IceyJ#0001 returns. He's just been busy with life. Time may be found next weekend. (https://discord.com/channels/469524606043160576/905950538816978974/943733084552044625)
+ zorrobyte#5330 mentions that the key may be able to be force written. This probably means capture without having to swap cameras or something. (https://discord.com/channels/469524606043160576/905950538816978974/943519475129520128)
+ Mutley#1114 re-appears. Will post all info they gathered like key updating, xml, and so on. Asks IceyJ#0001
+ and MBrownies#7412 to do some logging. Asks if there are FW updates.  (https://discord.com/channels/469524606043160576/905950538816978974/944004532491395082)
+ An update is available for "back over protection" and it may be worth capturing. (https://discord.com/channels/469524606043160576/905950538816978974/944015246828371998)
+ Massive Updates on 2022-02-02. Lots of progress all on one day.
+ zorrobyte#5330 work on LTA for existing TSS2 vehicles merited a look again at LTA as used on the Rav4 Prime. It doesn't look like it's secured with ECU Security Key! There's no crazy high-entropy checksum. How interesting. This may be a pathway to getting working Latitude or Steering. No work was done for long though. (https://discord.com/channels/469524606043160576/905950538816978974/945800149819621416)
+ In parallel, Mutley#1114 discovered and was able to download the CUW file for a camera update of the 2022 Tundra as the Tundra currently has a recall for the camera due to some issue with the camera causing the parking brake to come on. Unfortunately, the CUW file appears to be obfuscated, at least the binary part. De-obfuscation may still be needed to discover how the signing is done though among other interesting reverse-engineered information. The CUW firmware update for the camera itself is about 34MB. (https://disco""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_32",
+    "title": "optskug SecOC Setup Guide (33/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+rd.com/channels/469524606043160576/905950538816978974/945892489074712596)
+ Unfortunately, it looks like the obfuscation also applies to the firmware when intercepted over the CAN as well. The camera firmware even though it may be downloaded, may be a dead end. (https://discord.com/channels/469524606043160576/905950538816978974/946165610226790441)
+ MBrownies#7412 doesn't think the LTA command that checks out is at 0x191 on the Prime though.  (https://discord.com/channels/469524606043160576/905950538816978974/947239543839539250)
+ @nelsonjchen meets up with matty#8553 to try some stuff. They were not able to disable enough checks in OP to the point that LTA steering mode was attempted. Maybe they'll meet up again. Stock long passthrough appears to work though if we wanted. That means we can probably just focus on lateral and not worry too much about long for now. (https://discord.com/channels/469524606043160576/905950538816978974/947324116275453983)
+
+March 2022
+
+ aka#2674 reappears again with an offer to Willem of Comma.ai if he visits San Diego sometime to look at his Rav4 Prime. (https://discord.com/channels/469524606043160576/905950538816978974/958039139884859432)
+ share-and-enjoy#7186 confirms that the 2022 Rav4 Prime still has a Denso camera. Note that is not to say a Continental Camera may not have Security Key but a security key version of a Continental Camera was seen on a New Zealand Yaris GR. (https://discord.com/channels/469524606043160576/905950538816978974/958121480401588284)
+ @nelsonjchen is too busy with work to try the LTA thing and doesn't believe Toyota would leave a gaping hole like that open. (https://discord.com/channels/469524606043160576/905950538816978974/958192169900978266)
+
+April 2022
+
+ "new project ... Rav4 prime EPS (https://twitter.com/gregjhogan/status/1511038040101195779/photo/1)" - Greg J Hogan of comma.ai who is experienced with firmware analysis
+ "Still alive after surgery :)" (https://twitter.com/gregjhogan/status/1512171907608576013) - Greg J Hogan of comma.ai takes apart an EPS.
+ ["[ryleymcc#4808] would ship a free TI to anyone who can use it to work around this ECU security [key] problem."](https://github.com/commaai/openpilot/""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_33",
+    "title": "optskug SecOC Setup Guide (34/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+discussions/19932#discussioncomment-2577462)
+   note: it looks like comma deleted this post, see above's "NOTE: comma.ai strongly disapproves of ryleymcc#4808's work and operations, citing serious safety concerns."
+ (RP Discord) wocsor#0313 notes that the MCU on the Rav4 Prime EPS Greg posted appears to be off the shelf and purchasable on DigiKey. However, there may be on-chip security that may need to be defeated and he was unable to locate a datasheet for it so far. (https://discord.com/channels/660951518014341124/744908622013661204/964894619831795805)
+ Huge news. TheReaper#0283 has dumped a Yaris Engine ECU as part of their tuning effort. (https://discord.com/channels/469524606043160576/905950538816978974/966235887417573447). @nelsonjchen reached out to a few technical fellows on the spreadsheet. If you're a technical fellow, and are interested, please reach out.
+
+May 2022
+
+ No progress on looking at the Yaris Engine ECU.
+ geohot has mentioned that if a Lexus with the system were bought for comma.ai, it would be cracked or given back to the community if it isn't cracked in 12 weeks. (https://discord.com/channels/469524606043160576/954493346250887168/973743822787993640)
+
+June 2022
+
+ The 2023 Corolla has been announced with TSS 3.0 support which may also include adding security key. This may or may not add security key to the Corolla. This might be visible in TechInfo later this summer as 2023 Corollas arrive. (https://pressroom.toyota.com/toyota-boosts-2023-corolla-with-four-new-hybrid-models-awd-new-multimedia-and-safety-tech-and-freshened-styling/)
+ (RP Discord) The Toyota Sienna Auto-MAAS self driving platform has ECU Security Key on the front camera as well. Of course, no one is going to run OP on that but it's funny to know. It also appears to have a Continental Camera and Radar for PCS. (https://discord.com/channels/660951518014341124/744908622013661204/982781901276340314)
+ The bz4x (and likely its sister the Subaru Solterra) are looked up to have ECU Security Key as well (https://discord.com/channels/469524606043160576/524327905937850394/982801080893198387)
+ geohot produces/announces "Vote for Toyota Security", a more direct way to vote for comma to do""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_34",
+    "title": "optskug SecOC Setup Guide (35/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+Toyota Security. 500 votes of $100 each. Once it reaches the goal and if comma can't accomplish the crack, the money will be refunded. (https://discord.com/channels/469524606043160576/524572601826410498/984592766757658635)
+   https://www.reddit.com/r/Commaai/comments/v8v4jf/votefortoyotasecuritycommashop/
+   https://comma.ai/shop/products/vote
+   
+ Lepotato#1107 tries their hand at looking at the key stuff after some success cracking VW checksums. Seems to be somewhat in tune with car hacking and some of the firmware dumps out there. Lepotato#1107 Looking for a firmware dump file. (https://discord.com/channels/469524606043160576/905950538816978974/989654788230742016)
+ Lepotato#1107 has shared the other half of the Yaris GR ECU out there. If you're a technical fellow, and are interested, please reach out.
+
+July 2022
+
+ Comma Vote reaches 42 votes, also known as the answer to life, the universe, and everything. (https://docs.google.com/spreadsheets/d/1GOeN2ph9JLvOlwStZso988YPT-lILl7yZqFW8UPCFZM/edit#gid=0)
+ Erich#4634 discovers that bulk votes are discounted. Comma/Geohot are amused and replies they will honor the unintentional bulk vote discount.  (https://discord.com/channels/469524606043160576/905950538816978974/997269767742308432)
+   
+ The bulk vote party spreadsheet is launched for bulk votes contingent on some criteria: https://docs.google.com/spreadsheets/d/1GOeN2ph9JLvOlwStZso988YPT-lILl7yZqFW8UPCFZM/edit#gid=1958149470
+   A new counter/badge is produced along-side as well
+   [](https://docs.google.com/spreadsheets/d/1GOeN2ph9JLvOlwStZso988YPT-lILl7yZqFW8UPCFZM/edit#gid=0&range=BulkVoteCount)[^2]
+ geohot: Bulk votes can be bought in blocks of 10. (https://discord.com/channels/469524606043160576/905950538816978974/998719121644601394)
+ CARS.md (https://github.com/commaai/openpilot/blob/a009723513329921aafa6902ce320c3cc537729b/docs/CARS.md#toyota-security), an intermediate source file behind https://comma.ai/vehicles or the vehicle compatibility list on comma's site, is updated with a list of Toyota Security Key vehicles. It has not been pushed to comma's site yet as of July 27, but eventually will.
+ Toyota posts a video (https://www.youtube.com/watch?v=8pNwnX""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_35",
+    "title": "optskug SecOC Setup Guide (36/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+6hpE8) about TSS 3.0. The video description mentions "23 Corolla, 23 Corolla Hatch, 23 Corolla Cross, 23 GR Corolla, 23 Crown, 23 bZ4X". The bZ4X and the Corolla Cross are known released vehicles with Security Key. The others are unknown and as of July 27, 2022, not on TechInfo yet for confirmation.
+ Some discussion about how the system works along with a description from AUTOSAR about how a system would work (https://discord.com/channels/469524606043160576/905950538816978974/1002125130035642418)
+
+August 2022
+
+ Thinkpad4by3#7568 has a great explanation of why TSK is not encryption. (https://discord.com/channels/469524606043160576/905950538816978974/1012390757832855553)
+ stevenkoh08#8535 in Singapore asks about the 2022 Toyota Noah. It is likely TSS3 and wonders how to check. stevenkoh08#8535 was a Toyota tech in the past. Looking up repair manuals in a non-NA, non-EU vehicle seems to be a bit of a pain and info might be JP only. (https://discord.com/channels/469524606043160576/524327905937850394/1012963545564069888)
+ "no one knows! 😦. without any real teardown of the architecture or setup, there's no telling what a TSK OP setup would need to look like." (https://discord.com/channels/469524606043160576/524327905937850394/1013241055434518619)
+ The 2023 Camry Hybrid with TSS2.5 does not appear to have Toyota Security Key. Still unknown for 2023 Corolla with TSS3 though. (https://discord.com/channels/469524606043160576/905950538816978974/1013928544319066173)
+ "as soon as we hit 500, we'll buy a rav4 prime
+thinking it'll actually be pretty easy to crack, apparently some of the ECU tuning people already have" "if the base model corolla has toyota security, we'll buy one"
+" - geohot . a note is also dropped by adeeb about the popularity of the Corolla Cross (https://discord.com/channels/469524606043160576/905950538816978974/1014944026484547706)
+ "oh fine. if we get 300 votes by the end of next week, we'll buy a corolla cross." - geohot (https://discord.com/channels/469524606043160576/905950538816978974/1014962017645371542)
+   Probably unrealistic by next week, but just noting this here.
+
+September 2022
+
+ u/Raskinulas posts on the /r/commaai subreddit about wanting to""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_36",
+    "title": "optskug SecOC Setup Guide (37/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+support a T/LSS3 vehicle with a Torque Interceptor. Replies are doubts about u/Raskinulas's capabilities but u/Raskinulas claims to have resources and is referred to the torque-interceptor channel in Discord. (https://www.reddit.com/r/Commaai/comments/x3926l/doesstockemergencyevasivesteeringassistwork/)
+ "we will buy a toyota security car when either: a) we get the 500 votes b) security comes to the corolla, prius, or RAV4 " -geohot (https://discord.com/channels/469524606043160576/954493346250887168/1017201649284022334)
+ "there's only one way they are refunded: if we hit vote target and can't crack it.
+btw i'd bet against toyota security coming to the 3 cheap cars, the chips to do it are expensive and rare" -geohot (https://discord.com/channels/469524606043160576/954493346250887168/1017207178081337414)
+ The 2023 Corolla is now on Techinfo. No one has seen behind the paywall yet. 🔒 or 🔓 ? 😓  (https://discord.com/channels/469524606043160576/905950538816978974/1020428115194941470)
+ The 2023 TMC-made/Japan-made Corollas appears to have Security Key. However the TMMMS/US-made ones do not. (https://discord.com/channels/469524606043160576/905950538816978974/1020529259191738479)
+ Examples of pre refresh Corollas show Corolla ICE/gas-only sedans of any trim may be made in the US. Some gas-only sedans, hatchback, and hybrids are made in JP. (https://discord.com/channels/469524606043160576/905950538816978974/1020874972803125268)
+ gregjhogan praises Ghidra for something related to "security access seed/key functions!" Unknown if this is specifically related to Toyota or another manufacturer. What is known though? Comma is tackling "security access seed/key functions!". (https://twitter.com/gregjhogan/status/1571628060310646784?s=20&t=wFK5M5B4RMpEO2hqEJLKw)
+
+October 2022
+
+ gsmdev posts about their experience with RE'ing Toyota ECUs (https://discord.com/channels/469524606043160576/905950538816978974/1025836706194268210)
+   Me have experience with Toyota reverse engineering and CUW files.
+   On fresh firmwares Toyota have fully change algorithm. On firmwares with SeedKey ; Nonce. They use AES CBC for encryption. And AES CMAC for final check. Inside PC software they convert""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_37",
+    "title": "optskug SecOC Setup Guide (38/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+SeedKey to 128 bit Array. This seed used for encrypt firmware. AESECB(BLKEY, SeedKey, SessionKey)  - Take from bootloader BLKEY 0x10 bytes inside firmware bootloader region and encrypt via AESECB with this key and input data SeedKey. Out from AES will be SessionKey. And this SessionKey used to encryption data with AESCBC.
+   About NONCE - it used On final stady after writing firmware. Is AES-CMAC of whole firmware update. After checking AES-CMAC bootloader write signature inside firmware region like it correct. If this will be not maked. Firmware will never run after reboot. Module will be allways in bootloader mode.
+   About Compression i have never seen before CUW with compression. If some one have readed fullflash from module with support compressed update. I can help with reversing.
+  Also can help with reversing other parts.
+ Remote starters with no key do exist on Toyota Security vehicles. (https://discord.com/channels/469524606043160576/905950538816978974/1029816408491692112)
+ (RP Discord) In which a crew of people work through RE'ing some firmware on an EPS for their VWs. (https://discord.com/channels/660951518014341124/1026931406590447617/1034646246125735987)
+
+November 2022
+
+ Willem Melching formerly of comma posts a picture with "Will it Glitch?" with what appears to be a RAV4 Prime EPS board with many probes on Twitter. (https://twitter.com/PD0WM/status/1588553011638374401)
+   Rav4 Prime EPS board previously seen on Greg Hogan's Twitter (https://twitter.com/gregjhogan/status/1512171907608576013?s=20&t=4UVupAgsyNq2wRkg-gh0Q)
+ "Yes! Turns out the Renesas RH850/P1M-E is vulnerable to a similar attack as the RX65... ", cont. (https://twitter.com/PD0WM/status/1588981771974373376)
+   Cite: https://www.collshade.fr/articles/reneshack/rxglitcharticle.html
+   It appears a firmware dump of a relevant Toyota Security Key ECU has been accomplished. It does not meet my criteria for a firmware dump milestone yet as instructions for reproduction are not all present, but the dump does seem to have been accomplished.
+ Willem Melching posts a writeup of how to and what to do to get the firmware dumped. (https://blog.willemmelching.nl/carhacking/2022/11/08/rh850-glitch/""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_38",
+    "title": "optskug SecOC Setup Guide (39/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+)
+   This meets all my criteria for the firmware dump milestone and I am working on collecting and closing the bounty.
+ Greg Hogan posts a screenshot of Ghidra presumably looking at the Rav4 Prime EPS Firmware with some already work done and named functions/fields. (https://twitter.com/gregjhogan/status/1590423198705016832)
+ Sent out "Toyota Security Key Firmware Dump Bounty Gathering Letter" (https://docs.google.com/document/d/15n3A66MxJENAEJtEfhZT34KHWkgmA8-fM9-FI5jjB8/edit)
+ The new SecOC/Security Key LTA message is discovered to be at 0x131. (https://discord.com/channels/469524606043160576/905950538816978974/1043144835147767818)
+ "SecOC message parsing, MAC truncated to 28 bits looks like AUTOSAR SecOC profile 3 (JASPAR)" (https://twitter.com/gregjhogan/status/1594607138004815872)
+ /u/imgeohot (geohot, presumably?) "Literally the only "locked out" car is a small minority of Toyota's. We offered votes for sale, but we didn't sell many. It's not a OMG they are locked out, it's why would we care it's like 5 obscure cars. Will solve when it comes to Corolla or Prius.". (not sure if geohot knows or acknowledges TSK has arrived to Japanese-made Corollas yet.)  (https://www.reddit.com/r/Commaai/comments/z262yk/comment/ixfb4t3/?utmsource=share&utmmedium=web2x&context=3)
+ vybhavab#6727 puts down the $20 to look up a batch of cars for 2023. The "Toyota Sequoia" is only offered in Hybrid and it has TSK.  (https://discord.com/channels/469524606043160576/1041146821705207818/1046649221467611186)
+
+December 2022
+ "The SecOC implementation is purely software based and the keys are sitting in RAM. Just need to find a convenient way to get them out." - Melching (https://twitter.com/PD0WM/status/1599776675423666176)
+   This is in contrast to geohot claiming that the implementation requires rare chips. All to say, to quote geohot too, if you want to know the truth, you have to hack on it. (https://discord.com/channels/469524606043160576/954493346250887168/1017207178081337414)
+ Geohot asked about producing a Flexray Harness: Yea, same as Toyota Security, but harder. If a major car platform switches to flexray that’s probably the only way we’ll do it, but afaik flexray is dying. w""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_39",
+    "title": "optskug SecOC Setup Guide (40/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+e support CAN-FD (https://twitter.com/realGeorgeHotz/status/1608638713067892736)
+ adeeb: "23 corolla has secoc?" (https://discord.com/channels/469524606043160576/954493346250887168/1060285053273391164)
+
+January 2023
+
+ ["So is looking in there now and unfortunately the procedure for mounting the front camera includes a step 5 that instructs you to update the ecu security key 😒 [for Toyota Aygo X]"](https://discord.com/channels/469524606043160576/524327905937850394/1060727691344629790)
+ A commaai Twitter Space occured (https://tweetdeck.twitter.com/i/spaces/1gqGvyBPQkaKB/peek) where Comma's Greg talked about TSK for ~10 minutes. Unfortunately, there are no recordings but some recollections (https://discord.com/channels/469524606043160576/905950538816978974/1060769430864400415).
+   "i think greg said reflashing the ecu to disable security might happen first less desirable and clean"
+   "i asked if secured corolla/prius would mean comma would take action before the vote quota was met. george didn't seem to care too much and that the votes mattered more."
+   "oh, greg mentioned the eps they bought didnt look like it was ever installed in a car lol"
+ $480 of the FW Dumping Bounty sent to Willem Melching. Unfortunately, this was less than half of the promised bounty for a firmware dump. (https://discord.com/channels/469524606043160576/905950538816978974/1061400929531863110). Ko-Fi Link (https://ko-fi.com/home/coffeeshop?txid=e84e7aa3-f643-4f75-a83e-81331aeba142&mode=public&img=ogiboughtsomeone)
+ "Replace your EPS with one that has never been in a car and the key used for SecOC MAC generation will be 0x11111111111111111111111111111111 openpilot could work as long as you don't re-key, but stock system will not 🤣" -gregjhogan (https://twitter.com/gregjhogan/status/1613011165189410816)
+ 2023 Prius (Standard) has Security Key (https://discord.com/channels/469524606043160576/905950538816978974/1062756940524040202)
+ Someone(s) volunteers to try to replace their EPS with a out of the box un-unkey'd EPS to get OP going. Of course, talk is cheap on Twitter and no one can blame that someone if they backout due to cold feet but if it's serious..... (https://twitter.com/sheldonro""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_40",
+    "title": "optskug SecOC Setup Guide (41/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+th22/status/1613032236386848769?s=20&t=rKv-kcRtb5Vod5X7pR4w)
+   The message counterpart for that offer on Discord seems to not be there now.
+ The 2023 Corolla Hybrid sold in Brazil still seems to be using Denso and does not have Security Key (https://github.com/commaai/openpilot/pull/26943)
+
+February 2023
+
+  salem#4009: Sienna 2021, geohot: "i hear this"  (https://discord.com/channels/469524606043160576/954493346250887168/1079946460466008095)
+ 2023 Lexus RX Has Security Key (https://discord.com/channels/469524606043160576/524327905937850394/1080298999954800682)
+ 2022+ Lexus LX Has Security Key (https://discord.com/channels/469524606043160576/524327905937850394/1080929136429781032)
+
+March 2023
+
+ Shane from comma announces a $500 bounty for the 2023 Corolla, 2023 Corolla Hybrid, and 2023 Prius. $500 for a working port merged. (https://discord.com/channels/469524606043160576/954493346250887168/1082390596544639086)
+ A discussion about security key with comma comes up (https://discord.com/channels/469524606043160576/954493346250887168/1085045409396826112)
+   comma believes there are many supportable cars still (https://discord.com/channels/469524606043160576/954493346250887168/1084934027326275694)
+   comma understanding, Rav4 ICE/Hybrid LTA but no TSK, Corolla may be like Rav4 (no ack of JP-made corollas having TSK), Prius: secOC (https://discord.com/channels/469524606043160576/954493346250887168/1084949761683095713)
+ The 2023 Lexus ES has security key from looking at the CAN traffic (Retropilot Discord) (https://discord.com/channels/660951518014341124/744908622013661204/1090685795230290013)
+ zorrobyte thinks that it's possible to intercept the camera and control things like Ford. It's very late, I doubt he remembers the Toyota architecture and may be projecting. (OP Community Discord) (https://discord.com/channels/771493367246094347/771493367779295304/1092702824313409536)
+ An "emergency start" tool is being sold that organized theft rings can use to hijack and steal Toyota Smart Key system cars such as a Rav4 with just prying access to the headlights. ECU Security Key is described as a recommended response to this. (https://kentindell.github.io/2023/04/03/can-inject""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_41",
+    "title": "optskug SecOC Setup Guide (42/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+ion/ )
+   Posted in #toyota-security here https://discord.com/channels/469524606043160576/905950538816978974/1092978466720325672
+   Posted in #toyota on RP Discord: https://discord.com/channels/660951518014341124/744908622013661204/1092883580365062297
+   A discussion on Hacker news (some curmudgeon, but interesting nevertheless): https://news.ycombinator.com/item?id=35452963#35458481
+ kylekulhanek#2725 offers up their new 2023 JP-built Corolla Hybrid for testing if it has ECU Security Key or not. However, it seems Toyota has changed the connectors. This one has 16 "pins" (not all populated), compared to the older 12 "pin" connector. (https://discord.com/channels/469524606043160576/524327905937850394/1093327458050244676)
+   
+ Hamoud#4585 range-tested the shop and discovered comma actually set a quantity of 500 .
+trick is, do 1000 quantity for vote, and just subtract the max quantity from 500. (https://discord.com/channels/469524606043160576/905950538816978974/1094047733951770674)
+ oremaxis#0107 notes the connector is noted to be physically identical to the harness plug used for Subaru vehicles. oremaxis#0107 physically tests it, but does not start up the (JP?) "Prius MXWH65-AHXHB" (roughly equivalent to a non-PHEV Prius w/e AWD in USDM)  since the pinout is different with a Mr. One Subaru harness.  (https://discord.com/channels/469524606043160576/905950538816978974/1094577635784413286)
+   
+ A 2023 Tundra was hooked up to a C2 and confirmed to have TSK/SecOC. (https://github.com/commaai/openpilot/issues/27869#issuecomment-1504046497)
+
+April 2023
+
+ @nelsonjchen asks u/LordKing64, a reddit user who produces spreadsheets for those looking to hunt down extremely desirable Toyotas to run a scrape against the ICE 2023 Toyota Corolla to see what percentage of ICE corollas are Japanese-made, which get locked up with TSK. (https://discord.com/channels/469524606043160576/905950538816978974/1097790378528215101)
+   It's a snapshot, assuming that it is generalizable for the ICE Corolla through the rest of the model year.
+   https://docs.google.com/spreadsheets/d/15FaeZggrsoSizcqARb-eJXpbLFqoYUVtk6sqFFwSXk/edit#gid=0
+   About 1% of ICE Toyotas in the US are produced in Japan ac""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_42",
+    "title": "optskug SecOC Setup Guide (43/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+ross all trims.
+   Note: To date, no one has attempted to port OP to the 2023 ICE US-made Corolla.
+ More scrapes from /u/LordKing64 produces this spreadsheet of 2023 Corolla origins.  (https://docs.google.com/spreadsheets/d/10cUUi29vIGUmBLC3ZhPRP8AfEHiaxwB9hinsNmb36CE/edit#gid=0). About a quarter of Corollas (not including GR, have TSK on them).
+   
+ Oof, even more 2023 ICE JP Corollas
+   
+
+May 2023
+
+ The 2023 US Corolla does have a different connector. (https://discord.com/channels/469524606043160576/524327905937850394/1103425854727524362)
+ Saeed Almansoori#9530 says "Congratulations comma.ai, 4 new cars will be included in OpenPilot toyota LC300 2023 toyota sequoia 2023 toyota tundra 2023 Lexus LX600 2023". A baffling comment is made in #toyota-lexus channel. Three of these vehicles are known to have TSK in the US market. (https://discord.com/channels/469524606043160576/524327905937850394/1107239972261601332)
+
+June 2023
+
+ Comma staffer vanillagorilla is looking to build a B harness for Toyota that some newer Toyotas such as the Prius or Corolla may have. Looking for a tester. (https://discord.com/channels/469524606043160576/524327905937850394/1115093142962704424)
+   GH Issue: https://github.com/commaai/openpilot/issues/28402
+ circulartofu bought a EPS ECU for an RX to try and dump it for more torque. While this isn't for TSK, this is someone else trying to dump an EPS. (https://discord.com/channels/469524606043160576/664566220086837273/1119155823055220777)
+
+July 2023
+
+ ["When Geo was hosting the VC last week I brought up the fact that the new Prius has TSK and he wasn't aware of that, so maybe they'll look into getting a 2023/2024 Prius and start taking a crack at it. Cause Alex \\[alexm (on Discord)\\] even said they need a new Prius anyways since their old one is worn out." (SP) ](https://discord.com/channels/880416502577266699/881763752943435807/1133560878722191421)
+ The Grand Highlander and Grand Highlander Hybrid appear to have Toyota Security Key. Thanks to raprep291 on Discord. (
+https://discord.com/channels/469524606043160576/905950538816978974/1134950311719600279)
+ Users in #toyota-security discuss getting keys from dealerships. The aura is that dealers""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_43",
+    "title": "optskug SecOC Setup Guide (44/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+hip techs know less than us and it's just an annoying thing to do afterwards. (https://discord.com/channels/469524606043160576/905950538816978974/1135581504316129290)
+
+August 2023
+
+ comma.ai has its periodic social and product convention "commacon (https://web.archive.org/web/20230807020817/https://commacon.splashthat.com/)" to announce new products, meet and greet contributors and users, and talk about the future.
+   comma ai | Shipping github.com/commaai/openpilot | Adeeb Shihadeh | COMMACON talks | CPO (https://youtu.be/18CjH41VXn4?t=1444)
+
+        [23:49.760 --> 23:52.360]  \\[Audience Question\\] Which car brands are the easiest to support
+    [23:52.360 --> 23:53.360]  and the hardest to support?
+    [23:53.360 --> 23:55.600]  \\<cut\\>
+    [23:55.600 --> 23:56.760]  \\<cut\\>
+    [23:59.760 --> 24:03.360]  Adeeb: So easiest to support, this is really changing now, actually.
+    [24:03.360 --> 24:06.360]  The software platforms and the cars, at least for the ADAS,
+    [24:06.360 --> 24:09.360]  were pretty stable for about like three, four years.
+    [24:09.360 --> 24:10.760]  And we did a lot of this initial work
+    [24:10.760 --> 24:12.360]  maybe three, four years ago.
+    [24:12.360 --> 24:13.760]  And now we're in this cycle where
+    [24:13.760 --> 24:15.360]  Honda, Toyota, Honda, Toyota, Honda,
+    [24:15.360 --> 24:18.160]  we're in this cycle where Honda, Toyota, Honda, a lot of them
+    [24:18.160 --> 24:21.080]  are changing their platforms right at the same time.
+    [24:21.080 --> 24:23.720]  So that's the hard part right now,
+    [24:23.720 --> 24:25.600]  is we're getting this influx that
+    [24:25.600 --> 24:27.960]  are all different right now.
+    [24:27.960 --> 24:31.400]  The hardest ones now are the ones that implement the Autosar
+    [24:31.400 --> 24:33.160]  secure onboard communication.
+    [24:33.160 --> 24:34.560]  We haven't spent much time on it,
+    [24:34.560 --> 24:36.320]  but that'll be a little bit of a project.
+    [24:36.320 --> 24:39.600]  It just adds more overhead to porting a car.
+    
+   Jason Young, a prominent not-comma.ai openpilot community contributor, discusses SecOC as a bad thing to see when attempting to port""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_44",
+    "title": "optskug SecOC Setup Guide (45/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+OP to a new vehicle. (https://youtu.be/KcfzEHB6ms4?t=221)
+ The Toyota B Harness seen in the 2023 Corolla and the 2023 Prius go on sale in comma's shop after a tester was located. (https://github.com/commaai/openpilot/issues/28402)
+ raprep291 on Discord discovers that Vector's (A popular CAN Bus Analyzer and debugging tool) tooling may have SecOC "OEM Security Addons" "free of charge" for some OEMs. Toyota is not mentioned specifically though. Vector stuff is $20k though. (https://discord.com/channels/469524606043160576/905950538816978974/1137507914525970615)
+ The Lexus UX 2023 2023 are looked up to not have Security Key. (https://discord.com/channels/469524606043160576/524327905937850394/1141095773346472019)
+ oremaxis is trying to hook up the Japanese 2023 Prius with the current comma B Harness. There are missing connections and some issues with the harness relays. (https://discord.com/channels/469524606043160576/905950538816978974/1144175305787981834)
+ .malachor reports that Toyota is moving to GTS+ away from TechInfo and that there's some sort of capture or key stuff possibly going on with the newer platform as well. (https://discord.com/channels/469524606043160576/905950538816978974/1145575288076521543)
+ Toyota B Harness updated with more wires needed/as seen on Prius 2023 (https://discord.com/channels/469524606043160576/905950538816978974/1145880152560115782)
+
+September 2023
+
+  celeryferrari on discord dumps a bunch of PDFs of the ECU replacement for the forward camera for Lexuses. Notably, the 2024 Lexus ES doesn't have replace ECU Security Key as a procedure (https://discord.com/channels/469524606043160576/1155185322473300010)
+   Question follow up to original ES reporter stupefacient on Retropilot (https://discord.com/channels/660951518014341124/744908622013661204/1155212167927320616)
+
+October 2023
+
+ geohot
+   ["until the votes are bought [for tsk], i don't care about it"](https://discord.com/channels/469524606043160576/819046761287909446/1161370683553624157)
+   "i care so little about tsk until the votes are sold (https://discord.com/channels/469524606043160576/905950538816978974/1161375506579595284)
+ A lexus tuning scene user comes on and asks about th""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_45",
+    "title": "optskug SecOC Setup Guide (46/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+e status. No news, but some interest from adjacent fields. (https://discord.com/channels/469524606043160576/524327905937850394/1165408803987132436)
+ Apparently there was a firmware update / recall for cameras Corolla and Corolla HV, Corolla Hatchback, Corolla Cross, BZ4X (https://discord.com/channels/469524606043160576/905950538816978974/1170097413172756544)
+   https://static.nhtsa.gov/odi/tsbs/2023/MC-10242520-9999.pdf
+
+November 2023
+
+ Range Check Trick to check vote count no longer works (https://discord.com/channels/469524606043160576/905950538816978974/1172535775330578523)
+ A small discussion on that mentions 2023 Toyotas such as a bz4x and 2023 Sienna known to have TSK can have their immobilizers changed by a non-Toyota tool. (OPC Discord) (https://discord.com/channels/771493367246094347/771493367779295304/1173483333934645339)
+   A later discussion comma Discord establishes this as not as big a deal. Adding a key with a key already present is easy. (https://discord.com/channels/469524606043160576/905950538816978974/1178817755760304230)
+ Range trick to check votes works again.
+ VineTimeLive#2651 paid $25 and looked up a bunch of models after Toyota's paywall. Summary below. (https://discord.com/channels/469524606043160576/524327905937850394/1176372862840479825)
+   Highlander 2024, even though it still has TSS 2.5, got TSK . Not unexpected for it being rather oddly the most change prone.
+   The 2024 Rav4 still does not have TSK.
+   2024 Lexus TX, has TSK, not big surprise
+   There is no longer a differentiation between JP and US 2024 Corollas for TSK.  All 2024 Corollas have TSK.
+   The 2023 ES and 2024 ES does not have TSK, contrary to what others may have reported.
+ A small discussion on differences between Toyota Dealership and independent shop access re: TSK and Techstream (https://discord.com/channels/469524606043160576/905950538816978974/1177567834688196638)
+   "The local branches don't have the data. Any dealer that wants to swap  a secured ECU for repairs has to login through Techstream to get the one specific key for the ECU he is installing at that time. Third party shops have to do the same but they don't even get Techstream Global access. They get""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_46",
+    "title": "optskug SecOC Setup Guide (47/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+case-by-case access if Toyota approves it. (E.g. parts number matching and so forth)"
+ A post with a sample of an exchange between Techstream and Toyota servers. (https://discord.com/channels/469524606043160576/905950538816978974/1178220020086616156)
+ "interesting how european ecu security key can do offline key writing" (https://discord.com/channels/469524606043160576/905950538816978974/1178723776146448444)
+
+December 2023
+
+ jakethesnake420420 on Discord believes they see a pattern in the checksum? (https://discord.com/channels/469524606043160576/905950538816978974/1180247525156987000)
+ this guy's adventure is interesting abeit unfulfilled, to try to RE and hack their tundra instrument cluster (https://discord.com/channels/469524606043160576/905950538816978974/1184889844149780591)
+   https://www.reddit.com/r/embedded/comments/ystc0l/automotivemcuinstrumentclusterfirmware/ and check user's posts.
+
+January 2024
+
+ Added more vehicles:
+   2024+ Lexus TX (Speculated from TechInfo lookup)
+   2024+ Lexus GX (Speculated from TechInfo lookup)
+   2024+ Tacoma (Speculated from TechInfo lookup)
+   2024+ Mirai (Speculated from TechInfo lookup)
+ Q: I’ll tell my friends, can we spend marketing budget on new Toyota/lexus ecu cracking? :kekw: geohot: no, buy votes
+    https://discord.com/channels/469524606043160576/954493346250887168/1197701819686715462
+ Willem: "We got code execution in the bootloader over CAN! Still a few issues to work out though, the main application stops working after a few seconds now. EPS part # is 89650-42370, whole steering rack is 44250-42310. 2021+ Rav4 Prime."  (https://twitter.com/PD0WM/status/1750253508530483699)
+   Greg: Can anyone help find a Rav4 prime power steering motor from a wrecked vehicle? Some promising things have been found!  I want one that was in a car so it has real keys, and something that we have no fear of bricking or physically destroying. (https://twitter.com/gregjhogan/status/1750214610328969552)
+   Greg: FYI, this means a way to dump the keys over CAN has been found (https://discord.com/channels/469524606043160576/905950538816978974/1200071382210465872)
+ geohot asks: What's the most popular car with Toyota security? (https:""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_47",
+    "title": "optskug SecOC Setup Guide (48/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+//discord.com/channels/469524606043160576/954493346250887168/1200226940276195338)
+   After looking at Toyota's year end sales reports, @nelsonjchen replies with "the Tundra/Sequoia" (https://discord.com/channels/469524606043160576/954493346250887168/1200296188092616714)
+   Source Spreadsheet: https://docs.google.com/spreadsheets/d/1CWUmOk4rFPWVNqDoz02tPQxp6SLbJsedYQ1fjv6oXAI/edit#gid=0
+ A draft pull request to support the 2021 RAV4 Prime is made. It is very early and has shortcomings. (https://github.com/commaai/openpilot/pull/31179)
+   It does not have code to dump the keys. Willem is worried it could brick the EPS and it is undertested (https://discord.com/channels/469524606043160576/905950538816978974/1200180041028489306)
+   It does have the the code to calculate new Message Authentication Codes (MACs) for the SecOC messages. (https://github.com/commaai/openpilot/pull/31179/files#diff-8d263c776436c5ff7ccd6f4f3a0918a5d7fb4167c1c6054013883c5723ee295dR9-R36)
+   Notably, if merged, comma is currently not yet comfortable adding it to the supported cars list. (https://github.com/commaai/openpilot/pull/31179#issuecomment-1912575990)
+
+February 2024
+
+ "I’m working on blog post. Will post that together with the script.   (UPDATE: Blog post in March 1)
+
+   The risk is not super high, but it’s very inconvenient if the rack needs to be replaced. In the meantime I’ve tested it on a second rack pulled from a crashed vehicle, and it worked fine." - Willem
+    https://discord.com/channels/469524606043160576/905950538816978974/1205056507973214208
+ Comma staffer Shane mentions that comma has determined the Corolla radar to be CAN-FD. While not TSK related, there is info that comma has discovered and not released yet.
+   https://discord.com/channels/469524606043160576/1194100053879558225/1205747241718124544
+
+March 2024
+
+ [Major Update from former comma staffer Willem Melching]():
+   > New blog post is out! Extracting the SecOC keys used for securing the CAN Bus on the 2021+ RAV4 Prime. https://icanhack.nl/blog/secoc-key-extraction/
+    >
+    > Research started all the way in 2022, but took many evenings of reverse engineering to get code execution.
+    >
+    > PoC: https://githu""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_48",
+    "title": "optskug SecOC Setup Guide (49/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+b.com/I-CAN-hack/secoc
+   >  Extracted the firmware from an ECU, using Fault Injection to bypass the locked debug port.
+    >  Reverse engineered the application code, to understand how SecOC was
+        implemented and find the location of the keys in RAM.
+    >  Reverse engineered the bootloader, to understand how the update procedure  works and how we can upload and run shellcode.
+    >  We built a shellcode that extracts the keys from RAM and sends them out over CAN, then reboots the device.
+   It is a long read, but it is exactly why this is such a hard problem and there are some serious hurdles to overcome when it comes to extracting the keys.
+   An incomplete exerpts of some other information:
+     There is a way to extract the SecOC key from the RAV4 Prime without disassembly.
+     During the construction of the payload, a secret key must have been extracted from the firmware in order to upload code to the EPS, run it, and extract the key. This isn't correct secure design but it lets third parties like comma.ai and I-CAN-hack to extract the key by uploading temporary code to the EPS to extract the key.
+     By not using the "Hardware Security Module" in the firmware, the key can be extracted from memory. Newer cars may use the HSM, which hides the key from memory, and getting the key out from those is an unsolved problem. What are the newer cars is unclear, but the 2023 Corolla Cross they looked at was using the HSM.
+   Some people are looking to get the key from their Rav4 Prime
+ Discord Followups on comma.ai Discord:
+ Willem: "Grab your SecOC key and share a route in #⁠toyota-security and I'll finish the car port for the RAV4 Prime!" (https://discord.com/channels/469524606043160576/954493346250887168/1213580915972776016)
+ There is some discussion on whether it is possible to intercept the key during a re-keying process. (#general) (https://discord.com/channels/469524606043160576/954493346250887168/1213583124894842941)
+ hdoublearp on Discord was able to retrieve their SECOC key with Willem's script. (https://discord.com/channels/469524606043160576/905950538816978974/1215389425291235348)
+ hdoublearp report on his collaboration with Willem (https://discor""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_49",
+    "title": "optskug SecOC Setup Guide (50/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+d.com/channels/469524606043160576/905950538816978974/1219399908659036261)
+   "There is some progress on the port, thanks to Willem, lateral is working. Still some missing safety features, but the initial issues with the Prime’s new PCM messages are sorted out. Willem had to make some changes to account for gearing difference in the Prime compared to other models. I’ve sent my latest feedback and test scenarios to him, and will continue working with him on it.
+   hdoublearp posts a video. It is a video of an assisted lane change on a RAV4 Prime, a feature that does not exist on TSS2 but does in openpilot.
+
+    https://github.com/commaai/openpilot/assets/5363/757c916d-ac08-4384-80b2-0de48664ecd1
+
+ There is still work to figure out some of the new messages.
+ A second RAV4 Prime by @chrispypatt seems to have come online from Willem's work. (https://discord.com/channels/469524606043160576/905950538816978974/1223761559629856929)
+
+April 2024
+
+ Spawahh tries to get the tools working on their bz4x. Things are complicated by CAN-FD and other issues. WIP (https://discord.com/channels/469524606043160576/1226559486160801823/1227094607784054864)
+ etc6849 tries to run the key extraction script on their Tundra from their C2, but is stopped by the firmware check in the script. Still a hello world! There is some apprehension about bricking, possibly. (https://discord.com/channels/469524606043160576/905950538816978974/1227751587720728647)
+ tranlocquy bravely comments out past the firmware check on the SecOC key extraction script and the EPS on their 2021 Sienna survives. And purportedly some sort of key is extracted. After putting in their Sienna's firmware and masquerading as a RAV4 Prime, it appears to work! (https://discord.com/channels/469524606043160576/905950538816978974/1228862172696936552)
+   tranlocquy posts a video of openpilot working on the Sienna.
+
+    https://github.com/commaai/openpilot/assets/5363/53d73339-38be-4e96-aa1e-46f87206025d
+   Willem: "No way! Didn't expect it to be this easy with the offsets/keys in RAM being in the same place. Checked out the route and dump you sent me, and looks legit!" (https://discord.com/channels/469524606043160576/90595053881697897""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_50",
+    "title": "optskug SecOC Setup Guide (51/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+4/1229156739530756186)
+ chaechullee with tranlocquy's guidance manages to dump their keys and get it going on their 2022 Sienna. (https://discord.com/channels/469524606043160576/905950538816978974/1230018621791801445)
+ As of this time, longitudinal support is still not present.
+ Tundra will be attempted soon (https://discord.com/channels/469524606043160576/905950538816978974/1230932381876228156)
+ A 4th Sienna key extraction is in progress. (https://discord.com/channels/469524606043160576/905950538816978974/1231193993757327390)
+ Siennas apparently have unsecured longitudinal and it "just works"?! (https://discord.com/channels/469524606043160576/905950538816978974/1232531416730828810)
+ bgill66 tries to dump the key on the Tundra; no success and christmas lights. A restart of the truck clears up the warnings. Some sort of v4 bootloader was encounted. (https://discord.com/channels/469524606043160576/905950538816978974/1233207683482521690)
+ yipstar tries to dump keys on their 2024 toyota highlander, but is unsuccessful; that said, it does seem to execute code. (https://discord.com/channels/469524606043160576/1234274531691069502/1234294969129238599)
+   Unfortunately, it does not appear the key is inside the "dataflash" and might be inside the HSM (https://discord.com/channels/469524606043160576/1234274531691069502/1234772431344762933)
+ [willem: "Hopefully ThisGuy can get the bench setup working [for the tundra eps rack]!"](
+https://discord.com/channels/469524606043160576/905950538816978974/1234383264467124227)
+ Longitudinal might actually still be secured on the Sienna. Resume spam might still work, but longitudinal controlled completely by OP isn't (https://discord.com/channels/469524606043160576/905950538816978974/1235791266294530160)
+
+May 2024
+
+ Full longitudinal support for the Rav4 Prime (and probably Sienna) is blocked by a lack of understanding of the gas/brake/acc messages. @nelsonjchen suggests the community get good on how to reverse engineer can bus messages. Worry about the signing later. (https://discord.com/channels/469524606043160576/905950538816978974/1237827694175981578)
+ More 2023 Rav4 Primes are known to be working, but there may be some issues with""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_51",
+    "title": "optskug SecOC Setup Guide (52/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+some understandings of the messages. (https://discord.com/channels/469524606043160576/905950538816978974/1238293711918600244)
+ dpan9738 tries to dump their key from a 2022 Corolla Cross but is unsuccessful. Checksum verification error... . Unknown if HSM is in 2022 Corolla Cross. (https://discord.com/channels/469524606043160576/905950538816978974/1239059445682667561)
+ ThisGuy has successfully wired up their C3 to the new and spare Tundra steering rack on their workbench with Willem's help and guidance. While the keys still aren't able to be dumped, there is connectivity and some response. (https://discord.com/channels/469524606043160576/1238938922084597831/1238997445573218364)
+ ianik66 tries the script on the 2021 Venza after commenting out some checks but an invalid key is returned. Some proposals are done for a memory-dump search that, while unsuccessful on the Tundra, might be successful on the Venza in locating the changes in memory location for the key. Other suggestions are made to improve this search as well. (https://discord.com/channels/469524606043160576/905950538816978974/1240410992282959992))
+ chrispypatt and tranlocquy have started a thread to look for the ACCCONTROL equivalent CAN bus message in their Sienna and Rav4 Prime. (https://discord.com/channels/469524606043160576/1241808888282480730/1241809056100782141)
+   This is required for "Full longitudinal support" or openpilot actually being able to control gas and brake beyond only spamming auto-resume for automatic stop and go for stuff like slowdowns, experimental mode, or traffic lights.
+ Existing key dumping script did not work on 2024 Rav4 Prime. nandrews283 is now trying the brute force method and seeing if it would work. A new bootloader is seen and results have not. Unclear comments from willem. (https://discord.com/channels/469524606043160576/905950538816978974/1245899042395783248)
+ Greg and Willem recently spoke at a hardware security conference in Santa Clara, CA about their efforts. A recording is currently not available. (https://hardwear.io/usa-2024/speakers/willem-and-greg.php)
+
+June 2024
+
+ The full support for TSK community bounty is canceled in favor of more focused bounties (http""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_52",
+    "title": "optskug SecOC Setup Guide (53/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+s://www.reddit.com/r/Commaai/comments/1d5r7xr/stateoftoyotasecuritykeysecocandcommunity/)
+ $5k bounty is confirmed to be locked to Willem with the RAV4 Prime (https://github.com/commaai/openpilot/pull/32661#issuecomment-2156220468)
+ @nelsonjchen helps GON0822 try to dump the key off their 2022 Yaris Hybrid in Japan. GON0822's English isn't great and it's quite a struggle but GON0822 is preservering. Unfortunately, the key is not located at the same memory address as the RAV4/Sienna. Plans are made for a possible brute force trial though more Western users have not had much success. (https://discord.com/channels/469524606043160576/905950538816978974/1251451250331877426)
+ @nelsonjchen misremembers the Venza. Apparently it was bootloader version 2 unlike the RAV4 Prime and Sienna which came out in the same model year. GON0822's Yaris is actually the first bootloader v1 to fail to dump the key. (https://discord.com/channels/469524606043160576/905950538816978974/1252441668372664350)
+ According to thehui, the 2024 Sienna fails with the same error as the 2024 RAV4 Prime (https://discord.com/channels/469524606043160576/905950538816978974/1249192050096738315)
+ The key from GON0822's 2022 Yaris Hybrid is extracted with a brute-force method. However, dropping in the key into the rav4 prime branch doesn't work for unknown reasons with a forced fingerprint. (https://discord.com/channels/469524606043160576/1234274531691069502/1254322986970779660)
+ Fixing the key and using a firmware replaced branch doesn't work on GON0822's Yaris Hybrid. Request for assistance (https://discord.com/channels/469524606043160576/905950538816978974/1256508887146958848)
+ AleSato comes with with a bunch of suggestions and working latitude is now working on GON0822's Yaris Hybrid! It is the first radar controlled vehicle to work. (https://discord.com/channels/469524606043160576/905950538816978974/1256873861979574396)
+   C3 Gon　Yaris-enc.webm (https://github.com/commaai/openpilot/assets/5363/fb611502-0ecb-4555-ac5a-4ac442511d53)
+ Update from Willem on RAV4 Prime port upstreaming: "Regarding the Rav4 prime port, I've been quite busy lately." (https://discord.com/channels/469524606043160576/905950538816""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_53",
+    "title": "optskug SecOC Setup Guide (54/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+978974/1256568186568970263)
+ (Longitudinal Support on SecOC/TSK vehicles) Regarding the ACC message, if I remember correctly it's split up into the existing message and 0x177. They moved the actual acceleration command to 0x177 which has a SecOC MAC. (https://discord.com/channels/469524606043160576/905950538816978974/1256569386781904896)
+
+July 2024
+
+- bravochar has a nice discussion with Willem about SecOC ECUs and that the "Clearance Warning" assembly might be a non-complex ECU to attack for getting the key out. bravochar is interested in attacking the Tundra Sonar Module as it is only $80 on eBay. Also, Willem says he got a Yaris GR radar, but it is BGA mounted so dumping it was never attempted.  (https://discord.com/channels/469524606043160576/905950538816978974/1263121042885443624)
+- anrum, a 2023 Rav4 Prime user, announces a porting effort of support to Frogpilot (https://discord.com/channels/469524606043160576/905950538816978974/1264322468160733335)
+  - https://github.com/FrogAi/FrogPilot?tab=readme-ov-file#discord
+  - https://discord.com/channels/1137853399715549214/1137905508217540699/1264113031365787700 (Frogpilot Discord)
+- Willem & Greg's talk on SecOC is posted. "Hardwear.io USA 2024 : My Car, My Keys: Obtaining CAN Bus SecOC Signing Keys - Willem & Greg" (https://www.youtube.com/watch?v=8958gH3KD3Y)
+- A discussion with Willem on why intercepting the key from a key updating process may be infeasible. (https://discord.com/channels/469524606043160576/905950538816978974/1265284524401754195)
+- anrum announces a successful port of the changes necessary for the 2021-2023 rav4 prime and 2021 sienna to frogpilot (https://discord.com/channels/469524606043160576/905950538816978974/1266255824263708694)
+  - Frogpilot Discord link version (https://discord.com/channels/1137853399715549214/1137905508217540699/1266255306921480202)
+- tranlocguy attempts separating out the sienna hybrid properly in a fork of anrum's frogpilot (https://discord.com/channels/469524606043160576/905950538816978974/1266663937978400809)
+- A small request to some 2022 Sienna owners to send and post firmware versions (https://discord.com/channels/469524606043160576/905950538816978974/126733820""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_54",
+    "title": "optskug SecOC Setup Guide (55/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+1769705503)
+- Some thoughts on part swapping very similar vehicles to rekey a vulnerable part instead, probably just wishful thinking (https://discord.com/channels/469524606043160576/905950538816978974/1267699386218053723)
+- European/Italian 2020 Yaris Hybrid's Key successfully dumped. Unfortunately, the C3X was buggy and needs to be returned. If it wasn't though, it might have worked... (https://discord.com/channels/469524606043160576/905950538816978974/1268704646365581372)
+
+August 2024
+
+- A suggestion is made again to try to make a unified patch in a repo for TSK users. (https://discord.com/channels/469524606043160576/905950538816978974/1270120634139283577)
+- Willem, Greg, and Robbe wins the DEFCON Car Hacking Village CTF and with it, a Model 3. (X, formerly known as Twitter) (https://x.com/pd0wm/status/1823030161207349639)
+  - "We did it again!!! We got 1st place in the #defcon32 @CarHackVillage CTF. This year we won a Tesla Model 3, and the whole team has their own Black Badge now 😎. @gregjhogan @robbederks"
+- META: GitHub discussions have been shuttered in favor of all discussion going on at Discord.  (https://discord.com/channels/469524606043160576/954493346250887168/1272595007060054048). Please link users to https://github.com/optskug/docs/ for the latest news/history from here on out. Unfortunately, there's no way to make old GitHub links redirect so this is the best that can be done. The old link, for reference is: https://github.com/commaai/openpilot/discussions/19932
+- gregjhogan clarifies what the first byte of a UDS firmware version is. (https://discord.com/channels/469524606043160576/905950538816978974/1273746993394487376) It's not a bootloader version?
+  - "The first byte returned when reading the firmware versions using UDS read data by id isn't part of the version number, it is how many applications are running on the ECU (for example if it has two cores, there may be a separate application running on each core) and it tells you how many you can extract from the rest of the data returned."
+
+September 2024
+
+- 2023 Sienna confirmed to work (https://discord.com/channels/469524606043160576/905950538816978974/1281348878570094748)
+- there is some rou""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_55",
+    "title": "optskug SecOC Setup Guide (56/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+gh renewed interest in fork support such as frogpilot/sunnypilot ([https://discord.com/channels/1137853399715549214/1137905508217540699/1282936146526994534](https://discord.com/channels/469524606043160576/905950538816978974/1283091024406908938))
+- A small debate in openpilot Enthusiasts about the comma vote system (OPC). Would we have gotten this far without it? (https://discord.com/channels/771493367246094347/771493367779295304/1283867906937192459)
+- Willem shows up in #toyota-security (https://discord.com/channels/469524606043160576/905950538816978974/1283870093067161721)
+  - Asks about TSS3 Toyota Corolla without TSK like the ones made in the USA in 2023. "If somebody makes that port work, I’ll see if I can spend some time on the HSM EPSes. It’s definitely possible to get lateral only on those by just nuking the SecOC checks on the power steering"
+  - "If somebody wants to finish the rav4 prime port, feel free to take my code and reopen the PR"
+  - "Probably best to start with the panda safety code. It’s all working now, but comma wanted it cleaned up with some config structs like the Chrysler code"
+  - "I’m too busy with other projects to work on car ports"
+  - "Happy to provide feedback"
+-  [Renewed interest from newer driving models being available re-raises the question of merging in support for TSK vehicles into Frogpilot. anrum, the original first porter to Frogpilot reappears. Since the original port, there has sporadic been semi-one-off Sienna and Rav4 fingerprints but nothing unified or upstreamed and numerous disparent HEADs. (FP Discord)]()
+-  Work continues on the Frogpilot TSK support upstreaming. (https://discord.com/channels/1137853399715549214/1137905508217540699/1287467639559422023)
+ comma Discord Sept 25 Developer Meeting notes
+   Jason Young (jyoung8607), a prominent non-comma.ai openpilot contributor and VW openpilot saint, is wanting to work on moving forward Willem's RAV4 Prime work to be rebased atop current comma openpilot with Willem's guidance (pd0wm) while he is visiting comma.ai's office in San Diego on vacation.
+   Approved goal by Adeeb is to have release comma openpilot be able to work with the RAV4 Prime if the key is provided""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_56",
+    "title": "optskug SecOC Setup Guide (57/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+by the user.
+   SecOC Key extraction is outside of the scope of this work though and will not be included. In other words, plug-and-play is not to be expected. The are open to seeing if/any UI or workflow might come from the community on this.
+ Jason opens a new draft pull request superceding Willem's pull request: https://github.com/commaai/openpilot/pull/33654
+ Produced a user group list of working vehicles and users on Jason's request: https://docs.google.com/spreadsheets/d/1sprUteWtCVH6nQ6JfsmX0liIJ58H4nAVWxtAdorfW4c/edit?gid=0#gid=0
+ A mainland China/PRC user with a Mainland China-made 2022 Sienna comes into the Frogpilot Discord. They are able to extract the key but for whatever reason, can't write "Params". Will followup with prescribed reset. User really only speaks Mandarin so the Frogpilot Discord Frogbot's thread auto-translation bot is used. (FP Discord) (https://discord.com/channels/1137853399715549214/1289252533654650952/1289401084640493641)
+   Note: They are also using a Mr. One C3 clone since comma doesn't appear to ship to China from their POV for whatever reason. This complicates debugging and upstreaming to comma's branch is impossible for their vehicle.
+   Got it working with Mr One's C3 Clone! (FP Discord) (https://discord.com/channels/1137853399715549214/1289252533654650952/1289678233633165343)
+ Jason has a test branch out for users to try on a new openpilot base. Users may need to reinstall their key. He is looking for reports of successes and failures. (https://discord.com/channels/469524606043160576/905950538816978974/1290439760267186270)
+   "Ready for testers! I have a test branch for you (not the one in the PR) that forces the fingerprint to RAV4 Prime. This means it should work even if you have a Sienna, or a RAV4 Prime with a different fingerprint."
+   gon0822 asks about Yaris Hybrid support. Yaris has a Continental Radar. Jason answers they might finish support for that as well this week. (https://discord.com/channels/469524606043160576/905950538816978974/1290457046910763073)
+
+October 2024
+
+ share-and-enjoy mentions that Stop and Go is working on their hacked branch off of an old Willem's branch in April 2024. This is baffling as it""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_57",
+    "title": "optskug SecOC Setup Guide (58/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+is not supposed to be working. ACC/Automatic Cruise Control messages are supposed to be signed! HOW? (https://discord.com/channels/469524606043160576/905950538816978974/1291044591138766919)
+   Effort is spent to try to preserve and archive share-and-enjoy's very special and self-hacked copy as the git commit reported up to comma does not appear to have prerequsite or necessary changes.
+   share-and-enjoy shares their dirty changes and some shocking/amazing discoveries are made (https://discord.com/channels/469524606043160576/905950538816978974/1291457526004453498)
+     "The only thing I can think of, it's possible you were extremely lucky with openpilotLongitudinalControl and managed to filter the old message which still has [Stop and Go] relevant control bits, and transparent passthrough the new SecOC message with the actual acceleration command."
+     "LOL that's exactly what you managed to do" "You accidentally made partial long control work " (https://discord.com/channels/469524606043160576/905950538816978974/1291459549794140182)
+     The changes are not slated to be merged in but they are at least documented for future follow up work. (https://discord.com/channels/469524606043160576/905950538816978974/1291466235082571877)
+     "Just FYI, yes incode was running the same SnG hack as me from tranlocquy. tranlocquy told me how to do it, and actually did it for incode."
+     "Now, it does NOT stop at red lights or stop signs, but DOES auto-resume from stop with a lead car."
+ (Longitudinal Support) Jason posts a PR to document the ACC command to the opendbc repo for SecOC/TSK vehicles. "Toyota: DBC message for SecOC longitudinal control #1337" (https://github.com/commaai/opendbc/pull/1337)
+ Jason restates the current merge goals and milestones, quoted below: (https://discord.com/channels/469524606043160576/905950538816978974/1291077896269467668)
+  1. It won't be in dashcam mode, if there's a correctly saved SecOC key, it'll just work
+  2. It will require a non-release branch, just like alpha openpilot longitudinal
+  3. It won't appear in comma.ai/vehicles or CARS.md
+  4. comma will not ship the key retrieval mechanism, you're on your own for that
+ Jason asks for""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_58",
+    "title": "optskug SecOC Setup Guide (59/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+a couple of test route data for automated safety as a prerequisite of getting comma panda (Vehicle Interface) changes relating to safety merged in. (https://discord.com/channels/469524606043160576/905950538816978974/1291215107547861105)
+   GON0822 volunteers and we capture some with Frogpilot's AI Translation bot doing translation duties (FP Discord) (https://discord.com/channels/1137853399715549214/1291217403157413980)
+   "For the stock routes, I've got what I need now" (https://discord.com/channels/469524606043160576/905950538816978974/1291456815527231581)
+ The first of the RAV4 Prime support PRs is merged into the car support repository.
+   This was done on the first part of a live stream. There was cake. https://youtube.com/live/ayiIi5hxE38?feature=share
+   https://github.com/commaai/openpilot/pull/33654
+ While the RAV4 Prime fingerprint changes are being merged in, the Sienna Fingerprints are not. Another call for Sienna owners to provide their fingerprints. (https://discord.com/channels/469524606043160576/905950538816978974/1292480897441857536)
+ Sienna fingerprints / support are merged into opendbc, an openpilot dependency. Will naturally get into openpilot's master branch sooner than later. (https://discord.com/channels/469524606043160576/905950538816978974/1292898908460023901)
+ A small discussion about what happens to the code to support this in OP's release configuration. It won't work except on development branches such as master-ci/master and fails cleanly with a clear error. (https://discord.com/channels/469524606043160576/905950538816978974/1293017524270534656)
+ Some discussion about producing a key-dumping tool that can be run with the Custom Software input for dumping the key. (https://discord.com/channels/469524606043160576/905950538816978974/1293088853359460383)
+ The MY2025 ES300H is one of the few (only so far?) 2025 Lexus vehicles without SecOC/TSK apparently. (https://discord.com/channels/469524606043160576/524327905937850394/1294352198482001972)
+ Alexandre N. Sato, Brazil-SP adds to his own personal fork functionality to dump a SecOC key on a compatible vehicle assuming the vehicle is in the correct state. He does not have a SecOC vehicle a""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_59",
+    "title": "optskug SecOC Setup Guide (60/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+nd its functionality is purely speculative. (https://discord.com/channels/469524606043160576/905950538816978974/1295082300337553419)
+   Confirmed working. (https://discord.com/channels/469524606043160576/905950538816978974/1330354854782308363)
+ Longitudinal control is brought up again. "all you people who say you can spell Python and Linux, go add a second copy of the ACC message packer and (for testing) an unconditional transmit allow in Panda for address 0x183 (decimal 387), high chance it'll Just Work" - Jason (https://discord.com/channels/469524606043160576/905950538816978974/1295793229228408923)
+ chrispypatt takes on that offer and gives it a try on their 2021 RAV4 Prime. They are able to successfully block the message but generating longitudinal ACC messages isn't working yet. (https://discord.com/channels/469524606043160576/905950538816978974/1296311472095494195)
+ chrispypatt gets longitudinal control working on their 2021 RAV4 Prime. (https://discord.com/channels/469524606043160576/905950538816978974/1296469627911667713)
+
+  >  Ok so I changed the ACCCONTROL2’s ACCELCMD to match the ACCCONTROL’s scaling in the dbc. I just manually edited it for now rather than figuring out how the generation works. I can throw my changes up to my fork tonight.
+  >
+  >  The good news is it worked 🎉🎉🎉! OP was clearly controlling long. It just doesn’t seem to be fully working. It seemed something was not quite right but I don’t have any experience with OP long so let me know if it is expected when on city streets. Acceleration seemed to not always work, even with no lead car, my rav would not always accelerate up to my set point. Many times I would have to accelerate manually up to the desired speed but then OP would be good about decelerating down for lead cars and stopping at stop lights.
+  >
+  >  I also noticed at clear and green light stop lights and when cars were a whole block in front of me OP would decelerate.
+  >
+  >  If I came to a complete stop I always had to hit the gas to get going again. Also rolling up to a red light there was some creep where the car would not come to a complete stop until many times I was in the cross walk.
+  >
+  >You can see some of the""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_60",
+    "title": "optskug SecOC Setup Guide (61/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+se issues in the attached videos.
+ chrispypatt: "The biggest benefit I have seen is coming up on freeway traffic and cars stopped at stoplights deceleration is smooth. With TSS2 it would always wait till last minute and then just slam on the breaks" (https://discord.com/channels/469524606043160576/905950538816978974/1297571813970284627)
+ calvinspark had his Sienna repaired after his wife sideswipes it and the key apparently changed. He was able re-dump it though. (https://discord.com/channels/469524606043160576/524592892627517450/1299143839059021925)
+   Willem: Every time a rekey operation is done the key changes. I think there is a sonar/parking sensor that has SecOC because it can press the brake when you’re backing up into something. (https://discord.com/channels/469524606043160576/524592892627517450/1299187790860517448)
+
+November 2024
+
+ domsz06 and calvinspark are attempting to dump the key from a 2024 Prius. It's not expected to work but they want to try the memory brute force script. (https://discord.com/channels/469524606043160576/905950538816978974/1302185205251182663)
+   They are running into issues even getting the firmware versions. (https://discord.com/channels/469524606043160576/905950538816978974/1307983214970667018)
+   Willem - I think the key extract is timing out because of the car being CAN-FD. You need to change a line in the the panda FW to force it back into regular CAN mode for diagnostic communications. See the Bz4x Thread. (https://discord.com/channels/469524606043160576/905950538816978974/1308103144525267016)
+     Bz4X thread: https://discord.com/channels/469524606043160576/1226559486160801823
+ alesatobrazilsp and gon0822 determine that the Yaris Hybrid in Japan uses the same acceleration command seen in other Toyotas by looking in Cabana for the CAN BUS data. (FP Discord) (https://discord.com/channels/1137853399715549214/1291217403157413980/1302269836017008694)
+ "disable radar worked in the conti radar of the japanese Yaris (RADARACC car)" (https://discord.com/channels/469524606043160576/524327905937850394/1305662760381714492)
+   NOTE: This was not enough to let openpilot control ACC on the Yaris (https://discord.com/channels/4695246060""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_61",
+    "title": "optskug SecOC Setup Guide (62/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+43160576/524327905937850394/1328186598344626178)
+ posts pictures of the camera internals for the 2024 Tacoma (https://discord.com/channels/469524606043160576/905950538816978974/1303932394776301589)
+ Jason - "Definitely technically possible to back port the work to openpilot 0.8.13.1" (last version of openpilot that supports the comma two and comma two class of devices.) (https://discord.com/channels/469524606043160576/905950538816978974/1304818543920939070)
+ [Re: openpilot long on R4P and Sienna- Jason: "I don't remember and I'm not in a position to refresh myself right now" "But I haven’t had the time to get back to it to resolve the mutations issue or put more thought into the refactor" [of secOC Long]. The secOC Long support is getting a bit stale. ](https://discord.com/channels/469524606043160576/905950538816978974/1309380353261174847)
+ porpor.t helps determine on a trip that the EU 2024 RAV4 Hybrid has TSK from looking at the EU equivalent of TechInfo (https://discord.com/channels/469524606043160576/524327905937850394/1311431355564822630)
+
+December 2024
+
+ Users are still working on porting openpilot long, at least to Frogpilot or their own forks/branches for now, in lieu of working tests. (https://discord.com/channels/469524606043160576/905950538816978974/1313523364975083621)
+ dstaley determines that the 2025 US RAV4, unlike the EU 2024 RAV4 Hybrid, does not have TSK from looking at TechInfo (https://discord.com/channels/469524606043160576/524327905937850394/1314137491711856680)
+ Ale and GON0822 continue work on Yaris Latitude upstreaming (FP Discord) (https://discord.com/channels/1137853399715549214/1291217403157413980/1316946374205505638)
+   https://github.com/commaai/opendbc/pull/1578
+ shiver32 confirms that the 2024-2025 Model Year IS 500 does not have ECU Security Key. A lot of interested IS users come on and don't do things but shiver32 pulled through. (https://discord.com/channels/469524606043160576/524327905937850394/1318361110558281728)
+ calvinspark is trying to make a GUI dumping and restoration tool for the key. (https://discord.com/channels/469524606043160576/905950538816978974/1321643758600851506)
+
+January 2025
+
+ calvinspark is talking with sun""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_62",
+    "title": "optskug SecOC Setup Guide (63/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+nypilot developers about his GUI dumping and restoration tool along with integration opportunies and concern. As the sunnypilot fork is one that continuously and properly keeps up with comma's codebase much more frequently than frogpilot, sunnypilot has inherited compatibility and with that, some focus on making the UX for TSK/SecOC users is of great interest. (SP Discord) (https://discord.com/channels/880416502577266699/1326432461298860042)
+ sunnyharbin makes a dedicated channel for the quirks and features needed for sunnypilot support of TSK/SecOC Toyotas (SP Discord) (https://discord.com/channels/880416502577266699/1326834259096371211)
+ satireshepherd was looking for the DBC for a 2024 Corolla or similar. They are the first not ex-comma or comma staff but a community member to have looked at the CANFD traffic on a 2024 Corolla. They are using a comma adapter, but on a Raspberry Pi and CAN-FD shield. Unfortunately, they are the first so there's no precedent and just first mover problems ahead but just noting this here for the log. (https://discord.com/channels/469524606043160576/905950538816978974/1328554540534071306)
+ calvinspark creates optskug/tskm, a pre-installation GUI extraction/restoration tool for the SecOC key. He is campaigning to have it in various forks and comma openpilot. (https://discord.com/channels/469524606043160576/905950538816978974/1328979290267717673)
+   The guide is updated to use this manager (https://discord.com/channels/469524606043160576/905950538816978974/1329505463351382056)
+ The keyboard integration suggestion for SecOC into comma openpilot is rejected. (https://github.com/commaai/openpilot/issues/34392)
+ After some discussion, the /cache is identified as a place to store the key. It is looking good that comma openpilot may accept the process of restoring the key from this location as a proposal. While a "third-party" non-comma key extractor must still be run, this is a major good QOL change. (https://discord.com/channels/469524606043160576/524594418628558878/1329867134721065011)
+   The pull request for this change was accepted (https://github.com/commaai/openpilot/pull/34401)
+ crispypatt is continuing to develop longitudinal sup""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_63",
+    "title": "optskug SecOC Setup Guide (64/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+port and just recently rebased and worked on safety. (SP Discord) (https://discord.com/channels/880416502577266699/1326834259096371211/1329893800658731160)
+ calvinspark notices the shop page for comma votes has been taken down. There has been no statement from comma. Perhaps the inclusion of the Sienna and RAV4 Prime qualified? (https://discord.com/channels/469524606043160576/905950538816978974/1330048270407434300)
+   The final known vote was 115 out of 500 votes sought.
+ satireshepherd is able to dump the memory on their 2024 Corolla's EPS. (https://discord.com/channels/469524606043160576/905950538816978974/1330440541703241789)
+ A discussion breaks out about the status of OP longitudinal control and radar parsing on TSK vehicles. (https://discord.com/channels/469524606043160576/1331823208424542330)
+ .lx93: "I just bought a 2021 GR Yaris and am interested in getting my c3 to work with it. i see https://github.com/optskug/docs?tab=readme-ov-file#-may-be-possible-to-hack-but-hasnt-been-tried its possible but no one has done it yet. i will report back once i get my toyota harness to mess around" (https://discord.com/channels/469524606043160576/905950538816978974/1332610193443520522)
+ SatireShepherd: "A quick update so you guys know I havent given up, I couldnt find an eps on its own but I did find a 2023 Japan Corolla steering column that also goes back to the 2019 corolla, I just wanted something with secoc but not too new, I'm hoping to have some progress soon. If I have some good progress ill see if I can register to the comma hack 5 since I live in the San Diego area." (https://discord.com/channels/469524606043160576/905950538816978974/1334700988539469894)
+   There is some confusion that a SecOC vehicle (2023-2024 Corolla) shares the same EPS part number as a non-SecOC vehicle (2019-2022 Corolla). A theory is brought up that SecOC security only goes up to the "multiplexer" and that traffic after it may be unsecured. This is a theory and no direct observations have been made yet.
+ A third GR Yaris shows up in the Discord and some discussion is had about dumping happening from the dataflash vs the RAM. (https://discord.com/channels/469524606043160576/905950538816""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_64",
+    "title": "optskug SecOC Setup Guide (65/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+978974/1335710649702940835)
+ Yaris Pull request was reverted as easily it had went in due to test route lacking (https://github.com/commaai/opendbc/pull/1653)
+   "I will open a new PR. We need the same route with the same curves at the same speed to improve lateral control by torque to be at least equal to PID." - Ale (https://discord.com/channels/1137853399715549214/1291217403157413980/1333110387960447070)
+
+February 2025
+
+ "why don't you just wrap the installer? why does the fork even need to know about TSK extraction?". An idea or proposal is made for the community to wrap an installer with an extractor that extracts the key first and then automatically continues installation of a compatible openpilot version for TSK/SecOC. (https://discord.com/channels/469524606043160576/954493346250887168/1336842625373962301)
+ "I think the sweet spot branch for upstream TSK users is nightly-dev". A better branch of comma openpilot for initial install is discussed. (https://discord.com/channels/469524606043160576/905950538816978974/1336748446295654410)
+   This change was eventually merged into the guide. https://github.com/optskug/docs/pull/28
+ 2401penitenttangent: "A couple of bZ4X/Soltera owners are looking at replicating Willem's work on an EPS from a bZ4X. The payloads Willem provided work for code execution, but the brute force script was not able to find a key in the RAM dump. They are hoping that by reverse engineering the full firmware we may gain a better understanding of how/where the key is stored.
+
+  We also determined that the pinout for the Toyota B harness is incorrect for our cars. The CAN busses are flipped so the relay ends up on bus 1 instead of bus 0/2. Once the busses are flipped we are able to see the different ECUs and interact with the EPS ECU. I have a feeling the same may be true for all of the TSS3.0 vehicles."
+   https://discord.com/channels/469524606043160576/905950538816978974/1338908891148193903
+ martinolium shows up with a 2023 US Corolla, a specific year and model with TSS3 and with no (?) TSK. Does not have a device, but some discussion is conducted on some preparations. (https://discord.com/channels/469524606043160576/905950538816978974/1340""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_65",
+    "title": "optskug SecOC Setup Guide (66/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+558302945214516)
+ martinolium: I'll be back here if I get a raise in the next 4 months (https://discord.com/channels/469524606043160576/905950538816978974/1340874369378811934)
+ mehrab.shakil comes on and asks for help with a Yaris Cross Hybrid but never responded. (https://discord.com/channels/469524606043160576/905950538816978974/1345161761548013609)
+ lx93 proceeds with getting an A harness for Yaris GR port(FP Discord) (https://discord.com/channels/1137853399715549214/1291217403157413980/1342905714213130322)
+
+March 2025
+
+ Satopilot removed on request from author from listing due to support load. (https://discord.com/channels/469524606043160576/905950538816978974/1350253438210019359)
+ gako41825 reports that they were able to get a key dump on an early 2024 Canadian-spec 2024 Sienna. This is in contrast to earlier failures on other 2024 Siennas. (https://discord.com/channels/469524606043160576/905950538816978974/1350659380592513142)
+ warren.2: "I copied TOYOTARAV4TSS22022.json to TOYOTARAV4PRIME.json then committed it to a local git branch. Now Developer menu NNLC says Exact match. Subjectively lat is smoother now. I think that means it's working."  (SP Discord) (https://discord.com/channels/880416502577266699/1118704399850680522/1351567921414934661)
+   The NNLC stuff works for the RAV4 Prime EPS where available. It is similar to the 2020-2021 RAV4 except for the whole security key thing.
+ Sunnypilot declares it is open to accepting chrispypatt's longitudinal control work in advance of the pull request being merged or accepted upstream in comma openpilot/opendbc. (https://discord.com/channels/469524606043160576/905950538816978974/1352300164143911024)
+
+ "checking with @Woosa 's 💸 on request. the 2022 and 2023 mirai do not have ⁠toyota-security and the 2024+ still do. (https://discord.com/channels/469524606043160576/905950538816978974/1352472975944974427)
+ Some more precise information is recorded for the possible working early MY2024 workings (https://discord.com/channels/469524606043160576/905950538816978974/1352687298885713940)
+ 2023 Lexus RC is confirmed to not have TSK. A small discussion results in a section on TSK-less but not in comma's supported vehicle""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_66",
+    "title": "optskug SecOC Setup Guide (67/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+list being added to this document. (https://discord.com/channels/469524606043160576/905950538816978974/1355162109620785163)
+ heitikender posts 1000 EUR bounty for 2023 RX on Konik.ai Discord (KA) (https://discord.com/channels/1110987393990922322/1355531073353678950/1355531073353678950)
+ warren.2 - " https://www.renesas.com/en/products/microcontrollers-microprocessors/rh850-automotive-mcus/rh850p1m-e-high-end-automotive-microcontrollers-electronic-power-steering-systems#documents https://www.renesas.com/en/document/eln/end-life-notice-saf-b-24-0011?r=1054236 Add to notes ... the Renesas RH850/P1M-E is the same across both working and not-working cars. The non-working cars still have working payload execution so there is some hope of figuring something out. But see the End of Life document. That gives us a clue as to when the cut-off will be when models move away from this part to something totally unknown. (https://discord.com/channels/469524606043160576/905950538816978974/1356487039025021032)"
+
+April 2025
+
+ Yaris support re-merged in from Ale working with GON0822 (https://github.com/commaai/opendbc/pull/1668)
+ "Thanks to @GON0822, "Toyota Security Keyed" vehicles have been confirmed to work in FrogPilot!" - frogsgomoo
+ (FP) (https://discord.com/channels/1137853399715549214/1137905508217540699/1359246607069220926)
+   This includes the Yaris Hybrid in Japan which at the moment, upstream comma openpilot had removed support for.
+ ir0nbyte is able to dump a key from a donated lemon French 2019 Yaris Hybrid MX. It is for academic purposes and not for personal or daily use. This is the 3rd Yaris Hybrid whose key has been dumped. (https://discord.com/channels/469524606043160576/905950538816978974/1359481937449975990)
+ Gako, who earlier was able to dump the key from their early 2024 Sienna, is unable to use the dumped key with OP after dumping it with two different methods. There's some weird CAN Bus error that needs to be looked into. (https://discord.com/channels/469524606043160576/905950538816978974/1359696972877135974)
+   Error was due to frogpilot implementation issues currently being cleared up. (FP) (https://discord.com/channels/1137853399715549214/113790550821754""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_67",
+    "title": "optskug SecOC Setup Guide (68/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+0699/1359768523408408697)
+ .lx93 comes back with their GR Yaris attempt. (FP) (https://discord.com/channels/1137853399715549214/1291217403157413980/1360462532418212042)
+   Able to dump the SecOC key with the dataflash method just like a Yaris Hybrid. Sienna and RAV4 Prime dump does not work.
+   FrogPilot with the vehicle set to the Yaris does not work. Lots of GEARPACKETHYBRID errors which makes sense since this is a ICE 6MT.
+   WIP
+ .lx93 is able to get their GR Yaris working. As it is a manual transmission, some changes had to be made and there's some desire and requests for comments of upstreaming. (FP Discord) (https://discord.com/channels/1137853399715549214/1291217403157413980/1360861569495466044)
+   Some followup in #toyota-security (https://discord.com/channels/469524606043160576/905950538816978974/1361021966244646992)
+ SecOC long merged into Sunnypilot (https://github.com/sunnypilot/opendbc/pull/93)
+   This means you will have longitudinal control in master-new and staging-c3-new. (https://discord.com/channels/469524606043160576/905950538816978974/1361435824960311448)
+   reverted soon after: https://github.com/sunnypilot/opendbc/pull/125
+   and unreverted soon after again!
+ drumstyx. tries their hand at tackling the Toyota Crown with B harness. Has some issues getting FW version, advised to talk to Bz4x/Solterra people. "aha, good to note. Don't suppose there's anyone working on the Crown...as far as I can tell, this would be the first recorded effort at a crown" (https://discord.com/channels/469524606043160576/905950538816978974/1361689361556443177)
+ jamalbrown - "Hey all, does anyone have any CAN recordings of firmware updates for Toyota Instrument Clusters? Specifically 2018+ Models with RH850s are what I'm looking for the most.", "I've followed this and have successfully reversed the majority of the firmware update procedure. I'm now just having trouble with getting code execution for my uploaded code to change the language." (CHV) (https://discord.com/channels/717022042313982033/717022042313982036/1363514703632142356)
+   Ooh, someone else is also dumping the firmware from Toyota ECUs?
+
+May 2025
+
+ heitikender's Lexus RX 2023 bounty raised to 2000 EU""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_68",
+    "title": "optskug SecOC Setup Guide (69/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+R (https://discord.com/channels/469524606043160576/1310778132478955540/1367854050103529524)
+   Later raised to 3000 EUR (https://discord.com/channels/469524606043160576/905950538816978974/1368164880489775185)
+ heitikender and PenitentTangent are able to get the current exploit for code execution on the 2023 RX but no key is dumped (https://discord.com/channels/469524606043160576/905950538816978974/1367923937723289742)
+ RAV4 Prime News: TOYOTARAV4PRIME.json NNLC model gen 1 merged into sunnypilot (https://discord.com/channels/469524606043160576/905950538816978974/1369157071865647125)
+   https://github.com/sunnypilot/sunnypilot/pull/850
+ 1000 USD added to Lexus RX 2023 bounty (https://discord.com/channels/469524606043160576/1310778132478955540/1369157071865647125)
+ geohot comments on CAN BUS encryption/validation in general (https://www.reddit.com/r/Commaai/comments/1kpuvbx/comment/mt26nzn/?utmsource=share&utmmedium=web3x&utmname=web3xcss&utmterm=1&utmcontent=sharebutton)
+   "Our mission is to solve self driving cars. Aka design software capable of driving a car better than a human. There's plenty of cars that are controllable enough for what we are doing. We don't really care about the encrypted ones. If they all get encrypted, we'll just buy used cars and so can you."
+   "The truth about the whole encryption thing is that it's not even on our priority list, and every time I see more FUD about it I push it even lower."
+
+June 2025
+
+ More comments from geohot (https://www.reddit.com/r/Commaai/comments/1l271c2/comment/mvsoj94/?utmsource=share&utmmedium=web3x&utmname=web3xcss&utmterm=1&utmcontent=sharebutton)
+   "Our mission is solving self driving cars, improving the models and the software. That's where we are focusing the full resources of the team, we just don't care that much about encryption. To comma the AI and driving quality is the interesting problem, the security isn't. Buy a different car, or break the encryption yourself (you have all the tools)."
+ hl.elias44035 is unable to get their Mainland China-made Sienna working. It was made in December 2022 and is likely a 2023 model. (https://discord.com/channels/469524606043160576/905950538816978974/13796128749""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_69",
+    "title": "optskug SecOC Setup Guide (70/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+42709780)
+ Some PRC users discuss some services that offer to re-key. Unfortunately, it still seems that getting a key is not possible, even with some insider Chinese Toyota (FAW) knowledge. (https://discord.com/channels/469524606043160576/905950538816978974/1382203847661064345)
+ More NNLC improvements land in SP for RAV4 Prime users. (https://github.com/sunnypilot/sunnypilot/pull/925)
+   "For these finely tuned NNLC models for Toyota we recommend TR7 model. For reasons we don't understand it seems to be vastly superior than any other model at keeping centered in lane and steering with precision. Nothing else comes close." (SP Discord) (https://discord.com/channels/880416502577266699/1371352826625785907)
+ SoLstun (6duda9) has a 2023 US-made Corolla with a VIN that starts with 5 and may be up for a car port attempt. Unfortunately, they are also busy in July but may be able to assist later. (https://discord.com/channels/469524606043160576/905950538816978974/1386761726065901638)
+ geohot: "Remember, our goal is solving self driving cars, not anything else. It's important to stay focused on the mission. Solving Toyota security will not help with the mission, but we strongly encourage the community to solve it." (https://www.reddit.com/r/Commaai/comments/1lfmcew/comment/myxmnja/?utmsource=share&utmmedium=web3x&utmname=web3xcss&utmterm=1&utmcontent=sharebutton)
+
+July 2025
+
+ The 2021 Venza is confirmed to still be using the HSM or updated firmware. (https://discord.com/channels/469524606043160576/905950538816978974/1394057771254546503)
+ willem: "Quick update from my side. @ThisGuy sent me a 2022 Tundra EPS to look at. It has a weird redundant architecture with 2x RH850 on the PCB, and the exploit didn't work out of the box. After modifying my scripts a bit I was able to get my exploit to run. Unfortunately it's using the HSM." (https://discord.com/channels/469524606043160576/905950538816978974/1394067422566416405)
+   "But during this process I found that there is a TSB for the 2022 Tundra EPS (T-SB-0069-22). This means you can download a .cuw file (T-0035-22.cuw) containing the firmware."
+   "The most interesting part of this is actually the flash driver that's uploaded""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_70",
+    "title": "optskug SecOC Setup Guide (71/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+before flashing. Having this file will help tremendously if we want to go the route of flashing custom firmware that disables SecOC."
+   "could this easily open the door to other cars? or is it pretty tundra specific from what we know" - spanconstant5
+     "This flash driver should be applicable to all cars"
+ calvinspark notices that the August 2023 Mainland China-made Sienna which doesn't work for dumping has an 0x01 app identifier and a 0x02 bootloader identifier. (https://discord.com/channels/469524606043160576/905950538816978974/1399402947762327743)
+
+August 2025
+
+ Blue Pilot publishes a confirmed TRON (Trusted Realtime Operating Network / Ford's encrypted CAN bus) status list for Ford vehicles. Beginning with the 2023 Superduty, Ford has been rolling out encoded CANFD systems into vehicles which are incompatible with openpilot. (https://bluepilot.dev/2025/08/13/confirmed-tron-status-list/)
+ Apparently the Combonation Meter Assembly or the Instrument cluster on a Corolla Hatchback (All JP Made) isn't covered under security key? (https://www.reddit.com/r/CorollaHatchback/s/QnkrnvYDu0)
+   Nevermind, it is. Without it, TSS3 won't work. (https://www.reddit.com/r/CorollaHatchback/comments/1mrhvac/comment/n9mkwdm/?utmsource=share&utmmedium=web3x&utmname=web3xcss&utmterm=1&utmcontent=sharebutton)
+ ryleymcc, creator of the Mazda Torque Interceptor, discusses a bit about the Toyota Torque Interceptor (MT) (https://discord.com/channels/839295599928934430/936051750639665172/1405340646088380526)
+   The connector for Toyota's EPS was found but unfortunately it is "protected". A 3D printed replacement is needed.
+   The method used on the Mazda Torque Interceptors is non-appliable to Toyota as it is non-linear. Ripping the firmware may be needed to create a lookup table to "linearize" it.
+   "its not too hard to dump it"
+ ggajoch works in #dev-toyota-security for their Yaris's Long issues (SP) (https://discord.com/channels/880416502577266699/1326834259096371211/1408115978306322564)
+ Someone on reddit is documenting meter assembly swapping on Rav4s and there is a private swap of meters for the Rav4 Prime. They cannot share it as "it contains my credentials". (https://discor""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_71",
+    "title": "optskug SecOC Setup Guide (72/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+d.com/channels/469524606043160576/905950538816978974/1407581549519437834)
+ C3 support is removed from comma's codebase, this means the guide is temporarily unavailable for C3 users. (https://github.com/optskug/docs/issues/51)
+
+September 2025
+
+ The guide has been adjusted to to handle C3 and C3X users where possible. (https://github.com/optskug/docs/issues/51)
+ An attempt is made by tsuk1247 to dump the key on a 2025 Vellfire (TSS3) but it can't communicate/won't work. (https://discord.com/channels/469524606043160576/905950538816978974/1414826230712238231)
+ "do we have any devlopments on the tundra EPS "? Willem: "No updates 🙁" (https://discord.com/channels/469524606043160576/905950538816978974/1417100272496283830)
+ denso12345, replying to an ancient post by gsmdev (https://discord.com/channels/469524606043160576/905950538816978974/1421724831216304201)
+   "Hi, in the CUW Calibration there some keys i try to understand the algorithm to decrypt the calibration as u say there is some keys in the calibration as this example"
+   Along with a lot of dumps and decompiled code about Seed/Security Access.
+ SecOC longitudinal control support has been merged into upstream comma openpilot/opendbc. (https://github.com/commaai/opendbc/pull/1385)
+   Pull request by chrispypatt adds SecOC longitudinal control functionality to Toyota vehicles with TSK/SecOC security.
+
+October 2025
+
+ ziltoid4354 reinstalls frogpilot and re-extracts their key but the key seems to have changed. Swears no servicing. (https://discord.com/channels/469524606043160576/905950538816978974/1426970856843772016)
+ johntthesmith asks about the difference between Toyota A and Toyota B harnesses. It is explained that all supported Toyotas use Harness A, and no one has successfully used Harness B for operational openpilot in newer Toyotas. As such, there are no reports on differences. (https://discord.com/channels/469524606043160576/524327905937850394/1428756435306811433)
+
+November 2025
+
+ ggajoch discovers a reproducible issue where the EU Yaris Hybrid errors out when crossing over lane lines without the blinker on. It was not seen on the JP Yaris. (https://github.com/sunnypilot/opendbc/issues/364)
+ COMMACON 2025""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_72",
+    "title": "optskug SecOC Setup Guide (73/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+(https://www.reddit.com/r/Commaai/comments/1nr5zvn/commacon2025/) is held in San Diego. Numerous interesting announcements are made:
+   comma releases the comma four (https://comma.ai/shop/comma-four). It is a radical redesign of the form factor and a lot of work needs to be done with regards to code working on these devices.
+   Toyota Security Comments: comma ai | COMMA CON 2025 | George Hotz | Outwit, Outplay, Outlast | President (https://youtu.be/werrvv0MVXQ?t=1966), an excerpt:
+
+        [00:32:11.079 --> 00:32:13.079]   The ultimate comma
+    [00:32:13.079 --> 00:32:16.079]   is not a device that plugs into your car.
+    [00:32:16.400 --> 00:32:18.500]   It's a robot that gets in the driver's seat.
+    [00:32:20.180 --> 00:32:21.279]   That's where we're going.
+    [00:32:22.299 --> 00:32:23.160]   Why should we,
+    [00:32:23.160 --> 00:32:31.200]   oh, you're going to crack the Toyota should we oh oh you gotta crack the toyota security oh no who cares build a robot that gets in the seat and grabs the wheel and
+    [00:32:31.200 --> 00:32:38.240]   turns the wheel now don't do this tomorrow because it's not gonna work right having
+    [00:32:38.240 --> 00:32:54.819]   accurate predictions about technology is super important if you want to know where to do investment. I wish VCs understood any concept of this. But yeah, OpenPilot is a general purpose robotics operating system.
+    [00:32:54.819 --> 00:32:58.839]   OpenPilot, everyone always says, oh, comma, you're going to die if you don't partner with
+    [00:32:58.839 --> 00:33:02.859]   car makers. Everyone's going to get security. Or, oh, my God, I don't care. I want to build
+    [00:33:02.859 --> 00:33:11.960]   a robot. I want it to cook and clean for me. But like actually do this. Not build up some hype. In the same way Cruise told
+    [00:33:12.599 --> 00:33:15.680]   you they were going to solve self-driving and wasted $10 billion, you're going to see
+    [00:33:15.680 --> 00:33:19.700]   all the same stuff happen in humanoid robots. And guess who's going to be there to pick
+    [00:33:19.700 --> 00:33:29.180]   up the pieces? Kama and Tesla. Same people who are there today. So, yeah. No, I mean, t""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_73",
+    "title": "optskug SecOC Setup Guide (74/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+he Kama
+    [00:33:29.180 --> 00:33:34.759]   9 is going to be that guy. Get your car. Is it compatible with my car? Yeah, bro. He sits
+    [00:33:34.759 --> 00:33:39.599]   in the seat. All right. That's my talk. I'll take questions.
+    
+ GON0822 says there was an issue with the traction control on his Yaris Hybrid. (https://discord.com/channels/469524606043160576/905950538816978974/1438655571082477569)
+ kaizen asks and pings geohot if they could bring their unsupported 2023 NX to comma to reverse engineer. However, it's responded that comma never responds to such requests. (https://discord.com/channels/469524606043160576/905950538816978974/1443348195655811173)
+   "i've never heard of comma answering such a request . they sometimes refer people to https://comma.ai/shop 's Custom Car Ports offering but it has never been used in the context of ⁠toyota-security" - nelsonjchen
+   <img width="727" height="564" alt="shop screenshot" src="https://github.com/user-attachments/assets/86df43bd-67c9-4b8f-9337-a6b06c97eae6" />
+   Snippets from page:
+     "Hire the comma openpilot team to add dedicated support for a new make or model vehicle that has electronically controllable gas, brake, and steering. We will work until the port is upstreamed, or on a branch for non production cars."
+     "This service is intended for pre/non production vehicles. For production vehicles on the market today, we will likely do the port much cheaper, perhaps as cheap as the cost of the car."
+     Pricing
+       $50,000 Down Payment (immediate)
+       $500,000 Total (due at start of project)"
+   geohot responds: "if someone wants to pay me $500k i'd totally crack toyota security on whatever car you give me. be a fun christmas project, who's got the 500k?" (https://discord.com/channels/469524606043160576/905950538816978974/1443360744660799549)
+
+December 2025
+
+ kevinpan9405: If someone need this to do some research, I can buy it. (Tundra Steering Rack) (https://discord.com/channels/469524606043160576/905950538816978974/1450196046410944635)
+ codyisapro is the first to extract a key with the comma four. (https://discord.com/channels/469524606043160576/905950538816978974/1450992174064734308)
+ astr""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_74",
+    "title": "optskug SecOC Setup Guide (75/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+adotpng extracts a key from their Rav4 Prime with SSH instructions (https://community.sunnypilot.ai/t/toyota-2021-rav4-prime-w-c4-working/1776)
+ calvinspark updated the setup guide with C4 instructions and changes. (https://github.com/optskug/docs/pull/69)
+
+January 2026
+
+ GON0822 is able to get their Japanese Yaris running on the comma four. Running sunnypilot dev branch. (https://discord.com/channels/469524606043160576/905950538816978974/1462060811878006886)
+ roxen3005/Rajesh had to replace the ECM in their Sienna 2023. They were very worried about this replacement making openpilot incompatible. It did not, though they had to re-extract the new key. (https://discord.com/channels/469524606043160576/905950538816978974/1463230276967862474)
+ jyf0228 unfortuantely discovers that their 2025 UX has Toyota Security Key and that the 2024 UX does not. As it was introduced in 2025, it is added to the list of unsupported vehicles. (https://discord.com/channels/469524606043160576/524327905937850394/1464342057345618175)
+
+February 2026
+
+ Ren./ivybridge4627 is able to get 2020 JDM Yaris Hybrid using a comma ai 3x. (https://discord.com/channels/469524606043160576/905950538816978974/1468087525099831410)
+ man9778 investigates the Japanese-made 2023 Prius in Korea, suspecting weaker security due to removed features. It has the same security as others and for the time being, is not supported for any key extraction. (https://discord.com/channels/469524606043160576/905950538816978974/1468991096762925222)
+ adeeb, a comma staffer, responds to "Comma AI approach to a future of vehicles with encrypted CAN bus" (https://www.reddit.com/r/Commaai/comments/1qyufzq/comment/o46cci8/)
+   "It’s the same as any car support. We seeded a lot of the car support, and for the last few years, the community has extended it a ton while we make openpilot more capable."
+   "Car port difficulty has always been a spectrum, and SecOc just pushes the spectrum a little further over. But the community already has some SecOc cars driving around, and even a few FlexRay cars recently."
+   "(That being said, we’re hiring if anyone wants to come here and work on car ports!)"
+ man\\9778 attempts to dump a key from thei""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_75",
+    "title": "optskug SecOC Setup Guide (76/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+r 2025 Prius. Initial software does not work. (https://discord.com/channels/469524606043160576/905950538816978974/1474835486680944703)
+
+March 2026
+
+ Tundra status is still basically unchanged: the rack did make it to Willem and he eventually got the exploit to run, but the key was not stored in memory. A December follow-up said he was busy with other consultation projects. (https://discord.com/channels/469524606043160576/905950538816978974/1488632670505275463)
+ In the openpilot 0.11 AMA, adeeb comments on newer vehicles and "encrypted" CAN buses, saying "encryption is fake news" and that there is "hope for any car with LKAS and ACC". When asked about the 2026 RAV4, he replies: "does it have LKAS and ACC? if so, you're in luck :)". (https://www.reddit.com/r/Commaai/comments/1rwhomf/openpilot011shipstodayaskusanything/)
+   A later May 2026 Reddit thread points back to this AMA as a counterpoint to claims that comma has fully written off manufacturer encryption/SecOC-style vehicles. (https://www.reddit.com/r/Commaai/comments/1t48mx0/comment/ok324kd/?utmsource=share&utmmedium=web3x&utmname=web3xcss&utmterm=1&utmcontent=sharebutton)
+
+April 2026
+
+ man\\9778 reports that a Korean-market 5th gen Prius looks promising under a forced-recognized sunnypilot build and suspects SecOC may not be applied, but it is still very early and they are asking for help analyzing a route. (https://discord.com/channels/469524606043160576/905950538816978974/1488870442943905853)
+ sunnyhaibin analyzes a 2025 Lexus ES Hybrid Korean import after a sunnypilot user reports that a comma four stays in dashcam mode, unrecognized car, and then shows unknown vehicle variant after manual selection. The reported VIN starts with J, and the follow-up log review found PCMCRUISE only with the SecOC DBC plus 0x0F / SECOCSYNCHONIZATION, which strongly suggests this non-US-market variant is TSK/SecOC-affected rather than just missing from the supported-car list. (https://community.sunnypilot.ai/t/comma-4-not-recognizing-a-supported-car/4678/4?u=sunnyhaibin)
+ In a follow-up to the older 2022 Tundra EPS thread, blurbdust says they have a script for extracting the flash driver from the Techinfo .cuw package and o""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_76",
+    "title": "optskug SecOC Setup Guide (77/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+ffers to DM it without including keys. They add that it computes 0x201 and 0x202, which they say are needed to decrypt the flash driver. This appears to be community-side tooling around the .cuw file, not a broader new breakthrough on the Tundra itself. (https://discord.com/channels/469524606043160576/905950538816978974/1496150355224952995)
+ (OPC Discord) As a funny sidenote from another SecOC world, Majd says a Fisker Ocean openpilot port is being worked on using the Toyota SecOC examples plus Tesla signals, and that the SecOC keys were "super easy" to retrieve because Fisker apparently left an option to read from the ECUs without security. (https://discord.com/channels/771493367246094347/771493367779295304/1498001868003999954)
+
+May 2026
+
+ spanconstant5 asks whether the Taiwan Corolla Cross still is built locally without TSK after hearing an old hardware-hack rumor / seeing a Taiwan Corolla Cross video. (https://discord.com/channels/469524606043160576/905950538816978974/1501647353063673957) Saber422 responds that Corolla Cross is made locally in Taiwan and that the 2026 Taiwan Corolla Cross is still TSS2. There is no known hardware hack here: Taiwan Corolla Cross appears to simply never have had TSK/SecOC, similar to the Thailand-market Corolla Cross situation.
+ nelsonjchen says "yeah so the key is protected through techstream" while discussing the previously observed M1, M2, M3, etc. key-update values. (https://discord.com/channels/469524606043160576/905950538816978974/1501688963944157266)
+   Small writeup: The M1, M2, M3, M4, and M5 labels appear to line up with AUTOSAR's Secure Hardware Extensions (https://www.autosar.org/fileadmin/standards/R22-11/FO/AUTOSARTRSecureHardwareExtensions.pdf) memory/key update protocol, not the core SecOC message-authentication spec itself. In that protocol, M1-M3 are the protected input messages used to load a key, and M4-M5 are verification messages returned afterward. The important part for Techstream interception is that the key is not simply handed to the ECU as plaintext in this flow: the new key is wrapped/encrypted using a key already present in the ECU. This also matches Willem's explanation in the "Key Update" section""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_77",
+    "title": "optskug SecOC Setup Guide (78/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+of the SecOC key extraction write-up (https://icanhack.nl/blog/secoc-key-extraction/#key-update), where he says the existing key can be either the current SecOC key or MASTERECUKEY. So observing Techstream/GTS+ rekeying traffic may show the update blobs, but without knowledge of the old/current ECU secret, those blobs should not be enough to recover the new plaintext SecOC key or generate a valid replacement update.
+ VanceLiu/Vance425 shares public 2024 Sienna openpilot/C3X SecOC research repos, including an English repo and later a public-safe Note repo. (https://discord.com/channels/469524606043160576/905950538816978974/1509223220400881784) The public repos claim that 2024 Sienna C3X lateral and longitudinal control are field-working, and that a steering SecOC candidate validates 0x2E4 / STEERINGLKA and 0x131 / STEERINGLTA2. Vance clarified that this is not a public dataflash key extraction claim and that no sensitive key material is published, but later said he privately reproduced the result and is using it on his own January 2024 Sienna.
+   The interesting timeline gap was that the public notes showed a 2026-05-10 EPS DATAFLASH dump over 0xff200000:0xff208000 with no stable TSK/SecOC key accepted from the old dump-structure/checksum heuristics, then a 2026-05-22 result where a candidate from local DATAFLASH output validates the steering frames. Later follow-up below claims this gap was closed by scanning high-entropy 16-byte DataFlash windows and promoting candidates with real CAN MAC-oracle checks.
+
+June 2026
+
+ Emna tries to extract the key from a Yaris Cross using optskug/secoc, but the computed key is rejected by the ECU. (https://discord.com/channels/469524606043160576/905950538816978974/1511380265451126834) The script reaches programming session and obtains a 16-byte seed with size 0, then computes a key, but SECURITYACCESS - invalid key is returned. This moves 2021+ Yaris Cross Hybrid out of the "maybe but untried" bucket and into the negative-data bucket for now. Follow-up guidance was that they likely need to figure out the correct security key / SEEDKEYSECRET, potentially by following Willem's sacrificial EPS reverse-engineering approach, rather t""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_78",
+    "title": "optskug SecOC Setup Guide (79/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+han just rebuilding payload.bin.
+ Follow-up: Vance publishes a June 8 public-safe note saying a partner's June 2024 Sienna SecOC key was found and vehicle-verified (https://github.com/Vance425/ToyotaSienna2024OpenpilotAnalysis-Note/blob/main/docs/tss3-secoc-key-recovery-20260608-zh.md), while JoshSchmitt reports a working key on a 2021 Sienna with a 2024-era replacement EPS (https://discord.com/channels/469524606043160576/905950538816978974/1515401882728796252), and thehui/bkai201 says he and Vance replicated the flow on a 2024 US Sienna and published a setup wizard (https://discord.com/channels/469524606043160576/905950538816978974/1515407711636819989) in thehui/bkai201's tskextractionbycanlog repo (https://github.com/Bk2ol/tskextractionbycanlog).
+   Claimed flow: collect 0x0f, 0x131, 0x2e4, and 0x344 CAN oracle frames; dump EPS DataFlash 0xff200000-0xff208000; scan high-entropy 16-byte candidate windows; validate with a corrected 0x0f AES-CMAC sync verifier; cross-check protected frames; then install SecOCKey only after verification.
+   The reported target family is EPS application 8965B4514000 with the \\x02 bootloader / \\x018965B4514000... app-id family. Vance's note tracks only redacted proof data: key hash 1d1c53a6d634016a, candidate address 0xff206e14, candidate offset 28180, corrected 0x0f sync validation 1024/1024, bus 0 protected-frame validation 563/564, and a later protected check of 730/750.
+   The main technical correction is that the earlier 0x0f sync verifier reportedly packed RESETCNT wrong. After changing the sync input to use three bytes of resetcnt << 4, equivalent to struct.pack(">I", resetcnt << 12)[:-1], the same candidate reportedly validates 0x0f and ranks first.
+   thehui's renamed Toyota Dataflash SecOC Setup repo is a real wizard-shaped extractor/installer path, but it is not the current GUI guide/app flow. Also, the public checkout does not appear to include the referenced payloaddataflashff200000ff208000.bin even though the README says the payload is included, so treat it as experimental research tooling and send feedback to #toyota-security.
+   nelsonjchen wonders whether this should make the community double back to 2021+ Venza and""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_79",
+    "title": "optskug SecOC Setup Guide (80/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+2024+ RAV4 Prime. (https://discord.com/channels/469524606043160576/905950538816978974/1515429334221852835) That is a very speculative unknown: it may fail due to ECU differences, payload compatibility, security-access differences, HSM changes, or the key not being in the same DataFlash range. Brave testers with matching vehicles, logs, dumps, or failed attempts should report back in #toyota-security.
+ PR #1 to thehui/bkai201's repo is merged, renaming the tooling from the old TSS3 SecOC Key Setup Wizard shape to Toyota Dataflash SecOC Setup. (https://github.com/Bk2ol/tskextractionbycanlog/pull/1) The command moves from tss3setup.py to toyotadataflashsecocsetup.py, and the canonical comma-side directory moves from /data/tss3setup to /data/toyotadataflashsecocsetup. This is a terminology/tooling cleanup rather than a new extraction result: it removes misleading TSS3 and Sienna-specific internal naming, while keeping the currently validated target as a 4th-gen Sienna with EPS 8965B4514000. This matches the current understanding that Toyota's official 2024 Sienna materials list TSS 2.0, and that TSS generation is not a reliable proxy for Toyota TSK / ECU Security Key / SecOC behavior.
+ Tim asks whether the 2024 Sienna DataFlash candidate + CAN-oracle approach could apply to Tundra, then tests against a Tundra and reports no luck. (https://discord.com/channels/469524606043160576/905950538816978974/1515703348060487681) The discussion points at the public I-CAN-hack/secoc tundra branch (https://github.com/I-CAN-hack/secoc/tree/tundra) and the earlier Willem update that Tundra code execution had been made to run on a 2022 Tundra EPS, but that the EPS uses an HSM. Tim later says he dumped the DataFlash and ran the Sienna-style stepextractverifykey.py candidate verifier, but the test did not find a working key. This is an early negative datapoint, not a final proof that the strategy can never work on Tundra.
+ Non-Toyota aside: comma opens a $10k opendbc bounty for 2026 Ford F-150 / TRON support (https://github.com/commaai/opendbc/issues/3426), with other Ford TRON-platform vehicles also eligible. The bounty asks for a harness design, a high-quality lateral port, and at l""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_80",
+    "title": "optskug SecOC Setup Guide (81/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+east proof-of-concept longitudinal support; the issue also notes a smaller payout tier for support that requires manual user-provided parameters, similar in spirit to the 2021 RAV4 Prime situation.
+ nelsonjchen reaches out for 2023+ Mainland China-made Sienna owners/testers after the 2024 US Sienna DataFlash-oracle reports. (https://discord.com/channels/469524606043160576/905950538816978974/1516968701805596852) This is an outreach / data-gathering item rather than a result: the PRC Sienna bucket remains orange because existing data points are mixed, with some older PRC Sienna reports, later non-working examples, and changed identifier observations. Useful follow-up would include build date, VIN origin, EPS/app identifiers, CAN logs, dump behavior, and both successful and failed attempts.
+ thehui cautions that the current 2024+ Sienna solution appears specific to EPS 8965B4514000, and that more CAN logs from different EPS versions are needed before calling the approach general. (https://discord.com/channels/469524606043160576/905950538816978974/1518315346526732438)
+ chipmunk/aidashu reports another successful 2024 Sienna run on a January 2024 build with EPS 8965B4514000, while also documenting rough edges in thehui's current instructions. (https://discord.com/channels/469524606043160576/905950538816978974/1520359990022639627) Step 1 CAN collection worked, but they hit setup blockers around the /data/toyotadataflashsecocsetup path expectation and a missing patchtss3missingfwto4thgen.py helper referenced by steps/stepfingerprintpatch.py. thehui supplied the missing file directly, after which the run succeeded. Treat this as both another success report and a request for more users to walk through the instructions, verify the repo packaging, and comment with fixes.
+ robocow1 gets the alternative TSK dumping method working on a 2025 Sienna on a C3. These two boundaries are pushed. (https://discord.com/channels/469524606043160576/905950538816978974/1524242641536028832)
+ Calvin produces a dataflash dump version of the 2024 Sienna SecOC key extraction flow but tries it with yc's 2024 Rav4 Prime. Unfortunately, no key was found.  (https://discord.com/channels/469524606043""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_81",
+    "title": "optskug SecOC Setup Guide (82/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+160576/905950538816978974/1524242641536028832)
+
+July 2026
+
+ 3b1b.eth reports purchasing a steering-control module and pursuing the payload-build secret through module firmware/hardware analysis, following the sacrificial-module path used by Willem and Greg. (https://discord.com/channels/469524606043160576/1524987019087052820/1525284784547299359) If recovered, the secret could allow 3b1b.eth to build custom payloads that dump wider or complete DataFlash regions and search them for vehicle-specific SecOC key material. This is an active research effort: no firmware dump, payload-build secret, or SecOC key recovery has been reported yet.
+ yc points to a Penthertz retrospective collecting the RH850 fault-injection work that followed Willem's 2022 RAV4 Prime EPS research. (https://discord.com/channels/469524606043160576/1524987019087052820/1525414373559107604) The March 2026 article (https://community.penthertz.com/t/the-evolution-of-rh850-hacking-from-a-diy-to-the-pico-glitcher-v3/30) traces quite a history: subsequent researchers extended the line of work across additional RH850 families and production ECUs, including firmware and diagnostic-secret extraction, EM fault injection, and Quarkslab's bypass of 16-byte ID Code protection, reproduced with the lower-cost Pico Glitcher v3. These are valuable follow-ups to Willem's RH850 reverse-engineering adventures, but they involve different chips, protections, and targets and do not by themselves report a new Toyota SecOC key-extraction result.
+ Silly Burrito tells geohot, "just waiting for that Toyota to work before I get one, tell your marketing guy that 😉". geohot replies: "the security key one? buy a different car". (https://discord.com/channels/469524606043160576/954493346250887168/1526325538749157568)
+ 3b1b.eth reports getting a DIY glitching setup working on a Sienna EPS after a day of hands-on trial and error. (https://discord.com/channels/469524606043160576/905950538816978974/1527362940708065421) They have the module connected and are now attempting a firmware dump in order to recover the material needed to re-sign/build their own payloads, which could then support wider DataFlash dumps and a search for SecOC k""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_82",
+    "title": "optskug SecOC Setup Guide (83/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+ey material. This is a hardware bring-up milestone only: no firmware dump, payload-signing secret, or SecOC key recovery is reported here.
+ Long (long047829) reports that a China-market 2025 Lexus ES shows TSK/SecOC-style checksum failures when using openpilot. (https://discord.com/channels/469524606043160576/954493346250887168/1527543242197958736) This adds a PRC-market ES2025 datapoint alongside the earlier Korean-import ES Hybrid report; both are market-specific findings and do not establish the status of every 2025 Lexus ES variant.
+ After two days of attempts, 3b1b.eth reports successfully dumping the Sienna EPS firmware. (https://discord.com/channels/469524606043160576/905950538816978974/1528089550843547820) This advances the sacrificial-module effort from glitching bring-up to an actual firmware dump. The next concrete goal is to analyze the dump and identify the key used to sign/build payloads; no payload-signing secret or vehicle SecOC key recovery has been reported yet.
+ 3b1b.eth, co-authoring with Zcode, publishes a bilingual reverse-engineering report on the China-market Sienna EPS 8965B4512000 (https://github.com/lochuan/RH850P1m-E/blob/main/RESEARCHREPORTEN.md), along with the Chinese version (https://github.com/lochuan/RH850P1m-E/blob/main/RESEARCHREPORTCN.md), a 1 MiB firmware image, and a proposed rekey-capture design. This is a major community milestone: a non-professional researcher progressed from buying and glitching a sacrificial module to publicly releasing its firmware and a detailed map of the RH850/P1M-E firmware's SecOC, CSM, and ICU-facing paths.
+   The immediate result is grim for easy key extraction. Unlike the 8965B4514000 EPS used in Vance/thehui's newer US-Sienna DataFlash method, the authors found no candidate on 8965B4512000 after scanning four 32 KiB DataFlash dumps, all 512 64-byte pages, and 8,189 overlapping 16-byte windows against 6,962 captured 0x0F, 0x131, 0x2E4, and 0x344 frames. They interpret the relevant DataFlash pages as key-slot metadata rather than a raw AES-128 SecOC key and conclude that the ordinary boot path leaves the usable key bound inside the ICU crypto boundary. At minimum, this is strong evidence that t""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_83",
+    "title": "optskug SecOC Setup Guide (84/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+he successful 8965B4514000 DataFlash scan is not a universal Sienna/Toyota solution.
+   Firmware analysis identifies a different possible exposure: the report maps a rekey/install path through secockeyhostwrite, secockeysetfromworkbuf, and csmjobsubmitkeyset, where new key material appears to pass through host-visible RAM at 0xFEBEF468/478/488 and work buffer 0xFEBFEB08. The proposed next experiment is temporary shellcode that monitors/hooks those locations while Techstream or another dealer tool triggers a rekey, followed by CAN-oracle validation.
+   This is not yet a SecOC key-extraction success for 8965B4512000. The rekey capture is a design left for community implementation; it requires dealer tooling, has a short IG-ON working window, and has not produced a verified key in the published report. Its quoted ~58% success probability is the product of four author-assigned component estimates, not an observed success rate. The repository publishes hashes for PAYLOADBUILDSECRET and SEEDKEYSECRET, but withholds the secret values and does not publish a working payload builder or vehicle key.
+   Evidence-scope caveat: the negative scans directly establish that a raw key was not found in the tested DataFlash dumps. The report's more specific explanation—that the ICU derives the key from DataFlash metadata and a fused master key—is an interpretation of the host-side firmware behavior; the report also describes the ICU internals themselves as a black box. This distinction does not diminish the firmware-dump or reverse-engineering milestone, but it identifies what still needs experimental confirmation.
+
+---
+
+[^1]: This is an image of the CAN BUS traffic on a RAV4 Prime. The "checksum" for the Lane Keep Assist messages are now very high in entropy, indicative of some sort of signing or encryption being used.
+
+[^2]: As a shameless plug, do you like those real-time updating embedded values from the Google Spreadsheet up there for the bounty and vote tracker? I made cellshield.info (https://cellshield.info) for that and other non-security key related uses. Check it out and let me know outside of this discussion if you have any comments!
+
+[^3]: Speculated from TechInfo looku""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_readme_md_84",
+    "title": "optskug SecOC Setup Guide (85/85)",
+    "tags": ["secoc","optskug","toyota","setup"],
+    "refresh": False,
+    "text": """Source: optskug/docs — README.md
+https://github.com/optskug/docs/blob/main/README.md
+
+p. TechInfo lookup is looking at Toyota's Techinfo site (payment required, minimum ~$25) and seeing if replacing the "Object recognition camera" / "Forward recognition camera" requires an ECU Security Key update. https://discord.com/channels/469524606043160576/524327905937850394/894262224552624228
+
+[^4]: gregjhogan stated that the first byte of a UDS firmware version is not a bootloader version. https://discord.com/channels/469524606043160576/905950538816978974/1273746993394487376
+    > The first byte returned when reading the firmware versions using UDS read data by id isn't part of the version number, it is how many applications are running on the ECU (for example if it has two cores, there may be a separate application running on each core) and it tells you how many you can extract from the rest of the data returned.""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_archive_auth_not_enc_md_0",
+    "title": "optskug: auth_not_enc",
+    "tags": ["secoc","optskug","archive"],
+    "refresh": False,
+    "text": """Source: optskug/docs — archive/auth_not_enc.md
+https://github.com/optskug/docs/blob/main/archive/auth_not_enc.md
+
+🚨 It is data authentication, and encryption isn't used to hide the data. We can see the messages used to control latitude! We just can't make new ones.
+
+---
+You've got a message you want to send to Bob. In the old cars, Bob didn't know who was sending him letters to his inbox, so he would blindly read anything you sent him.  Now Bob is getting suspicious of people that aren't his co-workers to be sending him messages. He gives all his coworkers a red stamp with a roll of numbers on it. Every time a coworker sends a message, they change the stamp to a new code position, then stamp the envelope with the code. Bob knows what the next code should be. We are trying to send Bob messages without the special stamp, so Bob knows to ignore our letters.
+If we go through bobs inbox, we know he's getting the same letters. He also knows we're sending the same letters, but as long as that envelope isn't stamped, you can't get anywhere.
+
+--- Thinkpad4by3#7568 on Discord
+
+https://discord.com/channels/469524606043160576/905950538816978974/1012390757832855553
+
+nelson note: this isn't the best analogy, but it gets across the point that the message is readable, but we can't notarize it.""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_archive_can_bus_md_0",
+    "title": "optskug: CAN bus notes",
+    "tags": ["secoc","optskug","can","archive"],
+    "refresh": False,
+    "text": """Source: optskug/docs — archive/can_bus.md
+https://github.com/optskug/docs/blob/main/archive/can_bus.md
+
+What I've observed about ECU Security Key
+
+I'm not great at reverse-engineering, but this is what I've seen.
+
+dec 2023 note: web cabana has since been removed. you'll need to use desktop qt cabana now.
+
+You can get here by going to Comma Connect, clicking on a drive, uploading all log files, and selecting "View in Cabana" after the files are uploaded:
+
+<img width="471" alt="image" src="https://user-images.githubusercontent.com/5363/206864999-05da8720-a724-4316-a9b0-c0fab534935d.png">
+
+Once in Cabana, click Load DBC and select toyotanodsuptgenerated.dbc. Filter the messages for STEERINGLKA. Click on one of the STEERINGLKA messages and change the message size to 8. If you see extremely high-entropy and random bytes on the last 4 bytes, then the vehicle likely has Toyota Security Key.
+
+-----
+
+ Bus 128 is like what OP would love to be sending. That is the old Toyota checksum scheme. It's a rather low FPS GIF with a rather low period but imagine the checksum being obviously steadily increasing due to the counter part of the message also steadily increasing but everything else pinned to 0x00.
+ Bus 2 is what we're seeing and that's from the camera right? The last four bytes are super high entropy looking.
+ Bus 0: 🤷‍♂️, but I am also not sure if it matters.
+
+-----
+
+ No existing checksum algorithms were working.
+ There is a 4 byte authentication code on the CAN message instead of the simple 1 byte checksum of past Toyotas.
+ The same inputs result in different "checksum"/authentication code outputs.
+ The messages are different between ignitions.
+ The messages are different between vehicles.""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_archive_dump_milestone_md_0",
+    "title": "optskug: dump milestone",
+    "tags": ["secoc","optskug","dataflash","archive"],
+    "refresh": False,
+    "text": """Source: optskug/docs — archive/dump_milestone.md
+https://github.com/optskug/docs/blob/main/archive/dump_milestone.md
+
+The criteria has been met. Please get in contact with me if you haven't to pool the bounty.
+---
+Criteria for Firmware Dump milestone
+
+These are my criteria; others may have different criteria. If the goal is claimed to be met and also meets my criteria, I, @nelsonjchen, will try to convince the other bounty offers for the firmware dump milestone to align their criteria with mine and fulfill their pledge.
+
+1. Enough instructions to be reproduced by someone else
+2. Video/Pictures of loading the dump into a disassembler and showing that it loads and showing some strings in the dump that are obviously from a relevant Toyota ECU Security'd ECU and coherently disassembled machine instructions.
+3. The firmware must be from a Toyota ECU that has ECU Security Key.
+
+A good example of "Enough instructions" and "Videos/Pictures" would be these blog posts regarding hacking/dumping a VW Golf Power Steering ECU: https://blog.willemmelching.nl/carhacking/2022/01/02/vw-part1/
+
+Reverse engineering the security system is not needed. Please don't openly share the copyrighted firmware. The amount of sharing with the second criteria should be just enough with fair use to show that the firmware dump has been accomplished and that it can be reproduced.
+
+Also, if the system is cracked without the firmware dump, consider this firmware dump milestone met too.
+
+---
+
+The criteria appears to have been met.
+
+https://blog.willemmelching.nl/carhacking/2022/11/08/rh850-glitch/
+
+I'm going to start to try to collect and gather the bounty.""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_archive_rav4_prime_replace_rack_md_0",
+    "title": "optskug: RAV4 Prime rack",
+    "tags": ["secoc","optskug","rav4","archive"],
+    "refresh": False,
+    "text": """Source: optskug/docs — archive/rav4_prime_replace_rack.md
+https://github.com/optskug/docs/blob/main/archive/rav4_prime_replace_rack.md
+
+Probably too much, just here for the record.""",
+  },
+  {
+    "id": "builtin_secoc_optskug_docs_archive_sienna_replace_rack_md_0",
+    "title": "optskug: Sienna rack",
+    "tags": ["secoc","optskug","sienna","archive"],
+    "refresh": False,
+    "text": """Source: optskug/docs — archive/sienna_replace_rack.md
+https://github.com/optskug/docs/blob/main/archive/sienna_replace_rack.md
+
+Probably too much for most people, but if one is wondering...""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_readme_md_0",
+    "title": "RH850 P1m-E repo overview",
+    "tags": ["secoc","rh850","firmware"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — README.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/README.md
+
+RH850/P1M-E SecOC Research Report
+
+- 中文版报告 (RESEARCHREPORTCN.md)
+- English report (RESEARCHREPORTEN.md)""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_0",
+    "title": "RH850 SecOC 研究报告（中文） (1/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+> 🌐 English Version / 英文版本 (RESEARCHREPORTEN.md)
+
+---
+
+丰田 SecOC 密钥提取：综合逆向工程研究
+
+目标： 丰田 Sienna CN EPS 8965B4512000 · RH850/P1M-E MCU
+日期： 2026-07-20
+作者： 3b1b.eth co-authored with Zcode
+状态： 教育研究 — 详细固件逻辑文档
+
+---
+
+执行摘要
+
+本文档对丰田 Sienna CN EPS 8965B4512000（RH850/P1M-E MCU）中的丰田 SecOC（安全车载通信）实现进行了全面的逆向工程分析。
+
+目的： 使其他人能够学习、获得灵感并尝试 SecOC 密钥提取。
+
+主要发现：
+
+1. SecOC 密钥在 ICU（加密处理器）内部派生，来自 DataFlash 元数据，而非以原始 AES 密钥形式存储
+2. 密钥在重新密钥（rekey）操作期间暴露在 RAM 中，位于 FEBEF468/478/488 和 workbuf
+3. 现有提取方法失败，因为密钥从未永久存在于主机可访问内存中
+4. Rekey 捕获方法是可行的，但需要经销商工具来触发 rekey
+
+证据： 所有结论均由 Ghidra 反编译、CAN 预言机分析和 DataFlash 转储分析支持。无推测。
+
+---
+
+目录
+
+1. 引言 (#1-引言)
+2. 固件架构 (#2-固件架构)
+3. SecOC 密钥工作机制 (#3-secoc-密钥工作机制)
+4. ECU SecOC 密钥加载过程 (#4-ecu-secoc-密钥加载过程)
+5. CSM/ICU 桥接架构 (#5-csmicu-桥接架构)
+6. 现有方法失败的原因 (#6-现有方法失败的原因)
+7. Rekey 捕获方法 (#7-rekey-捕获方法)
+8. DataFlash 结构分析 (#8-dataflash-结构分析)
+9. CAN 帧分析 (#9-can-帧分析)
+10. 密钥槽页面分析 (#10-密钥槽页面分析)
+11. 完整函数参考 (#11-完整函数参考)
+12. 社区实验指南 (#12-社区实验指南)
+13. 经验教训 (#13-经验教训)
+14. 未来研究方向 (#14-未来研究方向)
+15. 结论 (#15-结论)
+16. 与"I Can Hack"发现的比较 (#16-与i-can-hack发现的比较)
+17. 与 Vance 方法的比较 (#17-与-vance-方法的比较)
+18. 附录 (#18-附录)
+
+---
+
+1. 引言
+
+1.1 目标系统
+
+| 组件 | 详细信息 |
+|------|----------|
+| ECU | 丰田 Sienna CN EPS 8965B4512000 |
+| MCU | RH850/P1M-E (R7F701381) |
+| 固件 | RH850P1M-EFirmware.bin（Ghidra 项目：RH850SecOC） |
+| gp 寄存器 | 0xFEBF9800 |
+| DataFlash 基址 | 0xFF200000 |
+| GlobalRAM | 0xFEBE0000 - 0xFEC00000 |
+
+1.2 研究目标
+
+提取用于认证 CAN 帧（ARBID 0x0F、0x131、0x2E4、0x344）的 AES-128 SecOC 密钥。
+
+1.3 方法论
+
+| 方法 | 描述 | 工具 |
+|------|------|------|
+| 静态分析 | 使用 Ghidra 反编译 RH850P1M-EFirmware.bin | Ghidra、Ghidra MCP |
+| 动态分析 | CAN 预言机捕获（60 秒，6,962 帧） | Comma 设备、openpilot |
+| DataFlash 分析 | 多个 DF 转储（4 个转储，每个 32KB） | TSK 提取工具包 |
+| 基于代码的证据 | 所有结论均由反编译函数支持 | Ghidra 反编译 |
+
+1.4 研究问题
+
+1. SecOC 密钥如何工作？
+2. ECU 如何加载 SecOC 密钥？
+3. 现有提取方法为何失败？
+4. 我们如何提取密钥？
+
+---
+
+2. 固件架构
+
+2.1 启动过程
+
+ECU 启动过程遵循以下顺序：
+
+┌─────────────────────────────────────────────────────────────┐
+│  ECU 启动序列                                               │
+└─────────────────────────────────────────────────────────────┘
+
+1. 上电 (t=0ms)
+   ↓
+2. 复位处理程序 @ 0x1F2
+   → 设置 gp = 0xFEBF9800
+   → 初始化堆栈指针
+   ↓
+3. 引导加载程序 (t=10ms)
+   → 初始化硬件
+   → 检查 UDS 上传请求
+   ↓
+4. 固件启动 (t=50ms)
+   → 初始化 CSM
+   → 初始化 SecOC""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_1",
+    "title": "RH850 SecOC 研究报告（中文） (2/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+↓
+5. CSM 初始化 (t=60ms)
+   → 初始化作业队列
+   → 初始化 ICU 接口
+   ↓
+6. 工厂布防 (t=70ms)
+   FUN000679d6 → FUN00078504 → FUN000758a0 → FUN00077e98
+   → 从 DataFlash 读取密钥槽页面
+   → ICU 内部派生密钥
+   → 密钥绑定到 jobId
+   ↓
+7. 主循环 (t=100ms)
+   → 循环任务启动
+   → MAC 作业调度器启动
+   ↓
+8. IG-ON 激活 (t=200ms)
+   → CAN 帧传输
+   → SecOC 认证激活
+
+证据： Ghidra 反编译复位处理程序 @ 0x1F2、FUN000679d6 @ 0x679D6
+
+2.2 主循环
+
+主循环是 SecOC 实现的核心：
+
+┌─────────────────────────────────────────────────────────────┐
+│  主循环                                                     │
+└─────────────────────────────────────────────────────────────┘
+
+mainloop
+  → FUN00065f5c → FUN00067282 → FUN00078bd0
+       → csmmainfunction @ 0x730D4
+            │
+            ├─ csmprocessjobfinish @ 0x71E5A
+            │    → csmdequeuefinishedjob @ 0x71DE0
+            │    → csmdispatchopbymagic @ 0x70D96
+            │
+            └─ secoccyclictask @ 0x65C60
+                 → FUN00065bc6
+                 → secocmacjobscheduler @ 0x66374
+                      │
+                      └─ secocmacgeneratesubmit(obj) @ 0x674A8
+                           │
+                           ├─ jobId = DAT0002af30[obj6]
+                           ├─ build block at gp+0x4F08
+                           └─ csmjobsubmitmacgen(jobId, block)
+
+证据： Ghidra 反编译 csmmainfunction @ 0x730D4、secoccyclictask @ 0x65C60、secocmacjobscheduler @ 0x66374
+
+2.3 CSM（加密服务管理器）
+
+CSM 负责管理加密作业：
+
+| 组件 | 函数 | 地址 | 用途 |
+|------|------|------|------|
+| 作业提交 | FUN00071d9e | 0x71D9E | 将作业提交到 CSM 队列 |
+| 作业队列 | csmjobmarksubmitted | 0x70C7A | 将作业标记为已提交 |
+| 作业调用 | csmjobinvokeicuop | 0x70D2A | 调用 ICU 操作 |
+| 作业完成 | csmprocessjobfinish | 0x71E5A | 处理已完成的作业 |
+| 作业调度 | csmdispatchopbymagic | 0x70D96 | 按魔数调度 |
+
+证据： Ghidra 反编译 CSM 函数
+
+2.4 ICU（加密处理器）
+
+ICU 是一个独立的加密处理器，执行所有加密操作：
+
+| 组件 | 函数 | 地址 | 用途 |
+|------|------|------|------|
+| 操作码验证 | FUN000785D2 | 0x785D2 | 验证 ICU 操作码 |
+| MAC 生成 | ICU 内部 | — | AES-CMAC 计算 |
+| 密钥存储 | ICU 内部 | — | 安全密钥存储 |
+| 密钥派生 | ICU 内部 | — | 从元数据派生密钥 |
+
+关键洞察： ICU 是一个 黑盒 — 我们可以看到接口（作业提交），但看不到内部（加密操作）。
+
+证据： Ghidra 反编译 FUN000785D2 @ 0x785D2、CSM/ICU 桥接分析
+
+---
+
+3. SecOC 密钥工作机制
+
+3.1 SecOC 帧结构
+
+SecOC 保护的 CAN 帧具有以下结构：
+
+| ARBID | 频率 | 负载（字节 0-3） | 认证（字节 4-7） | 计数器位置 |
+|-------|------|------------------|---""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_2",
+    "title": "RH850 SecOC 研究报告（中文） (3/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+---------------|------------|
+| 0x0F | ~10 | trip(2B) + reset(3B) | 28 位截断 CMAC | N/A（同步帧） |
+| 0x131 | ~42 | 0x00, ctr, 0x00, 0x70 | 28 位截断 CMAC | 字节 1 (0x00-0x3F) |
+| 0x2E4 | ~42 | ctr<<1\\|0x80, 0x00, 0x00, 0x00 | 28 位截断 CMAC | 字节 0 >> 1 (0x00-0x3F) |
+| 0x344 | ~21 | 0x00000000 | 28 位截断 CMAC | 来自 0x131 计数器 |
+
+证据： CAN 预言机分析（canoracle.ndjson，6,962 帧）
+
+3.2 CMAC 验证
+
+SecOC 密钥用于计算消息的 AES-128 CMAC：
+
+对于 0x0F（同步帧）：
+msg = ARBID(0x000F) + trip(2B) + reset(3B)  # 7 字节
+auth28 = first28(AES-CMAC-128(key, msg))
+
+对于 0x131/0x2E4/0x344（受保护帧）：
+msg = ARBID(2B) + payload(4B) + freshness(6B)  # 12 字节
+auth28 = first28(AES-CMAC-128(key, msg))
+
+freshness = trip(2B) + reset(3B) + msgcnt(1B)
+
+证据： scansecockey4arbid.py 验证逻辑
+
+3.3 CSM/ICU 中的密钥使用
+
+SecOC 密钥由 CSM 和 ICU 使用：
+
+// secocmacgeneratesubmit @ 0x674A8
+jobId = DAT0002af30[obj6];  // 对象 keyBase（例如 50、52、54）
+build block at gp+0x4F08 (= 0xFEBFE708):
+  [0:4]  freshness/counter LE
+  [4..]  payload from PTR table
+csmjobsubmitmacgen(jobId, gp+0x4F08);  // magic 0x22AA8A36
+
+关键洞察： MAC 提交 API 采用 (jobId, messageblockptr) — 而非 密钥指针。密钥必须已在 ICU 内部 绑定到 jobId。
+
+证据： Ghidra 反编译 secocmacgeneratesubmit @ 0x674A8
+
+3.4 MAC 对象表
+
+MAC 对象表（闪存 @0x2AF2C）将对象映射到 jobId：
+
+| 对象 | paySz | 标志 | keyBase | bufPtr | PDU 生产者 | 可能的 ARBID |
+|------|-------|------|---------|--------|------------|--------------|
+| 0 | 160 | 2 | 50 | FEBEFC18 | FUN0005110a | 0x0F |
+| 5 | 8 | 6 | 64 | FEBEF430 | FUN00047958/538a | 0x131 |
+| 6 | 56 | 6 | 70 | FEBEF4D0 | FUN00038cec | 0x2E4 |
+| 12 | 24 | 2 | 82 | FEBEF530 | FUN0004528c/453a2 | 0x344 |
+
+证据： 闪存 @0x2AF2C 分析、CAN 预言机关联
+
+---
+
+4. ECU SecOC 密钥加载过程
+
+4.1 密钥派生（非存储）
+
+SecOC 密钥不以原始 AES 密钥形式存储在 DataFlash 中。 相反，DataFlash 包含 密钥槽元数据，告诉 ICU 如何派生密钥。
+
+密钥槽页面（468-479）：
+
+| 页面 | keyId | 内容模式 | 有原始密钥？ |
+|------|-------|----------|--------------|
+| 468 | 12 | 0c00e3c90ff0f00f... + 0xAAAAAAAA | ❌ 否 |
+| 475 | 5 | 0500c7c8f00f0ff0... + 0xAAAAAAAA | ❌ 否 |
+| 477 | 3 | 0300a7c6aa5555aa... + 0xAAAAAAAA | ❌ 否 |
+| 478 | 2 | 020000cba55a5aa5... + 0xAAAAAAAA | ❌ 否 |
+
+证据： DataFlash 转储分析（dumpff200000ff208000.bin）
+
+4.2 密钥加载流程
+
+┌─────────────────────────────────────────────────────────────┐
+│  ECU SecOC 密钥加载过程                                     │
+└─────────────────────────""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_3",
+    "title": "RH850 SecOC 研究报告（中文） (4/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+────────────────────────────────────┘
+
+1. 启动 / 上电
+   ↓
+2. 工厂布防路径
+   FUN000679d6 → FUN00078504 → FUN000758a0 → FUN00077e98
+   ↓
+3. 从 DataFlash 读取密钥槽页面
+   FUN00077e98(dfoffset, stackbuf, 64)
+   → 将 64 字节读入堆栈缓冲区
+   → 缓冲区包含密钥槽元数据（而非原始密钥）
+   ↓
+4. ICU 内部派生密钥
+   （使用熔断主密钥 + 元数据）
+   → 密钥在 ICU 内部派生
+   → 密钥永不离开 ICU
+   ↓
+5. ICU 将密钥绑定到 jobId
+   → 密钥绑定到 jobId（例如 50、52、54）
+   → 密钥准备好用于 MAC 生成
+
+关键观察： FUN000758a0 将 DataFlash 读入堆栈缓冲区并 丢弃 它。主机 CPU 从不处理密钥材料 — ICU 直接处理。
+
+证据： Ghidra 反编译 FUN000758a0 @ 0x758A0、FUN00077e98 @ 0x77E98
+
+4.3 密钥派生过程
+
+ICU 使用以下内容派生密钥：
+
+1. 来自 DataFlash 的密钥槽元数据（页面 468-479）
+2. 熔断主密钥（制造期间烧入 ICU）
+3. 内部派生算法（不可访问）
+
+原始 AES 密钥从未存在于 DataFlash 或主机可访问内存中。
+
+证据： DataFlash 扫描（8,189 个窗口，0 个匹配）、密钥槽页面分析
+
+4.4 密钥安装路径（Rekey）
+
+在 rekey 操作期间，密钥通过不同的路径安装：
+
+┌─────────────────────────────────────────────────────────────┐
+│  REKEY 密钥安装路径                                         │
+└─────────────────────────────────────────────────────────────┘
+
+1. 外部工具触发 rekey
+   ↓
+2. secocpduingress(0x01xx, keymaterial) @ 0x65CD8
+   ↓
+3. secockeyhostwrite(slot, keymaterial) @ 0x66E48
+   → 将密钥复制到 FEBEF468/478/488
+    密钥在 RAM 中，位于 FEBEF468 
+   ↓
+4. FUN00066ac2（密钥调度器）
+   → 队列状态 0x11
+   ↓
+5. secockeysetfromworkbuf(slot) @ 0x67590
+   → 使用 workbuf @ 0xFEBFEB08
+    密钥在 RAM 中，位于 WORKBUF 
+   ↓
+6. csmjobsubmitkeyset(jobId, workbufptr) @ 0x72F58
+   → 将密钥发送到 ICU
+    密钥在 RAM 中，位于 WORKBUFPTR 
+   ↓
+7. ICU 安装密钥
+
+证据： Ghidra 反编译 secockeyhostwrite @ 0x66E48、secockeysetfromworkbuf @ 0x67590
+
+---
+
+5. CSM/ICU 桥接架构
+
+5.1 作业提交
+
+CSM 通过定义良好的接口将作业提交到 ICU：
+
+// FUN00071d9e @ 0x71D9E — 作业提交
+int FUN00071d9e(int magic, ushort jobId, undefined4 ptr, undefined4 param4) {
+    // magic: 0x22AA8A36 (macgen), 0xA1A62093 (keyset), etc.
+    // jobId: 作业标识符（例如 50、52、54）
+    // ptr: 指向消息块或密钥材料的指针
+    // param4: 附加参数
+    
+    FUN00071046();  // 锁定
+    if (jobId == 0) {
+        bVar1 = FUN00072918(&local20);
+    } else {
+        iVar2 = FUN000725f6(&local20);
+    }
+    FUN00071052();  // 解锁
+    
+    if (iVar2 == 0) {
+        csmjobmarksubmitted(jobId, magic, '\\x02');
+    }
+    return iVar2;
+}
+
+证据： Ghidra 反编译 FUN00071d9e @ 0x71D9E
+
+5.2 作业完成
+
+CSM 处理已完成的作业：
+
+// csmprocessjobfinish @ 0x71E5A — 作业完成
+void csmprocessjobfinish(void) {
+    // 出队已完成的作业
+    cs""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_4",
+    "title": "RH850 SecOC 研究报告（中文） (5/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+mdequeuefinishedjob();
+    
+    // 按魔数调度
+    csmdispatchopbymagic(jobId, magic);
+    
+    // 更新作业状态
+    FUN00004e92[unaffgp + 2] = cVar12;
+}
+
+证据： Ghidra 反编译 csmprocessjobfinish @ 0x71E5A
+
+5.3 魔数到操作码映射
+
+CSM 将魔数映射到 ICU 操作码：
+
+| 魔数 | 十六进制 | 操作码 | 用途 |
+|------|----------|--------|------|
+| 0x22AA8A36 | macgen | 8 | MAC 生成 |
+| 0xA1A62093 | keyset | 7 | 密钥安装 |
+| 0xB9145954 | ptr-arg job | 1 (INVALID) | 可能的 KeyElementGet |
+| 0xB6E96AF1 | job-only | 23 | 附加加密服务 |
+| 0x1C646989 | job-only | 24 | 附加加密服务 |
+
+证据： 闪存表 @0x277B4 分析、FUN000785D2 @ 0x785D2
+
+5.4 ICU 操作码验证
+
+ICU 在硬件级别验证操作码：
+
+// FUN000785D2 @ 0x785D2 — ICU 操作码验证
+void FUN000785d2(uint param1) {
+    uVar1 = param1 & 0xff;
+    if (2 < uVar1 - 6) {
+        if (uVar1 == 0xc || uVar1 == 0xd) goto LAB000785f6;
+        if (2 < uVar1 - 0x16) {
+            uVar1 = 0xffffffff;  // 无效
+        }
+    }
+    // 接受：6、7、8（MAC/key/MAC-gen）、0xC、0xD、0x16、0x17、0x18
+    // 拒绝：1、2、3、4、5、9、10、11 等
+}
+
+证据： Ghidra 反编译 FUN000785D2 @ 0x785D2
+
+---
+
+6. 现有方法失败的原因
+
+6.1 方法 1：DataFlash 页面读取（方法 C）
+
+状态： ❌ 失败
+
+原因： 密钥不以原始 AES 密钥形式存在于 DataFlash 中。
+
+证据：
+- 扫描所有 8,189 个窗口（步长 4）— 0 个匹配
+- 扫描所有高熵窗口（H > 3.0）— 0 个匹配
+- 扫描所有 512 个 PE 页面 — 0 个匹配
+- 扫描多个转储（4 个转储）— 0 个匹配
+
+基于代码的证据：
+
+// FUN00077e98 @ 0x77E98 — DataFlash 读取
+int FUN00077e98(int dfoffset, undefined4 dst, int len) {
+    puVar8 = (undefined4 )(&UNKff200000 + param1);
+    // 将 64 字节从 DF 读入 dst（堆栈缓冲区）
+    // 无加密，无认证
+    // 缓冲区包含密钥槽元数据，而非原始密钥
+}
+
+结论： DataFlash 包含密钥槽元数据，而非原始 AES 密钥。ICU 在内部派生密钥。
+
+---
+
+6.2 方法 2：FEBF RAM 转储（方法 A）
+
+状态： ❌ 失败
+
+原因： 密钥不永久存在于 RAM 中。
+
+证据：
+- FEBEF468/478/488 静止时为标记（a55a5aa5）
+- Workbuf @ 0xFEBFEB08 为零初始化或陈旧
+- 32B 槽可能不持有 AES
+
+基于代码的证据：
+
+// secockeymacgenverifytriple @ 0x67608
+// 当没有提交的明文密钥时，FEBEF468 转储可能显示 a55a5aa5 标记；
+// MAC 作业将提交的 jobId 绑定到 keyset 后已存在于 CSM/ICU-S 中的机密。
+
+结论： 密钥仅在安装/rekey 期间暂时存在于 RAM 中，而非永久。
+
+---
+
+6.3 方法 3：keyset 钩子（方法 B — 启动）
+
+状态： ❌ 失败
+
+原因： 启动期间密钥不通过 csmjobsubmitkeyset 安装。
+
+证据：
+- 工厂布防路径将 DataFlash 读入堆栈缓冲区并丢弃
+- 启动期间无 csmjobsubmitkeyset 调用
+- 密钥在 ICU 内部派生，而非通过 keyset 安装
+
+基于代码的证据：
+
+// FUN000758a0 @ 0x758A0 — 工厂布防
+undefined4 FUN000758a0(uint peoffset, uint len) {
+    undefined4 auStack4c[16];  // 64 字节堆栈缓冲区
+    FUN00073ce8(peoffset, len & 0xFFFF, auStack4c, 1);
+    // 仅返回状态 — 缓冲区内容在返回时丢""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_5",
+    "title": "RH850 SecOC 研究报告（中文） (6/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+失
+    return status;
+}
+
+结论： 密钥在 ICU 内部派生，而非在启动期间通过 csmjobsubmitkeyset 安装。
+
+---
+
+6.4 方法 4：B914 探测（方法 D）
+
+状态： ❌ 失败
+
+原因： ICU 在硬件级别拒绝操作码 10/1。
+
+证据：
+
+// FUN000785D2 @ 0x785D2 — ICU 操作码验证
+void FUN000785d2(uint param1) {
+    uVar1 = param1 & 0xff;
+    if (2 < uVar1 - 6) {
+        if (uVar1 == 0xc || uVar1 == 0xd) goto LAB000785f6;
+        if (2 < uVar1 - 0x16) {
+            uVar1 = 0xffffffff;  // 无效
+        }
+    }
+    // 接受：6、7、8（MAC/key/MAC-gen）、0xC、0xD、0x16、0x17、0x18
+    // 拒绝：1、2、3、4、5、9、10、11 等
+}
+
+结论： ICU 在硬件级别拒绝 B914（操作码 10/1）。TX 缓冲区保持为零。
+
+---
+
+6.5 方法 5：暴力破解（DF 元数据）
+
+状态： ❌ 失败
+
+原因： 密钥槽页面包含元数据，而非加密密钥材料。
+
+证据：
+- 无 TMR 结构（plain、plain^0x55、plain^0xAA）
+- 页面之间无 XOR 模式
+- 无校验和（最后 4 字节始终为 0xAAAAAAAA）
+- 使用常见主密钥进行 AES 解密 — 无 CMAC 匹配
+- KDF 派生（SHA-256、MD5）— 无 CMAC 匹配
+
+基于代码的证据：
+
+密钥槽页面（468-479）包含：
+- keyId（2 字节）
+- 元数据/标记（a55a5aa5、0xAAAAAAAA）
+- 配置数据
+而非原始 AES 密钥
+
+结论： 密钥槽页面包含元数据，而非加密密钥材料。没有加密可以逆转。
+
+---
+
+7. Rekey 捕获方法
+
+7.1 概述
+
+SecOC 密钥在 rekey 操作期间暴露在 RAM 中。
+
+状态： ⏳ 留给社区探索
+
+7.2 Rekey 流程
+
+┌─────────────────────────────────────────────────────────────┐
+│  REKEY 操作（由外部工具触发）                               │
+└─────────────────────────────────────────────────────────────┘
+
+1. 外部工具触发 rekey
+   （经销商工具 / Techstream）
+   ↓
+2. secockeyhostwrite(slot, keymaterial) @ 0x66E48
+   → 将密钥复制到 FEBEF468/478/488
+    密钥在 RAM 中，位于 FEBEF468 
+   ↓
+3. FUN00066ac2（密钥调度器）
+   ↓
+4. secockeysetfromworkbuf(slot) @ 0x67590
+   → 使用 workbuf @ 0xFEBFEB08
+    密钥在 RAM 中，位于 WORKBUF 
+   ↓
+5. csmjobsubmitkeyset(jobId, workbufptr) @ 0x72F58
+   → 将密钥发送到 ICU
+    密钥在 RAM 中，位于 WORKBUFPTR 
+   ↓
+6. ICU 安装密钥
+
+7.3 密钥暴露点
+
+| 位置 | 地址 | 持续时间 | 捕获方法 |
+|------|------|----------|----------|
+| FEBEF468/478/488 | 0xFEBEF468 | 持久（直到下次 rekey） | rekey 后转储 FEBEF |
+| Workbuf | 0xFEBFEB08 | 暂时（keyset 期间） | 钩子或监控 workbuf |
+| csmjobsubmitkeyset | 0x72F58 | 非常短暂（函数调用） | 在 0x72F58 处钩子 |
+
+7.4 约束
+
+1. Shellcode 在电源循环时丢失 — 必须在每次 IG-ON 时重新安装
+2. IG-ON 电池约 10 分钟 — 时间窗口有限
+3. 需要经销商工具 — 触发 rekey
+
+7.5 社区实施
+
+设计文档： rekey-capture-design.md (./rekey-capture-design.md)
+
+成功概率： ~58%（使用经销商工具）
+
+注意： 此方法留给社区探索。设计文档提供了完整的实施指南。
+
+---
+
+8. DataFlash 结构分析
+
+8.1 PE 页面结构
+
+DataFlash 组织为 64 字节 PE（编程/擦除）页面：
+
+| 页面范围 | 用途 |
+|----------|------|
+| 0-467 | 未知（未分析） |
+| 468-479 | 密钥槽页面（keyIds 1-12""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_6",
+    "title": "RH850 SecOC 研究报告（中文） (7/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+） |
+| 480-511 | 未知（未分析） |
+
+证据： DataFlash 转储分析（dumpff200000ff208000.bin）
+
+8.2 密钥槽页面
+
+密钥槽页面（468-479）包含密钥槽元数据：
+
+| 页面 | keyId | 偏移 | 内容模式 |
+|------|-------|------|----------|
+| 468 | 12 | 0x7500 | 0c00e3c90ff0f00f... + 0xAAAAAAAA |
+| 469 | 11 | 0x7540 | 0b00afc600ffff00... + 0xAAAAAAAA |
+| 470 | 10 | 0x7580 | 0a00f0ca0ff0f00f... + 0xAAAAAAAA |
+| 471 | 9 | 0x75C0 | 090087cc0ff0f00f... + 0xAAAAAAAA |
+| 472 | 8 | 0x7600 | 080071cbf00f0ff0... + 0xAAAAAAAA |
+| 473 | 7 | 0x7640 | 0700abc6ff0000ff... + 0xAAAAAAAA |
+| 474 | 6 | 0x7680 | 060060caf00f0ff0... + 0xAAAAAAAA |
+| 475 | 5 | 0x76C0 | 0500c7c8f00f0ff0... + 0xAAAAAAAA |
+| 476 | 4 | 0x7700 | 0400ebcda55a5aa5... + 0xAAAAAAAA |
+| 477 | 3 | 0x7740 | 0300a7c6aa5555aa... + 0xAAAAAAAA |
+| 478 | 2 | 0x7780 | 020000cba55a5aa5... + 0xAAAAAAAA |
+| 479 | 1 | 0x77C0 | 0100c7c4a55a5aa5... + 0xAAAAAAAA |
+
+证据： DataFlash 转储分析
+
+8.3 元数据模式
+
+密钥槽页面包含元数据模式：
+
+| 模式 | 位置 | 含义 |
+|------|------|------|
+| a55a5aa5 | 各种 | TMR/标记 + 计数器 |
+| 0xAAAAAAAA | 页面末尾 | TMR/编码标记 |
+| 0ff00ff0 | 各种 | 元数据标记 |
+
+关键洞察： 这些模式是 元数据标记，而非密钥本身。
+
+证据： DataFlash 转储分析、模式分析
+
+---
+
+9. CAN 帧分析
+
+9.1 帧结构
+
+CAN 帧具有以下结构：
+
+| ARBID | 频率 | 负载（字节 0-3） | 认证（字节 4-7） | 计数器位置 |
+|-------|------|------------------|------------------|------------|
+| 0x0F | ~10 | trip(2B) + reset(3B) | 28 位截断 CMAC | N/A（同步帧） |
+| 0x131 | ~42 | 0x00, ctr, 0x00, 0x70 | 28 位截断 CMAC | 字节 1 (0x00-0x3F) |
+| 0x2E4 | ~42 | ctr<<1\\|0x80, 0x00, 0x00, 0x00 | 28 位截断 CMAC | 字节 0 >> 1 (0x00-0x3F) |
+| 0x344 | ~21 | 0x00000000 | 28 位截断 CMAC | 来自 0x131 计数器 |
+
+证据： CAN 预言机分析（canoracle.ndjson，6,962 帧）
+
+9.2 预言机统计
+
+| ARBID | 频率 | 帧数 | 唯一样本 | 计数器范围 |
+|-------|------|------|----------|------------|
+| 0x0F | ~10 | 611 | ~205 | N/A |
+| 0x131 | ~42 | 2,540 | ~2,540 | 0x00-0x3F |
+| 0x2E4 | ~42 | 2,541 | ~2,541 | 0x00-0x3F |
+| 0x344 | ~21 | 1,270 | ~1,270 | 来自 0x131 |
+| 总计 | — | 6,962 | ~6,556 | — |
+
+证据： CAN 预言机分析
+
+9.3 计数器模式
+
+0x131 和 0x2E4 中的计数器是 同步的：
+
+0x131 counter = [19, 20, 22, 23, 25, 26, 28, 29, ...]
+0x2E4 counter = [18, 19, 21, 22, 24, 25, 27, 28, ...]
+diff          = [ 1,  1,  1,  1,  1,  1,  1,  1, ...]
+
+关键洞察： 0x131 和 0x2E4 使用相同的新鲜度计数器，偏移为 1。
+
+证据： CAN 预言机分析、计数器模式分析
+
+---
+
+10. 密钥槽页面分析
+
+10.1 页面结构
+
+密钥槽页面具有以下结构：
+
+| 偏移 | 内容 | 含义 |
+|------|""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_7",
+    "title": "RH850 SecOC 研究报告（中文） (8/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+------|------|
+| +0x00-0x01 | keyId | 密钥槽标识符（1-12） |
+| +0x02-0x0F | 派生参数 | ICU 用于派生密钥 |
+| +0x10-0x2F | 配置数据 | 附加配置 |
+| +0x30-0x3F | 标记 | 末尾为 0xAAAAAAAA |
+
+证据： DataFlash 转储分析、密钥槽页面分析
+
+10.2 元数据含义
+
+密钥槽元数据告诉 ICU：
+
+1. 使用哪个密钥槽（keyId = 1-12）
+2. 如何派生密钥（派生参数）
+3. 配置（如何使用密钥）
+
+但它不告诉 ICU：
+- ❌ 实际密钥是什么
+- ❌ 如何加密/解密密钥
+- ❌ 熔断主密钥
+
+证据： 密钥槽页面分析、ICU 派生过程
+
+10.3 元数据不是密钥的原因
+
+| 方面 | 元数据 | 实际密钥 |
+|------|--------|----------|
+| 它是什么 | 派生密钥的指令 | 用于 CMAC 的 AES-128 密钥 |
+| 存储位置 | DataFlash（页面 468-479） | ICU 内部（派生，从未存储） |
+| 我们能读取吗？ | ✅ 是（我们有 DF 转储） | ❌ 否（在 ICU 内部） |
+| 我们能暴力破解吗？ | ❌ 否（未加密） | ❌ 否（不在 DF 中） |
+
+证据： 密钥槽页面分析、暴力破解分析
+
+---
+
+11. 完整函数参考
+
+11.1 SecOC 函数
+
+| 函数 | 地址 | 用途 |
+|------|------|------|
+| secocpduingress | 0x65CD8 | SecOC PDU 入口（MAC 对象更新、密钥更新） |
+| secockeyhostwrite | 0x66E48 | 主机密钥写入（将密钥复制到 FEBEF） |
+| secockeysetfromworkbuf | 0x67590 | 从 workbuf 设置密钥 |
+| secockeyupdatecommit | 0x67C34 | 密钥更新提交 |
+| secockeymacgenverifytriple | 0x67608 | MAC-gen 验证三重 |
+| secocqueuekeysetrequest | 0x66DB2 | 队列密钥设置请求 |
+| secocrequestingress | 0x65C84 | secocpduingress 的请求端孪生 |
+| secocmacobjectupdate | — | MAC 对象更新 |
+| secocmacjobscheduler | 0x66374 | MAC 作业调度器 |
+| secocmacgeneratesubmit | 0x674A8 | MAC 生成提交 |
+| secoccyclictask | 0x65C60 | SecOC 循环任务 |
+
+11.2 CSM 函数
+
+| 函数 | 地址 | 用途 |
+|------|------|------|
+| csmmainfunction | 0x730D4 | CSM 主函数 |
+| csmjobsubmitkeyset | 0x72F58 | CSM 作业提交密钥设置 |
+| csmjobsubmitmacgen | — | CSM 作业提交 MAC 生成 |
+| csmjobmarksubmitted | 0x70C7A | 将作业标记为已提交 |
+| csmjobinvokeicuop | 0x70D2A | 调用 ICU 操作 |
+| csmprocessjobfinish | 0x71E5A | 处理已完成的作业 |
+| csmdequeuefinishedjob | 0x71DE0 | 出队已完成的作业 |
+| csmdispatchopbymagic | 0x70D96 | 按魔数调度 |
+| FUN00071d9e | 0x71D9E | 作业提交 |
+| FUN000725f6 | 0x725F6 | 作业验证 |
+| FUN000732f8 | 0x732F8 | 类型检查（当 ptr != 0 时绕过） |
+
+11.3 ICU 函数
+
+| 函数 | 地址 | 用途 |
+|------|------|------|
+| FUN000785D2 | 0x785D2 | ICU 操作码验证 |
+| FUN00078504 | 0x78504 | ICU 安全操作 |
+| FUN00077e98 | 0x77E98 | DataFlash 读取 |
+| FUN000758a0 | 0x758A0 | 工厂布防（读取 DF，丢弃） |
+| FUN000775ea | 0x775EA | 安全操作 |
+| FUN00077826 | 0x77826 | DF 读取的门控包装器 |
+| FUN00073ce8 | 0x73CE8 | 中级调度器 |
+| FUN00073cb0 | 0x73CB0 | 中级调度器 |
+| FUN000679d6 | 0x679D6 | 每槽就绪检查 |
+| FUN00067804 | 0x67804 | 广泛密钥布防 |
+
+11.4 DataFlash 函数
+
+|""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_8",
+    "title": "RH850 SecOC 研究报告（中文） (9/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+函数 | 地址 | 用途 |
+|------|------|------|
+| FUN00077e98 | 0x77E98 | DataFlash 读取 |
+| FUN00073750 | 0x73750 | 级别 1 PE 查找（keyId → 中间） |
+| FUN00077452 | 0x77452 | 级别 2 PE 查找（中间 → peindex） |
+| FUN00077cf8 | 0x77CF8 | 地址验证 |
+| FUN00077d0e | 0x77D0E | 范围验证 |
+
+---
+
+12. 社区实验指南
+
+12.1 先决条件
+
+- Comma 设备（带有 openpilot）
+- 经销商工具（Techstream 或类似工具）— 用于 rekey 捕获
+- V850 工具链或 Docker（用于构建 shellcode）
+- 4-ARBID 预言机（canoracle4arbid.ndjson）
+
+12.2 构建 Shellcode
+
+构建 FEBEF 监控器
+cd carkit12000/shellcodesource
+v850-elf-gcc -fPIC -ffreestanding -c mainfebefmonitor.c -o febefmonitor.o
+v850-elf-objcopy -O binary -j .text febefmonitor.o febefmonitor.bin
+
+构建 keyset 钩子
+v850-elf-gcc -fPIC -ffreestanding -c mainkeysethook.c -o keysethook.o
+v850-elf-objcopy -O binary -j .text keysethook.o keysethook.bin
+
+密封到 UDS 有效载荷
+cd ..
+python3 buildfrombin.py shellcodesource/febefmonitor.bin -o payloadfebefmonitor.bin
+python3 buildfrombin.py shellcodesource/keysethook.bin -o payloadkeysethook.bin
+
+12.3 安装 Shellcode
+
+在 comma 设备上
+ssh comma@IP
+cd /data/carkit12000
+
+停止 boardd
+sudo systemctl stop comma
+pkill -f boardd
+
+安装 shellcode
+bash quickinstall.sh
+
+12.4 捕获密钥
+
+连接经销商工具并触发 rekey
+（按照经销商工具说明操作）
+
+捕获密钥
+python3 parserekeycapture.py capture.ndjson --oracle canoracle4arbid.ndjson
+
+12.5 验证密钥
+
+使用 4-ARBID 预言机验证捕获的密钥
+python3 scansecockey4arbid.py capturedkey.bin 0x0 --oracle canoracle4arbid.ndjson
+
+---
+
+13. 经验教训
+
+13.1 有效的方法
+
+1. Ghidra 反编译 — 提供了详细的固件逻辑
+2. CAN 预言机分析 — 提供了验证预言机
+3. DataFlash 转储分析 — 提供了密钥槽页面结构
+4. 基于代码的证据 — 所有结论均由反编译函数支持
+
+13.2 无效的方法
+
+1. DataFlash 页面读取 — 密钥不以原始 AES 形式存在于 DF 中
+2. FEBF RAM 转储 — 密钥不永久存在于 RAM 中
+3. keyset 钩子（启动） — 启动期间密钥不通过 keyset 安装
+4. B914 探测 — ICU 在硬件级别拒绝
+5. 暴力破解 — DF 中没有加密可以逆转
+
+13.3 关键洞察
+
+1. SecOC 密钥在 ICU 内部派生 — 而非以原始 AES 密钥形式存储
+2. 密钥在 rekey 期间暴露在 RAM 中 — 但只是暂时的
+3. ICU 是一个黑盒 — 我们可以看到接口，但看不到内部
+4. 基于代码的证据至关重要 — 推测会导致死胡同
+
+---
+
+14. 未来研究方向
+
+14.1 Rekey 捕获（社区探索）
+
+状态： ⏳ 留给社区探索
+
+描述： 使用 FEBEF 监控器 + keyset 钩子在 rekey 操作期间捕获 SecOC 密钥。
+
+成功概率： ~58%（使用经销商工具）
+
+设计文档： rekey-capture-design.md (./rekey-capture-design.md)
+
+14.2 ICU SCA（侧信道分析）
+
+状态： ⏳ 最后手段
+
+描述： 使用侧信道分析（功率、电磁、时序）或故障注入（电压、时钟、激光）对 ICU 进行物理攻击。
+
+成功概率： ~80-90%
+
+成本： 高（设备、专业知识、风险）
+
+14.3 其他方法
+
+状态： ⏳ 未来研究
+
+可能的方向：
+- 引导加载程序利用 — 在固件启动之前安装钩子
+- 竞争条件 — 在启动期间捕获密钥（时间非常紧迫）
+- 硬件调试器 —""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_9",
+    "title": "RH850 SecOC 研究报告（中文） (10/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+在启动期间暂停 CPU，安装钩子
+
+---
+
+15. 结论
+
+15.1 确定性发现
+
+1. SecOC 密钥在 ICU 内部派生，来自 DataFlash 元数据，而非以原始 AES 密钥形式存储
+   - 证据： DataFlash 扫描（0 个匹配）、密钥槽页面分析、FUN000758a0 缓冲区丢弃
+
+2. 密钥在 rekey 操作期间暴露在 RAM 中，位于 FEBEF468/478/488 和 workbuf
+   - 证据： secockeyhostwrite @ 0x66E48、secockeysetfromworkbuf @ 0x67590
+
+3. 现有提取方法失败，因为密钥从未永久存在于主机可访问内存中
+   - 证据： DF 扫描失败、FEBEF 标记、启动路径分析
+
+4. Rekey 捕获方法是可行的，但需要经销商工具来触发 rekey
+   - 证据： Rekey 流程分析、密钥暴露点
+
+15.2 基于代码的证据摘要
+
+| 声明 | 证据 | 函数/地址 |
+|------|------|-----------|
+| 密钥在 ICU 内部派生 | DF 扫描失败、缓冲区丢弃 | FUN000758a0 @ 0x758A0 |
+| 密钥在 rekey 期间暴露 | 主机写入 FEBEF | secockeyhostwrite @ 0x66E48 |
+| 密钥不以原始 AES 形式存在于 DF 中 | DF 扫描 0 匹配 | dumpff200000ff208000.bin |
+| 密钥不永久存在于 RAM 中 | FEBEF 标记 | secockeymacgenverifytriple @ 0x67608 |
+| ICU 拒绝 B914 | 操作码验证 | FUN000785D2 @ 0x785D2 |
+
+15.3 无推测
+
+本报告中的所有结论均由以下支持：
+- Ghidra 反编译 RH850P1M-EFirmware.bin
+- CAN 预言机分析（6,962 帧）
+- DataFlash 转储分析（4 个转储，每个 32KB）
+
+无推测。仅基于代码的证据。
+
+---
+
+16. 与"I Can Hack"发现的比较
+
+16.1 概述
+
+本节将我们的复现和新发现与"I Can Hack"关于丰田 SecOC 密钥提取的发现进行比较。
+
+"I Can Hack"参考： 从 2021 年丰田 RAV4 Prime 中提取安全车载通信（SecOC）密钥 (https://icanhack.nl/blog/secoc-key-extraction)
+
+16.2 "I Can Hack"的发现
+
+| 方面 | "I Can Hack"的发现 |
+|------|-------------------|
+| 目标 | 2021 年丰田 RAV4 Prime |
+| 方法 | 引导加载程序破坏 → RAM 提取 |
+| 密钥位置 | RAM（带有 0x20 结构 + 校验和的 KEY 库） |
+| 结果 | ✅ 成功提取 SecOC 密钥 |
+
+关键细节：
+- 使用引导加载程序破坏获得代码执行
+- 从 RAM KEY 库（带有校验和 @ 0x1D 的 0x20 结构）中提取密钥
+- 密钥是 RAM 中的普通 AES-128
+- 在某些情况下与 DataFlash 相关
+
+16.3 我们的复现尝试
+
+| 方面 | 我们的复现 |
+|------|-----------|
+| 目标 | 丰田 Sienna CN EPS 8965B4512000 |
+| 方法 | DataFlash 转储 + Vance CMAC 验证 |
+| 密钥位置 | DataFlash（尝试） |
+| 结果 | ❌ 失败 — 密钥不在 DF 中 |
+
+我们尝试了什么：
+1. DataFlash 转储 — 扫描所有 8,189 个窗口（步长 4）以获取 16 字节候选
+2. Icanhack 结构扫描 — 搜索带有校验和 @ 0x1D 的 0x20 结构
+3. Vance CMAC 验证 — 针对 4-ARBID 预言机测试所有候选
+4. 结果： 0 个匹配 — 密钥不在 DataFlash 中
+
+16.4 关键区别
+
+| 方面 | "I Can Hack"（RAV4） | 我们的目标（Sienna CN） |
+|------|---------------------|------------------------|
+| ECU | RAV4 Prime | Sienna CN EPS 8965B4512000 |
+| 密钥存储 | RAM KEY 库（普通 AES） | ICU 派生（不在 RAM/DF 中） |
+| 提取方法 | 引导加载程序破坏 → RAM 转储 | DF 转储 + CMAC 验证 |
+| 密钥格式 | 0x20 结构 + 校验和 | 密钥槽元数据（非原始密钥） |
+| 结果 | ✅ 成功 | ❌ 失败（密钥不在 DF 中） |
+
+16.5 为什么"I Can Hack"方法在我们的车辆上不起作用
+
+| 原因 | 解释 |
+|------|------|
+| 不同的密钥存储 | RAV4 将密钥存储在 RAM""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_10",
+    "title": "RH850 SecOC 研究报告（中文） (11/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+KEY 库中；Sienna CN 在 ICU 中派生密钥 |
+| 没有 RAM KEY 库 | 我们的 FEBE 转储显示 a55a5aa5 标记，而不是 0x20 结构 |
+| 没有 DF 密钥库 | 我们的 DF 扫描发现 0 个匹配；密钥不在 DF 中 |
+| 不同的固件 | 具有不同安全策略的不同固件版本 |
+
+16.6 新发现
+
+| 发现 | 证据 |
+|------|------|
+| 密钥在 ICU 中派生 | DF 扫描 0 匹配，FUN000758a0 缓冲区丢弃 |
+| DF 中的密钥槽元数据 | 页面 468-479 包含元数据，而非原始密钥 |
+| 密钥在 rekey 期间暴露 | secockeyhostwrite @ 0x66E48 填充 FEBEF |
+| CSM/ICU 桥接 | 通过魔数进行作业提交/完成 |
+
+16.7 经验教训
+
+| 教训 | 解释 |
+|------|------|
+| 密钥存储因 ECU 而异 | 不同的 ECU 有不同的密钥存储策略 |
+| RAM KEY 库不是通用的 | RAV4 方法不适用于所有丰田 ECU |
+| ICU 派生的密钥更安全 | Sienna CN 使用 ICU 派生，而非普通存储 |
+| 基于代码的证据至关重要 | 推测会导致死胡同 |
+
+---
+
+17. 与 Vance 方法的比较
+
+17.1 概述
+
+本节将我们的结果与 Vance 的方法进行比较，特别强调了我们的发现以及为什么该方法在我们的车辆上不起作用。
+
+Vance 参考： TSS3 SecOC 密钥恢复（合作伙伴转储 8965B4514000）
+
+17.2 Vance 的方法
+
+| 方面 | Vance 的方法 |
+|------|-------------|
+| 目标 | 8965B4514000（合作伙伴转储） |
+| 方法 | DataFlash 转储 + CMAC 验证 |
+| 密钥位置 | DataFlash @ 0xFF206E14 |
+| 结果 | ✅ 成功提取 SecOC 密钥 |
+
+关键细节：
+- 转储 EPS DataFlash（0xFF200000–0xFF208000，32 KiB）
+- 枚举唯一的 16 字节窗口（熵过滤）
+- 对每个候选 K：
+  - 解析 0x0F CAN：trip、reset、auth28
+  - msg = pack(>HH, 0x0F, trip) || BE24(reset<<4)
+  - auth28 == first28(AES-CMAC-128(K, msg))
+- 交叉检查受保护帧（0x131 / 0x2E4 / 0x344）
+- 在 0xFF206E14 处找到密钥
+
+17.3 我们的复现尝试
+
+| 方面 | 我们的复现 |
+|------|-----------|
+| 目标 | 丰田 Sienna CN EPS 8965B4512000 |
+| 方法 | 相同的 Vance 方法（DF 转储 + CMAC 验证） |
+| 密钥位置 | DataFlash（尝试） |
+| 结果 | ❌ 失败 — 密钥不在 DF 中 |
+
+我们尝试了什么：
+1. DataFlash 转储 — 扫描所有 8,189 个窗口（步长 4）以获取 16 字节候选
+2. 高熵过滤 — 测试所有 H ≥ 3.0 的窗口
+3. Vance CMAC 验证 — 针对 4-ARBID 预言机测试所有候选
+4. 结果： 0 个匹配 — 密钥不在 DataFlash 中
+
+扫描结果：
+
+| 转储 | 候选（H≥3.0） | CMAC 匹配（≥1/200） | @ 0x6E14（Vance 区域） |
+|------|---------------|---------------------|-------------------------|
+| dataflashv2.bin | 454 | 0 | 00000000040000808202000000000000 H=1.31 · 0/200 |
+| dataflash.bin | 1131 | 0 | 40004000400040002c068c5805006c00 H=2.53 · 0/200 |
+
+17.4 为什么 Vance 的方法在我们的车辆上不起作用
+
+| 原因 | 解释 |
+|------|------|
+| 不同的密钥存储 | Vance 的目标（14000）将密钥存储在 DF 中；我们的目标（12000）在 ICU 中派生密钥 |
+| 没有 DF 密钥库 | 我们的 DF 扫描发现 0 个匹配；密钥不在 DF 中 |
+| 密钥槽元数据 | 我们的 DF 包含密钥槽元数据（页面 468-479），而非原始密钥 |
+| ICU 派生 | 我们的 ECU 使用熔断主密钥 + 元数据在 ICU 内部派生密钥 |
+
+17.5 我们的发现
+
+| 发现 | 证据 |
+|------|------|
+| 密钥不以原始 AES 形式存在于 DF 中 | DF 扫描 0 匹配（所有 8,189 个窗口，所有 512 个 PE 页面） |
+| DF 中的密钥槽元数据 | 页面 468-479 包含元数""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_cn_md_11",
+    "title": "RH850 SecOC 研究报告（中文） (12/12)",
+    "tags": ["secoc","rh850","research","zh"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_CN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_CN.md
+
+据（keyId、派生参数、标记） |
+| 密钥在 ICU 中派生 | FUN000758a0 将 DF 读入堆栈缓冲区并丢弃 |
+| 密钥在 rekey 期间暴露 | secockeyhostwrite @ 0x66E48 用新密钥填充 FEBEF |
+| CSM/ICU 桥接 | 通过魔数进行作业提交/完成（0x22AA8A36、0xA1A62093） |
+
+17.6 关键区别
+
+| 方面 | Vance（14000） | 我们的目标（12000） |
+|------|---------------|---------------------|
+| ECU | 8965B4514000 | 8965B4512000 |
+| 密钥存储 | DataFlash（普通） | ICU 派生（不在 DF 中） |
+| 密钥位置 | 0xFF206E14 | N/A（不在 DF 中） |
+| DF 内容 | 原始 AES 密钥 | 密钥槽元数据 |
+| Vance CMAC | ✅ 匹配 | ❌ 0 匹配 |
+| 安全策略 | 普通 DF 镜像 | 仅 ICU（更安全） |
+
+17.7 为什么不同？
+
+| 因素 | 解释 |
+|------|------|
+| 固件版本 | 具有不同安全策略的不同固件版本 |
+| 产品分裂 | 同一家族（Sienna EPS），不同应用（14000 vs 12000） |
+| 安全演进 | 12000 使用更安全的 ICU 派生，而非普通 DF 存储 |
+| 密钥存储策略 | 14000：普通 DF 镜像；12000：仅 ICU |
+
+17.8 实际意义
+
+| 意义 | 解释 |
+|------|------|
+| Vance 方法不是通用的 | 不适用于所有丰田 ECU |
+| 密钥存储因 ECU 而异 | 不同的 ECU 有不同的密钥存储策略 |
+| ICU 派生的密钥更安全 | 12000 使用 ICU 派生，而非普通存储 |
+| Rekey 捕获是可行的 | 12000 的唯一可行方法（使用经销商工具） |
+
+17.9 经验教训
+
+| 教训 | 解释 |
+|------|------|
+| Vance 方法是 ECU 特定的 | 适用于 14000，不适用于 12000 |
+| 密钥存储因 ECU 而异 | 不同的 ECU 有不同的密钥存储策略 |
+| ICU 派生的密钥更安全 | 12000 使用 ICU 派生，而非普通存储 |
+| 基于代码的证据至关重要 | 推测会导致死胡同 |
+
+---
+
+18. 附录
+
+18.1 附录 A：机密（仅 SHA-256 哈希）
+
+| 机密 | SHA-256 哈希 |
+|------|--------------|
+| PAYLOADBUILDSECRET | 16e1c61b67f9e5b131ba203a4e0afb7c0a0e35d06f6dabae7c6b32480eb89f8c |
+| SEEDKEYSECRET | 546646ecfdf3a9b32dde430c876e6c95338c8c09c87599723f3098b026547ca9 |
+
+注意： 实际机密未披露。仅提供 SHA-256 哈希。
+
+18.2 附录 B：完整函数参考
+
+有关完整函数参考，请参见 第 11 节 (#11-完整函数参考)。
+
+18.3 附录 C：DataFlash 结构
+
+有关 DataFlash 结构分析，请参见 第 8 节 (#8-dataflash-结构分析)。
+
+18.4 附录 D：CAN 预言机统计
+
+有关 CAN 预言机统计，请参见 第 9 节 (#9-can-帧分析)。
+
+18.5 附录 E：参考文献
+
+- 固件： RH850P1M-EFirmware.bin（Ghidra 项目：RH850SecOC）
+- CAN 预言机： canoracle.ndjson（6,962 帧）
+- DataFlash 转储： dumpff200000ff208000.bin（4 个转储）
+- Rekey 设计： rekey-capture-design.md (./rekey-capture-design.md)
+
+---""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_0",
+    "title": "RH850 SecOC research report (EN) (1/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+> 🌐 中文版本 / Chinese Version (RESEARCHREPORTCN.md)
+
+---
+
+Toyota SecOC Key Extraction: A Comprehensive Reverse Engineering Study
+
+Target: Toyota Sienna CN EPS 8965B4512000 · RH850/P1M-E MCU
+Date: 2026-07-20
+Author: 3b1b.eth co-authored with Zcode
+Status: Educational Research — Detailed Firmware Logic Documentation
+
+---
+
+Executive Summary
+
+This document provides a comprehensive reverse engineering analysis of the Toyota SecOC (Secure Onboard Communication) implementation in the Sienna CN EPS 8965B4512000 (RH850/P1M-E MCU).
+
+Purpose: Enable others to learn, gain inspiration, and experiment with SecOC key extraction.
+
+Key Findings:
+
+1. The SecOC key is derived inside the ICU (crypto processor) from DataFlash metadata, not stored as raw AES key
+2. The key is exposed in RAM during a rekey operation at FEBEF468/478/488 and workbuf
+3. Existing extraction methods fail because the key is never in host-accessible memory permanently
+4. The rekey capture method is viable but requires a dealer tool to trigger rekey
+
+Evidence: All conclusions are supported by Ghidra decompilation, CAN oracle analysis, and DataFlash dump analysis. No speculation.
+
+---
+
+Table of Contents
+
+1. Introduction (#1-introduction)
+2. Firmware Architecture (#2-firmware-architecture)
+3. SecOC Key Working Mechanism (#3-secoc-key-working-mechanism)
+4. ECU SecOC Key Loading Process (#4-ecu-secoc-key-loading-process)
+5. CSM/ICU Bridge Architecture (#5-csmicu-bridge-architecture)
+6. Why Existing Methods Fail (#6-why-existing-methods-fail)
+7. Rekey Capture Method (#7-rekey-capture-method)
+8. DataFlash Structure Analysis (#8-dataflash-structure-analysis)
+9. CAN Frame Analysis (#9-can-frame-analysis)
+10. Key Slot Page Analysis (#10-key-slot-page-analysis)
+11. Complete Function Reference (#11-complete-function-reference)
+12. Experimental Guidance for Community (#12-experimental-guidance-for-community)
+13. Lessons Learned (#13-lessons-learned)
+14. Future Research Directions (#14-future-research-directions)
+15. Conclusion (#15-conclusion)
+16. Comparison with "I Can Hack" Findings (#16-comparison-with-i-can-hack-findings)
+17. Comparison with Vance's Method (#17-comparison-with-vances-method)
+18. Appendices (#18-appendi""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_1",
+    "title": "RH850 SecOC research report (EN) (2/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+ces)
+
+---
+
+1. Introduction
+
+1.1 Target System
+
+| Component | Details |
+|-----------|---------|
+| ECU | Toyota Sienna CN EPS 8965B4512000 |
+| MCU | RH850/P1M-E (R7F701381) |
+| Firmware | RH850P1M-EFirmware.bin |
+| gp register | 0xFEBF9800 |
+| DataFlash base | 0xFF200000 |
+| GlobalRAM | 0xFEBE0000 - 0xFEC00000 |
+
+1.2 Research Objective
+
+Extract the AES-128 SecOC key used to authenticate CAN frames (ARBIDs 0x0F, 0x131, 0x2E4, 0x344).
+
+1.3 Methodology
+
+| Method | Description | Tools |
+|--------|-------------|-------|
+| Static analysis | Ghidra decompilation of RH850P1M-EFirmware.bin | Ghidra, Ghidra MCP |
+| Dynamic analysis | CAN oracle capture (60s, 6,962 frames) | Comma device, openpilot |
+| DataFlash analysis | Multiple DF dumps (4 dumps, 32KB each) | TSK extraction kit |
+| Code-based evidence | All conclusions supported by decompiled functions | Ghidra decompilation |
+
+1.4 Research Questions
+
+1. How does the SecOC key work?
+2. How does the ECU load the SecOC key?
+3. Why do existing extraction methods fail?
+4. How can we extract the key?
+
+---
+
+2. Firmware Architecture
+
+2.1 Boot Process
+
+The ECU boot process follows this sequence:
+
+┌─────────────────────────────────────────────────────────────┐
+│  ECU BOOT SEQUENCE                                          │
+└─────────────────────────────────────────────────────────────┘
+
+1. Power-On (t=0ms)
+   ↓
+2. Reset Handler @ 0x1F2
+   → Sets gp = 0xFEBF9800
+   → Initializes stack pointer
+   ↓
+3. Bootloader (t=10ms)
+   → Initializes hardware
+   → Checks for UDS upload request
+   ↓
+4. Firmware Start (t=50ms)
+   → Initializes CSM
+   → Initializes SecOC
+   ↓
+5. CSM Init (t=60ms)
+   → Initializes job queues
+   → Initializes ICU interface
+   ↓
+6. Factory Arming (t=70ms)
+   FUN000679d6 → FUN00078504 → FUN000758a0 → FUN00077e98
+   → Reads key slot pages from DataFlash
+   → ICU derives key internally
+   → Key bound to jobId
+   ↓
+7. Main Loop (t=100ms)
+   → Cyclic task starts
+   → MAC job scheduler starts
+   ↓
+8. IG-ON Active (t=200ms)
+   → CAN frames transmitted
+   → SecOC authentication active
+
+Evidence: Ghidra decompilation of reset handler @ 0x1F2, FUN000679d6 @ 0x679D6
+
+2.2 Main Loop
+
+The main loop is the heart of the SecOC implem""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_2",
+    "title": "RH850 SecOC research report (EN) (3/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+entation:
+
+┌─────────────────────────────────────────────────────────────┐
+│  MAIN LOOP                                                  │
+└─────────────────────────────────────────────────────────────┘
+
+mainloop
+  → FUN00065f5c → FUN00067282 → FUN00078bd0
+       → csmmainfunction @ 0x730D4
+            │
+            ├─ csmprocessjobfinish @ 0x71E5A
+            │    → csmdequeuefinishedjob @ 0x71DE0
+            │    → csmdispatchopbymagic @ 0x70D96
+            │
+            └─ secoccyclictask @ 0x65C60
+                 → FUN00065bc6
+                 → secocmacjobscheduler @ 0x66374
+                      │
+                      └─ secocmacgeneratesubmit(obj) @ 0x674A8
+                           │
+                           ├─ jobId = DAT0002af30[obj6]
+                           ├─ build block at gp+0x4F08
+                           └─ csmjobsubmitmacgen(jobId, block)
+
+Evidence: Ghidra decompilation of csmmainfunction @ 0x730D4, secoccyclictask @ 0x65C60, secocmacjobscheduler @ 0x66374
+
+2.3 CSM (Crypto Service Manager)
+
+The CSM is responsible for managing crypto jobs:
+
+| Component | Function | Address | Purpose |
+|-----------|----------|---------|---------|
+| Job Submission | FUN00071d9e | 0x71D9E | Submit job to CSM queue |
+| Job Queue | csmjobmarksubmitted | 0x70C7A | Mark job as submitted |
+| Job Invocation | csmjobinvokeicuop | 0x70D2A | Invoke ICU operation |
+| Job Completion | csmprocessjobfinish | 0x71E5A | Process finished jobs |
+| Job Dispatch | csmdispatchopbymagic | 0x70D96 | Dispatch by magic number |
+
+Evidence: Ghidra decompilation of CSM functions
+
+2.4 ICU (Crypto Processor)
+
+The ICU is a separate crypto processor that performs all crypto operations:
+
+| Component | Function | Address | Purpose |
+|-----------|----------|---------|---------|
+| Opcode Validation | FUN000785D2 | 0x785D2 | Validate ICU opcode |
+| MAC Generation | ICU internal | — | AES-CMAC computation |
+| Key Storage | ICU internal | — | Secure key storage |
+| Key Derivation | ICU internal | — | Derive key from metadata |
+
+Key insight: The ICU is a black box — we can see the interface (job submission), but not the internals (crypto operations).
+
+Evidence: Ghidra decompilation of FUN000785""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_3",
+    "title": "RH850 SecOC research report (EN) (4/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+D2 @ 0x785D2, CSM/ICU bridge analysis
+
+---
+
+3. SecOC Key Working Mechanism
+
+3.1 SecOC Frame Structure
+
+The SecOC-protected CAN frames have the following structure:
+
+| ARBID | Hz | Payload (bytes 0-3) | Auth (bytes 4-7) | Counter Location |
+|-------|-----|---------------------|------------------|------------------|
+| 0x0F | ~10 | trip(2B) + reset(3B) | 28-bit truncated CMAC | N/A (sync frame) |
+| 0x131 | ~42 | 0x00, ctr, 0x00, 0x70 | 28-bit truncated CMAC | byte 1 (0x00-0x3F) |
+| 0x2E4 | ~42 | ctr<<1\\|0x80, 0x00, 0x00, 0x00 | 28-bit truncated CMAC | byte 0 >> 1 (0x00-0x3F) |
+| 0x344 | ~21 | 0x00000000 | 28-bit truncated CMAC | from 0x131 counter |
+
+Evidence: CAN oracle analysis (canoracle.ndjson, 6,962 frames)
+
+3.2 CMAC Verification
+
+The SecOC key is used to compute AES-128 CMAC over the message:
+
+For 0x0F (sync frame):
+msg = ARBID(0x000F) + trip(2B) + reset(3B)  # 7 bytes
+auth28 = first28(AES-CMAC-128(key, msg))
+
+For 0x131/0x2E4/0x344 (protected frames):
+msg = ARBID(2B) + payload(4B) + freshness(6B)  # 12 bytes
+auth28 = first28(AES-CMAC-128(key, msg))
+
+freshness = trip(2B) + reset(3B) + msgcnt(1B)
+
+Evidence: scansecockey4arbid.py verification logic
+
+3.3 Key Usage in CSM/ICU
+
+The SecOC key is used by the CSM and ICU:
+
+// secocmacgeneratesubmit @ 0x674A8
+jobId = DAT0002af30[obj6];  // object keyBase (e.g., 50, 52, 54)
+build block at gp+0x4F08 (= 0xFEBFE708):
+  [0:4]  freshness/counter LE
+  [4..]  payload from PTR table
+csmjobsubmitmacgen(jobId, gp+0x4F08);  // magic 0x22AA8A36
+
+Key insight: The MAC submit API takes (jobId, messageblockptr) — NOT a key pointer. The key must already be bound to the jobId inside the ICU.
+
+Evidence: Ghidra decompilation of secocmacgeneratesubmit @ 0x674A8
+
+3.4 MAC Object Table
+
+The MAC object table (flash @0x2AF2C) maps objects to jobIds:
+
+| Obj | paySz | flags | keyBase | bufPtr | PDU producer | Likely ARBID |
+|-----|-------|-------|---------|--------|--------------|--------------|
+| 0 | 160 | 2 | 50 | FEBEFC18 | FUN0005110a | 0x0F |
+| 5 | 8 | 6 | 64 | FEBEF430 | FUN00047958/538a | 0x131 |
+| 6 | 56 | 6 | 70 | FEBEF4D0 | FUN00038cec | 0x2E4 |
+| 12 | 24 | 2 | 82 | FEBEF530 | FUN0004528c/453a2 | 0x344 |
+
+Evidence: Flash @0x2AF2C analysi""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_4",
+    "title": "RH850 SecOC research report (EN) (5/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+s, CAN oracle correlation
+
+---
+
+4. ECU SecOC Key Loading Process
+
+4.1 Key Derivation (Not Storage)
+
+The SecOC key is NOT stored in DataFlash as a raw AES key. Instead, the DataFlash contains key slot metadata that tells the ICU how to derive the key.
+
+Key Slot Pages (468-479):
+
+| Page | keyId | Content Pattern | Has Raw Key? |
+|------|-------|----------------|--------------|
+| 468 | 12 | 0c00e3c90ff0f00f... + 0xAAAAAAAA | ❌ NO |
+| 475 | 5 | 0500c7c8f00f0ff0... + 0xAAAAAAAA | ❌ NO |
+| 477 | 3 | 0300a7c6aa5555aa... + 0xAAAAAAAA | ❌ NO |
+| 478 | 2 | 020000cba55a5aa5... + 0xAAAAAAAA | ❌ NO |
+
+Evidence: DataFlash dump analysis (dumpff200000ff208000.bin)
+
+4.2 Key Loading Flow
+
+┌─────────────────────────────────────────────────────────────┐
+│  ECU SECOC KEY LOADING PROCESS                              │
+└─────────────────────────────────────────────────────────────┘
+
+1. Boot / Power-On
+   ↓
+2. Factory Arming Path
+   FUN000679d6 → FUN00078504 → FUN000758a0 → FUN00077e98
+   ↓
+3. Read Key Slot Page from DataFlash
+   FUN00077e98(dfoffset, stackbuf, 64)
+   → reads 64 bytes into stack buffer
+   → buffer contains key slot metadata (NOT raw key)
+   ↓
+4. ICU Derives Key Internally
+   (using fused master key + metadata)
+   → key derived inside ICU
+   → key never leaves ICU
+   ↓
+5. ICU Binds Key to jobId
+   → key bound to jobId (e.g., 50, 52, 54)
+   → key ready for MAC generation
+
+Critical observation: FUN000758a0 reads DataFlash into stack buffer and discards it. The host CPU never processes the key material — the ICU handles it directly.
+
+Evidence: Ghidra decompilation of FUN000758a0 @ 0x758A0, FUN00077e98 @ 0x77E98
+
+4.3 Key Derivation Process
+
+The ICU derives the key using:
+
+1. Key slot metadata from DataFlash (pages 468-479)
+2. Fused master key (burned into ICU during manufacturing)
+3. Internal derivation algorithm (not accessible)
+
+The raw AES key never exists in the DataFlash or host-accessible memory.
+
+Evidence: DataFlash scan (8,189 windows, 0 matches), key slot page analysis
+
+4.4 Key Install Path (Rekey)
+
+During a rekey operation, the key is installed via a different path:
+
+┌─────────────────────────────────────────────────────────────┐
+│  REKEY KEY INSTALL PATH""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_5",
+    "title": "RH850 SecOC research report (EN) (6/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+│
+└─────────────────────────────────────────────────────────────┘
+
+1. External tool triggers rekey
+   ↓
+2. secocpduingress(0x01xx, keymaterial) @ 0x65CD8
+   ↓
+3. secockeyhostwrite(slot, keymaterial) @ 0x66E48
+   → copies key to FEBEF468/478/488
+    KEY IS IN RAM AT FEBEF468 
+   ↓
+4. FUN00066ac2 (key scheduler)
+   → queues state 0x11
+   ↓
+5. secockeysetfromworkbuf(slot) @ 0x67590
+   → uses workbuf @ 0xFEBFEB08
+    KEY IS IN RAM AT WORKBUF 
+   ↓
+6. csmjobsubmitkeyset(jobId, workbufptr) @ 0x72F58
+   → sends key to ICU
+    KEY IS IN RAM AT WORKBUFPTR 
+   ↓
+7. ICU installs key
+
+Evidence: Ghidra decompilation of secockeyhostwrite @ 0x66E48, secockeysetfromworkbuf @ 0x67590
+
+---
+
+5. CSM/ICU Bridge Architecture
+
+5.1 Job Submission
+
+The CSM submits jobs to the ICU via a well-defined interface:
+
+// FUN00071d9e @ 0x71D9E — Job submission
+int FUN00071d9e(int magic, ushort jobId, undefined4 ptr, undefined4 param4) {
+    // magic: 0x22AA8A36 (macgen), 0xA1A62093 (keyset), etc.
+    // jobId: job identifier (e.g., 50, 52, 54)
+    // ptr: pointer to message block or key material
+    // param4: additional parameter
+    
+    FUN00071046();  // Lock
+    if (jobId == 0) {
+        bVar1 = FUN00072918(&local20);
+    } else {
+        iVar2 = FUN000725f6(&local20);
+    }
+    FUN00071052();  // Unlock
+    
+    if (iVar2 == 0) {
+        csmjobmarksubmitted(jobId, magic, '\\x02');
+    }
+    return iVar2;
+}
+
+Evidence: Ghidra decompilation of FUN00071d9e @ 0x71D9E
+
+5.2 Job Completion
+
+The CSM processes completed jobs:
+
+// csmprocessjobfinish @ 0x71E5A — Job completion
+void csmprocessjobfinish(void) {
+    // Dequeue finished job
+    csmdequeuefinishedjob();
+    
+    // Dispatch by magic
+    csmdispatchopbymagic(jobId, magic);
+    
+    // Update job status
+    FUN00004e92[unaffgp + 2] = cVar12;
+}
+
+Evidence: Ghidra decompilation of csmprocessjobfinish @ 0x71E5A
+
+5.3 Magic to Opcode Mapping
+
+The CSM maps magic numbers to ICU opcodes:
+
+| Magic | Hex | Opcode | Purpose |
+|-------|-----|--------|---------|
+| 0x22AA8A36 | macgen | 8 | MAC generation |
+| 0xA1A62093 | keyset | 7 | Key install |
+| 0xB9145954 | ptr-arg job | 1 (INVALID) | Possible KeyElementGet |
+| 0xB6E96AF1""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_6",
+    "title": "RH850 SecOC research report (EN) (7/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+| job-only | 23 | Additional crypto service |
+| 0x1C646989 | job-only | 24 | Additional crypto service |
+
+Evidence: Flash table @0x277B4 analysis, FUN000785D2 @ 0x785D2
+
+5.4 ICU Opcode Validation
+
+The ICU validates opcodes at hardware level:
+
+// FUN000785D2 @ 0x785D2 — ICU opcode validation
+void FUN000785d2(uint param1) {
+    uVar1 = param1 & 0xff;
+    if (2 < uVar1 - 6) {
+        if (uVar1 == 0xc || uVar1 == 0xd) goto LAB000785f6;
+        if (2 < uVar1 - 0x16) {
+            uVar1 = 0xffffffff;  // INVALID
+        }
+    }
+    // Accepts: 6, 7, 8 (MAC/key/MAC-gen), 0xC, 0xD, 0x16, 0x17, 0x18
+    // Rejects: 1, 2, 3, 4, 5, 9, 10, 11, etc.
+}
+
+Evidence: Ghidra decompilation of FUN000785D2 @ 0x785D2
+
+---
+
+6. Why Existing Methods Fail
+
+6.1 Method 1: DataFlash Page Read (Method C)
+
+Status: ❌ FAILED
+
+Reason: The key is NOT in DataFlash as a raw AES key.
+
+Evidence:
+- Scanned all 8,189 windows (stride 4) — 0 matches
+- Scanned all high-entropy windows (H > 3.0) — 0 matches
+- Scanned all 512 PE pages — 0 matches
+- Scanned multiple dumps (4 dumps) — 0 matches
+
+Code-based evidence:
+
+// FUN00077e98 @ 0x77E98 — DataFlash read
+int FUN00077e98(int dfoffset, undefined4 dst, int len) {
+    puVar8 = (undefined4 )(&UNKff200000 + param1);
+    // Reads 64 bytes from DF into dst (stack buffer)
+    // NO encryption, NO authentication
+    // Buffer contains key slot metadata, NOT raw key
+}
+
+Conclusion: The DataFlash contains key slot metadata, not the raw AES key. The ICU derives the key internally.
+
+---
+
+6.2 Method 2: FEBF RAM Dump (Method A)
+
+Status: ❌ FAILED
+
+Reason: The key is NOT in RAM permanently.
+
+Evidence:
+- FEBEF468/478/488 are markers at rest (a55a5aa5)
+- Workbuf @ 0xFEBFEB08 is zero-init or stale
+- 32B slots may not hold AES
+
+Code-based evidence:
+
+// secockeymacgenverifytriple @ 0x67608
+// FEBEF468 dump may show a55a5aa5 markers when no committed plaintext key is present;
+// MAC jobs bind submitted jobId to secrets ALREADY living in CSM/ICU-S after keyset.
+
+Conclusion: The key is only in RAM transiently during install/rekey, not permanently.
+
+---
+
+6.3 Method 3: keyset Hook (Method B — Boot)
+
+Status: ❌ FAILED
+
+Reason: The key is NOT installed via csmjobsubmitkeyset during boot.""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_7",
+    "title": "RH850 SecOC research report (EN) (8/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+Evidence:
+- Factory arming path reads DataFlash into stack buffer and discards
+- No csmjobsubmitkeyset call during boot
+- Key derived inside ICU, not installed via keyset
+
+Code-based evidence:
+
+// FUN000758a0 @ 0x758A0 — Factory arming
+undefined4 FUN000758a0(uint peoffset, uint len) {
+    undefined4 auStack4c[16];  // 64-byte stack buffer
+    FUN00073ce8(peoffset, len & 0xFFFF, auStack4c, 1);
+    // Returns STATUS only — buffer contents LOST on return
+    return status;
+}
+
+Conclusion: The key is derived inside the ICU, not installed via csmjobsubmitkeyset during boot.
+
+---
+
+6.4 Method 4: B914 Probe (Method D)
+
+Status: ❌ FAILED
+
+Reason: ICU rejects opcode 10/1 at hardware level.
+
+Evidence:
+
+// FUN000785D2 @ 0x785D2 — ICU opcode validation
+void FUN000785d2(uint param1) {
+    uVar1 = param1 & 0xff;
+    if (2 < uVar1 - 6) {
+        if (uVar1 == 0xc || uVar1 == 0xd) goto LAB000785f6;
+        if (2 < uVar1 - 0x16) {
+            uVar1 = 0xffffffff;  // INVALID
+        }
+    }
+    // Accepts: 6, 7, 8 (MAC/key/MAC-gen), 0xC, 0xD, 0x16, 0x17, 0x18
+    // Rejects: 1, 2, 3, 4, 5, 9, 10, 11, etc.
+}
+
+Conclusion: The ICU rejects B914 (opcode 10/1) at hardware level. The TX buffer stays zero.
+
+---
+
+6.5 Method 5: Brute Force (DF Metadata)
+
+Status: ❌ FAILED
+
+Reason: The key slot pages contain metadata, not encrypted key material.
+
+Evidence:
+- No TMR structure (plain, plain^0x55, plain^0xAA)
+- No XOR patterns between pages
+- No checksums (last 4 bytes always 0xAAAAAAAA)
+- AES decryption with common master keys — no CMAC match
+- KDF derivation (SHA-256, MD5) — no CMAC match
+
+Code-based evidence:
+
+Key slot pages (468-479) contain:
+- keyId (2 bytes)
+- metadata/markers (a55a5aa5, 0xAAAAAAAA)
+- configuration data
+NOT the raw AES key
+
+Conclusion: The key slot pages contain metadata, not encrypted key material. There is no encryption to reverse.
+
+---
+
+7. Rekey Capture Method
+
+7.1 Overview
+
+The SecOC key IS exposed in RAM during a rekey operation.
+
+Status: ⏳ LEFT FOR COMMUNITY EXPLORATION
+
+7.2 Rekey Flow
+
+┌─────────────────────────────────────────────────────────────┐
+│  REKEY OPERATION (triggered by external tool)              │
+└────────────────────────────────────────────────────────""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_8",
+    "title": "RH850 SecOC research report (EN) (9/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+─────┘
+
+1. External tool triggers rekey
+   (dealer tool / Techstream)
+   ↓
+2. secockeyhostwrite(slot, keymaterial) @ 0x66E48
+   → copies key to FEBEF468/478/488
+    KEY IS IN RAM AT FEBEF468 
+   ↓
+3. FUN00066ac2 (key scheduler)
+   ↓
+4. secockeysetfromworkbuf(slot) @ 0x67590
+   → uses workbuf @ 0xFEBFEB08
+    KEY IS IN RAM AT WORKBUF 
+   ↓
+5. csmjobsubmitkeyset(jobId, workbufptr) @ 0x72F58
+   → sends key to ICU
+    KEY IS IN RAM AT WORKBUFPTR 
+   ↓
+6. ICU installs key
+
+7.3 Key Exposure Points
+
+| Location | Address | Duration | Capture Method |
+|----------|---------|----------|----------------|
+| FEBEF468/478/488 | 0xFEBEF468 | Persistent (until next rekey) | Dump FEBEF after rekey |
+| Workbuf | 0xFEBFEB08 | Transient (during keyset) | Hook or monitor workbuf |
+| csmjobsubmitkeyset | 0x72F58 | Very brief (function call) | Hook at 0x72F58 |
+
+7.4 Constraints
+
+1. Shellcode lost on power cycle — must reinstall each IG-ON
+2. IG-ON battery ~10 min — limited time window
+3. Requires dealer tool — to trigger rekey
+
+7.5 Community Implementation
+
+Design document: rekey-capture-design.md (./rekey-capture-design.md)
+
+Success probability: ~58% (with dealer tool)
+
+Note: This method is left for community exploration. The design document provides a complete implementation guide.
+
+---
+
+8. DataFlash Structure Analysis
+
+8.1 PE Page Structure
+
+The DataFlash is organized into 64-byte PE (Program/Erase) pages:
+
+| Page Range | Purpose |
+|------------|---------|
+| 0-467 | Unknown (not analyzed) |
+| 468-479 | Key slot pages (keyIds 1-12) |
+| 480-511 | Unknown (not analyzed) |
+
+Evidence: DataFlash dump analysis (dumpff200000ff208000.bin)
+
+8.2 Key Slot Pages
+
+The key slot pages (468-479) contain key slot metadata:
+
+| Page | keyId | Offset | Content Pattern |
+|------|-------|--------|----------------|
+| 468 | 12 | 0x7500 | 0c00e3c90ff0f00f... + 0xAAAAAAAA |
+| 469 | 11 | 0x7540 | 0b00afc600ffff00... + 0xAAAAAAAA |
+| 470 | 10 | 0x7580 | 0a00f0ca0ff0f00f... + 0xAAAAAAAA |
+| 471 | 9 | 0x75C0 | 090087cc0ff0f00f... + 0xAAAAAAAA |
+| 472 | 8 | 0x7600 | 080071cbf00f0ff0... + 0xAAAAAAAA |
+| 473 | 7 | 0x7640 | 0700abc6ff0000ff... + 0xAAAAAAAA |
+| 474 | 6 | 0x7680 | 060060caf00f0ff0... + 0xAAAAAAAA |
+| 4""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_9",
+    "title": "RH850 SecOC research report (EN) (10/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+75 | 5 | 0x76C0 | 0500c7c8f00f0ff0... + 0xAAAAAAAA |
+| 476 | 4 | 0x7700 | 0400ebcda55a5aa5... + 0xAAAAAAAA |
+| 477 | 3 | 0x7740 | 0300a7c6aa5555aa... + 0xAAAAAAAA |
+| 478 | 2 | 0x7780 | 020000cba55a5aa5... + 0xAAAAAAAA |
+| 479 | 1 | 0x77C0 | 0100c7c4a55a5aa5... + 0xAAAAAAAA |
+
+Evidence: DataFlash dump analysis
+
+8.3 Metadata Patterns
+
+The key slot pages contain metadata patterns:
+
+| Pattern | Location | Meaning |
+|---------|----------|---------|
+| a55a5aa5 | Various | TMR/marker + counters |
+| 0xAAAAAAAA | End of page | TMR/encoding marker |
+| 0ff00ff0 | Various | Metadata marker |
+
+Key insight: These patterns are metadata markers, not the key itself.
+
+Evidence: DataFlash dump analysis, pattern analysis
+
+---
+
+9. CAN Frame Analysis
+
+9.1 Frame Structure
+
+The CAN frames have the following structure:
+
+| ARBID | Hz | Payload (bytes 0-3) | Auth (bytes 4-7) | Counter Location |
+|-------|-----|---------------------|------------------|------------------|
+| 0x0F | ~10 | trip(2B) + reset(3B) | 28-bit truncated CMAC | N/A (sync frame) |
+| 0x131 | ~42 | 0x00, ctr, 0x00, 0x70 | 28-bit truncated CMAC | byte 1 (0x00-0x3F) |
+| 0x2E4 | ~42 | ctr<<1\\|0x80, 0x00, 0x00, 0x00 | 28-bit truncated CMAC | byte 0 >> 1 (0x00-0x3F) |
+| 0x344 | ~21 | 0x00000000 | 28-bit truncated CMAC | from 0x131 counter |
+
+Evidence: CAN oracle analysis (canoracle.ndjson, 6,962 frames)
+
+9.2 Oracle Statistics
+
+| ARBID | Hz | Frames | Unique Samples | Counter Range |
+|-------|-----|--------|----------------|---------------|
+| 0x0F | ~10 | 611 | ~205 | N/A |
+| 0x131 | ~42 | 2,540 | ~2,540 | 0x00-0x3F |
+| 0x2E4 | ~42 | 2,541 | ~2,541 | 0x00-0x3F |
+| 0x344 | ~21 | 1,270 | ~1,270 | from 0x131 |
+| Total | — | 6,962 | ~6,556 | — |
+
+Evidence: CAN oracle analysis
+
+9.3 Counter Patterns
+
+The counters in 0x131 and 0x2E4 are synchronized:
+
+0x131 counter = [19, 20, 22, 23, 25, 26, 28, 29, ...]
+0x2E4 counter = [18, 19, 21, 22, 24, 25, 27, 28, ...]
+diff          = [ 1,  1,  1,  1,  1,  1,  1,  1, ...]
+
+Key insight: 0x131 and 0x2E4 use the same freshness counter, offset by 1.
+
+Evidence: CAN oracle analysis, counter pattern analysis
+
+---
+
+10. Key Slot Page Analysis
+
+10.1 Page Structure
+
+The key slot pages have the following st""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_10",
+    "title": "RH850 SecOC research report (EN) (11/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+ructure:
+
+| Offset | Content | Meaning |
+|--------|---------|---------|
+| +0x00-0x01 | keyId | Key slot identifier (1-12) |
+| +0x02-0x0F | Derivation parameters | Used by ICU to derive key |
+| +0x10-0x2F | Configuration data | Additional configuration |
+| +0x30-0x3F | Markers | 0xAAAAAAAA at end |
+
+Evidence: DataFlash dump analysis, key slot page analysis
+
+10.2 Metadata Meaning
+
+The key slot metadata tells the ICU:
+
+1. Which key slot to use (keyId = 1-12)
+2. How to derive the key (derivation parameters)
+3. Configuration (how to use the key)
+
+But it does NOT tell the ICU:
+- ❌ What the actual key is
+- ❌ How to encrypt/decrypt the key
+- ❌ The fused master key
+
+Evidence: Key slot page analysis, ICU derivation process
+
+10.3 Why Metadata Is Not the Key
+
+| Aspect | Metadata | Actual Key |
+|--------|----------|------------|
+| What it is | Instructions for deriving the key | The AES-128 key used for CMAC |
+| Where it's stored | DataFlash (pages 468-479) | Inside ICU (derived, never stored) |
+| Can we read it? | ✅ YES (we have the DF dump) | ❌ NO (inside ICU) |
+| Can we brute force it? | ❌ NO (it's not encrypted) | ❌ NO (it's not in DF) |
+
+Evidence: Key slot page analysis, brute force analysis
+
+---
+
+11. Complete Function Reference
+
+11.1 SecOC Functions
+
+| Function | Address | Purpose |
+|----------|---------|---------|
+| secocpduingress | 0x65CD8 | SecOC PDU ingress (MAC object update, key update) |
+| secockeyhostwrite | 0x66E48 | Host key write (copies key to FEBEF) |
+| secockeysetfromworkbuf | 0x67590 | Key set from workbuf |
+| secockeyupdatecommit | 0x67C34 | Key update commit |
+| secockeymacgenverifytriple | 0x67608 | MAC-gen verify triple |
+| secocqueuekeysetrequest | 0x66DB2 | Queue key set request |
+| secocrequestingress | 0x65C84 | Request-side twin of secocpduingress |
+| secocmacobjectupdate | — | MAC object update |
+| secocmacjobscheduler | 0x66374 | MAC job scheduler |
+| secocmacgeneratesubmit | 0x674A8 | MAC generate submit |
+| secoccyclictask | 0x65C60 | SecOC cyclic task |
+
+11.2 CSM Functions
+
+| Function | Address | Purpose |
+|----------|---------|---------|
+| csmmainfunction | 0x730D4 | CSM main function |
+| csmjobsubmitkeyset | 0x72F58 | CSM job submit key""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_11",
+    "title": "RH850 SecOC research report (EN) (12/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+set |
+| csmjobsubmitmacgen | — | CSM job submit MAC gen |
+| csmjobmarksubmitted | 0x70C7A | Mark job as submitted |
+| csmjobinvokeicuop | 0x70D2A | Invoke ICU operation |
+| csmprocessjobfinish | 0x71E5A | Process finished jobs |
+| csmdequeuefinishedjob | 0x71DE0 | Dequeue finished job |
+| csmdispatchopbymagic | 0x70D96 | Dispatch by magic number |
+| FUN00071d9e | 0x71D9E | Job submission |
+| FUN000725f6 | 0x725F6 | Job validation |
+| FUN000732f8 | 0x732F8 | Type check (bypass when ptr != 0) |
+
+11.3 ICU Functions
+
+| Function | Address | Purpose |
+|----------|---------|---------|
+| FUN000785D2 | 0x785D2 | ICU opcode validation |
+| FUN00078504 | 0x78504 | ICU secure operation |
+| FUN00077e98 | 0x77E98 | DataFlash read |
+| FUN000758a0 | 0x758A0 | Factory arming (reads DF, discards) |
+| FUN000775ea | 0x775EA | Secure operations |
+| FUN00077826 | 0x77826 | Gated wrapper for DF read |
+| FUN00073ce8 | 0x73CE8 | Mid-level dispatcher |
+| FUN00073cb0 | 0x73CB0 | Mid-level dispatcher |
+| FUN000679d6 | 0x679D6 | Per-slot ready check |
+| FUN00067804 | 0x67804 | Broad key arm |
+
+11.4 DataFlash Functions
+
+| Function | Address | Purpose |
+|----------|---------|---------|
+| FUN00077e98 | 0x77E98 | DataFlash read |
+| FUN00073750 | 0x73750 | Level 1 PE lookup (keyId → intermediate) |
+| FUN00077452 | 0x77452 | Level 2 PE lookup (intermediate → peindex) |
+| FUN00077cf8 | 0x77CF8 | Address validation |
+| FUN00077d0e | 0x77D0E | Range validation |
+
+---
+
+12. Experimental Guidance for Community
+
+12.1 Prerequisites
+
+- Comma device (with openpilot)
+- Dealer tool (Techstream or similar) — for rekey capture
+- V850 toolchain or Docker (to build shellcode)
+- 4-ARBID oracle (canoracle4arbid.ndjson)
+
+12.2 Building Shellcode
+
+Build FEBEF monitor
+cd carkit12000/shellcodesource
+v850-elf-gcc -fPIC -ffreestanding -c mainfebefmonitor.c -o febefmonitor.o
+v850-elf-objcopy -O binary -j .text febefmonitor.o febefmonitor.bin
+
+Build keyset hook
+v850-elf-gcc -fPIC -ffreestanding -c mainkeysethook.c -o keysethook.o
+v850-elf-objcopy -O binary -j .text keysethook.o keysethook.bin
+
+Seal into UDS payloads
+cd ..
+python3 buildfrombin.py shellcodesource/febefmonitor.bin -o payloadfebefmonitor.bin
+python3 buildfrombi""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_12",
+    "title": "RH850 SecOC research report (EN) (13/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+n.py shellcodesource/keysethook.bin -o payloadkeysethook.bin
+
+12.3 Installing Shellcode
+
+On comma device
+ssh comma@IP
+cd /data/carkit12000
+
+Stop boardd
+sudo systemctl stop comma
+pkill -f boardd
+
+Install shellcode
+bash quickinstall.sh
+
+12.4 Capturing Key
+
+Connect dealer tool and trigger rekey
+(follow dealer tool instructions)
+
+Capture key
+python3 parserekeycapture.py capture.ndjson --oracle canoracle4arbid.ndjson
+
+12.5 Verifying Key
+
+Verify captured key with 4-ARBID oracle
+python3 scansecockey4arbid.py capturedkey.bin 0x0 --oracle canoracle4arbid.ndjson
+
+---
+
+13. Lessons Learned
+
+13.1 What Worked
+
+1. Ghidra decompilation — provided detailed firmware logic
+2. CAN oracle analysis — provided verification oracle
+3. DataFlash dump analysis — provided key slot page structure
+4. Code-based evidence — all conclusions supported by decompiled functions
+
+13.2 What Didn't Work
+
+1. DataFlash page read — key not in DF as raw AES
+2. FEBF RAM dump — key not in RAM permanently
+3. keyset hook (boot) — key not installed via keyset during boot
+4. B914 probe — ICU rejects at hardware level
+5. Brute force — no encryption to reverse in DF
+
+13.3 Key Insights
+
+1. The SecOC key is derived inside the ICU — not stored as raw AES key
+2. The key is exposed in RAM during a rekey — but only transiently
+3. The ICU is a black box — we can see the interface, but not the internals
+4. Code-based evidence is essential — speculation leads to dead ends
+
+---
+
+14. Future Research Directions
+
+14.1 Rekey Capture (Community Exploration)
+
+Status: ⏳ LEFT FOR COMMUNITY EXPLORATION
+
+Description: Capture the SecOC key during a rekey operation using FEBEF monitor + keyset hook.
+
+Success probability: ~58% (with dealer tool)
+
+Design document: rekey-capture-design.md (./rekey-capture-design.md)
+
+14.2 ICU SCA (Side-Channel Analysis)
+
+Status: ⏳ LAST RESORT
+
+Description: Physical attack on the ICU using side-channel analysis (power, EM, timing) or fault injection (voltage, clock, laser).
+
+Success probability: ~80-90%
+
+Cost: HIGH (equipment, expertise, risk)
+
+14.3 Other Methods
+
+Status: ⏳ FUTURE RESEARCH
+
+Possible directions:
+- Bootloader exploit — install hook before firmware starts
+- Race condition — capture key durin""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_13",
+    "title": "RH850 SecOC research report (EN) (14/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+g boot (very tight timing)
+- Hardware debugger — halt CPU during boot, install hook
+
+---
+
+15. Conclusion
+
+15.1 Definitive Findings
+
+1. The SecOC key is derived inside the ICU from DataFlash metadata, not stored as raw AES key
+   - Evidence: DataFlash scan (0 matches), key slot page analysis, FUN000758a0 buffer discard
+
+2. The key is exposed in RAM during a rekey operation at FEBEF468/478/488 and workbuf
+   - Evidence: secockeyhostwrite @ 0x66E48, secockeysetfromworkbuf @ 0x67590
+
+3. Existing extraction methods fail because the key is never in host-accessible memory permanently
+   - Evidence: DF scan failure, FEBEF markers, boot path analysis
+
+4. The rekey capture method is viable but requires a dealer tool to trigger rekey
+   - Evidence: Rekey flow analysis, key exposure points
+
+15.2 Code-Based Evidence Summary
+
+| Claim | Evidence | Function/Address |
+|-------|----------|------------------|
+| Key derived inside ICU | DF scan failure, buffer discard | FUN000758a0 @ 0x758A0 |
+| Key exposed during rekey | Host write to FEBEF | secockeyhostwrite @ 0x66E48 |
+| Key not in DF as raw AES | DF scan 0 matches | dumpff200000ff208000.bin |
+| Key not in RAM permanently | FEBEF markers | secockeymacgenverifytriple @ 0x67608 |
+| ICU rejects B914 | Opcode validation | FUN000785D2 @ 0x785D2 |
+
+15.3 No Speculation
+
+All conclusions in this report are supported by:
+- Ghidra decompilation of RH850P1M-EFirmware.bin
+- CAN oracle analysis (6,962 frames)
+- DataFlash dump analysis (4 dumps, 32KB each)
+
+No speculation. Only code-based evidence.
+
+---
+
+16. Comparison with "I Can Hack" Findings
+
+16.1 Overview
+
+This section compares our reproduction and new discoveries against the "I Can Hack" findings for the Toyota SecOC key extraction.
+
+"I Can Hack" reference: Extracting Secure Onboard Communication (SecOC) keys from a 2021 Toyota RAV4 Prime (https://icanhack.nl/blog/secoc-key-extraction)
+
+16.2 "I Can Hack" Findings
+
+| Aspect | "I Can Hack" Findings |
+|--------|----------------------|
+| Target | 2021 Toyota RAV4 Prime |
+| Method | Bootloader compromise → RAM extraction |
+| Key location | RAM (KEY bank with 0x20 structs + checksum) |
+| Result | ✅ Successfully extracted SecOC keys |
+
+Key det""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_14",
+    "title": "RH850 SecOC research report (EN) (15/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+ails:
+- Used bootloader compromise to gain code execution
+- Extracted keys from RAM KEY bank (0x20 structs with checksum @ 0x1D)
+- Keys were plain AES-128 in RAM
+- Correlated with DataFlash in some cases
+
+16.3 Our Reproduction Attempt
+
+| Aspect | Our Reproduction |
+|--------|------------------|
+| Target | Toyota Sienna CN EPS 8965B4512000 |
+| Method | DataFlash dump + Vance CMAC verification |
+| Key location | DataFlash (attempted) |
+| Result | ❌ Failed — key not in DF |
+
+What we tried:
+1. DataFlash dump — scanned all 8,189 windows (stride 4) for 16-byte candidates
+2. Icanhack struct scan — searched for 0x20 structs with checksum @ 0x1D
+3. Vance CMAC verification — tested all candidates against 4-ARBID oracle
+4. Result: 0 matches — key not in DataFlash
+
+16.4 Key Differences
+
+| Aspect | "I Can Hack" (RAV4) | Our Target (Sienna CN) |
+|--------|---------------------|------------------------|
+| ECU | RAV4 Prime | Sienna CN EPS 8965B4512000 |
+| Key storage | RAM KEY bank (plain AES) | ICU-derived (not in RAM/DF) |
+| Extraction method | Bootloader compromise → RAM dump | DF dump + CMAC verification |
+| Key format | 0x20 structs + checksum | Key slot metadata (not raw key) |
+| Result | ✅ Success | ❌ Failed (key not in DF) |
+
+16.5 Why "I Can Hack" Method Didn't Work on Our Vehicle
+
+| Reason | Explanation |
+|--------|-------------|
+| Different key storage | RAV4 stores key in RAM KEY bank; Sienna CN derives key in ICU |
+| No RAM KEY bank | Our FEBE dump shows a55a5aa5 markers, not 0x20 structs |
+| No DF key bank | Our DF scan found 0 matches; key not in DF |
+| Different firmware | Different firmware generation with different security policy |
+
+16.6 New Discoveries
+
+| Discovery | Evidence |
+|-----------|----------|
+| Key derived in ICU | DF scan 0 matches, FUN000758a0 buffer discard |
+| Key slot metadata in DF | Pages 468-479 contain metadata, not raw key |
+| Key exposed during rekey | secockeyhostwrite @ 0x66E48 fills FEBEF |
+| CSM/ICU bridge | Job submission/completion via magic numbers |
+
+16.7 Lessons Learned
+
+| Lesson | Explanation |
+|--------|-------------|
+| Key storage varies by ECU | Different ECUs have different key storage policies |
+| RAM KEY bank not universal""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_15",
+    "title": "RH850 SecOC research report (EN) (16/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+| RAV4 method doesn't work on all Toyota ECUs |
+| ICU-derived keys are more secure | Sienna CN uses ICU derivation, not plain storage |
+| Code-based evidence is essential | Speculation leads to dead ends |
+
+---
+
+17. Comparison with Vance's Method
+
+17.1 Overview
+
+This section compares our results with Vance's method, specifically highlighting what we discovered and why that method did not work on our vehicle.
+
+Vance reference: TSS3 SecOC key recovery (partner dump 8965B4514000)
+
+17.2 Vance's Method
+
+| Aspect | Vance's Method |
+|--------|----------------|
+| Target | 8965B4514000 (partner dump) |
+| Method | DataFlash dump + CMAC verification |
+| Key location | DataFlash @ 0xFF206E14 |
+| Result | ✅ Successfully extracted SecOC key |
+
+Key details:
+- Dumped EPS DataFlash (0xFF200000–0xFF208000, 32 KiB)
+- Enumerated unique 16-byte windows (entropy filter)
+- For each candidate K:
+  - Parsed 0x0F CAN: trip, reset, auth28
+  - msg = pack(>HH, 0x0F, trip) || BE24(reset<<4)
+  - auth28 == first28(AES-CMAC-128(K, msg))
+- Cross-checked protected frames (0x131 / 0x2E4 / 0x344)
+- Found key at 0xFF206E14
+
+17.3 Our Reproduction Attempt
+
+| Aspect | Our Reproduction |
+|--------|------------------|
+| Target | Toyota Sienna CN EPS 8965B4512000 |
+| Method | Same Vance method (DF dump + CMAC verification) |
+| Key location | DataFlash (attempted) |
+| Result | ❌ Failed — key not in DF |
+
+What we tried:
+1. DataFlash dump — scanned all 8,189 windows (stride 4) for 16-byte candidates
+2. High-entropy filter — tested all windows with H ≥ 3.0
+3. Vance CMAC verification — tested all candidates against 4-ARBID oracle
+4. Result: 0 matches — key not in DataFlash
+
+Scan results:
+
+| Dump | Candidates (H≥3.0) | CMAC matches (≥1/200) | @ 0x6E14 (Vance zone) |
+|------|--------------------|-----------------------|-------------------------|
+| dataflashv2.bin | 454 | 0 | 00000000040000808202000000000000 H=1.31 · 0/200 |
+| dataflash.bin | 1131 | 0 | 40004000400040002c068c5805006c00 H=2.53 · 0/200 |
+
+17.4 Why Vance's Method Didn't Work on Our Vehicle
+
+| Reason | Explanation |
+|--------|-------------|
+| Different key storage | Vance's target (14000) stores key in DF; our target (12000) derives key in ICU |
+| N""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_16",
+    "title": "RH850 SecOC research report (EN) (17/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+o DF key bank | Our DF scan found 0 matches; key not in DF |
+| Key slot metadata | Our DF contains key slot metadata (pages 468-479), not raw key |
+| ICU derivation | Our ECU derives key inside ICU using fused master key + metadata |
+
+17.5 What We Discovered
+
+| Discovery | Evidence |
+|-----------|----------|
+| Key NOT in DF as raw AES | DF scan 0 matches (all 8,189 windows, all 512 PE pages) |
+| Key slot metadata in DF | Pages 468-479 contain metadata (keyId, derivation parameters, markers) |
+| Key derived in ICU | FUN000758a0 reads DF into stack buffer and discards |
+| Key exposed during rekey | secockeyhostwrite @ 0x66E48 fills FEBEF with new key |
+| CSM/ICU bridge | Job submission/completion via magic numbers (0x22AA8A36, 0xA1A62093) |
+
+17.6 Key Differences
+
+| Aspect | Vance (14000) | Our Target (12000) |
+|--------|---------------|---------------------|
+| ECU | 8965B4514000 | 8965B4512000 |
+| Key storage | DataFlash (plain-ish) | ICU-derived (not in DF) |
+| Key location | 0xFF206E14 | N/A (not in DF) |
+| DF content | Raw AES key | Key slot metadata |
+| Vance CMAC | ✅ Match | ❌ 0 matches |
+| Security policy | Plain DF mirror | ICU-only (more secure) |
+
+17.7 Why the Difference?
+
+| Factor | Explanation |
+|--------|-------------|
+| Firmware generation | Different firmware versions with different security policies |
+| Product split | Same family (Sienna EPS), different app (14000 vs 12000) |
+| Security evolution | 12000 uses more secure ICU derivation, not plain DF storage |
+| Key storage policy | 14000: plain DF mirror; 12000: ICU-only |
+
+17.8 Practical Implications
+
+| Implication | Explanation |
+|-------------|-------------|
+| Vance method not universal | Doesn't work on all Toyota ECUs |
+| Key storage varies | Different ECUs have different key storage policies |
+| ICU-derived keys are more secure | 12000 uses ICU derivation, not plain storage |
+| Rekey capture is viable | Only viable method for 12000 (with dealer tool) |
+
+17.9 Lessons Learned
+
+| Lesson | Explanation |
+|--------|-------------|
+| Vance method is ECU-specific | Works on 14000, not on 12000 |
+| Key storage varies by ECU | Different ECUs have different key storage policies |
+| ICU-derived keys are m""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_research_report_en_md_17",
+    "title": "RH850 SecOC research report (EN) (18/18)",
+    "tags": ["secoc","rh850","research","en"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — RESEARCH_REPORT_EN.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/RESEARCH_REPORT_EN.md
+
+ore secure | 12000 uses ICU derivation, not plain storage |
+| Code-based evidence is essential | Speculation leads to dead ends |
+
+---
+
+18. Appendices
+
+18.1 Appendix A: Secrets (SHA-256 Hashes Only)
+
+| Secret | SHA-256 Hash |
+|--------|--------------|
+| PAYLOADBUILDSECRET | 16e1c61b67f9e5b131ba203a4e0afb7c0a0e35d06f6dabae7c6b32480eb89f8c |
+| SEEDKEYSECRET | 546646ecfdf3a9b32dde430c876e6c95338c8c09c87599723f3098b026547ca9 |
+
+Note: Actual secrets are not disclosed. Only SHA-256 hashes are provided.
+
+18.2 Appendix B: Complete Function Reference
+
+See Section 11 (#11-complete-function-reference) for complete function reference.
+
+18.3 Appendix C: DataFlash Structure
+
+See Section 8 (#8-dataflash-structure-analysis) for DataFlash structure analysis.
+
+18.4 Appendix D: CAN Oracle Statistics
+
+See Section 9 (#9-can-frame-analysis) for CAN oracle statistics.
+
+18.5 Appendix E: References
+
+- Firmware: RH850P1M-EFirmware.bin (Ghidra project: RH850SecOC)
+- CAN oracle: canoracle.ndjson (6,962 frames)
+- DataFlash dumps: dumpff200000ff208000.bin (4 dumps)
+- Rekey design: rekey-capture-design.md (./rekey-capture-design.md)
+
+---""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_rekey_capture_design_md_0",
+    "title": "RH850 rekey capture design (1/8)",
+    "tags": ["secoc","rh850","rekey","capture"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — rekey-capture-design.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/rekey-capture-design.md
+
+Event-Driven Rekey Capture for Toyota SecOC Key Extraction
+
+Date: 2026-07-20
+Target: Toyota Sienna CN EPS 8965B4512000 · RH850/P1M-E
+Author: ZCode (community contribution)
+Status: Design — ready for community implementation
+
+---
+
+Executive Summary
+
+This document describes an event-driven rekey capture system for extracting the Toyota SecOC key from the Sienna CN EPS 8965B4512000 (RH850/P1M-E MCU).
+
+Key insight: The SecOC key is exposed in RAM during a rekey operation (at FEBEF468/478/488 and workbuf), but we cannot trigger a rekey without a dealer tool.
+
+Solution: Use a dealer tool to trigger a rekey during the 10-minute IG-ON window, and capture the key with shellcode (FEBEF monitor + keyset hook).
+
+Constraints:
+- Shellcode is lost on power cycle (must reinstall each IG-ON — event-driven, not persistent)
+- IG-ON battery lasts ~10 minutes (limited time window)
+- Requires dealer tool to trigger rekey
+
+Success probability: ~58% (with dealer tool)
+
+---
+
+Table of Contents
+
+1. Background (#background)
+2. Constraints (#constraints)
+3. Architecture (#architecture)
+4. Components (#components)
+5. Data Flow (#data-flow)
+6. Error Handling (#error-handling)
+7. Testing (#testing)
+8. Implementation Plan (#implementation-plan)
+9. Success Probability (#success-probability)
+10. Advantages and Limitations (#advantages-and-limitations)
+11. Community Implementation Guide (#community-implementation-guide)
+
+---
+
+Background
+
+The SecOC Key Extraction Problem
+
+The Toyota Sienna CN EPS 8965B4512000 uses SecOC (Secure Onboard Communication) with AES-128 CMAC to authenticate CAN frames. The SecOC key is:
+
+- Derived inside the ICU (crypto processor) from DataFlash metadata
+- Never stored in host-accessible memory permanently
+- Only exposed in RAM during a rekey operation
+
+Why Other Methods Failed
+
+| Method | Why It Failed |
+|--------|---------------|
+| DF page read | Key not in DataFlash as raw AES (only metadata) |
+| FEBF RAM dump | Key not in RAM permanently |
+| keyset hook (boot) | Key not installed via csmjobsubmitkeyset during boot |
+| B914 probe | ICU rejects at hardware level |
+| Brute force | No encryption to reverse in DF |
+
+The Rekey Capture Opportunity
+
+The key IS exposed in RAM""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_rekey_capture_design_md_1",
+    "title": "RH850 rekey capture design (2/8)",
+    "tags": ["secoc","rh850","rekey","capture"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — rekey-capture-design.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/rekey-capture-design.md
+
+during a rekey operation:
+
+┌─────────────────────────────────────────────────────────────┐
+│  REKEY OPERATION                                            │
+└─────────────────────────────────────────────────────────────┘
+
+1. External tool triggers rekey
+   ↓
+2. secockeyhostwrite(slot, keymaterial) @ 0x66E48
+   → copies key to FEBEF468/478/488
+    KEY IS IN RAM AT FEBEF468 
+   ↓
+3. FUN00066ac2 (key scheduler)
+   ↓
+4. secockeysetfromworkbuf(slot) @ 0x67590
+   → uses workbuf @ 0xFEBFEB08
+    KEY IS IN RAM AT WORKBUF 
+   ↓
+5. csmjobsubmitkeyset(jobId, workbufptr) @ 0x72F58
+   → sends key to ICU
+    KEY IS IN RAM AT WORKBUFPTR 
+   ↓
+6. ICU installs key
+
+Best capture point: FEBEF468/478/488 (persistent after host write)
+
+---
+
+Constraints
+
+Constraint 1: Shellcode Lost on Power Cycle
+
+Problem: Shellcode is stored in RAM and lost when the ECU powers off or switches modes (Ready ↔ IG-ON).
+
+Solution: Quick install script that reinstalls shellcode during each IG-ON session.
+
+Constraint 2: IG-ON Battery ~10 Minutes
+
+Problem: The car battery only lasts ~10 minutes in IG-ON mode (not READY mode).
+
+Solution: Event-driven approach that captures the key within the 10-minute window.
+
+Constraint 3: Rekey Requires Dealer Tool
+
+Problem: We cannot trigger a rekey without a dealer tool (Techstream or similar).
+
+Solution: Use a dealer tool to trigger a rekey during the 10-minute IG-ON window.
+
+---
+
+Architecture
+
+┌─────────────────────────────────────────────────────────────┐
+│  EVENT-DRIVEN REKEY CAPTURE (10-MINUTE WINDOW)             │
+└─────────────────────────────────────────────────────────────┘
+
+Phase 1: Install (1 min)
+   ├─ Car OFF → IG-ON
+   ├─ Stop boardd
+   ├─ Upload shellcode
+   └─ Install FEBEF monitor + keyset hook
+
+Phase 2: Trigger (2 min)
+   ├─ Connect dealer tool
+   ├─ Trigger rekey
+   └─ Wait for rekey to complete
+
+Phase 3: Capture (1 min)
+   ├─ FEBEF monitor detects change
+   ├─ keyset hook captures key
+   └─ TX key data
+
+Phase 4: Verify (offline)
+   └─ Verify key with 4-ARBID oracle
+
+---
+
+Components
+
+Component 1: Quick Install Script
+
+Purpose: Install shellcode quickly during IG-ON window.
+
+File: quickinstall.sh
+
+!/bin/bash
+quickinstall.sh — Install shellcode during IG-""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_rekey_capture_design_md_2",
+    "title": "RH850 rekey capture design (3/8)",
+    "tags": ["secoc","rh850","rekey","capture"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — rekey-capture-design.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/rekey-capture-design.md
+
+ON
+
+1. Stop boardd
+sudo systemctl stop comma
+pkill -f boardd
+
+2. Upload shellcode
+cd /data/carkit12000
+PYTHONPATH=/data/openpilot python3 extractsecoc.py \\
+  --payload payloadrekeymonitor.bin \\
+  --install-hook 0x72F58 \\
+  --install-monitor 0xFEBEF468
+
+3. Verify installation
+echo "Shellcode installed. Ready to trigger rekey."
+
+Time: ~1 minute
+
+---
+
+Component 2: FEBEF Monitor (Event-Driven)
+
+Purpose: Detect when FEBEF468/478/488 changes (indicates rekey).
+
+File: mainfebefmonitor.c
+
+/
+  FEBEF Monitor — Event-Driven (10-minute timeout)
+ 
+  Monitors FEBEF468/478/488 for changes (indicates rekey).
+  TXes key data when change detected.
+ 
+  TX format: ARBID 0x7A9, DLC8
+    DF0 = (tagaddr << 8) | 0x07
+    DF1 = payload dword
+ 
+  Tags:
+    0xD0ss0000 = FEBEF changed (ss = slot 0/1/2)
+    0xD000FFFF = Timeout marker
+ /
+typedef unsigned int u32;
+typedef unsigned short u16;
+typedef unsigned char u8;
+
+static void txdword(u32 tagaddr, u32 val) {
+    volatile u8  sts = (volatile u8 )0xFFD202D0u;
+    volatile u32 idp = (volatile u32 )0xFFD24000u;
+    volatile u32 df0 = (volatile u32 )0xFFD2400Cu;
+    volatile u32 df1 = (volatile u32 )0xFFD24010u;
+    volatile u32 ptr = (volatile u32 )0xFFD24004u;
+    volatile u32 fdc = (volatile u32 )0xFFD24008u;
+    volatile u8  tmc = (volatile u8 )0xFFD20250u;
+    const int i = 0x10;
+
+    while (((sts + i) & 0x6) != 0) {}
+    (ptr + 8  i) = (0x8u << 28);
+    (idp + 8  i) = 0x7A9u;
+    (df0 + 8  i) = (tagaddr << 8) | 0x07u;
+    (df1 + 8  i) = val;
+    (fdc + 8  i) = 0;
+    (tmc + i) |= 0x1;
+    while (((sts + i) & 0x6) == 0) {}
+    (sts + i) = (u8)((sts + i) & 0xF9);
+}
+
+static void txmem(u32 tag, u32 base, u32 nbytes) {
+    u32 off;
+    for (off = 0; off + 4 <= nbytes; off += 4) {
+        u32 v = (volatile u32 )(base + off);
+        txdword(tag | ((base + off) & 0x00FFFFFFu), v);
+    }
+}
+
+static void spin(void) {
+    volatile u32 n = 200000u;
+    while (n--) {}
+}
+
+static int memcmp(const void a, const void b, u32 n) {
+    const u8 pa = (const u8 )a;
+    const u8 pb = (const u8 )b;
+    for (u32 i = 0; i < n; i++) {
+        if (pa[i] != pb[i]) return 1;
+    }
+    return 0;
+}
+
+static void memcpy(void dst, const void src, u32 n) {
+    u8 pd = (u8""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_rekey_capture_design_md_3",
+    "title": "RH850 rekey capture design (4/8)",
+    "tags": ["secoc","rh850","rekey","capture"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — rekey-capture-design.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/rekey-capture-design.md
+
+)dst;
+    const u8 ps = (const u8 )src;
+    for (u32 i = 0; i < n; i++) {
+        pd[i] = ps[i];
+    }
+}
+
+void exploit(void) {
+    u32 oldfebef[3][4] = {0};
+    u32 newfebef[3][4] = {0};
+    u32 timeout = 0;
+    const u32 MAXTIMEOUT = 600000;  // ~10 minutes
+    
+    asm volatile("di");
+    
+    // Initialize old values
+    for (int slot = 0; slot < 3; slot++) {
+        u32 addr = 0xFEBEF468 + (slot  0x10);
+        for (int i = 0; i < 4; i++) {
+            oldfebef[slot][i] = (volatile u32 )(addr + i  4);
+        }
+    }
+    
+    // Monitor for changes (with timeout)
+    while (timeout < MAXTIMEOUT) {
+        for (int slot = 0; slot < 3; slot++) {
+            u32 addr = 0xFEBEF468 + (slot  0x10);
+            for (int i = 0; i < 4; i++) {
+                newfebef[slot][i] = (volatile u32 )(addr + i  4);
+            }
+            
+            // Check if changed
+            if (memcmp(newfebef[slot], oldfebef[slot], 16) != 0) {
+                // FEBEF changed — dump it!
+                txmem(0xD0000000 | (slot << 16), addr, 16);
+                
+                // Update old values
+                memcpy(oldfebef[slot], newfebef[slot], 16);
+            }
+        }
+        
+        spin();  // Wait ~1ms
+        timeout++;
+    }
+    
+    // Timeout — exit
+    txdword(0xD000FFFF, 0xDEADBEEF);
+    
+    // Reboot
+    ((void ()(void))0x0000157Eu)();
+}
+
+TX Format:
+
+| Tag | Data | Description |
+|-----|------|-------------|
+| 0xD0ss0000 | slot | FEBEF changed (ss = slot 0/1/2) |
+| 0xD0ss0004 | key[0:4] | First 4 bytes of key |
+| 0xD0ss0008 | key[4:8] | Next 4 bytes |
+| 0xD0ss000C | key[8:12] | Next 4 bytes |
+| 0xD0ss0010 | key[12:16] | Last 4 bytes |
+| 0xD000FFFF | 0xDEADBEEF | Timeout marker |
+
+---
+
+Component 3: keyset Hook
+
+Purpose: Capture key during csmjobsubmitkeyset (before it enters ICU).
+
+File: mainkeysethook.c
+
+/
+  keyset Hook — Capture key during csmjobsubmitkeyset
+ 
+  Hooks 0x72F58 (csmjobsubmitkeyset) and TXes key data.
+ 
+  TX format: ARBID 0x7A9, DLC8
+    DF0 = (tagaddr << 8) | 0x07
+    DF1 = payload dword
+ 
+  Tags:
+    0xD1000000 = Hook hit count
+    0xD1000004 = jobId
+    0xD1000008 = key[0:4]
+    0xD100000C = key[4:8]
+    0xD1000010 = key[8:12]
+    0xD1000""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_rekey_capture_design_md_4",
+    "title": "RH850 rekey capture design (5/8)",
+    "tags": ["secoc","rh850","rekey","capture"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — rekey-capture-design.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/rekey-capture-design.md
+
+014 = key[12:16]
+ /
+typedef unsigned int u32;
+typedef unsigned short u16;
+typedef unsigned char u8;
+
+static void txdword(u32 tagaddr, u32 val) {
+    volatile u8  sts = (volatile u8 )0xFFD202D0u;
+    volatile u32 idp = (volatile u32 )0xFFD24000u;
+    volatile u32 df0 = (volatile u32 )0xFFD2400Cu;
+    volatile u32 df1 = (volatile u32 )0xFFD24010u;
+    volatile u32 ptr = (volatile u32 )0xFFD24004u;
+    volatile u32 fdc = (volatile u32 )0xFFD24008u;
+    volatile u8  tmc = (volatile u8 )0xFFD20250u;
+    const int i = 0x10;
+
+    while (((sts + i) & 0x6) != 0) {}
+    (ptr + 8  i) = (0x8u << 28);
+    (idp + 8  i) = 0x7A9u;
+    (df0 + 8  i) = (tagaddr << 8) | 0x07u;
+    (df1 + 8  i) = val;
+    (fdc + 8  i) = 0;
+    (tmc + i) |= 0x1;
+    while (((sts + i) & 0x6) == 0) {}
+    (sts + i) = (u8)((sts + i) & 0xF9);
+}
+
+static void txmem(u32 tag, u32 base, u32 nbytes) {
+    u32 off;
+    for (off = 0; off + 4 <= nbytes; off += 4) {
+        u32 v = (volatile u32 )(base + off);
+        txdword(tag | ((base + off) & 0x00FFFFFFu), v);
+    }
+}
+
+void keysethook(void) {
+    // Save registers
+    asm volatile(
+        "mov r6, r20\\n"     // save jobId
+        "mov r7, r21\\n"     // save keyptr
+        "mov r31, r22\\n"    // save return address
+        ::: "r20", "r21", "r22"
+    );
+    
+    // TX hook metadata
+    txdword(0xD1000000, 0x00000001);
+    
+    // TX jobId
+    u32 jobId;
+    asm volatile("mov r20, %0" : "=r"(jobId));
+    txdword(0xD1000004, jobId);
+    
+    // TX 16B key data from keyptr
+    u32 keyptr;
+    asm volatile("mov r21, %0" : "=r"(keyptr));
+    txmem(0xD1000008, keyptr, 16);
+    
+    // Restore registers and jump to original
+    asm volatile(
+        "mov r20, r6\\n"
+        "mov r21, r7\\n"
+        "mov r22, r31\\n"
+        "jarl 0x72F5C, r0\\n"
+        ::: "r6", "r7", "r31"
+    );
+}
+
+void exploit(void) {
+    // Install hook at 0x72F58
+    // This is done by the quick install script
+    // The hook is installed by patching 0x72F58 with:
+    //   jarl keysethook, r0
+    
+    // For now, just exit
+    ((void ()(void))0x0000157Eu)();
+}
+
+TX Format:
+
+| Tag | Data | Description |
+|-----|------|-------------|
+| 0xD1000000 | hitcount | Hook execution count |
+| 0xD1000004 | jobI""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_rekey_capture_design_md_5",
+    "title": "RH850 rekey capture design (6/8)",
+    "tags": ["secoc","rh850","rekey","capture"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — rekey-capture-design.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/rekey-capture-design.md
+
+d | Job ID being installed |
+| 0xD1000008 | key[0:4] | First 4 bytes of key |
+| 0xD100000C | key[4:8] | Next 4 bytes |
+| 0xD1000010 | key[8:12] | Next 4 bytes |
+| 0xD1000014 | key[12:16] | Last 4 bytes |
+
+---
+
+Data Flow
+
+┌─────────────────────────────────────────────────────────────┐
+│  10-MINUTE IG-ON WINDOW                                     │
+└─────────────────────────────────────────────────────────────┘
+
+T+0 min: Car OFF → IG-ON
+   ↓
+T+1 min: Install shellcode
+   ├─ Stop boardd
+   ├─ Upload payload
+   ├─ Install FEBEF monitor
+   └─ Install keyset hook
+   ↓
+T+2 min: Connect dealer tool
+   ↓
+T+3 min: Trigger rekey with dealer tool
+   ↓
+T+4 min: Rekey in progress
+   ├─ secockeyhostwrite copies key to FEBEF468
+   ├─ FEBEF monitor detects change → TX key
+   ├─ csmjobsubmitkeyset called
+   └─ keyset hook captures key → TX key
+   ↓
+T+5 min: Rekey complete
+   ├─ Key captured
+   └─ Verify offline
+   ↓
+T+10 min: Battery dies / IG-ON timeout
+   └─ Shellcode lost (but key already captured)
+
+---
+
+Error Handling
+
+| Scenario | Handling |
+|----------|----------|
+| Shellcode install fails | Retry once, then abort |
+| Rekey doesn't trigger | Check dealer tool connection, retry |
+| Key capture fails | Check FEBEF monitor + keyset hook, retry |
+| Battery dies before capture | Reinstall on next IG-ON, retry |
+| False positive | Verify with 4-ARBID oracle |
+
+---
+
+Testing
+
+| Test | Method | Success Criteria |
+|------|--------|------------------|
+| Quick install | Install during IG-ON | Shellcode running in < 1 min |
+| FEBEF monitor | Force-materialize, check TX | Detects FEBEF change |
+| keyset hook | Force-materialize, check TX | Captures key during keyset |
+| Dealer tool trigger | Trigger rekey, check TX | Rekey detected, key captured |
+| Oracle verification | Capture key, verify | 4-ARBID CMAC match |
+
+---
+
+Implementation Plan
+
+Phase 1: Build Shellcode (1-2 hours)
+
+1. Build FEBEF monitor shellcode (event-driven, with timeout)
+2. Build keyset hook shellcode
+3. Seal into UDS payloads
+4. Create quick install script
+
+Phase 2: Test Install (30 min)
+
+1. Test quick install during IG-ON
+2. Verify shellcode running in < 1 min
+3. Test FEBEF monitor with force-materialize
+4. Test keyset""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_rekey_capture_design_md_6",
+    "title": "RH850 rekey capture design (7/8)",
+    "tags": ["secoc","rh850","rekey","capture"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — rekey-capture-design.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/rekey-capture-design.md
+
+hook with force-materialize
+
+Phase 3: Capture Key (10 min)
+
+1. Car OFF → IG-ON
+2. Install shellcode (1 min)
+3. Connect dealer tool (1 min)
+4. Trigger rekey (2 min)
+5. Capture key (1 min)
+6. Verify offline
+
+---
+
+Success Probability
+
+| Component | Probability | Notes |
+|-----------|-------------|-------|
+| Quick install | 90% | High confidence |
+| Dealer tool triggers rekey | 80% | Depends on tool |
+| FEBEF monitor detects change | 90% | High confidence |
+| keyset hook captures key | 90% | High confidence |
+| Overall | 58% | Product of above |
+
+---
+
+Advantages and Limitations
+
+Advantages
+
+1. Event-driven — captures key during 10-min window
+2. Redundant — FEBEF monitor + keyset hook
+3. Verified — 4-ARBID oracle confirms key validity
+4. Feasible — works within IG-ON battery constraint
+
+Limitations
+
+1. Requires dealer tool — to trigger rekey
+2. 10-min window — limited time to install + trigger + capture
+3. Shellcode lost on power cycle — must reinstall each time
+4. Not guaranteed — rekey may not trigger or capture may fail
+
+---
+
+Community Implementation Guide
+
+Prerequisites
+
+- Comma device (with openpilot)
+- Dealer tool (Techstream or similar)
+- V850 toolchain or Docker (to build shellcode)
+- 4-ARBID oracle (canoracle4arbid.ndjson)
+
+Step 1: Build Shellcode
+
+Build FEBEF monitor
+cd carkit12000/shellcodesource
+v850-elf-gcc -fPIC -ffreestanding -c mainfebefmonitor.c -o febefmonitor.o
+v850-elf-objcopy -O binary -j .text febefmonitor.o febefmonitor.bin
+
+Build keyset hook
+v850-elf-gcc -fPIC -ffreestanding -c mainkeysethook.c -o keysethook.o
+v850-elf-objcopy -O binary -j .text keysethook.o keysethook.bin
+
+Seal into UDS payloads
+cd ..
+python3 buildfrombin.py shellcodesource/febefmonitor.bin -o payloadfebefmonitor.bin
+python3 buildfrombin.py shellcodesource/keysethook.bin -o payloadkeysethook.bin
+
+Step 2: Create Quick Install Script
+
+Copy quickinstall.sh to comma device
+scp quickinstall.sh comma@IP:/data/carkit12000/
+
+Step 3: Capture Key
+
+On comma device
+ssh comma@IP
+cd /data/carkit12000
+
+Install shellcode
+bash quickinstall.sh
+
+Connect dealer tool and trigger rekey
+(follow dealer tool instructions)
+
+Capture key
+python3 parserekeycapture.py capture.ndjson --oracle canoracle4ar""",
+  },
+  {
+    "id": "builtin_secoc_lochuan_rh850_p1m_e_rekey_capture_design_md_7",
+    "title": "RH850 rekey capture design (8/8)",
+    "tags": ["secoc","rh850","rekey","capture"],
+    "refresh": False,
+    "text": """Source: lochuan/RH850_P1m-E — rekey-capture-design.md
+https://github.com/lochuan/RH850_P1m-E/blob/main/rekey-capture-design.md
+
+bid.ndjson
+
+Step 4: Verify Key
+
+Verify captured key with 4-ARBID oracle
+python3 scansecockey4arbid.py capturedkey.bin 0x0 --oracle canoracle4arbid.ndjson
+
+---
+
+References
+
+- Firmware RE: codev2.bin (Ghidra RH850SecOC)
+- Key install path: secockeyhostwrite @ 0x66E48
+- keyset API: csmjobsubmitkeyset @ 0x72F58
+- FEBEF monitor: FEBEF468/478/488
+- Workbuf: 0xFEBFEB08
+- 4-ARBID oracle: canoracle4arbid.ndjson
+
+---
+
+Conclusion
+
+This design provides a feasible path to extract the Toyota SecOC key using a dealer tool to trigger a rekey during the 10-minute IG-ON window.
+
+The key insight: The SecOC key is exposed in RAM during a rekey operation, and we can capture it with shellcode (FEBEF monitor + keyset hook).
+
+Success probability: ~58% (with dealer tool)
+
+Community contribution: This design is ready for implementation by anyone with a comma device, dealer tool, and V850 toolchain.
+
+---
+
+Design completed 2026-07-20. Ready for community implementation.""",
+  },
+]

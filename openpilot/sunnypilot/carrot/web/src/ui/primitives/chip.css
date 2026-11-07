@@ -1,0 +1,58 @@
+.chip {
+  --chip-font-size: var(--fs-label-sm);
+  --chip-font-weight: 750;
+  --chip-min-height: 22px;
+  --chip-padding-block: 2px;
+  --chip-padding-inline: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--chip-min-height);
+  padding: var(--chip-padding-block) var(--chip-padding-inline);
+  border: 1px solid color-mix(in srgb, var(--md-outline-var) 42%, transparent);
+  border-radius: var(--r-round);
+  background: color-mix(in srgb, var(--md-surface-cont-h) 80%, var(--md-surface-cont));
+  color: var(--md-on-surface-var);
+  font-size: var(--chip-font-size);
+  font-weight: var(--chip-font-weight);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.chip--compact {
+  --chip-font-size: 10px;
+  --chip-font-weight: 820;
+  --chip-min-height: 18px;
+  --chip-padding-block: 0px;
+  --chip-padding-inline: 7px;
+}
+
+.chip--accent {
+  border-color: color-mix(in srgb, var(--md-primary) 38%, transparent);
+  background: color-mix(in srgb, var(--md-primary) 14%, var(--md-surface-cont-h));
+  color: color-mix(in srgb, var(--md-primary) 70%, var(--md-on-surface));
+}
+
+.chip--danger {
+  border-color: color-mix(in srgb, var(--md-error) 42%, transparent);
+  background: color-mix(in srgb, var(--md-error) 12%, var(--md-surface-cont-h));
+  color: color-mix(in srgb, var(--md-error) 70%, var(--md-on-surface));
+}
+
+.chip--success {
+  border-color: color-mix(in srgb, var(--md-success) 42%, transparent);
+  background: var(--md-success-cont);
+  color: var(--md-on-success-cont);
+}
+
+.chip--warning {
+  border-color: color-mix(in srgb, var(--md-warning) 42%, transparent);
+  background: var(--md-warning-cont);
+  color: var(--md-on-warning-cont);
+}
+
+.chip--info {
+  border-color: color-mix(in srgb, var(--md-info) 42%, transparent);
+  background: var(--md-info-cont);
+  color: var(--md-on-info-cont);
+}

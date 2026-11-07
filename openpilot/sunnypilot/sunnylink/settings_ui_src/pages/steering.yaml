@@ -1,0 +1,318 @@
+id: steering
+label: 转向
+icon: steering_wheel
+order: 1
+remote_configurable: true
+description: 横向控制、变道与转向行为
+sections:
+- id: mads
+  title: 模块化辅助驾驶系统（MADS）
+  description: ''
+  items:
+  - key: Mads
+    widget: toggle
+    title: 启用模块化辅助驾驶系统（MADS）
+    description: 启用 MADS。关闭后恢复原版 sunnypilot 的接管/退出行为。
+    enablement:
+    - $ref: '#/macros/offroad'
+  sub_panels:
+  - id: mads_settings
+    label: MADS 设置
+    trigger_key: Mads
+    trigger_condition:
+      type: param
+      key: Mads
+      equals: true
+    items:
+    - key: MadsMainCruiseAllowed
+      widget: toggle
+      title: 随巡航主开关切换
+      description: 注意：没有 LFA/LKAS 按键的车型，禁用此项将无法接管横向控制。
+      enablement:
+      - $ref: '#/macros/offroad'
+      - $ref: '#/macros/mads_full_platforms'
+    - key: MadsUnifiedEngagementMode
+      widget: toggle
+      title: 统一接管模式（UEM）
+      description: 巡航开启时同时接管横向和纵向控制。注意：通过 UEM 接管横向控制后，将保持接管状态，直到通过 MADS 按键手动关闭或车辆熄火。
+      enablement:
+      - $ref: '#/macros/offroad'
+      - $ref: '#/macros/mads_full_platforms'
+    - key: MazdaTjaButton
+      widget: toggle
+      title: 马自达 TJA 按键
+      description: 实体 TJA 按键切换自动车道居中，MRCC 仅控制巡航。主巡航与 UEM 不再接管/退出横向控制。仅在车辆有该按键时开启。
+      visibility:
+      - type: capability
+        field: brand
+        equals: mazda
+      enablement:
+      - $ref: '#/macros/offroad'
+    - key: MadsSteeringMode
+      widget: multiple_button
+      title: 踩刹车时的转向模式
+      description: 选择手动踩下刹车后自动车道居中（ALC）在 sunnypilot 中的行为。
+      options:
+      - value: 0
+        label: 保持激活
+        enablement:
+        - $ref: '#/macros/mads_full_platforms'
+      - value: 1
+        label: 暂停
+        enablement:
+        - $ref: '#/macros/mads_full_platforms'
+      - value: 2
+        label: 退出
+      enablement:
+      - $ref: '#/macros/offroad'
+- id: blinker
+  title: 转向灯控制
+  description: 打转向灯时的横向暂停行为
+  items:
+  - key: BlinkerPauseLateralControl
+    widget: toggle
+    title: 转向灯暂停横向控制
+    description: 低于所选车速时打转向灯即暂停横向控制。
+    sub_items:
+    - key: BlinkerMinLateralControlSpeed
+      widget: option
+      title: 暂停横向控制的最低车速
+      min: 0
+      max: 255
+      step: 5
+      unit:
+        metric: km/h
+        imperial: mph
+      enablement:
+      - type: param
+        key: BlinkerPauseLateralControl
+        equals: true
+    - key: BlinkerLateralReengageDelay
+      widget: option
+      title: 转向灯后延迟
+      description: 转向灯结束后恢复横向控制的延迟。
+      min: 0
+      max: 10
+      step: 1
+      unit: 秒
+      enablement:
+      - type: param
+        key: BlinkerPauseLateralControl
+        equals: true
+- id: torque
+  title: 扭矩控制
+  description: 转向扭矩调校与横向控制方式
+  enablement:
+  - type: capability
+    field: torque_allowed
+    equals: true
+  items:
+  - key: EnforceTorqueControl
+    widget: toggle
+    title: 强制扭矩横向控制
+    description: 开启后强制 sunnypilot 使用扭矩横向控制转向。
+    visibility:
+    - type: not
+      condition:
+        type: capability
+        field: steer_control_type
+        equals: angle
+    enablement:
+    - $ref: '#/macros/offroad'
+    - type: capability
+      field: torque_allowed
+      equals: true
+    - type: param
+      key: NeuralNetworkLateralControl
+      equals: false
+  sub_panels:
+  - id: torque_settings
+    label: 扭矩设置
+    trigger_key: EnforceTorqueControl
+    trigger_condition:
+      type: param
+      key: EnforceTorqueControl
+      equals: true
+    items:
+    - key: LateralJerkTorqueController
+      widget: toggle
+      title: 横向加 jerk 扭矩控制器
+      description: 预判规划的转向以减少突兀修正，让方向盘在弯中更顺滑。适用于自学习调参与自定义调校。实现来自 @twilsonco。
+      visibility:
+      - type: not
+        condition:
+          type: capability
+          field: steer_control_type
+          equals: angle
+      enablement:
+      - $ref: '#/macros/offroad'
+      - type: param
+        key: NeuralNetworkLateralControl
+        equals: false
+    - key: LiveTorqueParamsToggle
+      widget: toggle
+      title: 自学习调参
+      description: 为默认不使用扭矩横向控制的平台启用自学习调参。
+      enablement:
+      - $ref: '#/macros/offroad'
+    - key: LiveTorqueParamsRelaxedToggle
+      widget: toggle
+      title: 放宽自学习调参限制（Beta）
+      description: 自学习调参时使用更宽松的设置，让扭矩控制在学习数值时更宽容。
+      enablement:
+      - $ref: '#/macros/offroad'
+      - type: param
+        key: LiveTorqueParamsToggle
+        equals: true
+    - key: CustomTorqueParams
+      widget: toggle
+      title: 启用自定义调校
+      description: 启用扭矩横向控制的自定义调校。修改下方横向加速度系数与摩擦将覆盖 opendbc/car/torque_data 中 YAML 文件给出的离线数值。启用手动实时调参开关后这些数值也会实时生效。
+      enablement:
+      - $ref: '#/macros/offroad'
+    - key: TorqueParamsOverrideEnabled
+      widget: toggle
+      title: 手动实时调参
+      description: 强制扭矩横向控制器使用固定值而非自学习调参学到的数值。开启后覆盖自学习调参的数值。
+      enablement:
+      - $ref: '#/macros/offroad'
+      - type: param
+        key: CustomTorqueParams
+        equals: true
+    - key: TorqueParamsOverrideLatAccelFactor
+      widget: option
+      title: 横向加速度系数
+      title_param_suffix:
+        param: TorqueParamsOverrideEnabled
+        values:
+          'true': (Real-Time & Offline)
+          'false': (Offline Only)
+      min: 0.1
+      max: 5.0
+      step: 0.1
+      unit: m/s²
+      enablement:
+      - type: param
+        key: CustomTorqueParams
+        equals: true
+      - type: any
+        conditions:
+        - type: param
+          key: TorqueParamsOverrideEnabled
+          equals: true
+        - type: offroad_only
+    - key: TorqueParamsOverrideFriction
+      widget: option
+      title: 摩擦
+      title_param_suffix:
+        param: TorqueParamsOverrideEnabled
+        values:
+          'true': (Real-Time & Offline)
+          'false': (Offline Only)
+      min: 0.0
+      max: 1.0
+      step: 0.01
+      enablement:
+      - type: param
+        key: CustomTorqueParams
+        equals: true
+      - type: any
+        conditions:
+        - type: param
+          key: TorqueParamsOverrideEnabled
+          equals: true
+        - type: offroad_only
+    - key: TorqueControlTune
+      widget: multiple_button
+      title: 扭矩控制调校版本（小模型）
+      description: 小模型驾驶时使用的扭矩控制调校版本。
+      enablement:
+      - $ref: '#/macros/offroad'
+    - key: TorqueControlTuneBig
+      widget: multiple_button
+      title: 扭矩控制调校版本（大模型）
+      description: 大模型驾驶时使用的扭矩控制调校版本。
+      enablement:
+      - $ref: '#/macros/offroad'
+- id: lane_assist
+  title: 车道居中与弯道跟踪
+  description: 基于指令路径与车道线的实验性扭矩转向修正
+  enablement:
+  - type: capability
+    field: torque_allowed
+    equals: true
+  items:
+  - key: LateralCurveCuttingCorrection
+    widget: toggle
+    title: 切弯修正（实验）
+    description: 高速时略微减小指令曲率以抵消向内切弯。影响转向，需要驾驶员监督下谨慎测试；默认关闭。
+    enablement:
+    - $ref: '#/macros/offroad'
+  - key: LateralLaneCentering
+    widget: toggle
+    title: 车道线居中（实验）
+    description: 高速时基于可靠车道线几何施加小幅有上限的转向修正。车道线感知可能出错；请保持注意并随时准备接管。默认关闭。
+    enablement:
+    - $ref: '#/macros/offroad'
+- id: lane_change
+  title: 变道
+  description: 自动变道时机与行为
+  items:
+  - key: AutoLaneChangeTimer
+    widget: option
+    title: 转向灯自动变道
+    description: 打转向灯时设置自动变道的延迟计时。设置了计时后，自动变道无需轻拨方向盘。默认为轻拨。
+    details: Please use caution when using this feature. Only use the blinker when traffic and road conditions permit.
+    options:
+    - value: -1
+      label: 关
+    - value: 0
+      label: 轻拨
+    - value: 1
+      label: 免拨杆
+    - value: 2
+      label: 0.5 秒
+    - value: 3
+      label: 1 秒
+    - value: 4
+      label: 2 秒
+    - value: 5
+      label: 3 秒
+  - key: RoadEdgeLaneChangeEnabled
+    widget: multiple_button
+    title: 阻止变道：道路边缘检测
+    description: 当模型在你要变道的一侧看到道路边缘时阻止变道。静默模式只显示提醒，不播放提示音。
+    options:
+    - value: 0
+      label: 关
+    - value: 1
+      label: 声音提醒
+    - value: 2
+      label: 静默
+  - key: LaneChangeSmoothing
+    widget: option
+    title: 变道平顺化
+    description: 按所选节奏放慢自动变道。关闭即原版；所有节奏都比原版柔和。无论哪种节奏，收尾修正都保持原有力度，车辆入线稳定不回打方向盘。
+    options:
+    - value: 0
+      label: 关
+    - value: 1
+      label: 快
+    - value: 2
+      label: 中等
+    - value: 3
+      label: 慢
+    - value: 4
+      label: 极慢
+  - key: AutoLaneChangeBsmDelay
+    widget: toggle
+    title: 自动变道：盲区延迟
+    description: 盲区监测（BSM）检测到盲区有车时，为变道启用延迟计时。
+    enablement:
+    - type: capability
+      field: has_bsm
+      equals: true
+    - type: param_compare
+      key: AutoLaneChangeTimer
+      op: '>'
+      value: 0

@@ -1,0 +1,171 @@
+id: display
+label: 显示
+icon: display
+order: 3
+remote_configurable: true
+description: 屏幕亮度、超时与交互设置
+sections:
+- id: brightness_timeout
+  title: 亮度与超时
+  description: 驾驶中的屏幕调暗与休眠行为
+  items:
+  - key: Brightness
+    widget: option
+    title: 屏幕亮度
+    description: 驻车（非驾驶）时的屏幕亮度。0 使用设备默认值。
+    min: 0
+    max: 100
+    step: 5
+  - key: OnroadScreenOffBrightness
+    widget: multiple_button
+    title: 行车亮度
+    options:
+    - value: 0
+      label: 自动（默认）
+    - value: 1
+      label: 自动（深色）
+    - value: 2
+      label: 关闭屏幕
+    - value: 3
+      label: 5 %
+    - value: 4
+      label: 10 %
+    - value: 5
+      label: 15 %
+    - value: 6
+      label: 20 %
+    - value: 7
+      label: 25 %
+    - value: 8
+      label: 30 %
+    - value: 9
+      label: 35 %
+    - value: 10
+      label: 40 %
+    - value: 11
+      label: 45 %
+    - value: 12
+      label: 50 %
+    - value: 13
+      label: 55 %
+    - value: 14
+      label: 60 %
+    - value: 15
+      label: 65 %
+    - value: 16
+      label: 70 %
+    - value: 17
+      label: 75 %
+    - value: 18
+      label: 80 %
+    - value: 19
+      label: 85 %
+    - value: 20
+      label: 90 %
+    - value: 21
+      label: 95 %
+    - value: 22
+      label: 100 %
+  - key: OnroadScreenOffTimer
+    widget: multiple_button
+    title: 行车亮度延迟
+    options:
+    - value: 0
+      label: 0s
+    - value: 3
+      label: 3s
+    - value: 5
+      label: 5s
+    - value: 10
+      label: 10s
+    - value: 15
+      label: 15s
+    - value: 30
+      label: 30s
+    - value: 60
+      label: 1m
+    - value: 180
+      label: 3m
+    - value: 300
+      label: 5m
+    - value: 600
+      label: 10m
+    enablement:
+    - type: not
+      condition:
+        type: any
+        conditions:
+        - type: param
+          key: OnroadScreenOffBrightness
+          equals: 0
+        - type: param
+          key: OnroadScreenOffBrightness
+          equals: 1
+  - key: InteractivityTimeout
+    widget: multiple_button
+    title: 交互超时
+    description: 设置界面自定义超时。用户无屏幕交互达到该时长后，设置界面自动关闭。
+    options:
+    - value: 0
+      label: 默认
+    - value: 10
+      label: 10 s
+    - value: 20
+      label: 20 s
+    - value: 30
+      label: 30 s
+    - value: 40
+      label: 40 s
+    - value: 50
+      label: 50 s
+    - value: 60
+      label: 1 m
+    - value: 70
+      label: 1 m
+    - value: 80
+      label: 1 m
+    - value: 90
+      label: 1 m
+    - value: 100
+      label: 1 m
+    - value: 110
+      label: 1 m
+    - value: 120
+      label: 2 m
+  - key: HomeShowActiveModel
+    widget: toggle
+    title: 主屏显示驾驶模型
+    description: 在驻车主屏上显示当前驾驶模型名称。
+  - key: ScreenSaverEnabled
+    widget: toggle
+    title: 屏保
+    description: 设备驻车闲置时显示屏保而不是关闭屏幕。
+  - key: ScreenSaverTimeout
+    widget: multiple_button
+    title: 屏保时长
+    description: 屏保运行多久后关闭屏幕。
+    options:
+    - value: 60
+      label: 1 m
+    - value: 120
+      label: 2 m
+    - value: 180
+      label: 3 m
+    - value: 240
+      label: 4 m
+    - value: 300
+      label: 5 m
+    - value: 360
+      label: 6 m
+    - value: 420
+      label: 7 m
+    - value: 480
+      label: 8 m
+    - value: 540
+      label: 9 m
+    - value: 600
+      label: 10 m
+    enablement:
+    - type: param
+      key: ScreenSaverEnabled
+      equals: true

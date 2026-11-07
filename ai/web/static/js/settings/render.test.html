@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<title>SettingsApp 纯前端冒烟测试</title>
+<style>
+  body { margin:0; font-family: system-ui, sans-serif; background:#0a0b10; color:#e6e6e6; padding: 16px; }
+  :root { --bg:#0a0b10; --bg-elevated:#12141c; --surface:#1c1f2a; --border:rgba(255,255,255,0.08); --text:#e6e6e6; --text-secondary:#aab3c5; --text-muted:#6b7389; --accent:#4ecdc4; --danger:#f07178; --warning:#e6b450; --radius-sm:8px; --transition:0.18s; }
+  .settings-sidebar { position:relative; width:min(480px,100%); height:82vh; display:flex; flex-direction:column; background:var(--bg-elevated); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+  .settings-sidebar-header { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1rem; border-bottom:1px solid var(--border); }
+  .settings-sidebar-header h2 { margin:0; font-size:0.95rem; }
+  .settings-tabs-scroll { overflow-x:auto; }
+  .settings-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); padding:0 0.35rem; }
+  .settings-tab { flex:0 0 auto; padding:0.6rem 0.75rem; border:none; background:transparent; color:var(--text-muted); font-size:0.8rem; cursor:pointer; border-bottom:2px solid transparent; }
+  .settings-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .settings-body { flex:1; overflow-y:auto; padding:0.85rem 1rem; }
+  .settings-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:0.85rem; }
+  .settings-card-head { display:flex; align-items:center; justify-content:space-between; padding:0.7rem 0.85rem; border-bottom:1px solid var(--border); }
+  .settings-card-title { margin:0; font-size:0.88rem; }
+  .settings-card-sub { margin:0.15rem 0 0; font-size:0.72rem; color:var(--text-muted); }
+  .settings-card-body { padding:0.85rem; }
+  .field-hint { font-size:0.72rem; color:var(--text-muted); }
+  .btn { padding:0.4rem 0.7rem; font-size:0.78rem; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer; }
+  .btn.primary { background:var(--accent); color:#06201d; font-weight:600; }
+  .btn.small { padding:0.3rem 0.55rem; font-size:0.74rem; }
+  .btn.danger { background:rgba(240,113,120,0.18); color:var(--danger); border-color:transparent; }
+  #results { margin-top:16px; white-space:pre-wrap; font-size:0.75rem; color:#9aa3b5; }
+</style>
+</head>
+<body>
+<h3>SettingsApp 纯前端冒烟测试</h3>
+<p class="field-hint">不依赖 ai.js / 后端。模拟 WebApi；点击底部按钮验证 6 域渲染、搜索、危险操作、审计。打开控制台看日志。</p>
+<div class="settings-sidebar">
+  <div class="settings-sidebar-header"><h2>设置（新版视图）</h2><span class="field-hint">Test</span></div>
+  <!-- SettingsApp 会注入 #settingsNewRoot 到这里 -->
+  <div class="settings-tabs-scroll"><div class="settings-tabs" id="legacyTabs"><button class="settings-tab">模型</button></div></div>
+  <div class="settings-body" id="legacyBody"><p class="field-hint">经典视图（已隐藏）</p></div>
+</div>
+<div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+  <button class="btn primary" onclick="SettingsApp.feature.setEnabled(true);SettingsApp.mount(mockDeps());alert('已启用新版视图并挂载，滚动查看');">挂载新版</button>
+  <button class="btn" onclick="SettingsApp.open('conversation')">对话</button>
+  <button class="btn" onclick="SettingsApp.open('evolution')">进化</button>
+  <button class="btn" onclick="SettingsApp.open('data_backup')">数据备份</button>
+  <button class="btn" onclick="SettingsApp.open('scheduler')">定时任务视图</button>
+  <button class="btn" onclick="SettingsApp.open('dev_diagnostics')">开发诊断(含危险操作)</button>
+  <button class="btn" onclick="SettingsApp.danger.openAudit()">审计日志</button>
+</div>
+<pre id="results">运行日志…</pre>
+
+<script>
+  // ---- 模块顺序与 ai.js 中一致（无 import，纯 IIFE）----
+  window.SettingsApp = window.SettingsApp || {};
+</script>
+<script src="./registry.js"></script>
+<script src="./schema.js"></script>
+<script src="./render.js"></script>
+<script src="./save.js"></script>
+<script src="./dangerous.js"></script>
+<script src="./search.js"></script>
+<script src="./scheduler-view.js"></script>
+<script src="./index.js"></script>
+<script>
+  // ---- 模拟 WebApi ----
+  window.WebApi = {
+    api: async (method, path, body) => {
+      log(`API ${method} ${path}`, body || '');
+      if (path === '/api/ai/scheduler' && method === 'GET') return { status:200, data:{ ok:true, tasks:[{ id:'t1', name:'每日检查日志', action:'read_last_log', trigger:'daily_at', payload:{hour:9,minute:0}, interval_minutes:0, enabled:true, last_result:'ok' }] } };
+      if (path === '/api/ai/scheduler') return { status:200, data:{ ok:true, removed:true } };
+      if (path === '/api/ai/config') return { status:200, data:{ ok:true, revision: 7 } };
+      return { status:200, data:{ ok:true } };
+    }
+  };
+  const mockCfg = { provider:'openai', model:'gpt-4o', temperature:0.8, topP:0.9, maxTokens:4096, compactionEnabled:true, compactAfterTurns:12, systemPrompt:'你是助手', evolutionEnabled:true, ragSearchLimit:5, skillsDisclosureMax:5, timezone:'Asia/Shanghai' };
+  function mockDeps() {
+    return {
+      api: (m,p,b,o) => window.WebApi.api(m,p,b,o),
+      t: (k,fb)=>fb||k,
+      showToast: (m,ty)=>log(`[toast:${ty}] ${m}`),
+      getConfig: ()=>({ ...mockCfg }),
+      allowDev: true,
+    };
+  }
+  function log(...a){ const el=document.getElementById('results'); el.textContent += a.map(x=>typeof x==='object'?JSON.stringify(x):x).join(' ') + '\n'; }
+  window.log = log;
+</script>
+</body>
+</html>

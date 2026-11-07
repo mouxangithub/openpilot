@@ -1,0 +1,37 @@
+{
+  "comment": "Deterministic red-approach replay for the geometric red-light pre-deceleration (pattern ported from navipilot traffic_control route fixtures). Frames drive SignalStopPrepare + PrepareArbitrator on a fixed timeline: confirm 4 frames over 0.6 s, hold an unchanged observation through the controller's freshness window (grace), a long dropout that resets, re-confirmation, another dropout, then driver-gas override (10 s controller cooldown) at the end. kind=red publishes a fresh housing-confirmed red track; kind=repeat replays the last published observation (the planner can read faster than the shadow publishes); kind=gas adds driver throttle input.",
+  "session": "replay-session",
+  "speed_mps": 12.0,
+  "distance_range": [60.0, 65.0],
+  "frames": [
+    {"t": 1.0, "kind": "red", "expect_active": false, "expect_reason": "confirming"},
+    {"t": 1.2, "kind": "red", "expect_active": false, "expect_reason": "confirming"},
+    {"t": 1.4, "kind": "red", "expect_active": false, "expect_reason": "confirming"},
+    {"t": 1.6, "kind": "red", "expect_active": true, "expect_reason": "red_prepare"},
+    {"t": 1.8, "kind": "repeat", "expect_active": true, "expect_reason": "red_prepare"},
+    {"t": 2.0, "kind": "repeat", "expect_active": false, "expect_reason": "awaiting_fresh"},
+    {"t": 2.2, "kind": "repeat", "expect_active": false, "expect_reason": "stale"},
+    {"t": 2.6, "kind": "red", "expect_active": false, "expect_reason": "confirming"},
+    {"t": 2.8, "kind": "red", "expect_active": false, "expect_reason": "confirming"},
+    {"t": 3.0, "kind": "red", "expect_active": false, "expect_reason": "confirming"},
+    {"t": 3.2, "kind": "red", "expect_active": true, "expect_reason": "red_prepare"},
+    {"t": 3.4, "kind": "repeat", "expect_active": true, "expect_reason": "red_prepare"},
+    {"t": 3.6, "kind": "repeat", "expect_active": false, "expect_reason": "awaiting_fresh"},
+    {"t": 4.0, "kind": "gas", "gas": true, "expect_active": false, "expect_reason": "ineligible"},
+    {"t": 4.2, "kind": "red", "expect_active": false, "expect_reason": "ineligible"}
+  ],
+  "arbitrator": {
+    "comment": "Expected PrepareArbitrator cap state at the same timeline (mode 2, clear radar; envelope ~49 m at 12 m/s stays under the 60 m near bound so no escalation)",
+    "expect": {
+      "1.6": true,
+      "1.8": true,
+      "2.0": true,
+      "2.2": false,
+      "3.2": true,
+      "3.4": true,
+      "3.6": true,
+      "4.0": false,
+      "4.2": false
+    }
+  }
+}

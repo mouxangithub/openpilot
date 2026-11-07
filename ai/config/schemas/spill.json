@@ -1,0 +1,39 @@
+{
+  "namespace": "spill",
+  "revision": 1,
+  "fields": {
+    "ai_externalize_results": {
+      "type": "boolean",
+      "default": true,
+      "label": "Externalize large results",
+      "description": "Whether oversized tool results are spilled to disk instead of kept inline."
+    },
+    "ai_externalize_threshold": {
+      "type": "number",
+      "default": 8192,
+      "min": 1024,
+      "max": 512000,
+      "label": "Externalize threshold (bytes)",
+      "description": "Serialized result size above which it is spilled to disk."
+    },
+    "ai_spill_backend": {
+      "type": "enum",
+      "default": "local",
+      "enum": ["local", "remote"],
+      "label": "Spill backend",
+      "description": "Backend used for spilled result persistence."
+    },
+    "ai_spill_remote_endpoint": {
+      "type": "string",
+      "default": "",
+      "label": "Remote spill endpoint",
+      "description": "Optional HTTP endpoint for remote spill backend."
+    },
+    "ai_spill_remote_token": {
+      "type": "string",
+      "default": "",
+      "label": "Remote spill token",
+      "description": "Optional Bearer token for remote spill backend."
+    }
+  }
+}

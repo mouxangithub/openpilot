@@ -1,0 +1,9 @@
+{
+  "namespace": "data_backup",
+  "revision": 1,
+  "fields": {
+    "ai_backup_enabled": {"type": "boolean", "default": false, "label": "Enable data backup"},
+    "ai_backup_interval_days": {"type": "number", "default": 7, "min": 1, "max": 90, "label": "Backup interval (days)"},
+    "ai_backup_destination": {"type": "string", "default": "", "label": "Backup destination path"}
+  }
+}

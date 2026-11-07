@@ -1,0 +1,29 @@
+{
+  "namespace": "subagent",
+  "revision": 1,
+  "fields": {
+    "ai_subagent_max_depth": {
+      "type": "number",
+      "default": 2,
+      "min": 0,
+      "max": 8,
+      "label": "Subagent max delegation depth",
+      "description": "Maximum nested subagent delegation depth."
+    },
+    "ai_subagent_max_concurrency": {
+      "type": "number",
+      "default": 4,
+      "min": 1,
+      "max": 32,
+      "label": "Subagent max concurrency",
+      "description": "Maximum concurrent subagent tasks."
+    },
+    "ai_subagent_provider": {
+      "type": "enum",
+      "default": "local",
+      "enum": ["local", "acp", "codex", "fork"],
+      "label": "Subagent provider",
+      "description": "Default provider used to run subagent tasks."
+    }
+  }
+}
