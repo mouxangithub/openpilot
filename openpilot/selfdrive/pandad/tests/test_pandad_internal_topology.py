@@ -361,5 +361,54 @@ class TestFlashPandaGuards(unittest.TestCase):
     assert second.closed
 
 
+class TestSpiRecoveryChain(unittest.TestCase):
+  def tearDown(self):
+    mock.patch.stopall()
+
+  def test_recover_internal_spi_panda_no_device_raises(self):
+    # without a SPI device answering the ST ROM bootloader (the normal case on
+    # tici / non-SPI hosts), the recovery must give up after the configured
+    # attempts, pulsing the GPIO lines each round
+    with mock.patch.object(pandad.HARDWARE, "recover_internal_panda") as recover, \
+         mock.patch.object(pandad.HARDWARE, "reset_internal_panda"), \
+         mock.patch.object(pandad, "STBootloaderSPIHandle", side_effect=pandad.PandaSpiException("no spi")), \
+         mock.patch.object(pandad, "cloudlog"), \
+         mock.patch.object(pandad.time, "sleep"):
+      with self.assertRaises(RuntimeError):
+        pandad.recover_internal_spi_panda(None)
+    assert recover.call_count == 3
+
+  def test_recover_internal_panda_any_falls_back_to_spi(self):
+    # USB DFU chain fails (no DFU enumeration) -> SPI ROM chain must run and
+    # its result is used for the app flash
+    FakePanda.devices = {"sp1": (HW_RED, True, True, False)}
+    FakePanda.instances = []
+
+    def fake_flash(self):
+      # only the initial (unrecovered) panda fails to flash
+      if len(FakePanda.instances) == 1:
+        raise Exception("flasher busy")
+      self.flashed = True
+      self.bootstub = False
+
+    def fake_spi_recover(serial):
+      p = FakePanda(serial)
+      p.bootstub = False  # fresh bootstub, ready for the app flash
+      return p
+
+    with mock.patch.object(pandad, "Panda", FakePanda), \
+         mock.patch.object(FakePanda, "flash", fake_flash), \
+         mock.patch.object(pandad, "get_expected_signature", return_value=b"\xaa" * 128), \
+         mock.patch.object(pandad, "cloudlog"), \
+         mock.patch.object(pandad, "recover_internal_usb_panda", side_effect=RuntimeError("no DFU")), \
+         mock.patch.object(pandad, "recover_internal_spi_panda", side_effect=fake_spi_recover) as spi_recover:
+      pandad.flash_panda("sp1")
+    spi_recover.assert_called_once_with("sp1")
+    initial, recovered = FakePanda.instances
+    assert initial.closed  # failed panda must be closed before recovery
+    assert recovered.flashed
+    assert recovered.closed
+
+
 if __name__ == "__main__":
   unittest.main()
