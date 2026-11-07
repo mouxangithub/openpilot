@@ -42,7 +42,7 @@ class CarrotNavRow(ListItemSP):
   def _handle_mouse_release(self, mouse_pos):
     if not self.is_visible or self.callback is None:
       return
-    if rl.check_collision_point_rec(mouse_pos, self._rect):
+    if rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), self._rect):
       self.callback()
 
 

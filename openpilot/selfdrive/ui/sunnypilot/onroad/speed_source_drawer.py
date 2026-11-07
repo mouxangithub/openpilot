@@ -389,4 +389,4 @@ class SpeedSourceDrawerRenderer(Widget):
 
   def is_pressed_in(self, mouse_pos) -> bool:
     """Whether a press landed on the open drawer (keeps taps off the sidebar)."""
-    return self._drawer_hit_rect is not None and rl.check_collision_point_rec(mouse_pos, self._drawer_hit_rect)
+    return self._drawer_hit_rect is not None and rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), self._drawer_hit_rect)

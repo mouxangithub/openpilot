@@ -622,7 +622,7 @@ class CarrotBluetoothLayout(Widget):
       btn_rect = rl.Rectangle(x, rect.y + (rect.height - self._btn_height) // 2, w, self._btn_height)
       btn.set_rect(btn_rect)
       btn.render()
-      if clicked and rl.check_collision_point_rec(mouse_pos, btn_rect):
+      if clicked and rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), btn_rect):
         cb()
       x += w + btn_gap
     rl.end_scissor_mode()
@@ -742,7 +742,7 @@ class CarrotBluetoothLayout(Widget):
     rl.draw_text_ex(gui_app.font(), profile_text,
                     rl.Vector2(profile_rect.x + 15, profile_rect.y + (profile_rect.height - profile_size.y) / 2),
                     42, 0, rl.WHITE)
-    if clicked and rl.check_collision_point_rec(mouse_pos, profile_rect):
+    if clicked and rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), profile_rect):
       self._on_profile_clicked()
     y += profile_h
 
@@ -754,7 +754,7 @@ class CarrotBluetoothLayout(Widget):
     rl.draw_rectangle_rounded(toggle_rect, 0.5, 10, bg)
     label = tr("ON") if toggle_on else tr("OFF")
     rl.draw_text_ex(gui_app.font(), label, rl.Vector2(toggle_rect.x + 55, toggle_rect.y + 10), 40, 0, rl.WHITE)
-    if clicked and rl.check_collision_point_rec(mouse_pos, toggle_rect):
+    if clicked and rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), toggle_rect):
       self._draft.enabled = not self._draft.enabled
       self._dirty = True
     y += toggle_h

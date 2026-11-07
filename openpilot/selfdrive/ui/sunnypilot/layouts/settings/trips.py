@@ -90,9 +90,9 @@ class TripsLayout(Widget):
       time.sleep(self.UPDATE_INTERVAL)
 
   def _handle_mouse_release(self, mouse_pos):
-    if rl.check_collision_point_rec(mouse_pos, self._local_btn_rect) and self._data_source != "local":
+    if rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), self._local_btn_rect) and self._data_source != "local":
       self._set_data_source("local")
-    elif rl.check_collision_point_rec(mouse_pos, self._cloud_btn_rect) and self._data_source != "cloud":
+    elif rl.check_collision_point_rec(rl.Vector2(mouse_pos.x, mouse_pos.y), self._cloud_btn_rect) and self._data_source != "cloud":
       self._set_data_source("cloud")
 
   def _render_stat_group(self, x, y, width, height, title, data, is_metric):

@@ -336,6 +336,9 @@ def install_stubs() -> None:
 
   fake_pyray = build_fake_pyray()
   sys.modules["pyray"] = fake_pyray
+  # The fork's migrated files import raylib_nb (nanobind build); the fake's
+  # duck-typed Vec2/Rect stand-ins keep the same smoke coverage for both modules.
+  sys.modules["raylib_nb"] = fake_pyray
   # openpilot imports `import pyray as rl`, and some modules use `rl.` helpers that
   # reach back into openpilot; keep the fake self-contained.
 
