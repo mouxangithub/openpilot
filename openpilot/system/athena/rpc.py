@@ -39,6 +39,12 @@ def regex(pattern: str) -> Validator:
 def one_of(*choices: Any) -> Validator:
   return lambda v: any(type(v) is type(c) and v == c for c in choices)
 
+def string(max_length: int = 512) -> Validator:
+  return lambda v: isinstance(v, str) and len(v) <= max_length
+
+def nullable(validator: Validator) -> Validator:
+  return lambda v: v is None or validator(v)
+
 def either(*validators: Validator) -> Validator:
   return lambda v: any(validator(v) for validator in validators)
 

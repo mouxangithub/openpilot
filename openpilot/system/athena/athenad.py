@@ -48,7 +48,7 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.common.version import get_build_metadata
 from openpilot.common.hardware.hw import Paths
 from openpilot.system.athena.rpc import (boolean, dict_of, dispatcher, either, handle, integer, is_call, is_response,
-                                         list_of, loads, number, one_of, regex, struct)
+                                         list_of, loads, nullable, number, one_of, regex, string, struct)
 
 
 ATHENA_HOST = os.getenv('ATHENA_HOST', 'wss://athena.comma.ai')
@@ -390,8 +390,13 @@ def getVersion() -> dict[str, str]:
   }
 
 
-@dispatcher.add_method
-def setNavDestination(latitude: int = 0, longitude: int = 0, place_name: str | None = None, place_details: str | None = None) -> dict[str, int]:
+@dispatcher.add_method(
+  latitude=number(-90.0, 90.0),
+  longitude=number(-180.0, 180.0),
+  place_name=nullable(string(max_length=256)),
+  place_details=nullable(string(max_length=2048)),
+)
+def setNavDestination(latitude: float = 0, longitude: float = 0, place_name: str | None = None, place_details: str | None = None) -> dict[str, int]:
   destination = {
     "latitude": latitude,
     "longitude": longitude,

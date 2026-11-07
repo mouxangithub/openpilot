@@ -17,7 +17,7 @@ import threading
 import time
 
 from functools import partial
-from openpilot.system.athena.rpc import boolean, dict_of, dispatcher, list_of, regex
+from openpilot.system.athena.rpc import boolean, dict_of, dispatcher, list_of, regex, string
 from openpilot.common.params import Params, ParamKeyType
 from openpilot.common.realtime import set_core_affinity
 from openpilot.common.swaglog import cloudlog
@@ -299,7 +299,7 @@ def startLocalProxy(global_end_event: threading.Event, remote_ws_uri: str, local
   return start_local_proxy_shim(global_end_event, local_port, ws)
 
 
-@dispatcher.add_method
+@dispatcher.add_method(code=string(max_length=128), app_id=string(max_length=128), app_name=string(max_length=128), alias=string(max_length=128))
 def pairLocalApp(code: str, app_id: str = "", app_name: str = "", alias: str = "") -> dict[str, bool | str]:
   """Complete pairing with the app on the CURRENT local connection."""
   if _active_local_endpoint is None:
@@ -313,7 +313,7 @@ def pairLocalApp(code: str, app_id: str = "", app_name: str = "", alias: str = "
   return {"success": True}
 
 
-@dispatcher.add_method
+@dispatcher.add_method(app_id=string(max_length=128), alias=string(max_length=128))
 def updateLocalAppAlias(app_id: str, alias: str) -> dict[str, bool | str]:
   if _active_local_endpoint is None:
     return {"success": False, "error": "not connected to a local app"}
@@ -321,7 +321,7 @@ def updateLocalAppAlias(app_id: str, alias: str) -> dict[str, bool | str]:
   return {"success": True, "updated": updated}
 
 
-@dispatcher.add_method
+@dispatcher.add_method(app_id=string(max_length=128))
 def unpairLocalApp(app_id: str) -> dict[str, bool | str]:
   if _active_local_endpoint is None:
     return {"success": False, "error": "not connected to a local app"}
