@@ -71,4 +71,30 @@ except Exception as e:
     print('无法连接:', type(e).__name__, str(e)[:120])
 EOF
 
+echo "===== [7] pandad 循环现场（带时间戳，看连接/掉线循环的原因） ====="
+journalctl -u comma.service --no-pager -n 800 2>/dev/null | grep -i -E 'pandad|DFU|recover|flash|assert|fatal|ValueError|heartbeat|uncaught' | tail -70 || echo "journalctl 无 comma.service 日志"
+
+echo "===== [8] 熊详情（如应用模式可达，抓'在线几秒'的瞬间跑这个） ====="
+"$PY" - <<'EOF' 2>&1 | tail -12
+import os
+from panda import Panda, FW_PATH
+try:
+    serials = Panda.list()
+    if not serials:
+        raise RuntimeError('无 panda 可连')
+    p = Panda(serials[0])
+    print('serial:', serials[0])
+    print('bootstub:', p.bootstub)
+    print('hw_type:', hex(p.get_type()))
+    print('mcu:', p.get_mcu_type())
+    print('version:', p.get_version())
+    print('is_internal:', p.is_internal())
+    print('health:', str(p.health())[:200])
+    fn = os.path.join(FW_PATH, p.get_mcu_type().config.app_fn)
+    print('sig_match:', Panda.get_signature_from_firmware(fn) == p.get_signature())
+    p.close()
+except Exception as e:
+    print('无法连接:', type(e).__name__, str(e)[:120])
+EOF
+
 echo "===== 诊断完成，请把以上全部输出回传 ====="
